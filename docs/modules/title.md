@@ -10,6 +10,9 @@
 - **品质系统**：普通、传说、神话等多品质等级，每个品质有独立排序
 - **双类型称号**：`text`（文字称号）和 `icon`（图标称号），图标称号支持 ArcartX 自定义文字图标
 - **有效期 / 永久**：通过 `/AXS title give` 命令指定时长（如 `7d`、`30m`、`permanent`），后台自动过期清理
+- **日期区间**：支持 `yyyy-MM-dd~yyyy-MM-dd` 格式指定称号的激活日期和过期日期，区间外的称号不生效
+- **套装系统**：多个称号组成一套，达到阈值后激发额外套装属性加成，UI 内实时展示进度
+- **头顶显示**：称号可配置 `overhead-mode`（`texture` 贴图 / `text` 文本），装备后自动显示在玩家头顶
 - **聊天 / Tab 前后缀**：每个称号可独立配置 `chat-prefix`、`chat-suffix`、`tab-prefix`、`tab-suffix`，通过 PAPI 接入任意聊天/Tab 系统
 - **属性加成**：
   - **展示属性**：仅在装备该称号时生效
@@ -42,7 +45,7 @@ modules:
 | --- | --- |
 | `/AXS title status` | 查看称号模块、数据库和缓存状态 |
 | `/AXS title reload` | 重载称号配置、UI 和玩家状态 |
-| `/AXS title give <玩家> <称号ID> <时长>` | 向玩家发放称号。时长如 `permanent`（永久）、`7d`、`12h`、`30m` |
+| `/AXS title give <玩家> <称号ID> <时长>` | 向玩家发放称号。时长如 `permanent`（永久）、`7d`、`12h`、`30m`、`2025-01-01~2025-12-31` |
 | `/AXS title revoke <玩家> <称号ID>` | 收回玩家的指定称号 |
 | `/AXS title open <玩家>` | 为在线玩家打开称号管理界面 |
 
@@ -99,4 +102,19 @@ modules:
 | --- | --- |
 | `%AXStitle_display_attr_<属性键>%` | 当前展示中称号的属性加成值 |
 | `%AXStitle_collection_attr_<属性键>%` | 收藏图鉴属性加成 |
-| `%AXStitle_total_attr_<属性键>%` | 展示 + 收藏的总属性加成 |
+| `%AXStitle_total_attr_<属性键>%` | 展示 + 收藏 + 套装的总属性加成 |
+| `%AXStitle_set_bonus_attr_<属性键>%` | 套装加成属性值 |
+
+### 日期区间
+
+| 占位符 | 说明 |
+| --- | --- |
+| `%AXStitle_activates_<称号ID>%` | 称号的激活时间戳 |
+| `%AXStitle_effective_<称号ID>%` | 称号当前是否在有效区间内（`true`/`false`） |
+
+### 套装
+
+| 占位符 | 说明 |
+| --- | --- |
+| `%AXStitle_set_<套装ID>_completion%` | 该套装已拥有的称号数量 |
+| `%AXStitle_set_<套装ID>_active%` | 该套装是否已激活（`true`/`false`） |
