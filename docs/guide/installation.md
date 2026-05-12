@@ -45,6 +45,40 @@ plugins/
 建议保持服务端运行，**直接编辑 `plugins/ArcartXSuite/config.yml`** 进入下一步。
 :::
 
+## 模块 Jar 部署（可选）
+
+AXS 4.1.0 起支持模块 Jar 独立部署。不放入模块 Jar 时，全部功能由宿主内置加载，行为与之前版本完全一致。
+
+### 结构
+
+```
+plugins/
+  ArcartXSuite.jar
+  ArcartXSuite/
+    config.yml
+    modules/                ← 按需放入模块 Jar
+      AXS-RGB-1.0.0.jar
+      AXS-Tab-1.0.0.jar
+      AXS-Pickup-1.0.0.jar
+      ...
+```
+
+### 工作原理
+
+1. 宿主启动时先扫描 `modules/` 目录，识别所有外部模块 Jar 的 id
+2. 对于有外部 Jar 的模块，宿主跳过内置加载，由模块 Jar 接管
+3. 对于没有外部 Jar 的模块，走内置加载（与之前版本行为一致）
+4. `config.yml` 中的 `enabled` 和 `password` 配置对两种模式均生效
+
+### 重载
+
+- `/AXS reload all` 自动判断每个模块的加载来源，走对应的重载路径
+- `/AXS reload <模块名>` 同理
+
+::: tip 无需手动 ax reload
+ArcartX 现已支持 UI 自动导入，AXS 不再需要在启动或重载时执行 `ax reload` 命令。
+:::
+
 ## 升级 / 替换 jar
 
 - 直接覆盖 jar 然后重启；**不会丢已有数据库 / 已编辑过的 YAML**。

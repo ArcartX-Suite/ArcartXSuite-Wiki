@@ -4,7 +4,21 @@
 
 ---
 
-## 4.0.0（当前）
+## 4.1.0（当前）
+
+- **架构** — 引入 **宿主 + 模块 Jar** 架构（`axs-api` + `axs-core` + `modules/*`），详见 [模块化架构](/architecture/modular)
+- **架构** — `ModuleRegistry` 预扫描外部模块 Jar，自动跳过内置加载，避免双重初始化
+- **架构** — 20 个模块全部迁移为独立 Gradle 子项目（4 个独立实现 + 16 个委托实现）
+- **架构** — 动态命令注册：模块实现 `ModuleCommandHandler` 即可自动注册 `/axs <moduleId>` 子命令
+- **改进** — BossBar / EntityTracker 启动流程统一：`reloadBossBarState(boolean logSummary)` 与其他模块一致
+- **移除** — 不再自动执行 `ax reload true`，ArcartX 已支持 UI 自动导入
+- **移除** — Hybrid Bootstrap 延迟重试机制（`scheduleHybridBootstrap`）
+- **移除** — Boss 首次检测触发 reload 机制（`armBossTriggeredReload` / `notifyTrackedBossDetected`）
+- **改进** — `/AXS reload all` 和 `/AXS reload <模块名>` 自动感知外部模块，走 `moduleRegistry.reloadModule()` 路径
+- **改进** — 所有 16 个委托模块的 `onDisable()` 正确调用 `shutdownXxxModule()` 清理资源
+- **改进** — UI 注册流程审查通过：所有有 UI 的模块在 reload 时完整执行 shutdown → unregister → register → start
+
+## 4.0.0
 
 - **架构** — 模块整合为 17 个主模块，EntityTracker（实体追踪）、CombatEffect（战斗特效）、Announcer（播报系统）、EventPacket（事件引擎）功能扩展
 - **破坏** — 管理命令和 `config.yml` 中的旧模块名已全部移除，不再向下兼容：`bossbar` → `entitytracker`、`killeffect` → `combateffect`、`subtitle` → `announcer`、`attacktarget` → `entitytracker`、`digisdisplay` → `combateffect`、`packetcommand` → `eventpacket`、`onlinereward` → `onlinerewards`
