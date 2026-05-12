@@ -8,7 +8,7 @@
 
 - **架构** — 引入 **宿主 + 模块 Jar** 架构（`axs-api` + `axs-core` + `modules/*`），详见 [模块化架构](/architecture/modular)
 - **架构** — `ModuleRegistry` 预扫描外部模块 Jar，自动跳过内置加载，避免双重初始化
-- **架构** — 20 个模块全部迁移为独立 Gradle 子项目（4 个独立实现 + 16 个委托实现）
+- **架构** — 17 个模块 Jar 子项目（4 个独立实现 + 13 个委托实现），子功能合并入父模块：AttackTarget→EntityTracker、DigisDisplay→CombatEffect、Subtitle→Announcer、PacketCommand→EventPacket
 - **架构** — 动态命令注册：模块实现 `ModuleCommandHandler` 即可自动注册 `/axs <moduleId>` 子命令
 - **改进** — BossBar / EntityTracker 启动流程统一：`reloadBossBarState(boolean logSummary)` 与其他模块一致
 - **移除** — 不再自动执行 `ax reload true`，ArcartX 已支持 UI 自动导入

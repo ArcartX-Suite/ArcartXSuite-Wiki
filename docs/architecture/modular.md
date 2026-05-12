@@ -9,26 +9,23 @@ ArcartXSuite/
 ├── axs-api/              # 模块 API 接口层（AXSModule, ModuleContext 等）
 ├── axs-core/             # 宿主核心（ShadowJar 输出）
 ├── modules/
-│   ├── announcer/        # 公告模块
-│   ├── attacktarget/     # 攻击目标 HUD
-│   ├── bossbar/          # Boss 血条追踪（EntityTracker）
-│   ├── chat/             # 聊天系统
-│   ├── conversation/     # 对话系统
-│   ├── digisdisplay/     # 伤害/治疗飘字
-│   ├── eventpacket/      # 事件包
-│   ├── killeffect/       # 击杀特效
-│   ├── loginview/        # 登录界面
-│   ├── mail/             # 邮件系统
-│   ├── map/              # 地图系统
-│   ├── onlinerewards/    # 在线奖励
-│   ├── pickup/           # 拾取消息 HUD
-│   ├── prop/             # 道具系统
-│   ├── questgps/         # 任务 GPS
-│   ├── rgb/              # 渐变色文本
-│   ├── subtitle/         # 字幕系统
-│   ├── tab/              # Tab 列表同步
-│   ├── title/            # 称号系统
-│   └── warehouse/        # 仓库系统
+│   ├── announcer/        # Announcer 播报 + Subtitle 字幕
+│   ├── bossbar/          # EntityTracker 实体追踪 + AttackTarget 攻击目标
+│   ├── chat/             # Chat 频道聊天
+│   ├── conversation/     # Conversation 对话桥
+│   ├── eventpacket/      # EventPacket 事件引擎
+│   ├── killeffect/       # CombatEffect 战斗特效 + DigisDisplay 伤害飘字
+│   ├── loginview/        # LoginView 登录界面
+│   ├── mail/             # Mail 邮箱
+│   ├── map/              # Map 世界地图
+│   ├── onlinerewards/    # OnlineRewards 在线奖励
+│   ├── pickup/           # Pickup 拾取提示
+│   ├── prop/             # Prop 快捷道具
+│   ├── questgps/         # QuestGPS 任务导航
+│   ├── rgb/              # RGB 渐变色文本
+│   ├── tab/              # Tab 在线列表
+│   ├── title/            # Title 称号
+│   └── warehouse/        # Warehouse 仓库银行
 ```
 
 ## 核心组件
@@ -190,27 +187,24 @@ external-softdepends: []
 
 ## 迁移状态
 
-| 模块 | 模式 | UI 注册 | 说明 |
-|------|------|---------|------|
-| RGB | ✅ 独立 | — | 自建 ArcartRgbService |
-| Pickup | ✅ 独立 | HUD | 自建 PickupService |
-| Tab | ✅ 独立 | — | 自建 TabSyncService |
-| KillEffect | ✅ 独立 | — | 自建 KillEffectService |
-| Announcer | 🔗 委托 | HUD | reloadAnnouncerState |
-| AttackTarget | 🔗 委托 | HUD | 随 BossBar 一起加载 |
-| BossBar | 🔗 委托 | HUD | reloadBossBarState |
-| Chat | 🔗 委托 | — | reloadChatState |
-| Conversation | 🔗 委托 | UI + Selector | reloadConversationState |
-| DigisDisplay | 🔗 委托 | — | 随 KillEffect 一起加载 |
-| EventPacket | 🔗 委托 | — | reloadEventPacketState |
-| LoginView | 🔗 委托 | UI | reloadLoginViewState |
-| Mail | 🔗 委托 | — | reloadMailState |
-| Map | 🔗 委托 | Menu + HUD | reloadMapState |
-| OnlineRewards | 🔗 委托 | — | reloadOnlineRewardsState |
-| Prop | 🔗 委托 | — | reloadPropState |
-| QuestGps | 🔗 委托 | Menu + HUD | reloadQuestGpsState |
-| Subtitle | 🔗 委托 | HUD | reloadSubtitleState |
-| Title | 🔗 委托 | — | reloadTitleState |
-| Warehouse | 🔗 委托 | — | reloadWarehouseState |
+| 模块 Jar | 对应功能模块 | 模式 | UI | 说明 |
+|----------|-------------|------|-----|------|
+| rgb | RGB | ✅ 独立 | — | 自建 ArcartRgbService |
+| pickup | Pickup | ✅ 独立 | HUD | 自建 PickupService |
+| tab | Tab | ✅ 独立 | — | 自建 TabSyncService |
+| killeffect | CombatEffect + DigisDisplay | ✅ 独立 | — | 自建 KillEffectService，DigisDisplay 随 CombatEffect 加载 |
+| announcer | Announcer + Subtitle | 🔗 委托 | HUD | reloadAnnouncerState，Subtitle 随 Announcer 加载 |
+| bossbar | EntityTracker + AttackTarget | 🔗 委托 | HUD | reloadBossBarState，AttackTarget 随 EntityTracker 加载 |
+| chat | Chat | 🔗 委托 | — | reloadChatState |
+| conversation | Conversation | 🔗 委托 | UI+Selector | reloadConversationState |
+| eventpacket | EventPacket | 🔗 委托 | — | reloadEventPacketState |
+| loginview | LoginView | 🔗 委托 | UI | reloadLoginViewState |
+| mail | Mail | 🔗 委托 | — | reloadMailState |
+| map | Map | 🔗 委托 | Menu+HUD | reloadMapState |
+| onlinerewards | OnlineRewards | 🔗 委托 | — | reloadOnlineRewardsState |
+| prop | Prop | 🔗 委托 | — | reloadPropState |
+| questgps | QuestGPS | 🔗 委托 | Menu+HUD | reloadQuestGpsState |
+| title | Title | 🔗 委托 | — | reloadTitleState |
+| warehouse | Warehouse | 🔗 委托 | — | reloadWarehouseState |
 
 > **委托模式**下模块 Jar 只控制「是否加载」，业务逻辑仍在宿主中执行。后续可逐步将 Service 源码搬入模块子项目实现完全解耦。
