@@ -435,7 +435,7 @@ public final class ArcartXSuiteCommand implements CommandExecutor, TabCompleter 
             return true;
         }
         if ("reload".equalsIgnoreCase(args[1])) {
-            boolean success = isExternalModule("entitytracker") ? reloadModuleByJarId("entitytracker") : plugin.reloadBossBarState(true);
+            boolean success = isExternalModule("entitytracker") ? reloadModuleByJarId("entitytracker") : plugin.reloadEntityTrackerState(true);
             sendModuleReloadFeedback(sender, ModuleKey.ENTITY_TRACKER, success);
             return true;
         }
@@ -604,7 +604,7 @@ public final class ArcartXSuiteCommand implements CommandExecutor, TabCompleter 
             return true;
         }
         if ("reload".equalsIgnoreCase(args[1])) {
-            boolean success = plugin.reloadKillEffectState(true);
+            boolean success = plugin.reloadCombatEffectState(true);
             sendModuleReloadFeedback(sender, ModuleKey.COMBAT_EFFECT, success);
             return true;
         }
@@ -1366,7 +1366,7 @@ public final class ArcartXSuiteCommand implements CommandExecutor, TabCompleter 
         String target = args.length < 2 ? "all" : args[1].toLowerCase();
         switch (target) {
             case "all" -> {
-                boolean killEffectSuccess = isExternalModule("combateffect") ? reloadModuleByJarId("combateffect") : plugin.reloadKillEffectState(true);
+                boolean killEffectSuccess = isExternalModule("combateffect") ? reloadModuleByJarId("combateffect") : plugin.reloadCombatEffectState(true);
                 boolean eventPacketSuccess = isExternalModule("eventpacket") ? reloadModuleByJarId("eventpacket") : plugin.reloadEventPacketState(true);
                 boolean tabSuccess = isExternalModule("tab") ? reloadModuleByJarId("tab") : plugin.reloadTabState(true);
                 boolean titleSuccess = isExternalModule("title") ? reloadModuleByJarId("title") : plugin.reloadTitleState(true);
@@ -1382,7 +1382,7 @@ public final class ArcartXSuiteCommand implements CommandExecutor, TabCompleter 
                 boolean chatSuccess = isExternalModule("chat") ? reloadModuleByJarId("chat") : plugin.reloadChatState(true);
                 boolean questGpsSuccess = isExternalModule("questgps") ? reloadModuleByJarId("questgps") : plugin.reloadQuestGpsState(true);
                 boolean mapSuccess = isExternalModule("map") ? reloadModuleByJarId("map") : plugin.reloadMapState(true);
-                boolean bossBarSuccess = isExternalModule("entitytracker") ? reloadModuleByJarId("entitytracker") : plugin.reloadBossBarState(true);
+                boolean bossBarSuccess = isExternalModule("entitytracker") ? reloadModuleByJarId("entitytracker") : plugin.reloadEntityTrackerState(true);
                 if (bossBarSuccess
                     && killEffectSuccess
                     && eventPacketSuccess
@@ -1448,12 +1448,12 @@ public final class ArcartXSuiteCommand implements CommandExecutor, TabCompleter 
                 return true;
             }
             case "entitytracker" -> {
-                boolean success = isExternalModule("entitytracker") ? reloadModuleByJarId("entitytracker") : plugin.reloadBossBarState(true);
+                boolean success = isExternalModule("entitytracker") ? reloadModuleByJarId("entitytracker") : plugin.reloadEntityTrackerState(true);
                 sendModuleReloadFeedback(sender, ModuleKey.ENTITY_TRACKER, success);
                 return true;
             }
             case "combateffect" -> {
-                boolean success = isExternalModule("combateffect") ? reloadModuleByJarId("combateffect") : plugin.reloadKillEffectState(true);
+                boolean success = isExternalModule("combateffect") ? reloadModuleByJarId("combateffect") : plugin.reloadCombatEffectState(true);
                 sendModuleReloadFeedback(sender, ModuleKey.COMBAT_EFFECT, success);
                 return true;
             }

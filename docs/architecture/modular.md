@@ -192,9 +192,9 @@ external-softdepends: []
 | rgb | RGB | ✅ 独立 | — | 自建 ArcartRgbService |
 | pickup | Pickup | ✅ 独立 | HUD | 自建 PickupService |
 | tab | Tab | ✅ 独立 | — | 自建 TabSyncService |
-| combateffect | CombatEffect + DigisDisplay | ✅ 独立 | — | 自建 KillEffectService，DigisDisplay 随 CombatEffect 加载 |
+| combateffect | CombatEffect + DigisDisplay | ✅ 独立 | — | 自建 CombatEffectService，DigisDisplay 随 CombatEffect 加载 |
 | announcer | Announcer + Subtitle | 🔗 委托 | HUD | reloadAnnouncerState，Subtitle 随 Announcer 加载 |
-| entitytracker | EntityTracker + AttackTarget | 🔗 委托 | HUD | reloadBossBarState，AttackTarget 随 EntityTracker 加载 |
+| entitytracker | EntityTracker + AttackTarget | 🔗 委托 | HUD | reloadEntityTrackerState，AttackTarget 随 EntityTracker 加载 |
 | chat | Chat | 🔗 委托 | — | reloadChatState |
 | conversation | Conversation | 🔗 委托 | UI+Selector | reloadConversationState |
 | eventpacket | EventPacket | 🔗 委托 | — | reloadEventPacketState |

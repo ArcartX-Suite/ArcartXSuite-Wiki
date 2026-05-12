@@ -329,7 +329,7 @@ public class ArcartXSuitePlugin extends JavaPlugin {
         if (!externalModuleIds.isEmpty()) {
             consoleInfo("检测到外部模块 Jar: " + externalModuleIds);
         }
-        boolean killEffectLoaded = externalModuleIds.contains("combateffect") || reloadKillEffectState(true);
+        boolean killEffectLoaded = externalModuleIds.contains("combateffect") || reloadCombatEffectState(true);
         boolean eventPacketLoaded = externalModuleIds.contains("eventpacket") || reloadEventPacketState(true);
         boolean tabLoaded = externalModuleIds.contains("tab") || reloadTabState(true);
         boolean titleLoaded = externalModuleIds.contains("title") || reloadTitleState(true);
@@ -345,7 +345,7 @@ public class ArcartXSuitePlugin extends JavaPlugin {
         boolean chatLoaded = externalModuleIds.contains("chat") || reloadChatState(true);
         boolean questGpsLoaded = externalModuleIds.contains("questgps") || reloadQuestGpsState(true);
         boolean mapLoaded = externalModuleIds.contains("map") || reloadMapState(true);
-        boolean bossBarLoaded = externalModuleIds.contains("entitytracker") || reloadBossBarState(true);
+        boolean bossBarLoaded = externalModuleIds.contains("entitytracker") || reloadEntityTrackerState(true);
         printModuleStatusSummary(
             killEffectLoaded, eventPacketLoaded, tabLoaded, titleLoaded, conversationLoaded,
             announcerLoaded, pickupLoaded, propLoaded,
@@ -388,7 +388,7 @@ public class ArcartXSuitePlugin extends JavaPlugin {
         shutdownAttackTargetModule();
         shutdownSubtitleModule();
         shutdownEventPacketModule();
-        shutdownBossBarModule();
+        shutdownEntityTrackerModule();
         if (packetBridge != null) {
             packetBridge.shutdown();
         }
@@ -432,11 +432,11 @@ public class ArcartXSuitePlugin extends JavaPlugin {
         clientPacketGuardConfiguration = null;
     }
 
-    public boolean reloadBossBarState(boolean logSummary) {
+    public boolean reloadEntityTrackerState(boolean logSummary) {
         reloadRootConfiguration();
         registerPlaceholderExpansionIfAvailable();
         passwordGateLocked = false;
-        shutdownBossBarModule();
+        shutdownEntityTrackerModule();
         ValidationResult passwordValidation = refreshModulePasswordValidation(ModuleKey.ENTITY_TRACKER);
 
         if (!isModuleEnabled("entitytracker", true)) {
@@ -1050,7 +1050,7 @@ public class ArcartXSuitePlugin extends JavaPlugin {
         return rgbService == null ? 0 : rgbService.activeEntryCount();
     }
 
-    public boolean reloadKillEffectState(boolean logSummary) {
+    public boolean reloadCombatEffectState(boolean logSummary) {
         reloadRootConfiguration();
         ValidationResult passwordValidation = refreshModulePasswordValidation(ModuleKey.COMBAT_EFFECT);
         if (!isModuleEnabled("combateffect", true)) {
@@ -3660,7 +3660,7 @@ public class ArcartXSuitePlugin extends JavaPlugin {
         return Map.copyOf(groups);
     }
 
-    public void shutdownBossBarModule() {
+    public void shutdownEntityTrackerModule() {
         if (bossTrackerService != null) {
             bossTrackerService.shutdown();
             bossTrackerService = null;
