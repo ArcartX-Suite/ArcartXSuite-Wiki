@@ -14,11 +14,11 @@ ArcartXSuite/
 ├── axs-core/             # 宿主核心（ShadowJar 输出）
 ├── modules/
 │   ├── announcer/        # Announcer 播报 + Subtitle 字幕
-│   ├── bossbar/          # EntityTracker 实体追踪 + AttackTarget 攻击目标
+│   ├── entitytracker/    # EntityTracker 实体追踪 + AttackTarget 攻击目标
 │   ├── chat/             # Chat 频道聊天
 │   ├── conversation/     # Conversation 对话桥（需要 Chemdah）
 │   ├── eventpacket/      # EventPacket 事件引擎
-│   ├── killeffect/       # CombatEffect 战斗特效 + DigisDisplay 伤害飘字
+│   ├── combateffect/     # CombatEffect 战斗特效 + DigisDisplay 伤害飘字
 │   ├── loginview/        # LoginView 登录界面
 │   ├── mail/             # Mail 邮箱
 │   ├── map/              # Map 世界地图
@@ -283,9 +283,9 @@ public final class MyModule implements AXSModule, ModuleCommandHandler {
 | rgb | RGB | ✅ 独立 | — | 自建 ArcartRgbService |
 | pickup | Pickup | ✅ 独立 | HUD | 自建 PickupService |
 | tab | Tab | ✅ 独立 | — | 自建 TabSyncService |
-| killeffect | CombatEffect + DigisDisplay | ✅ 独立 | — | 自建 KillEffectService，DigisDisplay 随 CombatEffect 加载 |
+| combateffect | CombatEffect + DigisDisplay | ✅ 独立 | — | 自建 KillEffectService，DigisDisplay 随 CombatEffect 加载 |
 | announcer | Announcer + Subtitle | 🔗 委托 | HUD | reloadAnnouncerState，Subtitle 随 Announcer 加载 |
-| bossbar | EntityTracker + AttackTarget | 🔗 委托 | HUD | reloadBossBarState，AttackTarget 随 EntityTracker 加载 |
+| entitytracker | EntityTracker + AttackTarget | 🔗 委托 | HUD | reloadBossBarState，AttackTarget 随 EntityTracker 加载 |
 | chat | Chat | 🔗 委托 | — | reloadChatState |
 | conversation | Conversation | 🔗 委托 | UI+Selector | reloadConversationState |
 | eventpacket | EventPacket | 🔗 委托 | — | reloadEventPacketState |

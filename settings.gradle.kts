@@ -5,11 +5,11 @@ include("axs-core")
 
 // ─── 可插拔模块 ───
 include("modules:announcer")
-include("modules:bossbar")
+include("modules:entitytracker")
 include("modules:chat")
 include("modules:conversation")
 include("modules:eventpacket")
-include("modules:killeffect")
+include("modules:combateffect")
 include("modules:loginview")
 include("modules:mail")
 include("modules:map")

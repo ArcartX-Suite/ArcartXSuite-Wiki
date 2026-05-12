@@ -329,7 +329,7 @@ public class ArcartXSuitePlugin extends JavaPlugin {
         if (!externalModuleIds.isEmpty()) {
             consoleInfo("检测到外部模块 Jar: " + externalModuleIds);
         }
-        boolean killEffectLoaded = externalModuleIds.contains("killeffect") || reloadKillEffectState(true);
+        boolean killEffectLoaded = externalModuleIds.contains("combateffect") || reloadKillEffectState(true);
         boolean eventPacketLoaded = externalModuleIds.contains("eventpacket") || reloadEventPacketState(true);
         boolean tabLoaded = externalModuleIds.contains("tab") || reloadTabState(true);
         boolean titleLoaded = externalModuleIds.contains("title") || reloadTitleState(true);
@@ -345,7 +345,7 @@ public class ArcartXSuitePlugin extends JavaPlugin {
         boolean chatLoaded = externalModuleIds.contains("chat") || reloadChatState(true);
         boolean questGpsLoaded = externalModuleIds.contains("questgps") || reloadQuestGpsState(true);
         boolean mapLoaded = externalModuleIds.contains("map") || reloadMapState(true);
-        boolean bossBarLoaded = externalModuleIds.contains("bossbar") || reloadBossBarState(true);
+        boolean bossBarLoaded = externalModuleIds.contains("entitytracker") || reloadBossBarState(true);
         printModuleStatusSummary(
             killEffectLoaded, eventPacketLoaded, tabLoaded, titleLoaded, conversationLoaded,
             announcerLoaded, pickupLoaded, propLoaded,

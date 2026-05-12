@@ -1,0 +1,12 @@
+id: combateffect
+name: CombatEffect
+version: 1.0.0
+main: xuanmo.arcartxsuite.killeffect.KillEffectModule
+api-version: 1.0
+
+depends: []
+softdepends: []
+external-depends:
+
+external-softdepends:
+
