@@ -1254,14 +1254,14 @@ public class ArcartXSuitePlugin extends JavaPlugin {
             subtitleService.start();
             if (logSummary) {
                 consoleInfo(
-                    "Subtitle(→Announcer) 已载入，字幕组数量: "
+                    "Announcer 字幕已载入，字幕组数量: "
                         + groups.size()
                         + " | UI: "
                         + subtitleRuntimeUiId
                 );
             }
         } catch (IOException exception) {
-            consoleWarn("Subtitle 模块启动失败: " + exception.getMessage());
+            consoleWarn("Announcer 字幕模块启动失败: " + exception.getMessage());
             shutdownSubtitleModule();
         }
     }
@@ -1449,7 +1449,7 @@ public class ArcartXSuitePlugin extends JavaPlugin {
             attackTargetService.start();
             if (logSummary) {
                 consoleInfo(
-                    "AttackTarget(→BossBar) 已载入，refresh="
+                    "EntityTracker 攻击目标已载入，refresh="
                         + attackTargetConfiguration.refreshIntervalTicks()
                         + " ticks | timeout="
                         + attackTargetConfiguration.targetTimeoutMs()
@@ -1460,7 +1460,7 @@ public class ArcartXSuitePlugin extends JavaPlugin {
                 );
             }
         } catch (IOException exception) {
-            consoleWarn("AttackTarget 模块启动失败: " + exception.getMessage());
+            consoleWarn("EntityTracker 攻击目标模块启动失败: " + exception.getMessage());
             shutdownAttackTargetModule();
         }
     }
@@ -1586,7 +1586,7 @@ public class ArcartXSuitePlugin extends JavaPlugin {
         if (clientBridge == null || !clientBridge.isAvailable()) {
             digisDisplayConfiguration = null;
             if (logSummary) {
-                consoleWarn("DigisDisplay(→KillEffect) 需要客户端桥接，当前已跳过");
+                consoleWarn("CombatEffect 伤害飘字需要客户端桥接，当前已跳过");
             }
             return;
         }
@@ -1597,7 +1597,7 @@ public class ArcartXSuitePlugin extends JavaPlugin {
         digisDisplayService.start();
         if (logSummary) {
             consoleInfo(
-                "DigisDisplay 模块已载入，damage="
+                "CombatEffect 伤害飘字已载入，damage="
                     + digisDisplayConfiguration.damageEnabled()
                     + " | player="
                     + digisDisplayConfiguration.playerDamageEnabled()
@@ -4126,7 +4126,7 @@ public class ArcartXSuitePlugin extends JavaPlugin {
     ) {
         consoleInfo("模块状态:");
         printModuleFlag("EntityTracker(+AttackTarget)", bossBar);
-        printModuleFlag("CombatEffect(+DigisDisplay)", killEffect);
+        printModuleFlag("CombatEffect", killEffect);
         printModuleFlag("EventPacket", eventPacket);
         printModuleFlag("Tab", tab);
         printModuleFlag("Title", title);
