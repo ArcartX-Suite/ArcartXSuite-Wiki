@@ -305,7 +305,7 @@ public final class MyModule implements AXSModule, ModuleCommandHandler {
 
 ### v2 — 统一启动流程 & 移除 ax reload
 
-- **BossBar 流程统一**：`reloadBossBarState` 签名简化为 `(boolean logSummary)`，与其他模块一致
+- **EntityTracker 流程统一**：`reloadBossBarState` 签名简化为 `(boolean logSummary)`，与其他模块一致
 - **移除 ArcartX 自动 reload**：不再执行 `ax reload true`，ArcartX 已支持 UI 自动导入
 - **移除 Hybrid Bootstrap**：不再有延迟重试机制（`scheduleHybridBootstrap`）
 - **预扫描避免双重初始化**：`ModuleRegistry.scanAvailableModuleIds()` 在内置加载前执行
@@ -316,6 +316,6 @@ public final class MyModule implements AXSModule, ModuleCommandHandler {
 
 - Gradle 多模块结构 + axs-api 接口定义
 - ModuleRegistry + ModuleClassLoader + ModuleContext
-- 4 个独立实现模块 (RGB, Pickup, Tab, KillEffect/CombatEffect)
+- 4 个独立实现模块 (RGB, Pickup, Tab, CombatEffect)
 - 13 个委托实现模块
 - 动态命令注册 (ModuleCommandHandler)

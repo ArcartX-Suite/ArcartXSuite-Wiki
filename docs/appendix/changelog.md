@@ -10,7 +10,7 @@
 - **架构** — `ModuleRegistry` 预扫描外部模块 Jar，自动跳过内置加载，避免双重初始化
 - **架构** — 17 个模块 Jar 子项目（4 个独立实现 + 13 个委托实现），子功能合并入父模块：AttackTarget→EntityTracker、DigisDisplay→CombatEffect、Subtitle→Announcer、PacketCommand→EventPacket
 - **架构** — 动态命令注册：模块实现 `ModuleCommandHandler` 即可自动注册 `/axs <moduleId>` 子命令
-- **改进** — BossBar / EntityTracker 启动流程统一：`reloadBossBarState(boolean logSummary)` 与其他模块一致
+- **改进** — EntityTracker 启动流程统一：`reloadBossBarState(boolean logSummary)` 与其他模块一致
 - **移除** — 不再自动执行 `ax reload true`，ArcartX 已支持 UI 自动导入
 - **移除** — Hybrid Bootstrap 延迟重试机制（`scheduleHybridBootstrap`）
 - **移除** — Boss 首次检测触发 reload 机制（`armBossTriggeredReload` / `notifyTrackedBossDetected`）

@@ -47,6 +47,7 @@ export default defineConfig({
           text: '架构',
           items: [
             { text: '概览', link: '/architecture/' },
+            { text: '模块化架构', link: '/architecture/modular' },
             { text: '桥接层 (Bridge)', link: '/architecture/bridges' },
             { text: '客户端包守卫', link: '/architecture/security' },
             { text: '资源加密 (.axb)', link: '/architecture/protected-resources' },
