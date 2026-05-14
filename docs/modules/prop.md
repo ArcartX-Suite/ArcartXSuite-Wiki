@@ -1,4 +1,4 @@
-# Prop 快捷道具
+﻿# Prop 快捷道具
 
 ## 功能定位
 
@@ -24,7 +24,6 @@
 modules:
   prop:
     enabled: true
-    password: "AXS-Prop@2026#Ready"
 ```
 
 ## 命令

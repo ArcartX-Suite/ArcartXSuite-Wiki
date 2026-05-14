@@ -1,4 +1,4 @@
-# Mail 邮箱
+﻿# Mail 邮箱
 
 ## 功能定位
 
@@ -43,7 +43,6 @@
 modules:
   mail:
     enabled: true
-    password: "AXS-Mail@2026#Ready"
 ```
 
 ## 命令

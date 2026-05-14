@@ -1,4 +1,4 @@
-# Chat 聊天
+﻿# Chat 聊天
 
 ## 功能定位
 
@@ -32,7 +32,6 @@
 modules:
   chat:
     enabled: true
-    password: "AXS-Chat@2026#Ready"
 ```
 
 ## 关键配置（`ArcartXChat.yml`）

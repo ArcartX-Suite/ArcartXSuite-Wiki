@@ -1,4 +1,4 @@
-# Pickup 拾取提示
+﻿# Pickup 拾取提示
 
 ## 功能定位
 
@@ -22,7 +22,6 @@
 modules:
   pickup:
     enabled: true
-    password: "AXS-Pickup@2026#Ready"
 ```
 
 ## 关键配置（`ArcartXPickup.yml`）

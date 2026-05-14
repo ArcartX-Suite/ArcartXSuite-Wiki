@@ -1,4 +1,4 @@
-# Warehouse 仓库银行
+﻿# Warehouse 仓库银行
 
 ## 功能定位
 
@@ -45,7 +45,6 @@
 modules:
   warehouse:
     enabled: true
-    password: "AXS-Warehouse@2026#Ready"
 ```
 
 ## 命令

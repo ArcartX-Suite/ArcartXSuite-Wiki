@@ -1,4 +1,4 @@
-# 第一次启用流程
+﻿# 第一次启用流程
 
 为避免一次开全部模块导致排查困难，**强烈推荐"先单模块 → 再全量"**的渐进流程。
 
@@ -20,7 +20,6 @@
 modules:
   announcer:
     enabled: true
-    password: "AXS-Announcer@2026#Ready"
 ```
 
 ### 2. 改模块配置（可选）

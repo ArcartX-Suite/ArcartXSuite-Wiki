@@ -1,4 +1,4 @@
-# OnlineRewards 在线奖励
+﻿# OnlineRewards 在线奖励
 
 ## 功能定位
 
@@ -37,7 +37,6 @@
 modules:
   onlinerewards:
     enabled: true
-    password: "AXS-OnlineRewards@2026#Ready"
 ```
 
 ## 命令

@@ -1,4 +1,4 @@
-# Map 地图
+﻿# Map 地图
 
 ## 功能定位
 
@@ -24,7 +24,6 @@
 modules:
   map:
     enabled: true
-    password: "AXS-Map@2026#Ready"
 ```
 
 ## 命令

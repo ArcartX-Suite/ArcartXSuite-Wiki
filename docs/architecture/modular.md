@@ -1,6 +1,6 @@
 # 模块化架构
 
-ArcartXSuite 从 4.1.0 起引入 **宿主 + 模块 Jar** 架构。宿主（`axs-core`）提供核心基础设施，各功能模块可以打包为独立 Jar 放入 `modules/` 目录按需加载。
+ArcartXSuite 1.0.0-beta 使用 **宿主 + 模块 Jar** 架构。宿主（`axs-core`）提供核心基础设施，各功能模块可以打包为独立 Jar 放入 `modules/` 目录按需加载。
 
 ## 项目结构
 
@@ -99,7 +99,7 @@ public final class RgbModule implements AXSModule {
     @Override
     public ModuleDescriptor descriptor() {
         return ModuleDescriptor.builder("rgb")
-            .name("RGB").version("1.0.0")
+            .name("RGB").version("1.0.0-beta")
             .mainClass(getClass().getName()).build();
     }
 
@@ -164,7 +164,7 @@ public final class AnnouncerModule implements AXSModule {
 ```yaml
 id: mymodule           # 唯一标识，与 config.yml 中的键对应
 name: MyModule         # 显示名称
-version: 1.0.0
+version: 1.0.0-beta
 main: com.example.MyModule   # AXSModule 实现类全限定名
 api-version: 1.0
 depends: []            # 强依赖的其他模块 id

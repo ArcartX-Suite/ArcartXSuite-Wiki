@@ -1,4 +1,4 @@
-# QuestGPS 任务导航
+﻿# QuestGPS 任务导航
 
 ## 功能定位
 
@@ -22,7 +22,6 @@
 modules:
   questgps:
     enabled: true
-    password: "AXS-QuestGPS@2026#Ready"
 ```
 
 ## 命令

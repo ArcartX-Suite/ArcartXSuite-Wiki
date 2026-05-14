@@ -1,4 +1,4 @@
-# Title 称号
+﻿# Title 称号
 
 ## 功能定位
 
@@ -34,7 +34,6 @@
 modules:
   title:
     enabled: true
-    password: "AXS-Title@2026#Ready"
 ```
 
 ## 命令

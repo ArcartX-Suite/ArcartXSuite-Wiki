@@ -1,4 +1,4 @@
-# Conversation 对话桥
+﻿# Conversation 对话桥
 
 ## 功能定位
 
@@ -22,7 +22,6 @@
 modules:
   conversation:
     enabled: true
-    password: "AXS-Conversation@2026#Ready"
 ```
 
 ## 关键配置（`ArcartXConversation.yml`）

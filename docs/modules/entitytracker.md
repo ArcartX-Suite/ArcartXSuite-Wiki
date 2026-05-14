@@ -1,4 +1,4 @@
-# EntityTracker 实体追踪
+﻿# EntityTracker 实体追踪
 
 ## 功能定位
 
@@ -35,7 +35,6 @@
 modules:
   entitytracker:
     enabled: true
-    password: "AXS-EntityTracker@2026#Ready"
 ```
 
 ## 配置

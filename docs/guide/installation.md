@@ -21,7 +21,7 @@
 ```
 plugins/
 ├── ArcartX-x.x.x.jar
-└── ArcartXSuite-4.0.0.jar
+└── ArcartXSuite-1.0.0-beta.jar
 ```
 
 ### 3. 启动一次，生成默认资源
@@ -29,7 +29,7 @@ plugins/
 启动 / 重启服务端。AXS 会：
 
 - 把 jar 内 `.axb` 解密、解压成默认 YAML 释放到 `plugins/ArcartXSuite/`
-- 生成 `config.yml`（总开关 + 各模块密码）和各模块配置
+- 生成 `config.yml`（总开关 + 各模块启用状态）、`license.yml`（QQ + 授权码列表）和各模块配置
 - 生成 `arcartx/ui/*.yml` UI 模板
 - 全部模块**默认 `enabled: false`**
 
@@ -39,15 +39,15 @@ plugins/
 /AXS status
 ```
 
-所有行都是 `disabled / locked` 是正常的 — 因为还没填密码、没开模块。
+所有行都是 `disabled / locked` 是正常的，因为还没填写授权码，也还没开启模块。
 
 ::: info 首次启动后不需要继续做什么
-建议保持服务端运行，**直接编辑 `plugins/ArcartXSuite/config.yml`** 进入下一步。
+建议保持服务端运行，先编辑 `plugins/ArcartXSuite/license.yml` 填写 QQ 和授权码，再编辑 `plugins/ArcartXSuite/config.yml` 开启需要的模块。
 :::
 
 ## 模块 Jar 部署（可选）
 
-AXS 4.1.0 起支持模块 Jar 独立部署。不放入模块 Jar 时，全部功能由宿主内置加载，行为与之前版本完全一致。
+AXS 1.0.0-beta 支持模块 Jar 独立部署。不放入模块 Jar 时，全部功能由宿主内置加载。
 
 ### 结构
 
@@ -57,9 +57,9 @@ plugins/
   ArcartXSuite/
     config.yml
     modules/                ← 按需放入模块 Jar
-      ArcartXSuite-RGB-3.3.8.jar
-      ArcartXSuite-Tab-3.3.8.jar
-      ArcartXSuite-Pickup-3.3.8.jar
+      ArcartXSuite-RGB-1.0.0-beta.jar
+      ArcartXSuite-Tab-1.0.0-beta.jar
+      ArcartXSuite-Pickup-1.0.0-beta.jar
       ...
 ```
 
@@ -68,7 +68,7 @@ plugins/
 1. 宿主启动时先扫描 `modules/` 目录，识别所有外部模块 Jar 的 id
 2. 对于有外部 Jar 的模块，宿主跳过内置加载，由模块 Jar 接管
 3. 对于没有外部 Jar 的模块，走内置加载（与之前版本行为一致）
-4. `config.yml` 中的 `enabled` 和 `password` 配置对两种模式均生效
+4. `config.yml` 中的 `enabled` 配置与 license.yml 授权对两种模式均生效
 
 ### 重载
 

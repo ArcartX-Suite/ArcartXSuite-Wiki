@@ -1,4 +1,4 @@
-import { defineConfig } from 'vitepress'
+﻿import { defineConfig } from 'vitepress'
 
 export default defineConfig({
   lang: 'zh-CN',
@@ -35,7 +35,7 @@ export default defineConfig({
           items: [
             { text: '概览', link: '/guide/' },
             { text: '安装', link: '/guide/installation' },
-            { text: '模块密码门控', link: '/guide/module-passwords' },
+            { text: '模块授权门控', link: '/guide/module-passwords' },
             { text: '第一次启用流程', link: '/guide/first-run' },
             { text: '命令速查', link: '/guide/commands' },
             { text: 'PlaceholderAPI 速查', link: '/guide/placeholders' },

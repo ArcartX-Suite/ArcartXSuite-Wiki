@@ -1,4 +1,4 @@
-# Announcer 播报系统
+﻿# Announcer 播报系统
 
 ## 功能定位
 
@@ -30,7 +30,6 @@
 modules:
   announcer:
     enabled: true
-    password: "AXS-Announcer@2026#Ready"
 ```
 
 ## 配置

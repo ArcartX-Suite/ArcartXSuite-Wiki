@@ -20,6 +20,11 @@
 | `/AXS reload all` | 按依赖顺序重载全部已启用模块的配置、UI 和服务，适用于修改配置后刷新 | `/AXS reload all` |
 | `/AXS reload <模块名>` | 仅重载指定模块的配置。常用于只改了某个模块的 YAML 后快速生效 | `/AXS reload mail` |
 | `/AXS <模块名> status` | 查看单个模块的状态详情，包括加载的配置数量、数据库连接状态等 | `/AXS entitytracker status` |
+| `/AXS license status` | 查看授权状态、QQ、已解锁模块、授权入口、代理状态、缓存状态和每个授权码的诊断结果 | `/AXS license status` |
+| `/AXS license refresh` | 刷新当前服务器绑定的授权票据。不会消耗换绑次数，适合改完 `license.yml` 后手动同步 | `/AXS license refresh` |
+| `/AXS license activate` | 主动激活当前服务器，把 `qq + keys + install_id + 机器指纹` 绑定到授权中心 | `/AXS license activate` |
+| `/AXS license rebind` | 显式把授权码换绑到当前服务器，会消耗该授权码的自助换绑次数/冷却 | `/AXS license rebind` |
+| `/AXS license fingerprint` | 输出当前服务器机器指纹、localSaltHash 和参与指纹计算的组件，用于授权诊断 | `/AXS license fingerprint` |
 
 合法的 `<模块名>` 共 17 个：
 
@@ -29,6 +34,36 @@ chat, conversation, loginview, mail, onlinerewards,
 pickup, prop, rgb, tab, title,
 map, questgps, warehouse
 ```
+
+---
+
+### 授权命令说明
+
+授权命令用于排查和管理 `plugins/ArcartXSuite/license.yml` 中的 QQ + 授权码配置。当前付费模块为 `warehouse`、`map`、`mail`、`title`、`questgps`、`conversation`，免费模块只受 `config.yml` 的 `modules.<module>.enabled` 控制。
+
+| 命令 | 什么时候使用 | 关键输出 |
+| --- | --- | --- |
+| `/AXS license status` | 日常检查授权是否生效、哪些模块已解锁、网络是否走代理 | `状态`、`原因`、`QQ`、`Subject`、`模块`、`使用缓存`、`授权入口`、`代理`、`预检`、`最后操作`、`成功入口`、`授权码结果` |
+| `/AXS license refresh` | 授权码已绑定本服务器，需要重新向 Worker 验证并刷新缓存 | 本次请求的入口、是否成功、失败原因 |
+| `/AXS license activate` | 首次绑定、缓存过旧、或出现 `BINDING_NOT_FOUND` 时手动激活 | 成功后会写入新的 `security/license.cache` |
+| `/AXS license rebind` | 授权码已经绑定到另一台服务器或旧机器指纹，且你确认要迁移到当前服务器 | 成功后旧绑定失效；失败时会显示换绑次数或冷却原因 |
+| `/AXS license fingerprint` | 对比后台记录、排查机器指纹不匹配、确认本地 salt 是否变化 | `hash`、`localSaltHash` 和各指纹组件 |
+
+常见授权错误：
+
+| 错误 | 含义 | 处理方式 |
+| --- | --- | --- |
+| `MISSING_QQ` | `license.qq` 未填写 | 填写授权所属 QQ |
+| `MISSING_LICENSE_KEYS` | `license.keys` 为空 | 写入至少一个授权码 |
+| `QQ_MISMATCH` | 授权码不属于当前 QQ | 检查 QQ 或换成该 QQ 名下的码 |
+| `LICENSE_CODE_NOT_FOUND` | 授权中心不存在该授权码 | 检查是否填错，或确认是否发到远程 D1 |
+| `LICENSE_CODE_NOT_ACTIVE` | 授权码已停用 | 后台启用或重新发码 |
+| `LICENSE_CODE_EXPIRED` | 授权码已过期 | 后台延长有效期或重新发码 |
+| `BINDING_NOT_FOUND` | 当前授权码还没有绑定本服务器 | 执行 `/AXS license activate` |
+| `BOUND_TO_OTHER_INSTALL` | 授权码已绑定其他服务器或旧机器指纹，常见于删除/重建 `security/local-salt.dat` 后 | 确认迁移后执行 `/AXS license rebind`；如果是误删 salt，优先恢复旧 `local-salt.dat` |
+| `REBIND_QUOTA_EXHAUSTED` | 自助换绑次数不足 | 后台补换绑次数或管理员删除绑定 |
+| `REBIND_COOLDOWN_ACTIVE` | 换绑冷却中 | 等待冷却结束或后台重置冷却 |
+| `NETWORK_ERROR` | 授权入口不可达 | 检查服务器网络、Cloudflare 可达性或临时代理配置 |
 
 ---
 

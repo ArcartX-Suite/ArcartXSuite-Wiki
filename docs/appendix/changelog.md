@@ -1,45 +1,24 @@
 # 变更日志
 
-按版本倒序记录对**外部接口契约**的破坏性变更与重要新增。
+当前 wiki 只保留正在发布的 beta 版本记录，旧版历史不再展示。
 
 ---
 
-## 4.1.0（当前）
+## 1.0.0-beta（当前）
 
-- **架构** — 引入 **宿主 + 模块 Jar** 架构（`axs-api` + `axs-core` + `modules/*`），详见 [模块化架构](/architecture/modular)
-- **架构** — `ModuleRegistry` 预扫描外部模块 Jar，自动跳过内置加载，避免双重初始化
-- **架构** — 17 个模块 Jar 子项目（4 个独立实现 + 13 个委托实现），目标 HUD、伤害飘字、字幕和客户端回包能力分别收归父模块
-- **架构** — 动态命令注册：模块实现 `ModuleCommandHandler` 即可自动注册 `/axs <moduleId>` 子命令
-- **改进** — EntityTracker 启动流程统一：`reloadEntityTrackerState(boolean logSummary)` 与其他模块一致
-- **移除** — 不再自动执行 `ax reload true`，ArcartX 已支持 UI 自动导入
-- **移除** — Hybrid Bootstrap 延迟重试机制（`scheduleHybridBootstrap`）
-- **移除** — Boss 首次检测触发 reload 机制（`armBossTriggeredReload` / `notifyTrackedBossDetected`）
-- **改进** — `/AXS reload all` 和 `/AXS reload <模块名>` 自动感知外部模块，走 `moduleRegistry.reloadModule()` 路径
-- **改进** — 所有 16 个委托模块的 `onDisable()` 正确调用 `shutdownXxxModule()` 清理资源
-- **改进** — UI 注册流程审查通过：所有有 UI 的模块在 reload 时完整执行 shutdown → unregister → register → start
-
-## 4.0.0
-
-- **架构** — 模块整合为 17 个主模块，EntityTracker（实体追踪）、CombatEffect（战斗特效）、Announcer（播报系统）、EventPacket（事件引擎）功能扩展
-- **破坏** — 管理命令和 `config.yml` 只保留 17 个主模块入口：`entitytracker`、`combateffect`、`announcer`、`eventpacket`、`onlinerewards` 等，不再兼容旧的分散入口
-- **新增** — LoginView 登录界面模块（独立/AuthMe 兼容双模式）
-- **文档** — 迁移至 VitePress，全新可视化文档站
-
-## 3.3.8
-
-- **架构** — 资源加密协议固定为 `AES/GCM/NoPadding` + GZIP + magic `AXR1` + 12-byte IV
-- **架构** — `ClientPacketGuard` 引入 `mode: silent / notify / punish`
-- **Mail** — `attachment-tax-rates.<currency>` 替代旧 `vault-tax-rate`
-- **EventPacket** — 引入 `rules.<id>` 模型（trigger + actions 链）
-- **Title** — 新增 `craneattribute.enabled` 桥
-- **OnlineRewards** — ~~管理命令固定为 `onlinereward`（单数）~~ → 4.0.0 起统一为 `onlinerewards`（复数）
-- **EntityTracker** — rewards actions 支持四类；`inventory-full` 策略
+- **授权** — 使用 QQ + 多授权码体系，支持单模块码和全模块 suite 码。
+- **授权** — 付费模块绑定 `QQ + install_id + 机器指纹`，`security/local-salt.dat` 作为绑定身份的一部分。
+- **授权** — `/AXS license status|refresh|activate|rebind|fingerprint` 提供授权状态、刷新、激活、换绑和机器指纹诊断。
+- **架构** — 保留宿主 + 模块 Jar 架构，`axs-core` 提供核心能力，`modules/*` 可按需外置加载。
+- **资源保护** — 付费模块资源通过 ticket 中的 `resourceKeys` 解包后在内存中解密。
+- **文档** — 安装、授权、命令速查和安全架构文档已同步到 `1.0.0-beta`。
 
 ---
 
 ## 升级注意事项
 
-1. **备份** `plugins/ArcartXSuite/`
-2. 启动新版本，让 `YamlConfigSynchronizer` 合并新增字段
-3. `/AXS status` 检查模块状态
-4. `/AXS reload all` 确认无报错
+1. 备份 `plugins/ArcartXSuite/`，尤其是 `license.yml` 和 `security/local-salt.dat`。
+2. 覆盖 jar 后重启服务端。
+3. 执行 `/AXS license status` 检查授权状态。
+4. 执行 `/AXS status` 检查模块状态。
+5. 需要迁移授权到新服务器时，确认后再执行 `/AXS license rebind`。

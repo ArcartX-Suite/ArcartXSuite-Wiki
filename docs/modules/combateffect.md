@@ -1,4 +1,4 @@
-# CombatEffect 战斗特效
+﻿# CombatEffect 战斗特效
 
 ## 功能定位
 
@@ -34,7 +34,6 @@
 modules:
   combateffect:
     enabled: true
-    password: "AXS-CombatEffect@2026#Ready"
 ```
 
 ## 配置

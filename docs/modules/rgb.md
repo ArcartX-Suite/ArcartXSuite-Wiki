@@ -1,4 +1,4 @@
-# RGB 渐变文本
+﻿# RGB 渐变文本
 
 ## 功能定位
 
@@ -24,7 +24,6 @@
 modules:
   rgb:
     enabled: true
-    password: "AXS-RGB@2026#Ready"
 ```
 
 ## 关键配置（`ArcartXRGB.yml`）

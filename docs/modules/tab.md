@@ -1,4 +1,4 @@
-# Tab 在线列表
+﻿# Tab 在线列表
 
 ## 功能定位
 
@@ -27,7 +27,6 @@
 modules:
   tab:
     enabled: true
-    password: "AXS-Tab@2026#Ready"
 ```
 
 ## 关键配置（`ArcartXTab.yml`）

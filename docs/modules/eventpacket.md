@@ -1,4 +1,4 @@
-# EventPacket 事件引擎
+﻿# EventPacket 事件引擎
 
 ## 功能定位
 
@@ -47,7 +47,6 @@
 modules:
   eventpacket:
     enabled: true
-    password: "AXS-EventPacket@2026#Ready"
 ```
 
 ## 关键配置（`ArcartXEventPacket.yml`）

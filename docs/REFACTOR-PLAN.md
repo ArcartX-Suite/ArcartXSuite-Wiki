@@ -1,4 +1,4 @@
-# ArcartXSuite 模块化重构方案
+﻿# ArcartXSuite 模块化重构方案
 
 > 目标：将「宿主包含近乎全部功能 + 模块 Jar 仅起调用作用」改为「各模块负责自身功能逻辑 + UI + 配置，宿主仅负责激活和调用各模块」。
 
@@ -73,7 +73,7 @@ xuanmo.arcartxsuite/
 ├── item/                       # ItemStack 相关共享工具
 ├── module/                     # ModuleRegistry, ModuleClassLoader, DefaultModuleContext
 ├── mythiclib/                  # MythicLib 共享桥接
-├── security/                   # ClientPacketGuard, ModulePasswordAuthenticator
+├── security/                   # ClientPacketGuard, LicenseService
 └── util/                       # 共享工具类
 ```
 
