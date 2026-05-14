@@ -4,7 +4,7 @@
 
 | 项 | 要求 |
 | --- | --- |
-| 服务端 | Spigot / Paper / 其分支，**MC 1.20.1** |
+| 服务端 | Spigot / Paper / mohist，**MC 1.20.1及以上** |
 | Java | **17** 或更高 |
 | ArcartX 服务端插件 | 必装，版本与客户端 MOD 对齐 |
 | 客户端 MOD | 玩家必须安装 ArcartX 客户端 MOD |
