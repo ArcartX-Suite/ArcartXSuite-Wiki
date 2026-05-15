@@ -13,7 +13,7 @@ modules:
 - 免费模块：`enabled: true` 后即可加载。
 - 付费模块：`enabled: true` 后，还必须通过 `license.yml` 云端授权。
 
-当前付费模块：`warehouse`、`map`、`mail`、`title`、`questgps`、`conversation`。
+当前付费模块：`warehouse`、`map`、`mail`、`title`、`questgps`、`conversation`、`tab`。
 
 ## license.yml
 

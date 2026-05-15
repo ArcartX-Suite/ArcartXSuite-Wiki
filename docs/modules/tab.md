@@ -28,6 +28,8 @@
 
 ## 启用步骤
 
+Tab 是付费模块，启用前需要先完成 `license.yml` 授权激活。
+
 ```yaml
 modules:
   tab:
@@ -39,9 +41,14 @@ modules:
 ```yaml
 settings:
   debug: false
-  ui-id: "AXS:tab_list"
   register-ui-on-enable: true
+  overwrite-ui-file: false
   refresh-interval-ticks: 20
+
+tabs:
+  online-tab:
+    ui-id: "ArcartXTab"
+    packet-handler: "tab"
 ```
 
 ## 命令
