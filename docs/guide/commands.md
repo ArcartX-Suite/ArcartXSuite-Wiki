@@ -65,7 +65,7 @@ map, questgps, warehouse
 | `BOUND_TO_OTHER_INSTALL` | 授权码已绑定其他服务器或旧机器指纹，常见于删除/重建 `security/local-salt.dat` 后 | 确认迁移后执行 `/AXS license rebind`；如果是误删 salt，优先恢复旧 `local-salt.dat` |
 | `REBIND_QUOTA_EXHAUSTED` | 自助换绑次数不足 | 后台补换绑次数或管理员删除绑定 |
 | `REBIND_COOLDOWN_ACTIVE` | 换绑冷却中 | 等待冷却结束或后台重置冷却 |
-| `NETWORK_ERROR` | 授权入口不可达 | 检查服务器网络、Cloudflare 可达性或临时代理配置 |
+| `NETWORK_ERROR` | 授权入口不可达 | 检查服务器是否能访问 `axs.021209.xyz`，再检查 Cloudflare Workers 兜底入口或临时代理配置 |
 
 ---
 

@@ -68,6 +68,8 @@ plugins/ArcartXSuite/security/local-salt.dat
 
 `local-salt.dat` 是绑定身份的一部分，不能把它看成普通临时缓存。删除它会让插件生成新的 local salt，继而改变 `localSaltHash` 和最终 `fingerprintHash`。即使 `license.yml` 里的 `install_id` 没变，Worker 也会把新的指纹视为另一个安装环境，并返回“授权码已绑定到其他服务器或旧机器指纹”。
 
+网络不可达时，插件会进入本地 `license.cache` 校验。在线票据验签仍严格要求完整 `fingerprintHash` 匹配；离线缓存额外允许 VPN、虚拟网卡或网卡顺序变化导致的 `fingerprintHash` 变化，只要 `QQ + install_id + local-salt.dat + ticket 签名 + 有效期` 仍然匹配，就可以继续使用缓存中的付费模块和资源密钥。
+
 排查这类问题时按顺序确认：
 
 1. `license.yml` 的 `qq` 和 `keys` 是否属于同一个 QQ。

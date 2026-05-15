@@ -27,15 +27,17 @@ license:
   install_id: "auto"
 
   endpoints:
-    - name: "fallback-workers"
-      base_url: "https://arcartxsuite-license.arcartxsuite-license.workers.dev"
+    - name: "official-domain"
+      base_url: "https://axs.021209.xyz"
       priority: 10
       timeout_ms: 4500
-    - name: "primary-cloudflare"
-      base_url: "https://license.arcartxsuite.com"
-      priority: 30
-      timeout_ms: 3500
+    - name: "cloudflare-workers"
+      base_url: "https://arcartxsuite-license.arcartxsuite-license.workers.dev"
+      priority: 20
+      timeout_ms: 4500
 ```
+
+`official-domain` 是当前建议优先使用的正式授权入口；`cloudflare-workers` 是 Cloudflare Workers 原始兜底入口。插件会按 `priority` 从小到大尝试，正式域名不可达时会自动切到兜底入口。
 
 多个单模块授权码可以叠加：
 
@@ -150,6 +152,38 @@ plugins/ArcartXSuite/security/local-salt.dat
 
 或走云端网页换绑流程。
 
+## 离线缓存
+
+如果授权入口因为 Cloudflare、DNS、VPS 网络或代理问题不可达，插件会自动尝试读取：
+
+```txt
+plugins/ArcartXSuite/security/license.cache
+```
+
+离线缓存能生效需要同时满足：
+
+1. `license.qq` 与缓存票据里的 QQ 一致。
+2. `license.yml` 的 `install_id` 与缓存票据一致。
+3. `security/local-salt.dat` 与缓存票据一致。
+4. ticket 签名有效，且没有超过 `offlineGraceUntil` / `hardExpireAt`。
+
+从 `1.0.2-beta` 后，离线缓存对 VPN、虚拟网卡、网卡顺序变化造成的 `fingerprintHash` 变化会做兼容：只要 `local-salt.dat` 仍然一致，网络不可达时仍可使用本地缓存。在线激活和在线刷新仍然严格校验当前完整机器指纹。
+
+如果日志只显示网络超时，可以执行：
+
+```txt
+/axs license status
+```
+
+看 `使用缓存` 和 `原因`。如果缓存不可用，原因里会显示类似：
+
+```txt
+本地缓存不可用: 本地缓存无效: installId 不匹配
+本地缓存不可用: 本地缓存无效: QQ 不匹配
+本地缓存不可用: 本地缓存无效: ticket 已硬过期
+本地缓存不可用: 无 license.cache
+```
+
 ::: danger 不要随意删除 security 目录
 `local-salt.dat` 是服务器机器指纹的一部分。授权中心绑定的不只是 `install_id`，还包括 `local-salt.dat` 参与计算后的机器指纹。
 
@@ -190,10 +224,10 @@ AXS 支持两种换绑方式，次数相互独立：
 云端换绑地址：
 
 ```txt
-https://license.arcartxsuite.com/rebind
+https://axs.021209.xyz/rebind
 ```
 
-fallback 地址：
+兜底地址：
 
 ```txt
 https://arcartxsuite-license.arcartxsuite-license.workers.dev/rebind
@@ -261,7 +295,7 @@ https://arcartxsuite-license.arcartxsuite-license.workers.dev/rebind
 | `REBIND_QUOTA_EXHAUSTED` | 自助换绑次数不足 | 后台补换绑次数或管理员删除绑定 |
 | `REBIND_COOLDOWN_ACTIVE` | 换绑冷却中 | 等待冷却结束或后台重置冷却 |
 | `CLOUD_REBIND_MONTHLY_LIMIT_EXHAUSTED` | 云端网页换绑本月免费次数已用完 | 等到下个月，或联系管理员处理绑定 |
-| `NETWORK_ERROR` | 授权入口不可达 | 检查服务器网络、Cloudflare 可达性或临时代理配置 |
+| `NETWORK_ERROR` | 授权入口不可达 | 检查服务器是否能访问 `axs.021209.xyz`，再检查 Cloudflare Workers 兜底入口或临时代理配置 |
 
 ## VPS 网络与代理排查
 
@@ -271,11 +305,13 @@ https://arcartxsuite-license.arcartxsuite-license.workers.dev/rebind
 proxy=system:none 网络错误: UnknownHostException: arcartxsuite-license.arcartxsuite-license.workers.dev
 ```
 
-含义是：插件尝试读取系统代理，但当前 VPS 没有可用系统代理，且 VPS 的 DNS 解析不到 `workers.dev`。这不是授权码问题。
+含义是：插件尝试读取系统代理，但当前 VPS 没有可用系统代理，且 VPS 的 DNS 解析不到授权域名。这不是授权码问题。
 
 先在 VPS 上测试：
 
 ```bash
+nslookup axs.021209.xyz
+curl -I https://axs.021209.xyz/v1/time
 nslookup arcartxsuite-license.arcartxsuite-license.workers.dev
 curl -I https://arcartxsuite-license.arcartxsuite-license.workers.dev/v1/time
 ```
@@ -283,6 +319,8 @@ curl -I https://arcartxsuite-license.arcartxsuite-license.workers.dev/v1/time
 Windows VPS 可用：
 
 ```powershell
+nslookup axs.021209.xyz
+curl.exe -I https://axs.021209.xyz/v1/time
 nslookup arcartxsuite-license.arcartxsuite-license.workers.dev
 curl.exe -I https://arcartxsuite-license.arcartxsuite-license.workers.dev/v1/time
 ```

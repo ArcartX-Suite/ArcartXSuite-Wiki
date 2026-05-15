@@ -29,16 +29,70 @@ modules:
     enabled: true
 ```
 
+同时需要在 Chemdah 的对应对话配置中指定 AXS 注册的对话主题：
+
+```yaml
+theme: 'ArcartXConversation'
+```
+
+没有设置这个 `theme` 时，Chemdah 仍会使用自己的默认对话主题，Conversation 模块虽然已加载，但玩家不会看到 ArcartX 的可视化对话 UI。
+
 ## 关键配置（`ArcartXConversation.yml`）
 
 ```yaml
-settings:
-  debug: false
-  ui-id: "AXS:conversation_panel"
-  register-ui-on-enable: true
-  overwrite-ui-file: false
+debug: false
+
+theme:
+  # 注册到 Chemdah ConversationService 的主题名。
+  # Chemdah 对话配置中的 theme 必须填写同一个名字。
+  name: ArcartXConversation
+
+ui:
+  dialog-ui-id: AXS:conversation_menu
+  selector-ui-id: AXS:conversation_selector_hud
+  export-default-ui: true
+  overwrite-exported-ui: false
+
+interaction:
   npc-detect-range: 5.0
+  suppress-reopen-ms: 1200
 ```
+
+## Chemdah 对话主题配置
+
+在需要使用 ArcartX UI 渲染的 Chemdah 对话文件里加入：
+
+```yaml
+theme: 'ArcartXConversation'
+```
+
+示例：
+
+```yaml
+example_conversation:
+  name: '村民'
+  theme: 'ArcartXConversation'
+  dialog:
+    - '你好，欢迎来到服务器。'
+```
+
+`ArcartXConversation` 必须与 `ArcartXConversation.yml` 中的 `theme.name` 保持一致。如果你改了 `theme.name`，Chemdah 对话文件里的 `theme` 也要同步修改。
+
+修改后执行：
+
+```txt
+/AXS conversation reload
+```
+
+如果 Chemdah 本身不会热重载对话配置，还需要按你的 Chemdah 管理方式重载 Chemdah 或重启服务器。
+
+## 常见配置问题
+
+| 现象 | 常见原因 | 处理方式 |
+| --- | --- | --- |
+| Conversation 模块已加载，但仍显示 Chemdah 默认聊天栏对话 | Chemdah 对话文件没有写 `theme: 'ArcartXConversation'` | 给对应对话补上 theme 并重载 |
+| 控制台显示已注册 `ArcartXConversation`，但某个 NPC 不弹 AXS UI | 只有部分对话配置了 theme | 检查该 NPC 对应的 Chemdah 对话文件 |
+| 修改 `ArcartXConversation.yml` 的 `theme.name` 后全部失效 | Chemdah 侧仍写旧主题名 | 两边主题名保持一致 |
 
 ## 命令
 
@@ -51,5 +105,6 @@ settings:
 
 ## UI / Packet
 
-- UI ID：`AXS:conversation_panel`
+- 对话 UI ID：`AXS:conversation_menu`
+- NPC 选择 HUD ID：`AXS:conversation_selector_hud`
 - 服务端推对话帧（说话人、文本、选项列表），客户端推选项选择回包
