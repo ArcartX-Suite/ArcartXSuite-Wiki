@@ -64,40 +64,17 @@ license:
 
 ### 后台发码
 
-管理员在 Worker 项目目录执行：
-
-```powershell
-cd D:\Desktop\arcartxsuite-license
-```
-
-给 QQ 发放全模块授权：
-
-```powershell
-npm.cmd run license-admin -- create qq=1451759359 type=suite
-```
-
-给 QQ 发放单模块授权：
-
-```powershell
-npm.cmd run license-admin -- create qq=1451759359 module=warehouse
-```
-
-命令成功后会输出：
+管理员发放
 
 ```txt
 code=AXS-SUITE-xxxxxxxxxxxxxxxxxxxx
-id=xxxxxxxx-xxxx-xxxx-xxxx-xxxxxxxxxxxx
 ```
 
-`code=` 是给服务器填写的授权码明文，只显示一次；`id=` 是数据库里的授权码 ID，后台停用、补次数、删除绑定时使用。
+`code=` 是给服务器填写的授权码明文，只显示一次。
 
-如果这个 QQ 需要使用云端网页换绑，还需要生成授权账号设置密码链接：
+如果需要使用云端网页换绑，还需要生成授权账号设置密码链接：
 
-```powershell
-npm.cmd run license-admin -- setup-token qq=1451759359
-```
-
-把输出里的 `account_setup=...` 发给用户，让用户设置 QQ 授权账号密码。服务器激活本身不需要账号登录；账号登录只用于云端网页换绑和后续自助管理。
+设置 QQ 授权账号密码。服务器激活本身不需要账号登录；账号登录只用于云端网页换绑和后续自助管理。
 
 ### 服务器填写 license.yml
 
