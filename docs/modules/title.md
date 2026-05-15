@@ -25,8 +25,14 @@
 
 ## 依赖
 
-- 必需：ArcartX
-- 可选：PlaceholderAPI、AttributePlus / CraneAttribute / MythicLib
+| 类型 | 依赖 | 作用 | 缺少时表现 |
+| --- | --- | --- | --- |
+| 必需 | ArcartX | 称号管理 UI、头顶显示和客户端图标文本 | 模块无法提供可视化称号界面 |
+| 可选 | PlaceholderAPI | 输出 `%AXStitle_*%`，供聊天、TAB、计分板读取 | 称号 UI 仍可用，PAPI 输出不可用 |
+| 可选 | AttributePlus | 原生属性行和属性插件加成 | AttributePlus 属性不生效 |
+| 可选 | CraneAttribute | CraneAttribute 属性加成 | CraneAttribute 属性不生效 |
+| 可选 | MythicLib / MMOItems | MythicLib stat modifier 和 MMOItems 生态属性 | MythicLib/MMOItems 属性不生效 |
+| 可选 | MySQL 服务 | 跨服共享称号数据 | 默认 SQLite 可用；多服共享建议改 MySQL |
 
 ## 启用步骤
 

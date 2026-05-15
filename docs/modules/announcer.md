@@ -21,8 +21,11 @@
 
 ## 依赖
 
-- 必需：ArcartX
-- 可选：PlaceholderAPI（解析文本中的 `%...%`）
+| 类型 | 依赖 | 作用 | 缺少时表现 |
+| --- | --- | --- | --- |
+| 必需 | ArcartX | 注册 HUD 公告和字幕 UI，向客户端发送公告/字幕包 | 模块无法正常展示 UI |
+| 可选 | PlaceholderAPI | 解析公告、字幕文本中的 `%...%` 变量 | 文本照常发送，但 PAPI 变量保持原样或按空值处理 |
+| 可选 | EventPacket 模块 | 通过 `subtitle.play` 动作触发字幕组 | 不影响 Announcer 自身轮播，只是不能用 EventPacket 联动字幕 |
 
 ## 启用步骤
 

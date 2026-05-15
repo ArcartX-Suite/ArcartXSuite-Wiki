@@ -36,8 +36,15 @@
 
 ## 依赖
 
-- 必需：ArcartX
-- 可选：Vault / PlayerPoints
+| 类型 | 依赖 | 作用 | 缺少时表现 |
+| --- | --- | --- | --- |
+| 必需 | ArcartX | 仓库、共享管理、银行 UI 和虚拟物品槽 | 模块无法提供可视化仓库 |
+| 可选 | Vault | 仓库升级、共享仓库、银行等金币货币 | Vault 货币不可用，可改用其他货币/命令桥接 |
+| 可选 | PlayerPoints | 点券货币、升级或银行产品 | PlayerPoints 货币不可用 |
+| 可选 | PlaceholderAPI | 自定义货币余额读取、条件文本变量 | PAPI 货币/变量不可用 |
+| 可选 | MythicMobs / MythicBukkit | 自动存入 MythicMob 掉落、MythicItems 识别和黑名单 | 原版物品正常；Mythic 专属识别不可用 |
+| 可选 | NeigeItems / MMOItems | 物品分类、黑名单和展示时识别专属物品 | 对应物品库信息可能按普通 ItemStack 处理 |
+| 可选 | MySQL 服务 | 多服共享仓库/银行数据 | 默认 SQLite 可用；多服共享建议改 MySQL |
 
 ## 启用步骤
 

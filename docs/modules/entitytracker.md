@@ -26,8 +26,13 @@
 
 ## 依赖
 
-- 必需：ArcartX、**MythicMobs / MythicBukkit**
-- 可选：PlaceholderAPI、NeigeItems、MythicLib / MMOItems
+| 类型 | 依赖 | 作用 | 缺少时表现 |
+| --- | --- | --- | --- |
+| 必需 | ArcartX | Boss HUD、攻击目标 HUD、聊天卡片和客户端数据包 | 模块 UI 不可用 |
+| 按功能必需 | MythicMobs / MythicBukkit | Boss 追踪依赖 MythicMob ID、生成/死亡事件和 MythicItems 奖励 | Boss 追踪会跳过；普通攻击目标 HUD 仍可使用 |
+| 可选 | PlaceholderAPI | 输出 EntityTracker PAPI，并解析部分显示文本 | PAPI 输出和变量解析不可用 |
+| 可选 | NeigeItems | 奖励命令或物品库联动时发放/识别 NeigeItems 物品 | 只影响对应奖励动作 |
+| 可选 | MythicLib / MMOItems | 配合奖励、物品展示或其他战斗生态识别 | 只影响对应联动 |
 
 ## 启用步骤
 

@@ -14,7 +14,12 @@
 
 ## 依赖
 
-- 必需：ArcartX
+| 类型 | 依赖 | 作用 | 缺少时表现 |
+| --- | --- | --- | --- |
+| 必需 | ArcartX | 拾取提示 HUD、物品图标和客户端动画包 | 模块无法显示拾取提示 |
+| 可选 | NeigeItems | 识别 NeigeItems 物品显示名/数据 | 原版物品正常，NeigeItems 专属信息可能按普通物品显示 |
+| 可选 | MythicMobs / MythicBukkit | 识别 MythicItems / MythicMob 掉落物信息 | 原版物品正常，Mythic 物品专属信息可能按普通物品显示 |
+| 可选 | MMOItems | 识别 MMOItems 物品信息 | 原版物品正常，MMOItems 专属信息可能按普通物品显示 |
 
 ## 启用步骤
 

@@ -2,6 +2,28 @@
 
 AXS 共 **17 个功能模块**，涵盖聊天、战斗、播报、追踪、登录等核心玩法。其中 **11 个免费模块** 开箱即用，**6 个付费模块** 需要单独授权。
 
+## 依赖总览
+
+| 模块 | 授权 | 必需依赖 | 按功能选装 | 说明 |
+| --- | --- | --- | --- | --- |
+| Announcer | 免费 | ArcartX | PlaceholderAPI、EventPacket | PAPI 只影响文本变量解析 |
+| EntityTracker | 免费 | ArcartX | MythicMobs/MythicBukkit、PlaceholderAPI、NeigeItems、MythicLib/MMOItems | Boss 追踪需要 Mythic；普通攻击目标 HUD 可独立使用 |
+| Chat | 免费 | ArcartX | PlaceholderAPI、Redis、MySQL | Redis/MySQL 只用于跨服或共享数据 |
+| EventPacket | 免费 | ArcartX | PlaceholderAPI、MythicMobs/MythicBukkit、其他 AXS 模块 | 只在使用对应触发器或动作时需要 |
+| CombatEffect | 免费 | ArcartX | MythicLib/MMOItems、CraneAttribute、AttributePlus、MythicMobs | 属性伤害来源会自动回退 |
+| LoginView | 免费 | ArcartX | AuthMe、MySQL、EventPacket | `authme` 模式必须安装 AuthMe；`standalone` 可不用 |
+| OnlineRewards | 免费 | ArcartX | PlaceholderAPI、Mail、Vault、Redis、MySQL | 邮件奖励、跨服同步按功能启用 |
+| Pickup | 免费 | ArcartX | NeigeItems、MythicMobs/MythicBukkit、MMOItems | 物品库缺失时按普通物品显示 |
+| Prop | 免费 | ArcartX | MythicLib/MMOItems、AttributePlus、命令型插件 | 只影响对应道具效果 |
+| RGB | 免费 | ArcartX、PlaceholderAPI | Chat、Tab、Title | RGB 本质是 PAPI 输出 |
+| Tab | 免费 | ArcartX、PlaceholderAPI | Redis、Title | PAPI 是渲染和排序核心依赖 |
+| Warehouse | 付费 | ArcartX、有效模块授权 | Vault、PlayerPoints、PlaceholderAPI、MythicMobs、NeigeItems、MMOItems、MySQL | 货币、物品库、跨服存储按功能启用 |
+| Map | 付费 | ArcartX、有效模块授权 | Vault、PlayerPoints、QuestGPS、MythicMobs、NeigeItems | 收费和任务导航按功能启用 |
+| Mail | 付费 | ArcartX、有效模块授权 | PlaceholderAPI、Vault、PlayerPoints、Redis、MySQL、物品库插件 | 跨服邮件建议 MySQL + Redis |
+| Title | 付费 | ArcartX、有效模块授权 | PlaceholderAPI、AttributePlus、CraneAttribute、MythicLib/MMOItems、MySQL | PAPI 只影响对外输出 |
+| QuestGPS | 付费 | ArcartX、Chemdah、有效模块授权 | Map、EventPacket | Chemdah 是任务来源 |
+| Conversation | 付费 | ArcartX、Chemdah、有效模块授权 | Adyeshach、EventPacket | Adyeshach 只影响 NPC 入口/选择器 |
+
 ## 免费模块
 
 <div class="module-grid">

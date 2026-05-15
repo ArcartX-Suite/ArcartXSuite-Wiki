@@ -34,8 +34,15 @@
 
 ## 依赖
 
-- 必需：ArcartX
-- 可选：Vault / PlayerPoints、NeigeItems / MythicMobs items、Redis（跨服）
+| 类型 | 依赖 | 作用 | 缺少时表现 |
+| --- | --- | --- | --- |
+| 必需 | ArcartX | 收件箱、写信、日志、管理 UI 和附件槽交互 | 模块无法提供可视化邮箱 |
+| 可选 | PlaceholderAPI | `placeholder-command` 货币、条件判断和邮件文本变量 | 相关变量/条件不可用 |
+| 可选 | Vault | 金币附件、手续费或 Vault 货币扣费 | Vault 货币功能关闭，物品邮件仍可用 |
+| 可选 | PlayerPoints | 点券附件或点券扣费 | PlayerPoints 货币功能关闭 |
+| 可选 | NeigeItems / MythicMobs / MMOItems | 物品附件来自对应物品库时保留识别信息 | 原版 ItemStack 附件正常；物品库专属识别不可用 |
+| 可选 | Redis 服务 | 多服邮件广播和缓存刷新 | 单服邮件正常，跨服同步关闭 |
+| 可选 | MySQL 服务 | 多服共享邮件数据 | 默认 SQLite 可用；多服共享建议改 MySQL |
 
 ## 启用步骤
 

@@ -25,8 +25,13 @@
 
 ## 依赖
 
-- 必需：ArcartX
-- 可选：MythicLib / MMOItems、CraneAttribute、AttributePlus、MythicMobs
+| 类型 | 依赖 | 作用 | 缺少时表现 |
+| --- | --- | --- | --- |
+| 必需 | ArcartX | 播放击杀特效、伤害飘字和治疗飘字 | 模块无法向客户端展示战斗反馈 |
+| 可选 | MythicLib / MMOItems | 读取 MythicLib 结算后的属性伤害和 MMOItems 伤害来源 | 自动回退到下一个来源或 Bukkit 原版伤害 |
+| 可选 | CraneAttribute | 读取 CraneAttribute 属性伤害 | 自动回退到下一个来源 |
+| 可选 | AttributePlus | 读取 AttributePlus 属性伤害 | 自动回退到 Bukkit 原版伤害 |
+| 可选 | MythicMobs / MythicBukkit | MythicMob ID 黑名单、技能治疗识别 | 原版实体照常显示；MythicMob 专属过滤/治疗识别不可用 |
 
 ## 启用步骤
 

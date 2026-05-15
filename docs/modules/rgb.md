@@ -16,7 +16,11 @@
 
 ## 依赖
 
-- 必需：ArcartX、**PlaceholderAPI**
+| 类型 | 依赖 | 作用 | 缺少时表现 |
+| --- | --- | --- | --- |
+| 必需 | ArcartX | 提供 Shimmer/UI 侧 RGB 工具函数注册环境 | 模块无法完整接入 AXS |
+| 必需 | PlaceholderAPI | 注册 `%arcartrgb_*%` 占位符，并解析嵌套 PAPI | 模块不会加载或无法输出 RGB 占位符 |
+| 可选 | Chat、Tab、Title 等模块 | 消费 `%arcartrgb_*%` 输出 | RGB 本身可用，只是没有对应展示入口 |
 
 ## 启用步骤
 

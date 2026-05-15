@@ -38,8 +38,12 @@
 
 ## 依赖
 
-- 必需：ArcartX
-- 可选：PlaceholderAPI（`placeholder-*` 触发器需要）
+| 类型 | 依赖 | 作用 | 缺少时表现 |
+| --- | --- | --- | --- |
+| 必需 | ArcartX | 接收 `client-packet` 触发器，执行 UI/客户端相关动作 | 客户端回包触发不可用 |
+| 可选 | PlaceholderAPI | `placeholder-*` / `papi-*` 条件和触发器 | 这些触发器会失效，普通 join/quit/command-signal 不受影响 |
+| 可选 | MythicMobs / MythicBukkit | `mob-kill-count` 按 MythicMob ID 计数 | MythicMob 击杀累计触发不可用 |
+| 可选 | Announcer、Mail、QuestGPS、OnlineRewards、EntityTracker 等 AXS 模块 | 执行对应模块联动动作或接收模块信号 | 只影响引用了该模块的动作/信号 |
 
 ## 启用步骤
 
