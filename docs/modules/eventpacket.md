@@ -1,8 +1,12 @@
 ﻿# EventPacket 事件引擎
 
-## 功能定位
+## 功能定位-ArcartXSuite的最具有学习意义的模块
 
 **通用触发器 + 动作链**模块。当指定事件发生时，按顺序执行一组动作（发 UI 包、播字幕、执行命令、派发邮件、授予称号等）。支持 9 种触发器和 11 种动作类型，覆盖服务端事件监听和客户端回包驱动两大场景。
+
+使用本模块可以提升你对ArcartX运用的上限，避免写脚本的情况下触发更多你想要的事件
+
+本模块已替代ArcartX社区的**ArcartXPacketCommand**附属插件功能，具体使用方法请阅读 [client-packet — 客户端回包触发](#_9-client-packet——客户端回包触发)
 
 ## 依赖
 
@@ -221,15 +225,15 @@ rules:
 
 ---
 
-### 7. `mob-kill-count` — 击杀怪物累积
+### 7. `mob-kill-count` — 击杀计数
 
-玩家击杀指定类型怪物累积满 N 次后触发。进度持久化到本地文件，重启不丢失。
+玩家击杀指定类型怪物（可包括玩家）累积满 N 次后触发。进度持久化到本地文件，重启不丢失。
 
 | 专属字段 | 类型 | 说明 |
 | --- | --- | --- |
 | `count` | int | 需要累积的击杀次数（默认 `1`） |
 | `worlds` | list | 限定世界名（留空 = 不限） |
-| `entity-types` | list | 限定原版实体类型如 `ZOMBIE`、`SKELETON`（留空 = 不限） |
+| `entity-types` | list | 限定原版实体类型如 `ZOMBIE`、`SKELETON`、`PLAYER`（留空 = 不限） |
 | `mythic-mob-ids` | list | 限定 MythicMobs 的 mob ID（留空 = 不限） |
 
 ```yaml
@@ -255,6 +259,58 @@ rules:
 
 ::: tip 过滤逻辑
 `worlds`、`entity-types`、`mythic-mob-ids` 三个列表是 AND 关系——只要配置了的列表就必须匹配；留空表示不限制。
+:::
+
+::: tip 击杀玩家计数
+此触发器同样支持追踪击杀玩家。由于 `PlayerDeathEvent` 继承自 `EntityDeathEvent`，当玩家 A 击杀玩家 B 时，B 的实体类型为 `PLAYER`。只需配置 `entity-types: [PLAYER]` 即可实现累计击杀玩家 N 次后触发。
+:::
+
+#### 示例：累计击杀 10 名玩家授予称号
+
+```yaml
+rules:
+  pvp_hunter_title:
+    enabled: true
+    trigger: mob-kill-count
+    count: 10
+    entity-types:
+      - "PLAYER"
+    repeatable: false
+    actions:
+      - type: title.give
+        title-id: "pvp_hunter"
+        duration: "30d"
+      - type: subtitle.play
+        group-id: "pvp_achievement"
+```
+
+#### 示例：每击杀 5 名玩家循环发送奖励
+
+```yaml
+rules:
+  pvp_streak_reward:
+    enabled: true
+    trigger: mob-kill-count
+    count: 5
+    entity-types:
+      - "PLAYER"
+    worlds:
+      - "pvp_arena"
+    repeatable: true
+    cooldown: "30s"
+    actions:
+      - type: mail.send
+        preset-id: "pvp_streak_reward"
+      - type: command.dispatch
+        executor: console
+        commands:
+          - "say {player} 在竞技场累计击杀 {kill_count} 名玩家！"
+```
+
+::: warning 注意
+- `entity-types: [PLAYER]` 只追踪被其他**玩家**击杀的情况（`entity.getKiller()` 必须非空）。
+- 若同时配置了 `mythic-mob-ids`，玩家击杀不会匹配任何 MythicMob ID（始终为空），因此不要混用。
+- 进度存储在 `ArcartXEventPacketProgress.yml`，格式为 `mob-kill-count.<玩家UUID>.<规则ID>: 计数`。
 :::
 
 ---
