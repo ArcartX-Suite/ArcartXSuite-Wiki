@@ -35,6 +35,18 @@ settings:
   refresh-interval-ticks: 20   # PAPI 轮询间隔（tick），默认 20（1秒）
   debug: false                 # 开启后每次动作执行会打印日志
 
+storage:                       # 击杀计数 + 规则触发记录的数据库配置
+  mode: sqlite                 # sqlite 或 mysql
+  sqlite:
+    file: "eventpacket.db"     # 位于 plugins/ArcartXSuite/data/eventpacket/
+  mysql:
+    host: "127.0.0.1"
+    port: 3306
+    database: "arcartxsuite"
+    username: "root"
+    password: ""
+  pool-size: 2                 # HikariCP 连接池最大连接数
+
 packet-command:
   enabled: true                          # 是否启用 client-packet 预设
   packet-id: "ArcartXEventPacket"        # 客户端发包匹配的 packetId
@@ -57,7 +69,7 @@ rules:
 | --- | --- | --- | --- |
 | `enabled` | boolean | `true` | 是否启用该规则 |
 | `trigger` | string | 必填 | 触发器类型 |
-| `repeatable` | boolean | `false` | 是否可重复触发；`false` 时每玩家仅触发一次（服务器重启后重置） |
+| `repeatable` | boolean | `false` | 是否可重复触发；`false` 时每玩家仅触发一次（记录持久化到数据库，重启后仍生效） |
 | `cooldown` | string | 无 | 冷却时间，格式 `10s` / `5m` / `2h` / `1d` / `500ms` |
 | `actions` | list | 必填 | 动作列表，每个动作是一个 `type` + 参数的 Map |
 
@@ -227,7 +239,7 @@ rules:
 
 ### 7. `mob-kill-count` — 击杀计数
 
-玩家击杀指定类型怪物（可包括玩家）累积满 N 次后触发。进度持久化到本地文件，重启不丢失。
+玩家击杀指定类型怪物（可包括玩家）累积满 N 次后触发。进度持久化到模块数据库（默认 SQLite，可切换 MySQL），重启不丢失。
 
 | 专属字段 | 类型 | 说明 |
 | --- | --- | --- |
@@ -310,7 +322,7 @@ rules:
 ::: warning 注意
 - `entity-types: [PLAYER]` 只追踪被其他**玩家**击杀的情况（`entity.getKiller()` 必须非空）。
 - 若同时配置了 `mythic-mob-ids`，玩家击杀不会匹配任何 MythicMob ID（始终为空），因此不要混用。
-- 进度存储在 `ArcartXEventPacketProgress.yml`，格式为 `mob-kill-count.<玩家UUID>.<规则ID>: 计数`。
+- 进度存储在 EventPacket 模块数据库（默认 `data/eventpacket/eventpacket.db` SQLite，或 MySQL），表 `eventpacket_kill_progress`，主键 `(player_uuid, rule_id)`。`repeatable: false` 的规则触发记录持久化在 `eventpacket_fired_rules`，服务器重启后不会重置。
 :::
 
 ---
