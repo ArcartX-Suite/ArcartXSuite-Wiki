@@ -76,7 +76,6 @@ export default defineConfig({
             { text: 'Pickup 拾取提示', link: '/modules/pickup' },
             { text: 'Prop 快捷道具', link: '/modules/prop' },
             { text: 'RGB 渐变文本', link: '/modules/rgb' },
-            { text: 'Tab 在线列表', link: '/modules/tab' },
           ],
         },
         {
@@ -89,6 +88,13 @@ export default defineConfig({
             { text: 'QuestGPS 任务导航', link: '/modules/questgps' },
             { text: 'Map 地图', link: '/modules/map' },
             { text: 'Conversation 对话桥', link: '/modules/conversation' },
+          ],
+        },
+        {
+          text: '福利模块',
+          collapsed: false,
+          items: [
+            { text: 'Tab 在线列表', link: '/modules/tab' },
           ],
         },
       ],
