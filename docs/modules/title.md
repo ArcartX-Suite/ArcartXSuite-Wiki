@@ -17,7 +17,7 @@
 - **属性加成**：
   - **展示属性 (display)**：仅在装备该称号时生效
   - **收藏属性 (collection)**：只要拥有且未过期即累计（收集图鉴式）
-  - **两种字段形式**：`*-attributes` (Map<键, 数值>) 与 `*-attribute-lines` (List<String>)，详见下文《属性字段详解》
+  - **两种字段形式**：`*-attributes`（`Map<键, 数值>`）与 `*-attribute-lines`（`List<String>`），详见下文《属性字段详解》
 - **三大属性插件集成**：同时对接 AttributePlus、MythicLib（含基于它的 MMOItems 生态）、CraneAttribute，各有独立开关和 source/modifier 前缀
 - **UI 菜单**：ArcartX UI 驱动的称号管理界面，玩家可浏览、装备、卸下、隐藏称号
 - **PAPI 全量输出**：拥有数量、装备信息、剩余时间、属性加成等全部通过 PlaceholderAPI 输出
