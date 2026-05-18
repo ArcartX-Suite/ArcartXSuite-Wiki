@@ -43,20 +43,85 @@ theme: 'ArcartXConversation'
 debug: false
 
 theme:
-  # 注册到 Chemdah ConversationService 的主题名。
-  # Chemdah 对话配置中的 theme 必须填写同一个名字。
   name: ArcartXConversation
 
-ui:
+client:
   dialog-ui-id: AXS:conversation_menu
   selector-ui-id: AXS:conversation_selector_hud
-  export-default-ui: true
-  overwrite-exported-ui: false
+  register-ui-on-enable: true
+  overwrite-ui-files: false
 
 interaction:
-  npc-detect-range: 5.0
-  suppress-reopen-ms: 1200
+  enabled: true
+  scan-range: 6.0
+  scan-period-ticks: 10
+  selector-sticky-ms: 1500
+  open-cooldown-ms: 350
+  reply-debounce-ms: 250
+  suppress-reopen-ms: 500
+
+keybinds:
+  confirm:
+    name: AXS_CONVERSATION_CONFIRM
+    default-key: F
+  previous:
+    name: AXS_CONVERSATION_PREVIOUS
+    default-key: NUMPAD_8
+  next:
+    name: AXS_CONVERSATION_NEXT
+    default-key: NUMPAD_2
 ```
+
+## NPC 外观配置（`npc-appearances`）
+
+模块启动 / 重载时，自动为指定 Adyeshach NPC 应用 ArcartX 模型与动画，无需手动命令。
+
+依赖 **ArcartX** 和 **Adyeshach** 同时可用；`npc` 字段匹配 NPC 显示名、自定义名或 Adyeshach ID（忽略大小写）。
+
+### 模式 A — 持久默认动画（`setDefaultState`）
+
+不填 `animation-speed`，调用 `setDefaultState(state, animation)`，动画持续生效。
+
+```yaml
+npc-appearances:
+  - npc: "村长老王"
+    model: npc_village_elder
+    scale: 1.0
+    state: idle
+    animation: idle_loop
+```
+
+### 模式 B — 一次性播放（`playAnimation`，带速度控制）
+
+填写 `animation-speed > 0`，调用 `playAnimation(animation, speed, transitionTime, keepTime)`。
+
+```yaml
+npc-appearances:
+  - npc: "铁匠张三"
+    model: npc_blacksmith
+    scale: 1.0
+    animation: hammer_swing
+    animation-speed: 1.5      # > 0 时启用此模式（1.0 = 正常速度）
+    transition-time: 100      # 过渡时间，毫秒，默认 5
+    keep-time: -1             # 持续时间，毫秒，-1 = 播放完整动画
+```
+
+### 字段说明
+
+| 字段 | 必填 | 默认值 | 说明 |
+| --- | --- | --- | --- |
+| `npc` | ✓ | — | NPC 显示名 / 自定义名 / Adyeshach ID |
+| `model` | ✓ | — | ArcartX 模型 ID |
+| `scale` | | `1.0` | 模型缩放比例 |
+| `state` | | — | 模式 A：动画状态名（如 `idle`） |
+| `animation` | | — | 动画名称（两种模式均用此字段） |
+| `animation-speed` | | `0` | **> 0 时启用模式 B**；模式 A 不填此项 |
+| `transition-time` | | `5` | 模式 B：过渡时间（毫秒） |
+| `keep-time` | | `-1` | 模式 B：持续时间（毫秒），`-1` 播放完整动画 |
+
+配置修改后执行 `/axs conversation reload` 即可重新应用。
+
+---
 
 ## Chemdah 对话主题配置
 
@@ -66,14 +131,26 @@ interaction:
 theme: 'ArcartXConversation'
 ```
 
-示例：
+Chemdah的conversation示例：
 
 ```yaml
-example_conversation:
-  name: '村民'
+__option__:
   theme: 'ArcartXConversation'
-  dialog:
-    - '你好，欢迎来到服务器。'
+  title: '{name}'
+欢迎词_0:
+  npc id: 'Adyeshach 小师妹'
+  npc:
+    - '&f&l你好!少侠{{ sender }}'
+    - '&f&l欢迎来到流云琼阁'
+    - '&7&l(使用&e鼠标&7点击选项即可)'
+  format: generic
+  player:
+    - reply: '&f&l你好!'
+      then: |
+        goto 欢迎词_0_1
+    - reply: '&f&l再见!'
+      then: |
+        close
 ```
 
 `ArcartXConversation` 必须与 `ArcartXConversation.yml` 中的 `theme.name` 保持一致。如果你改了 `theme.name`，Chemdah 对话文件里的 `theme` 也要同步修改。
@@ -100,8 +177,11 @@ example_conversation:
 
 | 命令 | 说明 |
 | --- | --- |
-| `/axs conversation status` | 查看对话桥模块状态 |
-| `/axs conversation reload` | 重载对话配置和 UI |
+| `/axs conversation status` | 查看对话桥模块状态（交互增强、NPC 桥接等就绪情况） |
+| `/axs conversation reload` | 重载对话配置、UI，并重新应用 `npc-appearances` |
+| `/axs conversation adyeshach setModel <名称> <modelID> <scale>` | 即时为指定 NPC 设置模型 |
+| `/axs conversation adyeshach setAnimation <名称> <state> <animName>` | 即时为指定 NPC 设置持久默认动画 |
+| `/axs conversation adyeshach playAnimation <名称> <动画名> <速度> [过渡ms] [持续ms]` | 即时为指定 NPC 一次性播放动画（可调速度） |
 
 ## UI / Packet
 
