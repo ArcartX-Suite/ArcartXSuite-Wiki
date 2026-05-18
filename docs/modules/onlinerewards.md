@@ -45,6 +45,56 @@ modules:
     enabled: true
 ```
 
+## 配置
+
+配置分为主配置和两个独立外部文件：
+
+```yaml
+# ArcartXOnlineRewards.yml（主配置）
+# 签到配置文件路径，相对模块数据目录。
+sign-in-file: "sign-in.yml"
+
+# 在线阶段奖励文件路径，相对模块数据目录。
+rewards-file: "rewards.yml"
+```
+
+### 在线阶段奖励（`data/onlinerewards/rewards.yml`）
+
+```yaml
+rewards:
+  - minutes: 30
+    name: "第一阶段"
+    rewardText: "在线 30 分钟"
+    commands:
+      - "give {player} diamond 1"
+
+  - minutes: 60
+    name: "第二阶段"
+    rewardText: "在线 1 小时"
+    mail-presets:
+      - "online_reward_1h"
+```
+
+### 签到配置（`data/onlinerewards/sign-in.yml`）
+
+```yaml
+reminder-on-join: true
+
+messages:
+  sign-in-success: "§a今日签到成功，连续 {streak} 天。"
+  sign-in-repeat: "§e今天已经签到过了。"
+
+# 每次成功签到执行的命令
+base-commands:
+  - "give {player} emerald 1"
+
+# 连续签到里程碑奖励
+streak-rewards:
+  - days: 7
+    commands:
+      - "give {player} diamond 3"
+```
+
 ## 命令
 
 ### 管理命令（权限：`arcartxsuite.admin`）

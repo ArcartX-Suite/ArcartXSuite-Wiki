@@ -52,15 +52,29 @@ packet-command:
   packet-id: "ArcartXEventPacket"        # 客户端发包匹配的 packetId
   presets-directory: "eventpacket/packet-command-presets"  # 预设文件目录
 
-rules:
-  <规则ID>:
-    enabled: true              # 是否启用
-    trigger: join              # 触发器类型（见下文）
-    repeatable: false          # 是否可重复触发（默认 false，每玩家只触发一次）
-    cooldown: "5s"             # 冷却时间：10s / 5m / 2h / 1d / 500ms
-    actions:                   # 动作列表（按顺序执行）
-      - type: subtitle.play
-        group-id: "welcome"
+# 规则定义目录，相对模块数据目录。
+# 目录下每个 *.yml 文件可包含多个规则，根键即为规则 ID。
+rules-directory: "rules"
+```
+
+规则文件位于 `data/eventpacket/rules/*.yml`，同一文件可包含多条规则：
+
+```yaml
+# data/eventpacket/rules/join.yml
+join_welcome:
+  enabled: true
+  trigger: join
+  repeatable: true
+  actions:
+    - type: subtitle.play
+      group-id: "welcome"
+
+first_join_guide:
+  enabled: true
+  trigger: first-join
+  actions:
+    - type: title.grant
+      title-id: "newcomer"
 ```
 
 ### 规则通用字段
@@ -76,6 +90,8 @@ rules:
 ---
 
 ## 触发器详解
+
+> 以下所有示例中的 `rules:` 前缀仅用于展示字段结构，**实际上规则直接写在规则文件的根级**（即 `data/eventpacket/rules/*.yml` 中，去掉 `rules:` 前缀，规则 ID 为根键）。
 
 ### 1. `join` — 玩家加入
 
@@ -740,28 +756,27 @@ claim_daily:
 **方式 B — rules 配置（命令 + UI 回包）：**
 
 ```yaml
-# ArcartXEventPacket.yml
-rules:
-  claim_daily_with_feedback:
-    enabled: true
-    trigger: client-packet
-    signal: "claim_daily"
-    repeatable: true
-    cooldown: "86400s"
-    actions:
-      - type: command.dispatch
-        executor: console
-        command: "give {player_name} diamond 1"
-      - type: ui-packet
-        ui-id: "daily_reward_ui"
-        packet-handler: "claimResult"
-        recipients:
-          - self
-        pack:
-          success: "true"
-          reward: "钻石 x1"
-          player: "{player_name}"
-          time: "{timestamp_local}"
+# data/eventpacket/rules/client.yml
+claim_daily_with_feedback:
+  enabled: true
+  trigger: client-packet
+  signal: "claim_daily"
+  repeatable: true
+  cooldown: "86400s"
+  actions:
+    - type: command.dispatch
+      executor: console
+      command: "give {player_name} diamond 1"
+    - type: ui-packet
+      ui-id: "daily_reward_ui"
+      packet-handler: "claimResult"
+      recipients:
+        - self
+      pack:
+        success: "true"
+        reward: "钻石 x1"
+        player: "{player_name}"
+        time: "{timestamp_local}"
 ```
 
 ### 第二步：UI YAML — 发包 + 接包
@@ -849,105 +864,107 @@ controls:
 
 ## 联动示例
 
+> 以下示例均为规则文件根级写法（`data/eventpacket/rules/*.yml`）。
+
 ### Boss 击杀庆祝
 
 ```yaml
-rules:
-  boss_settlement_celebration:
-    enabled: true
-    trigger: command-signal
-    signal: "boss_settlement"
-    repeatable: true
-    cooldown: "3s"
-    actions:
-      - type: subtitle.play
-        group-id: "boss_victory"
-      - type: mail.send
-        preset-id: "boss_reward_{boss_id}"
-      - type: title.give
-        title-id: "boss_slayer"
-        duration: "7d"
+# data/eventpacket/rules/boss.yml
+boss_settlement_celebration:
+  enabled: true
+  trigger: command-signal
+  signal: "boss_settlement"
+  repeatable: true
+  cooldown: "3s"
+  actions:
+    - type: subtitle.play
+      group-id: "boss_victory"
+    - type: mail.send
+      preset-id: "boss_reward_{boss_id}"
+    - type: title.give
+      title-id: "boss_slayer"
+      duration: "7d"
 ```
 
 ### 新玩家注册引导流
 
 ```yaml
-rules:
-  welcome_new_player:
-    enabled: true
-    trigger: command-signal
-    signal: "first_register"
-    repeatable: false
-    actions:
-      - type: subtitle.play
-        group-id: "welcome_cinematic"
-      - type: questgps.offer
-        quest-id: "main/tutorial"
-        open-menu: true
-      - type: mail.send
-        preset-id: "welcome_gift"
-      - type: title.give
-        title-id: "newcomer"
-        duration: "permanent"
+# data/eventpacket/rules/onboarding.yml
+welcome_new_player:
+  enabled: true
+  trigger: command-signal
+  signal: "first_register"
+  repeatable: false
+  actions:
+    - type: subtitle.play
+      group-id: "welcome_cinematic"
+    - type: questgps.offer
+      quest-id: "main/tutorial"
+      open-menu: true
+    - type: mail.send
+      preset-id: "welcome_gift"
+    - type: title.give
+      title-id: "newcomer"
+      duration: "permanent"
 ```
 
 ### 击杀怪物解锁副本
 
 ```yaml
-rules:
-  zombie_dungeon_unlock:
-    enabled: true
-    trigger: mob-kill-count
-    count: 50
-    entity-types:
-      - "ZOMBIE"
-    worlds:
-      - "world"
-    repeatable: false
-    actions:
-      - type: questgps.offer
-        quest-id: "dungeon/zombie_lair"
-        open-menu: true
-      - type: subtitle.play
-        group-id: "dungeon_unlock"
+# data/eventpacket/rules/progression.yml
+zombie_dungeon_unlock:
+  enabled: true
+  trigger: mob-kill-count
+  count: 50
+  entity-types:
+    - "ZOMBIE"
+  worlds:
+    - "world"
+  repeatable: false
+  actions:
+    - type: questgps.offer
+      quest-id: "dungeon/zombie_lair"
+      open-menu: true
+    - type: subtitle.play
+      group-id: "dungeon_unlock"
 ```
 
 ### 等级提升联动
 
 ```yaml
-rules:
-  level_30_unlock:
-    enabled: true
-    trigger: placeholder-threshold
-    placeholder: "%player_level%"
-    threshold: 30
-    require-non-empty: true
-    repeatable: false
-    actions:
-      - type: mail.send
-        preset-id: "level_30_gift"
-      - type: title.give
-        title-id: "advanced_warrior"
-        duration: "permanent"
-      - type: questgps.offer
-        quest-id: "main/advanced_zone"
+# data/eventpacket/rules/progression.yml（同文件可放多条规则）
+level_30_unlock:
+  enabled: true
+  trigger: placeholder-threshold
+  placeholder: "%player_level%"
+  threshold: 30
+  require-non-empty: true
+  repeatable: false
+  actions:
+    - type: mail.send
+      preset-id: "level_30_gift"
+    - type: title.give
+      title-id: "advanced_warrior"
+      duration: "permanent"
+    - type: questgps.offer
+      quest-id: "main/advanced_zone"
 ```
 
 ### CDK 兑换特效
 
 ```yaml
-rules:
-  cdk_redeemed_effect:
-    enabled: true
-    trigger: command-signal
-    signal: "cdk_redeemed"
-    repeatable: true
-    cooldown: "5s"
-    actions:
-      - type: combateffect.play
-        pack: "{player_name};cdk_sparkle;{preset_name}"
-      - type: subtitle.play
-        group-id: "cdk_success"
+# data/eventpacket/rules/misc.yml
+cdk_redeemed_effect:
+  enabled: true
+  trigger: command-signal
+  signal: "cdk_redeemed"
+  repeatable: true
+  cooldown: "5s"
+  actions:
+    - type: combateffect.play
+      pack: "{player_name};cdk_sparkle;{preset_name}"
+    - type: subtitle.play
+      group-id: "cdk_success"
 ```
 
 ---

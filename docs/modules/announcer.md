@@ -11,21 +11,25 @@
 
 ### 核心特性
 
-- **轮播公告**：多条公告按配置顺序自动轮播，可配置每条停留时间和轮播冷却
-- **PlaceholderAPI 解析**：公告文本支持 `%player_name%`、`%server_online%` 等 PAPI 变量，按接收玩家解析
-- **点击命令**：每条公告可绑定控制台命令，玩家点击 HUD 后自动执行（支持 `<player>` 变量）
-- **打字机字幕**：逐字/逐帧播放文本动画，可控制每帧速度、停留时间、文本内容
-- **字幕组管理**：字幕定义放在独立目录 `subtitle/groups/*.yml`，支持热重载
-- **EventPacket 联动**：其他模块（如 LoginView、OnlineRewards）可通过 EventPacket 的 `subtitle.play` 动作触发字幕播放
-- **HUD 自动注册**：启动时自动将公告 HUD 和字幕 HUD 注册到 ArcartX，无需手动配置 UI 文件
+**公告：**
+- **轮播公告**：多条公告按配置顺序自动轮播，可配置每轮冷却和条间间隔
+- **PAPI 解析**：公告文本支持 `%player_name%`、`%server_online%` 等变量，按接收玩家实时解析
+- **点击命令**：每条公告可绑定控制台命令，玩家点击 HUD 后自动执行（`<player>` 变量替换为点击玩家名）
+- **热重载**：`/axs announcer reload` 即时生效，无需重启
+
+**字幕：**
+- **打字机动画**：逐字播放文本，可控制动画时长、停留时间和自动文本长度计算
+- **顺序播放**：字幕组按数字键顺序播放，最后一帧结束后自动关闭 HUD
+- **PAPI 支持**：字幕文本支持 PlaceholderAPI 变量，按目标玩家解析
+- **EventPacket 联动**：其他模块（如 LoginView、OnlineRewards）可通过 EventPacket 的 `subtitle.play` 动作触发字幕组
 
 ## 依赖
 
 | 类型 | 依赖 | 作用 | 缺少时表现 |
 | --- | --- | --- | --- |
 | 必需 | ArcartX | 注册 HUD 公告和字幕 UI，向客户端发送公告/字幕包 | 模块无法正常展示 UI |
-| 可选 | PlaceholderAPI | 解析公告、字幕文本中的 `%...%` 变量 | 文本照常发送，但 PAPI 变量保持原样或按空值处理 |
-| 可选 | EventPacket 模块 | 通过 `subtitle.play` 动作触发字幕组 | 不影响 Announcer 自身轮播，只是不能用 EventPacket 联动字幕 |
+| 可选 | PlaceholderAPI | 解析公告、字幕文本中的 `%...%` 变量 | 文本照常发送，但 PAPI 变量保持原样 |
+| 可选 | EventPacket 模块 | 通过 `subtitle.play` 动作触发字幕组 | 不影响 Announcer 自身轮播 |
 
 ## 启用步骤
 
@@ -37,62 +41,138 @@ modules:
 
 ## 配置
 
-Announcer 的配置分为公告和字幕两部分。
-
-### 公告（`ArcartXAnnouncer.yml`）
+### 公告主配置（`ArcartXAnnouncer.yml`）
 
 ```yaml
 settings:
-  debug: false
-  ui-id: "AXS:announcer_hud"
-  register-ui-on-enable: true
-  overwrite-ui-file: false
+  debug: false                         # true 时打印发包与点击回包日志
+  ui-id: "AXS:announcer_hud"          # 公告 HUD 的 UI ID
+  register-ui-on-enable: true          # 启动/重载时自动注册 HUD
+  overwrite-ui-file: false             # 是否强制覆盖已导出的 UI 文件
+  auto-play: true                      # false 时 HUD 仍同步配置但不滚动
+  check-interval-ticks: 20             # 后台检查周期（20 tick = 1 秒）
+  cooldown-ms: 30000                   # 一整轮播完后的冷却时间（毫秒）
+  between-entry-interval-ms: 30000     # 同一轮中两条公告之间的间隔（毫秒）
 
-entries:
-  welcome:
-    enabled: true
-    text: "欢迎来到服务器 — 你好，%player_name%。"
-    click-command: "say <player> 点了公告"
+entries-directory: "entries"           # 公告条目目录，相对模块数据目录
 ```
 
-### 字幕
+### 公告条目字段详解
 
-打字机字幕动画配置，位于同一配置文件的 `groups` 节：
+条目文件位于 `data/announcer/entries/*.yml`，同一文件可包含多条公告：
 
 ```yaml
-settings:
-  debug: false
-  ui-id: "AXS:subtitle_hud"
-  register-ui-on-enable: true
+# data/announcer/entries/default.yml
+welcome:
+  enabled: true
+  text: "欢迎来到服务器，祝你游玩愉快。"    # 支持颜色代码和 PAPI 变量
+  click-command: ""                          # 玩家点击 HUD 时执行的控制台命令
 
-groups:
-  welcome_cinematic:
-    frames:
-      - text: "欢迎来到..."
-        length: 0
-        time: 1000
-        keep: 0.5
-      - text: "冒险开始！"
-        length: 0
-        time: 800
-        keep: 1.0
+player_tip:
+  enabled: true
+  text: "你好，%player_name%。记得每日签到！"
+  click-command: "say <player> 点击了公告"  # <player> 替换为点击玩家名
 ```
+
+| 字段 | 类型 | 说明 |
+| --- | --- | --- |
+| `enabled` | boolean | `false` 时跳过该条目 |
+| `text` | string | 公告文本，支持 `&` 颜色代码和 PAPI |
+| `click-command` | string | 点击后以控制台身份执行的命令，留空则不执行 |
+
+### 字幕主配置（`ArcartXAnnouncer.yml` 的 `subtitle` 节）
+
+```yaml
+subtitle:
+  settings:
+    debug: false
+    ui-id: "AXS:subtitle_hud"
+    register-ui-on-enable: true
+    overwrite-ui-file: false
+    groups-directory: "subtitle/groups"    # 字幕组目录，相对插件数据目录
+    show-background: true                  # 是否显示字幕底部背景板
+```
+
+### 字幕组字段详解
+
+字幕组文件位于 `data/announcer/subtitle/groups/*.yml`，**文件名即组 ID**，顶层键为数字，代表播放顺序：
+
+```yaml
+# data/announcer/subtitle/groups/welcome.yml
+1:
+  text: "&f欢迎，%player_name%。"    # 支持颜色代码和 PAPI
+  length: 0                          # 打字机总字数；0 = 自动按可见文本长度计算
+  time: 1400                         # 打字机动画时长（毫秒）
+  keep: 1                            # 动画结束后停留时间（秒）
+
+2:
+  text: "&e这是打字机字幕示例。"
+  length: 0
+  time: 1800
+  keep: 1.5                          # 最后一帧结束后自动关闭 HUD
+```
+
+| 字段 | 类型 | 说明 |
+| --- | --- | --- |
+| 顶层键 | int | 数字，系统按从小到大顺序播放 |
+| `text` | string | 字幕文本，支持颜色代码和 PAPI |
+| `length` | int | 打字机总字数；`0` 或负数则自动计算 |
+| `time` | int | 打字机动画时长（毫秒） |
+| `keep` | double | 动画结束后停留秒数，最后一帧结束后关闭 HUD |
 
 ## 命令
 
-> 权限：`arcartxsuite.admin`
+### 管理命令（权限：`arcartxsuite.admin`）
 
 | 命令 | 说明 |
 | --- | --- |
-| `/axs announcer status` | 查看播报模块状态和公告/字幕组数量 |
-| `/axs announcer reload` | 重载播报配置和 HUD |
+| `/axs announcer status` | 查看播报模块状态、公告条目数和字幕组数量 |
+| `/axs announcer reload` | 重载播报配置和 HUD（公告 + 字幕一起重载） |
 | `/axs announcer subtitle list` | 列出所有已加载的字幕组 ID |
-| `/axs announcer subtitle play <玩家> <字幕组ID>` | 向在线玩家播放打字机字幕动画 |
-| `/axs announcer subtitle stop <玩家>` | 停止玩家当前正在播放的字幕 |
+| `/axs announcer subtitle play <玩家> <字幕组ID>` | 向在线玩家播放指定字幕组 |
+| `/axs announcer subtitle stop <玩家>` | 立即停止玩家当前正在播放的字幕 |
 
 ## UI / Packet
 
-| 功能 | UI ID | 说明 |
+| 功能 | UI ID | Packet 说明 |
 | --- | --- | --- |
-| 公告 HUD | `AXS:announcer_hud` | 服务端推 `init`，客户端点击推 `click` 回包 |
-| 字幕 HUD | `AXS:subtitle_hud` | 服务端按帧推 `play`，组结束推 `close` |
+| 公告 HUD | `AXS:announcer_hud` | 服务端推 `init`（含所有条目列表），客户端点击推 `click` 回包（含条目 ID） |
+| 字幕 HUD | `AXS:subtitle_hud` | 服务端按帧推 `play`（含 `text`、`length`、`time`、`keep`），组结束推 `close` |
+
+### 公告 HUD Packet 字段
+
+| 字段 | 说明 |
+| --- | --- |
+| `entries` | 所有启用的公告条目列表（`id`、`text`、`has-command`） |
+| `current` | 当前显示的条目 ID |
+
+### 字幕 HUD Packet 字段
+
+| 字段 | 说明 |
+| --- | --- |
+| `text` | 当前帧字幕文本（已解析 PAPI） |
+| `length` | 打字机总字数 |
+| `time` | 动画时长（毫秒） |
+| `keep` | 停留时间（秒） |
+| `show-background` | 是否显示背景板 |
+
+## EventPacket 联动
+
+Announcer 通过 `SubtitlePlayable` capability 向 EventPacket 注册，支持以下动作：
+
+| 动作类型 | 参数 | 说明 |
+| --- | --- | --- |
+| `subtitle.play` | `group-id` | 向触发玩家播放指定字幕组 |
+| `subtitle.stop` | — | 停止触发玩家当前字幕 |
+
+EventPacket 配置示例（`data/eventpacket/rules/join.yml`）：
+
+```yaml
+join_welcome_subtitle:
+  enabled: true
+  trigger: join
+  repeatable: true
+  actions:
+    - type: subtitle.play
+      group-id: "welcome"
+```

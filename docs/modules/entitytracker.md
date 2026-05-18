@@ -50,32 +50,38 @@ EntityTracker 的配置分为 Boss 追踪和攻击目标两部分。
 ### Boss 追踪（`ArcartXEntityTracker.yml`）
 
 ```yaml
-settings:
-  debug: false
-  refresh-interval-ticks: 5
-  viewer-range: 48.0
+boss-tracker:
+  settings:
+    debug: false
+    refresh-interval-ticks: 5
+    viewer-range: 48.0
+    # Boss 定义目录，相对模块数据目录。
+    # 目录下每个 *.yml 文件为一个 Boss 追踪配置，文件名（去掉 .yml）即为 MythicMob ID。
+    bosses-directory: "bosses"
+```
 
-bosses:
-  ExampleBoss:
+Boss 定义文件位于 `data/entitytracker/bosses/*.yml`，**文件名（去掉 `.yml`）即为 MythicMob ID**：
+
+```yaml
+# data/entitytracker/bosses/ExampleBoss.yml
+enabled: true
+priority: 100
+title-format: "&c{display_name}"
+subtitle-format: "&7HP &c{health}/{max_health}"
+damage-ranking:
+  enabled: true
+  max-entries: 10
+  rewards:
     enabled: true
-    priority: 100
-    mob-id: "ExampleBoss"
-    title-format: "&c{display_name}"
-    subtitle-format: "&7HP &c{health}/{max_health}"
-    damage-ranking:
-      enabled: true
-      max-entries: 10
-      rewards:
-        enabled: true
-        ranks:
-          1:
-            actions:
-              - type: command
-                command: "points give {player} 100"
-              - type: mail
-                preset-id: "boss_first_reward"
-              - type: signal
-                signal: "boss_first_cleared"
+    ranks:
+      1:
+        actions:
+          - type: command
+            command: "points give {player} 100"
+          - type: mail
+            preset-id: "boss_first_reward"
+          - type: signal
+            signal: "boss_first_cleared"
 ```
 
 ### 奖励动作类型

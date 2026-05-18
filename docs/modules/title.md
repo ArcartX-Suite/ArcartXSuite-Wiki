@@ -128,22 +128,41 @@ modules:
 
 每个称号可以同时使用两类字段，两类可共存、互不覆盖：
 
-```yaml
-titles:
-  example_title:
-    # 佩戴生效
-    display-attributes:           # Map<键, 数值>
-      attack: 1
-      max_health: 10
-    display-attribute-lines:      # List<String>
-      - "暴击率:5(%)"
-      - "生命力:100"
+称号目录位于 `data/title/titles/*.yml`，建议按称号组分文件：
 
-    # 拥有即累计（未装备也算）
-    collection-attributes:
-      knowledge: 1
-    collection-attribute-lines:
-      - "魔力上限:50"
+```yaml
+# data/title/titles/adventure.yml
+newcomer:
+  enabled: true
+  group: adventure
+  quality: common
+  display-name: "&e初来乍到"
+  # 佩戴生效
+  display-attributes:           # Map<键, 数值>
+    attack: 1
+    max_health: 10
+  display-attribute-lines:      # List<String>
+    - "暴击率:5(%)"
+    - "生命力:100"
+
+explorer:
+  enabled: true
+  group: adventure
+  quality: legend
+  display-name: "&6探险者"
+  # 拥有即累计（未装备也算）
+  collection-attributes:
+    knowledge: 1
+  collection-attribute-lines:
+    - "魔力上限:50"
+```
+
+主配置 `ArcartXTitle.yml` 中的称号目录键：
+
+```yaml
+# 称号定义目录，相对模块数据目录。
+# 建议按称号组分文件，例如 titles/adventure.yml、titles/exploration.yml。
+titles-directory: "titles"
 ```
 
 ### 下发矩阵

@@ -57,10 +57,18 @@ settings:
   overwrite-ui-file: false
   refresh-interval-ticks: 20
 
-tabs:
-  online-tab:
-    ui-id: "tab"
-    packet-handler: "tab"
+# Tab 定义目录，相对模块数据目录。
+# 目录下每个 *.yml 文件为一个 Tab 定义，文件名（去掉 .yml）即为定义 ID。
+tabs-directory: "tabs"
+```
+
+Tab 定义文件位于 `data/tab/tabs/*.yml`，文件名即定义 ID：
+
+```yaml
+# data/tab/tabs/online-tab.yml
+enabled: true
+ui-id: "tab"
+packet-handler: "tab"
 ```
 
 ## UI / Packet
@@ -73,17 +81,18 @@ tabs:
 
 ## 排序、过滤与置顶
 
+> 以下示例均为 `data/tab/tabs/<定义ID>.yml` 文件内的根级字段，不再写 `tabs:` 前缀。
+
 ### 多键复合排序 `sort-keys`
 
 按优先级递减组合多个排序键，命中第一个键相同的项再按下一个键比较。填写 `sort-keys` 后，旧字段 `sort-mode` / `sort-papi-key` / `sort-papi-numeric` / `sort-prem-group` / `sort-descending` 全部失效。
 
 ```yaml
-tabs:
-  online-tab:
-    sort-keys:
-      - { mode: prem, prem-group: [admin, vip3, vip2, vip1, default] }
-      - { mode: papi, key: "%player_level%", numeric: true, order: desc }
-      - { mode: name }
+# data/tab/tabs/online-tab.yml
+sort-keys:
+  - { mode: prem, prem-group: [admin, vip3, vip2, vip1, default] }
+  - { mode: papi, key: "%player_level%", numeric: true, order: desc }
+  - { mode: name }
 ```
 
 | 字段 | 适用模式 | 说明 |
@@ -99,15 +108,14 @@ tabs:
 ### 过滤器 `filters`
 
 ```yaml
-tabs:
-  online-tab:
-    filters:
-      hide-vanished: false        # 一键隐藏隐身玩家
-      include:                    # 任一命中保留；为空表示不过滤
-        - { papi: "%player_world%", equals: "world" }
-      exclude:                    # 任一命中剔除
-        - { permission: "axs.tab.hide" }
-        - { papi: "%player_gamemode%", equals: "SPECTATOR" }
+# data/tab/tabs/online-tab.yml
+filters:
+  hide-vanished: false        # 一键隐藏隐身玩家
+  include:                    # 任一命中保留；为空表示不过滤
+    - { papi: "%player_world%", equals: "world" }
+  exclude:                    # 任一命中剔除
+    - { permission: "axs.tab.hide" }
+    - { papi: "%player_gamemode%", equals: "SPECTATOR" }
 ```
 
 - 规则字段：`papi` + `equals`（PAPI 模式）或 `permission`（权限模式），二选一。
@@ -120,13 +128,12 @@ tabs:
 ### 置顶 / 置底 `pinned`
 
 ```yaml
-tabs:
-  online-tab:
-    pinned:
-      top:
-        - { permission: "axs.tab.pin-top" }   # 管理员置顶
-      bottom:
-        - { permission: "axs.tab.pin-bottom" }
+# data/tab/tabs/online-tab.yml
+pinned:
+  top:
+    - { permission: "axs.tab.pin-top" }   # 管理员置顶
+  bottom:
+    - { permission: "axs.tab.pin-bottom" }
 ```
 
 命中 `top` 的玩家排在所有"中间层"之前；命中 `bottom` 的排在最后。三个分桶各自再用 `sort-keys` 内部排序，因此置顶后仍保持权限组/PAPI 排序结果。
@@ -141,13 +148,13 @@ tabs:
 - 其他 view 的 definitions 各发一个空 payload 用于清空 UI。
 
 ```yaml
-tabs:
-  list-default:
-    view: "default"
-    # ...
-  list-team:
-    view: "team"
-    # ...
+# data/tab/tabs/list-default.yml
+view: "default"
+# ...
+
+# data/tab/tabs/list-team.yml
+view: "team"
+# ...
 ```
 
 玩家命令：
@@ -161,14 +168,13 @@ tabs:
 按 PAPI 把已排序玩家分桶并在每组之前可选输出 `header-pack`。仅 string / list 形态的 pack 支持分组。
 
 ```yaml
-tabs:
-  online-tab:
-    grouping:
-      enabled: true
-      group-by-papi: "%vault_primary_group%"
-      group-order: ["admin", "vip3", "vip2", "vip1", "default"]
-      include-unordered: true
-      header-pack: "&6=== {group} ==="
+# data/tab/tabs/online-tab.yml
+grouping:
+  enabled: true
+  group-by-papi: "%vault_primary_group%"
+  group-order: ["admin", "vip3", "vip2", "vip1", "default"]
+  include-unordered: true
+  header-pack: "&6=== {group} ==="
 ```
 
 `{group}` 在 `header-pack`（无论 string / list / map / key 名）中被替换为当前组键。header 内的 PAPI 按该组第一个玩家上下文渲染。
@@ -176,15 +182,14 @@ tabs:
 ### 分页 `pagination`
 
 ```yaml
-tabs:
-  online-tab:
-    pagination:
-      enabled: true
-      page-size: 80
-      packet-id: "TAB_PAGE"
-      next-action: "next"
-      prev-action: "prev"
-      set-action: "set"
+# data/tab/tabs/online-tab.yml
+pagination:
+  enabled: true
+  page-size: 80
+  packet-id: "TAB_PAGE"
+  next-action: "next"
+  prev-action: "prev"
+  set-action: "set"
 ```
 
 客户端翻页：
@@ -206,12 +211,11 @@ events:
 仅当 `cross-server: true` 时生效。启用后 Tab 不展开玩家，每个服务器只占一行。常用于跨大区 BungeeCord / Velocity 网络中的服务器总览视图。
 
 ```yaml
-tabs:
-  network-overview:
-    cross-server: true
-    aggregate:
-      enabled: true
-      line-pack: "&b{server-display} &7- &f{server-online} 人在线"
+# data/tab/tabs/network-overview.yml
+cross-server: true
+aggregate:
+  enabled: true
+  line-pack: "&b{server-display} &7- &f{server-online} 人在线"
 ```
 
 `line-pack` 支持以下花括号占位符：
@@ -237,12 +241,11 @@ Tab pack 中已内置 `{player_uuid}` 渲染变量，服务端**不抓 Mojang、
 服务端 pack 把 UUID 输出给 UI：
 
 ```yaml
-tabs:
-  online-tab:
-    pack:
-      name: "%AXStitle_tab_adventure_prefix%%player_name%"
-      uuid: "{player_uuid}"
-      health: "%player_health%"
+# data/tab/tabs/online-tab.yml
+pack:
+  name: "%AXStitle_tab_adventure_prefix%%player_name%"
+  uuid: "{player_uuid}"
+  health: "%player_health%"
 ```
 
 > **内置完整示例**：模块自带两套示例 UI（启用时自动复制到 `plugins/ArcartXSuite/ui/`），都在 `ArcartXTab.yml` 中以 `enabled: false` 形式提供，把对应 definition 切到 `true` 即可体验（建议同时关掉 `tabs.online-tab.enabled` 避免双 HUD）：
@@ -273,27 +276,25 @@ controls:
 
 ### 内置示例：`tab-arena`（竞技场 / 枪战 PVP 计分板）
 
-启用方式：`ArcartXTab.yml` 中把 `tabs.arena.enabled` 改 `true`（建议同时关掉 `tabs.online-tab.enabled`）。
+启用方式：将 `data/tab/tabs/arena.yml`（首次启动自动导出）中的 `enabled` 改为 `true`（建议同时把 `data/tab/tabs/online-tab.yml` 中的 `enabled` 改 `false`）。
 
-**服务端配置（`ArcartXTab.yml`）**：
+**定义文件（`data/tab/tabs/arena.yml`）**：
 
 ```yaml
-tabs:
-  arena:
-    enabled: true
-    ui-id: "tab-arena"
-    packet-handler: "tab"
-    client-refresh-packet-id: "TAB"
-    client-refresh-action: "update"
-    sort-keys:
-      - { mode: papi, key: "%player_scoreboardteam%" }
-      - { mode: name }
-    pack:
-      team: "%player_scoreboardteam%"   # 可替换为 %bedwars_team% / %matrixduels_team%
-      uuid: "{player_uuid}"
-      name: "%AXStab_pvp_color%%AXStab_vanish_color%%player_name%"
-      status: "%AXStab_pvp%"            # 1=战斗中, 0=默认
-      health: "%player_health%/%player_max_health%"
+enabled: true
+ui-id: "tab-arena"
+packet-handler: "tab"
+client-refresh-packet-id: "TAB"
+client-refresh-action: "update"
+sort-keys:
+  - { mode: papi, key: "%player_scoreboardteam%" }
+  - { mode: name }
+pack:
+  team: "%player_scoreboardteam%"   # 可替换为 %bedwars_team% / %matrixduels_team%
+  uuid: "{player_uuid}"
+  name: "%AXStab_pvp_color%%AXStab_vanish_color%%player_name%"
+  status: "%AXStab_pvp%"            # 1=战斗中, 0=默认
+  health: "%player_health%/%player_max_health%"
 ```
 
 **UI 端要点（`arcartx/ui/tab-arena.yml`）**：

@@ -26,6 +26,22 @@
 - **控制台美化** — `ArcartXSuitePlugin.STARTUP_BANNER` 改为 ANSI Shadow 字体绘制的「SUITE」六行块状字符画，主体青→蓝→紫渐变，顶部新增 `✦ A R C A R T X ✦` 副标题，底部居中作者署名。
 - **控制台美化** — 迁移类 INFO 日志统一格式 `→ 已归位 X: <来源> ➜ <目标>`，使用金色箭头 + 黄色源 + 灰色 ➜ + 青色目标，便于在密集启动日志中一眼识别。
 
+### 1.0.2-beta (Build 2026-05-19) — 配置目录拆分
+
+- **配置拆分** — 以下模块的大型内联配置段已拆分为独立目录，每个 `*.yml` 文件可包含多条定义：
+  - `announcer`: `entries:` → `entries-directory: "entries"`（`entries/*.yml`）
+  - `combateffect`: `packets:` → `packets-directory: "packets"`（`packets/*.yml`）
+  - `title`: `titles:` → `titles-directory: "titles"`（`titles/*.yml`，按组分文件）
+  - `rgb`: `entries:` → `entries-directory: "entries"`（`entries/*.yml`）
+  - `map`: `anchors:` → `anchors-directory: "anchors"`（`anchors/*.yml`）
+  - `questgps`: `quests:` → `quests-directory: "quests"`（`quests/*.yml`，按分类分文件）
+  - `onlinerewards`: `sign-in:`/`rewards:` → `sign-in-file`/`rewards-file`（外部独立文件）
+  - `tab`: `tabs:` → `tabs-directory: "tabs"`（`tabs/*.yml`）
+  - `entitytracker`: `bosses:` → `bosses-directory: "bosses"`（`bosses/*.yml`）
+  - `eventpacket`: `rules:` → `rules-directory: "rules"`（`rules/*.yml`）
+- **破坏性变更** — 主配置中的旧内联段不再被读取。用户必须将已有数据迁移到对应目录文件中。首次启动时模块会自动导出默认示例文件。
+- **文件组织** — 同一目录下每个 `*.yml` 文件可包含多个定义（根键即为 ID），不强制每条定义独立一个文件，方便按业务逻辑分组管理。
+
 ### 1.0.2-beta (Build 2026-05-18) — 配置智能体检
 
 - **配置诊断** — 新增四层智能诊断：结构同步、类型修复、版本迁移、值验证。
@@ -46,4 +62,5 @@
 3. 执行 `/axs license status` 检查授权状态。
 4. 执行 `/axs status` 检查模块状态。
 5. 需要迁移授权到新服务器时，可执行 `/axs license rebind`；旧服务器不可用时，在新服务器执行 `/axs license cloud-code` 后使用云端网页换绑。
+6. **配置目录拆分（1.0.2-beta Build 2026-05-19）**：旧主配置中的内联数据段（如 `entries:`、`tabs:`、`bosses:`、`rules:`、`anchors:`、`quests:`、`titles:`、`sign-in:`、`rewards:`）不再被读取。升级前请手动将对应段落内容复制到 `data/<module>/<目录>/` 下的 `*.yml` 文件中。首次启动会自动导出默认示例文件供参考。
 

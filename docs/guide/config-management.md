@@ -120,6 +120,52 @@ config-version: 1
 4. 服务正常启动 → 即使存在配置问题也不中断
 ```
 
+## 配置目录拆分
+
+自 Build 2026-05-19 起，以下模块的大型数据段从主配置文件拆分到独立目录：
+
+| 模块 | 原内联段 | 新配置键 | 目录内容 |
+|------|---------|---------|---------|
+| announcer | `entries:` | `entries-directory: "entries"` | 公告条目 |
+| combateffect | `packets:` | `packets-directory: "packets"` | 战斗特效包定义 |
+| title | `titles:` | `titles-directory: "titles"` | 称号定义（按组分文件） |
+| rgb | `entries:` | `entries-directory: "entries"` | 渐变色条目 |
+| map | `anchors:` | `anchors-directory: "anchors"` | 锚点定义 |
+| questgps | `quests:` | `quests-directory: "quests"` | 任务定义（按分类分文件） |
+| onlinerewards | `sign-in:` / `rewards:` | `sign-in-file` / `rewards-file` | 签到与奖励 |
+| tab | `tabs:` | `tabs-directory: "tabs"` | Tab 面板定义 |
+| entitytracker | bosses (旧根级) | `bosses-directory: "bosses"` | Boss 追踪定义 |
+| eventpacket | `rules:` | `rules-directory: "rules"` | 事件包规则 |
+
+### 目录文件规范
+
+- 目录下每个 `*.yml` 文件可包含**多个**定义，根键即为该定义的 ID。
+- 不需要每条定义独立一个文件，可按业务逻辑分组管理。
+- 文件按文件名字母序加载，同名 ID 后加载的覆盖先加载的。
+- 首次启动时模块会自动导出默认示例文件（如 `default.yml`）。
+
+### 示例
+
+```yaml
+# data/rgb/entries/my-custom.yml
+# 同一文件中放多个 RGB 定义
+welcome:
+  enabled: true
+  text: "欢迎来到服务器"
+  gradient-colors: ["#FF7A18", "#FFD64D"]
+  shine: true
+
+server_name:
+  enabled: true
+  text: "我的服务器"
+  gradient-colors: ["#6A5CFF", "#FF6B9D"]
+  shine: false
+```
+
+::: warning 破坏性变更
+主配置中的旧内联段（如 `entries:`、`tabs:` 等）**不再被读取**。升级前请将旧数据手动迁移到对应目录文件中。
+:::
+
 ## 最佳实践
 
 1. **定期检查**：每周执行一次 `/arcartxsuite config diagnose` 检查累积问题
