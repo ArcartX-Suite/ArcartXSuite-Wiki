@@ -245,6 +245,11 @@ tabs:
       health: "%player_health%"
 ```
 
+> **内置完整示例**：模块自带两套示例 UI（启用时自动复制到 `plugins/ArcartXSuite/ui/`），都在 `ArcartXTab.yml` 中以 `enabled: false` 形式提供，把对应 definition 切到 `true` 即可体验（建议同时关掉 `tabs.online-tab.enabled` 避免双 HUD）：
+>
+> - **`tab-rich`** + `tabs.demo`：头像 + PVP / vanish / ping 视觉风格的完整版"在线列表"形态。
+> - **`tab-arena`** + `tabs.arena`：CS / LOL 风格的**双队 PVP 计分板**——红蓝左右分栏 / 常驻显示 / 按住 TAB 切换详细模式 / 队友战斗状态图标。队伍来源默认 `%player_scoreboardteam%`，可替换为自己 PVP 插件的 PAPI（`%bedwars_team%` / `%matrixduels_team%` 等）。UI 端按 `packet.get(i).team` 在客户端拆桶（不依赖服务端 grouping，因 map pack 在服务端 grouping 下会退化）。
+
 UI YAML 端（`arcartx/ui/tab.yml`）在 `packetHandler` 中把 `packet.uuid` 赋给行控件的变量，Texture 控件再用 `PlayerSkin:` 渲染：
 
 ```yaml
@@ -265,6 +270,65 @@ controls:
 ```
 
 > `{player_uuid}` 是 Tab 模块的内置花括号占位符，**与 PlaceholderAPI 的 `%player_uuid%` 不同**。前者由服务端在调用 PAPI 之前替换，离线 / 无 PAPI 也可用；后者依赖 PAPI 注册。两者都可用，**推荐用 `{player_uuid}`** 减少一次 PAPI 调用开销。
+
+### 内置示例：`tab-arena`（竞技场 / 枪战 PVP 计分板）
+
+启用方式：`ArcartXTab.yml` 中把 `tabs.arena.enabled` 改 `true`（建议同时关掉 `tabs.online-tab.enabled`）。
+
+**服务端配置（`ArcartXTab.yml`）**：
+
+```yaml
+tabs:
+  arena:
+    enabled: true
+    ui-id: "tab-arena"
+    packet-handler: "tab"
+    client-refresh-packet-id: "TAB"
+    client-refresh-action: "update"
+    sort-keys:
+      - { mode: papi, key: "%player_scoreboardteam%" }
+      - { mode: name }
+    pack:
+      team: "%player_scoreboardteam%"   # 可替换为 %bedwars_team% / %matrixduels_team%
+      uuid: "{player_uuid}"
+      name: "%AXStab_pvp_color%%AXStab_vanish_color%%player_name%"
+      status: "%AXStab_pvp%"            # 1=战斗中, 0=默认
+      health: "%player_health%/%player_max_health%"
+```
+
+**UI 端要点（`arcartx/ui/tab-arena.yml`）**：
+
+- **常驻显示**：`defaultOpen: true`，计分板始终在屏幕顶部；按住 TAB 切换"详细模式"（显示血量）。
+- **双队分栏**：左红右蓝，`packetHandler` 按 `packet.get(i).team` 值决定 `copy` 到哪侧 VGrid：
+
+```yaml
+packetHandler:
+  tab: |-
+    // ...（清理旧条目）
+    while(i <= packet.size()){
+      if(val.red_player_row.width == 320){
+        if(packet.get(i).team == "red"){
+          ROW = val.red_player_row.copy('red_' + var.ArenaTAB刷新轮次 + '_' + i)
+        } else if(packet.get(i).team == "blue"){
+          ROW = val.blue_player_row.copy('blue_' + var.ArenaTAB刷新轮次 + '_' + i)
+        }
+        ROW['head'].normal = 'PlayerSkin:' + packet.get(i).uuid
+        ROW['name_text'].texts = packet.get(i).name
+        // status: "1" → 交战图标, "0" → 默认
+        if(packet.get(i).status == "1"){
+          ROW['status_text'].texts = "&c⚔"
+        } else {
+          ROW['status_text'].texts = "&7•"
+        }
+        ROW['health_text'].texts = "&c❤ " + packet.get(i).health
+        ROW.visible = true
+        i++
+      }
+    }
+```
+
+- **每行控件**：`head`（`PlayerSkin:` 头像）+ `name_text`（PVP / vanish 颜色前缀）+ `status_text`（战斗图标）+ `health_text`（仅详细模式 visible）。
+- **队伍来源替换**：修改 `pack.team` 的 PAPI 表达式 + UI 端 `== "red"` / `== "blue"` 判定值即可适配任何 PVP 插件。
 
 ## 命令
 
@@ -318,7 +382,7 @@ controls:
 
 ## 视觉风格 `settings.style`
 
-不修改 pack 渲染流程，全部通过 PAPI 占位符消费：
+不修改 pack 渲染流程，全部通过 PAPI 占位符执行：
 
 - **pvp-highlight**：玩家造成或受到伤害后，`window-ms` 内 `%AXStab_pvp%` 返回 `1`，`%AXStab_pvp_color%` 输出 `color`，可用作前缀色覆盖。
 - **vanish-grey**：识别 essentials / supervanish / vanish / premiumvanish 等隐身插件，命中则 `%AXStab_vanish_color%` 输出 `color`。
