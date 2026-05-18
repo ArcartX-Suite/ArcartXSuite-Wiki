@@ -23,7 +23,7 @@ features:
     link: /modules/announcer
   - icon: 🐉
     title: EntityTracker 实体追踪
-    details: Boss血条HUD、实时伤害排行、自动结算奖励 + 攻击目标信息显示，支持多Boss并行追踪
+    details: Boss血条HUD、实时伤害排行、自动结算奖励、掉落记录、分配系统、跨服排行 + 攻击目标信息显示
     link: /modules/entitytracker
   - icon: 💬
     title: Chat 频道聊天
