@@ -67,7 +67,7 @@ modules:
 | `/axs mail cdk list [页码]` | 分页查看所有已创建的 CDK |
 | `/axs mail cdk delete <兑换码>` | 禁用并删除指定 CDK |
 
-### 玩家命令（权限：`arcartxsuite.mail.use`，别名 `/axmail`）
+### 玩家命令（权限：`arcartxsuite.mail.use`，别名 `/axmail`、`/axsmail`）
 
 | 命令 | 说明 |
 | --- | --- |

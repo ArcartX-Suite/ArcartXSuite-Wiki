@@ -274,7 +274,7 @@ map, questgps, warehouse
 | --- | --- | --- |
 | `/warehouse` 或 `/wh` | 打开个人仓库界面。所有仓库操作（存/取/共享/银行）均在 AXUI 界面中完成 | `/wh` |
 
-### Mail — 邮箱（`/mail`，别名 `/axmail`）
+### Mail — 邮箱（`/mail`，别名 `/axmail`、`/axsmail`）
 
 权限：`arcartxsuite.mail.use`
 

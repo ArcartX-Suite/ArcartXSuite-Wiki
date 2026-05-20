@@ -26,6 +26,17 @@
 - **控制台美化** — `ArcartXSuitePlugin.STARTUP_BANNER` 改为 ANSI Shadow 字体绘制的「SUITE」六行块状字符画，主体青→蓝→紫渐变，顶部新增 `✦ A R C A R T X ✦` 副标题，底部居中作者署名。
 - **控制台美化** — 迁移类 INFO 日志统一格式 `→ 已归位 X: <来源> ➜ <目标>`，使用金色箭头 + 黄色源 + 灰色 ➜ + 青色目标，便于在密集启动日志中一眼识别。
 
+### 1.1.0-beta (Build 2026-05-20) — QuestGPS 导航系统重构
+
+- **QuestGPS** — 移除服务端粒子导航（`QuestGpsParticleService`），替换为零开销的客户端渲染方案。
+- **QuestGPS** — 新增 3D 模型导航标记：通过 Adyeshach 私有临时实体 + ArcartX `setModel()` 在导航目标位置渲染自定义模型（如光柱/箭头/水晶），仅追踪玩家可见，追踪期间零服务端 tick。
+- **QuestGPS** — 新增任务指引 HUD（`AXS:questgps_guide`）：RPG 风格左侧竖排浮窗，显示任务名、进度条、目标清单（≤3 条）和导航坐标，追踪时自动打开。
+- **QuestGPS** — 移除旧 `hud-ui-id` / `auto-open-hud-on-track` / `hud-enabled-by-default` 配置项。
+- **QuestGPS** — 配置变更：`navigation.particle` → `navigation.marker`（`model-id`、`scale`、`default-state`、`animation`、`y-offset`）。
+- **QuestGPS** — 新增 `client.guide-ui-id` 配置项。
+- **QuestGPS** — 移除 `/questgps hud` 子命令，指引 HUD 随追踪自动开关。
+- **AdyeshachNpcBridge** — 扩展：新增 `spawnPrivateMarker` / `removePrivateMarker` / `clearAllPrivateMarkers` / `getPrivateMarker` 方法，支持按玩家生成私有临时实体。
+
 ### 1.1.0-beta (Build 2026-05-19) — 配置目录拆分
 
 - **配置拆分** — 以下模块的大型内联配置段已拆分为独立目录，每个 `*.yml` 文件可包含多条定义：
