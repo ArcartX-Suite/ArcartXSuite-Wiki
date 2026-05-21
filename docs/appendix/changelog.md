@@ -26,6 +26,17 @@
 - **控制台美化** — `ArcartXSuitePlugin.STARTUP_BANNER` 改为 ANSI Shadow 字体绘制的「SUITE」六行块状字符画，主体青→蓝→紫渐变，顶部新增 `✦ A R C A R T X ✦` 副标题，底部居中作者署名。
 - **控制台美化** — 迁移类 INFO 日志统一格式 `→ 已归位 X: <来源> ➜ <目标>`，使用金色箭头 + 黄色源 + 灰色 ➜ + 青色目标，便于在密集启动日志中一眼识别。
 
+### 1.1.0-beta (Build 2026-05-22) — QuestGPS 路径寻路 + 标记修复
+
+- **QuestGPS** — 新增 A* 路径寻路系统：从玩家到目标沿地面生成多个导航标记实体，智能绕开障碍物、液体和危险方块（仙人掌、岩浆块、营火等），支持 ±1 格台阶。
+- **QuestGPS** — 路径标记动态更新：玩家移动时异步重新计算路径，现有实体通过传送复用，减少创建/销毁开销。
+- **QuestGPS** — 路径标记实体朝向：每个标记面向下一个路径点方向，最后一个标记面向目标终点。
+- **QuestGPS** — 新增 `marker` 配置字段：`path-interval`（标记间距）、`path-max-markers`（最大数量）、`path-update-ticks`（更新频率）、`path-max-distance`（最大渲染距离）、`path-max-iterations`（A* 最大迭代次数）。
+- **AdyeshachNpcBridge** — 修复实体类型：`findCreateMethod` 中枚举重建从 `PLAYER` 改为 `ARMOR_STAND`，解决实体显示名称标签和碰撞体积的问题。
+- **AdyeshachNpcBridge** — 新增实体初始化：隐藏名称标签（`setCustomName("")` + `setNameTagVisible(false)`）、关闭碰撞（`isMarker=true` + `setCollidable(false)`）、禁用重力（`isNoGravity=true`）。
+- **AdyeshachNpcBridge** — 新增 `teleportMarker` 方法，支持传送已有私有标记实体到新位置。
+- **日志** — QuestGPS 导航标记和 AdyeshachNpcBridge 的调试日志全部改为受 `debug.enabled` 配置控制，默认关闭。
+
 ### 1.1.0-beta (Build 2026-05-20) — QuestGPS 导航系统重构
 
 - **QuestGPS** — 移除服务端粒子导航（`QuestGpsParticleService`），替换为零开销的客户端渲染方案。
