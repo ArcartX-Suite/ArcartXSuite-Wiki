@@ -26,6 +26,15 @@
 - **控制台美化** — `ArcartXSuitePlugin.STARTUP_BANNER` 改为 ANSI Shadow 字体绘制的「SUITE」六行块状字符画，主体青→蓝→紫渐变，顶部新增 `✦ A R C A R T X ✦` 副标题，底部居中作者署名。
 - **控制台美化** — 迁移类 INFO 日志统一格式 `→ 已归位 X: <来源> ➜ <目标>`，使用金色箭头 + 黄色源 + 灰色 ➜ + 青色目标，便于在密集启动日志中一眼识别。
 
+### 1.1.0-beta (Build 2026-05-22) — Chat 模块 Bug 修复 + 文档重写
+
+- **Chat Bug 修复** — `ChatAdminCommand.handleSpy` 改用管理员专用重载 `setSocialSpy(String, boolean, String)`，不再检查目标玩家权限，并支持离线玩家。
+- **Chat Bug 修复** — `ProxyChatTransport.onPluginMessageReceived` 修正 BungeeCord Forward 接收协议解析：第一个 `readUTF()` 读取 `messengerChannel` 而非 `"Forward"`，修复 Proxy 跨服完全无法接收的问题。
+- **Chat Bug 修复** — `ChatService.onPlayerQuit` 新增 `states`/`replyTargets`/`lastMessageTimes`/`lastDuplicateStamps` 缓存清理，`runCleanup` 新增离线 `profiles` 清理，修复长期运行的内存泄漏。
+- **Chat Bug 修复** — `Private.yml` 权限统一为小写 `arcartxsuite.chat.msg`，与代码常量一致。
+- **Chat Bug 修复** — `RedisChatTransport` 使用完整 `JedisPool` 构造函数传入密码、database 和超时，修复密码保护 Redis 连接池验证失败的问题。
+- **Chat 文档重写** — 修正配置示例中频道结构错误（频道为独立文件非嵌套配置）、变量名错误（`{player}` → `{player_name}`）；补充完整配置说明、四种频道模式、权限列表、聊天卡片数据载荷；新增跨服聊天设置详细教程（Redis + Proxy 两种方式）。
+
 ### 1.1.0-beta (Build 2026-05-22) — QuestGPS 移除自动行走
 
 - **QuestGPS** — 移除自动行走功能（`auto-walk` 配置段、`QuestGpsAutoWalkService`、`/questgps autowalk|stopwalk` 命令、菜单"开始导航"按钮、HUD tick 按键模拟）。仅保留路径标记导航。
