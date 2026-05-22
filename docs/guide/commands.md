@@ -165,12 +165,13 @@ map, questgps, warehouse
 
 | 命令 | 说明 | 使用示例 |
 | --- | --- | --- |
-| `/axs announcer status` | 查看模块状态，包括活跃公告数、字幕组数和待播队列 | `/axs announcer status` |
-| `/axs announcer broadcast <文本>` | 将一条自定义广播加入队列，当前广播展示结束后立即播报，不受广播冷却限制 | `/axs announcer broadcast 服务器将于10分钟后维护` |
-| `/axs announcer broadcastnow <文本>` | 立即广播，强制打断当前正在展示的公告 | `/axs announcer broadcastnow 紧急通知：服务器重启` |
-| `/axs announcer subtitle list` | 列出所有已加载的字幕组 ID，用于确认字幕配置是否正确加载 | `/axs announcer subtitle list` |
-| `/axs announcer subtitle play <玩家> <字幕组ID>` | 向指定玩家播放字幕动画，字幕组 ID 需在配置中预先定义 | `/axs announcer subtitle play Steve welcome_intro` |
-| `/axs announcer subtitle stop <玩家>` | 立即停止指定玩家正在播放的字幕动画 | `/axs announcer subtitle stop Steve` |
+| `/axs announcer help` | 查看 Announcer 模块所有可用命令 | `/axs announcer help` |
+| `/axs announcer status` | 查看模块状态：活跃公告数、已初始化玩家数、字幕组数、播放中玩家数和待播队列 | `/axs announcer status` |
+| `/axs announcer broadcast <文本>` | 将一条自定义广播加入队列，当前广播展示结束后立即播报，不受冷却限制。文本支持 `&` 颜色代码 | `/axs announcer broadcast &c服务器将于10分钟后维护` |
+| `/axs announcer broadcastnow <文本>` | 立即广播，强制打断当前正在展示的公告 | `/axs announcer broadcastnow &c&l紧急通知：服务器重启` |
+| `/axs announcer subtitle list` | 列出所有已加载的字幕组 ID（文件名即组 ID） | `/axs announcer subtitle list` |
+| `/axs announcer subtitle play <玩家> <字幕组ID>` | 向指定在线玩家播放字幕组。若该玩家有字幕正在播放会先终止旧的 | `/axs announcer subtitle play Steve welcome` |
+| `/axs announcer subtitle stop <玩家>` | 立即停止指定玩家正在播放的字幕并关闭字幕 HUD | `/axs announcer subtitle stop Steve` |
 
 #### Title（称号系统）
 
