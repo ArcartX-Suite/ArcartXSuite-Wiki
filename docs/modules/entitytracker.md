@@ -105,7 +105,7 @@ boss:
     max-visible-bars: 5
     # 排序模式（见下方说明）
     sort-mode: "spawn-order"
-    # ArcartX UI 注册 ID
+    # ArcartX UI 注册 ID（支持列表格式，详见 [多 UI 同时发包](/guide/multi-ui)）
     ui-id: "AXS:boss_tracker"
     # 模块启用时是否自动向 ArcartX 注册 UI
     register-ui-on-enable: true
@@ -138,6 +138,7 @@ attack-target:
     target-timeout-ms: 3000
     # 最大视距
     max-view-distance: 48.0
+    # 支持列表格式，详见 [多 UI 同时发包](/guide/multi-ui)
     ui-id: "AXS:attack_target_hud"
     register-ui-on-enable: true
     overwrite-ui-file: false

@@ -54,6 +54,7 @@ debug:
 
 client:
   packet-id: "AXS_QUESTGPS"
+  # 支持列表格式，详见 [多 UI 同时发包](/guide/multi-ui)
   menu-ui-id: "AXS:questgps_menu"       # 任务菜单 UI
   guide-ui-id: "AXS:questgps_guide"     # 任务指引 HUD
   register-ui-on-enable: true

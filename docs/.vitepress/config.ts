@@ -40,6 +40,7 @@ export default defineConfig({
             { text: '命令速查', link: '/guide/commands' },
             { text: 'PlaceholderAPI 速查', link: '/guide/placeholders' },
             { text: '配置智能体检', link: '/guide/config-management' },
+            { text: '多 UI 同时发包', link: '/guide/multi-ui' },
           ],
         },
       ],

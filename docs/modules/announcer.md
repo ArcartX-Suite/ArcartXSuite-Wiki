@@ -46,7 +46,7 @@ modules:
 ```yaml
 settings:
   debug: false                         # true 时打印发包与点击回包日志
-  ui-id: "AXS:announcer_hud"          # 公告 HUD 的 UI ID
+  ui-id: "AXS:announcer_hud"          # 公告 HUD 的 UI ID（支持列表格式，详见 [多 UI 同时发包](/guide/multi-ui)）
   register-ui-on-enable: true          # 启动/重载时自动注册 HUD
   overwrite-ui-file: false             # 是否强制覆盖已导出的 UI 文件
   auto-play: true                      # false 时 HUD 仍同步配置但不滚动
@@ -86,7 +86,7 @@ player_tip:
 subtitle:
   settings:
     debug: false
-    ui-id: "AXS:subtitle_hud"
+    ui-id: "AXS:subtitle_hud"            # 支持列表格式，详见 [多 UI 同时发包](/guide/multi-ui)
     register-ui-on-enable: true
     overwrite-ui-file: false
     groups-directory: "subtitle/groups"    # 字幕组目录，相对插件数据目录

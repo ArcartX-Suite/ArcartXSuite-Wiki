@@ -46,6 +46,7 @@ theme:
   name: ArcartXConversation
 
 client:
+  # 支持列表格式，详见 [多 UI 同时发包](/guide/multi-ui)
   dialog-ui-id: AXS:conversation_menu
   selector-ui-id: AXS:conversation_selector_hud
   register-ui-on-enable: true

@@ -47,6 +47,10 @@ modules:
 
 ## 配置
 
+::: tip 多 UI 发包
+`ui.menu-ui-id` 支持列表格式，可同时向多个 UI 推送同一份 payload，详见 [多 UI 同时发包](/guide/multi-ui)。
+:::
+
 配置分为主配置和两个独立外部文件：
 
 ```yaml
