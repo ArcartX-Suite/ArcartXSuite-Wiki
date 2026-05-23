@@ -8,7 +8,7 @@
 
 - **多频道体系**：自定义频道（普通、全服、私聊、管理），每个频道是 `chat/channels/` 目录下一个独立 `.yml` 文件，可独立配置模式、格式、范围和权限
 - **私聊与回复**：`/msg` 私聊、`/reply` 快速回复；跨服模式下目标玩家可在其他子服
-- **@提及**：聊天中输入 `@玩家名` 或 `@all` 触发提及通知，可选 ArcartX 聊天卡片提醒
+- **@提及**：聊天中输入 `@玩家名` 或 `@all` 触发提及通知，可选 ArcartX 聊天卡片提醒；支持 `@` 名称自动补全，双通道实现：① 原版聊天栏通过 Paper API / NMS 发包（1.19.1+），② ArcartX 自定义聊天栏通过 overlay UI 实时匹配（需 ArcartX 客户端，打开聊天栏后输入 `@` 即显示候选列表，点击插入）
 - **SocialSpy 社交监听**：拥有权限的玩家可查看全服私聊内容
 - **忽略系统**：玩家可屏蔽不想看到的玩家消息
 - **禁言管理**：支持定时禁言（如 `30m`、`7d`）和永久禁言，带原因记录
@@ -102,6 +102,8 @@ cards:
   private-card-id: ""
   system-card-id: ""
   item-preview-card-id: "axs_item_preview"
+  # 卡片文字估算基准字号，影响动态宽度计算和客户端渲染字体大小。
+  font-size: 49
 
 function:
   mention:
@@ -345,72 +347,47 @@ transport:
 
 | 配置项 | 触发场景 | 卡片数据（`self.parent.data['key']`） |
 | --- | --- | --- |
-| `mention-card-id` | 有人 @提及你时 | `senderName`、`senderDisplayName`、`channel`、`channelId`、`message` |
-| `private-card-id` | 收到/发送私聊时 | `senderName`、`senderDisplayName`、`targetName`、`direction`（`sender`/`recipient`）、`message` |
-| `item-preview-card-id` | 聊天中展示物品时 | `itemJson`、`itemName`、`itemAmount`、`itemMaterial`、`senderName`、`senderDisplayName`、`channel` |
-| `system-card-id` | 系统通知（禁言提示等） | `type` + 各场景额外字段 |
+| `mention-card-id` | 有人 @提及你时 | `senderName`、`senderDisplayName`、`channel`、`channelId`、`message`、`cardWidth`、`fontSize` |
+| `private-card-id` | 收到/发送私聊时 | `senderName`、`senderDisplayName`、`targetName`、`direction`（`sender`/`recipient`）、`message`、`cardWidth`、`fontSize` |
+| `item-preview-card-id` | 聊天中展示物品时 | `cardWidth`、`fontSize`、`senderName`、`senderDisplayName`、`itemName`、`itemAmount`、`itemMaterial`、`channel`、`itemJson` |
+| `system-card-id` | 系统通知（禁言提示等） | `type`、`cardWidth`、`fontSize` + 各场景额外字段 |
 
-### 内置物品预览卡片
+### 内置卡片模板
 
-模块默认 `item-preview-card-id` 为 `axs_item_preview`。首次启动时会自动将内置模板导出到 `plugins/ArcartX/chat_card/axs_item_preview.yml`（文件已存在则不覆盖）。
+模块首次启动时自动导出以下四种内置卡片到 `plugins/ArcartX/chat_card/`（文件已存在则不覆盖）：
 
-该模板的效果：
+| 文件 | 默认配置键 | 说明 |
+| --- | --- | --- |
+| `axs_chat_mention.yml` | `mention-card-id` | @提及通知：蓝色边框，显示谁提到了你及消息内容 |
+| `axs_chat_private.yml` | `private-card-id` | 私聊通知：紫色边框，区分发送/接收方向 |
+| `axs_chat_system.yml` | `system-card-id` | 系统提示：红色边框，禁言/过滤等警告 |
+| `axs_item_preview.yml` | `item-preview-card-id` | 物品预览：含物品图标 Slot，悬浮触发 Tooltip |
+
+所有卡片高度固定 `100`，宽度由服务端根据文本内容动态估算（`cardWidth`），字体大小通过 `fontSize` 传入（默认 `49`，可在 `cards.font-size` 中配置）。可直接编辑对应文件自定义外观。将配置值设为空字符串可禁用对应卡片。
+
+> **冗余消息抑制**：当卡片成功发送到客户端时，对应的文字消息不再重复输出。例如禁言提示卡片发送后不再发送红色文字提示；@提及卡片发送后不再发送原始聊天消息行到被提及玩家。
+
+#### 物品预览卡片
 
 - 卡片内包含一个 **Slot**（`slotType: ~Icon`），通过 `setItemIcon(itemJson)` 渲染物品图标，悬浮时可触发 ArcartX Tooltip 显示完整物品信息
-- 显示发送者名称和物品名称
+- 宽度基于发送者显示名 + 物品名中较长者动态估算
 - **当卡片成功发送时，原始聊天消息行会被完全抑制**，避免物品信息重复出现
+- 禁用后回退到原版 `SHOW_ITEM` 悬浮预览
 
-你可以直接编辑 `plugins/ArcartX/chat_card/axs_item_preview.yml` 自定义卡片外观，或将 `item-preview-card-id` 设为其他卡片 ID 使用自定义模板。设为空字符串可禁用卡片，回退到原版 `SHOW_ITEM` 悬浮预览。
+#### 私聊卡片
 
-默认模板结构：
+- 接收方视角：点击卡片背景自动执行 `/reply`，快速进入回复
+- 卡片图标为铅笔符号（`§d✎`）
+- 宽度基于消息内容动态估算
 
-```yaml
-root_control:
-  type: card
-  attribute:
-    width: 500
-    height: 100
-  children:
-    background:
-      type: Slot
-      attribute:
-        width: 500
-        height: 100
-        normal: ~25,25,35,200
-        slotType: ~Icon
-        alpha: 0.999
-      action:
-        create: |-
-          self.setItemIcon(self.parent.data['itemJson'])
-    item_slot:
-      type: Slot
-      attribute:
-        width: 80
-        height: 80
-        x: 10
-        y: 10
-        slotType: ~Icon
-        itemScale: 0.8
-      action:
-        create: |-
-          self.setItemIcon(self.parent.data['itemJson'])
-    sender_label:
-      type: Text
-      attribute:
-        fontSize: 49
-        x: 100
-        y: 15
-        texts: "self.parent.data['senderDisplayName'] + ' §7展示了一件物品'"
-        through: true
-    item_label:
-      type: Text
-      attribute:
-        fontSize: 49
-        x: 100
-        y: 60
-        texts: "'§b' + self.parent.data['itemName']"
-        through: true
-```
+#### 系统提示卡片
+
+系统卡片 `data['type']` 可能的值：
+
+| type | 触发 | 额外字段 |
+| --- | --- | --- |
+| `mute` | 玩家被禁言时发言 | `remaining`（剩余时间文本）、`reason`（原因） |
+| `filter` | 消息被敏感词拦截 | `message`（提示文本） |
 
 ## PAPI
 

@@ -87,6 +87,29 @@ modules:
 | `%AXSmail_claimable_count%` | 数字 | 有附件但尚未领取的邮件数量 |
 | `%AXSmail_total_count%` | 数字 | 收件箱邮件总数 |
 
+## 聊天卡片通知
+
+当玩家在线时收到新邮件，Mail 模块会通过 ArcartX 聊天卡片在聊天栏推送通知。
+
+配置项位于 `ArcartXMail.yml` 的 `ui` 节：
+
+```yaml
+ui:
+  # 新邮件到达时在聊天栏显示的 ArcartX 卡片 ID；留空则不发送通知卡片。
+  notify-card-id: "axs_mail_notify"
+```
+
+模块首次启动时自动将内置模板导出到 `plugins/ArcartX/chat_card/axs_mail_notify.yml`（文件已存在则不覆盖）。
+
+卡片数据（`self.parent.data['key']`）：
+
+| 键 | 说明 |
+| --- | --- |
+| `subject` | 邮件主题 |
+| `senderName` | 发件人名称（系统邮件为 "系统"） |
+| `sourceType` | 来源类型：`system`、`player`、`preset`、`cdk` |
+| `hasAttachments` | 是否含附件（`true`/`false`） |
+
 ## EventPacket 联动
 
 Mail 模块在 CDK 兑换成功时自动向 EventPacket 发射信号：

@@ -26,6 +26,23 @@
 - **控制台美化** — `ArcartXSuitePlugin.STARTUP_BANNER` 改为 ANSI Shadow 字体绘制的「SUITE」六行块状字符画，主体青→蓝→紫渐变，顶部新增 `✦ A R C A R T X ✦` 副标题，底部居中作者署名。
 - **控制台美化** — 迁移类 INFO 日志统一格式 `→ 已归位 X: <来源> ➜ <目标>`，使用金色箭头 + 黄色源 + 灰色 ➜ + 青色目标，便于在密集启动日志中一眼识别。
 
+### 1.1.0-beta (Build 2026-05-23b) — 聊天卡片动态尺寸 + 冗余消息抑制
+
+- **Chat** — 所有聊天卡片（提及、私聊、系统、物品预览）宽度改为服务端动态估算，根据实际文本内容计算 `cardWidth`，字体大小通过 `fontSize` 传入客户端，新增 `cards.font-size` 配置项（默认 49）。
+- **Chat** — 冗余消息抑制：禁言/过滤系统卡片成功发送后，不再重复输出红色文字提示；@提及卡片发送后，被提及玩家不再收到原始聊天消息行；物品预览卡片发送后抑制原始消息行。新增 `ChatOperationResult.cardNotified` 标志。
+- **Chat** — 私聊卡片新增点击回复：接收方视角点击卡片背景自动执行 `/reply`；图标从信封改为铅笔符号（`§d✎`）。
+- **Chat** — 系统卡片宽度修复：禁言卡片统一基于实际显示的详情行（`剩余时间: xxx`）估算宽度，解决禁言指令触发与玩家发言触发时卡片长短不一致的问题。
+- **Chat** — 物品预览卡片背景改为 `Texture` 类型（与其他卡片一致），保留全卡片区域透明 Slot 叠加层用于物品 Tooltip 悬浮；payload 中 `cardWidth`/`fontSize` 优先排列，确保大体积 `itemJson` 不影响关键变量传输。
+- **Mail** — 邮件通知卡片同步支持动态尺寸，新增 `ui.notify-card-font-size` 配置项（默认 49）。
+
+### 1.1.0-beta (Build 2026-05-23) — Chat @补全 + 聊天卡片模板 + Mail 通知卡片
+
+- **Chat** — 新增 `@` 名称聊天补全（双通道）：① 原版聊天栏：Paper/Purpur API 优先，不可用时回退 NMS `ClientboundCustomChatCompletionsPacket`（Spigot/Mohist 1.19.1+）；② ArcartX 自定义聊天栏：注册 `axs_chat_completion` overlay UI，匹配 `ChatScreen`，服务端 join/quit 时推送在线玩家列表，客户端 100ms 轮询聊天输入并显示 `@` 候选下拉菜单（最多 8 项），点击即插入。
+- **Chat** — 新增三套内置聊天卡片模板（提及、私聊、系统提示），统一 500×100 尺寸，首次启动自动导出到 `plugins/ArcartX/chat_card/`。
+- **Chat** — 默认配置 `mention-card-id`、`private-card-id`、`system-card-id` 改为非空，默认启用卡片通知。
+- **Mail** — 新增 `ui.notify-card-id` 配置，当玩家在线时收到新邮件，自动发送 ArcartX 聊天卡片通知（含邮件主题和发件人）。
+- **Mail** — 内置 `axs_mail_notify.yml` 卡片模板，首次启动自动导出。
+
 ### 1.1.0-beta (Build 2026-05-22) — Chat 模块 Bug 修复 + 文档重写
 
 - **Chat Bug 修复** — `ChatAdminCommand.handleSpy` 改用管理员专用重载 `setSocialSpy(String, boolean, String)`，不再检查目标玩家权限，并支持离线玩家。
