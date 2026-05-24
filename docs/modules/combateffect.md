@@ -15,9 +15,10 @@
 
 ### 击杀/命中特效
 
-- **四种触发器**：`kill`（击杀）、`attack`（攻击）、`death`（死亡缓冲触发）、`combo`（连击阈值触发）
-- **多接收者**：`attacker`（攻击者）、`target`（受害者，仅玩家可接收）
-- **丰富变量**：pack 支持 `{killer_name}`、`{victim_name}`、`{combo_count}`、坐标、UUID、主手物品等
+- **八种触发器**：`kill`、`attack`、`death`、`combo`、`manual`、`keybind`（AX 按键）、`state`（AC 状态）、`controller`（AC 控制器切换）
+- **多接收者**：`attacker`（攻击者/按键玩家）、`target`（受害者，仅玩家可接收）
+- **丰富变量**：pack 支持 `{killer_name}`、`{victim_name}`、`{combo_count}`、`{player}`、`{key_name}`、`{state_id}`、`{controller_id}` 等
+- **通配符匹配**：`key-name`、`state-id`、`controller-id` 支持 `*` 通配符（如 `attack_*`）
 - **黑名单过滤**：按 MythicMob ID 或 Bukkit EntityType 过滤
 - **冷却系统**：每个包定义可配置 `cooldown` 防止高频触发刷屏
 - **灵活发包格式**：pack 支持字符串、列表、字典三种模式
@@ -74,7 +75,7 @@ modules:
 启用后模块会自动：
 1. 导出默认配置到 `data/combateffect/config.yml`
 2. 导出包定义到 `data/combateffect/packets/default.yml`
-3. 导出 3 个 UI 文件到 `plugins/ArcartX/ui/` 目录
+3. 导出 3 个 UI 文件到 `plugins/ArcartXSuite/ui/` 目录（`combat_kill_effect.yml`、`combo_effect.yml`、`death_buffer.yml`）
 
 ---
 
@@ -218,16 +219,22 @@ digis-display:
 ```yaml
 example-packet:
   enabled: true                    # 是否启用
-  trigger: kill                    # 触发器: kill / attack / death / combo
-  ui-id: "击杀命中特效"             # 目标 ArcartX UI ID
+  trigger: kill                    # 触发器: kill / attack / death / combo / manual / keybind / state / controller
+  ui-id: "combat_kill_effect"      # 目标 ArcartX UI ID
   packet-handler: "kill"           # 目标 packetHandler 名称
   recipients:                      # 接收者列表
     - attacker                     # attacker / target
   cooldown: 500                    # 冷却时间（毫秒），0 = 无冷却
-  conditions:                      # combo 触发条件（仅 trigger: combo 时有效）
-    combo-min: 5                   # 最低连击数（含）
-    combo-max: 2147483647          # 最高连击数（含）
-    combo-repeat: false            # true = min~max 内每击触发; false = 仅 min 时触发一次
+  conditions:                      # 触发条件
+    combo-min: 5                   # [combo] 最低连击数（含）
+    combo-max: 2147483647          # [combo] 最高连击数（含）
+    combo-repeat: false            # [combo] true = min~max 内每击触发; false = 仅 min 时触发一次
+    key-name: "skill_dodge"        # [keybind] 按键名，支持 * 通配符
+    key-action: press              # [keybind] press / release / both
+    key-type: client               # [keybind] client / simple / group
+    state-id: "attack_*"           # [state] Chronos 状态 ID，支持 * 通配符
+    state-action: enter            # [state] enter / leave / both
+    controller-id: "warrior"       # [state/controller] Chronos 控制器 ID，支持 * 通配符
   pack:                            # 发包内容
     combo_count: "{combo_count}"
 ```
@@ -253,6 +260,83 @@ example-packet:
 | `attack` | 玩家攻击活体实体时 | 高频，建议配合 `cooldown` |
 | `death` | 玩家进入死亡缓冲时 | 由 DeathBufferService 内部触发 |
 | `combo` | 连击计数达到条件时 | 由 ComboTrackerService 内部触发 |
+| `manual` | 仅命令或 API 触发 | 不会被任何事件自动触发，适合外部系统集成 |
+| `keybind` | ArcartX 按键按下/释放时 | 需启用 `keybind-trigger.enabled`，通过 `conditions.key-name` 匹配 |
+| `state` | Chronos 状态进入/离开时 | 需启用 `state-trigger.enabled`，通过 `conditions.state-id` 匹配 |
+| `controller` | Chronos 控制器切换时 | 需启用 `state-trigger.enabled`，通过 `conditions.controller-id` 匹配 |
+
+### keybind 触发条件
+
+| 字段 | 类型 | 默认值 | 说明 |
+| --- | --- | --- | --- |
+| `conditions.key-name` | string | — | 匹配的 ArcartX 按键名，支持 `*` 通配符 |
+| `conditions.key-action` | string | `press` | `press` / `release` / `both` |
+| `conditions.key-type` | string | `client` | `client`（玩家可自定义）/ `simple`（固定组合键）/ `group`（按键组） |
+
+配置示例：
+
+```yaml
+dodge-effect:
+  enabled: true
+  trigger: keybind
+  ui-id: "combat_kill_effect"
+  packet-handler: "attack"
+  cooldown: 800
+  conditions:
+    key-name: "skill_dodge"
+    key-action: release
+    key-type: client
+  pack:
+    skill: "闪避翻滚"
+    player: "{player}"
+```
+
+### state 触发条件
+
+| 字段 | 类型 | 默认值 | 说明 |
+| --- | --- | --- | --- |
+| `conditions.state-id` | string | — | 匹配的 Chronos 状态 ID，支持 `*` 通配符（如 `attack_*`） |
+| `conditions.state-action` | string | `enter` | `enter` / `leave` / `both` |
+| `conditions.controller-id` | string | — | 可选，限定只在特定控制器下触发，支持 `*` 通配符 |
+
+配置示例：
+
+```yaml
+fire-blast-effect:
+  enabled: true
+  trigger: state
+  ui-id: "combat_kill_effect"
+  packet-handler: "kill"
+  cooldown: 1500
+  conditions:
+    state-id: "skill_fire"
+    state-action: enter
+    controller-id: "warrior"
+  pack:
+    skill_name: "烈焰爆发"
+    player: "{player}"
+```
+
+### controller 触发条件
+
+| 字段 | 类型 | 默认值 | 说明 |
+| --- | --- | --- | --- |
+| `conditions.controller-id` | string | — | 匹配的 Chronos 控制器 ID，支持 `*` 通配符，留空则匹配所有控制器切换 |
+
+配置示例：
+
+```yaml
+warrior-stance:
+  enabled: true
+  trigger: controller
+  ui-id: "combat_kill_effect"
+  packet-handler: "kill"
+  conditions:
+    controller-id: "warrior"
+  pack:
+    stance: "战士姿态"
+    player: "{player}"
+```
 
 ### pack 内置变量
 
@@ -276,6 +360,10 @@ example-packet:
 | `{target}` | death | 死亡玩家名 |
 | `{damage}` | death | 致命伤害数值 |
 | `{death_message}` | death | 死亡消息 |
+| `{player}` | keybind/state/controller | 触发的玩家名 |
+| `{key_name}` | keybind | ArcartX 按键名 |
+| `{state_id}` | state | Chronos 状态 ID |
+| `{controller_id}` | state/controller | Chronos 控制器 ID |
 
 ### 冷却系统
 
@@ -290,7 +378,7 @@ example-packet:
 kill-effect:
   enabled: true
   trigger: kill
-  ui-id: "击杀命中特效"
+  ui-id: "combat_kill_effect"
   packet-handler: "kill"
   recipients:
     - killer
@@ -300,7 +388,7 @@ kill-effect:
 attack-effect:
   enabled: false
   trigger: attack
-  ui-id: "击杀命中特效"
+  ui-id: "combat_kill_effect"
   packet-handler: "attack"
   recipients:
     - attacker
@@ -311,7 +399,7 @@ attack-effect:
 combo-5:
   enabled: true
   trigger: combo
-  ui-id: "连击特效"
+  ui-id: "combo_effect"
   packet-handler: "combo"
   recipients:
     - attacker
@@ -326,7 +414,7 @@ combo-5:
 combo-10:
   enabled: true
   trigger: combo
-  ui-id: "连击特效"
+  ui-id: "combo_effect"
   packet-handler: "combo_milestone"
   recipients:
     - attacker
@@ -341,7 +429,7 @@ combo-10:
 death-buffer-victim:
   enabled: true
   trigger: death
-  ui-id: "死亡缓冲界面"
+  ui-id: "death_buffer"
   packet-handler: "death"
   recipients:
     - target
@@ -353,7 +441,7 @@ death-buffer-victim:
 death-buffer-killer:
   enabled: true
   trigger: death
-  ui-id: "击杀命中特效"
+  ui-id: "combat_kill_effect"
   packet-handler: "kill"
   recipients:
     - attacker
@@ -366,9 +454,9 @@ death-buffer-killer:
 
 ## UI 文件
 
-模块内置 3 个 ArcartX UI 文件，首次启动自动导出到 `plugins/ArcartX/ui/`。
+模块内置 3 个 ArcartX UI 文件，首次启动自动导出到 `plugins/ArcartXSuite/ui/`。
 
-### 击杀命中特效 (`击杀命中特效.yml`)
+### 击杀命中特效 (`combat_kill_effect.yml`)
 
 **类型**：HUD（常驻显示）
 
@@ -385,10 +473,10 @@ death-buffer-killer:
 - `击杀计数文本` — 显示当前连续击杀数，`var.击杀数 > 0` 时可见
 
 **客户端资源：**
-- `命中击杀特效/命中.png` — 命中特效贴图
-- `命中击杀特效/击杀.png` — 击杀特效贴图
+- `combat_effect/hit.png` — 命中特效贴图
+- `combat_effect/kill.png` — 击杀特效贴图
 
-### 连击特效 (`连击特效.yml`)
+### 连击特效 (`combo_effect.yml`)
 
 **类型**：HUD（常驻显示）
 
@@ -410,7 +498,7 @@ death-buffer-killer:
 - `里程碑特效` — 里程碑动画贴图（仅 `combo_milestone` 时显示）
 
 **客户端资源：**
-- `命中击杀特效/连击里程碑.png` — 里程碑闪光特效
+- `combat_effect/combo_milestone.png` — 里程碑闪光特效
 
 **UI 显隐逻辑：**
 ```
@@ -418,7 +506,7 @@ visible: "server.combo_count > 0 || var.combo_show"
 ```
 当服务器变量大于 0 或包触发后 3 秒内，显示 combo 面板。
 
-### 死亡缓冲界面 (`死亡缓冲界面.yml`)
+### 死亡缓冲界面 (`death_buffer.yml`)
 
 **类型**：全屏界面（非 HUD）
 
@@ -455,8 +543,95 @@ visible: "server.combo_count > 0 || var.combo_show"
 
 | 命令 | 说明 |
 | --- | --- |
+| `/axs combateffect help` | 查看可用子命令 |
 | `/axs combateffect status` | 查看所有子系统启用状态、已加载包定义数 |
 | `/axs combateffect reload` | 重载全部配置和包定义 |
+| `/axs combateffect send <包ID> <玩家> [k=v ...]` | 按包定义 ID 手动触发特效（绕过事件匹配） |
+| `/axs combateffect direct <uiId> <handler> <玩家> [k=v ...]` | 直接向客户端发包（绕过包定义系统） |
+
+### send 命令详解
+
+```
+/axs combateffect send kill-effect Steve
+/axs combateffect send combo-5 Steve combo_count=15
+```
+
+- **包ID**：`packets/*.yml` 中定义的根键名（如 `kill-effect`、`combo-5`）
+- **k=v 参数**：以键值对形式传入额外变量，会覆盖包定义 `pack` 模板中的同名占位符
+- 支持 Tab 补全：包 ID 和在线玩家名
+
+### direct 命令详解
+
+```
+/axs combateffect direct combat_kill_effect kill Steve killer=Steve victim=Zombie
+```
+
+- **uiId**：ArcartX UI ID（即 UI 文件名去掉 `.yml`）
+- **handler**：目标 `packetHandler` 名称
+- 完全绕过包定义，直接构造发包内容
+
+---
+
+## 跨模块 API（Capability）
+
+CombatEffect 注册了 `CombatEffectTriggerable` capability，其他模块可通过以下方式调用：
+
+```java
+// 在其他模块中获取 capability
+Supplier<CombatEffectTriggerable> combatEffect =
+    () -> context.getCapability(CombatEffectTriggerable.class).orElse(null);
+
+// 按包 ID 触发
+CombatEffectTriggerable ce = combatEffect.get();
+if (ce != null) {
+    ce.triggerPacket("kill-effect", player, Map.of("killer", player.getName()));
+}
+
+// 直接发包（绕过包定义）
+ce.triggerDirect("combat_kill_effect", "kill", player, Map.of("killer", "Steve"));
+```
+
+**接口方法：**
+
+| 方法 | 说明 |
+| --- | --- |
+| `triggerPacket(packetId, recipient, variables)` | 按已注册的包定义 ID 发送，变量合并到 pack 模板渲染 |
+| `triggerDirect(uiId, handler, recipient, payload)` | 直接发包，完全自定义 UI ID、handler 和内容 |
+
+### 与 EventPacket 联动示例
+
+在 EventPacket 的规则中，可通过 `CombatEffectTriggerable` capability 触发战斗特效：
+
+```yaml
+# EventPacket 规则示例
+boss-kill-special:
+  event: mythicmobs_mob_death
+  condition: "{mythic_mob_id} == 'WorldBoss'"
+  actions:
+    - type: capability
+      capability: CombatEffectTriggerable
+      method: triggerPacket
+      args: ["kill-effect", "{player}", {"killer": "{player}", "victim": "WorldBoss"}]
+```
+
+### trigger: manual 包定义
+
+新增 `manual` 触发类型，表示该包**仅**通过命令或 API 触发，不会被任何事件自动触发：
+
+```yaml
+special-effect:
+  enabled: true
+  trigger: manual
+  ui-id: "combat_kill_effect"
+  packet-handler: "kill"
+  pack:
+    killer: "{player}"
+    victim: "特殊效果"
+```
+
+```
+/axs combateffect send special-effect Steve
+```
 
 ---
 
@@ -464,8 +639,8 @@ visible: "server.combo_count > 0 || var.combo_show"
 
 ### 场景 1：基础击杀/命中特效
 
-1. 启用模块，确认 `击杀命中特效.yml` 已导出到 `plugins/ArcartX/ui/`
-2. 准备客户端贴图资源 `命中击杀特效/命中.png` 和 `击杀命中特效/击杀.png`
+1. 启用模块，确认 `combat_kill_effect.yml` 已导出到 `plugins/ArcartXSuite/ui/`
+2. 准备客户端贴图资源 `combat_effect/hit.png` 和 `combat_effect/kill.png`
 3. 编辑 `data/combateffect/packets/default.yml`：
    - `kill-effect.enabled: true`（已默认开启）
    - `attack-effect.enabled: true`（按需开启，建议保留 `cooldown: 500`）
@@ -479,7 +654,7 @@ visible: "server.combo_count > 0 || var.combo_show"
      enabled: true
      sync-variable: true
    ```
-2. 确认 `连击特效.yml` 已导出
+2. 确认 `combo_effect.yml` 已导出
 3. 编辑包定义：
    - `combo-5` 和 `combo-10` 已默认启用
    - 可自行添加更多阈值包
@@ -491,7 +666,7 @@ visible: "server.combo_count > 0 || var.combo_show"
 combo-20:
   enabled: true
   trigger: combo
-  ui-id: "连击特效"
+  ui-id: "combo_effect"
   packet-handler: "combo_milestone"
   recipients:
     - attacker
@@ -514,7 +689,7 @@ combo-20:
        third-person-camera: true
      block-auto-respawn: true
    ```
-2. 确认 `死亡缓冲界面.yml` 已导出
+2. 确认 `death_buffer.yml` 已导出
 3. 进入游戏被击杀 → 全屏死亡界面 + 3 秒倒计时 + 视觉效果
 
 **与 Chronos 联动：**
@@ -550,9 +725,9 @@ death-buffer:
 
 | UI 文件 | UI ID | packetHandler | 触发器 |
 | --- | --- | --- | --- |
-| `击杀命中特效.yml` | 击杀命中特效 | `attack` / `kill` | attack / kill / death(killer) |
-| `连击特效.yml` | 连击特效 | `combo` / `combo_milestone` | combo |
-| `死亡缓冲界面.yml` | 死亡缓冲界面 | `death` | death(victim) |
+| `combat_kill_effect.yml` | combat_kill_effect | `attack` / `kill` | attack / kill / death(killer) |
+| `combo_effect.yml` | combo_effect | `combo` / `combo_milestone` | combo |
+| `death_buffer.yml` | death_buffer | `death` | death(victim) |
 
 > **提示**：`config-id`（伤害飘字样式）在 ArcartX 客户端侧的 `digis` 配置文件中定义，与服务端包定义解耦。
 
@@ -566,15 +741,15 @@ data/combateffect/
 └── packets/
     └── default.yml               # 默认包定义（可添加更多 .yml）
 
-plugins/ArcartX/ui/
-├── 击杀命中特效.yml               # HUD — 击杀/命中
-├── 连击特效.yml                   # HUD — 连击
-└── 死亡缓冲界面.yml               # 全屏 — 死亡缓冲
+plugins/ArcartXSuite/ui/
+├── combat_kill_effect.yml      # HUD — 击杀/命中
+├── combo_effect.yml            # HUD — 连击
+└── death_buffer.yml            # 全屏 — 死亡缓冲
 
 # 客户端资源包（需自行制作）
 assets/
-└── 命中击杀特效/
-    ├── 命中.png
-    ├── 击杀.png
-    └── 连击里程碑.png
+└── combat_effect/
+    ├── hit.png
+    ├── kill.png
+    └── combo_milestone.png
 ```

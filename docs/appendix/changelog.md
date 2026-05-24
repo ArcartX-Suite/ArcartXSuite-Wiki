@@ -34,7 +34,15 @@
 - **CombatEffect** — `PacketTrigger` 新增 `DEATH` 和 `COMBO` 枚举值；`PacketDefinition` 新增 `conditions.combo-min`、`conditions.combo-max`、`conditions.combo-repeat` 字段。
 - **CombatEffect** — `CombatPacketContext.resolveMythicMobId` 重写为静态反射缓存 + 失败标记，避免高频事件中重复反射开销。
 - **CombatEffect** — 新增 3 个内置 UI 文件：`击杀命中特效.yml`（HUD）、`连击特效.yml`（HUD）、`死亡缓冲界面.yml`（全屏界面），首次启动自动导出到 `plugins/ArcartX/ui/`。
-- **CombatEffect** — wiki 文档全面重写，覆盖四大功能模块的配置详解、包定义字段、UI 对应关系、快速上手教程和性能优化说明。
+- **CombatEffect** — 新增 `CombatEffectTriggerable` capability 接口（`triggerPacket` + `triggerDirect`），供 EventPacket 等模块跨模块触发战斗特效。
+- **CombatEffect** — 实现 `ModuleCommandHandler`，新增 `/axs combateffect send <包ID> <玩家> [k=v]` 和 `/axs combateffect direct <uiId> <handler> <玩家> [k=v]` 命令，支持 Tab 补全。
+- **CombatEffect** — `PacketTrigger` 新增 `MANUAL` 类型，表示仅通过命令/API 触发，不被任何事件自动触发。
+- **CombatEffect** — `PacketTrigger` 新增 `KEYBIND`、`STATE`、`CONTROLLER` 三种触发类型，联动 ArcartX 按键事件和 Chronos 状态/控制器事件。
+- **CombatEffect** — 新增 `KeybindTriggerService`：反射监听 ArcartX 5 种按键事件（ClientKey Press/Release、SimpleKey Press/Release、KeyGroup），匹配 `trigger: keybind` 包定义。
+- **CombatEffect** — 新增 `StateTriggerService`：反射监听 Chronos `PlayerEnterStateEvent`/`PlayerLeaveStateEvent`/`PlayerControllerChangeEvent`，匹配 `trigger: state` 和 `trigger: controller` 包定义。
+- **CombatEffect** — `PacketDefinition` 新增 `conditions.key-name`/`key-action`/`key-type`（keybind 条件）和 `conditions.state-id`/`state-action`/`controller-id`（state/controller 条件），全部支持 `*` 通配符。
+- **CombatEffect** — 配置新增 `keybind-trigger.enabled` 和 `state-trigger.enabled` 开关。
+- **CombatEffect** — wiki 文档全面更新，覆盖八种触发器的配置详解、包定义字段、UI 对应关系、命令、Capability API 和性能优化说明。
 
 ### 1.1.0-beta (Build 2026-05-23c) — 卡片固定宽度 + 文本换行 + 字号由模板决定
 
