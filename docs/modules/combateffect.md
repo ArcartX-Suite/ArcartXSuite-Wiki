@@ -55,7 +55,7 @@
 | 类型 | 依赖 | 作用 | 缺少时表现 |
 | --- | --- | --- | --- |
 | 必需 | ArcartX | 播放特效、包发送、伤害飘字、服务器变量同步 | 模块无法向客户端展示任何战斗反馈 |
-| 可选 | Chronos | 连击追踪的 Chronos 状态源、死亡缓冲强制状态 | 自动回退 Bukkit 事件源；死亡状态功能不可用 |
+| 可选 | Chronos | 连击追踪的 Chronos 状态源、死亡缓冲强制状态、`state`/`controller` 触发器 | 自动回退 Bukkit 事件源；死亡状态功能不可用；state/controller 触发器不可用 |
 | 可选 | MythicLib / MMOItems | 读取 MythicLib 属性伤害 | 自动回退到下一个来源 |
 | 可选 | CraneAttribute | 读取 CraneAttribute 属性伤害 | 自动回退 |
 | 可选 | AttributePlus | 读取 AttributePlus 属性伤害 | 自动回退到 Bukkit 原版 |
@@ -152,6 +152,77 @@ death-buffer:
 3. 发送 `death` 触发器包到 UI（全屏死亡界面）
 4. 缓冲期间：玩家无敌，阻止自动复活
 5. 缓冲结束 → 恢复视觉 → 执行真正死亡
+
+### 按键触发配置
+
+```yaml
+keybind-trigger:
+  enabled: false                   # 是否启用 ArcartX 按键触发
+```
+
+启用后，`KeybindTriggerService` 会通过反射注册以下 5 个 ArcartX 事件监听：
+
+| ArcartX 事件类 | 对应 `key-type` | 方向 |
+| --- | --- | --- |
+| `ClientKeyPressEvent` | `client` | press |
+| `ClientKeyReleaseEvent` | `client` | release |
+| `ClientSimpleKeyPressEvent` | `simple` | press |
+| `ClientSimpleKeyReleaseEvent` | `simple` | release |
+| `ClientKeyGroupPressEvent` | `group` | press |
+
+**key-type 含义：**
+
+| 类型 | 含义 | 典型场景 |
+| --- | --- | --- |
+| `client` | 玩家可在 ArcartX 设置界面自定义绑定的按键 | 技能快捷键、闪避键 |
+| `simple` | 固定组合键（如 Shift+Q），不可由玩家自定义 | 系统操作 |
+| `group` | 按键组事件，按组 ID 匹配（如 "combat_keys"） | 同类技能一组 |
+
+> **注意：** ArcartX 未安装时 `start()` 会静默跳过并在日志打印提示。
+
+**工作流程：**
+1. 玩家在客户端按下/释放 ArcartX 注册按键
+2. ArcartX 服务端触发对应事件
+3. `KeybindTriggerService` 收到事件，提取 `player`、`keyName`、`isPress`、`keyType`
+4. 遍历所有 `trigger: keybind` 的 `PacketDefinition`，依次检查：
+   - `conditions.key-name` 是否与 `keyName` 匹配（支持通配符）
+   - `conditions.key-type` 是否与事件类型匹配
+   - `conditions.key-action` 是否与按下/释放方向匹配
+5. 通过冷却检查后，用 `{player}`、`{key_name}` 渲染 `pack` 模板，发包到客户端
+
+### 状态/控制器触发配置
+
+```yaml
+state-trigger:
+  enabled: false                   # 是否启用 Chronos 状态/控制器触发
+```
+
+启用后，`StateTriggerService` 会通过反射注册以下 3 个 Chronos 事件监听：
+
+| Chronos 事件类 | 匹配的触发器 | 方向 |
+| --- | --- | --- |
+| `PlayerEnterStateEvent` | `state` | enter |
+| `PlayerLeaveStateEvent` | `state` | leave |
+| `PlayerControllerChangeEvent` | `controller` | — |
+
+> **注意：** Chronos 插件（`ArcartX_Chronos_Plugin` 或 `Chronos`）未安装时会静默跳过。
+
+**state 触发工作流程：**
+1. 玩家进入或离开 Chronos 状态（如释放技能、切换姿态）
+2. Chronos 触发 `PlayerEnterStateEvent` / `PlayerLeaveStateEvent`
+3. `StateTriggerService` 提取 `player`、`stateId`、`isEnter`，并通过 `ChronosAPI.getPlayerControllerId()` 获取当前控制器 ID
+4. 遍历所有 `trigger: state` 的包定义，依次检查：
+   - `conditions.state-id` 是否与 `stateId` 匹配（支持通配符）
+   - `conditions.state-action` 是否与进入/离开方向匹配
+   - `conditions.controller-id`（可选）是否与当前控制器匹配
+5. 通过冷却检查后，用 `{player}`、`{state_id}`、`{controller_id}` 渲染 pack 模板
+
+**controller 触发工作流程：**
+1. 玩家的 Chronos 控制器发生切换（如从"战士"切换到"法师"）
+2. Chronos 触发 `PlayerControllerChangeEvent`
+3. `StateTriggerService` 提取 `player`、`controllerId`
+4. 遍历所有 `trigger: controller` 的包定义，检查 `conditions.controller-id` 匹配
+5. 通过冷却检查后渲染 pack 模板并发包
 
 ### 伤害飘字配置
 
@@ -250,6 +321,12 @@ example-packet:
 | `conditions.combo-min` | int | `0` | 最低 combo 数 |
 | `conditions.combo-max` | int | `MAX` | 最高 combo 数 |
 | `conditions.combo-repeat` | boolean | `false` | 是否在范围内重复触发 |
+| `conditions.key-name` | string | — | [keybind] ArcartX 按键名，支持 `*` 通配符 |
+| `conditions.key-action` | string | `press` | [keybind] `press` / `release` / `both` |
+| `conditions.key-type` | string | `client` | [keybind] `client` / `simple` / `group` |
+| `conditions.state-id` | string | — | [state] Chronos 状态 ID，支持 `*` 通配符 |
+| `conditions.state-action` | string | `enter` | [state] `enter` / `leave` / `both` |
+| `conditions.controller-id` | string | — | [state/controller] Chronos 控制器 ID，支持 `*` 通配符 |
 | `pack` | string/list/map | `""` | 发包内容，支持变量替换 |
 
 ### 触发器类型
@@ -365,11 +442,30 @@ warrior-stance:
 | `{state_id}` | state | Chronos 状态 ID |
 | `{controller_id}` | state/controller | Chronos 控制器 ID |
 
+### 通配符匹配规则
+
+`conditions.key-name`、`conditions.state-id`、`conditions.controller-id` 均支持 `*` 通配符。
+
+**匹配规则：**
+- 不含 `*` 时为精确匹配（大小写不敏感）
+- 含 `*` 时，`*` 匹配任意长度的任意字符序列（大小写不敏感）
+- `.` 字符被视为字面量，不是正则通配符
+
+**示例：**
+
+| 模式 | 匹配 | 不匹配 |
+| --- | --- | --- |
+| `skill_dodge` | `skill_dodge`、`Skill_Dodge` | `skill_dodge_2` |
+| `skill_*` | `skill_dodge`、`skill_fire`、`skill_` | `skills_dodge` |
+| `attack_*_combo` | `attack_1_combo`、`attack_heavy_combo` | `attack_combo` |
+| `*` | 任何字符串 | — |
+| `warrior` | `warrior`、`Warrior` | `warrior_2` |
+
 ### 冷却系统
 
 每个包定义可配置 `cooldown`（毫秒）。冷却基于 **包ID + 玩家UUID** 粒度，同一玩家在冷却期间不会重复收到同一包。
 
-典型场景：`attack` 触发器每帧高频触发，设置 `cooldown: 500` 限制每秒最多 2 次发包。
+典型场景：`attack` 触发器每帧高频触发，设置 `cooldown: 500` 限制每秒最多 2 次发包。keybind 触发器也建议配合冷却使用，避免按键连发刷屏。
 
 ### 默认包定义示例
 
@@ -448,6 +544,116 @@ death-buffer-killer:
   pack:
     killer: "{attacker}"
     victim: "{target}"
+```
+
+### keybind / state / controller 包定义示例
+
+```yaml
+# ─── 按键触发示例 ───────────────────────────
+
+# 玩家释放闪避键时播放闪避特效
+dodge-release:
+  enabled: true
+  trigger: keybind
+  ui-id: "combat_kill_effect"
+  packet-handler: "attack"
+  cooldown: 800
+  conditions:
+    key-name: "skill_dodge"
+    key-action: release
+    key-type: client
+  pack:
+    skill: "闪避翻滚"
+    player: "{player}"
+
+# 任意 skill_ 开头的按键按下时触发（通配符）
+skill-press-any:
+  enabled: false
+  trigger: keybind
+  ui-id: "combat_kill_effect"
+  packet-handler: "attack"
+  cooldown: 300
+  conditions:
+    key-name: "skill_*"
+    key-action: press
+    key-type: client
+  pack:
+    key: "{key_name}"
+    player: "{player}"
+
+# ─── 状态触发示例 ───────────────────────────
+
+# 玩家进入 "烈焰爆发" 状态时（限 warrior 控制器）
+fire-blast-enter:
+  enabled: true
+  trigger: state
+  ui-id: "combat_kill_effect"
+  packet-handler: "kill"
+  cooldown: 1500
+  conditions:
+    state-id: "skill_fire"
+    state-action: enter
+    controller-id: "warrior"
+  pack:
+    skill_name: "烈焰爆发"
+    player: "{player}"
+    state: "{state_id}"
+
+# 所有 attack_ 开头的状态进入时触发（通配符，不限控制器）
+attack-state-any:
+  enabled: false
+  trigger: state
+  ui-id: "combat_kill_effect"
+  packet-handler: "attack"
+  cooldown: 500
+  conditions:
+    state-id: "attack_*"
+    state-action: enter
+  pack:
+    state: "{state_id}"
+    controller: "{controller_id}"
+    player: "{player}"
+
+# 玩家离开任意状态时（both = 进入+离开都触发）
+state-leave-all:
+  enabled: false
+  trigger: state
+  ui-id: "combat_kill_effect"
+  packet-handler: "attack"
+  conditions:
+    state-id: "*"
+    state-action: leave
+  pack:
+    event: "状态离开"
+    state: "{state_id}"
+    player: "{player}"
+
+# ─── 控制器触发示例 ──────────────────────────
+
+# 切换到 warrior 控制器时触发
+warrior-stance:
+  enabled: true
+  trigger: controller
+  ui-id: "combat_kill_effect"
+  packet-handler: "kill"
+  conditions:
+    controller-id: "warrior"
+  pack:
+    stance: "战士姿态"
+    controller: "{controller_id}"
+    player: "{player}"
+
+# 任意控制器切换都触发（controller-id 留空 = 匹配所有）
+controller-change-any:
+  enabled: false
+  trigger: controller
+  ui-id: "combat_kill_effect"
+  packet-handler: "attack"
+  cooldown: 1000
+  pack:
+    event: "控制器切换"
+    controller: "{controller_id}"
+    player: "{player}"
 ```
 
 ---
@@ -544,10 +750,26 @@ visible: "server.combo_count > 0 || var.combo_show"
 | 命令 | 说明 |
 | --- | --- |
 | `/axs combateffect help` | 查看可用子命令 |
-| `/axs combateffect status` | 查看所有子系统启用状态、已加载包定义数 |
+| `/axs combateffect status` | 查看所有子系统启用状态（含按键触发、状态触发）、已加载包定义数 |
 | `/axs combateffect reload` | 重载全部配置和包定义 |
 | `/axs combateffect send <包ID> <玩家> [k=v ...]` | 按包定义 ID 手动触发特效（绕过事件匹配） |
 | `/axs combateffect direct <uiId> <handler> <玩家> [k=v ...]` | 直接向客户端发包（绕过包定义系统） |
+
+### status 命令输出示例
+
+```
+[AXS] CombatEffect v1.0.2-beta 运行中
+[AXS] 包定义: 7/8
+[AXS] 战斗显示: 已启用
+[AXS] 死亡缓冲: 未启用
+[AXS] 连击追踪: 已启用
+[AXS] 按键触发: 已启用
+[AXS] 状态触发: 已启用
+```
+
+- **包定义**：`已启用数/总数`，`enabled: false` 的包不计入已启用
+- **按键触发**：显示 `已启用` 表示 `keybind-trigger.enabled: true` 且 ArcartX 事件注册成功
+- **状态触发**：显示 `已启用` 表示 `state-trigger.enabled: true` 且 Chronos 事件注册成功
 
 ### send 命令详解
 
@@ -704,7 +926,80 @@ death-buffer:
       state-id: "死亡"    # 需要在 Chronos 控制器中注册该状态
 ```
 
-### 场景 4：伤害飘字
+### 场景 4：按键触发特效（ArcartX 联动）
+
+1. 在 `config.yml` 中启用按键触发：
+   ```yaml
+   keybind-trigger:
+     enabled: true
+   ```
+2. 确保 ArcartX 插件已安装且已在 ArcartX 客户端注册了自定义按键（如 `skill_dodge`）
+3. 在 `data/combateffect/packets/` 目录下新建 `keybind.yml`（或添加到已有文件）：
+   ```yaml
+   dodge-release:
+     enabled: true
+     trigger: keybind
+     ui-id: "combat_kill_effect"
+     packet-handler: "attack"
+     cooldown: 800
+     conditions:
+       key-name: "skill_dodge"
+       key-action: release
+       key-type: client
+     pack:
+       skill: "闪避翻滚"
+       player: "{player}"
+   ```
+4. 重载配置 `/axs combateffect reload`
+5. 进入游戏按下并释放闪避键 → 屏幕显示命中特效
+
+### 场景 5：Chronos 状态触发特效
+
+1. 在 `config.yml` 中启用状态触发：
+   ```yaml
+   state-trigger:
+     enabled: true
+   ```
+2. 确保 Chronos 插件已安装，且已在控制器中注册了目标状态（如 `skill_fire`）
+3. 新建包定义：
+   ```yaml
+   fire-blast:
+     enabled: true
+     trigger: state
+     ui-id: "combat_kill_effect"
+     packet-handler: "kill"
+     cooldown: 1500
+     conditions:
+       state-id: "skill_fire"
+       state-action: enter
+       controller-id: "warrior"     # 可选，不填则不限控制器
+     pack:
+       skill_name: "烈焰爆发"
+       player: "{player}"
+       state: "{state_id}"
+   ```
+4. 重载配置 `/axs combateffect reload`
+5. 进入游戏切换到 warrior 控制器并进入 `skill_fire` 状态 → 屏幕显示击杀特效
+
+**进阶：使用通配符批量匹配**
+
+```yaml
+# 所有 skill_ 开头的状态进入都触发同一特效
+skill-any:
+  enabled: true
+  trigger: state
+  ui-id: "combat_kill_effect"
+  packet-handler: "attack"
+  cooldown: 500
+  conditions:
+    state-id: "skill_*"
+    state-action: enter
+  pack:
+    state: "{state_id}"
+    player: "{player}"
+```
+
+### 场景 6：伤害飘字
 
 1. 在 `config.yml` 中配置 `digis-display` 节
 2. 在 ArcartX 客户端的 `digis` 配置中创建对应的 `config-id` 样式（`damage`、`player-damage`、`heal`）
@@ -715,9 +1010,11 @@ death-buffer:
 ## 性能优化说明
 
 - **MythicMobs 反射缓存**：`resolveMythicMobId` 使用静态 Method 缓存 + 失败标记，避免重复反射
-- **冷却系统**：`ConcurrentHashMap` 存储到期时间戳，O(1) 查询无锁竞争
+- **冷却系统**：所有服务（PacketService、KeybindTriggerService、StateTriggerService）均使用独立 `ConcurrentHashMap` 存储到期时间戳，O(1) 查询无锁竞争
 - **Combo 超时**：Bukkit 延迟任务自动清理，无额外 tick 开销
-- **按需初始化**：Chronos/MythicMobs 反射仅在首次调用时初始化
+- **按需初始化**：Chronos/MythicMobs/ArcartX 反射仅在模块启动时初始化一次；插件不存在时静默跳过，不抛异常
+- **事件反射注册**：`KeybindTriggerService` 和 `StateTriggerService` 在 `start()` 时一次性反射获取事件类和 Method，后续事件调用无反射开销
+- **ChronosAPI 查询缓存**：`StateTriggerService` 在初始化时缓存 `ChronosAPI.getInstanceAPI()` 和 `getPlayerControllerId` Method 引用，状态事件中查询控制器 ID 为纯反射调用（无类加载）
 
 ---
 
@@ -725,7 +1022,7 @@ death-buffer:
 
 | UI 文件 | UI ID | packetHandler | 触发器 |
 | --- | --- | --- | --- |
-| `combat_kill_effect.yml` | combat_kill_effect | `attack` / `kill` | attack / kill / death(killer) |
+| `combat_kill_effect.yml` | combat_kill_effect | `attack` / `kill` | attack / kill / death(killer) / keybind / state / controller |
 | `combo_effect.yml` | combo_effect | `combo` / `combo_milestone` | combo |
 | `death_buffer.yml` | death_buffer | `death` | death(victim) |
 
