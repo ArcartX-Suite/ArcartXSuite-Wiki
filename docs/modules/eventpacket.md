@@ -6,7 +6,7 @@
 
 使用本模块可以提升你对ArcartX运用的上限，避免写脚本的情况下触发更多你想要的事件
 
-::: tip 
+::: 注意
 本模块已替代ArcartX社区的**ArcartXPacketCommand**附属插件功能，具体使用方法请阅读 [client-packet — 客户端回包触发](#_9-client-packet-—-客户端回包触发)
 :::
 
@@ -419,7 +419,7 @@ rules:
 └──────────────────────────────────────────────────────────┘
 ```
 
-#### 方式一：预设文件（推荐，简单场景）
+#### 方式一：预设文件（推荐，简单场景）（本方式等同社区ArcartXPacketCommand插件）
 
 在 `plugins/ArcartXSuite/eventpacket/packet-command-presets/` 目录下创建 YAML 文件，每个顶层键就是一个预设 ID：
 

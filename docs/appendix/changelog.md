@@ -17,14 +17,48 @@
 - **资源保护** — 付费模块资源通过 ticket 中的 `resourceKeys` 解包后在内存中解密。
 - **文档** — 安装、授权、命令速查和安全架构文档已同步到 `1.1.0-beta`。
 
-### 1.1.0-beta (Build 2026-05-18) — 热加载 / 目录归位 / 控制台美化
+### 1.1.0-beta (Build 2026-05-24e) — Pickup 玩家指令
 
-- **热加载** — `ModuleRegistry` 新增 `loadModuleById` / `unloadModule` 公开方法，配套 `/axs load|unload <模块名>` 子命令，Tab 补全自动区分已加载/未加载模块。
-- **热卸载** — 卸载时会检查反向依赖（其他已启用模块在描述符里 `depends` 该模块），存在 dependents 则拒绝卸载并提示。卸载成功会执行 `onDisable` → 移除命令处理器 → 移除客户端 packet handler → 关闭 `URLClassLoader`，释放 jar 文件句柄。
-- **目录归位** — `ModuleContext` 新增 `migrateLegacyDirectory(relativePath)` API。模块在 `onEnable` 时一次性把 1.0.x 时代散落在根目录的目录（如 `chat/channels`、`mail/presets`、`prop/props`、`subtitle/groups`、`combateffect` 配置、`shimmer-rgb-*` 临时目录等）整体搬迁到 `data/<moduleId>/<relativePath>/`，原位为空时不动。
-- **目录归位** — `MailService` 新增 `baseDataDir` 字段；`PropModule`、`AnnouncerModule`、`ChatModule`、`CombatEffectModule` 改用 `context.dataFolder()` 拼接资源路径；`RgbModule` 清理 legacy shimmer 目录的日志带颜色高亮。
-- **控制台美化** — `ArcartXSuitePlugin.STARTUP_BANNER` 改为 ANSI Shadow 字体绘制的「SUITE」六行块状字符画，主体青→蓝→紫渐变，顶部新增 `✦ A R C A R T X ✦` 副标题，底部居中作者署名。
-- **控制台美化** — 迁移类 INFO 日志统一格式 `→ 已归位 X: <来源> ➜ <目标>`，使用金色箭头 + 黄色源 + 灰色 ➜ + 青色目标，便于在密集启动日志中一眼识别。
+- **Pickup** — 新增 `/pickup` 玩家指令（权限 `arcartxsuite.pickup.use`，默认全员拥有），支持 `on` / `off` / `status` 子命令，玩家可自行切换拾取功能开关。
+- **Pickup** — 关闭后效果：通知模式下不再显示 HUD 通知；扫描模式下停止扫描并恢复原版自动拾取行为。
+- **Pickup** — `plugin.yml` 新增 `pickup` 命令注册和 `arcartxsuite.pickup.use` 权限声明。
+
+### 1.1.0-beta (Build 2026-05-24d) — 开放 API 升级
+
+- **API** — 新增三个类型安全的桥接接口，取代原先返回 `Object` 的旧 API：
+  - `PacketBridgeAPI` — UI 注册/打开/关闭/发包/聊天卡片/关闭回调
+  - `ClientBridgeAPI` — 伤害飘字/服务端变量下发/可见玩家遍历
+  - `ItemBridgeAPI` — ItemStack → JSON 序列化
+- **API** — `ModuleContext` 的 `packetBridge()` / `clientBridge()` / `itemStackBridge()` 返回类型从 `Object` 改为对应的类型安全接口，模块无需再强制转型。
+- **API** — 新增 `@ApiStability` 注解体系（`@Stable` / `@Experimental` / `@Internal` / `@Deprecated`），标记每个公开 API 的稳定性级别，指导第三方开发者安全依赖。
+- **API** — 新增 `ModuleLifecycleEvent` Bukkit 事件，模块加载/卸载/重载时触发，支持 7 种生命周期阶段（`ENABLING` / `ENABLED` / `ENABLE_FAILED` / `DISABLING` / `DISABLED` / `RELOADING` / `RELOADED`），第三方插件可通过标准事件机制监听。
+- **API** — `UiRegistrationResult` record 迁移到 `PacketBridgeAPI.UiRegistrationResult`，`normalizeUiId` 迁移到 `PacketBridgeAPI.normalizeUiId`。
+- **API** — `ModuleContext.vaultEconomyBridge()` 和 `propBridge()` 标记为 `@Internal`，第三方不应依赖。
+- **API** — `ModuleContext.registerCapability()` 和 `getCapability()` 标记为 `@Stable`。
+- **文档** — 新增完整 API 参考文档（`/api/`），涵盖模块生命周期、ModuleContext、桥接 API、事件和 Capability 跨模块通信。
+
+### 1.1.0-beta (Build 2026-05-24c) — Title 总展示称号 PAPI
+
+- **Title** — 新增 `display-title` 配置节，支持按指定分组列表（或全部分组）拼接已装备称号的总展示文本，可自定义分隔符和空文本。
+- **Title** — 新增 6 个 PAPI 占位符：`%AXStitle_display%` / `%AXStitle_display_name%`（总称号名称）、`%AXStitle_display_chat_prefix%` / `%AXStitle_display_chat_suffix%`（聊天前/后缀）、`%AXStitle_display_tab_prefix%` / `%AXStitle_display_tab_suffix%`（TAB 前/后缀）。
+- **Title** — 只想展示单个组称号时，`display-title.groups` 只填一个组 ID 即可；想展示多组则填多个，留空则按定义顺序展示所有组。
+- **Title** — 称号菜单 UI 新增「总展示称号」预览行，实时显示拼接后的总展示称号名称；packet 新增 `display_title_name`、`display_title_chat_prefix`、`display_title_chat_suffix`、`display_title_tab_prefix`、`display_title_tab_suffix` 字段。
+- **Title** — wiki `docs/modules/title.md` 同步更新：新增「总展示称号」PAPI 段落、数据契约字段、`display-title` 配置说明及典型场景表。
+
+### 1.1.0-beta (Build 2026-05-24b) — Pickup 双模式升级
+
+- **Pickup** — 模块升级为双模式架构（版本号 `1.0.2-beta` → `1.1.0-beta`）：
+  - **通知模式（notification）**：原有功能，拾取时弹出 HUD 提示（物品名、数量、图标）。
+  - **扫描模式（scanner）**：禁用自动拾取，周期扫描附近掉落物实体并以面板形式在 HUD 展示，玩家通过 F 键逐个交互拾取、滚轮/方向键切换选中项。
+- **Pickup** — 新增掉落物过滤系统（仅扫描模式生效）：支持材质黑/白名单、物品名称正则、最小堆叠数量过滤。
+- **Pickup** — 新增 `LootScannerService`：周期扫描任务、`EntityPickupItemEvent` 拦截、客户端交互包处理（`pick`/`scroll_up`/`scroll_down`）。
+- **Pickup** — 新增 `LootFilterEngine`：评估物品是否应在面板中显示。
+- **Pickup** — 新增 `loot_panel.yml` HUD UI 文件：暗色圆角面板 + 蓝色选中高亮 + 物品图标 + 名称数量 + F 键提示。
+- **Pickup** — 配置文件 `ArcartXPickup.yml` 重构为三段式：`settings`（全局）+ `notification`（通知模式）+ `scanner`（扫描模式）+ `filter`（过滤规则）。
+- **Pickup** — 扫描模式预留 Warehouse 仓库联动配置（`warehouse-auto-deposit`），拾取后可选直接存入仓库。
+- **Pickup** — `PickupModule` 新增 `ClientPacketHandler`，处理客户端发来的拾取交互包。
+- **Pickup** — `ValidationRule` 更新：移除旧的 `settings.auto-pickup-delay-ticks` / `settings.display-duration-ticks`，新增 `notification.max-visible`、`notification.entry-ttl-ms`、`scanner.scan-radius`、`scanner.scan-interval-ticks`、`scanner.max-display` 约束。
+- **Pickup** — 过滤系统升级为五维过滤：在原有材质黑/白名单 + 名称正则 + 最小数量基础上，新增 **Lore 正则黑/白名单**（`lore-blacklist-regex` / `lore-whitelist-regex`）和 **NBT 键黑/白名单**（`nbt-blacklist-keys` / `nbt-whitelist-keys`，支持嵌套路径如 `custom.trash`）。
 
 ### 1.1.0-beta (Build 2026-05-24) — CombatEffect 连击追踪 + 死亡缓冲 + 冷却系统
 
@@ -127,6 +161,15 @@
   - `eventpacket`: `rules:` → `rules-directory: "rules"`（`rules/*.yml`）
 - **破坏性变更** — 主配置中的旧内联段不再被读取。用户必须将已有数据迁移到对应目录文件中。首次启动时模块会自动导出默认示例文件。
 - **文件组织** — 同一目录下每个 `*.yml` 文件可包含多个定义（根键即为 ID），不强制每条定义独立一个文件，方便按业务逻辑分组管理。
+
+### 1.1.0-beta (Build 2026-05-18) — 热加载 / 目录归位 / 控制台美化
+
+- **热加载** — `ModuleRegistry` 新增 `loadModuleById` / `unloadModule` 公开方法，配套 `/axs load|unload <模块名>` 子命令，Tab 补全自动区分已加载/未加载模块。
+- **热卸载** — 卸载时会检查反向依赖（其他已启用模块在描述符里 `depends` 该模块），存在 dependents 则拒绝卸载并提示。卸载成功会执行 `onDisable` → 移除命令处理器 → 移除客户端 packet handler → 关闭 `URLClassLoader`，释放 jar 文件句柄。
+- **目录归位** — `ModuleContext` 新增 `migrateLegacyDirectory(relativePath)` API。模块在 `onEnable` 时一次性把 1.0.x 时代散落在根目录的目录（如 `chat/channels`、`mail/presets`、`prop/props`、`subtitle/groups`、`combateffect` 配置、`shimmer-rgb-*` 临时目录等）整体搬迁到 `data/<moduleId>/<relativePath>/`，原位为空时不动。
+- **目录归位** — `MailService` 新增 `baseDataDir` 字段；`PropModule`、`AnnouncerModule`、`ChatModule`、`CombatEffectModule` 改用 `context.dataFolder()` 拼接资源路径；`RgbModule` 清理 legacy shimmer 目录的日志带颜色高亮。
+- **控制台美化** — `ArcartXSuitePlugin.STARTUP_BANNER` 改为 ANSI Shadow 字体绘制的「SUITE」六行块状字符画，主体青→蓝→紫渐变，顶部新增 `✦ A R C A R T X ✦` 副标题，底部居中作者署名。
+- **控制台美化** — 迁移类 INFO 日志统一格式 `→ 已归位 X: <来源> ➜ <目标>`，使用金色箭头 + 黄色源 + 灰色 ➜ + 青色目标，便于在密集启动日志中一眼识别。
 
 ### 1.1.0-beta (Build 2026-05-18) — 配置智能体检
 

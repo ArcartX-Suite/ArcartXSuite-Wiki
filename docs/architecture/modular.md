@@ -210,15 +210,20 @@ external-softdepends: []
 
 ## `ModuleContext` API
 
-| 方法 | 说明 |
-|------|------|
-| `plugin()` | 宿主 `JavaPlugin` 实例 |
-| `logger()` | 模块专用 `Logger` |
-| `packetBridge()` | ArcartX 发包桥接 |
-| `clientBridge()` | ArcartX 客户端桥接 |
-| `itemStackBridge()` | ItemStack 桥接 |
-| `packetGuard()` | 客户端包守卫 |
-| `hasPlugin(String)` | 检查外部 Bukkit 插件是否可用 |
+完整参考见 [ModuleContext 上下文](/api/module-context)。
+
+| 方法 | 返回类型 | 稳定性 | 说明 |
+|------|----------|--------|------|
+| `plugin()` | `JavaPlugin` | — | 宿主插件实例 |
+| `logger()` | `Logger` | — | 模块专用 Logger |
+| `dataFolder()` | `File` | — | 模块私有数据目录 |
+| `packetBridge()` | `PacketBridgeAPI` | `@Stable` | ArcartX UI/Packet 桥接 |
+| `clientBridge()` | `ClientBridgeAPI` | `@Stable` | ArcartX 客户端桥接 |
+| `itemStackBridge()` | `ItemBridgeAPI` | `@Stable` | ItemStack → JSON |
+| `packetGuard()` | `Object` | — | 客户端包守卫 |
+| `registerCapability()` | `void` | `@Stable` | 注册跨模块能力 |
+| `getCapability()` | `T` | `@Stable` | 查找跨模块能力 |
+| `hasPlugin(String)` | `boolean` | — | 检查外部 Bukkit 插件 |
 
 ## 迁移状态
 

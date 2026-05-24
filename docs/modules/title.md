@@ -93,6 +93,21 @@ modules:
 | `%AXStitle_equipped_<组ID>_group%` | 该组已装备称号所属组的显示名 |
 | `%AXStitle_equipped_<组ID>_quality%` | 该组已装备称号的品质名 |
 
+### 总展示称号
+
+按 `display-title.groups` 配置的分组顺序，拼接已装备称号的对应字段。多组用 `separator` 分隔，无装备时返回 `empty-text`。
+
+| 占位符 | 说明 |
+| --- | --- |
+| `%AXStitle_display%` | 总展示称号名称（拼接各组 `displayName`） |
+| `%AXStitle_display_name%` | 同 `%AXStitle_display%` |
+| `%AXStitle_display_chat_prefix%` | 总展示称号的聊天前缀拼接 |
+| `%AXStitle_display_chat_suffix%` | 总展示称号的聊天后缀拼接 |
+| `%AXStitle_display_tab_prefix%` | 总展示称号的 Tab 前缀拼接 |
+| `%AXStitle_display_tab_suffix%` | 总展示称号的 Tab 后缀拼接 |
+
+> 只想展示单个组的称号时，`display-title.groups` 只填一个组 ID；想展示多组则填多个，留空则按定义顺序展示所有组。
+
 ### 称号查询
 
 | 占位符 | 说明 |
@@ -231,6 +246,11 @@ titles-directory: "titles"
 | `collection_attributes_text` | 玩家所有已拥有称号汇总后的收集属性 |
 | `total_attributes_text` | 装备 + 收集 + 套装加成的总属性 |
 | `set_bonus_attributes_text` | 已激活套装提供的额外属性 |
+| `display_title_name` | 总展示称号名称（按 `display-title` 配置拼接） |
+| `display_title_chat_prefix` | 总展示称号聊天前缀 |
+| `display_title_chat_suffix` | 总展示称号聊天后缀 |
+| `display_title_tab_prefix` | 总展示称号 Tab 前缀 |
+| `display_title_tab_suffix` | 总展示称号 Tab 后缀 |
 
 所有字段在生成时都会做**同名同类合并**（解析为 `名:数值` 或 `名:数值%` 的行会累加，其他形如 `名:1~5` / `名:5(%)` 的复杂行原样保留并去重），并在每一项前自动加上颜色前缀。空列表时会发出单元素列表 `[<前缀><占位符>]`。
 
@@ -277,3 +297,30 @@ selected_display_value:
 ```
 
 如果想自己控制每行渲染（例如不同奇偶行染色、加图标等），也可以用 VStack + Observer + `self.entry` 迭代，写法见 `set_stack` / `set_observer` 的官方示例。
+
+## 总展示称号配置
+
+`display-title` 配置节控制「总展示称号」的行为——把多个组的已装备称号拼接为一个字符串，供 PAPI 和 UI 使用。
+
+```yaml
+display-title:
+  # 要展示的分组列表，按此顺序拼接。
+  # 留空 [] 表示按分组定义顺序展示所有组。
+  # 只想展示单个组的称号时，只填一个组 ID。
+  groups: []
+
+  # 多组拼接时的分隔符。
+  separator: " "
+
+  # 没有装备任何称号时返回的文本。留空则返回空字符串。
+  empty-text: ""
+```
+
+### 典型场景
+
+| 场景 | 配置 | `%AXStitle_display%` 输出示例 |
+| --- | --- | --- |
+| 只展示冒险组称号 | `groups: [adventure]` | `勇者` |
+| 展示冒险+探索两组 | `groups: [adventure, exploration]` | `勇者 探险家` |
+| 展示所有组（默认） | `groups: []` | `勇者 探险家 节日特赠` |
+| 没装备任何称号 | `empty-text: "无称号"` | `无称号` |

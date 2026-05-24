@@ -17,6 +17,7 @@ export default defineConfig({
     nav: [
       { text: '指南', link: '/guide/', activeMatch: '/guide/' },
       { text: '架构', link: '/architecture/', activeMatch: '/architecture/' },
+      { text: 'API', link: '/api/', activeMatch: '/api/' },
       { text: '模块', link: '/modules/', activeMatch: '/modules/' },
       { text: '变更日志', link: '/appendix/changelog' },
       {
@@ -98,6 +99,19 @@ export default defineConfig({
           items: [
             { text: 'Tab 在线列表', link: '/modules/tab' },
             { text: 'EntityTracker 实体追踪', link: '/modules/entitytracker' },
+          ],
+        },
+      ],
+      '/api/': [
+        {
+          text: 'API 参考',
+          items: [
+            { text: '概览', link: '/api/' },
+            { text: '模块生命周期', link: '/api/module-lifecycle' },
+            { text: 'ModuleContext 上下文', link: '/api/module-context' },
+            { text: '桥接 API', link: '/api/bridge-api' },
+            { text: '事件', link: '/api/events' },
+            { text: 'Capability 跨模块通信', link: '/api/capability' },
           ],
         },
       ],
