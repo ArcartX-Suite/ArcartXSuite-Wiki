@@ -102,8 +102,10 @@ cards:
   private-card-id: ""
   system-card-id: ""
   item-preview-card-id: "axs_item_preview"
-  # 卡片文字估算基准字号，影响动态宽度计算和客户端渲染字体大小。
-  font-size: 49
+  # 卡片固定宽度（自适应坐标单位）。
+  card-width: 500
+  # 卡片单行基础高度；多行消息时自动增长。
+  card-height: 100
 
 function:
   mention:
@@ -347,10 +349,10 @@ transport:
 
 | 配置项 | 触发场景 | 卡片数据（`self.parent.data['key']`） |
 | --- | --- | --- |
-| `mention-card-id` | 有人 @提及你时 | `senderName`、`senderDisplayName`、`channel`、`channelId`、`message`、`cardWidth`、`fontSize` |
-| `private-card-id` | 收到/发送私聊时 | `senderName`、`senderDisplayName`、`targetName`、`direction`（`sender`/`recipient`）、`message`、`cardWidth`、`fontSize` |
-| `item-preview-card-id` | 聊天中展示物品时 | `cardWidth`、`fontSize`、`senderName`、`senderDisplayName`、`itemName`、`itemAmount`、`itemMaterial`、`channel`、`itemJson` |
-| `system-card-id` | 系统通知（禁言提示等） | `type`、`cardWidth`、`fontSize` + 各场景额外字段 |
+| `mention-card-id` | 有人 @提及你时 | `senderName`、`senderDisplayName`、`channel`、`channelId`、`message`、`cardWidth`、`cardHeight` |
+| `private-card-id` | 收到/发送私聊时 | `senderName`、`senderDisplayName`、`targetName`、`direction`（`sender`/`recipient`）、`message`、`cardWidth`、`cardHeight` |
+| `item-preview-card-id` | 聊天中展示物品时 | `cardWidth`、`cardHeight`、`senderName`、`senderDisplayName`、`itemName`、`itemAmount`、`itemMaterial`、`channel`、`itemJson` |
+| `system-card-id` | 系统通知（禁言提示等） | `type`、`cardWidth`、`cardHeight` + 各场景额外字段 |
 
 ### 内置卡片模板
 
@@ -363,22 +365,22 @@ transport:
 | `axs_chat_system.yml` | `system-card-id` | 系统提示：红色边框，禁言/过滤等警告 |
 | `axs_item_preview.yml` | `item-preview-card-id` | 物品预览：含物品图标 Slot，悬浮触发 Tooltip |
 
-所有卡片高度固定 `100`，宽度由服务端根据文本内容动态估算（`cardWidth`），字体大小通过 `fontSize` 传入（默认 `49`，可在 `cards.font-size` 中配置）。可直接编辑对应文件自定义外观。将配置值设为空字符串可禁用对应卡片。
+卡片宽度由 `cards.card-width` 配置（默认 500），字体大小由每个卡片模板 YAML 自行硬编码（默认 49）。服务端根据卡片可用文字区域自动对超长消息进行换行，并根据行数动态计算 `cardHeight`（单行时等于 `cards.card-height`，多行时自动增长）。将配置值设为空字符串可禁用对应卡片。
 
 > **冗余消息抑制**：当卡片成功发送到客户端时，对应的文字消息不再重复输出。例如禁言提示卡片发送后不再发送红色文字提示；@提及卡片发送后不再发送原始聊天消息行到被提及玩家。
 
 #### 物品预览卡片
 
 - 卡片内包含一个 **Slot**（`slotType: ~Icon`），通过 `setItemIcon(itemJson)` 渲染物品图标，悬浮时可触发 ArcartX Tooltip 显示完整物品信息
-- 宽度基于发送者显示名 + 物品名中较长者动态估算
+- 卡片宽度由配置 `card-width` 决定，高度固定为 `card-height`
 - **当卡片成功发送时，原始聊天消息行会被完全抑制**，避免物品信息重复出现
 - 禁用后回退到原版 `SHOW_ITEM` 悬浮预览
 
 #### 私聊卡片
 
-- 接收方视角：点击卡片背景自动执行 `/reply`，快速进入回复
+- 接收方视角：点击卡片背景调用 `Chat.setMessage('/msg 玩家名 ')`，将回复命令预填到聊天框，玩家直接输入消息内容即可发送
 - 卡片图标为铅笔符号（`§d✎`）
-- 宽度基于消息内容动态估算
+- 宽度由配置 `card-width` 决定，超长消息自动换行，高度随行数动态增长
 
 #### 系统提示卡片
 

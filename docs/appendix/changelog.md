@@ -26,6 +26,24 @@
 - **控制台美化** — `ArcartXSuitePlugin.STARTUP_BANNER` 改为 ANSI Shadow 字体绘制的「SUITE」六行块状字符画，主体青→蓝→紫渐变，顶部新增 `✦ A R C A R T X ✦` 副标题，底部居中作者署名。
 - **控制台美化** — 迁移类 INFO 日志统一格式 `→ 已归位 X: <来源> ➜ <目标>`，使用金色箭头 + 黄色源 + 灰色 ➜ + 青色目标，便于在密集启动日志中一眼识别。
 
+### 1.1.0-beta (Build 2026-05-24) — CombatEffect 连击追踪 + 死亡缓冲 + 冷却系统
+
+- **CombatEffect** — 新增 `combo-tracker` 配置节和 `ComboTrackerService`：追踪玩家连续攻击计数，支持 Chronos 状态事件或 Bukkit 攻击事件双源，可配置超时重置、目标锁定模式（`per-target`）、服务器变量实时同步（`sync-variable`）。
+- **CombatEffect** — 新增 `death-buffer` 配置节和 `DeathBufferService`：拦截致命伤害延迟真正死亡，期间应用 ArcartX Shader、第三人称视角、Chronos 强制状态，阻止其他插件自动复活。
+- **CombatEffect** — `PacketDefinition` 新增 `cooldown` 字段（毫秒），基于包ID+玩家UUID 粒度的冷却系统，防止高频 `attack` 触发刷屏。
+- **CombatEffect** — `PacketTrigger` 新增 `DEATH` 和 `COMBO` 枚举值；`PacketDefinition` 新增 `conditions.combo-min`、`conditions.combo-max`、`conditions.combo-repeat` 字段。
+- **CombatEffect** — `CombatPacketContext.resolveMythicMobId` 重写为静态反射缓存 + 失败标记，避免高频事件中重复反射开销。
+- **CombatEffect** — 新增 3 个内置 UI 文件：`击杀命中特效.yml`（HUD）、`连击特效.yml`（HUD）、`死亡缓冲界面.yml`（全屏界面），首次启动自动导出到 `plugins/ArcartX/ui/`。
+- **CombatEffect** — wiki 文档全面重写，覆盖四大功能模块的配置详解、包定义字段、UI 对应关系、快速上手教程和性能优化说明。
+
+### 1.1.0-beta (Build 2026-05-23c) — 卡片固定宽度 + 文本换行 + 字号由模板决定
+
+- **Chat** — 卡片尺寸体系重构：宽度改为配置固定值（`cards.card-width`，默认 500），高度单行等于 `cards.card-height`（默认 100），多行消息时动态增长。移除 `cards.font-size` 配置，字号由各卡片模板 YAML 自行硬编码。
+- **Chat** — 新增服务端文本换行：超出卡片可用文字区域（`cardWidth - 160 - 20`）的消息自动按字符宽度断行，保留颜色代码连续性，以换行列表形式发送到客户端。
+- **Chat** — Payload 变更：`fontSize` 移除，新增 `cardHeight`（所有卡片）；`message` 字段可能包含 `\n` 换行符。
+- **Mail** — 邮件通知卡片同步改造：`ui.notify-card-font-size` 移除，新增 `ui.notify-card-width`（默认 500）和 `ui.notify-card-height`（默认 100）；卡片模板 fontSize 硬编码为 49。
+- **Mail** — 移除 `MailService` 中不再使用的 `estimateCardWidth`/`estimateTextWidth`/`isFullWidth` 方法。
+
 ### 1.1.0-beta (Build 2026-05-23b) — 聊天卡片动态尺寸 + 冗余消息抑制
 
 - **Chat** — 所有聊天卡片（提及、私聊、系统、物品预览）宽度改为服务端动态估算，根据实际文本内容计算 `cardWidth`，字体大小通过 `fontSize` 传入客户端，新增 `cards.font-size` 配置项（默认 49）。
