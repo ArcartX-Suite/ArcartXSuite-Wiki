@@ -250,11 +250,7 @@ PickupModule
 │   └── pickup_hud.yml（动态生成的通知 HUD）
 └── mode: scanner
     ├── LootScannerService（周期扫描 + 阻止自动拾取 + 处理客户端包）
-<<<<<<< HEAD
     ├── LootFilterEngine（过滤引擎：材质/名称/Lore/NBT/数量）
-=======
-    ├── LootFilterEngine（过滤引擎：材质/名称/数量）
->>>>>>> 8dd2071bdf3e47cdac175bb2b768738a7bc699b7
     └── loot_panel.yml（掉落物面板 HUD）
 ```
 
@@ -291,11 +287,7 @@ PickupModule
 
 ### 扫描模式下其他玩家还能拾取物品吗？
 
-<<<<<<< HEAD
 `disable-auto-pickup` 会取消开启了拾取功能的玩家的自动拾取事件。玩家可以通过 `/pickup off` 关闭扫描模式恢复原版自动拾取行为。
-=======
-`disable-auto-pickup` 会取消所有玩家的自动拾取事件。如果希望只对部分玩家启用扫描模式，目前需要全服统一配置。后续版本可能支持按权限分组。
->>>>>>> 8dd2071bdf3e47cdac175bb2b768738a7bc699b7
 
 ### 过滤系统和 Warehouse 黑名单的关系？
 
