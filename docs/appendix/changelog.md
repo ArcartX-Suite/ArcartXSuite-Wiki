@@ -60,6 +60,21 @@
 - **Pickup** — `ValidationRule` 更新：移除旧的 `settings.auto-pickup-delay-ticks` / `settings.display-duration-ticks`，新增 `notification.max-visible`、`notification.entry-ttl-ms`、`scanner.scan-radius`、`scanner.scan-interval-ticks`、`scanner.max-display` 约束。
 - **Pickup** — 过滤系统升级为五维过滤：在原有材质黑/白名单 + 名称正则 + 最小数量基础上，新增 **Lore 正则黑/白名单**（`lore-blacklist-regex` / `lore-whitelist-regex`）和 **NBT 键黑/白名单**（`nbt-blacklist-keys` / `nbt-whitelist-keys`，支持嵌套路径如 `custom.trash`）。
 
+### 1.1.0-beta (Build 2026-05-24b) — Pickup 双模式升级
+
+- **Pickup** — 模块升级为双模式架构（版本号 `1.0.2-beta` → `1.1.0-beta`）：
+  - **通知模式（notification）**：原有功能，拾取时弹出 HUD 提示（物品名、数量、图标）。
+  - **扫描模式（scanner）**：禁用自动拾取，周期扫描附近掉落物实体并以面板形式在 HUD 展示，玩家通过 F 键逐个交互拾取、滚轮/方向键切换选中项。
+- **Pickup** — 新增掉落物过滤系统（仅扫描模式生效）：支持材质黑/白名单、物品名称正则、最小堆叠数量过滤。
+- **Pickup** — 新增 `LootScannerService`：周期扫描任务、`EntityPickupItemEvent` 拦截、客户端交互包处理（`pick`/`scroll_up`/`scroll_down`）。
+- **Pickup** — 新增 `LootFilterEngine`：评估物品是否应在面板中显示。
+- **Pickup** — 新增 `loot_panel.yml` HUD UI 文件：暗色圆角面板 + 蓝色选中高亮 + 物品图标 + 名称数量 + F 键提示。
+- **Pickup** — 配置文件 `ArcartXPickup.yml` 重构为三段式：`settings`（全局）+ `notification`（通知模式）+ `scanner`（扫描模式）+ `filter`（过滤规则）。
+- **Pickup** — 扫描模式预留 Warehouse 仓库联动配置（`warehouse-auto-deposit`），拾取后可选直接存入仓库。
+- **Pickup** — `PickupModule` 新增 `ClientPacketHandler`，处理客户端发来的拾取交互包。
+- **Pickup** — `ValidationRule` 更新：移除旧的 `settings.auto-pickup-delay-ticks` / `settings.display-duration-ticks`，新增 `notification.max-visible`、`notification.entry-ttl-ms`、`scanner.scan-radius`、`scanner.scan-interval-ticks`、`scanner.max-display` 约束。
+- **Pickup** — 过滤系统升级为五维过滤：在原有材质黑/白名单 + 名称正则 + 最小数量基础上，新增 **Lore 正则黑/白名单**（`lore-blacklist-regex` / `lore-whitelist-regex`）和 **NBT 键黑/白名单**（`nbt-blacklist-keys` / `nbt-whitelist-keys`，支持嵌套路径如 `custom.trash`）。
+
 ### 1.1.0-beta (Build 2026-05-24) — CombatEffect 连击追踪 + 死亡缓冲 + 冷却系统
 
 - **CombatEffect** — 新增 `combo-tracker` 配置节和 `ComboTrackerService`：追踪玩家连续攻击计数，支持 Chronos 状态事件或 Bukkit 攻击事件双源，可配置超时重置、目标锁定模式（`per-target`）、服务器变量实时同步（`sync-variable`）。
