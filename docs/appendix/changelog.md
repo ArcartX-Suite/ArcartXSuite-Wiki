@@ -17,6 +17,58 @@
 - **资源保护** — 付费模块资源通过 ticket 中的 `resourceKeys` 解包后在内存中解密。
 - **文档** — 安装、授权、命令速查和安全架构文档已同步到 `1.1.0-beta`。
 
+### 1.1.0-beta (Build 2026-05-26) — Pickup 交互重构 + Conversation UI 优化
+
+- **Pickup** — 扫描模式交互重构为双 UI 架构：
+  - **loot_panel**（常驻 HUD）：`through: false`，直接接管鼠标点击和滚轮；内部 Canvas 及子控件 `through: true` 让事件冒泡到顶层 `adaptive`。
+  - **loot_interact**（透明交互菜单）：按 F 键打开，`through: true`，ESC 关闭时发送 `close_menu` 包；仅处理滚轮切换，不处理按键拾取。
+- **Pickup** — F 键功能精简为仅打开交互菜单（`loot_interact`），不再用于拾取。拾取完全由鼠标点击实现：点击物品条目（`bg_N`）发送 `pick_N` 包直接拾取指定索引物品；点击空白区域发送 `pick` 包拾取当前选中物品。
+- **Pickup** — 服务端 `handleClientPacket` 新增 `pick_N`（N=0~7）action 解析，`handlePick` 支持指定索引或使用当前 `selectedIndex`。
+- **Pickup** — `Packet.send` 仅支持 `(channel, action)` 两个参数，不支持第三个 data 参数。索引通过编码到 action 字符串中传递（`pick_0` ~ `pick_7`）。
+- **Pickup** — 移除 `loot_panel` 中的 `panel_bg` 控件、`shadow` 属性和 `level`/`closeDied`/`background` 配置项。
+- **Pickup** — 新增 `client.pickup` 客户端变量联动：`adaptive` 控件的 `click` 仅在 `client.pickup == true` 时发送拾取包。
+- **Conversation** — NPC 选择器 HUD（`conversation_selector`）UI 优化：
+  - `through` 改为 `true`，移除 `background`/`closeDied`，新增 `level: 0`。
+  - `selector_root` 新增 `enter`/`leave` 事件，悬停时设置 `client.pickup = false`，离开时恢复 `client.pickup = true`，避免点击 NPC 选项时误触 Pickup 拾取。
+- **文档** — `pickup.md` 更新：交互方式表、按键绑定表、UI 面板说明、技术架构图和数据流全部重写以反映双 UI 交互模型。
+- **文档** — `conversation.md` 新增 NPC 选择器 HUD 特性段落，说明 Pickup 联动机制。
+
+### 1.1.0-beta (Build 2026-05-25) — Conversation NPC 模型应用 Bug 修复
+
+- **Conversation** — 修复 `npc-appearances` 配置对 Adyeshach NPC 应用模型失败的问题（日志：`AdyeshachNpcBridge: ArcartXEntityManager 未提供 getOrCreateEntity(int) 方法，无法为私有实体应用模型`、`NPC "xxx" 应用失败`）。
+  - **根因**：`AdyeshachNpcBridge.applyModel/applyAnimation/applyDefaultState` 在 Bukkit Entity 路径失败时回退到 `ArcartXEntityManager.getOrCreateEntity(int)`，但 ArcartX 实际 API 只提供 `getOrCreateEntity(Entity)` 和 `getEntity(UUID)` 两个重载，从无 `int` 版本，回退路径必然失败。同时 Adyeshach 公共/私有 NPC 都是基于协议包的虚拟实体，并不附带真实 `org.bukkit.entity.Entity`，Bukkit Entity 路径同样无效。
+  - **修复**：删除不存在的 `getOrCreateEntity(int)` 反射查找；新增 NetworkSender 广播回退路径——当 Bukkit Entity 路径失败时，自动遍历能看见该实体的在线玩家（通过 `isVisibleViewer(Player)` 判定），对每个玩家调用 `ArcartXNetworkSender.sendSetEntityModel/sendSetEntityAnimation` 点对点发包。此路径已在 QuestGPS 模块 (`applyModelForPlayer`) 验证可行。
+  - **影响范围**：`applyModel`、`applyAnimation`、`applyDefaultState` 三个 API，以及调用它们的 `/axs conversation adyeshach setModel|setAnimation|playAnimation` 命令与 Conversation 模块 reload 时的 `npc-appearances` 自动应用流程。
+  - **已知限制**：NetworkSender 路径是 per-player 视觉应用，对当前不在视野内的玩家以及后续新进入视野的玩家无效——需要等待后续实现"实体进入视野时自动重发模型包"的增强（监听 Adyeshach 实体可见事件）。当前修复保证 reload/手动命令时立即对所有已看见实体的在线玩家生效。
+
+- **Conversation** — 修复服务器**启动时** `npc-appearances` 报"未找到 NPC"的问题（日志：`ArcartXConversation npc-appearances: 未找到 NPC "xxx"，跳过`）。
+  - **根因**：Adyeshach 的 NPC json 加载与 ArcartXSuite 模块启动之间存在时序竞态。`ConversationService.initializeInteractionEnhancement` 末尾立即同步调用 `applyNpcAppearances`，而此时 Adyeshach 的 `PublicEntityManager.getEntities()` 可能尚未完成对 `plugins/Adyeshach/npc/*.json` 的扫描加载，导致 `findByName` 返回 empty。reload 场景没有该问题（实体早已加载完）。
+  - **修复**：将 `applyNpcAppearances` 改为延迟重试机制——第一次尝试遍历所有 NPC 条目，未找到的实体加入"待重试队列"，调度 `runTaskLater` 10 tick 后重试，最多重试 30 次（共 ~15 秒）。reload 场景第一次就成功，无延迟无副作用；启动场景静默等待 Adyeshach 加载完成，最终一致。仍找不到的 NPC 在 30 次重试后输出最终警告。
+  - **新增字段/常量**：`npcAppearanceRetryTask`、`NPC_APPEARANCE_MAX_ATTEMPTS=30`、`NPC_APPEARANCE_RETRY_INTERVAL_TICKS=10L`；`shutdownInteractionEnhancement` 中通过 `cancelNpcAppearanceRetry()` 取消待重试任务，避免模块卸载/重载时遗留计时器。
+
+- **Conversation** — 架构改进：彻底解决 NPC 模型在客户端不显示的问题，改用 **"玩家看见 NPC 时立即发送模型包"** 的事件驱动模型。
+  - **背景**：前两条修复后服务端日志已无报错，但客户端仍看不到 NPC 模型。根因是 NetworkSender 的 `sendSetEntityModel` 是 per-player 即时发送的，需要在玩家客户端**已经持有该实体**的时刻才有效——若发送早于"实体生成给客户端"，包会被客户端丢弃；若玩家暂时离开 NPC 视野再回来，模型也会丢失。
+  - **新架构**：在 `AdyeshachNpcBridge` 中通过反射注册 `ink.ptms.adyeshach.core.event.AdyeshachEntityVisibleEvent`（继承自 TabooLib `BukkitProxyEvent`，等效 Bukkit Event），监听玩家进入 NPC 视野范围的瞬间。在该事件触发时，`ConversationService` 反查配置映射表（`npc 名称 -> NpcAppearanceEntry`），若匹配则立即对该玩家调用 `applyModelForPlayer / applyAnimationForPlayer / applyDefaultStateForPlayer`，保证模型/动画/状态包与客户端的实体生成时序对齐。
+  - **新增 API**（`AdyeshachNpcBridge`）：
+    - `registerVisibleHandler(BiConsumer<Player, Object>)` — 注册可见事件回调，通过 `PluginManager.registerEvent` + `EventExecutor` + 反射加载事件类（避免编译期依赖 Adyeshach），仅处理 `visible == true` 事件
+    - `unregisterVisibleHandler()` — 取消监听，shutdown 时自动调用
+    - `getEntityNames(Object)` — 反向匹配辅助，返回实体的 displayName/customName/id 列表，供上层用同一识别逻辑反查配置
+  - **ConversationService 集成**：
+    - 新增 `volatile Map<String, NpcAppearanceEntry> appearanceMapByLowerName` 映射表
+    - `applyNpcAppearances` 现在同时做三件事：构建映射表 → 注册 visible handler → 立即广播一次（兜底，对已在线且已看见 NPC 的玩家）
+    - `onAdyeshachEntityVisible` 回调：玩家进入 NPC 视野时按候选名（displayName/customName/id）匹配配置，匹配则发送模型/动画/默认状态包
+    - `shutdownInteractionEnhancement` 中通过 `npcBridge.unregisterVisibleHandler()` 清理监听器并重置映射表
+  - **效果**：
+    - 服务器启动后第一个玩家上线、走近 NPC 时即刻看到模型；后续每次玩家进入视野（NPC 离开/重新出现）都会自动重发模型包
+    - 不再依赖 ArcartX 的 Bukkit Entity 路径或 ArcartXEntityManager API，纯走 ArcartXNetworkSender 点对点发包，与 QuestGPS 的标记实体模型机制完全一致
+    - reload 时立即对所有当前已看见 NPC 的玩家应用，并自动接管后续视野变化
+
+- **Conversation** — 修复 visible 事件触发早于 ArcartX 客户端 mod 握手完成导致模型包丢失的问题（症状：玩家登录后必须 `/axs reload conversation` 才能看到 NPC 模型）。
+  - **根因**：玩家登录后 Adyeshach 几乎立刻（~2 秒）触发 `AdyeshachEntityVisibleEvent`，此时服务端 `ArcartXNetworkSender.sendSetEntityModel` 立即发出，但**ArcartX 客户端 mod 与服务端的 ArcartX 通信通道握手尚未完成**，客户端无法处理该包并丢弃。reload 时手动重新应用因玩家已稳定，客户端早就准备好，所以有效。
+  - **修复**：在 `ConversationModule` 中通过 `createInitializedHandler()` 注册 `ClientInitializedHandler`，监听 ArcartX 的 `ClientInitializedEvent$End`（宿主 `ArcartXSuitePlugin` 已通过反射路由到模块）。该事件在客户端 mod 完成与服务端 ArcartX 通道握手后才触发，此时调用新增的 `ConversationService.applyNpcAppearancesForPlayer(player)` 对该玩家**补发**一次所有配置 NPC 的模型/动画/默认状态包，保证客户端 mod 已就绪并能正确应用。
+  - **新增 API**：`ConversationService.applyNpcAppearancesForPlayer(Player)` — per-player 全量补发，遍历 `appearanceMapByLowerName` 并通过 `applyModelForPlayer / applyAnimationForPlayer / applyDefaultStateForPlayer` 点对点发包，debug 模式下记录"已补发 N 个 NPC 模型包"日志。
+  - **双保险机制**：现在 NPC 模型应用有三条独立路径互相兜底：(1) reload/启动后立即广播（对已在线已看见的玩家）；(2) `AdyeshachEntityVisibleEvent` 监听器（玩家移动进入视野时）；(3) `ClientInitializedHandler`（玩家登录且客户端握手完成时）。任一路径成功即可使客户端看到模型，无单点失效风险。
+
 ### 1.1.0-beta (Build 2026-05-24e) — Pickup 玩家指令
 
 - **Pickup** — 新增 `/pickup` 玩家指令（权限 `arcartxsuite.pickup.use`，默认全员拥有），支持 `on` / `off` / `status` 子命令，玩家可自行切换拾取功能开关。

@@ -13,7 +13,7 @@
 | --- | --- | --- |
 | 拾取行为 | 正常自动拾取 | **禁用自动拾取** |
 | HUD 功能 | 显示拾取通知（物品名、数量、图标） | 实时展示附近掉落物列表 |
-| 交互方式 | 无交互 | F 键拾取选中物品，滚轮/上下键切换 |
+| 交互方式 | 无交互 | F 键拾取选中 / 鼠标点击指定条目 / 滚轮切换 |
 | 过滤系统 | 无 | 材质黑/白名单 + 名称正则 + 最小数量 |
 | 仓库联动 | 无 | 可选自动存入仓库 |
 | 合并显示 | 不适用 | 同类物品合并（可关闭） |
@@ -31,8 +31,10 @@
 
 - **掉落物扫描**：周期性扫描玩家周围指定半径内的掉落物实体（默认 5 格）
 - **实时面板**：半透明暗色面板竖向展示附近掉落物，每项包含物品图标 + 名称 + 数量
-- **选中高亮**：当前选中项以蓝色高亮，可通过滚轮/上下键循环切换
-- **按键拾取**：按 F 键（`key.use`）拾取当前选中的物品
+- **选中高亮**：当前选中项以蓝色高亮，可通过滚轮循环切换
+- **鼠标点击拾取**：直接点击面板上的物品条目拾取对应物品（无需先滚轮选中）
+- **交互菜单**：按 F 键打开透明交互菜单（`loot_interact`），捕获鼠标光标用于精确点击操作，ESC 关闭
+- **跨模块联动**：对话选择器面板悬停时自动禁用拾取点击，避免误触
 - **过滤系统**：根据材质黑/白名单、物品名称正则和最小堆叠数量过滤显示
 - **合并显示**：同名同类物品合并为一条，显示总数量
 - **拾取延迟**：掉落物落地一定时间后才开始显示，防止玩家刚扔出的物品立即出现
@@ -90,6 +92,8 @@ notification:
 scanner:
   # 目标 HUD 的 UI ID
   ui-id: "AXS:loot_panel"
+  # 交互菜单的 UI ID（按 F 键打开的透明菜单，捕获鼠标光标）
+  interact-ui-id: "AXS:loot_interact"
   # 启动时自动注册 HUD
   register-ui-on-enable: true
   # 是否强制覆盖 UI 文件
@@ -108,6 +112,12 @@ scanner:
   pickup-delay-ticks: 40
   # 同类物品合并显示
   merge-same-items: true
+  # 自定义拾取按键
+  keybind:
+    # ArcartX 客户端按键注册名
+    name: AXS_INTERACT
+    # 默认键位（GLFW 键名）
+    default-key: F
 ```
 
 ### 过滤系统配置
@@ -178,33 +188,46 @@ filter:
 
 ## 按键绑定（扫描模式）
 
-| 按键 | 功能 |
-| --- | --- |
-| **F**（`key.use`） | 拾取当前选中的物品 |
-| **滚轮上 / ↑** | 切换选中到上一项 |
-| **滚轮下 / ↓** | 切换选中到下一项 |
+| 按键 | 场景 | 功能 |
+| --- | --- | --- |
+| **F**（默认，可改绑） | HUD 显示时 | 打开交互菜单（捕获鼠标光标） |
+| **鼠标左键** | 点击 HUD 条目 | 拾取对应物品（`pick_N`） |
+| **鼠标左键** | 点击 HUD 空白区域 | 拾取当前选中物品（`pick`） |
+| **滚轮上** | HUD / 交互菜单 | 切换选中到上一项 |
+| **滚轮下** | HUD / 交互菜单 | 切换选中到下一项 |
+| **ESC** | 交互菜单已打开时 | 关闭交互菜单 |
 
 ::: tip 按键说明
-扫描模式使用 ArcartX 客户端的按键系统，F 键对应 Minecraft 原版的「使用物品」键位。玩家可在客户端按键设置中修改绑定。
+扫描模式使用 ArcartX 客户端的自定义按键系统（`AXS_INTERACT`），默认绑定为 F 键。玩家可在客户端按键设置中修改绑定。UI 脚本通过 `Keyboard.getKeyBindingKeyName("AXS_INTERACT")` 动态解析实际键位。
 :::
 
-## HUD 面板样式（扫描模式）
+## UI 面板（扫描模式）
+
+### loot_panel（常驻 HUD）
 
 面板位于屏幕中心偏右，视觉设计：
 
-- **背景**：圆角暗色半透明面板（`20,20,30,180`），蓝色描边
-- **按键提示**：顶部显示 `[F] 拾取` 提示文字
-- **物品列表**：竖向排列，每项 42px 高
+- **物品列表**：竖向排列，每项 42px 高，可点击
 - **选中高亮**：蓝色背景（`60,140,220,160`），未选中为深灰
 - **物品图标**：左侧 32×32 图标（通过 `setItemIcon` 渲染真实物品）
 - **物品名称**：图标右侧显示名称和数量（数量 > 1 时追加 `×N`）
-- **自动隐藏**：附近无掉落物时面板自动隐藏
+- **自动隐藏**：附近无掉落物时面板自动隐藏（`visible: var.count > 0`）
+- **输入穿透**：`through: false`，HUD 接管鼠标点击和滚轮；`loot_panel` Canvas 及其子控件设置 `through: true` 让点击事件冒泡到顶层 `adaptive`
+- **条件点击**：通过 `client.pickup` 客户端变量控制点击是否生效，Conversation 选择器悬停时自动置为 `false`
+
+### loot_interact（透明交互菜单）
+
+按 F 键打开的全屏透明菜单，用于捕获鼠标光标：
+
+- **透明背景**：`background: false`，`through: true`
+- **ESC 关闭**：关闭时自动发送 `close_menu` 包
+- **滚轮切换**：`wheel` → 发 `scroll_up` / `scroll_down` 包
 
 ## 与 Warehouse 模块联动
 
 启用 `scanner.warehouse-auto-deposit: true` 后，扫描模式下拾取的物品将优先尝试存入玩家的个人仓库：
 
-1. 玩家按 F 拾取选中物品
+1. 玩家点击物品条目拾取
 2. 系统检查 Warehouse 模块是否可用
 3. 调用 `WarehouseService.depositStack()` 尝试存入
 4. 仓库满或物品在黑名单中 → 回退到背包
@@ -251,21 +274,27 @@ PickupModule
 └── mode: scanner
     ├── LootScannerService（周期扫描 + 阻止自动拾取 + 处理客户端包）
     ├── LootFilterEngine（过滤引擎：材质/名称/Lore/NBT/数量）
-    └── loot_panel.yml（掉落物面板 HUD）
+    ├── loot_panel.yml（掉落物面板 HUD，常驻）
+    └── loot_interact.yml（透明交互菜单，按 F 打开）
 ```
 
 ### 客户端↔服务端数据流（扫描模式）
 
 ```
 服务端 → 客户端:
-  1. 打开 UI (openUi)
-  2. 每 5 ticks 发送 update 包（物品列表 + 选中索引）
-  3. 物品变化时实时推送
+  1. 打开常驻 HUD (openUi → loot_panel)
+  2. 每 scanIntervalTicks 发送 update 包（物品列表 + 选中索引）
+  3. 滚轮切换时发送 select 包（仅 selectedIndex）
 
-客户端 → 服务端:
-  1. F 键 → Packet.send('ArcartXPacketCommand', 'pickup_pick')
-  2. 滚轮/方向键 → 客户端本地更新选中索引（无需发包）
-     或发送 scroll_up / scroll_down 由服务端同步
+客户端 → 服务端（loot_panel HUD）:
+  1. F 键 → Screen.open('AXS:loot_interact') + Packet.send('pickup', 'open_menu')
+  2. 滚轮 → 本地更新 var.selectedIndex + Packet.send('pickup', 'scroll_up/scroll_down')
+  3. 点击条目 → Packet.send('pickup', 'pick_N')  （N = 0~7，指定索引拾取）
+  4. 点击空白 → Packet.send('pickup', 'pick')     （拾取当前选中）
+
+客户端 → 服务端（loot_interact 菜单）:
+  1. 滚轮 → Packet.send('pickup', 'scroll_up/scroll_down')
+  2. ESC → Packet.send('pickup', 'close_menu')
 ```
 
 ### Payload 字段说明

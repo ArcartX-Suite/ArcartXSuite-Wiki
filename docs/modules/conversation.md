@@ -189,3 +189,9 @@ __option__:
 - 对话 UI ID：`AXS:conversation_menu`
 - NPC 选择 HUD ID：`AXS:conversation_selector_hud`
 - 服务端推对话帧（说话人、文本、选项列表），客户端推选项选择回包
+
+### NPC 选择器 HUD 特性
+
+- **常驻 HUD**：`isHud: true`，`through: true`，不拦截游戏操作
+- **屏幕缩放**：`screenScale: true`，`level: 0`
+- **Pickup 联动**：选择器面板（`selector_root`）通过 `enter` / `leave` 事件控制客户端变量 `client.pickup`，鼠标悬停在选择器上时置为 `false`，离开时恢复为 `true`，避免点击 NPC 选项时误触 Pickup 拾取
