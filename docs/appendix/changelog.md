@@ -17,6 +17,19 @@
 - **资源保护** — 付费模块资源通过 ticket 中的 `resourceKeys` 解包后在内存中解密。
 - **文档** — 安装、授权、命令速查和安全架构文档已同步到 `1.1.0-beta`。
 
+### 1.1.0-beta (Build 2026-05-26) — LoginView 正版/LittleSkin 免登录
+
+- **LoginView** — 新增正版/LittleSkin 白名单免登录功能（`auth.premium-bypass`）：启用后，通过 authlib-injector（LittleSkin）或 Mojang 正版认证的玩家无需输入密码，直接显示「进入服务器」按钮一键登录。
+- **LoginView** — 检测原理：正版/LittleSkin 认证后玩家 UUID version=4（随机 UUID），离线模式玩家 UUID version=3（name-based UUID）。
+- **LoginView** — 配置新增 `auth.premium-bypass.enabled`（默认 false）和 `auth.premium-bypass.message`（免登录成功提示）。
+- **LoginView** — 服务端新增 `bypass_enter` packet action，UI 新增 `bypass` 类型视图（含免登录提示文字 + 进入服务器按钮）。
+- **LoginView** — 两套 UI（`login_view.yml` 和 `login_view_menu.yml`）均已适配 bypass 视图。
+- **LoginView** — `LoginViewModuleConfiguration` 新增 `PremiumBypassConfiguration` record。
+- **LoginView** — `buildInitPayload` 新增 `premiumBypass` 字段，客户端通过 `var.premiumBypass` 和 `var.type == 'bypass'` 控制视图切换。
+- **LoginView** — 新增 `AuthlibInjectorHelper` 工具类：运行时检测 authlib-injector 是否已加载、从 LittleSkin 自动下载最新版、生成含 `-javaagent` 参数的启动脚本。
+- **LoginView** — 新增 `/axs loginview setup-authlib` 命令：一键下载 authlib-injector 并生成 `start-littleskin.bat` / `start-littleskin.sh`。
+- **LoginView** — 启动时若 `premium-bypass.enabled: true` 但未检测到 authlib-injector Agent，控制台自动输出配置指南。
+
 ### 1.1.0-beta (Build 2026-05-26) — Announcer 跨服广播 + 公告目录重命名
 
 - **Announcer** — 公告条目目录从 `entries/` 重命名为 `announcer/`，旧目录自动迁移。配置 `entries-directory` 默认值同步更新。
