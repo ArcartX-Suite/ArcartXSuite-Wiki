@@ -216,7 +216,7 @@ features:
           <td>任务视图</td>
           <td class="col-module">Conversation / QuestGPS</td>
           <td class="col-alt">BetonQuest UI / 其他任务视图</td>
-          <td class="col-advantage">Chemdah 深度集成、A*寻路 + 3D模型标记、可视化奖励预览、独立任务分类、AX 导航升级</td>
+          <td class="col-advantage">Chemdah 深度集成、路径寻路 + 3D模型标记、可视化奖励预览、独立任务分类、AX 导航升级</td>
         </tr>
         <tr>
           <td>服务器基础</td>
