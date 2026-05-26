@@ -11,6 +11,7 @@ ArcartXSuite/
 ├── modules/
 │   ├── announcer/        # Announcer 播报 + Subtitle 字幕
 │   ├── entitytracker/    # EntityTracker 实体追踪 + 目标 HUD
+│   ├── essentials/       # Essentials 基础工具 (传送/管控/砍树/InvActions)
 │   ├── chat/             # Chat 频道聊天
 │   ├── conversation/     # Conversation 对话桥
 │   ├── eventpacket/      # EventPacket 事件引擎
@@ -22,6 +23,7 @@ ArcartXSuite/
 │   ├── pickup/           # Pickup 拾取提示
 │   ├── prop/             # Prop 快捷道具
 │   ├── questgps/         # QuestGPS 任务导航
+│   ├── regions/          # Regions 区域保护 + 世界规则
 │   ├── rgb/              # RGB 渐变色文本
 │   ├── tab/              # Tab 在线列表
 │   ├── title/            # Title 称号

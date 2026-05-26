@@ -17,6 +17,35 @@
 - **资源保护** — 付费模块资源通过 ticket 中的 `resourceKeys` 解包后在内存中解密。
 - **文档** — 安装、授权、命令速查和安全架构文档已同步到 `1.1.0-beta`。
 
+### 1.1.0-beta (Build 2026-05-27) — Essentials 基础工具 + Regions 区域保护
+
+- **Essentials** — 新增 `essentials` 模块，集合了服务器最常用的基础管理功能：
+  - **玩家管理**：fly / god / heal / feed / gamemode / speed / vanish / afk / repair / hat / nick / seen
+  - **容器**：enderchest / workbench / anvil / trash
+  - **传送系统**：home / sethome / delhome / warp / setwarp / delwarp / spawn / setspawn / tpa / tpahere / tpaccept / tpdeny / back / tp / top / tppos
+  - **世界管理**：time / weather
+  - **安全管控**：ban / tempban / unban / mute / tempmute / unmute / kick / warn / sudo / inv
+  - **交互**：sit / lay
+  - **一键砍树 (TreeCapitator)**：连锁砍伐原木 + 树叶，可配置最大连锁数/斧头/潜行/耐久消耗
+  - **背包操作 (InvActions)**：自动补种成熟作物（消耗种子）/ 背包整理（`/axs ess sort`）/ 自动工具切换
+- **Essentials** — 配置文件 `ArcartXEssentials.yml`，支持 SQLite/MySQL 存储
+- **Essentials** — 注册 `EssentialsQueryable` capability，供 Tab/Chat 等模块查询 AFK/Vanish 状态
+- **Essentials** — 新增权限：`axs.essentials.treecap`、`axs.essentials.replant`、`axs.essentials.sort`、`axs.essentials.autotool`
+
+- **Regions** — 新增 `regions` 模块，提供类 WorldGuard 的完整区域保护方案：
+  - **选区工具**：木斧左/右键设置两点选区，自动显示体积
+  - **区域 CRUD**：define / remove / redefine / list / info / tp
+  - **标志系统**：40+ 保护标志（方块/实体/环境/玩家行为/特殊），三态 allow/deny/none
+  - **成员管理**：所有者 / 成员 / 权限组（`g:组名`），成员豁免方块保护
+  - **优先级 + 继承**：数值优先级，父区域继承未设置的标志
+  - **世界规则**：按世界级别的禁飞/禁活塞/禁交互（从 Essentials 移入）
+- **Regions** — 配置文件 `ArcartXRegions.yml`，支持 SQLite/MySQL 存储
+- **Regions** — 新增权限：`axs.regions.select`、`axs.regions.admin`、`axs.regions.bypass`、`axs.regions.bypass.limit`
+
+- **文档** — 新增 `docs/modules/essentials.md` 和 `docs/modules/regions.md`
+- **文档** — 命令速查、模块总览、sidebar 导航全面更新
+- **构建** — 模块总数从 17 → 19，全量 107 任务 BUILD SUCCESSFUL
+
 ### 1.1.0-beta (Build 2026-05-26) — LoginView 正版/LittleSkin 免登录
 
 - **LoginView** — 新增正版/LittleSkin 白名单免登录功能（`auth.premium-bypass`）：启用后，通过 authlib-injector（LittleSkin）或 Mojang 正版认证的玩家无需输入密码，直接显示「进入服务器」按钮一键登录。

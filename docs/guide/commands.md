@@ -29,13 +29,13 @@
 | `/axs license cloud-code` | 生成云端网页换绑挑战码，用于证明你控制新目标服务器 | `/axs license cloud-code` |
 | `/axs license fingerprint` | 输出当前服务器机器指纹、localSaltHash 和参与指纹计算的组件，用于授权诊断 | `/axs license fingerprint` |
 
-合法的 `<模块名>` 共 17 个：
+合法的 `<模块名>` 共 19 个：
 
 ```
 announcer, entitytracker, combateffect, eventpacket,
 chat, conversation, loginview, mail, onlinerewards,
 pickup, prop, rgb, tab, title,
-map, questgps, warehouse
+map, questgps, warehouse, essentials, regions
 ```
 
 ---
@@ -338,3 +338,91 @@ map, questgps, warehouse
 | `/map` 或 `/map open [世界名]` | 打开地图界面。不指定世界时显示当前所在世界的地图 | `/map`<br>`/map open world_nether` |
 | `/map hud [on\|off\|toggle]` | 控制小地图 HUD 的显示开关 | `/map hud off`<br>`/map hud` |
 | `/map cleartrack` | 清除地图上正在追踪的目标点 | `/map cleartrack` |
+
+---
+
+## Essentials 模块命令
+
+### 管理命令（`/axs essentials`）
+
+权限：`arcartxsuite.admin`
+
+| 命令 | 说明 |
+| --- | --- |
+| `/axs essentials fly [玩家]` | 切换飞行模式 |
+| `/axs essentials god [玩家]` | 切换无敌模式 |
+| `/axs essentials heal [玩家]` | 恢复生命值 |
+| `/axs essentials feed [玩家]` | 恢复饥饿值 |
+| `/axs essentials gamemode <模式> [玩家]` | 设置游戏模式 |
+| `/axs essentials speed <数值> [玩家]` | 设置速度 |
+| `/axs essentials vanish` | 切换隐身 |
+| `/axs essentials afk` | 切换 AFK |
+| `/axs essentials back` | 回到上次位置 |
+| `/axs essentials repair` | 修复手持物品 |
+| `/axs essentials hat` | 将手持物品戴头上 |
+| `/axs essentials enderchest [玩家]` | 打开末影箱 |
+| `/axs essentials workbench` | 打开工作台 |
+| `/axs essentials anvil` | 打开铁砧 |
+| `/axs essentials trash` | 打开垃圾桶 |
+| `/axs essentials nick <昵称\|off>` | 设置/重置昵称 |
+| `/axs essentials seen <玩家>` | 查看上次在线 |
+| `/axs essentials home [名称]` | 传送到家 |
+| `/axs essentials sethome [名称]` | 设置家 |
+| `/axs essentials delhome [名称]` | 删除家 |
+| `/axs essentials warp <名称>` | 传送到传送点 |
+| `/axs essentials setwarp <名称>` | 设置传送点 |
+| `/axs essentials delwarp <名称>` | 删除传送点 |
+| `/axs essentials spawn` | 传送到出生点 |
+| `/axs essentials setspawn` | 设置出生点 |
+| `/axs essentials tpa <玩家>` | 发起传送请求 |
+| `/axs essentials tpahere <玩家>` | 请求对方传送到自己 |
+| `/axs essentials tpaccept` | 接受传送请求 |
+| `/axs essentials tpdeny` | 拒绝传送请求 |
+| `/axs essentials tp <玩家>` | 管理员直接传送 |
+| `/axs essentials top` | 传送到头顶最高方块 |
+| `/axs essentials tppos <x> <y> <z> [世界]` | 传送到坐标 |
+| `/axs essentials time <数值\|day\|night> [世界]` | 设置世界时间 |
+| `/axs essentials weather <clear\|rain\|thunder> [世界]` | 设置天气 |
+| `/axs essentials ban <玩家> [原因]` | 永久封禁 |
+| `/axs essentials tempban <玩家> <时长> [原因]` | 临时封禁 |
+| `/axs essentials unban <玩家>` | 解封 |
+| `/axs essentials mute <玩家> [原因]` | 永久禁言 |
+| `/axs essentials tempmute <玩家> <时长> [原因]` | 临时禁言 |
+| `/axs essentials unmute <玩家>` | 解除禁言 |
+| `/axs essentials kick <玩家> [原因]` | 踢出服务器 |
+| `/axs essentials warn <玩家> <原因>` | 警告玩家 |
+| `/axs essentials sudo <玩家> <命令>` | 强制执行命令 |
+| `/axs essentials inv <玩家>` | 查看玩家背包 |
+| `/axs essentials sit` | 坐下 |
+| `/axs essentials lay` | 躺下 |
+| `/axs essentials sort` | 整理背包 |
+| `/axs essentials replant` | 开关自动补种 |
+| `/axs essentials autotool` | 开关自动工具切换 |
+
+---
+
+## Regions 模块命令
+
+### 管理命令（`/axs regions`）
+
+权限：`arcartxsuite.admin` 或对应区域权限
+
+| 命令 | 说明 |
+| --- | --- |
+| `/axs regions define <名称>` | 用当前选区创建区域 |
+| `/axs regions remove <名称>` | 删除区域 |
+| `/axs regions redefine <名称>` | 用新选区重定义区域范围 |
+| `/axs regions list [世界]` | 列出区域 |
+| `/axs regions info <名称>` | 查看区域详情 |
+| `/axs regions tp <名称>` | 传送到区域中心 |
+| `/axs regions pos1` | 设置选区点 1 |
+| `/axs regions pos2` | 设置选区点 2 |
+| `/axs regions flag <区域> <标志> <allow\|deny>` | 设置标志 |
+| `/axs regions removeflag <区域> <标志>` | 移除标志 |
+| `/axs regions flags <区域>` | 查看所有标志 |
+| `/axs regions addowner <区域> <玩家>` | 添加所有者 |
+| `/axs regions removeowner <区域> <玩家>` | 移除所有者 |
+| `/axs regions addmember <区域> <玩家>` | 添加成员 |
+| `/axs regions removemember <区域> <玩家>` | 移除成员 |
+| `/axs regions priority <区域> <数字>` | 设置优先级 |
+| `/axs regions parent <区域> <父区域\|none>` | 设置父区域 |

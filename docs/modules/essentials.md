@@ -1,0 +1,202 @@
+# Essentials 基础工具
+
+::: tip 免费模块
+Essentials 模块集合了服务器最常用的玩家工具、传送系统、安全管控和实用功能，开箱即用。
+:::
+
+## 功能总览
+
+| 分类 | 功能 |
+| --- | --- |
+| 玩家管理 | 飞行 / 无敌 / 回血 / 回饱食 / 速度 / 隐身 / AFK / 修复 / 帽子 |
+| 容器 | 末影箱 / 工作台 / 铁砧 / 垃圾桶 |
+| 传送系统 | Home / Warp / Spawn / TPA / Back / TP / Top / TpPos |
+| 世界管理 | 时间 / 天气 |
+| 安全管控 | 封禁 / 禁言 / 踢出 / 警告 / Sudo / 背包查看 |
+| 交互 | 坐下 / 躺下 |
+| 一键砍树 | 连锁砍伐原木 + 树叶，可配置斧头/潜行/连锁数 |
+| 背包操作 | 自动补种作物 / 背包整理 / 自动工具切换 |
+| 玩家信息 | 昵称 / 上次在线查询 |
+
+---
+
+## 命令
+
+主入口：`/axs essentials <子命令>` （别名 `/axs ess`）
+
+### 玩家管理
+
+| 命令 | 说明 | 权限 |
+| --- | --- | --- |
+| `/axs ess fly [玩家]` | 切换飞行模式 | `axs.essentials.fly` |
+| `/axs ess god [玩家]` | 切换无敌模式 | `axs.essentials.god` |
+| `/axs ess heal [玩家]` | 恢复生命值 | `axs.essentials.heal` |
+| `/axs ess feed [玩家]` | 恢复饥饿值 | `axs.essentials.feed` |
+| `/axs ess gamemode <模式> [玩家]` | 设置游戏模式 | `axs.essentials.gamemode` |
+| `/axs ess speed <数值> [玩家]` | 设置移动速度 | `axs.essentials.speed` |
+| `/axs ess vanish` | 切换隐身 | `axs.essentials.vanish` |
+| `/axs ess afk` | 切换 AFK 状态 | `axs.essentials.afk` |
+| `/axs ess repair` | 修复手持物品 | `axs.essentials.repair` |
+| `/axs ess hat` | 将手持物品戴在头上 | `axs.essentials.hat` |
+| `/axs ess nick <昵称\|off>` | 设置/重置昵称 | `axs.essentials.nick` |
+| `/axs ess seen <玩家>` | 查看玩家最后在线信息 | `axs.essentials.seen` |
+
+### 容器
+
+| 命令 | 说明 | 权限 |
+| --- | --- | --- |
+| `/axs ess enderchest [玩家]` | 打开末影箱 | `axs.essentials.enderchest` |
+| `/axs ess workbench` | 打开工作台 | `axs.essentials.workbench` |
+| `/axs ess anvil` | 打开铁砧 | `axs.essentials.anvil` |
+| `/axs ess trash` | 打开垃圾桶 | `axs.essentials.trash` |
+
+### 传送系统
+
+| 命令 | 说明 | 权限 |
+| --- | --- | --- |
+| `/axs ess home [名称]` | 传送到家 | `axs.essentials.home` |
+| `/axs ess sethome [名称]` | 设置家 | `axs.essentials.sethome` |
+| `/axs ess delhome [名称]` | 删除家 | `axs.essentials.delhome` |
+| `/axs ess warp <名称>` | 传送到传送点 | `axs.essentials.warp` |
+| `/axs ess setwarp <名称>` | 设置传送点 | `axs.essentials.setwarp` |
+| `/axs ess delwarp <名称>` | 删除传送点 | `axs.essentials.delwarp` |
+| `/axs ess spawn` | 传送到出生点 | `axs.essentials.spawn` |
+| `/axs ess setspawn` | 设置出生点 | `axs.essentials.setspawn` |
+| `/axs ess tpa <玩家>` | 发送传送请求 | `axs.essentials.tpa` |
+| `/axs ess tpahere <玩家>` | 请求对方传送到自己 | `axs.essentials.tpahere` |
+| `/axs ess tpaccept` | 接受传送请求 | `axs.essentials.tpa` |
+| `/axs ess tpdeny` | 拒绝传送请求 | `axs.essentials.tpa` |
+| `/axs ess back` | 返回上次位置 | `axs.essentials.back` |
+| `/axs ess tp <玩家>` | 管理员直接传送 | `axs.essentials.tp` |
+| `/axs ess top` | 传送到头顶最高方块 | `axs.essentials.top` |
+| `/axs ess tppos <x> <y> <z> [世界]` | 传送到坐标 | `axs.essentials.tppos` |
+
+### 安全管控
+
+| 命令 | 说明 | 权限 |
+| --- | --- | --- |
+| `/axs ess ban <玩家> [原因]` | 永久封禁 | `axs.essentials.ban` |
+| `/axs ess tempban <玩家> <时长> [原因]` | 临时封禁 | `axs.essentials.ban` |
+| `/axs ess unban <玩家>` | 解封 | `axs.essentials.unban` |
+| `/axs ess mute <玩家> [原因]` | 永久禁言 | `axs.essentials.mute` |
+| `/axs ess tempmute <玩家> <时长> [原因]` | 临时禁言 | `axs.essentials.mute` |
+| `/axs ess unmute <玩家>` | 解除禁言 | `axs.essentials.unmute` |
+| `/axs ess kick <玩家> [原因]` | 踢出服务器 | `axs.essentials.kick` |
+| `/axs ess warn <玩家> <原因>` | 警告玩家 | `axs.essentials.warn` |
+| `/axs ess sudo <玩家> <命令>` | 强制玩家执行命令 | `axs.essentials.sudo` |
+| `/axs ess inv <玩家>` | 查看玩家背包 | `axs.essentials.inv` |
+
+### 交互 & 工具
+
+| 命令 | 说明 | 权限 |
+| --- | --- | --- |
+| `/axs ess sit` | 坐下 | `axs.essentials.sit` |
+| `/axs ess lay` | 躺下 | `axs.essentials.lay` |
+| `/axs ess sort` | 整理背包 | `axs.essentials.sort` |
+| `/axs ess replant` | 开关自动补种 | `axs.essentials.replant` |
+| `/axs ess autotool` | 开关自动工具切换 | `axs.essentials.autotool` |
+
+---
+
+## 配置文件
+
+配置文件位于 `plugins/ArcartXSuite/data/essentials/ArcartXEssentials.yml`
+
+### 一键砍树 (TreeCapitator)
+
+```yaml
+tree-capitator:
+  enabled: true
+  # 需要的权限节点 (留空 = 无需权限)
+  permission: "axs.essentials.treecap"
+  # 最大连锁方块数
+  max-blocks: 128
+  # 需要手持斧头
+  require-axe: true
+  # 需要潜行触发
+  require-sneak: false
+  # 是否消耗工具耐久
+  consume-durability: true
+  # 支持的原木类型 (留空 = 所有原木)
+  log-types: []
+  # 是否同时破坏树叶
+  break-leaves: true
+  # 树叶搜索范围
+  leaf-radius: 4
+```
+
+**工作原理**：玩家用斧头破坏原木时，自动向上搜索所有连接的原木方块并一次性破坏，模拟"砍倒整棵树"的效果。
+
+### 背包操作 (InvActions)
+
+```yaml
+inv-actions:
+  # 自动补种作物
+  auto-replant:
+    enabled: true
+    permission: "axs.essentials.replant"
+    crops:
+      - WHEAT
+      - CARROTS
+      - POTATOES
+      - BEETROOTS
+      - NETHER_WART
+  # 背包整理
+  inventory-sort:
+    enabled: true
+    permission: "axs.essentials.sort"
+    sort-mode: type  # type / name / amount
+  # 自动工具切换
+  auto-tool:
+    enabled: true
+    permission: "axs.essentials.autotool"
+    switch-on-break: true
+```
+
+**自动补种**：收获成熟作物时自动从背包消耗种子补种。仅成熟作物触发。
+
+**背包整理**：整理 9-35 槽位（非快捷栏），合并同类物品后按配置的模式排序。
+
+**自动工具切换**：左键点击方块时自动切换快捷栏中的最佳工具（镐/斧/锹/锄）。
+
+---
+
+## 存储
+
+支持 SQLite（默认）和 MySQL，存储传送点、Home、封禁/禁言记录等数据。
+
+```yaml
+storage:
+  dialect: sqlite
+  sqlite-file: essentials.db
+  mysql:
+    host: localhost
+    port: 3306
+    database: arcartxsuite
+    username: root
+    password: ''
+    table-prefix: axs_ess_
+```
+
+---
+
+## 跨模块联动
+
+| 联动模块 | 说明 |
+| --- | --- |
+| Tab | AFK/Vanish 状态变化时刷新 Tab 列表 |
+| Chat | 禁言状态同步给 Chat 模块；昵称联动 |
+| EventPacket | 通过 `EssentialsQueryable` capability 供其他模块查询玩家状态 |
+
+---
+
+## 权限汇总
+
+| 权限 | 说明 | 默认 |
+| --- | --- | --- |
+| `axs.essentials.treecap` | 一键砍树 | false |
+| `axs.essentials.replant` | 自动补种 | false |
+| `axs.essentials.sort` | 背包整理 | false |
+| `axs.essentials.autotool` | 自动工具切换 | false |
+| `axs.essentials.fly.bypass` | 绕过世界禁飞 | OP |
+| `axs.essentials.interact.bypass` | 绕过交互限制 | OP |

@@ -2,7 +2,7 @@
 
 ## 功能定位-ArcartXSuite的最具有学习意义的模块
 
-**通用触发器 + 动作链**模块。当指定事件发生时，按顺序执行一组动作（发 UI 包、播字幕、执行命令、派发邮件、授予称号等）。支持 9 种触发器和 11 种动作类型，覆盖服务端事件监听和客户端回包驱动两大场景。
+**通用触发器 + 动作链**模块。当指定事件发生时，按顺序执行一组动作（发 UI 包、播字幕、执行命令、派发邮件、授予称号等）。支持 9 种触发器和 11 种动作类型，覆盖服务端事件监听和客户端回包驱动两大场景。此外还内置了**实体清理（ClearLag）**和**定时命令**两项服务端实用功能。
 
 使用本模块可以提升你对ArcartX运用的上限，避免写脚本的情况下触发更多你想要的事件
 
@@ -980,3 +980,85 @@ cdk_redeemed_effect:
 | `/axs eventpacket status` | 查看规则数量和模块状态 | |
 | `/axs eventpacket reload` | 重载配置和预设文件 | |
 | `/axs eventpacket fire <信号名> <玩家> [key=value...]` | 手动触发信号，用于调试 | `/axs eventpacket fire boss_settlement Steve boss_id=dragon rank=1` |
+| `/axs eventpacket clearlag` | 手动执行一次实体清理 | `/axs eventpacket clearlag` |
+
+---
+
+## 实体清理（ClearLag）
+
+EventPacket 模块内置了实体清理功能，定时清理掉落物和怪物，减轻服务器负担。
+
+### 配置
+
+```yaml
+# ArcartXEventPacket.yml
+entity-cleanup:
+  enabled: false
+  # 清理间隔（秒）
+  interval-seconds: 300
+  # 清理前警告秒数列表
+  warning-seconds:
+    - 60
+    - 30
+    - 10
+    - 5
+  # 警告消息模板 ({seconds} 替换为剩余秒数)
+  warning-message: "&e[服务器] &f{seconds} 秒后清理地面掉落物..."
+  # 清理完成消息 ({count} 替换为清理数量)
+  cleanup-message: "&a[服务器] 已清理 {count} 个实体。"
+  # 清理目标类型
+  targets:
+    dropped-items: true
+    monsters: false
+    animals: false
+  # 实体类型白名单（不会被清理）
+  whitelist:
+    - ARMOR_STAND
+    - ITEM_FRAME
+  # 世界白名单（这些世界不执行清理）
+  world-whitelist: []
+```
+
+### 命令
+
+- `/axs eventpacket clearlag` — 立即执行一次清理（不等待定时器），适合手动维护
+
+---
+
+## 定时命令
+
+定时在后台执行控制台或玩家命令，适合定时重启、自动广播等场景。
+
+### 配置
+
+```yaml
+# ArcartXEventPacket.yml
+scheduled-commands:
+  - id: "auto-save"
+    enabled: true
+    # 首次延迟（秒）
+    delay-seconds: 60
+    # 执行间隔（秒）
+    interval-seconds: 600
+    # 命令类型: console / player (玩家命令对所有在线玩家执行)
+    type: console
+    # 命令列表
+    commands:
+      - "save-all"
+  - id: "tip-broadcast"
+    enabled: true
+    delay-seconds: 120
+    interval-seconds: 300
+    type: console
+    commands:
+      - "say 小贴士：使用 /axs ess sort 整理背包！"
+```
+
+| 字段 | 说明 |
+| --- | --- |
+| `id` | 任务标识 |
+| `enabled` | 是否启用 |
+| `delay-seconds` | 服务器启动后延迟多久开始 |
+| `interval-seconds` | 执行间隔 |
+| `type` | `console` 以控制台执行；`player` 对每个在线玩家执行 |
+| `commands` | 命令列表，按顺序执行 |
