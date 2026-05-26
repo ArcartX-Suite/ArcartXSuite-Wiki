@@ -59,39 +59,131 @@ auth:
 
 ### 正版/LittleSkin 免登录
 
+启用后，通过 LittleSkin 外置登录或 Mojang 正版认证的玩家，进服后**无需输入密码**，直接点击「进入服务器」按钮即可游玩。离线玩家仍需正常注册/登录。
+
+#### 配置项
+
 ```yaml
 auth:
   premium-bypass:
-    enabled: false
+    enabled: false                         # 是否启用免登录
+    message: '&a身份已验证，欢迎回来。'      # 免登录成功后的提示消息
+```
+
+#### 工作原理
+
+| 玩家类型 | UUID 版本 | 进服体验 |
+|---|---|---|
+| LittleSkin 外置登录 | version 4（由 Yggdrasil 服务器分配） | 显示「进入服务器」按钮，一键进服 |
+| Mojang 正版 | version 4（由 Mojang 服务器分配） | 显示「进入服务器」按钮，一键进服 |
+| 离线/盗版 | version 3（基于玩家名称计算） | 正常显示注册/登录界面 |
+
+> LoginView 通过检查玩家 UUID 的 version 字段来区分认证类型。version 4 = 随机 UUID（由认证服务器分配），version 3 = 确定性 UUID（由玩家名称计算）。
+
+---
+
+#### 从零配置教程
+
+##### 前置条件
+
+- 服务器运行在 `online-mode=false`（`server.properties` 中设置）
+- 已安装 ArcartXSuite 且 LoginView 模块已启用
+
+##### 第一步：启用 premium-bypass
+
+编辑 `plugins/ArcartXSuite/data/loginview/ArcartXLoginView.yml`：
+
+```yaml
+auth:
+  mode: "standalone"       # 或 "authme"
+  premium-bypass:
+    enabled: true          # ← 改为 true
     message: '&a身份已验证，欢迎回来。'
 ```
 
-启用后，通过以下方式认证的玩家无需输入密码，直接显示「进入服务器」按钮：
+重载配置：
+```
+/axs loginview reload
+```
 
-- **authlib-injector + LittleSkin** — 外置登录的玩家
-- **Mojang 正版** — 已购买正版的玩家
+##### 第二步：安装 authlib-injector（一键命令）
 
-**检测原理**：正版/LittleSkin 认证后玩家的 UUID 为 version 4（随机 UUID），离线模式玩家的 UUID 为 version 3（基于名称计算）。
-
-> ℹ️ 服务器需在离线模式下运行（`online-mode=false`），通过 authlib-injector 接入 LittleSkin 或其他第三方认证服务。正版玩家的 UUID 由认证服务器下发，自然为 version 4。
-
-#### 快速配置 authlib-injector
-
-如果服务器尚未配置 authlib-injector，可使用内置命令一键完成：
+在游戏内或控制台执行：
 
 ```
 /axs loginview setup-authlib
 ```
 
-该命令会：
-1. 从 LittleSkin 自动下载最新版 `authlib-injector.jar` 到插件目录
-2. 自动检测服务端 jar 名称（paper.jar / purpur.jar 等）
-3. 在服务器根目录生成 `start-littleskin.bat` 和 `start-littleskin.sh` 启动脚本
-4. 使用生成的脚本重启服务器即可生效
+该命令会自动完成：
+1. 从官方源下载最新版 `authlib-injector.jar` 到 `plugins/ArcartXSuite/`
+2. 检测服务端 jar 名称（paper.jar / purpur.jar / spigot.jar 等）
+3. 在服务器根目录生成 `start-littleskin.bat` 和 `start-littleskin.sh`
+4. **自动修改现有启动脚本**（如 `run.bat`），注入 `-javaagent` 参数（原脚本备份为 `.bak`）
 
-> ⚠️ authlib-injector 是 JVM Agent，必须在服务器启动时通过 `-javaagent` 参数加载，无法在运行时动态注入。执行 setup-authlib 后需用新脚本重启服务器。
+##### 第三步：重启服务器
 
-**运行时检测**：当 `premium-bypass.enabled: true` 时，LoginView 启动时会自动检测 authlib-injector 是否已加载。若未加载，会在控制台输出详细的警告和配置指南。
+```
+stop
+```
+
+然后选择以下任一方式启动：
+
+**方式 A：使用生成的新脚本**
+
+在服务器根目录找到 `start-littleskin.bat`（Windows）或 `start-littleskin.sh`（Linux），双击或执行它。
+
+**方式 B：使用原脚本（已被自动修改）**
+
+如果 setup-authlib 检测到你的原启动脚本（如 `run.bat`）并成功修改，直接用原脚本启动即可。修改前的原文件已备份为 `run.bat.bak`。
+
+**方式 C：手动修改启动命令**
+
+在你的启动命令中，`java` 后面加上 `-javaagent` 参数：
+
+```bat
+java -javaagent:plugins/ArcartXSuite/authlib-injector.jar=https://littleskin.cn/api/yggdrasil -Xmx4G -jar paper.jar nogui
+```
+
+##### 第四步：验证
+
+服务器启动后，控制台应该看到：
+```
+[ArcartXSuite] LoginView premium-bypass: authlib-injector 已检测到，正版/LittleSkin 免登录已启用。
+```
+
+如果看到黄色警告框提示「未检测到 authlib-injector」，说明启动命令中没有正确加载 Agent，请检查第三步。
+
+##### 第五步：玩家体验
+
+- **LittleSkin/正版玩家**进服 → 看到绿色提示「身份已验证」+ 「进入服务器」按钮 → 点击即可进服
+- **离线玩家**进服 → 看到正常的注册/登录界面 → 需要输入密码
+
+---
+
+#### 常见问题
+
+**Q: 如果不使用 LittleSkin，使用其他 Yggdrasil 服务器怎么办？**
+
+修改 `start-littleskin.bat` 中的 API 地址：
+```
+-javaagent:plugins/ArcartXSuite/authlib-injector.jar=https://你的yggdrasil地址/api/yggdrasil
+```
+
+**Q: 启用后离线玩家还能注册/登录吗？**
+
+可以。免登录仅对 UUID version 4 的玩家生效，离线玩家（version 3）不受影响，仍走正常注册/登录流程。
+
+**Q: 玩家改名后会怎样？**
+
+LittleSkin/正版玩家的 UUID 由认证服务器分配，改名不会影响 UUID，免登录仍然有效。
+
+**Q: 如何回退/关闭免登录？**
+
+将配置改回 `enabled: false` 并 `/axs loginview reload` 即可。无需卸载 authlib-injector。
+
+**Q: setup-authlib 修改了我的启动脚本，如何恢复？**
+
+原始脚本已备份为 `.bak` 文件（如 `run.bat.bak`），直接重命名回来即可。
 
 ### UI 配置
 
