@@ -17,6 +17,34 @@
 - **资源保护** — 付费模块资源通过 ticket 中的 `resourceKeys` 解包后在内存中解密。
 - **文档** — 安装、授权、命令速查和安全架构文档已同步到 `1.1.0-beta`。
 
+### 1.1.0-beta (Build 2026-05-27c) — UI 列表渲染模式修正
+
+- **Essentials / Regions** — 修复 UI YAML 中 VStack 列表渲染使用错误的 `create:` 写法，改为正确的 `children:` + `entry: var.list[self.key]` 模式。
+  - 修正文件：`essentials_menu.yml`、`essentials_admin.yml`、`regions_menu.yml`、`regions_admin.yml`
+  - 修正内容：`create:` → `children:`；`val: var.xxx` (数据源) → `val: alias` (控件别名)；子行模板中 `self.entry['x']` → `self.parent.entry['x']`；行级按钮 action 中 `self.entry` → `self.parent.entry`
+  - 新增 `entry: var.list[self.key]` + `visible: self.entry != null` 绑定模式，与 mail/map/conversation 等生产 UI 一致
+
+### 1.1.0-beta (Build 2026-05-27b) — Essentials & Regions UI 面板
+
+- **Essentials** — 新增 ArcartX UI 玩家菜单（`/axs ess menu`）：单文件多视图架构，支持首页/家/传送点/TPA/设置五个子页面。
+  - 首页：玩家状态总览（飞行/无敌/AFK/速度/位置）
+  - 家：列表 + 传送/删除/新建
+  - 传送点：列表 + 传送
+  - TPA：在线玩家列表 + 发送/接受/拒绝传送请求
+  - 设置：飞行/自动补种/自动工具开关 + 背包整理
+- **Essentials** — 新增 ArcartX UI 管理员面板（`/axs ess admin`，权限 `axs.essentials.admin`）：
+  - 玩家管理：在线玩家列表 + 治疗/喂食/飞行/踢出/封禁
+  - 传送点：新建/删除
+  - 世界：时间（白天/夜晚/正午）+ 天气（晴天/雨天/雷暴）+ 设置出生点
+- **Regions** — 新增 ArcartX UI 玩家区域查看菜单（`/axs rg menu`）：
+  - 当前所在区域：名称/世界/优先级/成员数/标志列表
+  - 我的区域：玩家拥有/参与的区域列表，点击查看详情
+  - 区域详情：范围/体积/父区域/所有者/成员/标志
+- **Regions** — 新增 ArcartX UI 管理员区域管理面板（`/axs rg admin`，权限 `axs.regions.admin`）：
+  - 区域列表：全部区域 + 编辑/删除
+  - 区域编辑：成员管理（添加/移除）+ 40+ 标志快速切换（允许/拒绝/清除）
+- **架构** — UI 通过 `PacketBridgeAPI` + `PacketGuardAPI` 与客户端通信，单文件多视图 YAML 架构，客户端通过 `Packet.send(...)` 发送操作回包。
+
 ### 1.1.0-beta (Build 2026-05-27) — Essentials 基础工具 + Regions 区域保护
 
 - **Essentials** — 新增 `essentials` 模块，集合了服务器最常用的基础管理功能：

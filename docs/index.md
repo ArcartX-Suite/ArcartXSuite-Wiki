@@ -87,11 +87,11 @@ features:
     link: /modules/warehouse
   - icon: 🛠️
     title: Essentials 基础工具
-    details: 传送/家/Warp、飞行/无敌/治疗、封禁/禁言/警告、一键砷树、背包整理、自动补种
+    details: 传送/家/Warp、飞行/无敌/治疗、封禁/禁言/警告、一键砍树、背包整理、UI 玩家菜单 + 管理员面板
     link: /modules/essentials
   - icon: 🛡️
     title: Regions 区域保护
-    details: 区域创建/标志管理/优先级继承、世界规则、成员权限、类 WorldGuard 体验
+    details: 区域创建/40+ 标志/优先级继承、世界规则、UI 区域查看 + 管理员编辑面板
     link: /modules/regions
 ---
 
@@ -222,13 +222,13 @@ features:
           <td>服务器基础</td>
           <td class="col-module">Essentials</td>
           <td class="col-alt">EssentialsX / CMI</td>
-          <td class="col-advantage">轻量纯净、内置一键砷树、背包整理/自动工具/自动补种、禁言委托 Chat 模块联动</td>
+          <td class="col-advantage">轻量纯净、内置 UI 玩家菜单 + 管理员面板、一键砍树、背包整理/自动工具、禁言委托 Chat 模块联动</td>
         </tr>
         <tr>
           <td>区域保护</td>
           <td class="col-module">Regions</td>
           <td class="col-alt">WorldGuard / GriefPrevention / Residence</td>
-          <td class="col-advantage">轻量内置、标志三态(allow/deny/none)、优先级继承、世界规则、无额外依赖</td>
+          <td class="col-advantage">轻量内置、UI 区域查看 + 管理编辑面板、标志三态、优先级继承、无额外依赖</td>
         </tr>
         <tr>
           <td>服务器播报</td>

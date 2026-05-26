@@ -343,6 +343,13 @@ map, questgps, warehouse, essentials, regions
 
 ## Essentials 模块命令
 
+### UI 面板
+
+| 命令 | 说明 | 权限 |
+| --- | --- | --- |
+| `/axs essentials menu` | 打开玩家功能菜单 | 无 |
+| `/axs essentials admin` | 打开管理员面板 | `axs.essentials.admin` |
+
 ### 管理命令（`/axs essentials`）
 
 权限：`arcartxsuite.admin`
@@ -402,6 +409,13 @@ map, questgps, warehouse, essentials, regions
 ---
 
 ## Regions 模块命令
+
+### UI 面板
+
+| 命令 | 说明 | 权限 |
+| --- | --- | --- |
+| `/axs regions menu` | 打开区域查看菜单 | 无 |
+| `/axs regions admin` | 打开区域管理面板 | `axs.regions.admin` |
 
 ### 管理命令（`/axs regions`）
 

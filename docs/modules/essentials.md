@@ -20,9 +20,52 @@ Essentials 模块集合了服务器最常用的玩家工具、传送系统、安
 
 ---
 
+## UI 面板
+
+Essentials 模块提供两个 ArcartX UI 面板，需要服务端安装 ArcartX 客户端 mod 才可使用。
+
+### 玩家菜单
+
+命令：`/axs ess menu`
+
+单文件多视图架构，通过左侧导航栏切换 5 个子页面：
+
+| 页面 | 功能 |
+| --- | --- |
+| 首页 | 玩家状态总览（飞行/无敌/AFK/速度/位置/家数量/传送点数） |
+| 家 | Home 列表 + 传送/删除/新建 |
+| 传送点 | Warp 列表 + 一键传送 |
+| TPA | 在线玩家列表 + 点击发送传送请求 + 接受/拒绝 |
+| 设置 | 飞行/自动补种/自动工具开关 + 背包整理按钮 |
+
+### 管理员面板
+
+命令：`/axs ess admin`  
+权限：`axs.essentials.admin`
+
+| 页面 | 功能 |
+| --- | --- |
+| 玩家 | 在线玩家列表 + 治疗/喂食/飞行/踢出/封禁 |
+| 封禁 | 封禁记录列表 + 解封 |
+| 传送点 | Warp 管理 + 新建/删除 |
+| 世界 | 时间设置（白天/夜晚/正午）+ 天气（晴天/雨天/雷暴）+ 设置出生点 |
+
+::: info 前置要求
+UI 面板需要玩家安装 ArcartX 客户端 mod。未安装时命令会提示"UI 功能不可用"。
+:::
+
+---
+
 ## 命令
 
 主入口：`/axs essentials <子命令>` （别名 `/axs ess`）
+
+### UI
+
+| 命令 | 说明 | 权限 |
+| --- | --- | --- |
+| `/axs ess menu` | 打开玩家功能菜单 | 无 |
+| `/axs ess admin` | 打开管理员面板 | `axs.essentials.admin` |
 
 ### 玩家管理
 
@@ -194,6 +237,7 @@ storage:
 
 | 权限 | 说明 | 默认 |
 | --- | --- | --- |
+| `axs.essentials.admin` | 管理员面板 UI | OP |
 | `axs.essentials.treecap` | 一键砍树 | false |
 | `axs.essentials.replant` | 自动补种 | false |
 | `axs.essentials.sort` | 背包整理 | false |
