@@ -23,7 +23,7 @@ Regions 模块提供两个 ArcartX UI 面板，需要玩家安装 ArcartX 客户
 
 ### 玩家区域菜单
 
-命令：`/axs rg menu`
+命令：`/rg menu`
 
 | 页面 | 功能 |
 | --- | --- |
@@ -33,7 +33,7 @@ Regions 模块提供两个 ArcartX UI 面板，需要玩家安装 ArcartX 客户
 
 ### 管理员面板
 
-命令：`/axs rg admin`  
+命令：`/rg admin`  
 权限：`axs.regions.admin`
 
 | 页面 | 功能 |
@@ -49,32 +49,34 @@ UI 面板需要玩家安装 ArcartX 客户端 mod。未安装时命令会提示"
 
 ## 命令
 
-主入口：`/axs regions <子命令>`（别名 `/axs rg`）
+主入口：`/axs regions <子命令>`，或使用缩写 `/rg <子命令>`
+
+> 两种写法完全等价，例如 `/rg define myregion` = `/axs regions define myregion`
 
 ### UI
 
 | 命令 | 说明 | 权限 |
 | --- | --- | --- |
-| `/axs rg menu` | 打开区域查看菜单 | 无 |
-| `/axs rg admin` | 打开区域管理面板 | `axs.regions.admin` |
+| `/rg menu` | 打开区域查看菜单 | 无 |
+| `/rg admin` | 打开区域管理面板 | `axs.regions.admin` |
 
 ### 区域 CRUD
 
 | 命令 | 说明 | 权限 |
 | --- | --- | --- |
-| `/axs rg define <名称>` | 用当前选区创建区域 | `axs.regions.select` |
-| `/axs rg remove <名称>` | 删除区域 | 所有者或 `axs.regions.admin` |
-| `/axs rg redefine <名称>` | 用新选区重定义区域范围 | 所有者或 admin |
-| `/axs rg list [世界]` | 列出区域 | `axs.regions.admin` |
-| `/axs rg info <名称>` | 查看区域详细信息 | 所有人 |
-| `/axs rg tp <名称>` | 传送到区域中心 | `axs.regions.admin` |
+| `/rg define <名称>` | 用当前选区创建区域 | `axs.regions.select` |
+| `/rg remove <名称>` | 删除区域 | 所有者或 `axs.regions.admin` |
+| `/rg redefine <名称>` | 用新选区重定义区域范围 | 所有者或 admin |
+| `/rg list [世界]` | 列出区域 | `axs.regions.admin` |
+| `/rg info <名称>` | 查看区域详细信息 | 所有人 |
+| `/rg tp <名称>` | 传送到区域中心 | `axs.regions.admin` |
 
 ### 选区
 
 | 命令 | 说明 | 权限 |
 | --- | --- | --- |
-| `/axs rg pos1` | 将当前位置设为点1 | `axs.regions.select` |
-| `/axs rg pos2` | 将当前位置设为点2 | `axs.regions.select` |
+| `/rg pos1` | 将当前位置设为点1 | `axs.regions.select` |
+| `/rg pos2` | 将当前位置设为点2 | `axs.regions.select` |
 | 木斧左键 | 设置点1（自动识别选区工具） | `axs.regions.select` |
 | 木斧右键 | 设置点2 | `axs.regions.select` |
 
@@ -82,25 +84,25 @@ UI 面板需要玩家安装 ArcartX 客户端 mod。未安装时命令会提示"
 
 | 命令 | 说明 | 权限 |
 | --- | --- | --- |
-| `/axs rg flag <区域> <标志> <allow\|deny> [数据]` | 设置区域标志 | 所有者或 admin |
-| `/axs rg removeflag <区域> <标志>` | 移除区域标志 | 所有者或 admin |
-| `/axs rg flags <区域>` | 查看区域所有标志 | 所有人 |
+| `/rg flag <区域> <标志> <allow\|deny> [数据]` | 设置区域标志 | 所有者或 admin |
+| `/rg removeflag <区域> <标志>` | 移除区域标志 | 所有者或 admin |
+| `/rg flags <区域>` | 查看区域所有标志 | 所有人 |
 
 ### 成员管理
 
 | 命令 | 说明 | 权限 |
 | --- | --- | --- |
-| `/axs rg addowner <区域> <玩家\|g:组名>` | 添加所有者 | 所有者或 admin |
-| `/axs rg removeowner <区域> <玩家\|g:组名>` | 移除所有者 | admin |
-| `/axs rg addmember <区域> <玩家\|g:组名>` | 添加成员 | 所有者或 admin |
-| `/axs rg removemember <区域> <玩家\|g:组名>` | 移除成员 | 所有者或 admin |
+| `/rg addowner <区域> <玩家\|g:组名>` | 添加所有者 | 所有者或 admin |
+| `/rg removeowner <区域> <玩家\|g:组名>` | 移除所有者 | admin |
+| `/rg addmember <区域> <玩家\|g:组名>` | 添加成员 | 所有者或 admin |
+| `/rg removemember <区域> <玩家\|g:组名>` | 移除成员 | 所有者或 admin |
 
 ### 其他
 
 | 命令 | 说明 | 权限 |
 | --- | --- | --- |
-| `/axs rg priority <区域> <数字>` | 设置区域优先级 | 所有者或 admin |
-| `/axs rg parent <区域> <父区域\|none>` | 设置/清除父区域 | admin |
+| `/rg priority <区域> <数字>` | 设置区域优先级 | 所有者或 admin |
+| `/rg parent <区域> <父区域\|none>` | 设置/清除父区域 | admin |
 
 ---
 
