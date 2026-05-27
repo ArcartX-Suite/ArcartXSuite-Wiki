@@ -17,6 +17,13 @@
 - **资源保护** — 付费模块资源通过 ticket 中的 `resourceKeys` 解包后在内存中解密。
 - **文档** — 安装、授权、命令速查和安全架构文档已同步到 `1.1.0-beta`。
 
+### 1.1.0-beta (Build 2026-05-27d) — 经济桥接彻底统一
+
+- **核心（破坏性）** — 删除遗留的 `xuanmo.arcartxsuite.bridge.VaultEconomyBridge` 实现类与 `ModuleContext.vaultEconomyBridge()` 接口方法。所有经济读写已通过 1.1.0-beta 引入的全局 `CurrencyBridgeAPI`（`context.currencyManager()`）完成，旧桥实际未被任何模块使用，仅占位。
+- **核心** — `ArcartXSuitePlugin` / `ModuleRegistry` / `DefaultModuleContext` 同步移除 `vaultEconomyBridge` 字段、构造参数与 `getVaultEconomyBridge()` / `isVaultEconomyAvailable()` 公开方法。
+- **命令** — `/axs status` 输出中 "Vault 经济: 已连接/未连接" 行替换为 "货币桥接: 已注册 N 种货币"，N 取自 `CurrencyBridgeAPI.currencyIds().size()`。
+- **文档** — `architecture/bridges.md` 内部反射桥列表移除 `VaultEconomyBridge` 行，新增统一货币桥接说明，指向 `/api/bridge-api`。
+
 ### 1.1.0-beta (Build 2026-05-27c) — UI 列表渲染模式修正
 
 - **Essentials / Regions** — 修复 UI YAML 中 VStack 列表渲染使用错误的 `create:` 写法，改为正确的 `children:` + `entry: var.list[self.key]` 模式。
@@ -168,7 +175,8 @@
 - **API** — 新增 `@ApiStability` 注解体系（`@Stable` / `@Experimental` / `@Internal` / `@Deprecated`），标记每个公开 API 的稳定性级别，指导第三方开发者安全依赖。
 - **API** — 新增 `ModuleLifecycleEvent` Bukkit 事件，模块加载/卸载/重载时触发，支持 7 种生命周期阶段（`ENABLING` / `ENABLED` / `ENABLE_FAILED` / `DISABLING` / `DISABLED` / `RELOADING` / `RELOADED`），第三方插件可通过标准事件机制监听。
 - **API** — `UiRegistrationResult` record 迁移到 `PacketBridgeAPI.UiRegistrationResult`，`normalizeUiId` 迁移到 `PacketBridgeAPI.normalizeUiId`。
-- **API** — `ModuleContext.vaultEconomyBridge()` 和 `propBridge()` 标记为 `@Internal`，第三方不应依赖。
+- **API** — `ModuleContext.propBridge()` 标记为 `@Internal`，第三方不应依赖。
+- **API（破坏性）** — 移除 `ModuleContext.vaultEconomyBridge()` 接口方法与 `xuanmo.arcartxsuite.bridge.VaultEconomyBridge` 实现类。所有经济操作统一通过全局 `CurrencyBridgeAPI`（`context.currencyManager()`）；旧版仅返回 `Object` 占位，无模块直接依赖。`/axs status` 中 "Vault 经济: 已连接/未连接" 行替换为 "货币桥接: 已注册 N 种货币"。
 - **API** — `ModuleContext.registerCapability()` 和 `getCapability()` 标记为 `@Stable`。
 - **文档** — 新增完整 API 参考文档（`/api/`），涵盖模块生命周期、ModuleContext、桥接 API、事件和 Capability 跨模块通信。
 
