@@ -16,6 +16,9 @@ hero:
     - theme: alt
       text: GitHub
       link: https://github.com/xuanmomo233/ArcartXSuite
+    - theme: alt
+      text: 云端换绑
+      link: https://axs.021209.xyz/rebind
 features:
   - icon: 📢
     title: Announcer 播报系统
