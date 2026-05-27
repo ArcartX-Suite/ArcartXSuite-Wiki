@@ -26,7 +26,7 @@ Essentials 模块提供两个 ArcartX UI 面板，需要服务端安装 ArcartX 
 
 ### 玩家菜单
 
-命令：`/axs ess menu`
+命令：`/axs essentials menu`
 
 单文件多视图架构，通过左侧导航栏切换 5 个子页面：
 
@@ -40,7 +40,7 @@ Essentials 模块提供两个 ArcartX UI 面板，需要服务端安装 ArcartX 
 
 ### 管理员面板
 
-命令：`/axs ess admin`  
+命令：`/axs essentials admin`  
 权限：`axs.essentials.admin`
 
 | 页面 | 功能 |
@@ -58,86 +58,86 @@ UI 面板需要玩家安装 ArcartX 客户端 mod。未安装时命令会提示"
 
 ## 命令
 
-主入口：`/axs essentials <子命令>` （别名 `/axs ess`）
+主入口：`/axs essentials <子命令>` 
 
 ### UI
 
 | 命令 | 说明 | 权限 |
 | --- | --- | --- |
-| `/axs ess menu` | 打开玩家功能菜单 | 无 |
-| `/axs ess admin` | 打开管理员面板 | `axs.essentials.admin` |
+| `/axs essentials menu` | 打开玩家功能菜单 | 无 |
+| `/axs essentials admin` | 打开管理员面板 | `axs.essentials.admin` |
 
 ### 玩家管理
 
 | 命令 | 说明 | 权限 |
 | --- | --- | --- |
-| `/axs ess fly [玩家]` | 切换飞行模式 | `axs.essentials.fly` |
-| `/axs ess god [玩家]` | 切换无敌模式 | `axs.essentials.god` |
-| `/axs ess heal [玩家]` | 恢复生命值 | `axs.essentials.heal` |
-| `/axs ess feed [玩家]` | 恢复饥饿值 | `axs.essentials.feed` |
-| `/axs ess gamemode <模式> [玩家]` | 设置游戏模式 | `axs.essentials.gamemode` |
-| `/axs ess speed <数值> [玩家]` | 设置移动速度 | `axs.essentials.speed` |
-| `/axs ess vanish` | 切换隐身 | `axs.essentials.vanish` |
-| `/axs ess afk` | 切换 AFK 状态 | `axs.essentials.afk` |
-| `/axs ess repair` | 修复手持物品 | `axs.essentials.repair` |
-| `/axs ess hat` | 将手持物品戴在头上 | `axs.essentials.hat` |
-| `/axs ess nick <昵称\|off>` | 设置/重置昵称 | `axs.essentials.nick` |
-| `/axs ess seen <玩家>` | 查看玩家最后在线信息 | `axs.essentials.seen` |
+| `/axs essentials fly [玩家]` | 切换飞行模式 | `axs.essentials.fly` |
+| `/axs essentials god [玩家]` | 切换无敌模式 | `axs.essentials.god` |
+| `/axs essentials heal [玩家]` | 恢复生命值 | `axs.essentials.heal` |
+| `/axs essentials feed [玩家]` | 恢复饥饿值 | `axs.essentials.feed` |
+| `/axs essentials gamemode <模式> [玩家]` | 设置游戏模式 | `axs.essentials.gamemode` |
+| `/axs essentials speed <数值> [玩家]` | 设置移动速度 | `axs.essentials.speed` |
+| `/axs essentials vanish` | 切换隐身 | `axs.essentials.vanish` |
+| `/axs essentials afk` | 切换 AFK 状态 | `axs.essentials.afk` |
+| `/axs essentials repair` | 修复手持物品 | `axs.essentials.repair` |
+| `/axs essentials hat` | 将手持物品戴在头上 | `axs.essentials.hat` |
+| `/axs essentials nick <昵称\|off>` | 设置/重置昵称 | `axs.essentials.nick` |
+| `/axs essentials seen <玩家>` | 查看玩家最后在线信息 | `axs.essentials.seen` |
 
 ### 容器
 
 | 命令 | 说明 | 权限 |
 | --- | --- | --- |
-| `/axs ess enderchest [玩家]` | 打开末影箱 | `axs.essentials.enderchest` |
-| `/axs ess workbench` | 打开工作台 | `axs.essentials.workbench` |
-| `/axs ess anvil` | 打开铁砧 | `axs.essentials.anvil` |
-| `/axs ess trash` | 打开垃圾桶 | `axs.essentials.trash` |
+| `/axs essentials enderchest [玩家]` | 打开末影箱 | `axs.essentials.enderchest` |
+| `/axs essentials workbench` | 打开工作台 | `axs.essentials.workbench` |
+| `/axs essentials anvil` | 打开铁砧 | `axs.essentials.anvil` |
+| `/axs essentials trash` | 打开垃圾桶 | `axs.essentials.trash` |
 
 ### 传送系统
 
 | 命令 | 说明 | 权限 |
 | --- | --- | --- |
-| `/axs ess home [名称]` | 传送到家 | `axs.essentials.home` |
-| `/axs ess sethome [名称]` | 设置家 | `axs.essentials.sethome` |
-| `/axs ess delhome [名称]` | 删除家 | `axs.essentials.delhome` |
-| `/axs ess warp <名称>` | 传送到传送点 | `axs.essentials.warp` |
-| `/axs ess setwarp <名称>` | 设置传送点 | `axs.essentials.setwarp` |
-| `/axs ess delwarp <名称>` | 删除传送点 | `axs.essentials.delwarp` |
-| `/axs ess spawn` | 传送到出生点 | `axs.essentials.spawn` |
-| `/axs ess setspawn` | 设置出生点 | `axs.essentials.setspawn` |
-| `/axs ess tpa <玩家>` | 发送传送请求 | `axs.essentials.tpa` |
-| `/axs ess tpahere <玩家>` | 请求对方传送到自己 | `axs.essentials.tpahere` |
-| `/axs ess tpaccept` | 接受传送请求 | `axs.essentials.tpa` |
-| `/axs ess tpdeny` | 拒绝传送请求 | `axs.essentials.tpa` |
-| `/axs ess back` | 返回上次位置 | `axs.essentials.back` |
-| `/axs ess tp <玩家>` | 管理员直接传送 | `axs.essentials.tp` |
-| `/axs ess top` | 传送到头顶最高方块 | `axs.essentials.top` |
-| `/axs ess tppos <x> <y> <z> [世界]` | 传送到坐标 | `axs.essentials.tppos` |
+| `/axs essentials home [名称]` | 传送到家 | `axs.essentials.home` |
+| `/axs essentials sethome [名称]` | 设置家 | `axs.essentials.sethome` |
+| `/axs essentials delhome [名称]` | 删除家 | `axs.essentials.delhome` |
+| `/axs essentials warp <名称>` | 传送到传送点 | `axs.essentials.warp` |
+| `/axs essentials setwarp <名称>` | 设置传送点 | `axs.essentials.setwarp` |
+| `/axs essentials delwarp <名称>` | 删除传送点 | `axs.essentials.delwarp` |
+| `/axs essentials spawn` | 传送到出生点 | `axs.essentials.spawn` |
+| `/axs essentials setspawn` | 设置出生点 | `axs.essentials.setspawn` |
+| `/axs essentials tpa <玩家>` | 发送传送请求 | `axs.essentials.tpa` |
+| `/axs essentials tpahere <玩家>` | 请求对方传送到自己 | `axs.essentials.tpahere` |
+| `/axs essentials tpaccept` | 接受传送请求 | `axs.essentials.tpa` |
+| `/axs essentials tpdeny` | 拒绝传送请求 | `axs.essentials.tpa` |
+| `/axs essentials back` | 返回上次位置 | `axs.essentials.back` |
+| `/axs essentials tp <玩家>` | 管理员直接传送 | `axs.essentials.tp` |
+| `/axs essentials top` | 传送到头顶最高方块 | `axs.essentials.top` |
+| `/axs essentials tppos <x> <y> <z> [世界]` | 传送到坐标 | `axs.essentials.tppos` |
 
 ### 安全管控
 
 | 命令 | 说明 | 权限 |
 | --- | --- | --- |
-| `/axs ess ban <玩家> [原因]` | 永久封禁 | `axs.essentials.ban` |
-| `/axs ess tempban <玩家> <时长> [原因]` | 临时封禁 | `axs.essentials.ban` |
-| `/axs ess unban <玩家>` | 解封 | `axs.essentials.unban` |
-| `/axs ess mute <玩家> [原因]` | 永久禁言（委托 Chat 模块） | `axs.essentials.mute` |
-| `/axs ess tempmute <玩家> <时长> [原因]` | 临时禁言（委托 Chat 模块） | `axs.essentials.mute` |
-| `/axs ess unmute <玩家>` | 解除禁言（委托 Chat 模块） | `axs.essentials.unmute` |
-| `/axs ess kick <玩家> [原因]` | 踢出服务器 | `axs.essentials.kick` |
-| `/axs ess warn <玩家> <原因>` | 警告玩家 | `axs.essentials.warn` |
-| `/axs ess sudo <玩家> <命令>` | 强制玩家执行命令 | `axs.essentials.sudo` |
-| `/axs ess inv <玩家>` | 查看玩家背包 | `axs.essentials.inv` |
+| `/axs essentials ban <玩家> [原因]` | 永久封禁 | `axs.essentials.ban` |
+| `/axs essentials tempban <玩家> <时长> [原因]` | 临时封禁 | `axs.essentials.ban` |
+| `/axs essentials unban <玩家>` | 解封 | `axs.essentials.unban` |
+| `/axs essentials mute <玩家> [原因]` | 永久禁言（委托 Chat 模块） | `axs.essentials.mute` |
+| `/axs essentials tempmute <玩家> <时长> [原因]` | 临时禁言（委托 Chat 模块） | `axs.essentials.mute` |
+| `/axs essentials unmute <玩家>` | 解除禁言（委托 Chat 模块） | `axs.essentials.unmute` |
+| `/axs essentials kick <玩家> [原因]` | 踢出服务器 | `axs.essentials.kick` |
+| `/axs essentials warn <玩家> <原因>` | 警告玩家 | `axs.essentials.warn` |
+| `/axs essentials sudo <玩家> <命令>` | 强制玩家执行命令 | `axs.essentials.sudo` |
+| `/axs essentials inv <玩家>` | 查看玩家背包 | `axs.essentials.inv` |
 
 ### 交互 & 工具
 
 | 命令 | 说明 | 权限 |
 | --- | --- | --- |
-| `/axs ess sit` | 坐下 | `axs.essentials.sit` |
-| `/axs ess lay` | 躺下 | `axs.essentials.lay` |
-| `/axs ess sort` | 整理背包 | `axs.essentials.sort` |
-| `/axs ess replant` | 开关自动补种 | `axs.essentials.replant` |
-| `/axs ess autotool` | 开关自动工具切换 | `axs.essentials.autotool` |
+| `/axs essentials sit` | 坐下 | `axs.essentials.sit` |
+| `/axs essentials lay` | 躺下 | `axs.essentials.lay` |
+| `/axs essentials sort` | 整理背包 | `axs.essentials.sort` |
+| `/axs essentials replant` | 开关自动补种 | `axs.essentials.replant` |
+| `/axs essentials autotool` | 开关自动工具切换 | `axs.essentials.autotool` |
 
 ---
 
