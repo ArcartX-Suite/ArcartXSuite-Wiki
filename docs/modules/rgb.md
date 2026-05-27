@@ -11,13 +11,12 @@
 - **动画帧切换**：每隔 `switch-interval-ticks` tick 切换到下一帧，形成动态流光效果
 - **PAPI 嵌套**：`text` 会先按目标玩家解析 PlaceholderAPI（如 `%player_name%`），再叠加 RGB 渐变
 - **多条目管理**：支持任意数量条目，每个条目独立配置颜色、扫光和速度
-- **Shimmer 函数**：提供 `ArcartRGB.rgb(text, shine, color1, color2, ...)` 工具函数，可在 UI YAML Shimmer 脚本中直接调用
 
 ## 依赖
 
 | 类型 | 依赖 | 作用 | 缺少时表现 |
 | --- | --- | --- | --- |
-| 必需 | ArcartX | 注册 Shimmer 工具函数 `ArcartRGB.rgb(...)` | Shimmer 函数不可用，UI 侧无法调用 |
+| 可选 | ArcartX | 客户端 UI 渲染场景 | 不影响 RGB 模块本身功能 |
 | 必需 | PlaceholderAPI | 注册 `%arcartrgb_*%` 占位符，并解析 `text` 中的嵌套 PAPI | 模块不会加载，占位符输出不可用 |
 | 可选 | Chat、Tab、Title 等 | 调用 `%arcartrgb_*%` 展示渐变文本 | RGB 本身可用，只是没有对应展示入口 |
 
@@ -36,13 +35,6 @@ modules:
 ```yaml
 settings:
   debug: false
-
-  # Shimmer 函数 ArcartRGB.rgb(...) 的默认动画参数，条目级可覆盖。
-  # 格式: ArcartRGB.rgb('文本', true, '#FF7A18', '#FFD64D', '#7FE7FF')
-  shimmer-switch-interval-ticks: 2
-  shimmer-shine-width: 2
-  shimmer-shine-color: "#FFFFFF"
-  shimmer-shine-strength: 0.55
 
 # 条目目录，相对模块数据目录。
 # 目录下每个 *.yml 文件可包含多个条目，根键即为条目 ID。
@@ -106,28 +98,6 @@ momo:
 | 聊天前缀 | Chat 模块 `prefix: "%arcartrgb_vip_prefix%"` |
 | Tab 列表名称 | Tab 定义 `pack.name: "%arcartrgb_server_name%"` |
 | 称号显示名 | Title 定义 `display-name: "%arcartrgb_title_hero%"` |
-| UI Shimmer 脚本 | `ArcartRGB.rgb(var.someText, true, '#FF7A18', '#FFD64D')` |
-
-## Shimmer 函数
-
-在 UI YAML 的 Shimmer 脚本（`|-` 块）中使用：
-
-```
-ArcartRGB.rgb('文本', shine, color1, color2, ...)
-```
-
-| 参数 | 说明 |
-| --- | --- |
-| `'文本'` | 要渲染的字符串，可以是变量 |
-| `shine` | `true` / `false`，是否启用扫光 |
-| `color1, color2, ...` | 十六进制颜色，至少两个 |
-
-示例：
-```
-ArcartRGB.rgb(var.playerName, true, '#FF7A18', '#FFD64D', '#7FE7FF')
-```
-
-颜色参数会覆盖 `settings` 中的全局颜色，但扫光宽度/强度/速度仍使用 `settings` 的全局值。
 
 ## 命令
 
@@ -136,15 +106,14 @@ ArcartRGB.rgb(var.playerName, true, '#FF7A18', '#FFD64D', '#7FE7FF')
 | 命令 | 说明 |
 | --- | --- |
 | `/axs rgb status` | 查看 RGB 模块状态和已加载条目数 |
-| `/axs rgb reload` | 重载全部渐变条目和 Shimmer 全局参数 |
+| `/axs rgb reload` | 重载全部渐变条目 |
 
 ## UI / Packet
 
-RGB 模块本身不直接发包，输出通过以下两个渠道调用：
+RGB 模块本身不直接发包，输出通过 PAPI 渠道调用：
 
 | 渠道 | 说明 |
 | --- | --- |
 | PAPI `%arcartrgb_<id>%` | 服务端任意支持 PAPI 的字段均可使用 |
-| Shimmer 函数 `ArcartRGB.rgb(...)` | 仅限 ArcartX UI YAML 的 Shimmer 脚本块内 |
 
-动画帧由服务端每隔 `switch-interval-ticks` tick 自动推进，PAPI 每次被解析时返回当前帧的渐变文本。
+动画帧由服务端每隔条目级 `switch-interval-ticks` tick 自动推进，PAPI 每次被解析时返回当前帧的渐变文本。

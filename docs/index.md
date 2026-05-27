@@ -189,7 +189,7 @@ features:
           <td>渐变文本</td>
           <td class="col-module">RGB</td>
           <td class="col-alt">CMI RGB / IridiumColorAPI</td>
-          <td class="col-advantage">逐字渐变 + 扫光动画、Shimmer 函数、PAPI 动态嵌套</td>
+          <td class="col-advantage">逐字渐变 + 扫光动画、PAPI 动态嵌套</td>
         </tr>
         <tr>
           <td>伤害飘字</td>

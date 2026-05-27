@@ -6,6 +6,7 @@
 
 ## 1.1.0-beta（当前）
 
+- **RGB** — 移除不可用的 Shimmer/Glimmer 函数桥接（`ArcartRgbShimmerBridge`）与运行时编译逻辑，同时清除宿主 `renderArcartRgbShimmer` 入口和 `shimmerOptions` 全局配置。RGB 模块保留 PlaceholderAPI `%arcartrgb_*%` 输出，扫光动画参数改为条目级配置。
 - **模块管理** — 新增 `/axs load <模块名>` 与 `/axs unload <模块名>` 子命令，支持运行时热加载新模块与热卸载已加载模块（释放 ClassLoader），不再需要重启服务端。卸载时会检查反向依赖，被其他模块依赖的模块会被拒绝卸载。
 - **目录归位** — 模块产物统一收纳到 `plugins/ArcartXSuite/data/<moduleId>/`：配置文件 `config.yml`、SQLite 数据库、子目录（如 `chat/channels`、`mail/presets`、`prop/props`、`subtitle/groups`）等首次启动时一次性自动迁移，原 1.0.x 散落在根目录的旧路径全部归位。迁移日志带高亮色标。
 - **控制台美化** — 启动 banner 改为 ANSI Shadow 字体的「SUITE」主标题 + 顶部 `✦ A R C A R T X ✦` 副标题，垂直青蓝紫渐变；迁移类日志统一格式 `→ 已归位 X: <来源> ➜ <目标>`，金/黄/灰/青多色标记。
