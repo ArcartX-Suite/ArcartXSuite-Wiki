@@ -100,11 +100,15 @@ features:
     title: Market 全球市场
     details: 系统商店 + 玩家拍卖行 + 回收商店，多货币支持、跨服 Redis 同步、ArcartX UI 全套交易界面
     link: /modules/market
+  - icon: 🤖
+    title: QQBot QQ群服互联
+    details: OneBot 11 双向消息同步、QQ-游戏账号绑定、白名单联动、群指令查玩家数据
+    link: /modules/qqbot
 ---
 
 <div class="stats-bar">
   <div class="stat-item">
-    <div class="stat-number">20</div>
+    <div class="stat-number">21</div>
     <div class="stat-label">主模块</div>
   </div>
   <div class="stat-item">
@@ -248,6 +252,12 @@ features:
           <td class="col-module">Market</td>
           <td class="col-alt">ShopGUIPlus / AuctionHouse / QuickShop</td>
           <td class="col-advantage">ArcartX UI 全套界面、拍卖+商店+回收三合一、多货币、跨服 Redis 同步</td>
+        </tr>
+        <tr>
+          <td>QQ群服互联</td>
+          <td class="col-module">QQBot</td>
+          <td class="col-alt">MiraiMC / QChat / 自研Bot</td>
+          <td class="col-advantage">OneBot 11 标准协议、双向消息同步、绑定+白名单闭环、群指令+PAPI查询、跨模块广播能力</td>
         </tr>
       </tbody>
     </table>
