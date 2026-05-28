@@ -102,8 +102,8 @@ settings:
 
 # OneBot 11 正向 WebSocket
 onebot:
-  ws-url: "ws://127.0.0.1:8080"  # OneBot 实现端的 WS 地址
-  access-token: ""               # 鉴权 token（可留空）
+  ws-url: "ws://127.0.0.1:3001"  # OneBot 实现端的 WS 地址（SnowLuma 默认 3001）
+  access-token: ""               # 鉴权 token（需与 SnowLuma WS 节点一致，留空则两边都不设）
   reconnect-interval-seconds: 10
   heartbeat-interval-seconds: 30
   snowluma:
@@ -252,7 +252,7 @@ QQBotModule (AbstractAXSModule)
 ├── QQBotService (主服务，AsyncPlayerChatEvent / Join / Quit 监听)
 │   ├── QQBotBindService (绑定逻辑 + 验证码池)
 │   └── QQBotCommandRouter (群指令路由器)
-├── OneBotClient (Java 17 内置 WebSocket，自动重连 + 心跳)
+├── OneBotClient (Java-WebSocket 库，自动重连 + 心跳 + 指数退避)
 │   ├── OneBotAction (动作 JSON 构造)
 │   └── OneBotEvent (事件解析)
 ├── JdbcQQBotRepository (HikariCP + SQLite/MySQL)
@@ -291,9 +291,18 @@ initial credentials: user=admin password=<随机密码>
 
 ### 3. 配置 WebSocket 适配器
 
-在 SnowLuma WebUI 中启用 **WebSocket Server** 适配器：
-- 监听地址：`0.0.0.0:8080`（如果与 MC 同机器，用 `127.0.0.1:8080`）
-- Access Token：建议设置一个（与 AXS 配置一致）
+在 SnowLuma WebUI 中操作：
+
+1. 左侧菜单点击 **节点配置**
+2. 选择你刚登录的 QQ 账号（显示 UIN 号码）
+3. 点击顶部 **WS 服务端** 选项卡
+4. 你会看到一条默认节点 **ws-default**，监听 `0.0.0.0:3001/`
+5. 点击右侧 **编辑** ✏️ 按钮，查看或设置 **Access Token**
+6. 记住这个 Token 值（如果不需要鉴权可以清空，然后点保存）
+
+::: warning Access Token 必须一致
+如果 SnowLuma 的 WS 节点设置了 Token，QQBot 配置也**必须填写完全相同的 Token**，否则连接会被服务端以 `code=1008 invalid access token` 拒绝。
+:::
 
 ### 4. 配置 AXS QQBot
 
@@ -301,17 +310,27 @@ initial credentials: user=admin password=<随机密码>
 
 ```yaml
 onebot:
-  ws-url: "ws://127.0.0.1:8080"
-  access-token: "你在 SnowLuma 设置的 token"
+  ws-url: "ws://127.0.0.1:3001"     # 端口与 SnowLuma WS 节点一致
+  access-token: "你在 SnowLuma 设置的 token"  # 留空则两边都不设
 ```
+
+> **端口说明**：SnowLuma 默认 WS 服务端端口是 `3001`（不是 `8080`）。如果你在 SnowLuma 中修改了端口，这里需要对应修改。
 
 ### 5. 验证连接
 
-重载模块或重启服务器，控制台应出现：
+重载模块或重启服务器：
 ```
-[QQBot] WebSocket 已连接: ws://127.0.0.1:8080
+/axs qqbot reload
+```
+
+控制台应出现：
+```
+[QQBot] WebSocket 已连接: ws://127.0.0.1:3001/ (HTTP 101)
+[QQBot] OneBot 已连接 | client=true | 群数=1
 [QQBot] 登录账号: 你的昵称 (QQ号)
 ```
+
+如果看到 `code=1008 reason=invalid access token`，说明 Token 不匹配，请检查两边配置。
 
 ::: tip 多账号
 SnowLuma 支持同一进程托管多个 QQ 账号，每个账号独立 WebSocket 端口。如果你有多个群需要不同机器人，可以在 SnowLuma 中配置多账号，AXS 侧只需连接主账号即可。
