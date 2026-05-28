@@ -261,16 +261,17 @@ QQBotModule (AbstractAXSModule)
 
 ### 1. 安装 SnowLuma
 
-```bash
-# 从 Release 下载预构建包解压
-# https://github.com/SnowLuma/SnowLuma/releases
+AXS 附带了一键脚本，**自动下载最新版 SnowLuma 并启动**（需要 Node.js 18+）：
 
-# Windows
-./launcher.bat
+```bash
+# Windows — 双击或命令行执行
+start-snowluma.bat
 
 # Linux
-./launcher.sh
+chmod +x start-snowluma.sh && ./start-snowluma.sh
 ```
+
+脚本会自动从 GitHub Release 下载、解压到 `snowluma/` 目录，后续再次运行会直接启动（不重复下载）。
 
 首次启动后 WebUI 默认监听 `5099` 端口，控制台会打印初始密码：
 ```
