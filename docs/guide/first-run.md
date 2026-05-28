@@ -58,7 +58,7 @@ entries:
 ### 3. reload 并验证
 
 ```
-/axs announcer reload
+/axs reload announcer
 /axs announcer status
 ```
 
