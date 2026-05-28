@@ -146,9 +146,9 @@ currencies:
     provider: "command"
     display-name: "宝石"
     precision: 0
-    balance-placeholder: "%economy_balance_money%"
-    withdraw-command: "esc take %player% %amount%"
-    deposit-command: "esc give %player% %amount%"
+    balance-placeholder: "%economy_balance_gems%"
+    withdraw-command: "esc take gems %player% %amount%"
+    deposit-command: "esc give gems %player% %amount%"
 ```
 
 **前置条件：**
@@ -160,7 +160,7 @@ currencies:
 
 | 字段 | 说明 | 示例 |
 |------|------|------|
-| `balance-placeholder` | PAPI 占位符，返回**纯数字**余额 | `%Economy_balance_money%` |
+| `balance-placeholder` | PAPI 占位符，返回**纯数字**余额 | `%economy_balance_gems%` |
 | `withdraw-command` | 扣款时执行的控制台命令 | `money take %player% %amount%` |
 | `deposit-command` | 入账时执行的控制台命令 | `money give %player% %amount%` |
 
@@ -193,9 +193,9 @@ currencies:
     provider: "command"
     display-name: "宝石"
     precision: 0
-    balance-placeholder: "%Economy_balance_money%"
-    withdraw-command: "eco take %player% %amount% money"
-    deposit-command: "eco give %player% %amount% money"
+    balance-placeholder: "%economy_balance_gems%"
+    withdraw-command: "eco take gems %player% %amount% gems"
+    deposit-command: "eco give gems %player% %amount% gems"
 ```
 
 ##### CoinsEngine
@@ -260,9 +260,9 @@ currencies:
     provider: "command"
     display-name: "宝石"
     precision: 0
-    balance-placeholder: "%Economy_balance_money%"
-    withdraw-command: "eco take %player% %amount% money"
-    deposit-command: "eco give %player% %amount% money"
+    balance-placeholder: "%Economy_balance_gems%"
+    withdraw-command: "eco take gems %player% %amount% gems"
+    deposit-command: "eco give gems %player% %amount% gems"
 
   # 4. Rondo 多货币示例
   # rondo_gold:
