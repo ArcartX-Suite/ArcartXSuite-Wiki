@@ -241,6 +241,13 @@ plugins/ArcartXSuite/
 └── ...
 ```
 
+## 模块诊断声明一览
+
+| 模块 | configVersion | 动态节 | ValidationRule 数 | 备注 |
+|------|:---:|---|:---:|---|
+| Warehouse | 1 | warehouses, categories | 6 | 首个实现诊断的模块 |
+| Market | 0 (初始) | auction.categories, auction.blacklist, auction.tax-discount, recycle.price-multiplier, messages | 8 | MySQL 必需；Redis 可选 |
+
 ## 最佳实践
 
 ### 模块开发者

@@ -139,6 +139,78 @@ modules:
 | `%AXStitle_set_<套装ID>_completion%` | 该套装已拥有的称号数量 |
 | `%AXStitle_set_<套装ID>_active%` | 该套装是否已激活（`true`/`false`） |
 
+## 头顶显示
+
+称号可配置装备后在玩家头顶显示称号名或贴图。有两种模式可选：
+
+### 配置字段
+
+在称号定义 YAML 中（`data/title/titles/*.yml`）添加以下字段：
+
+| 字段 | 类型 | 默认值 | 说明 |
+| --- | --- | --- | --- |
+| `overhead-mode` | String | `none` | `texture`（ArcartX 贴图） / `text`（Scoreboard Team） / `none`（不显示） |
+| `overhead-texture` | String | 空 | TEXTURE 模式的渲染内容，使用 ArcartX 文字贴图格式（如 `§k!%000001<icon>`） |
+| `overhead-width` | int | `64` | TEXTURE 模式贴图宽度 |
+| `overhead-height` | int | `64` | TEXTURE 模式贴图高度 |
+| `overhead-offset-y` | double | `2.3` | TEXTURE 模式 Y 轴偏移（越大越高） |
+| `overhead-prefix` | String | 空 | TEXT 模式的玩家名前缀 |
+| `overhead-suffix` | String | 空 | TEXT 模式的玩家名后缀 |
+
+### 模式一：TEXTURE（推荐）
+
+使用 ArcartX 客户端渲染引擎（WorldTextureEffect），文字以自定义字体贴图形式显示在玩家头顶，效果同 UI 中的 Text 控件。需要服务器安装 ArcartX 插件。
+
+```yaml
+starwalker:
+  enabled: true
+  group: exploration
+  display-name: "&6星轨行者"
+  overhead-mode: texture
+  overhead-texture: "§k!%000001<icon>"
+  overhead-width: 80
+  overhead-height: 20
+  overhead-offset-y: 2.3
+```
+
+- `overhead-texture` 使用 ArcartX 文字贴图格式 `§k!%000001<icon>`，与 UI 和聊天中使用的格式一致
+- 贴图始终面向观察者（billboard 模式）
+- ArcartX 未安装时自动降级为 TEXT 模式
+
+### 模式二：TEXT
+
+纯服务端实现，通过 Scoreboard Team 的 prefix/suffix 在玩家名称旁显示文字。无需任何额外插件。
+
+```yaml
+adventurer:
+  enabled: true
+  group: adventure
+  display-name: "&0冒险者"
+  overhead-mode: text
+  overhead-prefix: "&7[冒险者] "
+  overhead-suffix: ""
+```
+
+- 受 Minecraft 原版限制，前缀/后缀长度有限
+- 其他 Scoreboard 相关插件可能冲突（如已有 Team 管理）
+
+### 降级行为
+
+| 条件 | 实际行为 |
+| --- | --- |
+| `overhead-mode: texture` 且 ArcartX 正常 | 使用 ArcartX WorldTextureEffect 渲染 |
+| `overhead-mode: texture` 但 ArcartX 不可用 | 自动降级到 TEXT 模式（需配好 prefix/suffix） |
+| `overhead-mode: text` | 使用 Scoreboard Team |
+| `overhead-mode: none` 或未配置 | 不显示头顶称号 |
+
+### 触发时机
+
+- 玩家登录后加载称号状态时
+- 装备 / 卸下称号时
+- 称号过期被清理时
+
+系统遍历玩家已装备的所有分组称号，选取第一个 `overhead-mode != none` 的称号进行头顶显示。同一时间只能显示一个头顶称号。
+
 ## 属性字段详解
 
 每个称号可以同时使用两类字段，两类可共存、互不覆盖：

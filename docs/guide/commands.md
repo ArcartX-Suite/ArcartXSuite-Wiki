@@ -29,13 +29,13 @@
 | `/axs license cloud-code` | 生成云端网页换绑挑战码，用于证明你控制新目标服务器 | `/axs license cloud-code` |
 | `/axs license fingerprint` | 输出当前服务器机器指纹、localSaltHash 和参与指纹计算的组件，用于授权诊断 | `/axs license fingerprint` |
 
-合法的 `<模块名>` 共 19 个：
+合法的 `<模块名>` 共 20 个：
 
 ```
 announcer, entitytracker, combateffect, eventpacket,
 chat, conversation, loginview, mail, onlinerewards,
 pickup, prop, rgb, tab, title,
-map, questgps, warehouse, essentials, regions
+map, questgps, warehouse, essentials, regions, market
 ```
 
 ---
@@ -112,7 +112,7 @@ map, questgps, warehouse, essentials, regions
 
 ### 授权命令说明
 
-授权命令用于排查和管理 `plugins/ArcartXSuite/license.yml` 中的 QQ + 授权码配置。当前付费模块为 `warehouse`、`map`、`mail`、`title`、`questgps`、`conversation`，福利模块 `tab` 也需要授权码（与付费模块共用同一套 license 流程），免费模块只受 `config.yml` 的 `modules.<module>.enabled` 控制。
+授权命令用于排查和管理 `plugins/ArcartXSuite/license.yml` 中的 QQ + 授权码配置。当前付费模块为 `warehouse`、`map`、`mail`、`title`、`questgps`、`conversation`、`market`，福利模块 `tab` 也需要授权码（与付费模块共用同一套 license 流程），免费模块只受 `config.yml` 的 `modules.<module>.enabled` 控制。
 
 | 命令 | 什么时候使用 | 关键输出 |
 | --- | --- | --- |
@@ -249,6 +249,15 @@ map, questgps, warehouse, essentials, regions
 | `/axs map list` | 列出所有已在配置中定义的地图世界 | `/axs map list` |
 | `/axs map anchors [世界名]` | 列出全部锚点，或只列出指定世界的锚点。锚点是地图上的标记点 | `/axs map anchors`<br>`/axs map anchors world` |
 
+#### Market（全球市场）
+
+| 命令 | 说明 | 使用示例 |
+| --- | --- | --- |
+| `/axs market status` | 查看市场模块状态：拍卖行数量、商店数、Redis 状态 | `/axs market status` |
+| `/axs market reload` | 重载商店/回收配置文件 | `/axs market reload` |
+| `/axs market clear-expired` | 手动处理所有过期拍卖物品（退回卖家） | `/axs market clear-expired` |
+| `/axs market remove <ID>` | 强制移除指定拍卖上架 | `/axs market remove 12345` |
+
 ---
 
 ## 玩家命令
@@ -338,6 +347,22 @@ map, questgps, warehouse, essentials, regions
 | `/map` 或 `/map open [世界名]` | 打开地图界面。不指定世界时显示当前所在世界的地图 | `/map`<br>`/map open world_nether` |
 | `/map hud [on\|off\|toggle]` | 控制小地图 HUD 的显示开关 | `/map hud off`<br>`/map hud` |
 | `/map cleartrack` | 清除地图上正在追踪的目标点 | `/map cleartrack` |
+
+### Market — 全球市场（`/market`，别名 `/mk`、`/ah`）
+
+权限：`arcartxsuite.market.use`
+
+| 命令 | 说明 | 使用示例 |
+| --- | --- | --- |
+| `/market` 或 `/market auction` | 打开拍卖行主界面 | `/market` |
+| `/market shop [商店ID]` | 打开系统商店。不指定 ID 时打开商店列表 | `/market shop`<br>`/market shop weapons` |
+| `/market sell <一口价> [起拍价] [时长秒] [货币]` | 上架手持物品到拍卖行 | `/market sell 1000`<br>`/market sell 1000 500 86400 gold` |
+| `/market recycle` | 打开回收商店界面 | `/market recycle` |
+| `/market recycle all` | 一键回收背包中所有可回收物品 | `/market recycle all` |
+| `/market history` | 查看交易历史 | `/market history` |
+| `/market my` | 查看我的上架物品 | `/market my` |
+| `/market search <关键词>` | 搜索拍卖行物品 | `/market search 钻石剑` |
+| `/market cancel <ID>` | 取消指定上架 | `/market cancel 12345` |
 
 ---
 

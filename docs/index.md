@@ -96,19 +96,23 @@ features:
     title: Regions 区域保护
     details: 区域创建/40+ 标志/优先级继承、世界规则、UI 区域查看 + 管理员编辑面板
     link: /modules/regions
+  - icon: 🏪
+    title: Market 全球市场
+    details: 系统商店 + 玩家拍卖行 + 回收商店，多货币支持、跨服 Redis 同步、ArcartX UI 全套交易界面
+    link: /modules/market
 ---
 
 <div class="stats-bar">
   <div class="stat-item">
-    <div class="stat-number">19</div>
+    <div class="stat-number">20</div>
     <div class="stat-label">主模块</div>
   </div>
   <div class="stat-item">
-    <div class="stat-number">9</div>
+    <div class="stat-number">10</div>
     <div class="stat-label">PAPI 输出</div>
   </div>
   <div class="stat-item">
-    <div class="stat-number">9</div>
+    <div class="stat-number">10</div>
     <div class="stat-label">数据库模块</div>
   </div>
   <div class="stat-item">
@@ -119,7 +123,7 @@ features:
 
 <div class="comparison-section">
   <h2>为什么选择 ArcartXSuite ？</h2>
-  <p class="comparison-subtitle">一个插件覆盖 19 个功能领域，统一 ArcartX UI 体验，模块间深度联动，消除适配 ArcartX 的烦恼</p>
+  <p class="comparison-subtitle">一个插件覆盖 20 个功能领域，统一 ArcartX UI 体验，模块间深度联动，消除适配 ArcartX 的烦恼</p>
   <div class="comparison-table-wrapper">
     <table class="comparison-table">
       <thead>
@@ -239,8 +243,14 @@ features:
           <td class="col-alt">BossBarAnnounce / ActionAnnouncer</td>
           <td class="col-advantage">ArcartX HUD 渲染、常驻/轮播/字幕三模式、可点击执行命令</td>
         </tr>
+        <tr>
+          <td>经济交易</td>
+          <td class="col-module">Market</td>
+          <td class="col-alt">ShopGUIPlus / AuctionHouse / QuickShop</td>
+          <td class="col-advantage">ArcartX UI 全套界面、拍卖+商店+回收三合一、多货币、跨服 Redis 同步</td>
+        </tr>
       </tbody>
     </table>
   </div>
-  <p class="comparison-footer"><strong>一个插件，19 个模块</strong> — 统一 UI 体验，模块间零配置联动，告别插件兼容性地狱</p>
+  <p class="comparison-footer"><strong>一个插件，20 个模块</strong> — 统一 UI 体验，模块间零配置联动，告别插件兼容性地狱</p>
 </div>

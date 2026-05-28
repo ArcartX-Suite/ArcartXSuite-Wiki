@@ -18,6 +18,22 @@
 - **资源保护** — 付费模块资源通过 ticket 中的 `resourceKeys` 解包后在内存中解密。
 - **文档** — 安装、授权、命令速查和安全架构文档已同步到 `1.1.0-beta`。
 
+### 1.1.0-beta (Build 2026-05-28) — Market 全球市场模块
+
+- **Market** — 新增 `market` 付费模块，提供完整经济交易系统：
+  - **拍卖行**：一口价/竞价双模式、分类筛选、关键词搜索、收藏夹、交易税（权限折扣）、到期自动退回（背包/邮件）、跨服 Redis Pub/Sub 同步
+  - **系统商店**：YAML 配置商品、多物品来源（MythicMobs/NeigeItems/Overture/原版）、限购/折扣、权限分层、库存刷新
+  - **回收商店**：回收表配置、批量一键回收、拾取自动回收、权限价格倍率
+- **Market** — 存储：MySQL（HikariCP 连接池）+ Redis 缓存/跨服广播
+- **Market** — 货币：全面集成 `CurrencyBridgeAPI` 多货币体系（Vault/PlayerPoints/自定义）
+- **Market** — UI：4 个 ArcartX 客户端 UI 页面（拍卖行、系统商店、回收商店、交易历史）
+- **Market** — 命令：`/market`（玩家，别名 `/mk` `/ah`）、`/axs market`（管理员）
+- **Market** — PAPI 占位符：`%AXSmarket_auction_count%`、`%AXSmarket_shop_count%`、`%AXSmarket_recycle_count%`、`%AXSmarket_redis_status%`、`%AXSmarket_my_listings%`
+- **Market** — 配置诊断：声明 `SyncPolicy`（5 个动态节）+ 8 条 `ValidationRule`（storage.mode/pool-size/拍卖参数/Redis TTL）
+- **Market** — 客户端包协议：`AXS_MARKET` 包，8 种 action（auction_list/buy/bid/cancel/favorite/shop_buy/recycle_all/recycle_single）
+- **Market** — `plugin.yml` 新增 `market` 命令（别名 `mk`/`ah`）和权限 `arcartxsuite.market.use`、`arcartxsuite.market.admin`
+- **Market** — 模块总数从 19 → 20，全量 116 任务 BUILD SUCCESSFUL
+
 ### 1.1.0-beta (Build 2026-05-27d) — 经济桥接彻底统一
 
 - **核心（破坏性）** — 删除遗留的 `xuanmo.arcartxsuite.bridge.VaultEconomyBridge` 实现类与 `ModuleContext.vaultEconomyBridge()` 接口方法。所有经济读写已通过 1.1.0-beta 引入的全局 `CurrencyBridgeAPI`（`context.currencyManager()`）完成，旧桥实际未被任何模块使用，仅占位。

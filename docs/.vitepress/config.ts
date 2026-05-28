@@ -3,7 +3,7 @@ import { defineConfig } from 'vitepress'
 export default defineConfig({
   lang: 'zh-CN',
   title: 'ArcartXSuite',
-  description: 'ArcartX 服务器模块化插件 — 19 个主模块，开箱即用',
+  description: 'ArcartX 服务器模块化插件 — 20 个主模块，开箱即用',
   base: '/ArcartXSuite/',
   head: [
     ['link', { rel: 'icon', href: '/ArcartXSuite/favicon.ico' }],
@@ -93,6 +93,7 @@ export default defineConfig({
             { text: 'QuestGPS 任务导航', link: '/modules/questgps' },
             { text: 'Map 地图', link: '/modules/map' },
             { text: 'Conversation 对话桥', link: '/modules/conversation' },
+            { text: 'Market 全球市场', link: '/modules/market' },
           ],
         },
         {

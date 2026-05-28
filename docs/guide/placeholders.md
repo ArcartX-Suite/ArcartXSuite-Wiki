@@ -8,7 +8,7 @@
 
 ## 占位符总览
 
-AXS 共有 **7 个模块** 对外输出 PAPI 占位符：
+AXS 共有 **8 个模块** 对外输出 PAPI 占位符：
 
 | 模块 | 前缀 | 必装 PAPI? | 说明 |
 | --- | --- | --- | --- |
@@ -19,6 +19,7 @@ AXS 共有 **7 个模块** 对外输出 PAPI 占位符：
 | [Mail](/modules/mail) | `%AXSmail_*%` | 可选 | 邮箱未读数、可领取数 |
 | [Chat](/modules/chat) | `%AXSchat_*%` | 可选 | 聊天频道、禁言状态 |
 | [Warehouse](/modules/warehouse) | `%AXSwarehouse_*%` | 可选 | 仓库容量、银行余额 |
+| [Market](/modules/market) | `%AXSmarket_*%` | 可选 | 拍卖数量、商店数、回收数、Redis 状态 |
 
 ---
 
@@ -281,6 +282,27 @@ AXS 共有 **7 个模块** 对外输出 PAPI 占位符：
 %AXSwarehouse_category_weapon_amount%        → 返回 "weapon" 分类的物品数
 %AXSwarehouse_bank_balance_gold%             → 返回 "10500"（金币余额）
 %AXSwarehouse_bank_fixed_active_gold%        → 返回 "2"（2 笔活跃定期存款）
+```
+
+---
+
+## Market 占位符
+
+前缀：`%AXSmarket_<字段>%`
+
+| 占位符 | 返回值 | 说明 |
+| --- | --- | --- |
+| `%AXSmarket_auction_count%` | 数字 | 当前活跃拍卖上架数量 |
+| `%AXSmarket_shop_count%` | 数字 | 已加载的系统商店数量 |
+| `%AXSmarket_recycle_count%` | 数字 | 回收表中的可回收物品条目数 |
+| `%AXSmarket_redis_status%` | 文本 | Redis 连接状态（`已连接`/`未启用`/`断开`） |
+| `%AXSmarket_my_listings%` | 数字 | 当前玩家的拍卖上架数量 |
+
+**使用示例**：
+```
+%AXSmarket_auction_count%                    → 返回 "128"（当前 128 件物品在售）
+%AXSmarket_redis_status%                     → 返回 "已连接"
+%AXSmarket_my_listings%                      → 返回 "3"（我有 3 件上架物品）
 ```
 
 ---
