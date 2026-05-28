@@ -189,12 +189,14 @@ LittleSkin/正版玩家的 UUID 由认证服务器分配，改名不会影响 UU
 
 ```yaml
 ui:
-  ui-id: "AXS:LoginView"
-  packet-id: "AXS_loginview"
+  ui-id: AXS:LoginView
+  packet-id: AXS_loginview
+  # 默认使用第一套紧凑登录 UI；可改为 login_view_menu.yml 使用纯色块主菜单风格 UI。
+  ui-file: login_view.yml
   register-ui-on-enable: true
   overwrite-ui-files: false
-  open-delay-ticks: 20        # 进服后延迟多少 tick 弹出
-  close-on-login: true         # 登录成功后自动关闭 UI
+  open-delay-ticks: 20
+  close-on-login: true
 ```
 
 ### 安全配置
