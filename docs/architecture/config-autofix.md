@@ -247,6 +247,7 @@ plugins/ArcartXSuite/
 |------|:---:|---|:---:|---|
 | Warehouse | 1 | warehouses, categories | 6 | 首个实现诊断的模块 |
 | Market | 0 (初始) | auction.categories, auction.blacklist, auction.tax-discount, recycle.price-multiplier, messages | 8 | MySQL 必需；Redis 可选 |
+| QQBot | 0 (初始) | groups, custom-commands | 3 | OneBot WS 必需；SQLite/MySQL 可切换 |
 
 ## 最佳实践
 

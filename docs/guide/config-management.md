@@ -1,6 +1,6 @@
 # 配置智能体检
 
-ArcartXSuite 内置**智能配置自动修正系统**，可在不中断服务的情况下，自动检测并修复 19 个模块的配置文件问题。
+ArcartXSuite 内置**智能配置自动修正系统**，可在不中断服务的情况下，自动检测并修复 21 个模块的配置文件问题。
 
 ## 功能概览
 
@@ -32,7 +32,7 @@ ArcartXSuite 内置**智能配置自动修正系统**，可在不中断服务的
 升级 ArcartXSuite 或模块 jar 后，控制台会显示：
 
 ```
-[AXS] 配置诊断: 18 个目标, 0 ERROR / 0 WARN / 18 INFO
+[AXS] 配置诊断: 21 个目标, 0 ERROR / 0 WARN / 21 INFO
 [AXS] 报告: plugins/ArcartXSuite/diagnosis/2026-05-18_15-30-22
 ```
 

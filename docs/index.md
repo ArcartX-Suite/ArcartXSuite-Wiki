@@ -123,7 +123,7 @@ features:
 
 <div class="comparison-section">
   <h2>为什么选择 ArcartXSuite ？</h2>
-  <p class="comparison-subtitle">一个插件覆盖 20 个功能领域，统一 ArcartX UI 体验，模块间深度联动，消除适配 ArcartX 的烦恼</p>
+  <p class="comparison-subtitle">一个插件覆盖 21 个功能领域，统一 ArcartX UI 体验，模块间深度联动，消除适配 ArcartX 的烦恼</p>
   <div class="comparison-table-wrapper">
     <table class="comparison-table">
       <thead>
@@ -252,5 +252,5 @@ features:
       </tbody>
     </table>
   </div>
-  <p class="comparison-footer"><strong>一个插件，20 个模块</strong> — 统一 UI 体验，模块间零配置联动，告别插件兼容性地狱</p>
+  <p class="comparison-footer"><strong>一个插件，21 个模块</strong> — 统一 UI 体验，模块间零配置联动，告别插件兼容性地狱</p>
 </div>

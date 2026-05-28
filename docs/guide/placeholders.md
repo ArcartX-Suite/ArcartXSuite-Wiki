@@ -20,6 +20,7 @@ AXS 共有 **8 个模块** 对外输出 PAPI 占位符：
 | [Chat](/modules/chat) | `%AXSchat_*%` | 可选 | 聊天频道、禁言状态 |
 | [Warehouse](/modules/warehouse) | `%AXSwarehouse_*%` | 可选 | 仓库容量、银行余额 |
 | [Market](/modules/market) | `%AXSmarket_*%` | 可选 | 拍卖数量、商店数、回收数、Redis 状态 |
+| [QQBot](/modules/qqbot) | `%AXSqqbot_*%` | 可选 | OneBot 连接状态、玩家 QQ 绑定信息、群数量 |
 
 ---
 
@@ -303,6 +304,28 @@ AXS 共有 **8 个模块** 对外输出 PAPI 占位符：
 %AXSmarket_auction_count%                    → 返回 "128"（当前 128 件物品在售）
 %AXSmarket_redis_status%                     → 返回 "已连接"
 %AXSmarket_my_listings%                      → 返回 "3"（我有 3 件上架物品）
+```
+
+---
+
+## QQBot 占位符
+
+前缀：`%AXSqqbot_<字段>%`
+
+| 占位符 | 返回值 | 说明 |
+| --- | --- | --- |
+| `%AXSqqbot_connected%` | `true`/`false` | OneBot 机器人是否连接 |
+| `%AXSqqbot_connected_display%` | 文本 | 连接状态的中文显示（`已连接`/`未连接`） |
+| `%AXSqqbot_is_bound%` | `true`/`false` | 当前玩家是否已绑定 QQ |
+| `%AXSqqbot_bound_qq%` | 数字 | 当前玩家绑定的 QQ 号（未绑定为空） |
+| `%AXSqqbot_bound_name%` | 文本 | 当前玩家绑定时记录的游戏名 |
+| `%AXSqqbot_group_count%` | 数字 | 已配置监听的 QQ 群数量 |
+
+**使用示例**：
+```
+%AXSqqbot_connected_display%                 → 返回 "已连接"
+%AXSqqbot_bound_qq%                          → 返回 "12345678"
+%AXSqqbot_is_bound%                          → 返回 "true"
 ```
 
 ---

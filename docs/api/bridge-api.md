@@ -205,3 +205,50 @@ if (itemBridge != null && itemBridge.isAvailable()) {
 | `itemStack` | `ItemStack` | Bukkit 物品栈 |
 
 **返回值：** `Optional<String>` — JSON 字符串，桥接不可用时返回 `empty`。
+
+---
+
+## CurrencyBridgeAPI
+
+统一货币桥接，支持 Vault / PlayerPoints / Rondo / Command 等多种经济提供者。所有模块共享同一组货币定义。
+
+**获取方式：** `context.currencyManager()`
+
+> **配置教程：** 各 provider 类型的详细配置方法请参阅 [货币系统配置](/guide/currencies)。
+
+### 查询余额
+
+```java
+CurrencyBridgeAPI currencies = context.currencyManager();
+CurrencyBridge bridge = currencies.bridge("money");
+if (bridge != null && bridge.available()) {
+    BigDecimal balance = bridge.balance(player);
+}
+```
+
+### 扣款 / 入账
+
+```java
+CurrencyTransactionResult result = bridge.withdraw(player, BigDecimal.valueOf(100));
+if (result.success()) {
+    // 扣款成功
+} else {
+    player.sendMessage("扣款失败: " + result.message());
+}
+
+// 入账
+CurrencyTransactionResult depositResult = bridge.deposit(player, BigDecimal.valueOf(50));
+```
+
+### 可用货币列表
+
+```java
+Set<String> ids = currencies.currencyIds(); // 如 ["money", "points", "gems"]
+Collection<CurrencyDefinition> defs = currencies.definitions();
+```
+
+### 格式化金额
+
+```java
+String formatted = currencies.format("money", BigDecimal.valueOf(99.5)); // "99.5"
+```

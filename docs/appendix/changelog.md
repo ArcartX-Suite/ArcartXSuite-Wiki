@@ -18,6 +18,23 @@
 - **资源保护** — 付费模块资源通过 ticket 中的 `resourceKeys` 解包后在内存中解密。
 - **文档** — 安装、授权、命令速查和安全架构文档已同步到 `1.1.0-beta`。
 
+### 1.1.0-beta (Build 2026-05-28b) — QQBot QQ群服互联模块
+
+- **QQBot** — 新增 `qqbot` 付费模块，通过 **OneBot 11 正向 WebSocket** 连接 QQ 机器人（Lagrange/NapCat/LLOneBot/go-cqhttp 等），不依赖云端中转：
+  - **消息同步**：QQ 群 ↔ 游戏聊天双向转发；玩家进退服 QQ 通知；CQ 码自动过滤
+  - **账号绑定**：群内 `#绑定 <玩家名>` → 机器人返回 6 位验证码 → 游戏内 `/qqbot bind <code>` 确认；防碰撞验证码池 + 过期回收
+  - **白名单联动**：绑定自动加白、解绑自动删白；群管/群主可使用 `#加白`/`#删白`
+  - **群指令系统**：内置（`#查在线`/`#查服务器`）+ `papi-query` 类型解析 PAPI 占位符 + `server-command` 类型执行控制台命令；权限分级（群员/群管/群主）
+  - **跨模块**：注册 `QQBotBroadcastable` capability 供其他模块推送消息到 QQ 群
+- **QQBot** — 网络层：Java 17 内置 `java.net.http.WebSocket`，零外部依赖；自动重连 + 心跳保活 + access-token 鉴权
+- **QQBot** — 存储：SQLite（默认）/ MySQL（HikariCP 连接池），表 `axs_qqbot_bindings`（`UNIQUE(qq_id, player_uuid)`）
+- **QQBot** — 命令：`/qqbot bind|unbind|info`（玩家）、`/axs qqbot status|reload|send|lookup`（管理员）
+- **QQBot** — PAPI 占位符：`%AXSqqbot_connected%`、`%AXSqqbot_bound_qq%`、`%AXSqqbot_is_bound%`、`%AXSqqbot_bound_name%`、`%AXSqqbot_group_count%` 等
+- **QQBot** — 配置诊断：声明 `SyncPolicy`（2 个动态节：`groups`、`custom-commands`）+ 3 条 `ValidationRule`（`onebot.ws-url` 必填、`storage.mode` 枚举、`storage.pool-size` 范围 1–50）
+- **QQBot** — `plugin.yml` 新增 `qqbot` 命令和权限 `arcartxsuite.qqbot.use`、`arcartxsuite.qqbot.admin`
+- **QQBot** — API 扩展：新增 `axs-api/capability/QQBotBroadcastable` 接口
+- **QQBot** — 模块总数从 20 → 21，全量 121 任务 BUILD SUCCESSFUL
+
 ### 1.1.0-beta (Build 2026-05-28) — Market 全球市场模块
 
 - **Market** — 新增 `market` 付费模块，提供完整经济交易系统：

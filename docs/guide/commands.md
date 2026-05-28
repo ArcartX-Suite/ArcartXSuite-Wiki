@@ -29,13 +29,13 @@
 | `/axs license cloud-code` | 生成云端网页换绑挑战码，用于证明你控制新目标服务器 | `/axs license cloud-code` |
 | `/axs license fingerprint` | 输出当前服务器机器指纹、localSaltHash 和参与指纹计算的组件，用于授权诊断 | `/axs license fingerprint` |
 
-合法的 `<模块名>` 共 20 个：
+合法的 `<模块名>` 共 21 个：
 
 ```
 announcer, entitytracker, combateffect, eventpacket,
 chat, conversation, loginview, mail, onlinerewards,
 pickup, prop, rgb, tab, title,
-map, questgps, warehouse, essentials, regions, market
+map, questgps, warehouse, essentials, regions, market, qqbot
 ```
 
 ---
@@ -112,7 +112,7 @@ map, questgps, warehouse, essentials, regions, market
 
 ### 授权命令说明
 
-授权命令用于排查和管理 `plugins/ArcartXSuite/license.yml` 中的 QQ + 授权码配置。当前付费模块为 `warehouse`、`map`、`mail`、`title`、`questgps`、`conversation`、`market`，福利模块 `tab` 也需要授权码（与付费模块共用同一套 license 流程），免费模块只受 `config.yml` 的 `modules.<module>.enabled` 控制。
+授权命令用于排查和管理 `plugins/ArcartXSuite/license.yml` 中的 QQ + 授权码配置。当前付费模块为 `warehouse`、`map`、`mail`、`title`、`questgps`、`conversation`、`market`、`qqbot`，福利模块 `tab` 也需要授权码（与付费模块共用同一套 license 流程），免费模块只受 `config.yml` 的 `modules.<module>.enabled` 控制。
 
 | 命令 | 什么时候使用 | 关键输出 |
 | --- | --- | --- |
@@ -258,6 +258,15 @@ map, questgps, warehouse, essentials, regions, market
 | `/axs market clear-expired` | 手动处理所有过期拍卖物品（退回卖家） | `/axs market clear-expired` |
 | `/axs market remove <ID>` | 强制移除指定拍卖上架 | `/axs market remove 12345` |
 
+#### QQBot（QQ群服互联）
+
+| 命令 | 说明 | 使用示例 |
+| --- | --- | --- |
+| `/axs qqbot status` | 查看 QQBot 模块状态：OneBot 连接/群数/存储模式/绑定白名单开关 | `/axs qqbot status` |
+| `/axs qqbot reload` | 重载 ArcartXQQBot.yml 配置 | `/axs qqbot reload` |
+| `/axs qqbot send <消息>` | 向所有已配置的 QQ 群发送消息 | `/axs qqbot send 服务器即将重启` |
+| `/axs qqbot lookup <玩家名\|QQ号>` | 双向查询绑定关系 | `/axs qqbot lookup Steve`<br>`/axs qqbot lookup 12345678` |
+
 ---
 
 ## 玩家命令
@@ -363,6 +372,30 @@ map, questgps, warehouse, essentials, regions, market
 | `/market my` | 查看我的上架物品 | `/market my` |
 | `/market search <关键词>` | 搜索拍卖行物品 | `/market search 钻石剑` |
 | `/market cancel <ID>` | 取消指定上架 | `/market cancel 12345` |
+
+### QQBot — QQ群服互联（`/qqbot`）
+
+权限：`arcartxsuite.qqbot.use`
+
+| 命令 | 说明 | 使用示例 |
+| --- | --- | --- |
+| `/qqbot bind <验证码>` | 输入群内 `#绑定` 生成的验证码完成账号绑定 | `/qqbot bind 123456` |
+| `/qqbot unbind` | 解除当前玩家与 QQ 的绑定（启用 `auto-remove-on-unbind` 时同时移除白名单） | `/qqbot unbind` |
+| `/qqbot info` | 查看当前账号的绑定状态 | `/qqbot info` |
+
+群内指令（默认前缀 `#`）：
+
+| 群内指令 | 权限 | 说明 |
+| --- | --- | --- |
+| `#绑定 <玩家名>` | 群员 | 生成 6 位验证码，要求在游戏中 `/qqbot bind <code>` 确认 |
+| `#解绑` | 群员 | 解除当前 QQ 的绑定 |
+| `#查绑 [玩家名]` | 群员 | 查询自己或指定玩家的绑定 |
+| `#加白 <玩家名>` | 群管/群主 | 调用控制台添加白名单 |
+| `#删白 <玩家名>` | 群管/群主 | 调用控制台移除白名单 |
+| `#查在线` | 群员 | 返回在线玩家列表 |
+| `#查服务器` | 群员 | 返回 TPS / 内存 / 实体 / 区块 |
+| `#查玩家 [玩家名]` | 群员 | PAPI 查询玩家数据（默认：等级/金币/生命/饥饿） |
+| `#执行命令 <命令>` | 群管/群主 | 在服务器控制台执行任意命令 |
 
 ---
 
