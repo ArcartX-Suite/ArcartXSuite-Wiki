@@ -164,6 +164,19 @@ public interface CombatEffectTriggerable {
 }
 ```
 
+### QQBotBroadcastable
+
+由 QQBot 模块注册，供其他模块推送消息到 QQ 群。
+
+```java
+public interface QQBotBroadcastable {
+    void broadcastToGroups(String message);
+    void sendToGroup(long groupId, String message);
+}
+```
+
+**使用场景：** EventPacket、Mail 等模块在特定事件时向 QQ 群推送通知。
+
 ### SignalDispatchable
 
 由 EventPacket 模块注册，供其他模块触发信号。

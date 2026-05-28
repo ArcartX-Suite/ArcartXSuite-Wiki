@@ -27,7 +27,9 @@ ArcartXSuite/
 │   ├── rgb/              # RGB 渐变色文本
 │   ├── tab/              # Tab 在线列表
 │   ├── title/            # Title 称号
-│   └── warehouse/        # Warehouse 仓库银行
+│   ├── warehouse/        # Warehouse 仓库银行
+│   ├── market/           # Market 全球市场
+│   └── qqbot/            # QQBot QQ群服互联
 ```
 
 ## 核心组件
@@ -248,6 +250,10 @@ external-softdepends: []
 | questgps | QuestGPS | 🔗 委托 | Menu+HUD | reloadQuestGpsState |
 | title | Title | 🔗 委托 | — | reloadTitleState |
 | warehouse | Warehouse | 🔗 委托 | — | reloadWarehouseState |
+| essentials | Essentials | ✅ 独立 | UI | 自建 EssentialsService，玩家菜单 + 管理员面板 |
+| regions | Regions | ✅ 独立 | UI | 自建 RegionsService，区域查看 + 管理编辑面板 |
+| market | Market | ✅ 独立 | UI | 自建 MarketService，商店 + 拍卖行 + 回收 |
+| qqbot | QQBot | ✅ 独立 | — | 自建 QQBotService，OneBot 11 WebSocket 连接 |
 
 > **委托模式**下模块 Jar 只控制「是否加载」，业务逻辑仍在宿主中执行。后续可逐步将 Service 源码搬入模块子项目实现完全解耦。
 

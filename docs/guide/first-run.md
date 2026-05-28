@@ -16,7 +16,7 @@
 
 ### 0. 先确认授权
 
-免费模块可以直接启用；如果要测试 `warehouse`、`map`、`mail`、`title`、`questgps`、`conversation` 这些付费模块，或福利模块 `tab`，需要先完成授权激活。
+免费模块可以直接启用；如果要测试 `warehouse`、`map`、`mail`、`title`、`questgps`、`conversation`、`market`、`qqbot` 这些付费模块，或福利模块 `tab`、`entitytracker`，需要先完成授权激活。
 
 1. 管理员在授权后台为 QQ 发放授权码。
 2. 把 QQ 和授权码写入：

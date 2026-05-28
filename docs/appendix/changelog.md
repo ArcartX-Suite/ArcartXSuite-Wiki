@@ -366,7 +366,7 @@
 ### 1.1.0-beta (Build 2026-05-18) — 配置智能体检
 
 - **配置诊断** — 新增四层智能诊断：结构同步、类型修复、版本迁移、值验证。
-- **配置诊断** — 17 个模块全部配置 `SyncPolicy` + `ValidationRule`，支持自动字段校验。
+- **配置诊断** — 21 个模块全部配置 `SyncPolicy` + `ValidationRule`，支持自动字段校验。
 - **配置诊断** — 新增 `/arcartxsuite config diagnose|preview|apply|rollback|status` 命令。
 - **配置诊断** — 模块配置文件物理迁移（旧位置 → `data/<module>/`）与内容诊断联动提示。
 - **配置诊断** — 支持 `migrations/<from>-<to>.yml` 版本升级规则（rename/remove/move/set-if-missing/value-map）。

@@ -112,7 +112,7 @@ map, questgps, warehouse, essentials, regions, market, qqbot
 
 ### 授权命令说明
 
-授权命令用于排查和管理 `plugins/ArcartXSuite/license.yml` 中的 QQ + 授权码配置。当前付费模块为 `warehouse`、`map`、`mail`、`title`、`questgps`、`conversation`、`market`、`qqbot`，福利模块 `tab` 也需要授权码（与付费模块共用同一套 license 流程），免费模块只受 `config.yml` 的 `modules.<module>.enabled` 控制。
+授权命令用于排查和管理 `plugins/ArcartXSuite/license.yml` 中的 QQ + 授权码配置。当前付费模块为 `warehouse`、`map`、`mail`、`title`、`questgps`、`conversation`、`market`、`qqbot`，福利模块 `tab`、`entitytracker` 也需要授权码（与付费模块共用同一套 license 流程），免费模块只受 `config.yml` 的 `modules.<module>.enabled` 控制。
 
 | 命令 | 什么时候使用 | 关键输出 |
 | --- | --- | --- |
