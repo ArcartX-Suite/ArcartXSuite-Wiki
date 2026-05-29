@@ -2,7 +2,7 @@
 
 ## 功能定位-ArcartXSuite的最具有学习意义的模块
 
-**通用触发器 + 动作链**模块。当指定事件发生时，按顺序执行一组动作（发 UI 包、播字幕、执行命令、派发邮件、授予称号等）。支持 9 种触发器和 11 种动作类型，覆盖服务端事件监听和客户端回包驱动两大场景。此外还内置了**实体清理（ClearLag）**和**定时命令**两项服务端实用功能。
+**通用触发器 + 动作链**模块。当指定事件发生时，按顺序执行一组动作（发 UI 包、播字幕、执行命令、派发邮件、授予称号等）。支持 9 种触发器和 11 种动作类型，覆盖服务端事件监听和客户端回包驱动两大场景。现在每条规则还支持与 `prop` 模块一致的 `conditions` 条件判断，可先校验 PlaceholderAPI 值再决定是否执行动作。此外还内置了**实体清理（ClearLag）**和**定时命令**两项服务端实用功能。
 
 使用本模块可以提升你对ArcartX运用的上限，避免写脚本的情况下触发更多你想要的事件
 
@@ -87,7 +87,31 @@ first_join_guide:
 | `trigger` | string | 必填 | 触发器类型 |
 | `repeatable` | boolean | `false` | 是否可重复触发；`false` 时每玩家仅触发一次（记录持久化到数据库，重启后仍生效） |
 | `cooldown` | string | 无 | 冷却时间，格式 `10s` / `5m` / `2h` / `1d` / `500ms` |
+| `conditions` | list | `[]` | 规则条件列表；全部通过后才会执行动作，语法见下方 |
 | `actions` | list | 必填 | 动作列表，每个动作是一个 `type` + 参数的 Map |
+
+### 规则条件（conditions）
+
+`conditions` 与 `prop` 模块的使用条件语法一致。每一项都是一条字符串表达式：
+
+```yaml
+conditions:
+  - "%player_level% >= 30"
+  - "%AXSloginview_account_type% == microsoft"
+```
+
+支持的操作符：
+
+| 操作符 | 说明 |
+| --- | --- |
+| `==` / `!=` | 字符串相等/不等，忽略大小写 |
+| `>` / `<` / `>=` / `<=` | 优先按数字比较；解析失败时回退到字符串比较 |
+| `contains` | 忽略大小写的包含判断 |
+| `regex` | 正则匹配，忽略大小写 |
+
+::: tip 执行时机
+`conditions` 在规则匹配到触发器之后、动作执行之前统一检查，所以对 `join`、`first-join`、`quit`、`papi-*`、`mob-kill-count`、`command-signal`、`client-packet` 全部生效。
+:::
 
 ---
 
@@ -379,8 +403,9 @@ rules:
 | --- | --- | --- | --- |
 | `boss_settlement` | EntityTracker | Boss 死亡结算 | `boss_id`, `boss_name`, `settlement_id`, `rank`, `damage`, `total_damage`, `participant_count` |
 | `signin_success` | OnlineRewards | 签到成功 | `streak`, `total`, `date`, `day_of_month` |
-| `login_success` | LoginView | 登录成功 | `auth_mode` |
-| `first_register` | LoginView | 首次注册 | `auth_mode` |
+| `login_success` | LoginView | 登录成功 | `auth_mode`, `account_type`, `account_type_display` |
+| `first_register` | LoginView | 首次注册 | `auth_mode`, `account_type`, `account_type_display` |
+| `premium_bypass` | LoginView | 微软正版 / LittleSkin 免登录进入服务器 | `auth_mode`, `account_type`, `account_type_display` |
 | `cdk_redeemed` | Mail | CDK 兑换成功 | `cdk_code`, `preset_id`, `preset_name` |
 
 手动触发示例：
@@ -896,6 +921,8 @@ welcome_new_player:
   enabled: true
   trigger: command-signal
   signal: "first_register"
+  conditions:
+    - "%AXSloginview_account_type% == microsoft"
   repeatable: false
   actions:
     - type: subtitle.play
@@ -908,6 +935,25 @@ welcome_new_player:
     - type: title.give
       title-id: "newcomer"
       duration: "permanent"
+```
+
+### 按账号来源区分新玩家流程
+
+```yaml
+# data/eventpacket/rules/onboarding.yml
+welcome_littleskin_player:
+  enabled: true
+  trigger: command-signal
+  signal: "first_register"
+  conditions:
+    - "%AXSloginview_account_type% == littleskin"
+  repeatable: false
+  actions:
+    - type: chat.card
+      card-id: "quest_offer"
+      data:
+        title: "LittleSkin 专属欢迎"
+        source: "{account_type_display}"
 ```
 
 ### 击杀怪物解锁副本

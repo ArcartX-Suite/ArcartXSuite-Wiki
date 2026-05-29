@@ -8,7 +8,7 @@
 
 ## 占位符总览
 
-AXS 共有 **9 个模块** 对外输出 PAPI 占位符：
+AXS 共有 **10 个模块** 对外输出 PAPI 占位符：
 
 | 模块 | 前缀 | 必装 PAPI? | 说明 |
 | --- | --- | --- | --- |
@@ -18,6 +18,7 @@ AXS 共有 **9 个模块** 对外输出 PAPI 占位符：
 | [OnlineRewards](/modules/onlinerewards) | `%AXSonlinerewards_*%` | 可选 | 在线时长、签到状态、排行榜 |
 | [Mail](/modules/mail) | `%AXSmail_*%` | 可选 | 邮箱未读数、可领取数 |
 | [Chat](/modules/chat) | `%AXSchat_*%` | 可选 | 聊天频道、禁言状态 |
+| [LoginView](/modules/loginview) | `%AXSloginview_*%` | 可选 | 账号来源识别、正版/LittleSkin/离线判断 |
 | [Warehouse](/modules/warehouse) | `%AXSwarehouse_*%` | 可选 | 仓库容量、银行余额 |
 | [Market](/modules/market) | `%AXSmarket_*%` | 可选 | 拍卖数量、商店数、回收数、Redis 状态 |
 | [QQBot](/modules/qqbot) | `%AXSqqbot_*%` | 可选 | OneBot 连接状态、玩家 QQ 绑定信息、群数量 |
@@ -242,6 +243,34 @@ AXS 共有 **9 个模块** 对外输出 PAPI 占位符：
 
 ---
 
+## LoginView 占位符
+
+前缀：`%AXSloginview_<字段>%`
+
+| 占位符 | 返回值 | 说明 |
+| --- | --- | --- |
+| `%AXSloginview_account_type%` | `microsoft` / `littleskin` / `offline` | 玩家登录账号来源 |
+| `%AXSloginview_account_type_display%` | 文本 | 中文显示名：`微软正版` / `LittleSkin` / `离线` |
+| `%AXSloginview_account_type_name%` | 文本 | `account_type_display` 的兼容别名 |
+| `%AXSloginview_is_microsoft%` | `true` / `false` | 是否为微软正版账号 |
+| `%AXSloginview_is_littleskin%` | `true` / `false` | 是否为 LittleSkin 账号 |
+| `%AXSloginview_is_offline%` | `true` / `false` | 是否为离线账号 |
+| `%AXSloginview_is_premium%` | `true` / `false` | 是否为认证账号（微软正版或 LittleSkin） |
+
+**使用示例**：
+```
+%AXSloginview_account_type%                 → 返回 "microsoft"
+%AXSloginview_account_type_display%         → 返回 "微软正版"
+%AXSloginview_is_littleskin%                → 返回 "false"
+```
+
+**典型用途**：
+- 在 EventPacket `conditions` 中按账号来源区分欢迎流程
+- 在 Tab / 聊天前缀中显示玩家来源标签
+- 与 QQBot / Mail / QuestGPS 联动时区分认证账号和离线账号
+
+---
+
 ## Warehouse 占位符
 
 前缀：`%AXSwarehouse_<字段>%`
@@ -337,6 +366,6 @@ AXS 共有 **9 个模块** 对外输出 PAPI 占位符：
 | 模块 | 配置字段 | 用途说明 |
 | --- | --- | --- |
 | Tab | `tabs.<id>.pack` / `sort-papi-key` | 在 Tab 列表中为每个玩家渲染自定义行，并按占位符值排序 |
-| EventPacket | `rules.<id>.placeholder` | 监控占位符的值变化，达到阈值时触发规则动作 |
+| EventPacket | `rules.<id>.placeholder` / `rules.<id>.conditions` | 监控占位符值变化，或在触发后按条件表达式判断是否执行规则动作 |
 | Mail | `currencies.<id>.balance-placeholder` | 通过占位符读取玩家的货币余额，用于购买邮票等消费操作 |
 | EntityTracker | `bosses.<id>.title-format` | Boss 名称格式中可嵌入占位符，先替换内置变量再走 PAPI |
