@@ -6,7 +6,7 @@
 
 使用本模块可以提升你对ArcartX运用的上限，避免写脚本的情况下触发更多你想要的事件
 
-::: 注意
+::: tip 注意
 本模块已替代ArcartX社区的**ArcartXPacketCommand**附属插件功能，具体使用方法请阅读 [client-packet — 客户端回包触发](#_9-client-packet-—-客户端回包触发)
 :::
 
