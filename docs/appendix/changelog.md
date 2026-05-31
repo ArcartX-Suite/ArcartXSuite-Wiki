@@ -32,6 +32,7 @@
 - **OneBot 协议扩展** — `OneBotEvent` 新增 notice 事件解析（`group_increase`/`group_decrease`/`group_ban`）；`OneBotAction` 新增 `sendGroupMsgAt`（@ 群消息）与 `setGroupBan`。
 - **黑名单** — 新增 `blacklist` 配置节，列入的 QQ 号被完全禁止使用机器人：群消息不处理指令/不同步到游戏/不触发自动回复，notice 事件（入群欢迎、禁言同步）直接跳过。主拦截在 `QQBotService.handleOneBotEvent`（检查配置静态列表 + 数据库动态列表），`QQBotCommandRouter.handleCommand` 保留防御性二次检查并回复封禁提示。支持群指令动态管理：`#黑名单添加 <QQ号>` / `#黑名单移除 <QQ号>` / `#黑名单列表`（仅群管/群主可用），数据持久化到 `axs_qqbot_blacklist` 表。同时支持服务器控制台/游戏内管理：`/axs qqbot blacklist add <QQ号>` / `remove <QQ号>` / `list`。
 - **白名单群指令扩展** — 保留原有 `#加白`/`#删白` 兼容指令，新增规范化的 `#白名单添加 <玩家名>` / `#白名单移除 <玩家名>` / `#白名单列表`（仅群管/群主可用，列表直接查询服务器白名单）。
+- **帮助指令** — 新增 `#帮助` 群指令，根据各功能启用状态动态生成可用指令列表（通用/绑定/白名单/签到积分/公告/群管理/黑名单/自定义指令），帮助文本标题和页脚通过 `messages.help-header`/`help-footer` 配置。
 - **配置** — `ArcartXQQBot.yml` 新增 `signin`/`prizes`/`monitor`/`scheduled-messages`/`broadcast`/`welcome`/`auto-reply`/`announce`/`moderation`/`blacklist`/`whitelist` 十个配置节，全部带默认值（属 `JAR_NEW` 自动同步，无破坏性）；`prizes`/`scheduled-messages`/`auto-reply.rules` 注册为动态节避免误删；新增 6 条数值范围 `ValidationRule`（签到积分、监控阈值）。`messages` 节新增签到/商店/兑换/黑名单文本。
 
 ### 1.1.0-beta (Build 2026-05-30) — 统一账号识别服务

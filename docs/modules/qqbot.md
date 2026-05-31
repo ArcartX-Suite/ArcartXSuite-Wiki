@@ -68,6 +68,7 @@ QQBot 为付费模块，需要有效授权码激活。
 
 | 群指令 | 权限 | 说明 |
 |--------|------|------|
+| `#帮助` | 群员 | 显示当前可用指令列表（根据启用功能动态生成） |
 | `#绑定 <玩家名>` | 群员 | 申请绑定，机器人返回 6 位验证码 |
 | `#解绑` | 群员 | 解除自己 QQ 的绑定 |
 | `#查绑 [玩家名]` | 群员 | 查询自己/指定玩家的绑定 |
@@ -164,6 +165,7 @@ whitelist:
 
 # 自定义群指令
 command-prefix: "#"
+help-prefix: "#帮助"              # 显示可用指令列表
 custom-commands:
   查在线:
     permission: 0                 # 0=群员, 1=群管/群主
@@ -481,6 +483,55 @@ onebot:
 ::: tip 多账号
 SnowLuma 支持同一进程托管多个 QQ 账号，每个账号独立 WebSocket 端口。如果你有多个群需要不同机器人，可以在 SnowLuma 中配置多账号，AXS 侧只需连接主账号即可。
 :::
+
+## Mixed Auth Mode（混合认证）
+
+若你的服务器需要同时支持 **LittleSkin + 微软正版 + 离线** 三种账号，必须按以下步骤配置：
+
+### 1. 启动脚本加 `?mixed`
+
+在 authlib-injector 的 API 地址末尾加上 `?mixed`：
+
+```bat
+java -javaagent:plugins/authlib-injector.jar=https://littleskin.cn/api/yggdrasil?mixed -jar server.jar
+```
+
+`?mixed` 让 authlib-injector 对非 LittleSkin 账号放行，交由服务器后续处理。
+
+### 2. 开启正版验证
+
+编辑 `server.properties`：
+
+```properties
+online-mode=true
+```
+
+**必须开启**，否则 LittleSkin 玩家会被分配 v3 离线 UUID，无法与真正的离线玩家区分。
+
+### 3. 配置白名单登录门控
+
+编辑 `ArcartXQQBot.yml`：
+
+```yaml
+whitelist-login:
+  enabled: true
+  microsoft-pass: true          # 微软正版直接放行
+  littleskin-require-bind: true # LittleSkin 必须 QQ 绑定
+  deny-offline: false           # 允许离线玩家（由本体生成本地离线 UUID）
+```
+
+### 4. 账号判定流程
+
+```
+玩家连接
+  ├─ LittleSkin 账号（通过 LS yggdrasil 认证）→ v4 UUID，查 Mojang UUID 不同 → LITTLESKIN
+  ├─ 微软正版（通过 Mojang 验证）→ v4 UUID，查 Mojang UUID 一致 → MICROSOFT
+  └─ 离线玩家（未通过任何验证）→ id=null → 本体生成本地 v3 离线 UUID → OFFLINE
+```
+
+- **MICROSOFT**：`microsoft-pass=true` 直接放行；false 则需 QQ 绑定
+- **LITTLESKIN**：`littleskin-require-bind=true` 需 QQ 绑定；false 直接放行
+- **OFFLINE**：`deny-offline=true` 拒绝；false 允许进服（已绑定 QQ 可豁免）
 
 ## 安全建议
 
