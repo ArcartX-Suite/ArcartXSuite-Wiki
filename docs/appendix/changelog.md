@@ -18,6 +18,20 @@
 - **资源保护** — 付费模块资源通过 ticket 中的 `resourceKeys` 解包后在内存中解密。
 - **文档** — 安装、授权、命令速查和安全架构文档已同步到 `1.1.0-beta`。
 
+### 1.1.0-beta (Build 2026-05-31) — QQBot 群功能全量扩展
+
+- **签到打卡 + 积分系统** — 群内 `#签到`/`#打卡` 每日签到，连续签到加成（`signin.streak-bonus`，封顶 `max-streak-bonus`）；`#积分` 查询余额、累计获得/消费；`#积分榜` 查看群积分排行榜 TOP10。新增三张数据表 `axs_qqbot_points`（积分账户）、`axs_qqbot_signin`（签到记录，联合主键防重复）、`axs_qqbot_redeem_log`（兑换流水），SQLite/MySQL 双方言，积分增减为同步原子 upsert。
+- **积分兑换商店** — `#商店` 查看可兑换奖品，`#兑换 <编号>` 消费积分。奖品通过 **Mail 模块**（`MailDispatchable.dispatchPreset`）邮件发放给绑定玩家；支持每日限购 `limit-per-day`、是否要求绑定 `require-bind`；发放失败自动退还积分。
+- **服务器监控告警** — `QQBotMonitorService` 周期检测 TPS / 内存占用，超阈值自动推送告警到群（`monitor.tps-threshold`/`memory-threshold-percent`，带 `cooldown-seconds` 防刷屏）。
+- **定时消息** — `QQBotScheduledMessageService` 支持 `interval`（固定间隔）与 `daily`（每日 HH:mm）两种模式，占位符 `{online}/{max}/{tps}`。
+- **击杀播报** — 监听 `EntityDeathEvent`，玩家击杀推送到群；支持 `boss-only`（按 `boss-keywords` 匹配）/`player-kill-only`（仅 PvP）过滤。
+- **入群欢迎** — OneBot `group_increase` 通知触发，自动 `@` 新成员并发送绑定教程（`welcome.message`）。
+- **关键词自动回复（FAQ）** — `auto-reply.rules` 配置关键词→回复，支持精确/包含匹配与每群冷却。
+- **群公告广播** — 管理员 `#公告 <内容>` 同步到游戏内聊天栏 + 标题（`announce` 节）。
+- **群管理 moderation** — 管理员 `#踢`/`#封禁`，并支持 QQ 群禁言（`group_ban`）同步封禁绑定玩家（`moderation.sync-ban`，可按禁言时长 tempban）。
+- **OneBot 协议扩展** — `OneBotEvent` 新增 notice 事件解析（`group_increase`/`group_decrease`/`group_ban`）；`OneBotAction` 新增 `sendGroupMsgAt`（@ 群消息）与 `setGroupBan`。
+- **配置** — `ArcartXQQBot.yml` 新增 `signin`/`prizes`/`monitor`/`scheduled-messages`/`broadcast`/`welcome`/`auto-reply`/`announce`/`moderation` 九个配置节，全部带默认值（属 `JAR_NEW` 自动同步，无破坏性）；`prizes`/`scheduled-messages`/`auto-reply.rules` 注册为动态节避免误删；新增 6 条数值范围 `ValidationRule`（签到积分、监控阈值）。`messages` 节新增签到/商店/兑换文本。
+
 ### 1.1.0-beta (Build 2026-05-30) — 统一账号识别服务
 
 - **核心（修复）** — 修复 LoginView 在 authlib-injector + LittleSkin 环境下，微软正版账号若未关联 LittleSkin（UUID 为 v3 离线 UUID）被误判为「离线」、无法免密直接进服的问题。根因是旧逻辑对非 v4 的 UUID 直接判离线、从不查询 Mojang。

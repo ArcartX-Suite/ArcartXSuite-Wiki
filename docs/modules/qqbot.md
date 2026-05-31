@@ -13,8 +13,11 @@ QQBot 为付费模块，需要有效授权码激活。
 | **消息同步** | QQ 群 ↔ 游戏聊天双向转发、玩家进退服 QQ 通知、消息格式自定义、CQ 码过滤 |
 | **账号绑定** | 群发 `#绑定 玩家名` 申请、游戏内 `/qqbot bind <code>` 确认、SQLite/MySQL 持久化 |
 | **白名单** | 绑定自动加白、解绑自动删白、群管理员 `#加白`/`#删白` 直接管理 |
-| **群指令** | 内置（在线列表/服务器状态）+ PlaceholderAPI 查询 + 服务器命令执行 + 自定义扩展 |
-| **跨模块** | `QQBotBroadcastable` capability 供其他模块推送消息到 QQ 群 |
+| **签到积分** | `#签到`/`#打卡` 每日签到 + 连续加成、`#积分` 查询、`#积分榜` 排行、`#商店`/`#兑换` 积分换邮件奖励 |
+| **群指令** | 内置（在线列表/服务器状态/积分榜）+ PlaceholderAPI 查询 + 服务器命令执行 + 自定义扩展 |
+| **自动化** | 服务器监控告警、定时消息、击杀播报、入群欢迎、关键词自动回复（FAQ） |
+| **群管理** | `#公告` 同步游戏内、`#踢`/`#封禁` 远程管理、QQ 禁言同步封禁绑定玩家 |
+| **跨模块** | `QQBotBroadcastable` 推送消息、`QQBotNotifiable` 反向监听群事件、`MailDispatchable` 发放兑换奖励 |
 
 ## 依赖
 
@@ -70,6 +73,14 @@ QQBot 为付费模块，需要有效授权码激活。
 | `#查服务器` | 群员 | 内置：返回 TPS / 内存 / 实体 / 区块 |
 | `#查玩家 [玩家名]` | 群员 | PAPI 示例：等级 / 金币 / 生命 / 饥饿 |
 | `#执行命令 <命令>` | 群管/群主 | 在控制台执行任意命令 |
+| `#签到` / `#打卡` | 群员 | 每日签到领积分，连续签到有加成 |
+| `#积分` | 群员 | 查询积分余额、累计获得/消费 |
+| `#积分榜` | 群员 | 内置：积分排行榜 TOP10 |
+| `#商店` | 群员 | 查看积分兑换商店奖品列表 |
+| `#兑换 <编号>` | 群员 | 消费积分兑换奖品（邮件发放给绑定玩家） |
+| `#公告 <内容>` | 群管/群主 | 发布公告，同步到游戏内聊天栏 + 标题 |
+| `#踢 <玩家名> [原因]` | 群管/群主 | 远程踢出玩家 |
+| `#封禁 <玩家名> [原因]` | 群管/群主 | 远程封禁玩家 |
 
 ## 权限
 
@@ -162,6 +173,102 @@ custom-commands:
     permission: 1
     type: "server-command"
     command: "{args}"
+  积分榜:
+    permission: 0
+    type: "builtin"
+    builtin-id: "points-leaderboard"
+
+# 签到打卡 + 积分系统
+signin:
+  enabled: true
+  base-points: 10                 # 每日基础积分
+  streak-bonus: 2                 # 每连续 1 天额外加分
+  max-streak-bonus: 50            # 连续加成上限
+  sign-prefix: "#签到"
+  aliases: ["#打卡"]
+  shop-prefix: "#商店"
+  redeem-prefix: "#兑换"
+  points-query-prefix: "#积分"
+
+# 积分兑换奖品（通过 Mail 模块邮件发放，mail-preset-id 对应邮件预设）
+prizes:
+  - id: "diamond"
+    name: "钻石礼包"
+    cost: 100
+    mail-preset-id: "qqbot_diamond"
+    description: "10 颗钻石"
+    limit-per-day: 1              # 每日兑换上限（0=不限）
+    require-bind: true            # 是否需要先绑定游戏账号
+
+# 服务器监控告警
+monitor:
+  enabled: false
+  tps-threshold: 15.0
+  memory-threshold-percent: 90
+  check-interval-seconds: 60
+  cooldown-seconds: 300          # 同类告警冷却，防刷屏
+  alarm-groups: []               # 接收告警的群（留空=所有群）
+  tps-alarm-format: "⚠ 服务器告警\nTPS 过低: {tps}（阈值 {threshold}）"
+  memory-alarm-format: "⚠ 服务器告警\n内存占用过高: {used}MB/{max}MB ({percent}%)"
+
+# 定时消息（interval=固定间隔 / daily=每日定时；占位符 {online}/{max}/{tps}）
+scheduled-messages:
+  - id: "online_report"
+    mode: "interval"
+    interval-seconds: 21600
+    message: "📊 当前在线人数: {online}/{max}"
+    target-groups: []
+  - id: "daily_signin_reminder"
+    mode: "daily"
+    daily-time: "12:00"
+    message: "🎁 别忘了发送 #签到 领取今日积分哦~"
+    target-groups: []
+
+# 击杀播报
+broadcast:
+  kill:
+    enabled: false
+    format: "🗡 {killer} 击杀了 {victim}"
+    boss-only: true              # 仅播报 Boss（按 boss-keywords 匹配）
+    player-kill-only: false      # 仅 PvP（优先级高于 boss-only）
+    boss-keywords: ["Boss", "首领", "魔王"]
+
+# 入群欢迎
+welcome:
+  enabled: false
+  message: "欢迎新成员加入！\n发送 #绑定 <游戏名> 关联你的游戏账号"
+
+# 关键词自动回复（FAQ）
+auto-reply:
+  enabled: false
+  cooldown-seconds: 30           # 每群两次回复最小间隔
+  rules:
+    - keywords: ["怎么进服", "服务器地址", "ip"]
+      response: "服务器地址: play.example.com"
+      exact-match: false         # true=完全匹配, false=包含即触发
+
+# 群公告广播
+announce:
+  enabled: false
+  prefix: "#公告"
+  game-format: "&e&l[群公告] &f{content}"
+  qq-receipt: "✓ 公告已发布到游戏内"
+  title-enabled: true
+  title-text: "&e群公告"
+  subtitle-format: "&f{content}"
+
+# 群管理 moderation（踢人/封禁 + QQ 禁言同步）
+moderation:
+  enabled: false
+  kick-prefix: "#踢"
+  ban-prefix: "#封禁"
+  kick-command: "kick {name} {reason}"
+  ban-command: "ban {name} {reason}"
+  sync-ban:
+    enabled: false               # QQ 群禁言 → 游戏内封禁绑定玩家
+    command: "tempban {name} {duration} {reason}"
+    use-duration: true           # 按 QQ 禁言时长设置封禁时长
+    reason: "QQ群禁言同步"
 
 # 存储
 storage:
@@ -181,7 +288,7 @@ storage:
 
 | 类型 | 字段 | 说明 |
 |------|------|------|
-| `builtin` | `builtin-id` | 内置指令：`online-list` / `server-status` |
+| `builtin` | `builtin-id` | 内置指令：`online-list` / `server-status` / `points-leaderboard` |
 | `papi-query` | `placeholders[]` + `format` | 解析 PAPI 占位符填充模板（`{0}` `{1}` …） |
 | `server-command` | `command` | 控制台执行（`{args}` = 群内参数） |
 
@@ -192,6 +299,9 @@ QQBot 数据库表（SQLite 默认在 `plugins/ArcartXSuite/data/qqbot/qqbot.db`
 | 表名 | 字段 | 用途 |
 |------|------|------|
 | `axs_qqbot_bindings` | `id`、`qq_id`、`player_uuid`、`player_name`、`bound_at` | QQ ↔ 游戏账号绑定关系（`UNIQUE(qq_id, player_uuid)`） |
+| `axs_qqbot_points` | `qq_id`、`balance`、`total_earned`、`total_spent`、`updated_at` | 积分账户（`qq_id` 主键） |
+| `axs_qqbot_signin` | `qq_id`、`sign_date`、`streak`、`signed_at` | 每日签到记录（`PRIMARY KEY(qq_id, sign_date)` 防重复） |
+| `axs_qqbot_redeem_log` | `id`、`qq_id`、`prize_id`、`cost`、`redeem_date`、`created_at` | 兑换流水（每日限购统计） |
 
 ## 配置诊断
 
@@ -202,10 +312,19 @@ QQBot 模块声明了以下配置校验规则：
 | `onebot.ws-url` | STRING | 必填 |
 | `storage.mode` | STRING | 必填，枚举 `sqlite` / `mysql` |
 | `storage.pool-size` | INT | 范围 1–50 |
+| `signin.base-points` | INT | 范围 0–100000 |
+| `signin.streak-bonus` | INT | 范围 0–100000 |
+| `signin.max-streak-bonus` | INT | 范围 0–1000000 |
+| `monitor.tps-threshold` | DOUBLE | 范围 0.0–20.0 |
+| `monitor.memory-threshold-percent` | INT | 范围 1–100 |
+| `monitor.check-interval-seconds` | INT | 范围 5–86400 |
 
 动态节（用户可自由增删，不被结构同步覆盖）：
 - `groups`
 - `custom-commands`
+- `prizes`
+- `scheduled-messages`
+- `auto-reply.rules`
 
 ## 跨模块 Capability
 
@@ -249,17 +368,21 @@ QQ 群: 张三 > 上线了吗
 
 ```
 QQBotModule (AbstractAXSModule)
-├── QQBotService (主服务，AsyncPlayerChatEvent / Join / Quit 监听)
+├── QQBotService (主服务，Chat / Join / Quit / EntityDeath 监听 + notice 事件处理)
 │   ├── QQBotBindService (绑定逻辑 + 验证码池)
-│   └── QQBotCommandRouter (群指令路由器)
+│   └── QQBotCommandRouter (群指令路由器：绑定/白名单/签到/商店/兑换/公告/踢封)
+├── QQBotSignInService (签到 + 积分 + 兑换商店，邮件发放奖励)
+├── QQBotMonitorService (TPS/内存监控告警，周期推送)
+├── QQBotScheduledMessageService (定时消息：interval / daily)
 ├── OneBotClient (Java-WebSocket 库，自动重连 + 心跳 + 指数退避)
-│   ├── OneBotAction (动作 JSON 构造)
-│   └── OneBotEvent (事件解析)
-├── JdbcQQBotRepository (HikariCP + SQLite/MySQL)
+│   ├── OneBotAction (动作 JSON 构造：群消息 / @ / 禁言)
+│   └── OneBotEvent (事件解析：message / notice 入群·禁言)
+├── JdbcQQBotRepository (HikariCP + SQLite/MySQL，4 张表)
 ├── QQBotPlayerCommand (/qqbot)
 ├── QQBotAdminCommand (/axs qqbot)
 ├── QQBotPlaceholderExpansion (PAPI)
-└── 注册 QQBotBroadcastable capability
+├── QQBotUiService (绑定中心 / 通知 HUD / 管理后台 UI)
+└── 注册 QQBotBroadcastable / QQBotNotifiable capability
 ```
 
 ## SnowLuma 快速接入
