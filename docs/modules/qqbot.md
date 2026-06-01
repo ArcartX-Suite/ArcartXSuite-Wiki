@@ -13,6 +13,7 @@ QQBot 为付费模块，需要有效授权码激活。
 | **消息同步** | QQ 群 ↔ 游戏聊天双向转发、玩家进退服 QQ 通知、消息格式自定义、CQ 码过滤 |
 | **账号绑定** | 群发 `#绑定 玩家名` 申请、游戏内 `/qqbot bind <code>` 确认、SQLite/MySQL 持久化 |
 | **白名单** | 绑定自动加白、解绑自动删白、群管理员 `#加白`/`#删白` 直接管理 |
+| **登录门控** | 结合 LoginView 面板实现分级准入：未绑定 QQ 的 LittleSkin/正版玩家进服后通过 UI 面板输入验证码完成绑定，不再在 PreLogin 阶段踢人 |
 | **签到积分** | `#签到`/`#打卡` 每日签到 + 连续加成、`#积分` 查询、`#积分榜` 排行、`#商店`/`#兑换` 积分换邮件奖励 |
 | **群指令** | 内置（在线列表/服务器状态/积分榜）+ PlaceholderAPI 查询 + 服务器命令执行 + 自定义扩展 |
 | **自动化** | 服务器监控告警、定时消息、击杀播报、入群欢迎、关键词自动回复（FAQ） |
@@ -162,6 +163,24 @@ whitelist:
   add-prefix: "#白名单添加"
   remove-prefix: "#白名单移除"
   list-prefix: "#白名单列表"
+
+# 白名单登录门控（v2.0 架构）
+# 【重要】QQ 绑定验证已从 PreLogin 拦截迁移到 LoginView 登录面板中完成。
+# 本配置启用后不再踢人，仅做日志记录和审计。
+whitelist-login:
+  enabled: false
+  # 以下配置保留向后兼容，实际行为由 LoginView 面板接管：
+  # - 微软正版 / LittleSkin 玩家进服后都会看到 LoginView 面板
+  # - 已绑定 QQ 的玩家：面板显示「进入服务器」按钮，直接放行
+  # - 未绑定 QQ 的玩家：面板显示绑定验证码输入框，需输入验证码完成绑定
+  # - 离线玩家：若认证层（authlib-injector）已正确拦截，则不会到达此阶段
+  microsoft-pass: true
+  littleskin-require-bind: true
+  deny-offline: true
+  # 以下消息不再用于踢出，仅供日志参考
+  kick-not-bound: "&c你还未在QQ群完成绑定认证\n&7请在QQ群发送: #绑定 {name}\n&7完成验证后方可进入游戏"
+  kick-offline: "&c本服务器仅允许正版/LittleSkin 账号登录"
+  kick-denied: "&c你没有权限进入本服务器"
 
 # 自定义群指令
 command-prefix: "#"
@@ -389,6 +408,41 @@ QQ 群: 张三 > 上线了吗
 游戏广播: [QQ] 张三: 上线了吗
 ```
 
+### 白名单登录门控（v2.0 架构）
+
+> **架构变更**：QQ 绑定验证已从 `AsyncPlayerPreLoginEvent` 拦截迁移到 **LoginView 登录面板**中完成。
+
+```
+LittleSkin/正版玩家 进服
+    ↓
+LoginView 面板弹出
+    ↓
+已绑定 QQ ? ──是──→ 显示「进入服务器」按钮 ──→ 点击进服
+    │
+    否
+    ↓
+显示绑定提示 + 验证码输入框
+    ↓
+玩家在 QQ 群发送「#绑定 <玩家名>」
+    ↓
+机器人返回 6 位验证码
+    ↓
+玩家在 UI 中输入验证码
+    ↓
+验证通过 → 自动完成 QQ 绑定 + 加白名单
+    ↓
+显示「进入服务器」按钮 → 点击进服
+```
+
+**与旧版区别**：
+- **旧版**（v1.x）：未绑定玩家在 `AsyncPlayerPreLoginEvent` 阶段直接被踢出，需先绑定才能进服
+- **新版**（v2.0）：未绑定玩家可以进服，通过 LoginView UI 面板完成绑定验证后才允许进入服务器
+
+**必要条件**：
+- LoginView 模块启用且 `premium-bypass.enabled: true`
+- LoginView 配置 `qq-binding.enabled: true`
+- QQBot 模块启用
+
 ## 架构
 
 ```
@@ -517,7 +571,7 @@ whitelist-login:
   enabled: true
   microsoft-pass: true          # 微软正版直接放行
   littleskin-require-bind: true # LittleSkin 必须 QQ 绑定
-  deny-offline: false           # 允许离线玩家（由本体生成本地离线 UUID）
+  deny-offline: true            # 拒绝离线玩家（online-mode=true 下离线玩家无法连接）
 ```
 
 ### 4. 账号判定流程
@@ -526,12 +580,12 @@ whitelist-login:
 玩家连接
   ├─ LittleSkin 账号（通过 LS yggdrasil 认证）→ v4 UUID，查 Mojang UUID 不同 → LITTLESKIN
   ├─ 微软正版（通过 Mojang 验证）→ v4 UUID，查 Mojang UUID 一致 → MICROSOFT
-  └─ 离线玩家（未通过任何验证）→ id=null → 本体生成本地 v3 离线 UUID → OFFLINE
+  └─ 离线玩家（未通过任何验证）→ 无法连接（online-mode=true 已被服务端拒绝）
 ```
 
 - **MICROSOFT**：`microsoft-pass=true` 直接放行；false 则需 QQ 绑定
 - **LITTLESKIN**：`littleskin-require-bind=true` 需 QQ 绑定；false 直接放行
-- **OFFLINE**：`deny-offline=true` 拒绝；false 允许进服（已绑定 QQ 可豁免）
+- **OFFLINE**：`online-mode=true` 下离线玩家已被服务端拒绝，不会到达本插件门控
 
 ## 安全建议
 

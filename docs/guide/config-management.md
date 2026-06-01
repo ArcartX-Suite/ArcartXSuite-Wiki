@@ -13,6 +13,27 @@ ArcartXSuite 内置**智能配置自动修正系统**，可在不中断服务的
 | **3. 字段迁移** | 版本升级 | 根据 `migrations/<from>-<to>.yml` 执行重命名、删除、移动 |
 | **4. 值验证** | 范围/枚举 | 验证数值范围（如 `pool-size` ∈ [1,100]）、枚举值合法性 |
 
+## 核心配置节说明
+
+### `auth` — 多方认证（单端）
+
+仅在单端服务器有效。群组服请使用 ArcartXSuite-Proxy 插件，见 [Proxy 使用文档](../proxy/proxy-usage.md)。
+
+| 字段 | 类型 | 默认值 | 说明 |
+|------|------|--------|------|
+| `auth.auto-check-version` | BOOLEAN | `true` | 启动时自动检测 authlib-injector 版本并提示更新 |
+| `auth.yggdrasil-source` | STRING | `https://littleskin.cn/api/yggdrasil?mixed` | 启动脚本中使用的 Yggdrasil API 地址 |
+| `auth.deny-offline` | BOOLEAN | `true` | 是否拒绝离线玩家（authlib-injector Mixed Mode 下已由在线模式处理，此为 fallback） |
+| `auth.kick-offline-message` | STRING | `&c本服务器仅支持正版/LittleSkin 账号登录` | 拒绝离线时的踢出消息 |
+
+### `account-type` — 统一账号识别
+
+| 字段 | 类型 | 默认值 | 说明 |
+|------|------|--------|------|
+| `account-type.enable-mojang-lookup` | BOOLEAN | `true` | 是否查询 Mojang API 识别微软正版。关闭后仅按 UUID 版本判定 |
+| `account-type.mojang-timeout-ms` | INT | `5000` | Mojang API 请求超时（毫秒） |
+| `account-type.debug` | BOOLEAN | `false` | 是否输出账号判定调试日志 |
+
 ## 命令使用
 
 ### `/arcartxsuite config` 子命令

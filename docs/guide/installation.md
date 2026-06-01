@@ -98,6 +98,36 @@ plugins/
 ArcartX 现已支持 UI 自动导入，AXS 不再需要在启动或重载时执行 `ax reload` 命令。
 :::
 
+## 代理端部署（Velocity / BungeeCord 群组服）
+
+如果使用 Velocity 或 BungeeCord 作为代理，需要额外部署 Proxy 伴侣插件。
+
+### 部署结构
+
+```
+代理端 plugins/
+├── ArcartXSuite-Proxy-Velocity.jar    # Velocity 环境
+# 或
+├── ArcartXSuite-Proxy-Bungee.jar      # BungeeCord 环境
+
+后端子服 plugins/
+├── ArcartX-x.x.x.jar
+├── ArcartXSuite.jar
+├── authlib-injector.jar               # 仍需 JVM Agent
+```
+
+### 后端子服启动命令
+
+后端子服**仍需**以 `-javaagent` 方式启动 authlib-injector：
+
+```bat
+java -javaagent:plugins/authlib-injector.jar=https://littleskin.cn/api/yggdrasil -jar paper.jar nogui
+```
+
+> Proxy 插件只负责代理层的认证路由和离线拦截，**不替代** authlib-injector。authlib-injector 仍必须在每个后端子服作为 JVM Agent 加载，否则 Yggdrasil 会话无法通过 Minecraft 协议握手。
+
+详见 [Proxy 使用文档](../proxy/proxy-usage.md)。
+
 ## 升级 / 替换 jar
 
 - 直接覆盖 jar 然后重启；**不会丢已有数据库 / 已编辑过的 YAML**。

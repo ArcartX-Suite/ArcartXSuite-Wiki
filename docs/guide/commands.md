@@ -31,6 +31,17 @@
 | `/axs license cloud-code` | 生成云端网页换绑挑战码，用于证明你控制新目标服务器 | `/axs license cloud-code` |
 | `/axs license fingerprint` | 输出当前服务器机器指纹、localSaltHash 和参与指纹计算的组件，用于授权诊断 | `/axs license fingerprint` |
 
+### 多方认证管理
+
+| 命令 | 说明 | 使用示例 |
+| --- | --- | --- |
+| `/axs auth status` | 查看 authlib-injector 加载状态、版本信息、是否已启用多方认证 | `/axs auth status` |
+| `/axs auth setup [api-url]` | 一键下载 authlib-injector、检测服务端 jar、生成启动脚本（自动注入 `-javaagent`） | `/axs auth setup`<br>`/axs auth setup https://littleskin.cn/api/yggdrasil?mixed` |
+| `/axs auth update` | 手动下载/更新最新版 authlib-injector | `/axs auth update` |
+| `/axs auth check` | 检测 authlib-injector 最新版本并输出更新提示 | `/axs auth check` |
+
+> 单端服务器使用 `/axs auth setup` 配置 authlib-injector；Velocity/BungeeCord 群组服在代理端部署 `ArcartXSuite-Proxy-*.jar`，后端子服仍需要 authlib-injector 作为 JVM Agent。
+
 合法的 `<模块名>` 共 21 个：
 
 ```

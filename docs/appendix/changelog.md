@@ -18,6 +18,16 @@
 - **资源保护** — 付费模块资源通过 ticket 中的 `resourceKeys` 解包后在内存中解密。
 - **文档** — 安装、授权、命令速查和安全架构文档已同步到 `1.1.0-beta`。
 
+### 1.1.0-beta (Build 2026-06-01) — 多方认证体系 + Proxy 代理端插件 + QQ 绑定面板
+
+- **Proxy 代理端插件** — 新增 `ArcartXSuite-Proxy-Velocity.jar` 和 `ArcartXSuite-Proxy-Bungee.jar`，作为代理端伴侣插件部署到 Velocity / BungeeCord。支持：多 Yggdrasil 源认证路由（微软正版 + LittleSkin + 自定义源）、代理层离线玩家拦截、通过 GameProfile Property 向后端传递账号类型（`MICROSOFT`/`LITTLESKIN`/`OFFLINE`）。命令：`/axsproxy status/reload/help`。后端子服仍需 authlib-injector 作为 JVM Agent。
+- **单端多方认证管理（本体）** — 新增 `AuthlibInjectorManager` 和 `/axs auth` 命令集（`status/setup/update/check/help`），集中管理单端 authlib-injector 的下载、版本检测、启动脚本生成和 `server.properties` 检查。`config.yml` 新增 `auth` 配置节（`auto-check-version`/`yggdrasil-source`/`deny-offline`/`kick-offline-message`）。
+- **LoginView authlib-injector 迁移** — 原 `/axs loginview setup-authlib` 命令和 `AuthlibInjectorHelper` 从 LoginView 模块移除，功能统一由本体的 `/axs auth setup` 覆盖。LoginView 启动时检测 authlib-injector 状态并通过本体 logger 输出提示。
+- **LoginView QQ 绑定面板** — 未绑定 QQ 的 LittleSkin 玩家进服后，免登录面板不再直接放行，而是显示绑定提示 UI（`bypass_unbound` 视图），要求玩家输入 6 位 QQ 绑定验证码（由 QQBot `#绑定` 群指令生成），验证通过后才允许进入服务器。配置：`ArcartXLoginView.yml` 新增 `qq-binding` 节（`enabled`/`verify-on-login`/`unbound-title`/`unbound-subtitle`/`enter-without-bind`）。UI 文件 `login_view.yml` 新增 `bypass_unbound` 视图和 `bind_code_input` 输入框。
+- **QQBot 登录门控改造** — `QQBotLoginGateListener` 移除所有踢出逻辑（`denyOffline`/`microsoftPass`/`littleskinRequireBind` 的 kick 行为全部取消）。QQ 绑定验证从 `AsyncPlayerPreLoginEvent` 前移到 LoginView 面板流程中：未绑定玩家不再被踢出，而是进服后通过 UI 面板引导绑定。白名单联动仍保留（绑定自动加白、解绑自动删白）。QQBot 的绑定能力通过 `QqBindCapable` capability 暴露给 LoginView 调用。
+- **API 扩展** — 新增 `api.capability.QqBindCapable` 接口（`isBound`/`getBoundQqId`/`confirmBind`），QQBot 模块注册实现，LoginView 通过 `Supplier<QqBindCapable>` 延迟查找调用。
+- **构建** — 新增 `proxy:common`、`proxy:velocity`、`proxy:bungee` 三个 Gradle 子模块；Maven 仓库新增 PaperMC、Sonatype Snapshots、MD-5 仓库。
+
 ### 1.1.0-beta (Build 2026-05-31) — QQBot 群功能全量扩展
 
 - **签到打卡 + 积分系统** — 群内 `#签到`/`#打卡` 每日签到，连续签到加成（`signin.streak-bonus`，封顶 `max-streak-bonus`）；`#积分` 查询余额、累计获得/消费；`#积分榜` 查看群积分排行榜 TOP10。新增三张数据表 `axs_qqbot_points`（积分账户）、`axs_qqbot_signin`（签到记录，联合主键防重复）、`axs_qqbot_redeem_log`（兑换流水），SQLite/MySQL 双方言，积分增减为同步原子 upsert。
