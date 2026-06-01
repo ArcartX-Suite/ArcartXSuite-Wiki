@@ -7,6 +7,21 @@
 ## 1.1.0-beta（当前）
 
 - **RGB** — 移除不可用的 Shimmer/Glimmer 函数桥接（`ArcartRgbShimmerBridge`）与运行时编译逻辑，同时清除宿主 `renderArcartRgbShimmer` 入口和 `shimmerOptions` 全局配置。RGB 模块保留 PlaceholderAPI `%arcartrgb_*%` 输出，扫光动画参数改为条目级配置。
+
+### 1.1.0-beta (Build 2026-06-02) — QQBot 功能四期扩展
+
+- **死亡广播** — 新增 `PlayerDeathEvent` 监听，游戏内玩家死亡自动推送到 QQ 群。配置：`broadcast.death.enabled` / `broadcast.death.format`（占位符 `{player}`），与击杀广播独立开关。
+- **定向群发** — `/axs qqbot send all <消息>` 广播所有群，`/axs qqbot send <群号> <消息>` 定向发送到指定群（原 `send` 只支持广播，本次扩展为双模式）。
+- **积分转账** — 群内 `#转账 <QQ号> <数量>`，检查双方绑定关系 → `deductPoints` → `addPoints`，余额不足或自转均会拒绝。
+- **积分商城限时折扣** — `prizes[]` 新增 `discount-rate`（0.0–1.0，如 0.8=八折）和 `discount-until`（毫秒时间戳）。兑换时自动计算 `currentCost()`，成功消息中提示折扣信息。
+- **签到周结算排行榜** — 新增 `QQBotWeeklyRankService`，每周日 23:59 自动推送 Top10 积分排行到 QQ 群。
+- **关键词自动撤回 + 禁言** — `moderation.auto-moderation` 节：配置关键词列表，命中后自动 `delete_msg` 撤回消息 + `set_group_ban` 禁言发送者；支持群级冷却防刷屏。
+- **@游戏名 → 游戏内提示** — 群内消息中 @ 某 QQ 号时，若该 QQ 绑定的玩家在线，游戏内收到 Title + 聊天栏提示（`at-to-game.enabled` 控制）。
+- **游戏内 `/qqbot at <QQ号> <消息>` — 玩家在游戏内发送，消息广播到所有 QQ 群。
+- **积分拼手气红包** — 群内 `#红包 <总积分> <份数>` 发拼手气红包，`#抢红包` 领取。拼手气随机分配（最后一人拿剩余），数据库乐观锁防并发冲突。红包 24 小时过期，剩余积分自动退还给发送者。新增两张表：`axs_qqbot_red_packets`、`axs_qqbot_red_packet_claims`。
+- **群活跃度统计** — 每条群消息自动计入当日发言次数。群内 `#活跃排行 [week|month]` 查询本周/本月 Top10。新增表 `axs_qqbot_activity`（联合主键 `qq_id+group_id+activity_date`）。
+- **配置** — `ArcartXQQBot.yml` 新增 `broadcast.death`、`at-to-game.enabled`、`signin.transfer-prefix`/`red-packet-prefix`/`grab-red-packet-prefix`/`activity-prefix`、`moderation.auto-moderation` 节；`prizes[]` 新增 `discount-rate`/`discount-until`。全部带默认值，属 `JAR_NEW` 自动同步，无破坏性、无需迁移。
+- **新表** — 本次新增 3 张数据表（`red_packets`、`red_packet_claims`、`activity`），SQLite / MySQL 双方言，已纳入 `allTables()` 迁移队列。
 - **模块管理** — 新增 `/axs load <模块名>` 与 `/axs unload <模块名>` 子命令，支持运行时热加载新模块与热卸载已加载模块（释放 ClassLoader），不再需要重启服务端。卸载时会检查反向依赖，被其他模块依赖的模块会被拒绝卸载。
 - **目录归位** — 模块产物统一收纳到 `plugins/ArcartXSuite/data/<moduleId>/`：配置文件 `config.yml`、SQLite 数据库、子目录（如 `chat/channels`、`mail/presets`、`prop/props`、`subtitle/groups`）等首次启动时一次性自动迁移，原 1.0.x 散落在根目录的旧路径全部归位。迁移日志带高亮色标。
 - **控制台美化** — 启动 banner 改为 ANSI Shadow 字体的「SUITE」主标题 + 顶部 `✦ A R C A R T X ✦` 副标题，垂直青蓝紫渐变；迁移类日志统一格式 `→ 已归位 X: <来源> ➜ <目标>`，金/黄/灰/青多色标记。

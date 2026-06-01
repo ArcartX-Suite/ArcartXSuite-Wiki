@@ -15,10 +15,15 @@ QQBot 为付费模块，需要有效授权码激活。
 | **白名单** | 绑定自动加白、解绑自动删白、群管理员 `#加白`/`#删白` 直接管理 |
 | **登录门控** | 结合 LoginView 面板实现分级准入：未绑定 QQ 的 LittleSkin/正版玩家进服后通过 UI 面板输入验证码完成绑定，不再在 PreLogin 阶段踢人 |
 | **签到积分** | `#签到`/`#打卡` 每日签到 + 连续加成、`#积分` 查询、`#积分榜` 排行、`#商店`/`#兑换` 积分换邮件奖励 |
+| **积分转账** | `#转账 <QQ号> <数量>` 群内积分互转，检查绑定 + 原子扣增 |
+| **积分商城限时折扣** | `prizes[]` 支持 `discount-rate` + `discount-until`，兑换时自动计算折扣价 |
+| **拼手气红包** | `#红包 <总积分> <份数>` 发拼手气红包，`#抢红包` 领取，24h 过期自动退款 |
+| **群活跃度** | 每条群消息自动统计发言次数，`#活跃排行 [week|month]` 查本周/本月 Top10 |
 | **群指令** | 内置（在线列表/服务器状态/积分榜）+ PlaceholderAPI 查询 + 服务器命令执行 + 自定义扩展 |
-| **自动化** | 服务器监控告警、定时消息、击杀播报、入群欢迎、关键词自动回复（FAQ） |
-| **群管理** | `#公告` 同步游戏内、`#踢`/`#封禁` 远程管理、QQ 禁言同步封禁绑定玩家 |
+| **自动化** | 服务器监控告警、定时消息、击杀播报、**死亡广播**、入群欢迎、关键词自动回复（FAQ） |
+| **群管理** | `#公告` 同步游戏内、`#踢`/`#封禁` 远程管理、QQ 禁言同步封禁绑定玩家、**关键词自动撤回+禁言** |
 | **黑名单** | 配置化禁止指定 QQ 号使用机器人（指令/消息同步/欢迎/签到等全部拦截） |
+| **双向@联动** | 群内 @QQ → 游戏内 Title 提示；游戏内 `/qqbot at <QQ> <消息>` → 广播到 QQ 群 |
 | **跨模块** | `QQBotBroadcastable` 推送消息、`QQBotNotifiable` 反向监听群事件、`MailDispatchable` 发放兑换奖励 |
 
 ## 依赖
@@ -48,6 +53,7 @@ QQBot 为付费模块，需要有效授权码激活。
 | `/qqbot bind <验证码>` | `arcartxsuite.qqbot.use` | 确认绑定群内申请生成的验证码 |
 | `/qqbot unbind` | `arcartxsuite.qqbot.use` | 解除当前账号的 QQ 绑定 |
 | `/qqbot info` | `arcartxsuite.qqbot.use` | 查看当前绑定的 QQ 号 |
+| `/qqbot at <QQ号> <消息>` | `arcartxsuite.qqbot.use` | 向 QQ 群发送 @ 指定 QQ 的消息 |
 
 ### 管理员命令
 
@@ -55,7 +61,8 @@ QQBot 为付费模块，需要有效授权码激活。
 |------|------|------|
 | `/axs qqbot status` | `arcartxsuite.qqbot.admin` | 查看连接/群数/绑定/白名单状态 |
 | `/axs qqbot reload` | `arcartxsuite.qqbot.admin` | 重载配置 |
-| `/axs qqbot send <消息>` | `arcartxsuite.qqbot.admin` | 向所有已配置群发送消息 |
+| `/axs qqbot send all <消息>` | `arcartxsuite.qqbot.admin` | 向所有已配置群发送消息 |
+| `/axs qqbot send <群号> <消息>` | `arcartxsuite.qqbot.admin` | 向指定群发送消息 |
 | `/axs qqbot lookup <玩家名\|QQ号>` | `arcartxsuite.qqbot.admin` | 查询绑定关系（双向） |
 | `/axs qqbot snowluma install` | `arcartxsuite.qqbot.admin` | 从 GitHub 下载安装最新版 SnowLuma |
 | `/axs qqbot snowluma start` | `arcartxsuite.qqbot.admin` | 启动 SnowLuma 子进程 |
@@ -85,8 +92,12 @@ QQBot 为付费模块，需要有效授权码激活。
 | `#签到` / `#打卡` | 群员 | 每日签到领积分，连续签到有加成 |
 | `#积分` | 群员 | 查询积分余额、累计获得/消费 |
 | `#积分榜` | 群员 | 内置：积分排行榜 TOP10 |
-| `#商店` | 群员 | 查看积分兑换商店奖品列表 |
-| `#兑换 <编号>` | 群员 | 消费积分兑换奖品（邮件发放给绑定玩家） |
+| `#商店` | 群员 | 查看积分兑换商店奖品列表（含折扣标识） |
+| `#兑换 <编号>` | 群员 | 消费积分兑换奖品（邮件发放给绑定玩家，自动折扣） |
+| `#转账 <QQ号> <数量>` | 群员 | 积分转账给指定 QQ（需双方绑定） |
+| `#红包 <总积分> <份数>` | 群员 | 发拼手气积分红包（24h 过期退款） |
+| `#抢红包` | 群员 | 抢当前群的拼手气红包 |
+| `#活跃排行 [week/month]` | 群员 | 查看本周/本月群活跃度 TOP10 |
 | `#公告 <内容>` | 群管/群主 | 发布公告，同步到游戏内聊天栏 + 标题 |
 | `#踢 <玩家名> [原因]` | 群管/群主 | 远程踢出玩家 |
 | `#封禁 <玩家名> [原因]` | 群管/群主 | 远程封禁玩家 |
@@ -223,6 +234,10 @@ signin:
   shop-prefix: "#商店"
   redeem-prefix: "#兑换"
   points-query-prefix: "#积分"
+  transfer-prefix: "#转账"         # 积分转账
+  red-packet-prefix: "#红包"      # 发拼手气红包
+  grab-red-packet-prefix: "#抢红包" # 抢红包
+  activity-prefix: "#活跃排行"    # 群活跃度排行
 
 # 积分兑换奖品（通过 Mail 模块邮件发放，mail-preset-id 对应邮件预设）
 prizes:
@@ -233,6 +248,8 @@ prizes:
     description: "10 颗钻石"
     limit-per-day: 1              # 每日兑换上限（0=不限）
     require-bind: true            # 是否需要先绑定游戏账号
+    discount-rate: 1.0            # 折扣比例（0.8=八折），不折扣填 1.0 或省略
+    discount-until: 0             # 折扣截止 unix 时间戳（毫秒），0=无折扣
 
 # 服务器监控告警
 monitor:
@@ -266,6 +283,9 @@ broadcast:
     boss-only: true              # 仅播报 Boss（按 boss-keywords 匹配）
     player-kill-only: false      # 仅 PvP（优先级高于 boss-only）
     boss-keywords: ["Boss", "首领", "魔王"]
+  death:
+    enabled: false
+    format: "☠ {player} 死亡了"   # 玩家死亡广播（独立于击杀播报）
 
 # 入群欢迎
 welcome:
@@ -303,6 +323,16 @@ moderation:
     command: "tempban {name} {duration} {reason}"
     use-duration: true           # 按 QQ 禁言时长设置封禁时长
     reason: "QQ群禁言同步"
+  # 关键词自动撤回 + 禁言（广告/敏感词拦截）
+  auto-moderation:
+    enabled: false
+    keywords: ["http://", "https://", "www.", "点击", "加群"]
+    ban-duration-seconds: 600     # 命中后禁言时长
+    cooldown-seconds: 300         # 同一群两次自动 moderation 最小间隔
+
+# 群内 @ → 游戏内提示
+at-to-game:
+  enabled: true                   # 群内 @ 绑定的 QQ 时，在线玩家收到 Title 提示
 
 # 黑名单（列入的 QQ 号禁止使用机器人的所有功能，支持群指令动态管理）
 blacklist:
@@ -346,6 +376,9 @@ QQBot 数据库表（SQLite 默认在 `plugins/ArcartXSuite/data/qqbot/qqbot.db`
 | `axs_qqbot_signin` | `qq_id`、`sign_date`、`streak`、`signed_at` | 每日签到记录（`PRIMARY KEY(qq_id, sign_date)` 防重复） |
 | `axs_qqbot_redeem_log` | `id`、`qq_id`、`prize_id`、`cost`、`redeem_date`、`created_at` | 兑换流水（每日限购统计） |
 | `axs_qqbot_blacklist` | `qq_id`、`added_by`、`added_at` | 动态黑名单（`qq_id` 主键，群指令添加/移除） |
+| `axs_qqbot_red_packets` | `id`、`sender_qq`、`group_id`、`total_amount`、`remaining_amount`、`count`、`claimed_count`、`expire_at`、`created_at` | 拼手气红包主表 |
+| `axs_qqbot_red_packet_claims` | `id`、`red_packet_id`、`claimer_qq`、`amount`、`claimed_at` | 红包领取记录 |
+| `axs_qqbot_activity` | `qq_id`、`group_id`、`activity_date`、`message_count` | 群活跃度统计（`PRIMARY KEY(qq_id, group_id, activity_date)`） |
 
 ## 配置诊断
 
@@ -447,16 +480,17 @@ LoginView 面板弹出
 
 ```
 QQBotModule (AbstractAXSModule)
-├── QQBotService (主服务，Chat / Join / Quit / EntityDeath 监听 + notice 事件处理)
+├── QQBotService (主服务，Chat / Join / Quit / EntityDeath / PlayerDeath 监听 + notice 事件处理)
 │   ├── QQBotBindService (绑定逻辑 + 验证码池)
-│   └── QQBotCommandRouter (群指令路由器：绑定/白名单/签到/商店/兑换/公告/踢封)
-├── QQBotSignInService (签到 + 积分 + 兑换商店，邮件发放奖励)
+│   └── QQBotCommandRouter (群指令路由器：绑定/白名单/签到/商店/兑换/转账/红包/活跃度/公告/踢封)
+├── QQBotSignInService (签到 + 积分 + 兑换商店 + 转账 + 拼手气红包 + 活跃度统计，邮件发放奖励)
+├── QQBotWeeklyRankService (每周日 23:59 自动推送积分 Top10 到群)
 ├── QQBotMonitorService (TPS/内存监控告警，周期推送)
 ├── QQBotScheduledMessageService (定时消息：interval / daily)
 ├── OneBotClient (Java-WebSocket 库，自动重连 + 心跳 + 指数退避)
-│   ├── OneBotAction (动作 JSON 构造：群消息 / @ / 禁言)
-│   └── OneBotEvent (事件解析：message / notice 入群·禁言)
-├── JdbcQQBotRepository (HikariCP + SQLite/MySQL，4 张表)
+│   ├── OneBotAction (动作 JSON 构造：群消息 / @ / 禁言 / 撤回消息)
+│   └── OneBotEvent (事件解析：message / notice 入群·禁言·群消息含 @ 段)
+├── JdbcQQBotRepository (HikariCP + SQLite/MySQL，8 张表)
 ├── QQBotPlayerCommand (/qqbot)
 ├── QQBotAdminCommand (/axs qqbot)
 ├── QQBotPlaceholderExpansion (PAPI)
