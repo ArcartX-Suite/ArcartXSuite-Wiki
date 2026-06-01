@@ -43,6 +43,7 @@ export default defineConfig({
             { text: '货币系统配置', link: '/guide/currencies' },
             { text: '配置智能体检', link: '/guide/config-management' },
             { text: '多 UI 同时发包', link: '/guide/multi-ui' },
+            { text: 'Proxy 代理端插件', link: '/proxy/proxy-usage' },
           ],
         },
       ],
