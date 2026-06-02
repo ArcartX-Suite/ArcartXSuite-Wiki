@@ -16,8 +16,10 @@ ArcartXSuite-Proxy 是 ArcartXSuite 的代理端伴侣插件，用于 Velocity /
 
 | 产物 | 用途 |
 |---|---|
-| `ArcartXSuite-Proxy-Velocity.jar` | 部署到 Velocity 代理端 `plugins/` |
-| `ArcartXSuite-Proxy-Bungee.jar` | 部署到 BungeeCord 代理端 `plugins/` |
+| `ArcartXSuite-Proxy-Velocity.jar` | 部署到 Velocity 代理端 `plugins/`（已内联 Common 共享库） |
+| `ArcartXSuite-Proxy-Bungee.jar` | 部署到 BungeeCord 代理端 `plugins/`（已内联 Common 共享库） |
+
+> **注意**：`1.2.0-beta` 起，`ArcartXSuite-Proxy-Common` 共享库已内联到 `Velocity.jar` 和 `Bungee.jar` 中，代理端**只需放入对应平台的一个 jar** 即可，不再需要单独部署 Common.jar。
 
 ---
 
