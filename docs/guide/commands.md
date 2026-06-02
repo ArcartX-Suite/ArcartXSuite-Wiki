@@ -424,12 +424,14 @@ map, questgps, warehouse, essentials, regions, market, qqbot
 
 ## Essentials 模块命令
 
+ Essentials 支持通过 `/axs essentials` 或独立别名 `/ess` 调用所有子命令（如 `/ess fly` 等价于 `/axs essentials fly`）。
+
 ### UI 面板
 
 | 命令 | 说明 | 权限 |
 | --- | --- | --- |
-| `/axs essentials menu` | 打开玩家功能菜单 | 无 |
-| `/axs essentials admin` | 打开管理员面板 | `axs.essentials.admin` |
+| `/axs essentials menu` 或 `/ess menu` | 打开玩家功能菜单 | 无 |
+| `/axs essentials admin` 或 `/ess admin` | 打开管理员面板 | `axs.essentials.admin` |
 
 ### 管理命令（`/axs essentials`）
 
@@ -491,12 +493,14 @@ map, questgps, warehouse, essentials, regions, market, qqbot
 
 ## Regions 模块命令
 
+Regions 支持通过 `/axs regions` 或独立别名 `/rg` 调用所有子命令（如 `/rg define myarea` 等价于 `/axs regions define myarea`）。
+
 ### UI 面板
 
 | 命令 | 说明 | 权限 |
 | --- | --- | --- |
-| `/axs regions menu` | 打开区域查看菜单 | 无 |
-| `/axs regions admin` | 打开区域管理面板 | `axs.regions.admin` |
+| `/axs regions menu` 或 `/rg menu` | 打开区域查看菜单 | 无 |
+| `/axs regions admin` 或 `/rg admin` | 打开区域管理面板 | `axs.regions.admin` |
 
 ### 管理命令（`/axs regions`）
 

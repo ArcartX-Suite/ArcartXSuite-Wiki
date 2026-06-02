@@ -158,6 +158,29 @@ context.registerPlaceholderExpansion(new MyPlaceholderExpansion());
 context.unregisterPlaceholderExpansions();
 ```
 
+## 全局按键订阅
+
+宿主统一注册 ArcartX 客户端按键（在 `config.yml` `keybinds` 节定义），模块通过此方法订阅感兴趣的按键回调。
+
+| 方法 | 说明 |
+|------|------|
+| `registerKeybindHandler(String keyName, int priority, KeybindHandler handler)` | 注册按键事件处理器。优先级数值越小越先处理；返回 `true` 表示已消费，后续不再分发 |
+
+```java
+// 订阅 AXS_INTERACT（默认 F 键），优先级 10（Conversation 等交互模块建议 10，Pickup 建议 50）
+context.registerKeybindHandler("AXS_INTERACT", 10, (player, keyName, pressed) -> {
+    if (pressed) {
+        // 处理按键按下
+        return true; // 已消费
+    }
+    return false; // 未消费，继续分发
+});
+```
+
+::: tip
+按键注册名须与 `config.yml` `keybinds` 中的 `name` 字段匹配。当前定义了三个全局按键：`AXS_INTERACT`（默认 F）、`AXS_NAVIGATE_PREV`（默认 NUMPAD_8）、`AXS_NAVIGATE_NEXT`（默认 NUMPAD_2）。
+:::
+
 ## 客户端事件路由 {#clientpackethandler}
 
 ### ClientPacketHandler
@@ -214,9 +237,16 @@ context.registerClientInitializedHandler(player -> {
 ### 配置资源
 
 ```java
-// 导出模块 Jar 内的配置文件到宿主数据目录
+// 通用资源导出（Jar 内路径 → 目标文件）
 context.exportResource("defaults/my_config.yml", targetFile, false);
-context.exportConfigResource("defaults/extra.yml", "data/mymodule/extra.yml", false, getClass().getClassLoader());
+
+// 配置文件专用导出（Jar 内路径 → 相对宿主数据目录的目标路径）
+File configFile = context.exportConfigResource(
+    "defaults/extra.yml",          // Jar 内路径
+    "data/mymodule/extra.yml",     // 相对宿主数据目录的目标路径
+    false,                          // 是否覆写
+    getClass().getClassLoader()
+);
 ```
 
 ### UI 资源

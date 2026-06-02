@@ -252,3 +252,54 @@ Collection<CurrencyDefinition> defs = currencies.definitions();
 ```java
 String formatted = currencies.format("money", BigDecimal.valueOf(99.5)); // "99.5"
 ```
+
+---
+
+## ItemSourceRegistry
+
+全局物品来源注册表，统一 MythicMobs / NeigeItems / Overture / MMOItems 等第三方物品库的桥接。
+
+**获取方式：** `context.itemSourceRegistry()`
+
+```java
+ItemSourceRegistry registry = context.itemSourceRegistry();
+Optional<ItemStack> item = registry.createItem("mythicmobs:Dark_Sword");
+item.ifPresent(stack -> player.getInventory().addItem(stack));
+```
+
+| 方法 | 说明 |
+|------|------|
+| `createItem(String id)` | 按 `provider:itemId` 格式创建物品。如 `mythicmobs:Dark_Sword`、`neigeitems:Legendary_Bow` |
+| `isAvailable(String provider)` | 判断指定物品来源提供者是否已加载 |
+
+---
+
+## ItemMatcherAPI
+
+全局物品匹配器，支持跨物品库的等价性比较。
+
+**获取方式：** `context.itemMatcher()`
+
+```java
+ItemMatcherAPI matcher = context.itemMatcher();
+boolean same = matcher.matches(handItem, "mythicmobs:Dark_Sword");
+```
+
+---
+
+## AttributeBridgeRegistry
+
+全局属性桥接注册表，统一 AttributePlus / CraneAttribute / MythicLib / Symphony 等属性系统的桥接。
+
+**获取方式：** `context.attributeBridge()`
+
+```java
+AttributeBridgeRegistry attrBridge = context.attributeBridge();
+Optional<AttributeBridge> bridge = attrBridge.bridge("attributeplus");
+bridge.ifPresent(b -> b.apply(player, "strength", 10.0, 30000L));
+```
+
+| 方法 | 说明 |
+|------|------|
+| `bridge(String provider)` | 按提供者 ID 获取桥接实例 |
+| `isAvailable(String provider)` | 判断指定属性系统是否已加载 |

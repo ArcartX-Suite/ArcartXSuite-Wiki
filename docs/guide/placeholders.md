@@ -8,11 +8,12 @@
 
 ## 占位符总览
 
-AXS 共有 **10 个模块** 对外输出 PAPI 占位符：
+AXS 共有 **12 个模块** 对外输出 PAPI 占位符：
 
 | 模块 | 前缀 | 必装 PAPI? | 说明 |
 | --- | --- | --- | --- |
 | [EntityTracker](/modules/entitytracker) | `%AXSentitytracker_*%` | 可选 | Boss 追踪、伤害排行、结算数据 |
+| [Essentials](/modules/essentials) | `%AXSess_*%` | 可选 | AFK、隐身、飞行、昵称等玩家状态 |
 | [Title](/modules/title) | `%AXStitle_*%` | 可选 | 称号前缀/后缀、装备状态、属性加成 |
 | [RGB](/modules/rgb) | `%arcartrgb_*%` | **必装** | 动态渐变彩色文本渲染 |
 | [OnlineRewards](/modules/onlinerewards) | `%AXSonlinerewards_*%` | 可选 | 在线时长、签到状态、排行榜 |
@@ -22,6 +23,7 @@ AXS 共有 **10 个模块** 对外输出 PAPI 占位符：
 | [Warehouse](/modules/warehouse) | `%AXSwarehouse_*%` | 可选 | 仓库容量、银行余额 |
 | [Market](/modules/market) | `%AXSmarket_*%` | 可选 | 拍卖数量、商店数、回收数、Redis 状态 |
 | [QQBot](/modules/qqbot) | `%AXSqqbot_*%` | 可选 | OneBot 连接状态、玩家 QQ 绑定信息、群数量 |
+| [Tab](/modules/tab) | `%AXStab_*%` | 可选 | Tab 在线列表变量、玩家状态 |
 
 ---
 

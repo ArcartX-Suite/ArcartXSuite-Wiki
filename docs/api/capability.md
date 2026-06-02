@@ -299,6 +299,52 @@ public interface WarehouseAutoDepositable {
 
 **使用场景：** Pickup 模块在玩家拾取物品时自动尝试存入仓库。
 
+### `EssentialsQueryable`
+
+由 Essentials 模块注册，供 Tab、Chat 等模块查询玩家 AFK/Vanish/Mute/Nick/Flying/GodMode 状态。
+
+```java
+public interface EssentialsQueryable {
+    boolean isAfk(@NotNull UUID playerUuid);
+    boolean isVanished(@NotNull UUID playerUuid);
+    boolean isMuted(@NotNull UUID playerUuid);
+    @Nullable String getNickname(@NotNull UUID playerUuid);
+    boolean isFlying(@NotNull UUID playerUuid);
+    boolean isGodMode(@NotNull UUID playerUuid);
+}
+```
+
+**使用场景：** Tab 模块在渲染玩家列表时查询隐身/AFK 状态；Chat 模块查询昵称和禁言状态。
+
+### `EventBusCapability`
+
+模块间解耦事件总线（pub/sub 模式）。任何模块都可以发布事件，其他模块订阅感兴趣的主题。
+
+```java
+public interface EventBusCapability {
+    void publish(@NotNull String topic, @Nullable Player player, @NotNull Map<String, String> payload);
+    String subscribe(@NotNull String topic, @NotNull EventHandler handler);
+    void unsubscribe(@NotNull String subscriptionId);
+
+    record BusEvent(@NotNull String topic, @Nullable Player player, @NotNull Map<String, String> payload, long timestamp) {}
+    interface EventHandler { void handle(@NotNull BusEvent event); }
+}
+```
+
+**使用场景：** Market 模块发布 `market.purchase` 事件，QQBot 模块订阅后推送到 QQ 群。与 `SignalDispatchable`（面向 EventPacket 规则引擎的 1 对 1）不同，EventBusCapability 面向所有模块的 1 对多 pub/sub。
+
+### `InteractionState`
+
+由拥有交互式 HUD/Menu 的模块注册（如 Conversation），供其他模块在共享按键时判断是否应让步。
+
+```java
+public interface InteractionState {
+    boolean isPlayerInteracting(@NotNull Player player);
+}
+```
+
+**使用场景：** Conversation 模块注册后，Pickup 模块在处理 `AXS_INTERACT`（默认 F 键）时先查询 `isPlayerInteracting`，若玩家正在对话则不抢占按键。
+
 ## 自定义 Capability
 
 第三方模块可以定义自己的 Capability 接口并注册：

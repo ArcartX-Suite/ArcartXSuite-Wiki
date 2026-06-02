@@ -33,6 +33,61 @@ ArcartXSuite 内置**智能配置自动修正系统**，可在不中断服务的
 | `account-type.mojang-timeout-ms` | INT | `5000` | Mojang API 请求超时（毫秒） |
 | `account-type.debug` | BOOLEAN | `false` | 是否输出账号判定调试日志 |
 
+### `tacz-compat` — 永恒枪械工坊兼容
+
+| 字段 | 类型 | 默认值 | 说明 |
+|------|------|--------|------|
+| `tacz-compat.enabled` | BOOLEAN | `true` | 是否启用 TaCZ（永恒枪械工坊）兼容性修复 |
+| `tacz-compat.debug` | BOOLEAN | `false` | TaCZ 兼容调试日志 |
+
+### `keybinds` — 全局按键绑定
+
+由宿主统一注册到 ArcartX 客户端，各模块共享。
+
+| 字段 | 类型 | 默认值 | 说明 |
+|------|------|--------|------|
+| `keybinds.interact.name` | STRING | `AXS_INTERACT` | 交互按键注册名 |
+| `keybinds.interact.default-key` | STRING | `F` | 默认键位（GLFW 键名） |
+| `keybinds.interact.category` | STRING | `ArcartXSuite` | 按键设置界面分类名 |
+| `keybinds.navigate-prev.name` | STRING | `AXS_NAVIGATE_PREV` | 导航上一项按键注册名 |
+| `keybinds.navigate-prev.default-key` | STRING | `NUMPAD_8` | 默认键位 |
+| `keybinds.navigate-next.name` | STRING | `AXS_NAVIGATE_NEXT` | 导航下一项按键注册名 |
+| `keybinds.navigate-next.default-key` | STRING | `NUMPAD_2` | 默认键位 |
+
+模块通过 `context.registerKeybindHandler("AXS_INTERACT", ...)` 订阅按键回调。详见 [ModuleContext 全局按键订阅](/api/module-context#全局按键订阅)。
+
+### `client-packet-guard` — 客户端包频率限制
+
+防止伪造/高频回包 DoS，按模块和动作粒度独立配置。
+
+| 字段 | 类型 | 默认值 | 说明 |
+|------|------|--------|------|
+| `client-packet-guard.enabled` | BOOLEAN | `true` | 总开关 |
+| `client-packet-guard.cleanup-interval-ticks` | INT | `200` | 过期窗口清理间隔（tick） |
+| `client-packet-guard.defaults.window-ms` | INT | `1000` | 默认时间窗口（毫秒） |
+| `client-packet-guard.defaults.max-hits` | INT | `20` | 默认窗口内最大命中数 |
+| `client-packet-guard.defaults.mode` | STRING | `silent` | 默认超限处理模式：`silent`（静默丢弃）/ `notify`（通知玩家）/ `kick`（踢出） |
+| `client-packet-guard.defaults.notify-message` | STRING | `&c操作过快，请稍后再试。` | 通知模式下的提示消息 |
+| `client-packet-guard.defaults.notify-cooldown-ms` | INT | `3000` | 通知冷却（毫秒，防止刷屏） |
+| `client-packet-guard.defaults.punish-command` | STRING | `（空）` | 超限后执行的惩罚命令（留空则不执行） |
+
+各模块可独立覆写 `window-ms`、`max-hits`、`mode`，并为每个动作（action）设置更严格的限制：
+
+```yaml
+client-packet-guard:
+  modules:
+    title:
+      window-ms: 1000
+      max-hits: 4
+      actions:
+        equip:
+          window-ms: 1500
+          max-hits: 1
+          mode: "notify"
+```
+
+当前已细分的模块：`title`、`mail`、`questgps`、`map`、`announcer`、`eventpacket`、`loginview`、`tab`、`essentials`、`regions`、`market`。
+
 ## 命令使用
 
 ### `/arcartxsuite config` 子命令

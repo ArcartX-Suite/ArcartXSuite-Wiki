@@ -54,14 +54,14 @@ onEnable()
   │     └── 预扫描 modules/ 目录，收集所有外部模块 Jar 的 id
   ├── 对每个内置模块:
   │     externalModuleIds.contains(id) → 跳过（交给 ModuleRegistry）
-  │     否则 → reloadXxxState(true) 执行内置加载
+  │     否则 → 执行宿主内置加载（走内置 Service 初始化）
   ├── printModuleStatusSummary()
   ├── moduleRegistry.loadAll()
   │     └── 按拓扑排序加载所有外部模块 Jar
   └── 加载完成
 ```
 
-**关键设计**：短路求值 `externalModuleIds.contains(id) || reloadXxxState(true)` 防止双重初始化。外部模块 Jar 通过自建 Service 完全独立运行；无外部 Jar 的模块走宿主内置加载。
+**关键设计**：外部模块 Jar 已完全独立化，通过自建 Service 运行；宿主仅对无外部 Jar 的模块执行内置加载，防止双重初始化。
 
 ## 重载流程
 
@@ -70,7 +70,7 @@ onEnable()
 对每个模块判断加载来源：
 
 - **外部 Jar 已加载** → `moduleRegistry.reloadModule(id)` → 触发模块 `onReload()`
-- **内置加载** → `plugin.reloadXxxState(true)`
+- **内置加载** → 执行宿主内置重载逻辑（调用模块 `onReload()`）
 
 ### `/axs reload <模块名>`
 

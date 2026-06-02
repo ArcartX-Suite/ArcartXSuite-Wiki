@@ -35,6 +35,7 @@ public interface AXSModule {
 | 方法 | 默认值 | 说明 |
 |------|--------|------|
 | `configFileName()` | `null` | 配置文件名（如 `"ArcartXMyModule.yml"`），`null` 表示无配置 |
+| `messagesFileName()` | `null` | 消息文件名（如 `"messages.yml"`），基类自动导出+加载为 `MessageProvider` |
 | `defaultSyncPolicy()` | `SyncPolicy.strict()` | 配置同步策略，有动态节点时需覆写 |
 | `currentConfigVersion()` | `1` | 配置版本号，破坏性变更时递增 |
 | `configVersionPath()` | `"config-version"` | 版本号字段路径 |
@@ -70,7 +71,7 @@ protected abstract void stopService();
 1. **导出配置** — 从模块 Jar 导出默认配置文件到宿主数据目录
 2. **加载配置** — 调用 `loadConfiguration(configFile)`
 3. **导出 UI** — 根据 `uiResourceMappings()` 导出并注册 UI 文件
-4. **绑定命令** — 根据 `commandBindings()` 注册命令
+4. **绑定命令** — 根据 `commandBindings()` 注册命令；若模块实现了 `ModuleCommandHandler`，则额外注册 `/axs <commandId>` 子命令路由
 5. **启动服务** — 调用 `startService()`
 6. **注册监听器** — 注册 `createListeners()` 返回的监听器
 7. **注册 PAPI** — 注册 `createPlaceholderExpansion()` 返回的占位符
