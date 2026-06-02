@@ -175,20 +175,15 @@ whitelist:
   remove-prefix: "#白名单移除"
   list-prefix: "#白名单列表"
 
-# 白名单登录门控（v2.0 架构）
-# 【重要】QQ 绑定验证已从 PreLogin 拦截迁移到 LoginView 登录面板中完成。
-# 本配置启用后不再踢人，仅做日志记录和审计。
+# 白名单登录门控（v3.0 架构）
+# 【重要】QQ 绑定验证已从 PreLogin 拦截完全迁移到 LoginView 登录面板中完成。
+# 本配置保留向后兼容和日志审计，实际的绑定控制由 LoginView 的 qq-binding 节接管。
 whitelist-login:
   enabled: false
-  # 以下配置保留向后兼容，实际行为由 LoginView 面板接管：
-  # - 微软正版 / LittleSkin 玩家进服后都会看到 LoginView 面板
-  # - 已绑定 QQ 的玩家：面板显示「进入服务器」按钮，直接放行
-  # - 未绑定 QQ 的玩家：面板显示绑定验证码输入框，需输入验证码完成绑定
-  # - 离线玩家：若认证层（authlib-injector）已正确拦截，则不会到达此阶段
+  # 以下字段仅供日志参考，不再用于实际拦截：
   microsoft-pass: true
   littleskin-require-bind: true
   deny-offline: true
-  # 以下消息不再用于踢出，仅供日志参考
   kick-not-bound: "&c你还未在QQ群完成绑定认证\n&7请在QQ群发送: #绑定 {name}\n&7完成验证后方可进入游戏"
   kick-offline: "&c本服务器仅允许正版/LittleSkin 账号登录"
   kick-denied: "&c你没有权限进入本服务器"
@@ -596,17 +591,18 @@ online-mode=true
 
 **必须开启**，否则 LittleSkin 玩家会被分配 v3 离线 UUID，无法与真正的离线玩家区分。
 
-### 3. 配置白名单登录门控
+### 3. 配置 QQ 绑定（LoginView）
 
-编辑 `ArcartXQQBot.yml`：
+编辑 `ArcartXLoginView.yml`：
 
 ```yaml
-whitelist-login:
+qq-binding:
   enabled: true
-  microsoft-pass: true          # 微软正版直接放行
-  littleskin-require-bind: true # LittleSkin 必须 QQ 绑定
-  deny-offline: true            # 拒绝离线玩家（online-mode=true 下离线玩家无法连接）
+  microsoft-require-bind: false   # 微软正版是否需要绑定 QQ
+  littleskin-require-bind: true   # LittleSkin 是否需要绑定 QQ
 ```
+
+如需代理端拦截离线玩家，请参考 Proxy 插件的 `config.yml`（`deny-offline`）。
 
 ### 4. 账号判定流程
 
@@ -617,8 +613,8 @@ whitelist-login:
   └─ 离线玩家（未通过任何验证）→ 无法连接（online-mode=true 已被服务端拒绝）
 ```
 
-- **MICROSOFT**：`microsoft-pass=true` 直接放行；false 则需 QQ 绑定
-- **LITTLESKIN**：`littleskin-require-bind=true` 需 QQ 绑定；false 直接放行
+- **MICROSOFT**：由 LoginView `microsoft-require-bind` 控制；false 直接放行，true 需 QQ 绑定
+- **LITTLESKIN**：由 LoginView `littleskin-require-bind` 控制；false 直接放行，true 需 QQ 绑定
 - **OFFLINE**：`online-mode=true` 下离线玩家已被服务端拒绝，不会到达本插件门控
 
 ## 安全建议

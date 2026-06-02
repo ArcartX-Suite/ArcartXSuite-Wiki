@@ -20,7 +20,6 @@
 - **发言冷却与重复检测**：防刷屏，可配置冷却时间和重复消息窗口
 - **Paper 兼容**：自动检测 Paper 的 `AsyncChatEvent`，优先使用；不可用时回退 Bukkit `AsyncPlayerChatEvent`
 - **数据持久化**：SQLite 或 MySQL 存储玩家聊天状态和禁言记录
-- **TrChat 迁移**：内置旧版 TrChat 配置迁移工具
 
 ## 依赖
 
