@@ -232,6 +232,15 @@ map, questgps, warehouse, essentials, regions, market, qqbot
 | `/axs chat unmute <玩家>` | 解除指定玩家的禁言状态 | `/axs chat unmute Steve` |
 | `/axs chat spy <玩家> <on\|off>` | 开启或关闭对指定玩家的私聊监听，管理员可查看该玩家的私聊内容 | `/axs chat spy Steve on` |
 
+#### Conversation（对话系统）
+
+| 命令 | 说明 | 使用示例 |
+| --- | --- | --- |
+| `/axs conversation status` | 查看模块状态：交互就绪、NPC 桥接、按键事件、选择器 UI 等 | |
+| `/axs conversation adyeshach setModel <name> <modelID> <scale>` | 为指定 Adyeshach NPC 设置模型和缩放比例 | `/axs conversation adyeshach setModel NPC_01 model_villager 1.5` |
+| `/axs conversation adyeshach setAnimation <name> <state> <animName>` | 设置 NPC 默认状态下的动画 | `/axs conversation adyeshach setAnimation NPC_01 idle idle_loop` |
+| `/axs conversation adyeshach playAnimation <name> <animation> <speed> [transitionTime] [keepTime]` | 播放 NPC 动画。`transitionTime` 默认 5ms，`keepTime` 默认 -1（播放完整） | `/axs conversation adyeshach playAnimation NPC_01 wave 1.0` |
+
 #### OnlineRewards（在线奖励）
 
 | 命令 | 说明 | 使用示例 |
@@ -247,6 +256,13 @@ map, questgps, warehouse, essentials, regions, market, qqbot
 | `/axs warehouse info <玩家>` | 查看玩家的仓库概览信息，包括个人仓库使用量、共享仓库数等 | `/axs warehouse info Steve` |
 | `/axs warehouse password <玩家> clear` | 清除玩家的二级密码。适用于玩家忘记密码的情况 | `/axs warehouse password Steve clear` |
 | `/axs warehouse bank <玩家> <货币ID> <set\|add\|take> <金额>` | 管理玩家银行余额。`set` 设定、`add` 增加、`take` 扣除 | `/axs warehouse bank Steve gold add 1000`<br>`/axs warehouse bank Steve diamond set 50` |
+
+#### CombatEffect（战斗特效）
+
+| 命令 | 说明 | 使用示例 |
+| --- | --- | --- |
+| `/axs combateffect send <packetId> <玩家> [k=v ...]` | 向指定玩家发送一个战斗特效包（packet 定义中的 packetId），可附带变量替换 | `/axs combateffect send blood_burst Steve damage=50` |
+| `/axs combateffect direct <uiId> <handler> <玩家> [k=v ...]` | 直接向指定玩家的 UI 发送 packet，绕过 packet 配置，用于调试 | `/axs combateffect direct my_ui update Steve text=hello` |
 
 #### Prop（道具脚本）
 

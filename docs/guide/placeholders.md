@@ -86,6 +86,68 @@ AXS 共有 **12 个模块** 对外输出 PAPI 占位符：
 
 ---
 
+## Essentials 占位符
+
+前缀：`%AXSess_<字段>%`
+
+| 占位符 | 返回值 | 说明 |
+| --- | --- | --- |
+| `%AXSess_afk%` | `true`/`false` | 玩家是否处于 AFK 状态 |
+| `%AXSess_afk_symbol%` | 文本 | AFK 标记符号（如 `&7[AFK]`），未 AFK 时返回空 |
+| `%AXSess_vanish%` | `true`/`false` | 玩家是否处于隐身状态 |
+| `%AXSess_vanish_symbol%` | 文本 | 隐身标记符号（如 `&b[V]`），未隐身时返回空 |
+| `%AXSess_flying%` | `true`/`false` | 玩家是否正在飞行 |
+| `%AXSess_god%` | `true`/`false` | 玩家是否处于无敌模式 |
+| `%AXSess_nick%` | 文本 | 玩家昵称（未设置则返回玩家显示名） |
+
+**使用示例**：
+```
+%AXSess_afk%                                 → 返回 "true"
+%AXSess_vanish_symbol%                       → 返回 "&b[V]"
+%AXSess_nick%                                → 返回 "&6[VIP]&r Steve"
+```
+
+---
+
+## Tab 占位符
+
+前缀：`%AXStab_<字段>%`（可通过 `settings.papi.expansion-id` 自定义 identifier）
+
+### 全局/玩家维度（无 defId 前缀）
+
+| 占位符 | 返回值 | 说明 |
+| --- | --- | --- |
+| `%AXStab_ping%` | 数字 | 玩家当前 ping 值（毫秒） |
+| `%AXStab_ping_icon%` | 文本 | 根据 ping 值返回的信号图标 |
+| `%AXStab_pvp%` | `1`/`0` | 玩家是否处于 PvP 状态 |
+| `%AXStab_pvp_color%` | 文本 | PvP 状态对应颜色代码（由 `style.pvp-color` 配置） |
+| `%AXStab_vanished%` | `1`/`0` | 玩家是否处于隐身状态（公共可见性） |
+| `%AXStab_vanish_color%` | 文本 | 隐身状态对应颜色代码（由 `style.vanish-color` 配置，若 `vanish-grey-enabled` 关闭则返回空） |
+| `%AXStab_uuid%` | 文本 | 玩家 UUID（若 `privacy.hide-uuid` 开启则返回空） |
+| `%AXStab_ip%` | 文本 | 玩家 IP 地址（若 `privacy.hide-ip` 开启则返回空） |
+
+### 按 Definition 维度
+
+格式：`%AXStab_<defId>_<指标>%`
+
+| 占位符 | 返回值 | 说明 |
+| --- | --- | --- |
+| `%AXStab_<defId>_count%` | 数字 | 本服当前 definition 的可见玩家数（已应用 filters/pinned/maxEntries） |
+| `%AXStab_<defId>_total%` | 数字 | 本服 + 所有跨服节点合计可见玩家数 |
+| `%AXStab_<defId>_rank%` | 数字 | 当前玩家在本服排序中的位次（1 起；不可见返回 0） |
+| `%AXStab_<defId>_view%` | 文本 | 当前玩家所在的 view 名称（默认 `default`） |
+| `%AXStab_<defId>_page%` | 数字 | 当前玩家在该 definition 的页码（0 起） |
+
+**使用示例**：
+```
+%AXStab_ping%                                → 返回 "32"
+%AXStab_pvp_color%                           → 返回 "&c"
+%AXStab_default_count%                       → 返回 "25"
+%AXStab_default_rank%                        → 返回 "1"
+```
+
+---
+
 ## Title 占位符
 
 前缀：`%AXStitle_<字段>%`
