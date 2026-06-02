@@ -24,7 +24,7 @@ export default defineConfig({
         text: '链接',
         items: [
           { text: 'ArcartX 官方文档', link: 'https://wiki.arcartx.com/docs' },
-          { text: 'GitHub', link: 'https://github.com/xuanmomo233/ArcartXSuite' },
+          { text: 'GitHub', link: 'https://github.com/xuanmomo233/ArcartXSuite-Wiki' },
         ],
       },
     ],
