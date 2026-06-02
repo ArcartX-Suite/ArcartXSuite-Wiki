@@ -61,7 +61,7 @@ onEnable()
   └── 加载完成
 ```
 
-**关键设计**：短路求值 `externalModuleIds.contains(id) || reloadXxxState(true)` 防止双重初始化。外部模块 Jar 的 `onEnable()` 内部会调用宿主 `reloadXxxState()` 或使用自建 Service。
+**关键设计**：短路求值 `externalModuleIds.contains(id) || reloadXxxState(true)` 防止双重初始化。外部模块 Jar 通过自建 Service 完全独立运行；无外部 Jar 的模块走宿主内置加载。
 
 ## 重载流程
 
@@ -117,7 +117,7 @@ onEnable()
 
 | 步骤 | 操作 |
 |------|------|
-| 1 | `shutdownXxxModule()` — 停止 Service + `unregisterXxxUi()` 注销旧 UI |
+| 1 | 停止旧 Service 并注销旧 UI |
 | 2 | 加载新配置 → 导出 UI YAML 文件到 ArcartX 目录 |
 | 3 | `prepareUiBinding()` → `packetBridge.registerOrReloadUi()` 注册/更新 UI |
 | 4 | 创建并启动新 Service |
@@ -163,38 +163,11 @@ public final class RgbModule implements AXSModule {
 }
 ```
 
-### 委托模式
+### 委托模式（历史说明）
 
-模块的 `onEnable`/`onDisable` 委托给宿主 `reloadXxxState()` / `shutdownXxxModule()`。适合 Service 与宿主紧密耦合的模块。
+1.1.0-beta 早期有部分模块采用「委托模式」——模块 Jar 的 `onEnable`/`onDisable` 委托给宿主的 `reloadXxxState()` / `shutdownXxxModule()`，业务逻辑仍在宿主中执行。截至 2026-05-14，**全部 17 个基础模块已完成独立化迁移**，委托模式已退出使用。
 
-```java
-public final class AnnouncerModule implements AXSModule {
-    private ModuleContext context;
-    private boolean ready;
-
-    @Override
-    public boolean onEnable(ModuleContext context) throws Exception {
-        this.context = context;
-        ArcartXSuitePlugin plugin = (ArcartXSuitePlugin) context.plugin();
-        ready = plugin.reloadAnnouncerState(true);
-        return ready;
-    }
-
-    @Override
-    public void onDisable() {
-        if (ready) {
-            ((ArcartXSuitePlugin) context.plugin()).shutdownAnnouncerModule();
-        }
-        ready = false;
-    }
-
-    @Override
-    public void onReload() throws Exception {
-        onDisable();
-        if (context != null) onEnable(context);
-    }
-}
-```
+当前所有模块均使用「独立模式」实现，业务逻辑封装在模块自身的 `XxxService` 中，宿主只负责提供 `ModuleContext` 基础设施。
 
 ## 模块 Jar 描述文件
 
@@ -220,11 +193,17 @@ external-softdepends: []
 |------|----------|--------|------|
 | `plugin()` | `JavaPlugin` | — | 宿主插件实例 |
 | `logger()` | `Logger` | — | 模块专用 Logger |
-| `dataFolder()` | `File` | — | 模块私有数据目录 |
+| `dataFolder()` | `File` | — | 模块私有数据目录（`plugins/ArcartXSuite/data/<moduleId>/`） |
+| `pluginDataFolder()` | `File` | — | 宿主插件数据目录（`plugins/ArcartXSuite/`） |
 | `packetBridge()` | `PacketBridgeAPI` | `@Stable` | ArcartX UI/Packet 桥接 |
 | `clientBridge()` | `ClientBridgeAPI` | `@Stable` | ArcartX 客户端桥接 |
 | `itemStackBridge()` | `ItemBridgeAPI` | `@Stable` | ItemStack → JSON |
-| `packetGuard()` | `Object` | — | 客户端包守卫 |
+| `packetGuard()` | `PacketGuardAPI` | `@Stable` | 客户端包守卫（频率限制） |
+| `accountTypeService()` | `AccountTypeService` | `@Stable` | 统一账号识别服务（微软正版 / LittleSkin / 离线） |
+| `itemSourceRegistry()` | `ItemSourceRegistry` | `@Stable` | 全局物品来源注册表 |
+| `itemMatcher()` | `ItemMatcherAPI` | `@Stable` | 全局物品匹配器 |
+| `currencyManager()` | `CurrencyBridgeAPI` | `@Stable` | 全局货币管理器 |
+| `attributeBridge()` | `AttributeBridgeRegistry` | `@Stable` | 全局属性桥接注册表 |
 | `registerCapability()` | `void` | `@Stable` | 注册跨模块能力 |
 | `getCapability()` | `T` | `@Stable` | 查找跨模块能力 |
 | `hasPlugin(String)` | `boolean` | — | 检查外部 Bukkit 插件 |
@@ -237,23 +216,23 @@ external-softdepends: []
 | pickup | Pickup | ✅ 独立 | HUD | 自建 PickupService |
 | tab | Tab | ✅ 独立 | — | 自建 TabSyncService |
 | combateffect | CombatEffect + 伤害飘字 | ✅ 独立 | — | 自建 CombatEffectService，伤害飘字随 CombatEffect 加载 |
-| announcer | Announcer + Subtitle | 🔗 委托 | HUD | reloadAnnouncerState，Subtitle 随 Announcer 加载 |
-| entitytracker | EntityTracker + 目标 HUD | 🔗 委托 | HUD | reloadEntityTrackerState，目标 HUD 随 EntityTracker 加载 |
-| chat | Chat | 🔗 委托 | — | reloadChatState |
-| conversation | Conversation | 🔗 委托 | UI+Selector | reloadConversationState |
-| eventpacket | EventPacket | 🔗 委托 | — | reloadEventPacketState |
-| loginview | LoginView | 🔗 委托 | UI | reloadLoginViewState |
-| mail | Mail | 🔗 委托 | — | reloadMailState |
-| map | Map | 🔗 委托 | Menu+HUD | reloadMapState |
-| onlinerewards | OnlineRewards | 🔗 委托 | — | reloadOnlineRewardsState |
-| prop | Prop | 🔗 委托 | — | reloadPropState |
-| questgps | QuestGPS | 🔗 委托 | Menu+HUD | reloadQuestGpsState |
-| title | Title | 🔗 委托 | — | reloadTitleState |
-| warehouse | Warehouse | 🔗 委托 | — | reloadWarehouseState |
+| announcer | Announcer + Subtitle | ✅ 独立 | HUD | 自建 AnnouncerService，Subtitle 随 Announcer 加载 |
+| entitytracker | EntityTracker + 目标 HUD | ✅ 独立 | HUD | 自建 EntityTrackerService，目标 HUD 随 EntityTracker 加载 |
+| chat | Chat | ✅ 独立 | — | 自建 ChatService |
+| conversation | Conversation | ✅ 独立 | UI+Selector | 自建 ConversationService |
+| eventpacket | EventPacket | ✅ 独立 | — | 自建 EventPacketDispatchService |
+| loginview | LoginView | ✅ 独立 | UI | 自建 LoginViewService |
+| mail | Mail | ✅ 独立 | — | 自建 MailService |
+| map | Map | ✅ 独立 | Menu+HUD | 自建 MapService |
+| onlinerewards | OnlineRewards | ✅ 独立 | — | 自建 OnlineRewardsService |
+| prop | Prop | ✅ 独立 | — | 自建 PropService |
+| questgps | QuestGPS | ✅ 独立 | Menu+HUD | 自建 QuestGpsService |
+| title | Title | ✅ 独立 | — | 自建 TitleService |
+| warehouse | Warehouse | ✅ 独立 | — | 自建 WarehouseService |
 | essentials | Essentials | ✅ 独立 | UI | 自建 EssentialsService，玩家菜单 + 管理员面板 |
 | regions | Regions | ✅ 独立 | UI | 自建 RegionsService，区域查看 + 管理编辑面板 |
 | market | Market | ✅ 独立 | UI | 自建 MarketService，商店 + 拍卖行 + 回收 |
 | qqbot | QQBot | ✅ 独立 | — | 自建 QQBotService，OneBot 11 WebSocket 连接 |
 
-> **委托模式**下模块 Jar 只控制「是否加载」，业务逻辑仍在宿主中执行。后续可逐步将 Service 源码搬入模块子项目实现完全解耦。
+> 所有 17 个基础模块均已完成独立化迁移，业务逻辑封装在各自的 `XxxService` 中，由模块 Jar 自行管理生命周期。宿主仅提供基础设施（`ModuleContext`、反射桥、配置诊断等），不再包含模块业务源码。
 

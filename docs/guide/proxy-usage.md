@@ -45,10 +45,6 @@ yggdrasil-sources:
     api-url: "https://your-yggdrasil.com/api/yggdrasil"
     enabled: false
 
-# 离线玩家处理
-deny-offline: true
-kick-offline-message: "&c本服务器仅支持正版/LittleSkin 账号登录"
-
 # 调试日志
 debug: false
 ```

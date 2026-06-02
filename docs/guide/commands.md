@@ -23,6 +23,12 @@
 | `/axs unload <模块名>` | 热卸载模块。执行 `onDisable` → 移除命令/包/能力注册 → 关闭 ClassLoader 释放 jar 文件句柄。若有其他模块依赖它，则会被拒绝并提示 dependents | `/axs unload mail` |
 | `/axs purge <玩家名\|all> [模块ID\|all]` | **仅控制台**。删除指定玩家（或全部玩家）在指定模块（或全部模块）中的持久化数据。需 10 秒内重复输入确认。省略模块ID等同 `all`。每次执行自动生成审计日志到 `purge-logs/` | `/axs purge Steve`<br>`/axs purge Steve chat`<br>`/axs purge all title`<br>`/axs purge all` |
 | `/axs diagnostic` | 生成诊断包文件（含 Server/JVM/模块/授权/依赖信息），输出到 `diagnostics/` 目录供客服排查 | `/axs diagnostic` |
+| `/axs migrate <模块ID\|all> <sqlite-to-mysql\|mysql-to-sqlite> [overwrite]` | **仅控制台**。跨源数据库一键迁移，自动调用子 Repository 建表，通过 JDBC 事务分批复制数据。支持 12 个持久化模块 | `/axs migrate all sqlite-to-mysql`<br>`/axs migrate warehouse mysql-to-sqlite overwrite` |
+| `/axs config diagnose [owner]` | 重新运行配置诊断（`owner` 可以是 `core`、模块 ID 或留空查全部） | `/axs config diagnose`<br>`/axs config diagnose warehouse` |
+| `/axs config preview <owner>` | 查看某模块的诊断报告 Markdown | `/axs config preview core` |
+| `/axs config apply <owner>` | 应用自动修复提案（会备份原文件到 `diagnosis/`） | `/axs config apply warehouse` |
+| `/axs config rollback <owner>` | 回滚到最近一次 apply 之前的备份 | `/axs config rollback warehouse` |
+| `/axs config status [owner]` | 查看诊断状态统计 | `/axs config status` |
 | `/axs <模块名> status` | 查看单个模块的状态详情，包括加载的配置数量、数据库连接状态等 | `/axs entitytracker status` |
 | `/axs license status` | 查看授权状态、QQ、已解锁模块、授权入口、代理状态、缓存状态和每个授权码的诊断结果 | `/axs license status` |
 | `/axs license refresh` | 刷新当前服务器绑定的授权票据。不会消耗换绑次数，适合改完 `license.yml` 后手动同步 | `/axs license refresh` |
@@ -36,7 +42,7 @@
 | 命令 | 说明 | 使用示例 |
 | --- | --- | --- |
 | `/axs auth status` | 查看 authlib-injector 加载状态、版本信息、是否已启用多方认证 | `/axs auth status` |
-| `/axs auth setup [api-url]` | 一键下载 authlib-injector、检测服务端 jar、生成启动脚本（自动注入 `-javaagent`） | `/axs auth setup`<br>`/axs auth setup https://littleskin.cn/api/yggdrasil?mixed` |
+| `/axs auth setup [api-url]` | 一键下载 authlib-injector、检测服务端 jar、生成启动脚本。含 `?mixed` 时生成 `start-mixed-auth`（先启动本地混合代理，再启动服务器）；不含时生成 `start-littleskin`（直接注入 `-javaagent`） | `/axs auth setup`<br>`/axs auth setup https://littleskin.cn/api/yggdrasil?mixed` |
 | `/axs auth update` | 手动下载/更新最新版 authlib-injector | `/axs auth update` |
 | `/axs auth check` | 检测 authlib-injector 最新版本并输出更新提示 | `/axs auth check` |
 

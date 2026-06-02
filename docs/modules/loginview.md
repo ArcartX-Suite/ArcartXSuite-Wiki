@@ -148,7 +148,9 @@ auth:
 该命令会自动完成：
 1. 从官方源下载最新版 `authlib-injector.jar` 到 `plugins/ArcartXSuite/`
 2. 检测服务端 jar 名称（paper.jar / purpur.jar / spigot.jar 等）
-3. 在服务器根目录生成 `start-littleskin.bat` 和 `start-littleskin.sh`
+3. 在服务器根目录生成启动脚本：
+   - 若 `config.yml` 的 `auth.yggdrasil-source` **包含 `?mixed`**（默认）：生成 `start-mixed-auth.bat` / `start-mixed-auth.sh`（先启动本地混合代理，再启动服务器）
+   - 若 `auth.yggdrasil-source` **不包含 `?mixed`**（纯 LittleSkin）：生成 `start-littleskin.bat` / `start-littleskin.sh`
 4. **自动修改现有启动脚本**（如 `run.bat`），注入 `-javaagent` 参数（原脚本备份为 `.bak`）
 
 > 旧版 `/axs loginview setup-authlib` 已移除，功能统一由本体的 `/axs auth setup` 覆盖。
@@ -163,15 +165,19 @@ stop
 
 **方式 A：使用生成的新脚本**
 
-在服务器根目录找到 `start-littleskin.bat`（Windows）或 `start-littleskin.sh`（Linux），双击或执行它。
+在服务器根目录找到生成的启动脚本（默认混合登录为 `start-mixed-auth.bat` / `.sh`；纯 LittleSkin 为 `start-littleskin.bat` / `.sh`），双击或执行它。
 
 **方式 B：使用原脚本（已被自动修改）**
 
-如果 setup-authlib 检测到你的原启动脚本（如 `run.bat`）并成功修改，直接用原脚本启动即可。修改前的原文件已备份为 `run.bat.bak`。
+如果 `/axs auth setup` 检测到你的原启动脚本（如 `run.bat`）并成功修改，直接用原脚本启动即可。修改前的原文件已备份为 `run.bat.bak`。
 
 **方式 C：手动修改启动命令**
 
-在你的启动命令中，`java` 后面加上 `-javaagent` 参数：
+::: danger 混合登录必须使用 start-mixed-auth 脚本
+若 `config.yml` 的 `auth.yggdrasil-source` 包含 `?mixed`（默认），**不能**直接写 `-javaagent` 启动服务器。authlib-injector 的 `premain` 时序要求代理进程必须先于服务器存在，因此必须使用 `/axs auth setup` 生成的 `start-mixed-auth` 脚本（它会先启动本地混合代理，再启动服务器）。
+:::
+
+仅当使用**纯 LittleSkin**（`auth.yggdrasil-source` 不含 `?mixed`）时，才可直接在启动命令中加入 `-javaagent`：
 
 ```bat
 java -javaagent:plugins/ArcartXSuite/authlib-injector.jar=https://littleskin.cn/api/yggdrasil -Xmx4G -jar paper.jar nogui
@@ -199,7 +205,7 @@ java -javaagent:plugins/ArcartXSuite/authlib-injector.jar=https://littleskin.cn/
 
 **Q: 如果不使用 LittleSkin，使用其他 Yggdrasil 服务器怎么办？**
 
-修改 `start-littleskin.bat` 中的 API 地址：
+修改生成的启动脚本中的 API 地址（如 `start-mixed-auth.bat` 或 `start-littleskin.bat`）：
 ```
 -javaagent:plugins/ArcartXSuite/authlib-injector.jar=https://你的yggdrasil地址/api/yggdrasil
 ```
@@ -216,7 +222,7 @@ LittleSkin/正版玩家的 UUID 由认证服务器分配，改名不会影响 UU
 
 将配置改回 `enabled: false` 并 `/axs loginview reload` 即可。无需卸载 authlib-injector。
 
-**Q: setup-authlib 修改了我的启动脚本，如何恢复？**
+**Q: `/axs auth setup` 修改了我的启动脚本，如何恢复？**
 
 原始脚本已备份为 `.bak` 文件（如 `run.bat.bak`），直接重命名回来即可。
 
@@ -398,9 +404,9 @@ LoginView 在以下时机自动向 EventPacket 发射信号：
 
 | 信号名 | 触发时机 | 携带变量 |
 | --- | --- | --- |
-| `login_success` | 玩家登录成功 | `auth_mode`, `account_type`, `account_type_display` |
-| `first_register` | 玩家首次注册完成 | `auth_mode`, `account_type`, `account_type_display` |
-| `premium_bypass` | 正版/LittleSkin 玩家免登录进服 | `auth_mode`, `account_type`, `account_type_display` |
+| `login_success` | 玩家登录成功 | `auth_mode`, `account_type`, `account_type_display`, `account_premium` |
+| `first_register` | 玩家首次注册完成 | `auth_mode`, `account_type`, `account_type_display`, `account_premium` |
+| `premium_bypass` | 正版/LittleSkin 玩家免登录进服 | `auth_mode`, `account_type`, `account_type_display`, `account_premium` |
 
 可在 `ArcartXEventPacket.yml` 中配置对应规则实现欢迎动画、新手任务引导等联动效果。
 

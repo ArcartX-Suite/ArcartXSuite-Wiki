@@ -571,15 +571,29 @@ SnowLuma 支持同一进程托管多个 QQ 账号，每个账号独立 WebSocket
 
 若你的服务器需要同时支持 **LittleSkin + 微软正版 + 离线** 三种账号，必须按以下步骤配置：
 
-### 1. 启动脚本加 `?mixed`
+### 1. 生成混合认证启动脚本
 
-在 authlib-injector 的 API 地址末尾加上 `?mixed`：
+**`?mixed` 并非 authlib-injector 的有效参数，不能直接加到 JVM Agent 参数中。** 它是 AXS 的「启用混合代理」开关，只有当 `/axs auth setup` 检测到 `config.yml` 的 `auth.yggdrasil-source` 包含 `?mixed` 时，才会生成独立的本地混合代理进程。
 
-```bat
-java -javaagent:plugins/authlib-injector.jar=https://littleskin.cn/api/yggdrasil?mixed -jar server.jar
+执行以下命令生成正确的启动脚本：
+
+```
+/axs auth setup https://littleskin.cn/api/yggdrasil?mixed
 ```
 
-`?mixed` 让 authlib-injector 对非 LittleSkin 账号放行，交由服务器后续处理。
+或在 `config.yml` 中预先设置好 `auth.yggdrasil-source` 后再执行：
+
+```
+/axs auth setup
+```
+
+该命令会生成 `start-mixed-auth.bat`（Windows）或 `start-mixed-auth.sh`（Linux），其工作流程为：
+
+1. **先独立启动**本地 Yggdrasil 混合代理（监听 `auth.mixed-proxy-port`，默认 25599）
+2. 等待代理端口就绪
+3. 再启动服务器，authlib-injector 指向 `http://127.0.0.1:25599`
+
+代理行为：`hasJoined` 先查 LittleSkin，未命中再 fallback 到 Mojang 官方，让 LittleSkin 玩家与微软正版玩家都能进服。
 
 ### 2. 开启正版验证
 
@@ -602,7 +616,9 @@ qq-binding:
   littleskin-require-bind: true   # LittleSkin 是否需要绑定 QQ
 ```
 
-如需代理端拦截离线玩家，请参考 Proxy 插件的 `config.yml`（`deny-offline`）。
+::: tip 代理端离线拦截
+Velocity/BungeeCord 群组服在代理端部署 `ArcartXSuite-Proxy-*.jar`，通过 `online-mode=true` 和 Yggdrasil 认证源配置实现离线玩家拦截，无需后端子服额外配置。
+:::
 
 ### 4. 账号判定流程
 

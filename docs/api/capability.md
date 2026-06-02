@@ -209,6 +209,96 @@ public interface PlayerDataPurgeable {
 - 底层由 `AbstractModuleRepository.deletePlayerData(UUID)` / `deleteAllPlayerData()` 实现
 - 未注册此 Capability 的模块（如 market、loginview、regions）在 purge 时会被跳过
 
+### ChatMutable
+
+由 Chat 模块注册，供 Essentials 等模块执行禁言/解禁操作。
+
+```java
+public interface ChatMutable {
+    @NotNull String mutePlayer(@NotNull String playerName, @Nullable Instant expiresAt,
+                                @Nullable String reason, @Nullable String mutedBy);
+    @NotNull String unmutePlayer(@NotNull String playerName);
+    boolean isMuted(@NotNull UUID playerUuid);
+}
+```
+
+**使用场景：** Essentials 的管理命令调用 Chat 模块执行禁言/解禁。
+
+### DatabaseMigratable
+
+由各持久化存储模块注册，供宿主 `/axs migrate` 命令统一调度跨源数据库迁移。
+
+```java
+public interface DatabaseMigratable {
+    @NotNull String moduleId();
+    @NotNull MigrationResult migrateDatabase(@NotNull StorageDescriptor targetDescriptor, boolean overwriteTarget);
+    @NotNull StorageDescriptor currentDescriptor();
+}
+```
+
+**已注册模块：** chat、essentials、eventpacket、loginview、mail、map、market、onlinerewards、qqbot、regions、title、warehouse
+
+### PickupNotifiable
+
+由 Pickup 模块注册，供 Warehouse 等模块查询玩家拾取通知状态。
+
+```java
+public interface PickupNotifiable {
+    boolean isNotificationActive(UUID playerId);
+}
+```
+
+**使用场景：** Warehouse 自动入库前判断是否需要额外发送聊天栏提示。
+
+### QQBotNotifiable
+
+由 QQBot 模块注册，供其他模块监听 QQ 群事件。
+
+```java
+public interface QQBotNotifiable {
+    void registerListener(@NotNull QQGroupEventListener listener);
+    void unregisterListener(@NotNull QQGroupEventListener listener);
+
+    interface QQGroupEventListener {
+        default void onGroupMessage(long groupId, long senderId, @NotNull String nickname, @NotNull String message) {}
+        default void onMemberJoin(long groupId, long userId) {}
+        default void onMemberLeave(long groupId, long userId) {}
+    }
+}
+```
+
+**使用场景：** 其他模块需要在 QQ 群成员加入/离开时触发游戏内动作。
+
+### QqBindCapable
+
+由 QQBot 模块注册，供 LoginView 等模块查询玩家 QQ 绑定状态。
+
+```java
+public interface QqBindCapable {
+    boolean isBound(@NotNull UUID playerUuid);
+    @Nullable Long getBoundQqId(@NotNull UUID playerUuid);
+    @NotNull BindResult confirmBind(@NotNull Player player, @NotNull String code);
+
+    record BindResult(boolean success, @Nullable Long qqId, @NotNull String message) {}
+}
+```
+
+**使用场景：** LoginView 登录面板判断玩家是否需要完成 QQ 绑定才能进服。
+
+### WarehouseAutoDepositable
+
+由 Warehouse 模块注册，供 Pickup 等模块在不打开 UI 的情况下直接存入物品。
+
+```java
+public interface WarehouseAutoDepositable {
+    @NotNull DepositResult depositToPersonalWarehouse(@NotNull Player player, @NotNull ItemStack itemStack);
+
+    record DepositResult(boolean success, long storedAmount, int remainingAmount, @NotNull String message) {}
+}
+```
+
+**使用场景：** Pickup 模块在玩家拾取物品时自动尝试存入仓库。
+
 ## 自定义 Capability
 
 第三方模块可以定义自己的 Capability 接口并注册：

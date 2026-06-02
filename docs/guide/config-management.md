@@ -22,9 +22,8 @@ ArcartXSuite 内置**智能配置自动修正系统**，可在不中断服务的
 | 字段 | 类型 | 默认值 | 说明 |
 |------|------|--------|------|
 | `auth.auto-check-version` | BOOLEAN | `true` | 启动时自动检测 authlib-injector 版本并提示更新 |
-| `auth.yggdrasil-source` | STRING | `https://littleskin.cn/api/yggdrasil?mixed` | 启动脚本中使用的 Yggdrasil API 地址 |
-| `auth.deny-offline` | BOOLEAN | `true` | 是否拒绝离线玩家（authlib-injector Mixed Mode 下已由在线模式处理，此为 fallback） |
-| `auth.kick-offline-message` | STRING | `&c本服务器仅支持正版/LittleSkin 账号登录` | 拒绝离线时的踢出消息 |
+| `auth.yggdrasil-source` | STRING | `https://littleskin.cn/api/yggdrasil?mixed` | 启动脚本中使用的 Yggdrasil API 地址。包含 `?mixed` 时生成 `start-mixed-auth` 脚本 |
+| `auth.mixed-proxy-port` | INT | `25599` | 本地混合代理监听端口（`?mixed` 模式下使用） |
 
 ### `account-type` — 统一账号识别
 

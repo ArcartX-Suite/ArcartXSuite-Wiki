@@ -403,9 +403,9 @@ rules:
 | --- | --- | --- | --- |
 | `boss_settlement` | EntityTracker | Boss 死亡结算 | `boss_id`, `boss_name`, `settlement_id`, `rank`, `damage`, `total_damage`, `participant_count` |
 | `signin_success` | OnlineRewards | 签到成功 | `streak`, `total`, `date`, `day_of_month` |
-| `login_success` | LoginView | 登录成功 | `auth_mode`, `account_type`, `account_type_display` |
-| `first_register` | LoginView | 首次注册 | `auth_mode`, `account_type`, `account_type_display` |
-| `premium_bypass` | LoginView | 微软正版 / LittleSkin 免登录进入服务器 | `auth_mode`, `account_type`, `account_type_display` |
+| `login_success` | LoginView | 登录成功 | `auth_mode`, `account_type`, `account_type_display`, `account_premium` |
+| `first_register` | LoginView | 首次注册 | `auth_mode`, `account_type`, `account_type_display`, `account_premium` |
+| `premium_bypass` | LoginView | 微软正版 / LittleSkin 免登录进入服务器 | `auth_mode`, `account_type`, `account_type_display`, `account_premium` |
 | `cdk_redeemed` | Mail | CDK 兑换成功 | `cdk_code`, `preset_id`, `preset_name` |
 
 手动触发示例：

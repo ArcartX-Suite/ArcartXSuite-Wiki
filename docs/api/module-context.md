@@ -36,6 +36,10 @@ File channelsDir = context.migrateLegacyDirectory("chat/channels");
 | `packetBridge()` | `PacketBridgeAPI` | `@Stable` | UI / Packet 桥接 |
 | `clientBridge()` | `ClientBridgeAPI` | `@Stable` | 客户端桥接（伤害飘字、变量下发） |
 | `itemStackBridge()` | `ItemBridgeAPI` | `@Stable` | ItemStack → JSON 序列化 |
+| `itemSourceRegistry()` | `ItemSourceRegistry` | `@Stable` | 全局物品来源注册表（统一 MythicMobs / NeigeItems / Overture / MMOItems 桥接） |
+| `itemMatcher()` | `ItemMatcherAPI` | `@Stable` | 全局物品匹配器 |
+| `currencyManager()` | `CurrencyBridgeAPI` | `@Stable` | 全局货币管理器（统一 Vault / PlayerPoints / Rondo / Command 等多 provider） |
+| `attributeBridge()` | `AttributeBridgeRegistry` | `@Stable` | 全局属性桥接注册表（统一 AttributePlus / CraneAttribute / MythicLib / Symphony 桥接） |
 
 ```java
 PacketBridgeAPI bridge = context.packetBridge();
@@ -79,6 +83,19 @@ AccountType resolved = accounts.resolveBlocking(uuid, name);
 ::: tip
 判定开关位于宿主 `config.yml` 的 `account-type` 节（`enable-mojang-lookup` / `mojang-timeout-ms` / `debug`）。服务在 `AsyncPlayerPreLogin` 阶段异步预热缓存，因此 `resolve()` 在玩家进服后通常命中缓存，可在主线程安全调用。
 :::
+
+## 安全
+
+| 方法 | 返回类型 | 稳定性 | 说明 |
+|------|----------|--------|------|
+| `packetGuard()` | `PacketGuardAPI` | `@Stable` | 客户端包频率限制器，防止伪造 / 高频回包 DoS。可能为 `null` |
+
+```java
+PacketGuardAPI guard = context.packetGuard();
+if (guard != null) {
+    guard.configure("my_module", windowMs, maxHits, mode);
+}
+```
 
 ## 模块间通信
 
