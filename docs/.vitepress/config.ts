@@ -4,9 +4,9 @@ export default defineConfig({
   lang: 'zh-CN',
   title: 'ArcartXSuite',
   description: 'ArcartX 服务器模块化插件 — 21 个主模块，开箱即用',
-  base: '/ArcartXSuite/',
+  base: '/ArcartXSuite-Wiki/',
   head: [
-    ['link', { rel: 'icon', href: '/ArcartXSuite/favicon.ico' }],
+    ['link', { rel: 'icon', href: '/ArcartXSuite-Wiki/favicon.ico' }],
     ['meta', { name: 'theme-color', content: '#6750a4' }],
   ],
 
