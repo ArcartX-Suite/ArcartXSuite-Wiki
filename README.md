@@ -73,6 +73,6 @@
 
 ## 🌐 相关链接
 
-- 📖 **[官方文档](https://xuanmomo233.github.io/ArcartXSuite/)** — 配置教程与 API 参考
+- 📖 **[官方文档](https://xuanmomo233.github.io/ArcartXSuite-Wiki/)** — 配置教程与 API 参考
 - 💻 **[GitHub 仓库](https://github.com/xuanmomo233/ArcartXSuite)** — 文档源码与 Issue 反馈
 - 🏰 **[ArcartX 社区](https://arcartx.com)** — 连接服主与开发者
