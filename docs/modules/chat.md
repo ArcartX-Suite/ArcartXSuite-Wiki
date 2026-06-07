@@ -2,7 +2,7 @@
 
 ## 功能定位
 
-多频道聊天系统：频道切换、私聊、@提及、SocialSpy、禁言、聊天卡片推送。支持 Redis / BungeeCord 跨服转发。
+多频道聊天系统：频道切换、私聊、@提及、SocialSpy、禁言、聊天卡片推送。支持统一 CrossServer SDK 跨服转发（Redis + Proxy 双后端）。
 
 ### 核心特性
 
@@ -16,7 +16,7 @@
 - **自定义组件**：通过正则匹配替换聊天内容中的特殊标记（如 `:star:` → `★`）
 - **敏感词过滤**：本地词库 + 远程云词库，支持正则匹配，可选取消发言或替换敏感内容
 - **聊天卡片**：提及、私聊、系统提示、物品展示均可绑定 ArcartX 聊天卡片 ID
-- **跨服转发**：Redis Pub/Sub 或 BungeeCord/Velocity 代理通道，多服消息互通
+- **跨服转发**：通过宿主 [CrossServer SDK](/architecture/cross-server)（Redis `AXS:CROSS` / Proxy `AXS_CROSS`），多服消息互通
 - **发言冷却与重复检测**：防刷屏，可配置冷却时间和重复消息窗口
 - **Paper 兼容**：自动检测 Paper 的 `AsyncChatEvent`，优先使用；不可用时回退 Bukkit `AsyncPlayerChatEvent`
 - **数据持久化**：SQLite 或 MySQL 存储玩家聊天状态和禁言记录
@@ -27,7 +27,8 @@
 | --- | --- | --- | --- |
 | 必需 | ArcartX | 聊天卡片、物品展示卡片、客户端提示包 | 基础 Bukkit 聊天可拦截，但 AXS 的可视化卡片能力不可用 |
 | 可选 | PlaceholderAPI | 解析频道格式中的 `%...%` 占位符 | 对应变量不会动态替换 |
-| 可选 | Redis 服务 | 多服聊天转发、去重和远程节点同步 | 单服聊天正常，跨服互通关闭 |
+| 可选 | Redis 服务 | 宿主 `cross-server.redis` 跨服转发（推荐） | 单服聊天正常，跨服互通关闭 |
+| 可选 | BungeeCord / Velocity | 宿主 `cross-server.proxy` 跨服转发（备选，有 32KB 限制） | 同上 |
 | 可选 | MySQL 服务 | 多服共享玩家状态和禁言记录 | 默认 SQLite 可用；多服共享建议改 MySQL |
 
 ## 启用步骤
@@ -47,7 +48,7 @@ modules:
 ```yaml
 settings:
   debug: false
-  # 当前服务端节点标识；跨服转发和 Redis 去重时使用，多服必须不同。
+  # 当前服务端展示标识（与 cross-server.node-id 无关，仅用于聊天展示/日志）。
   server-id: "default"
   # 默认频道 ID（对应 chat/channels/ 下的文件名，不含扩展名，全小写）。
   default-channel: "normal"
@@ -76,24 +77,8 @@ storage:
     password: ""
   pool-size: 4
 
-transport:
-  redis:
-    enabled: false
-    host: "127.0.0.1"
-    port: 6379
-    password: ""
-    database: 0
-    channel: "AXS:chat"
-    # 本节点标识，用于消息去重；留空时继承 settings.server-id。
-    node-id: ""
-    connect-timeout-ms: 5000
-  proxy:
-    enabled: false
-    # BungeeCord/Velocity 插件信道名称，所有子服必须一致。
-    messenger-channel: "AXS_CHAT"
-    # 转发目标：ALL 表示广播到所有子服。
-    forward-target: "ALL"
-    node-id: ""
+cross-server:
+  enabled: false
 
 cards:
   # ArcartX 聊天卡片 ID；留空表示不发送卡片。
@@ -159,7 +144,7 @@ channels-directory: "chat/channels"
 | 模式 | 说明 |
 | --- | --- |
 | `normal` | 普通频道。可选 `range` 限制接收范围（方块距离）；`range: 0` 表示不限距离，所有同服在线玩家都能看到 |
-| `global` | 全服频道。默认 `cross-server: true`，消息通过 Redis/Proxy 转发到其他子服 |
+| `global` | 全服频道。默认 `cross-server: true`，消息通过 CrossServer SDK 转发到其他子服 |
 | `private` | 私聊频道。通过 `/msg` 和 `/reply` 使用；设有该频道的 `send-permission` 和 `receive-permission` 才能私聊 |
 | `staff` | 管理频道。默认 `cross-server: true`；仅拥有 `receive-permission` 的玩家可收到消息 |
 
@@ -175,7 +160,7 @@ send-permission: ""
 # 接收权限；留空表示所有玩家可接收。默认继承 send-permission。
 receive-permission: ""
 
-# 是否通过 transport 跨服转发。global 和 staff 模式默认 true。
+# 是否跨服转发该频道消息（还需 ArcartXChat.yml cross-server.enabled 与宿主 config.yml cross-server）
 cross-server: false
 # 接收范围（仅 normal 模式生效）；0 = 不限距离。
 range: 0
@@ -203,101 +188,49 @@ spy-format: "&5[监听 {player_name} -> {target_name}] &r{message}"
 | `{message}` | 消息内容 |
 | `%...%` | PlaceholderAPI 占位符（需安装 PAPI） |
 
-## 跨服聊天设置教程
+## 跨服聊天设置
 
-跨服聊天允许多个子服间互通消息。Chat 模块支持两种传输方式：**Redis** 和 **Proxy**（BungeeCord/Velocity）。
+跨服聊天由**宿主统一 SDK** 承载，不再在 Chat 模块内配置 Redis/Proxy 连接。
 
-### 前置条件
+### 快速步骤
 
-1. 所有子服均安装了 ArcartXSuite，且 Chat 模块已启用
-2. 选择一种传输方式（推荐 Redis，延迟低、稳定性好）
-3. 多服共享数据建议将 `storage.mode` 改为 `mysql`，否则各服的玩家状态和禁言记录不同步
+1. 编辑宿主 `plugins/ArcartXSuite/config.yml` 的 [`cross-server`](/architecture/cross-server) 节（Redis/Proxy/签名/`node-id`）
+2. 每台子服 `node-id` **必须不同**
+3. `ArcartXChat.yml` 设置 `cross-server.enabled: true`
+4. 在 `data/chat/channels/` 中为需要跨服的频道设置 `cross-server: true`（`global` / `staff` 默认已开）
+5. 多服共享禁言/忽略建议 `storage.mode: mysql`
+6. `/axs reload chat` 后 `/axs chat status` 确认跨服通道 active
 
-### 方式一：Redis 跨服（推荐）
+详细示例与旧版迁移见 [跨服功能配置指南](/guide/cross-server-setup)。
 
-**第 1 步 — 准备 Redis 服务**
-
-确保有一台所有子服均可访问的 Redis 实例（如 `192.168.1.100:6379`）。
-
-**第 2 步 — 修改每个子服的 `ArcartXChat.yml`**
+### 推荐：Redis 为主、Proxy 为辅
 
 ```yaml
-settings:
-  # 每个子服必须填写不同的 server-id
-  server-id: "lobby"          # 另一个子服填 "survival"、"creative" 等
-
-transport:
+# config.yml（宿主，每台子服 node-id 不同）
+cross-server:
+  node-id: "lobby"
   redis:
     enabled: true
-    host: "192.168.1.100"     # Redis 服务器地址
-    port: 6379
-    password: "your_password" # 无密码留空
-    database: 0
-    channel: "AXS:chat"      # 所有子服必须一致
-    node-id: ""               # 留空则自动使用 server-id
-    connect-timeout-ms: 5000
-```
-
-**第 3 步 — 标记需要跨服的频道**
-
-在 `chat/channels/` 目录下，将需要跨服同步的频道文件中 `cross-server` 设为 `true`：
-
-```yaml
-# chat/channels/Global.yml
-cross-server: true
-```
-
-`global` 和 `staff` 模式的频道默认 `cross-server: true`；`normal` 模式默认 `false`。
-
-**第 4 步 — 多服共享存储（推荐）**
-
-将所有子服的存储改为同一个 MySQL 数据库，使玩家状态、禁言、忽略列表在各子服同步：
-
-```yaml
-storage:
-  mode: "mysql"
-  mysql:
     host: "192.168.1.100"
-    port: 3306
-    database: "arcartxsuite"
-    username: "axs_user"
-    password: "your_db_password"
-  pool-size: 4
+    channel: "AXS:CROSS"
+  proxy:
+    enabled: true    # 可选双发，SDK 入站自动去重
+  signature:
+    enabled: true
+    secret: "shared-secret"
 ```
-
-**第 5 步 — 重载**
-
-每个子服执行 `/axs reload chat`，检查控制台日志确认 `Transport=redis (true)` 字样。
-
-### 方式二：BungeeCord / Velocity 代理跨服
-
-适用于没有独立 Redis 的环境，依赖代理端的插件消息通道转发。
-
-**第 1 步 — 修改每个子服的 `ArcartXChat.yml`**
 
 ```yaml
-settings:
-  server-id: "lobby"
-
-transport:
-  proxy:
-    enabled: true
-    # 信道名称，所有子服必须一致
-    messenger-channel: "AXS_CHAT"
-    # ALL = 广播到所有子服
-    forward-target: "ALL"
-    node-id: ""
+# ArcartXChat.yml
+cross-server:
+  enabled: true
 ```
 
-> **注意**：代理跨服需要至少有一名在线玩家作为消息载体。如果子服没有在线玩家，消息将无法发出。
+### 验证
 
-**第 2 步** — 同方式一的第 3–5 步。
-
-### 验证跨服是否生效
-
-1. 在子服 A 发送一条消息，检查子服 B 是否收到
-2. 使用 `/axs chat status` 查看 `传输层` 状态，应显示 `redis (true)` 或 `proxy (true)`
-3. 如果使用 Redis，检查控制台是否有 `Chat Redis 订阅中断` 等错误信息
+1. 子服 A 发 global 频道消息，子服 B 应收到
+2. `/axs chat status` 显示跨服传输已启用
+3. 控制台 `[CrossServer] 已启动` 无验签/连接错误
 
 ### 跨服私聊
 

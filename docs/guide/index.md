@@ -9,6 +9,7 @@
 3. [第一次启用流程](first-run) — 推荐的"先开 1 个最小模块 → 全开"流程。
 4. [命令速查](commands) — 管理命令（`/AXS`）与玩家命令一表打尽。
 5. [PlaceholderAPI 速查](placeholders) — 各模块的 PAPI 前缀与典型字段。
+6. [跨服功能配置](cross-server-setup) — 多服 Chat / Tab / Mail 等（`1.2.0-beta` 统一 CrossServer SDK）。
 
 ## 一句话总览
 
@@ -17,7 +18,7 @@ ArcartX 客户端 MOD  ──────  网络包 ──────  AXS 服
      ↑ 渲染 UI / HUD                           ↑ 业务逻辑 / 数据库 / 桥接
      │                                          │
      └────── plugins/ArcartXSuite/ ─────────────┘
-              ├── config.yml          总开关 + 模块授权
+              ├── config.yml          总开关 + 模块授权 + cross-server 跨服
               ├── ArcartX*.yml        各模块配置
               ├── ui/                 ArcartX UI 模板
               ├── chat/, mail/, ...   模块子资源

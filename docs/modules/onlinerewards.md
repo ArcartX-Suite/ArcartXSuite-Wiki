@@ -24,7 +24,7 @@
 
 **排行榜与跨服：**
 - **四维排行榜**：日榜、周榜、月榜、总榜，Top 1~10 通过 PAPI 输出
-- **Redis 跨服同步**：签到、补签、管理操作后通过 Redis 通知其他服务端刷新（需 MySQL 共享库）
+- **CrossServer 跨服同步**：签到、补签、管理操作后通知其他子服刷新（需 MySQL 共享库 + 宿主 cross-server）
 
 ## 依赖
 
@@ -34,7 +34,7 @@
 | 可选 | PlaceholderAPI | 输出在线/签到排行榜 PAPI，解析奖励条件 | PAPI 输出和条件解析不可用 |
 | 可选 | Mail 模块 | 签到、在线阶段奖励通过预设邮件发放 | 邮件奖励跳过或需要改为命令奖励 |
 | 可选 | Vault | 奖励/补签卡等配置中使用金币时扣发款 | Vault 货币动作不可用 |
-| 可选 | Redis 服务 | 多服刷新签到/补签/管理操作 | 单服正常；跨服同步关闭 |
+| 可选 | 宿主 cross-server | 多服刷新签到/补签/管理操作后的客户端 UI | 单服正常；跨服同步关闭 |
 | 可选 | MySQL 服务 | 多服共享在线与签到数据 | 默认 SQLite 可用；跨服必须使用共享 MySQL |
 
 ## 启用步骤
@@ -55,12 +55,17 @@ modules:
 
 ```yaml
 # ArcartXOnlineRewards.yml（主配置）
+cross-server:
+  enabled: false
+
 # 签到配置文件路径，相对模块数据目录。
 sign-in-file: "sign-in.yml"
 
 # 在线阶段奖励文件路径，相对模块数据目录。
 rewards-file: "rewards.yml"
 ```
+
+跨服需 **MySQL 共享库** + 宿主 `config.yml` → `cross-server`。详见 [跨服功能配置指南](/guide/cross-server-setup)。
 
 ### 在线阶段奖励（`data/onlinerewards/rewards.yml`）
 

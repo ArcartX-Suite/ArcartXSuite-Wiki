@@ -30,7 +30,7 @@ features:
     link: /modules/entitytracker
   - icon: 💬
     title: Chat 频道聊天
-    details: 多频道系统、私聊回复、@提及通知、物品展示、敏感词过滤、Redis跨服转发
+    details: 多频道系统、私聊回复、@提及通知、物品展示、敏感词过滤、CrossServer 跨服转发
     link: /modules/chat
   - icon: 🗣️
     title: Conversation 对话桥
@@ -98,7 +98,7 @@ features:
     link: /modules/regions
   - icon: 🏪
     title: Market 全球市场
-    details: 系统商店 + 玩家拍卖行 + 回收商店，多货币支持、跨服 Redis 同步、ArcartX UI 全套交易界面
+    details: 系统商店 + 玩家拍卖行 + 回收商店，多货币支持、CrossServer 跨服同步、ArcartX UI 全套交易界面
     link: /modules/market
   - icon: 🤖
     title: QQBot QQ群服互联
@@ -149,7 +149,7 @@ features:
           <td>聊天系统</td>
           <td class="col-module">Chat</td>
           <td class="col-alt">TrChat / VentureChat / HuskChat</td>
-          <td class="col-advantage">ArcartX聊天卡片与高级物品展示、聊天分离UI功能、敏感词云词库、Redis + 代理双通道跨服</td>
+          <td class="col-advantage">ArcartX聊天卡片与高级物品展示、聊天分离UI功能、敏感词云词库、统一 CrossServer SDK（Redis + Proxy 双后端）</td>
         </tr>
         <tr>
           <td>称号系统</td>
@@ -179,13 +179,13 @@ features:
           <td>邮箱系统</td>
           <td class="col-module">Mail</td>
           <td class="col-alt">EssentialsMail / HuskMail</td>
-          <td class="col-advantage">物品附件、CDK 兑换、预设邮件联动、货币附件 + 税率、Redis 跨服</td>
+          <td class="col-advantage">物品附件、CDK 兑换、预设邮件联动、货币附件 + 税率、CrossServer 跨服刷新</td>
         </tr>
         <tr>
           <td>签到 / 在线奖励</td>
           <td class="col-module">OnlineRewards</td>
           <td class="col-alt">SignIn / OreAnnouncer</td>
-          <td class="col-advantage">四维时长统计、6 种签到奖励类型、补签卡、Mail 联动发奖、Redis 跨服</td>
+          <td class="col-advantage">四维时长统计、6 种签到奖励类型、补签卡、Mail 联动发奖、CrossServer 跨服</td>
         </tr>
         <tr>
           <td>仓库银行</td>
@@ -251,7 +251,7 @@ features:
           <td>经济交易</td>
           <td class="col-module">Market</td>
           <td class="col-alt">ShopGUIPlus / AuctionHouse / QuickShop</td>
-          <td class="col-advantage">ArcartX UI 全套界面、拍卖+商店+回收三合一、多货币、跨服 Redis 同步</td>
+          <td class="col-advantage">ArcartX UI 全套界面、拍卖+商店+回收三合一、多货币、CrossServer 跨服同步</td>
         </tr>
         <tr>
           <td>QQ群服互联</td>

@@ -16,7 +16,7 @@
 - **PAPI 解析**：公告文本支持 `%player_name%`、`%server_online%` 等变量，按接收玩家实时解析
 - **点击命令**：每条公告可绑定控制台命令，玩家点击 HUD 后自动执行（`<player>` 变量替换为点击玩家名）
 - **手动广播**：通过命令加入队列或立即广播自定义文本，适合紧急通知
-- **跨服广播**：启用 BungeeCord 代理转发后，手动广播（`broadcast` / `broadcastnow`）会自动同步到其他子服
+- **跨服广播**：启用 CrossServer SDK 后，手动广播（`broadcast` / `broadcastnow`）可通过 `gbroadcast` 同步到其他子服
 - **热重载**：`/axs reload announcer` 即时生效，HUD 不中断
 
 **字幕：**
@@ -33,7 +33,7 @@
 | 必需 | ArcartX | 注册 HUD 公告和字幕 UI，向客户端发送公告/字幕包 | 模块无法正常展示 UI |
 | 可选 | PlaceholderAPI | 解析公告、字幕文本中的 `%...%` 变量 | 文本照常发送，但 PAPI 变量保持原样 |
 | 可选 | EventPacket 模块 | 通过 `subtitle.play` 动作触发字幕组 | 不影响 Announcer 自身轮播 |
-| 可选 | BungeeCord / Velocity 代理 | 跨服广播消息转发 | 跨服功能不可用，本服广播正常 |
+| 可选 | Redis / BungeeCord 后端 | 宿主 `config.yml` → `cross-server` | 跨服广播不可用，本服广播正常 |
 
 ## 启用步骤
 
@@ -113,55 +113,46 @@ data/announcer/announcer/
 | `text` | string | `""` | 公告文本，支持 `&` 颜色代码和 PlaceholderAPI 变量 |
 | `click-command` | string | `""` | 玩家点击 HUD 时以**控制台身份**执行的命令，`<player>` 替换为点击者名字。留空表示该条公告不可点击 |
 
-### 跨服广播配置（`ArcartXAnnouncer.yml` 的 `transport.proxy` 节）
+### 跨服广播配置
 
-通过 BungeeCord / Velocity 代理的 Plugin Messaging Channel 将手动广播（`broadcast` / `broadcastnow`）转发到其他子服。启用后，其他子服发出的公告也会在本服展示给在线玩家。
-
-::: warning 注意
-**仅手动广播会跨服转发**，`entries-directory` 中的自动轮播条目**不会**跨服，各子服独立轮播。
-:::
+跨服连接参数在宿主 `config.yml` 的 [`cross-server`](/architecture/cross-server) 节；模块只需开关：
 
 ```yaml
-transport:
-  proxy:
-    enabled: false                     # 是否启用 BungeeCord 代理转发
-    messenger-channel: "AXS_ANNOUNCER" # BungeeCord Forward 子频道名称，所有子服必须一致
-    forward-target: "ALL"              # 转发目标：ALL = 所有子服，或指定服务器名
-    node-id: ""                        # 当前节点 ID（用于去重），留空则自动取 server.properties 中 server-name
+# ArcartXAnnouncer.yml
+cross-server:
+  enabled: false
 ```
 
-**配置字段详解：**
+::: warning 注意
+**仅手动广播会跨服转发**（`/axs announcer gbroadcast` / `gbroadcastnow`），`entries/` 目录中的自动轮播条目**不会**跨服，各子服独立轮播。
+:::
 
-| 字段 | 类型 | 默认值 | 说明 |
-| --- | --- | --- | --- |
-| `transport.proxy.enabled` | boolean | `false` | 是否启用 BungeeCord 代理转发。需要服务端运行在 BungeeCord / Velocity 代理后端 |
-| `transport.proxy.messenger-channel` | string | `"AXS_ANNOUNCER"` | BungeeCord `Forward` 子频道名称。**所有子服的此值必须相同**，否则消息无法互通 |
-| `transport.proxy.forward-target` | string | `"ALL"` | BungeeCord `Forward` 目标。`"ALL"` 表示转发给所有子服；也可填写指定服务器名（如 `"lobby"`）仅转发给该服 |
-| `transport.proxy.node-id` | string | `""` | 当前服务器节点标识，用于消息去重（不会处理来自自身的消息）。留空时自动使用 `server.properties` 中的 `server-name` |
-
-**跨服部署示例（3 台子服）：**
-
-所有子服的 `ArcartXAnnouncer.yml` 中：
+**多服部署示例：**
 
 ```yaml
-transport:
-  proxy:
+# config.yml（宿主，每台 node-id 不同）
+cross-server:
+  node-id: "lobby"
+  redis:
     enabled: true
-    messenger-channel: "AXS_ANNOUNCER"
-    forward-target: "ALL"
-    node-id: ""    # 留空自动取 server-name，每台服务器的 server.properties 中 server-name 需不同
+    host: "192.168.1.100"
+  signature:
+    enabled: true
+    secret: "shared-secret"
+
+# ArcartXAnnouncer.yml（各子服相同）
+cross-server:
+  enabled: true
 ```
 
 ::: tip 前置条件
-- 服务端必须运行在 BungeeCord / Velocity 代理之后
-- BungeeCord 的 `config.yml` 中 `ip_forward: true`
-- spigot.yml 中 `bungeecord: true`
-- 发送跨服消息时**需要至少一名在线玩家**充当消息载体（BungeeCord Plugin Messaging 机制限制）
+- 群组服：`ip_forward: true`、`bungeecord: true`（使用 Proxy 后端时）
+- 仅 Proxy 且无在线玩家时可能发不出消息 → 启用 Redis 或见 [跨服架构说明](/architecture/cross-server#故障排查)
 :::
 
 ### 跨服消息载荷格式
 
-跨服传输内部使用 YAML 编码的 `AnnouncerEnvelope` 消息信封：
+CrossServer SDK 外层为 JSON 信封；Announcer 业务 payload 为 YAML 编码的 `AnnouncerEnvelope`：
 
 | 字段 | 类型 | 说明 |
 | --- | --- | --- |
@@ -240,8 +231,8 @@ subtitle:
 | `/axs reload announcer` | 重载配置和 HUD（公告 + 字幕一起重载），HUD 不中断 |
 | `/axs announcer broadcast <文本>` | **本服**将一条自定义文本加入广播队列，当前公告展示结束后立即播报 |
 | `/axs announcer broadcastnow <文本>` | **本服**立即广播，强制打断当前正在展示的公告 |
-| `/axs announcer gbroadcast <文本>` | **跨服**加入广播队列，同时通过代理转发到其他子服（需启用 `transport.proxy`） |
-| `/axs announcer gbroadcastnow <文本>` | **跨服**立即广播，强制打断当前展示并转发到其他子服（远端也立即广播） |
+| `/axs announcer gbroadcast <文本>` | **跨服**加入广播队列（需 `cross-server.enabled` + 宿主 cross-server 配置） |
+| `/axs announcer gbroadcastnow <文本>` | **跨服**立即广播（远端也立即打断当前展示） |
 | `/axs announcer subtitle list` | 列出所有已加载的字幕组 ID |
 | `/axs announcer subtitle play <玩家> <字幕组ID>` | 向在线玩家播放指定字幕组。如果该玩家有字幕正在播放，会先终止旧的 |
 | `/axs announcer subtitle stop <玩家>` | 立即停止玩家当前正在播放的字幕并关闭字幕 HUD |
@@ -421,12 +412,10 @@ join_welcome_subtitle:
 
 | 类 | 所在包 | 职责 |
 | --- | --- | --- |
-| `AnnouncerModule` | `announcer` | 模块入口，继承 `AbstractAXSModule`；管理配置加载、UI 注册、服务生命周期、跨服传输启停和命令处理 |
-| `AnnouncerModuleConfiguration` | `announcer.config` | 配置 record，解析 `ArcartXAnnouncer.yml` 中的公告设置、跨服配置和字幕设置 |
-| `AnnouncerProxyConfiguration` | `announcer.config` | 跨服代理配置 record（`enabled`、`messengerChannel`、`forwardTarget`、`nodeId`） |
-| `AnnouncerEntry` | `announcer.config` | 单条公告条目 record（`id`、`enabled`、`text`、`clickCommand`） |
-| `AnnouncerService` | `announcer.service` | 公告核心服务：轮播调度、手动广播、跨服转发/接收、客户端点击处理 |
-| `SubtitleService` | `announcer.service` | 字幕服务：组加载、逐帧播放、HUD 开关 |
-| `AnnouncerProxyTransport` | `announcer.transport` | BungeeCord Plugin Messaging Channel 实现：注册频道、发送 `Forward` 消息、接收并解码回调 |
-| `AnnouncerEnvelope` | `announcer.transport` | 跨服消息载荷 record（`messageId`、`originNode`、`text`、`immediate`） |
-| `AnnouncerEnvelopeCodec` | `announcer.transport` | 信封的 YAML 序列化/反序列化工具类 |
+| `AnnouncerModule` | `announcer` | 模块入口；管理配置、UI、服务生命周期与命令 |
+| `AnnouncerModuleConfiguration` | `announcer.config` | 配置 record，含 `crossServer` 通道开关与字幕设置 |
+| `AnnouncerEntry` | `announcer.config` | 单条公告条目 record |
+| `AnnouncerService` | `announcer.service` | 轮播、手动/跨服广播、客户端点击；通过 `CrossServerChannel` 收发 |
+| `SubtitleService` | `announcer.service` | 字幕组加载与播放 |
+| `AnnouncerEnvelope` | `announcer.transport` | 跨服业务 payload record |
+| `AnnouncerEnvelopeCodec` | `announcer.transport` | payload YAML 编解码 |

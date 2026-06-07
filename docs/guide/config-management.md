@@ -56,6 +56,26 @@ ArcartXSuite 内置**智能配置自动修正系统**，可在不中断服务的
 
 模块通过 `context.registerKeybindHandler("AXS_INTERACT", ...)` 订阅按键回调。详见 [ModuleContext 全局按键订阅](/api/module-context#全局按键订阅)。
 
+### `cross-server` — 全模块共用跨服传输
+
+各模块在 `ArcartX*.yml` 中只需 `cross-server.enabled`；连接与签名在宿主配置。
+
+| 字段 | 类型 | 默认值 | 说明 |
+|------|------|--------|------|
+| `cross-server.node-id` | STRING | Bukkit 服务器名 | 当前子服节点 ID，**多服必须唯一** |
+| `cross-server.dedupe-ttl-ms` | LONG | `60000` | 入站 message-id 去重 TTL（毫秒） |
+| `cross-server.max-payload-chars` | INT | `524288` | 单条 payload 最大字符数 |
+| `cross-server.redis.enabled` | BOOLEAN | `false` | 是否启用 Redis Pub/Sub |
+| `cross-server.redis.host` | STRING | `127.0.0.1` | Redis 地址 |
+| `cross-server.redis.port` | INT | `6379` | Redis 端口 |
+| `cross-server.redis.channel` | STRING | `AXS:CROSS` | 共用频道名 |
+| `cross-server.proxy.enabled` | BOOLEAN | `false` | 是否启用 BungeeCord Forward |
+| `cross-server.proxy.messenger-channel` | STRING | `AXS_CROSS` | Forward 子频道 |
+| `cross-server.signature.enabled` | BOOLEAN | `false` | 是否 HMAC 签名 |
+| `cross-server.signature.secret` | STRING | `""` | 签名密钥（多服一致） |
+
+完整说明见 [跨服功能配置指南](cross-server-setup.md) 与 [跨服通信架构](/architecture/cross-server)。
+
 ### `client-packet-guard` — 客户端包频率限制
 
 防止伪造/高频回包 DoS，按模块和动作粒度独立配置。

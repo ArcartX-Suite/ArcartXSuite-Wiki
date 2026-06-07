@@ -29,7 +29,7 @@
 - **禁止物品**：可按材质黑名单禁止特定物品作为附件
 - **发信限制**：冷却时间、禁止自发、离线收信开关
 - **多货币支持**：Vault 金币、PlayerPoints 点券、自定义货币（PAPI + 命令桥接）
-- **Redis 跨服广播**：多服邮件同步
+- **CrossServer 跨服刷新**：其他子服发信/收信后广播 `refresh:<uuid>`，在线玩家收件箱自动刷新
 - **数据持久化**：SQLite 或 MySQL
 
 ## 依赖
@@ -41,7 +41,7 @@
 | 可选 | Vault | 金币附件、手续费或 Vault 货币扣费 | Vault 货币功能关闭，物品邮件仍可用 |
 | 可选 | PlayerPoints | 点券附件或点券扣费 | PlayerPoints 货币功能关闭 |
 | 可选 | NeigeItems / MythicMobs / MMOItems | 物品附件来自对应物品库时保留识别信息 | 原版 ItemStack 附件正常；物品库专属识别不可用 |
-| 可选 | Redis 服务 | 多服邮件广播和缓存刷新 | 单服邮件正常，跨服同步关闭 |
+| 可选 | 宿主 cross-server + Redis | 多服邮件 UI 刷新通知 | 单服邮件正常，跨服刷新关闭 |
 | 可选 | MySQL 服务 | 多服共享邮件数据 | 默认 SQLite 可用；多服共享建议改 MySQL |
 
 ## 启用步骤
@@ -119,3 +119,17 @@ Mail 模块在 CDK 兑换成功时自动向 EventPacket 发射信号：
 | `cdk_redeemed` | CDK 兑换成功 | `cdk_code`, `preset_id`, `preset_name` |
 
 可在 `ArcartXEventPacket.yml` 中配置对应规则实现兑换特效、字幕播报等联动效果。
+
+## 跨服配置
+
+邮件数据需 **MySQL 共享库**；跨服仅同步「刷新通知」，不复制邮件正文。
+
+```yaml
+# ArcartXMail.yml
+cross-server:
+  enabled: false
+```
+
+连接参数见宿主 `config.yml` → `cross-server`。启用后，任一子服向玩家发信会广播 `refresh:<uuid>`，其他子服上该玩家在线时自动刷新收件箱 UI。
+
+详见 [跨服功能配置指南](/guide/cross-server-setup)。

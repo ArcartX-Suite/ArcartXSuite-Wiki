@@ -4,6 +4,17 @@
 
 ---
 
+## 1.2.0-beta — 统一跨服 SDK
+
+- **架构** — 子服侧 `CrossServerService` 统一跨服总线；Redis `AXS:CROSS` + BungeeCord `AXS_CROSS` 双后端；JSON `CrossServerEnvelope` + 可选 HMAC + message-id 去重。Proxy 插件仅负责认证，**不是**跨服总线。
+- **配置** — 连接参数迁移至宿主 `config.yml` → `cross-server`；各模块 `ArcartX*.yml` 仅保留 `cross-server.enabled`（及可选 redis/proxy 覆盖）。
+- **模块迁移** — Chat、Tab、Announcer、Mail、OnlineRewards、Market（Pub/Sub）接入 SDK；移除各模块独立 `transport.*` / 模块内 Redis Pub/Sub。
+- **Market** — `redis` 节仅保留拍卖列表缓存；跨服事件改走 CrossServer。
+- **API** — `ModuleContext.crossServer()`、`CrossServerAPI` / `CrossServerChannel`（`axs-api`）。
+- **破坏性** — 不兼容旧版各模块独立跨服配置；详见 Wiki [跨服功能配置指南](/guide/cross-server-setup)。
+
+---
+
 ## 1.1.0-beta（当前）
 
 - **RGB** — 移除不可用的 Shimmer/Glimmer 函数桥接（`ArcartRgbShimmerBridge`）与运行时编译逻辑，同时清除宿主 `renderArcartRgbShimmer` 入口和 `shimmerOptions` 全局配置。RGB 模块保留 PlaceholderAPI `%arcartrgb_*%` 输出，扫光动画参数改为条目级配置。

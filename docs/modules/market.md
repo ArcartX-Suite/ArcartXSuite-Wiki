@@ -4,13 +4,13 @@
 Market 为付费模块，需要有效授权码激活。
 :::
 
-**Market** 模块为服务器提供完整的经济交易系统，包含 **系统商店**、**玩家拍卖行** 和 **回收商店** 三大子系统，通过 ArcartX 客户端 UI 呈现，支持多货币、跨服同步。
+**Market** 模块为服务器提供完整的经济交易系统，包含 **系统商店**、**玩家拍卖行** 和 **回收商店** 三大子系统，通过 ArcartX 客户端 UI 呈现，支持多货币、跨服同步（CrossServer SDK）。
 
 ## 功能概览
 
 | 子系统 | 核心功能 |
 |--------|----------|
-| **拍卖行** | 一口价/竞价双模式、分类筛选、关键词搜索、收藏夹、交易税、到期退回、跨服 Redis 同步 |
+| **拍卖行** | 一口价/竞价双模式、分类筛选、关键词搜索、收藏夹、交易税、到期退回、CrossServer 跨服事件同步 |
 | **系统商店** | YAML 配置商品、多物品来源（MythicMobs/NeigeItems/Overture/原版）、限购/折扣、权限分层 |
 | **回收商店** | 回收表配置、批量一键回收、自动拾取回收、权限倍率 |
 
@@ -20,7 +20,8 @@ Market 为付费模块，需要有效授权码激活。
 |------|----------|------|
 | ArcartX | ✅ 必须 | UI 渲染 + 数据包通信 |
 | MySQL | ✅ 必须 | 拍卖/交易/限购数据持久化 |
-| Redis | 可选 | 拍卖列表缓存 + 跨服同步广播 |
+| Redis | 可选 | 拍卖列表**缓存**（非跨服总线） |
+| CrossServer | 可选 | 拍卖上架/成交/竞价/取消事件跨服广播 |
 | Vault / PlayerPoints | 可选 | 多货币支持（通过 CurrencyBridgeAPI） |
 | PlaceholderAPI | 可选 | PAPI 占位符输出 |
 | MythicMobs / NeigeItems | 可选 | 系统商店自定义物品来源 |
@@ -105,8 +106,10 @@ redis:
   port: 6379
   password: ""
   database: 0
-  channel: "axs:market:sync"
   cache-ttl-seconds: 300
+
+cross-server:
+  enabled: false
 
 auction:
   enabled: true
@@ -168,7 +171,7 @@ items:
 | `display-name` | String | ✅ | — | 商店在 UI 列表中显示的名称，支持 `&` 颜色码 |
 | `icon` | String | ❌ | `CHEST` | 商店列表图标材质（Bukkit Material 枚举名） |
 | `permission` | String | ❌ | `''` | 查看此商店所需的权限节点，空字符串表示无限制 |
-| `tags` | List<String> | ❌ | `[]` | 分类标签，用于 UI 筛选和搜索 |
+| `tags` | `` `List<String>` `` | ❌ | `[]` | 分类标签，用于 UI 筛选和搜索 |
 | `items` | Map | ✅ | — | 商品定义映射，键为商品内部 ID |
 
 #### 商品字段详解
@@ -378,7 +381,7 @@ neige_fishing_rod:
 
 ### MythicMobs 配置
 
-**依赖插件**: [MythicMobs](https://www.mythicmobs.net/)
+**依赖插件**: [MythicMobs](https://mythiccraft.io/index.php?resources/mythicmobs.1/)
 
 **配置路径**: `plugins/MythicMobs/Items/ExampleMythicSword.yml`
 
@@ -503,7 +506,7 @@ treasure_display:
 ```
 
 ::: tip 展示方案
-`name` 与 `lore` 中可使用 `<key>` 占位符引用物品定义中 `name.*` 和 `lore.*` 字段。`<item_desc...>` 会展开列表中的所有行。
+`name` 与 `lore` 中可使用 `` `<key>` `` 占位符引用物品定义中 `name.*` 和 `lore.*` 字段。`` `<item_desc...>` `` 会展开列表中的所有行。
 :::
 
 **商店引用**:
@@ -568,16 +571,25 @@ Market 模块声明了以下配置校验规则：
 
 ## 跨服同步
 
-启用 Redis 后，Market 通过 Pub/Sub 频道 `axs:market:sync` 广播以下事件：
+启用 `cross-server.enabled` 且宿主 `config.yml` 配置 `cross-server` 后，Market 通过统一 SDK 广播拍卖事件（payload 为短文本）：
 
 | 消息格式 | 触发时机 |
 |----------|----------|
-| `LISTING_CREATED:<id>` | 新物品上架 |
-| `LISTING_SOLD:<id>` | 一口价成交 |
-| `LISTING_CANCELLED:<id>` | 上架取消 |
-| `BID_PLACED:<id>:<amount>` | 新竞价 |
+| `LISTING_CREATED:{id}` | 新物品上架 |
+| `LISTING_SOLD:{id}` | 一口价成交 |
+| `LISTING_CANCELLED:{id}` | 上架取消 |
+| `BID_PLACED:{id}:{amount}` | 新竞价 |
 
-所有服务器接收到消息后自动清除本地拍卖列表缓存，保证数据一致性。
+其他子服收到后清除本地 **Redis 列表缓存**（若启用 `redis` 节），保证拍卖列表一致。
+
+::: tip Redis 两用途
+- **`redis` 节**：模块内 Jedis 连接，仅 `cache-ttl-seconds` 列表缓存
+- **宿主 `cross-server.redis`**：全模块共用 `AXS:CROSS` 跨服总线
+
+两者可指向同一 Redis 实例，但配置位置不同。
+:::
+
+详见 [跨服通信架构](/architecture/cross-server)。
 
 ## 架构
 
@@ -588,7 +600,7 @@ MarketModule (AbstractAXSModule)
 │   ├── ShopService (系统商店)
 │   └── RecycleService (回收商店)
 ├── JdbcMarketRepository (MySQL 持久化)
-├── RedisMarketCache (缓存 + Pub/Sub)
+├── RedisMarketCache (拍卖列表缓存)
 ├── MarketPlayerCommand (/market)
 ├── MarketAdminCommand (/axs market)
 ├── MarketPlaceholderExpansion (PAPI)

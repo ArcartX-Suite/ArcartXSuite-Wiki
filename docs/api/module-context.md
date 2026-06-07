@@ -51,6 +51,41 @@ if (bridge != null && bridge.isAvailable()) {
 
 详见 [桥接 API 参考](./bridge-api)。
 
+## 跨服 API（CrossServerAPI）
+
+`1.2.0-beta` 起，宿主提供统一跨服 SDK。模块通过 `openChannel` 注册通道，无需自行连接 Redis 或注册 BungeeCord 频道。
+
+| 方法 | 返回类型 | 稳定性 | 说明 |
+|------|----------|--------|------|
+| `crossServer()` | `CrossServerAPI` | `@Stable` | 统一跨服 API，**永不为 null** |
+
+```java
+CrossServerAPI crossServer = context.crossServer();
+
+CrossServerChannel channel = crossServer.openChannel(
+    "mymodule",
+    CrossServerChannelConfigs.fromSection(config.getConfigurationSection("cross-server")),
+    delivery -> Bukkit.getScheduler().runTask(plugin, () ->
+        handlePayload(delivery.payload())
+    )
+);
+
+if (channel.isActive()) {
+    channel.publish("hello-from-" + crossServer.nodeId());
+}
+
+// 模块 onDisable
+channel.close();
+```
+
+| 类型 | 说明 |
+|------|------|
+| `CrossServerChannelConfig` | 模块级 `enabled` + 可选 `redis.enabled` / `proxy.enabled` 覆盖 |
+| `CrossServerDelivery` | 入站投递：`payload()`、`module()`、`nodeId()`、`messageId()` |
+| `CrossServerEnvelope` | Wire 层 JSON 信封（通常由 SDK 封装，模块只处理 payload） |
+
+连接参数（Redis host、Proxy 频道、HMAC 密钥、`node-id`）在宿主 `config.yml` 的 `cross-server` 节配置，详见 [跨服通信架构](/architecture/cross-server)。
+
 ## 账号识别服务
 
 宿主统一提供微软正版 / LittleSkin / 离线账号判定，供 LoginView、QQBot、EventPacket 等模块共享，取代各模块自行实现且不一致的判定逻辑。
