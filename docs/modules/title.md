@@ -18,7 +18,7 @@
   - **展示属性 (display)**：仅在装备该称号时生效
   - **收藏属性 (collection)**：只要拥有且未过期即累计（收集图鉴式）
   - **两种字段形式**：`*-attributes`（`Map<键, 数值>`）与 `*-attribute-lines`（`List<String>`），详见下文《属性字段详解》
-- **三大属性插件集成**：同时对接 AttributePlus、MythicLib（含基于它的 MMOItems 生态）、CraneAttribute，各有独立开关和 source/modifier 前缀
+- **四大属性插件集成**：同时对接 AttributePlus、MythicLib（含基于它的 MMOItems 生态）、CraneAttribute、Symphony，各有独立开关和 source/modifier 前缀
 - **UI 菜单**：ArcartX UI 驱动的称号管理界面，玩家可浏览、装备、卸下、隐藏称号
 - **PAPI 全量输出**：拥有数量、装备信息、剩余时间、属性加成等全部通过 PlaceholderAPI 输出
 - **数据持久化**：SQLite 或 MySQL，带连接池
@@ -32,6 +32,7 @@
 | 可选 | AttributePlus | 接收 `*-attributes` 转出的文本行与 `*-attribute-lines`，调用 `addSourceAttribute` | AttributePlus 属性不生效 |
 | 可选 | CraneAttribute | 同 AttributePlus。使用 `addStaticAttributeSource` / `addAttributeSource` | CraneAttribute 属性不生效 |
 | 可选 | MythicLib | 只读 `*-attributes`（Map），键当 stat-id 注册 FLAT StatModifier；MMOItems 可通过其注册的 stat-id 间接使用本通道 | MythicLib stat 加成不生效 |
+| 可选 | Symphony | 接收 `*-attributes` 与 `*-attribute-lines`，按 Symphony 属性系统格式下发 | Symphony 属性不生效 |
 | 可选 | MySQL 服务 | 跨服共享称号数据 | 默认 SQLite 可用；多服共享建议改 MySQL |
 
 ## 启用步骤
@@ -63,6 +64,70 @@ modules:
 | `/title unequip <组ID\|all>` | 卸下某个组的已装备称号，`all` 卸下全部 |
 | `/title hide <称号ID>` | 隐藏指定称号（不在菜单显示但仍拥有） |
 | `/title unhide <称号ID>` | 取消隐藏 |
+
+### 时长格式详解
+
+`/axs title give` 的 `<时长>` 参数支持以下格式：
+
+| 格式 | 示例 | 说明 |
+| --- | --- | --- |
+| `permanent` | `permanent` | 永久称号，无过期时间 |
+| `<数字>s` | `30s` | 30 秒后过期 |
+| `<数字>m` | `30m` | 30 分钟后过期 |
+| `<数字>h` | `12h` | 12 小时后过期 |
+| `<数字>d` | `7d` | 7 天后过期 |
+| `yyyy-MM-dd~yyyy-MM-dd` | `2025-01-01~2025-12-31` | 日期区间，每天 0 点（系统时区）生效/失效 |
+
+> **注意**：日期区间的结束日期采用"当日结束"语义，即 `2025-12-31` 会持续到该日 23:59:59，而非 0 点整立即失效。
+
+## 跨模块能力（Capability）
+
+Title 模块在启动时向 `ModuleContext` 注册以下能力接口，供 EventPacket 等模块调用：
+
+### TitleGrantable
+
+由 Title 模块注册，供 EventPacket 等模块授予称号。
+
+```java
+boolean giveTitle(UUID playerId, String titleId, String duration, String source);
+```
+
+- `duration` 支持 `permanent`、`7d`、`30m`、`2025-01-01~2025-12-31` 等格式
+- `source` 用于日志追踪（如 `"EventPacket"`）
+- 返回 `true` 表示授予成功
+
+**使用场景**：EventPacket 规则引擎在触发特定事件时自动发放称号奖励。
+
+### TitleConfigQueryable
+
+由 Title 模块注册，供外部模块查询称号配置元数据（避免直接依赖 Title 内部配置类）。
+
+```java
+TitleInfo queryTitle(String titleId);
+record TitleInfo(String displayName, String qualityName, String description) {}
+```
+
+**使用场景**：QuestGPS 等模块在任务奖励提示中查询称号的显示名称和品质。
+
+### PlayerDataPurgeable
+
+由 Title 模块注册，支持 `/axs purge` 统一清理玩家数据。
+
+```java
+String moduleId();           // 返回 "title"
+int purgePlayerData(UUID);   // 删除指定玩家数据，返回影响行数
+int purgeAllPlayerData();    // 清空全部玩家数据，返回影响行数
+```
+
+### DatabaseMigratable
+
+由 Title 模块注册，支持 `/axs migrate title sqlite-to-mysql [overwrite]` 跨源数据库迁移。
+
+```java
+String moduleId();
+MigrationResult migrateDatabase(StorageDescriptor target, boolean overwrite);
+StorageDescriptor currentDescriptor();
+```
 
 ## PAPI
 
@@ -294,9 +359,18 @@ titles-directory: "titles"
 
 本模块 **没有独立的 MMOItems 集成代码**。MMOItems 本身基于 MythicLib stat 系统，只要你在 `*-attributes` 里写的键是 MMOItems 注册的 stat-id（如 `MAX_HEALTH`、`ATTACK_DAMAGE`、`MOVEMENT_SPEED`），就会随 MythicLib 通道生效。`*-attribute-lines` 对 MMOItems 不生效。
 
+#### Symphony
+
+接收 `*-attributes`（Map）与 `*-attribute-lines`（List<String>），按 Symphony 属性系统格式下发：
+
+- `display-attributes` 的每个项 → 转成 Symphony 属性键值对
+- `display-attribute-lines` 的每个项 → 原样下发
+- 两者合并后调用 Symphony API 注册到玩家
+- collection 同理，source 名可在 `ArcartXTitle.yml` 的 `symphony.source-prefix` 中调整（默认 `AXS_TITLE`）
+
 #### 原版 Bukkit Attribute
 
-**本模块不直接接入 `org.bukkit.attribute.Attribute`**。如需原版 `GENERIC_MAX_HEALTH` 等生效，请通过 AttributePlus / CraneAttribute / MythicLib 的映射能力（这些插件内部都可以把自己的属性映射到原版 Attribute）间接实现。
+**本模块不直接接入 `org.bukkit.attribute.Attribute`**。如需原版 `GENERIC_MAX_HEALTH` 等生效，请通过 AttributePlus / CraneAttribute / MythicLib / Symphony 的映射能力（这些插件内部都可以把自己的属性映射到原版 Attribute）间接实现。
 
 ### 常见问题
 
@@ -396,3 +470,83 @@ display-title:
 | 展示冒险+探索两组 | `groups: [adventure, exploration]` | `勇者 探险家` |
 | 展示所有组（默认） | `groups: []` | `勇者 探险家 节日特赠` |
 | 没装备任何称号 | `empty-text: "无称号"` | `无称号` |
+
+## 完整配置示例
+
+以下是一份可直接使用的 `ArcartXTitle.yml` 骨架，覆盖存储、UI、分组、品质、套装和属性插件前缀：
+
+```yaml
+# 称号定义目录，相对模块数据目录（plugins/ArcartXSuite/modules/title/）
+titles-directory: "titles"
+
+settings:
+  debug: false
+  # 过期清理周期（ticks），默认 1200 = 60 秒
+  expiration-cleanup-interval-ticks: 1200
+
+storage:
+  mode: sqlite          # sqlite 或 mysql
+  pool-size: 4
+  sqlite:
+    file: "titles.db"
+  mysql:
+    host: "127.0.0.1"
+    port: 3306
+    database: "arcartxsuite"
+    username: "root"
+    password: ""
+
+ui:
+  ui-id: "AXS:title_menu"
+  register-ui-on-enable: true
+  attribute-line-color: "&0"
+  empty-attribute-placeholder: "-"
+
+display-title:
+  groups: []
+  separator: " "
+  empty-text: ""
+
+# 分组定义（用户可自由增删）
+groups:
+  adventure:
+    name: "冒险"
+    sort-order: 0
+  exploration:
+    name: "探索"
+    sort-order: 1
+
+# 品质定义（用户可自由增删）
+qualities:
+  common:
+    name: "普通"
+    sort-order: 0
+  legend:
+    name: "传说"
+    sort-order: 1
+
+# 套装定义（用户可自由增删）
+sets:
+  starwalker_set:
+    display-name: "星轨套装"
+    required-titles:
+      - starwalker
+      - stargazer
+    completion-threshold: 2
+    bonus-attributes:
+      luck: 5
+    bonus-attribute-lines:
+      - "星轨之力:10"
+
+# 属性插件 source/modifier 前缀
+attributeplus:
+  source-prefix: "AXS_TITLE"
+mythiclib:
+  source-prefix: "AXS_TITLE"
+craneattribute:
+  source-prefix: "AXS_TITLE"
+symphony:
+  source-prefix: "AXS_TITLE"
+```
+
+> **提示**：`groups`、`qualities`、`titles`、`sets` 均为动态节点，用户增删不会被 `ConfigDiagnosticEngine` 判定为废弃。

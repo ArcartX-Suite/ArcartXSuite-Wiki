@@ -24,10 +24,26 @@ public class TitleModule extends AbstractAXSModule {
 
     @Override
     protected void startService() {
-        TitleService service = new TitleService(context, config);
+        TitleService service = new TitleService(context.plugin(), config, ...);
         service.start();
-        // 注册能力接口
-        context.registerCapability(TitleGrantable.class, service);
+
+        // 注册 TitleGrantable（使用 lambda adapter，处理 String duration → TitleDurationSpec 的转换）
+        context.registerCapability(TitleGrantable.class,
+            (playerId, titleId, duration, source) -> {
+                var specOpt = TitleDurationParser.parse(duration);
+                if (specOpt.isEmpty()) {
+                    context.logger().warning("无效的 duration 格式: " + duration);
+                    return false;
+                }
+                return service.giveTitle(playerId, titleId, specOpt.get(), source).success();
+            });
+
+        // 同时注册其他能力
+        context.registerCapability(TitleConfigQueryable.class, titleId -> {
+            TitleDefinition def = config.title(titleId);
+            return def == null ? null
+                : new TitleConfigQueryable.TitleInfo(def.displayName(), def.qualityName(), def.description());
+        });
     }
 }
 ```
@@ -42,8 +58,12 @@ public class EventPacketModule extends AbstractAXSModule {
         // 使用 Supplier 延迟查找，容忍目标模块尚未加载
         Supplier<TitleGrantable> titleSupplier =
             () -> context.getCapability(TitleGrantable.class);
+        Supplier<SubtitlePlayable> subtitleSupplier =
+            () -> context.getCapability(SubtitlePlayable.class);
 
-        dispatchService = new EventPacketDispatchService(titleSupplier);
+        dispatchService = new EventPacketDispatchService(
+            titleSupplier, subtitleSupplier, ...
+        );
         dispatchService.start();
     }
 }
@@ -52,10 +72,13 @@ public class EventPacketModule extends AbstractAXSModule {
 public class EventPacketDispatchService {
     private final Supplier<TitleGrantable> titleSupplier;
 
-    public void grantTitle(Player player, String titleId) {
+    public void grantTitle(Player player, String titleId, String duration) {
         TitleGrantable title = titleSupplier.get();
         if (title != null) {
-            title.grantTitle(player, titleId);
+            // 返回 boolean 表示是否成功；duration 支持 "permanent"、"7d"、日期区间等
+            boolean success = title.giveTitle(
+                player.getUniqueId(), titleId, duration, "EventPacket"
+            );
         }
     }
 }
@@ -71,7 +94,13 @@ public class EventPacketDispatchService {
 
 ```java
 public interface MailDispatchable {
-    void dispatchTemplateMail(Player player, String templateId);
+    /**
+     * @param presetId   邮件预设 ID
+     * @param playerName 收件人玩家名
+     * @param source     来源标识（如 "EventPacket"）
+     * @return true 表示发送成功
+     */
+    boolean dispatchPreset(String presetId, String playerName, String source);
 }
 ```
 
@@ -79,11 +108,18 @@ public interface MailDispatchable {
 
 ### TitleGrantable
 
-由 Title 模块注册，给予/移除玩家称号。
+由 Title 模块注册，给予玩家称号。
 
 ```java
 public interface TitleGrantable {
-    void grantTitle(Player player, String titleId);
+    /**
+     * @param playerId 玩家 UUID
+     * @param titleId  称号 ID
+     * @param duration 持续时间描述，如 "permanent"、"7d"、"2025-01-01~2025-12-31"
+     * @param source   来源标识（如 "EventPacket"、管理员名）
+     * @return true 表示授予成功
+     */
+    boolean giveTitle(UUID playerId, String titleId, String duration, String source);
 }
 ```
 
@@ -93,7 +129,12 @@ public interface TitleGrantable {
 
 ```java
 public interface SubtitlePlayable {
-    void playSubtitle(Player player, String groupId);
+    /**
+     * @param player  目标玩家
+     * @param groupId 字幕组 ID
+     * @return true 表示播放成功
+     */
+    boolean playGroup(Player player, String groupId);
 }
 ```
 
@@ -103,7 +144,13 @@ public interface SubtitlePlayable {
 
 ```java
 public interface ChatCardSendable {
-    void sendChatCard(Player player, String cardId, Map<String, String> data);
+    /**
+     * @param player 目标玩家
+     * @param cardId 卡片 ID
+     * @param data   附加数据（会注入到 UI 模板变量中）
+     * @return true 表示发送成功
+     */
+    boolean sendChatCard(Player player, String cardId, Map<String, String> data);
 }
 ```
 
@@ -137,19 +184,29 @@ public interface MapNavigable {
 
 ```java
 public interface TabRefreshable {
-    void refreshTab(Player player);
+    /** 刷新指定玩家可见的 Tab */
+    void requestViewerRefresh(Player viewer, String reason);
+
+    /** 刷新所有在线玩家的 Tab */
+    void requestGlobalRefresh(String reason);
 }
 ```
 
-**使用场景：** Title、Chat 等模块在数据变更时通知 Tab 刷新。
+**使用场景：** Title、Chat 等模块在数据变更时调用 `requestGlobalRefresh("title-equip")` 通知 Tab 刷新。
 
 ### TitleConfigQueryable
 
-由 Title 模块注册，查询称号配置信息。
+由 Title 模块注册，查询称号配置元数据（避免外部模块直接依赖 Title 内部配置类）。
 
 ```java
 public interface TitleConfigQueryable {
-    // 根据称号 ID 查询称号信息
+    /**
+     * @param titleId 称号 ID
+     * @return 称号信息，未找到时返回 null
+     */
+    TitleInfo queryTitle(String titleId);
+
+    record TitleInfo(String displayName, String qualityName, String description) {}
 }
 ```
 
