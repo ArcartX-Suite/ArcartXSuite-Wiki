@@ -135,7 +135,7 @@ export default defineConfig({
     },
 
     socialLinks: [
-      { icon: 'github', link: 'https://github.com/xuanmomo233/ArcartXSuite' },
+      { icon: 'github', link: 'https://github.com/xuanmomo233/ArcartXSuite-Wiki' },
     ],
 
     search: {

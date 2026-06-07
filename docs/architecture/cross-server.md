@@ -16,7 +16,7 @@
 
 ```
 ┌─────────────────────────────────────────────────────────────────┐
-│  Chat / Tab / Mail / Market / Announcer / OnlineRewards …       │
+│  Chat / Tab / Mail / Market / Announcer / OnlineRewards / EntityTracker …       │
 │       openChannel("chat", config, consumer)                     │
 └────────────────────────────┬────────────────────────────────────┘
                              │ 模块 payload（字符串/JSON/YAML）
@@ -125,6 +125,7 @@ SDK **只负责**信封与路由；业务格式由各模块定义，例如：
 | Mail | `mail` | `refresh:{uuid}` |
 | OnlineRewards | `onlinerewards` | `refresh:{uuid}` |
 | Market | `market` | `LISTING_CREATED:{id}` 等短文本 |
+| EntityTracker | `entitytracker` | `BEST_DAMAGE\t{uuid}\t...` Tab 分隔 |
 
 ## 已接入模块
 
@@ -136,10 +137,11 @@ SDK **只负责**信封与路由；业务格式由各模块定义，例如：
 | Mail | `ArcartXMail.yml` | 新邮件到达后刷新其他子服收件箱 UI |
 | OnlineRewards | `ArcartXOnlineRewards.yml` | 签到/补签/管理操作后刷新 |
 | Market | `ArcartXMarket.yml` | 拍卖事件广播（**Redis 缓存**仍用模块内 `redis` 节） |
+| EntityTracker | `ArcartXEntityTracker.yml` | Boss 死亡结算后同步各服玩家最高伤害（`player_boss_best_damage`） |
 
 Market 的 `redis` 节仅用于**拍卖列表缓存**（`cache-ttl-seconds`），与跨服 Pub/Sub 无关。
 
-EntityTracker 的跨服排行仍使用**模块自有 Redis 配置**（尚未接入统一 SDK）。
+EntityTracker 需同时开启根级 `cross-server.enabled` 与 `new-features.cross-server-ranking.enabled`；Redis/Proxy 连接见宿主 `config.yml`。
 
 ## 多服部署清单
 
