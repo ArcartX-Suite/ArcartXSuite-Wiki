@@ -92,12 +92,23 @@ first_join_guide:
 
 ### 规则条件（conditions）
 
-`conditions` 与 `prop` 模块的使用条件语法一致。每一项都是一条字符串表达式：
+规则动作执行前统一校验，语法与 [条件系统（PAPI + Aria）](/guide/conditions) 一致。
+
+**PAPI 行内示例：**
 
 ```yaml
 conditions:
   - "%player_level% >= 30"
   - "%AXSloginview_account_type% == microsoft"
+```
+
+**Aria 示例：**
+
+```yaml
+conditions:
+  - "aria: return player.getLevel() >= 30 && player.isOnline()"
+  - type: aria
+    script: "return player.hasPermission('eventpacket.boss.reward')"
 ```
 
 支持的操作符：

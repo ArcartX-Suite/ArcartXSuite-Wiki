@@ -111,9 +111,9 @@ CONDITION_NOT_MET: "&7[&dArcartXProp&7]&c{NAME} &f使用条件不满足: &e{COND
 
 ### 使用条件（conditions）
 
-通过 PlaceholderAPI 变量实现条件判断，所有条件必须同时满足（AND 逻辑）。
+通过 [条件系统](/guide/conditions) 配置使用门槛，支持 **PlaceholderAPI 行内表达式** 与 **Aria 脚本**。所有条件必须同时满足（AND）。
 
-**格式**：`<PlaceholderAPI变量> <运算符> <期望值>`
+**PAPI 行内格式**：`<PlaceholderAPI变量> <运算符> <期望值>`
 
 **支持运算符**：
 
@@ -134,26 +134,22 @@ CONDITION_NOT_MET: "&7[&dArcartXProp&7]&c{NAME} &f使用条件不满足: &e{COND
 
 ```yaml
 conditions:
-  # 数值比较
+  # PAPI 数值 / 字符串
   - "%player_level% >= 10"
-  - "%vault_eco_balance% >= 100"
-
-  # 字符串精确匹配（支持中文）
   - "%player_world% == world"
-  - "%player_biome% == 森林"
-  - "%luckperms_primary_group% == 战士"
-  - "%craneattribute_job% != 无职业"
-
-  # 包含判断
   - "%luckperms_groups% contains VIP"
-  - "%player_biome% contains 沙漠"
 
-  # 正则匹配
-  - "%player_name% regex ^[A-Z].*"
-  - "%luckperms_primary_group% regex (战士|法师|弓手)"
+  # Aria 脚本（需 BlinkAriaHost）
+  - "aria: return player.getHealth() > 5"
+  - type: aria
+    script: "return player.hasPermission('prop.advanced.use')"
 ```
 
-> 条件依赖 PlaceholderAPI 插件；未安装时条件跳过，等同未配置。
+::: tip 依赖说明
+- **PAPI 条件**：需安装 PlaceholderAPI；未安装时占位符不解析，条件通常不通过。  
+- **Aria 条件**：需 Blink 系插件注入 Aria；未部署时条件求值为 false。  
+详见 [条件系统](/guide/conditions)。
+:::
 
 ### 效果类型（effects）
 

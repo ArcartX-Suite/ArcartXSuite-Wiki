@@ -40,6 +40,7 @@ export default defineConfig({
             { text: '第一次启用流程', link: '/guide/first-run' },
             { text: '命令速查', link: '/guide/commands' },
             { text: 'PlaceholderAPI 速查', link: '/guide/placeholders' },
+            { text: '条件系统（PAPI + Aria）', link: '/guide/conditions' },
             { text: '货币系统配置', link: '/guide/currencies' },
             { text: '配置智能体检', link: '/guide/config-management' },
             { text: '跨服功能配置', link: '/guide/cross-server-setup' },
@@ -87,6 +88,7 @@ export default defineConfig({
             { text: 'RGB 渐变文本', link: '/modules/rgb' },
             { text: 'Essentials 基础工具', link: '/modules/essentials' },
             { text: 'Regions 区域保护', link: '/modules/regions' },
+            { text: 'Menu 通用菜单', link: '/modules/menu' },
           ],
         },
         {

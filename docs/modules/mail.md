@@ -120,6 +120,35 @@ Mail 模块在 CDK 兑换成功时自动向 EventPacket 发射信号：
 
 可在 `ArcartXEventPacket.yml` 中配置对应规则实现兑换特效、字幕播报等联动效果。
 
+## 领取条件（claim-conditions）
+
+预设邮件与部分系统邮件可配置**领取门槛**，玩家点击领取附件/执行 `claim-commands` 前校验。语法见 **[条件系统（PAPI + Aria）](/guide/conditions)**。
+
+```yaml
+# mail/presets/starter.yml 片段
+preset:
+  claim-conditions:
+    - "%player_level% >= 10"                    # PAPI 行内
+    - "%luckperms_groups% contains 新手"        # 权限组包含
+    - "aria: return player.getHealth() > 0"     # Aria 脚本
+  claim-commands:
+    - "eco give {player} 100"
+```
+
+| 写法 | 示例 |
+| --- | --- |
+| PAPI 行内 | `%player_level% >= 10` |
+| 预设旧格式（兼容） | `%player_level%::GTE::10` |
+| Aria 行内 | `aria: return player.getLevel() >= 10` |
+| Aria 结构化 | `type: aria` + `script:` 多行块 |
+| 独立列表 | `aria-conditions:` 下每行一段脚本 |
+
+::: warning
+- 未安装 PlaceholderAPI 时，PAPI 条件通常**不通过**，玩家无法领取。  
+- 未部署 **BlinkAriaHost** 时，Aria 条件求值为 **false**。  
+- 所有 `claim-conditions` 条目为 **AND** 关系。
+:::
+
 ## 跨服配置
 
 邮件数据需 **MySQL 共享库**；跨服仅同步「刷新通知」，不复制邮件正文。
