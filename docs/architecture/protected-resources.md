@@ -18,7 +18,7 @@ val protectYamlResources by tasks.registering(ProtectYamlResourcesTask::class) {
 ```
 +----+----+----+----+--------+--------------------------+
 | 'A'| 'X'| 'R'| '1'|  IV    |   AES/GCM ciphertext     |
-| 04 byte magic      | 12 byte|         (variable)        |
+| 04 byte magic     | 12 byte|         (variable)       |
 +----+----+----+----+--------+--------------------------+
 ```
 

@@ -436,7 +436,34 @@ new-features:
     max-entries: 50
 ```
 
-**当前实现范围**：仅 `best_damage`（玩家对指定 Boss 的历史最高伤害）。`kills`、`participate`、`server` 等类型为预留，尚未实现。
+**当前实现范围**：
+
+| 类型 | 数据来源 | 缓存表 |
+| --- | --- | --- |
+| `best_damage` | `player_boss_best_damage` 全 Boss 聚合 | `cross_server_boss_rankings` |
+| `boss_damage` | 按 Boss ID 过滤最高伤害 | 同上（`boss_id` 字段） |
+| `kills` | `boss_kill_records.participants` 击杀次数 | 同上 |
+| `participate` | `boss_kill_records` 参与不同 Boss 数 | 同上 |
+| `server` | 按 `server_name` 过滤最高伤害 | 同上 |
+
+Boss 死亡后写入 `boss_kill_records`，跨服经 `KILL_RECORD` payload 同步；`update-interval` 秒定时刷新 `cross_server_boss_rankings` JSON 缓存。
+
+### Boss 掉落记录
+
+Boss 死亡时捕获 `EntityDeathEvent` 掉落列表，写入 `boss_kill_records.drops` 并更新 `boss_drop_statistics` 掉落率；`retention-days` 到期自动清理历史击杀。
+
+### 掉落分配
+
+Boss 死亡后按 `default-mode` 分配掉落：
+
+| 模式 | 行为 |
+| --- | --- |
+| `roll` | 参与玩家随机 ROLL，最高点数者获得物品 |
+| `dkp` | 击杀时发放 DKP（基础分 + 排名奖励），物品给当前 DKP 最高者 |
+| `priority` | 按职业优先级配置选取获得者（默认 dps 最低优先） |
+| `manual` | 仅写入 `drop_allocation_records`，不自动发物品 |
+
+分配结果写入 `drop_allocation_records` / `roll_participation_records`；在线玩家直接收到物品，背包满则掉落脚下。
 
 ### 排行榜定时奖励系统
 
@@ -522,7 +549,7 @@ database:
 | `drop_allocation_records` | 掉落分配记录 | boss_kill_id, item_id, allocation_type, winner_uuid, points_cost, roll_value |
 | `roll_participation_records` | ROLL 参与明细 | allocation_record_id, player_uuid, roll_type, roll_value |
 | `player_boss_best_damage` | 玩家 Boss 最佳伤害（排行依据；跨服经 SDK 合并） | player_uuid, boss_id, best_damage, server_name（UNIQUE 约束） |
-| `cross_server_boss_rankings` | 跨服排行缓存（预留，当前未使用） | ranking_type, boss_id, ranking_data(JSON), expire_time |
+| `cross_server_boss_rankings` | 跨服排行 JSON 缓存（定时刷新） | ranking_type, boss_id, ranking_data, expire_time |
 | `ranking_reward_configs` | 排行奖励配置（预留表结构） | reward_type, ranking_type, rank_start, rank_end, 奖励内容 |
 | `ranking_reward_records` | 奖励发放记录 | reward_config_id, player_uuid, rank, score, status, failure_reason |
 | `ranking_periods` | 排行统计周期 | period_type, ranking_type, period_start, period_end, status |

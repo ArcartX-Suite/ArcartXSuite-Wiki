@@ -42,6 +42,7 @@ cross-server:
 | Mail | `ArcartXMail.yml` → `cross-server.enabled` | 自动（发信后广播 refresh） | **MySQL 必需** |
 | OnlineRewards | `ArcartXOnlineRewards.yml` → `cross-server.enabled` | 自动（签到/补签后 refresh） | **MySQL 必需** |
 | Market | `ArcartXMarket.yml` → `cross-server.enabled` | 拍卖事件自动广播 | **MySQL 必需**；`redis` 节仅缓存 |
+| Warehouse | `ArcartXWarehouse.yml` → `cross-server.enabled` | 共享仓库编辑锁同步 | **MySQL 必需**；`shared.enabled: true` |
 | EntityTracker | `ArcartXEntityTracker.yml` → `cross-server.enabled` | `new-features.cross-server-ranking.enabled: true` | 共享 SQLite 或依赖 SDK 入站合并 |
 
 ## Chat 跨服示例

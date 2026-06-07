@@ -6,21 +6,21 @@ ArcartXSuite 提供**四层配置诊断体系**，在模块加载阶段自动完
 
 ```
 ┌─────────────────────────────────────────────────────────────────────┐
-│                     ConfigDiagnosticEngine                           │
+│                     ConfigDiagnosticEngine                          │
 ├─────────────────────────────────────────────────────────────────────┤
-│  1. Structure Sync  →  YamlConfigSynchronizer + SyncPolicy           │
-│  2. Type Coercion   →  TypeCoercer (STRING↔INT↔BOOLEAN)            │
-│  3. Version Migrate →  MigrationLoader + MigrationOperationExecutor  │
-│  4. Value Validate  →  ValidationRule (range/enum/required)          │
+│  1. Structure Sync  →  YamlConfigSynchronizer + SyncPolicy          │
+│  2. Type Coercion   →  TypeCoercer (STRING↔INT↔BOOLEAN)             │
+│  3. Version Migrate →  MigrationLoader + MigrationOperationExecutor │
+│  4. Value Validate  →  ValidationRule (range/enum/required)         │
 └─────────────────────────────────────────────────────────────────────┘
                               ↓
 ┌─────────────────────────────────────────────────────────────────────┐
-│                   ConfigDiagnosisStore (内存缓存)                      │
+│                   ConfigDiagnosisStore (内存缓存)                    │
 └─────────────────────────────────────────────────────────────────────┘
                               ↓
 ┌─────────────────────────────────────────────────────────────────────┐
-│              MarkdownReportWriter → diagnosis/YYYY-MM-DD/            │
-│                         + .proposal.yml (修复提案)                     │
+│              MarkdownReportWriter → diagnosis/YYYY-MM-DD/           │
+│                         + .proposal.yml (修复提案)                   │
 └─────────────────────────────────────────────────────────────────────┘
 ```
 

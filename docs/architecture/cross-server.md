@@ -15,17 +15,17 @@
 ## 架构示意
 
 ```
-┌─────────────────────────────────────────────────────────────────┐
-│  Chat / Tab / Mail / Market / Announcer / OnlineRewards / EntityTracker …       │
-│       openChannel("chat", config, consumer)                     │
-└────────────────────────────┬────────────────────────────────────┘
+┌────────────────────────────────────────────────────────────────────────────┐
+│  Chat / Tab / Mail / Market / Announcer / OnlineRewards / EntityTracker …  │
+│       openChannel("chat", config, consumer)                                │
+└────────────────────────────┬───────────────────────────────────────────────┘
                              │ 模块 payload（字符串/JSON/YAML）
                              ▼
 ┌─────────────────────────────────────────────────────────────────┐
-│  CrossServerService（axs-core）                                  │
+│  CrossServerService（axs-core）                                 │
 │  · 封装 CrossServerEnvelope（module, nodeId, messageId, sign）   │
 │  · 出站：Redis PUBLISH + Proxy Forward（可选）                   │
-│  · 入站：验签 → message-id 去重 → 跳过本 node → 按 module 分发   │
+│  · 入站：验签 → message-id 去重 → 跳过本 node → 按 module 分发    │
 └──────────────┬──────────────────────────────┬───────────────────┘
                │                              │
         Redis  │ AXS:CROSS                    │ BungeeCord Forward
@@ -125,7 +125,8 @@ SDK **只负责**信封与路由；业务格式由各模块定义，例如：
 | Mail | `mail` | `refresh:{uuid}` |
 | OnlineRewards | `onlinerewards` | `refresh:{uuid}` |
 | Market | `market` | `LISTING_CREATED:{id}` 等短文本 |
-| EntityTracker | `entitytracker` | `BEST_DAMAGE\t{uuid}\t...` Tab 分隔 |
+| EntityTracker | `entitytracker` | `BEST_DAMAGE\t...` / `KILL_RECORD\t...` Tab 分隔 |
+| Warehouse | `warehouse` | `LOCK\t{sharedId}\t...` / `UNLOCK\t{sharedId}\t...` |
 
 ## 已接入模块
 
@@ -138,10 +139,13 @@ SDK **只负责**信封与路由；业务格式由各模块定义，例如：
 | OnlineRewards | `ArcartXOnlineRewards.yml` | 签到/补签/管理操作后刷新 |
 | Market | `ArcartXMarket.yml` | 拍卖事件广播（**Redis 缓存**仍用模块内 `redis` 节） |
 | EntityTracker | `ArcartXEntityTracker.yml` | Boss 死亡结算后同步各服玩家最高伤害（`player_boss_best_damage`） |
+| Warehouse | `ArcartXWarehouse.yml` | 共享仓库编辑锁 `LOCK` / `UNLOCK`（需 MySQL 共享库 + `shared.enabled`） |
 
 Market 的 `redis` 节仅用于**拍卖列表缓存**（`cache-ttl-seconds`），与跨服 Pub/Sub 无关。
 
 EntityTracker 需同时开启根级 `cross-server.enabled` 与 `new-features.cross-server-ranking.enabled`；Redis/Proxy 连接见宿主 `config.yml`。
+
+Warehouse 跨服编辑锁需：`shared.enabled: true`、模块 `cross-server.enabled: true`、各子服共用同一 MySQL 仓库库。
 
 ## 多服部署清单
 

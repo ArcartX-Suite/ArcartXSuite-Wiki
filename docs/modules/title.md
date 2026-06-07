@@ -215,7 +215,7 @@ StorageDescriptor currentDescriptor();
 | 字段 | 类型 | 默认值 | 说明 |
 | --- | --- | --- | --- |
 | `overhead-mode` | String | `none` | `texture`（ArcartX 贴图） / `text`（Scoreboard Team） / `none`（不显示） |
-| `overhead-texture` | String | 空 | TEXTURE 模式的渲染内容，使用 ArcartX 文字贴图格式（如 `§k!%000001<icon>`） |
+| `overhead-texture` | String | 空 | TEXTURE 模式的渲染内容，使用 ArcartX 文字贴图格式（如 `§k!%000001&lt;icon&gt;`） |
 | `overhead-width` | int | `64` | TEXTURE 模式贴图宽度 |
 | `overhead-height` | int | `64` | TEXTURE 模式贴图高度 |
 | `overhead-offset-y` | double | `2.3` | TEXTURE 模式 Y 轴偏移（越大越高） |
@@ -238,7 +238,7 @@ starwalker:
   overhead-offset-y: 2.3
 ```
 
-- `overhead-texture` 使用 ArcartX 文字贴图格式 `§k!%000001<icon>`，与 UI 和聊天中使用的格式一致
+- `overhead-texture` 使用 ArcartX 文字贴图格式 `§k!%000001&lt;icon&gt;`，与 UI 和聊天中使用的格式一致
 - 贴图始终面向观察者（billboard 模式）
 - ArcartX 未安装时自动降级为 TEXT 模式
 
@@ -361,7 +361,7 @@ titles-directory: "titles"
 
 #### Symphony
 
-接收 `*-attributes`（Map）与 `*-attribute-lines`（List<String>），按 Symphony 属性系统格式下发：
+接收 `*-attributes`（Map）与 `*-attribute-lines`（List&lt;String&gt;），按 Symphony 属性系统格式下发：
 
 - `display-attributes` 的每个项 → 转成 Symphony 属性键值对
 - `display-attribute-lines` 的每个项 → 原样下发
@@ -377,7 +377,7 @@ titles-directory: "titles"
 - **在菜单里看到属性显示 `-`**：检查字段名是不是拼错了。有效的只有这 4 个：`display-attributes`、`collection-attributes`、`display-attribute-lines`、`collection-attribute-lines`。其他如 `display-attributeplus` 之类不被识别。
 - **中文属性名不生效**：确保写在 `*-attribute-lines` 里（不是 Map），且 AttributePlus / CraneAttribute 的属性表中存在该中文属性。
 - **MythicLib 警告 `stat 未注册`**：`*-attributes` 里的键不是 MythicLib/MMOItems 仓库里已有的 stat-id。请查 `MythicLib/stats/*.yml` 或 MMOItems 属性配置。
-- **菜单里同名属性堆在一行 / 分散显示**：本版本起，后端会把同名同类（`名:数值` 形式）的行**累加合并**为一项，并把 `*_attributes_text` 字段以 `List<String>` 形式发送，UI Text 控件的 `texts` 字段拿到 List 会自动按行渲染。若仍异常，请确认 `plugins/ArcartXSuite/ui/title_menu.yml` 已被新版本覆盖。
+- **菜单里同名属性堆在一行 / 分散显示**：本版本起，后端会把同名同类（`名:数值` 形式）的行**累加合并**为一项，并把 `*_attributes_text` 字段以 `List&lt;String&gt;` 形式发送，UI Text 控件的 `texts` 字段拿到 List 会自动按行渲染。若仍异常，请确认 `plugins/ArcartXSuite/ui/title_menu.yml` 已被新版本覆盖。
 - **属性行没有颜色 / 颜色不对**：在 `ArcartXTitle.yml` 的 `ui.attribute-line-color` 配置统一改（默认 `&0`），不要在每个称号定义里加颜色码。
 
 ## 服务端 → UI 数据契约（属性相关）

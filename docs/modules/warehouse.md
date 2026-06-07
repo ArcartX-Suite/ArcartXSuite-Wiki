@@ -79,6 +79,10 @@ settings:
   debug: false                      # 调试日志开关
   flush-interval-ticks: 100         # 数据刷新间隔（tick）
 
+# 跨服共享仓库编辑锁（多子服共用 MySQL 时建议开启；连接参数见宿主 config.yml cross-server 节）
+cross-server:
+  enabled: false
+
 # UI 设置
 ui:
   id: "AXS:warehouse_storage"         # 仓库 UI ID
@@ -241,6 +245,31 @@ shared:
       priority: 10
       max-owned: 3
       max-members: 10
+
+### 跨服共享仓库与编辑锁
+
+Warehouse **支持多子服共用同一 MySQL 库**实现共享仓库数据同步（`storage.mode: mysql` + 各子服指向同一 `database`）。SQLite 仅适合单服。
+
+共享仓库进入**编辑模式**时采用互斥锁：同一时刻只允许一名成员编辑，其余成员以只读打开。单服时锁保存在本进程内存；多子服时可通过 CrossServer SDK 广播锁状态：
+
+| 条件 | 说明 |
+| --- | --- |
+| `shared.enabled: true` | 启用共享仓库功能 |
+| `storage.mode: mysql` | 各子服共用同一仓库库 |
+| 宿主 `config.yml` → `cross-server` 已启用 | Redis 或 Proxy 通道可用 |
+| `cross-server.enabled: true` | 模块级开关（`ArcartXWarehouse.yml`） |
+
+**频道**：`warehouse`  
+**Payload**：`LOCK\t{sharedId}\t{playerUuid}\t{playerName}\t{nodeId}` / `UNLOCK\t{sharedId}\t{playerUuid}\t{nodeId}`
+
+行为摘要：
+
+- 玩家在本服抢到编辑锁后，向其他子服广播 `LOCK`
+- 他服若已有玩家正在编辑同一共享仓库，会被降级为只读并刷新 UI，提示「玩家名（nodeId）正在编辑」
+- 关闭 UI、切换只读、退出服务器时在本服释放锁并广播 `UNLOCK`
+- `/axs warehouse status` 可查看跨服通道与当前活跃锁数量
+
+详见 [跨服架构](/architecture/cross-server) 与 [跨服部署速查](/guide/cross-server-setup)。
 
 # 排序方案定义
 sort-profiles:
@@ -486,6 +515,6 @@ WarehouseModule (AbstractAXSModule)
 - 二级密码使用 **PBKDF2WithHmacSHA256**，120,000 次迭代，256 位输出，随机 16 字节 salt
 - 密码验证通过 `MessageDigest.isEqual()` 进行恒定时间比较，防止时序攻击
 - 若开启 `allow-admin-password-reveal`，管理员可使用 `admin-reveal-secret` 通过 AES/GCM 解密密码（用于密码找回场景）
-- 共享仓库编辑采用**互斥锁**：同一时间只有一个成员可进入编辑模式，其他人以只读方式打开
+- 共享仓库编辑采用**互斥锁**：同一时间只有一个成员可进入编辑模式，其他人以只读方式打开；多子服场景下通过 CrossServer SDK 同步锁状态（见上文「跨服共享仓库与编辑锁」）
 - 所有银行扣款/存款操作使用**原子数据库操作**，失败自动回滚
 - 定期存款领取为**原子操作**：`claimFixedDepositAtomic` 在数据库层面标记 claimed 并计算本息入账，避免并发重复领取
