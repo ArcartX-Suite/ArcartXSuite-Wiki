@@ -172,6 +172,202 @@ entries:
     currency: "money"
 ```
 
+## 第三方物品库配置
+
+系统商店支持多种物品来源，除原版 Minecraft 物品外，还支持通过第三方插件定义自定义物品。每种来源对应不同的插件与配置方式。
+
+### 物品来源总览
+
+| `source` 值 | 对应插件 | `item-id` 格式 | 说明 |
+|-------------|---------|---------------|------|
+| `minecraft` | 原版 | `DIAMOND_SWORD`、`POTION` 等 | 直接使用 Bukkit Material 名称 |
+| `neige` | NeigeItems | 在 NeigeItems 中注册的 Item ID | 需在 NeigeItems 中预先配置物品 |
+| `mythic` | MythicMobs | 在 MythicMobs 中注册的 Internal Name | 需在 MythicMobs Items 目录中配置 |
+| `overture` | Overture | 在 Overture 中注册的物品 ID | 需在 Overture items 目录中配置 |
+| `mmoitems` | MMOItems | `TYPE;ID` 格式，如 `ARMOR;STEEL_HELMET` | 需在 MMOItems 对应类型目录中配置 |
+
+### NeigeItems 配置
+
+**依赖插件**: [NeigeItems](https://github.com/ankhorg/NeigeItems-Kotlin)
+
+**配置路径**: `plugins/NeigeItems/Items/NeigeFishRod.yml`
+
+```yaml
+NeigeFishRod:
+  material: FISHING_ROD
+  name: '&e神奇钓鱼竿'
+  lore:
+    - '&7一根被施了魔法的钓鱼竿，据说能钓到珍稀鱼类。'
+    - ''
+    - '&e✦ &7稀有度: &b罕见'
+    - '&e✦ &7类别: &f工具'
+    - '&e✦ &7等级要求: &f10'
+    - ''
+    - '&8&m------------&7 属性 &8&m------------'
+    - '&7▸ 海之眷顾 &bIII'
+    - '&7▸ 饵钓 &bIII'
+    - '&7▸ 耐久 &bIII'
+  nbt:
+    Enchantments:
+      - id: "minecraft:luck_of_the_sea"
+        lvl: (Short) 3
+      - id: "minecraft:lure"
+        lvl: (Short) 3
+      - id: "minecraft:unbreaking"
+        lvl: (Short) 3
+    HideFlags: (Int) 1
+```
+
+**商店引用**:
+
+```yaml
+neige_fishing_rod:
+  source: "neige"
+  item-id: "NeigeFishRod"
+  display-name: "&e神奇钓鱼竿"
+  buy-price: 3000
+```
+
+### MythicMobs 配置
+
+**依赖插件**: [MythicMobs](https://www.mythicmobs.net/)
+
+**配置路径**: `plugins/MythicMobs/Items/ExampleMythicSword.yml`
+
+```yaml
+ExampleMythicSword:
+  Id: DIAMOND_SWORD
+  Display: '&6传说之剑'
+  Lore:
+    - '&7一把散发着神秘光芒的古老长剑。'
+    - ''
+    - '&e✦ &7稀有度: &6传说'
+    - '&e✦ &7类别: &f武器'
+    - '&e✦ &7等级要求: &f30'
+    - ''
+    - '&8&m------------&7 属性 &8&m------------'
+    - '&7▸ 伤害: &c+25'
+    - '&7▸ 暴击率: &c+15%'
+    - '&7▸ 攻击速度: &c+10%'
+  Enchantments:
+    - DAMAGE_ALL:5
+    - FIRE_ASPECT:2
+    - LOOT_BONUS_MOBS:3
+    - DURABILITY:3
+  Options:
+    Unbreakable: true
+    HideEnchants: false
+```
+
+::: warning 附魔名称
+MythicMobs 5.x 使用 Bukkit `Enchantment` 枚举名，而非 Minecraft 原版英文名称。常见映射：`SHARPNESS` → `DAMAGE_ALL`、`LOOTING` → `LOOT_BONUS_MOBS`、`UNBREAKING` → `DURABILITY`。完整列表请参考 Bukkit API 文档。
+:::
+
+**商店引用**:
+
+```yaml
+mythic_weapon_example:
+  source: "mythic"
+  item-id: "ExampleMythicSword"
+  display-name: "&6传说之剑"
+  buy-price: 10000
+```
+
+### MMOItems 配置
+
+**依赖插件**: [MMOItems](https://www.spigotmc.org/resources/mmoitems.39267/)
+
+**配置路径**: `plugins/MMOItems/item/armor/STEEL_HELMET.yml`
+
+```yaml
+STEEL_HELMET:
+  base:
+    material: IRON_HELMET
+  name: '&7钢盔'
+  lore:
+    - '&7由坚固的钢材锻造而成的头盔。'
+    - ''
+    - '&e✦ &7稀有度: &f普通'
+    - '&e✦ &7类别: &f护甲'
+    - '&e✦ &7等级要求: &f20'
+    - ''
+    - '&8&m------------&7 属性 &8&m------------'
+    - '&7▸ 护甲值: &a+3'
+    - '&7▸ 韧性: &a+1'
+    - '&7▸ 耐久: &a150'
+  enchants:
+    PROTECTION_ENVIRONMENTAL: 2
+    DURABILITY: 2
+  item-type: ARMOR
+  max-durability: 150
+  bound: false
+```
+
+**商店引用**:
+
+```yaml
+mmoitems_steel_helmet:
+  source: "mmoitems"
+  item-id: "ARMOR;STEEL_HELMET"
+  display-name: "&7钢盔"
+  buy-price: 1200
+```
+
+### Overture 配置
+
+**依赖插件**: [Overture](https://17artist.github.io/Overture/)（17Artist 私有插件）
+
+Overture 使用「物品定义 + 展示方案」分离的架构。物品文件定义数据和 Meta，展示方案模板定义最终渲染的名称与 Lore。
+
+**物品配置路径**: `plugins/Overture/items/OvertureTreasure.yml`
+
+```yaml
+OvertureTreasure:
+  display: treasure_display
+  icon: CHEST
+  name:
+    item_name: "&d神秘宝藏"
+  lore:
+    item_type: "&5消耗品"
+    item_desc:
+      - "&7一个散发着紫光的神秘宝箱。"
+      - "&7右键打开它，或许能获得意想不到的惊喜。"
+      - ""
+      - "&e✦ &7稀有度: &d史诗"
+      - "&e✦ &7类别: &f消耗品"
+      - "&e✦ &7来源: &fOverture"
+  meta:
+    shiny: true
+  data:
+    treasure_type: "legendary"
+    open_limit: 1
+```
+
+**展示方案配置路径**: `plugins/Overture/displays/treasure_display.yml`
+
+```yaml
+treasure_display:
+  name: "<item_name>"
+  lore:
+    - "<item_type>"
+    - ""
+    - "<item_desc...>"
+```
+
+::: tip 展示方案
+`name` 与 `lore` 中可使用 `<key>` 占位符引用物品定义中 `name.*` 和 `lore.*` 字段。`<item_desc...>` 会展开列表中的所有行。
+:::
+
+**商店引用**:
+
+```yaml
+overture_treasure_box:
+  source: "overture"
+  item-id: "OvertureTreasure"
+  display-name: "&d神秘宝藏"
+  buy-price: 5000
+```
+
 ## 存储结构
 
 Market 使用 MySQL 存储，自动创建以下表：

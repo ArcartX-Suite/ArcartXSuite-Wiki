@@ -64,10 +64,12 @@ QQBot 为付费模块，需要有效授权码激活。
 | `/axs qqbot send all <消息>` | `arcartxsuite.qqbot.admin` | 向所有已配置群发送消息 |
 | `/axs qqbot send <群号> <消息>` | `arcartxsuite.qqbot.admin` | 向指定群发送消息 |
 | `/axs qqbot lookup <玩家名\|QQ号>` | `arcartxsuite.qqbot.admin` | 查询绑定关系（双向） |
-| `/axs qqbot snowluma install` | `arcartxsuite.qqbot.admin` | 从 GitHub 下载安装最新版 SnowLuma |
-| `/axs qqbot snowluma start` | `arcartxsuite.qqbot.admin` | 启动 SnowLuma 子进程 |
-| `/axs qqbot snowluma stop` | `arcartxsuite.qqbot.admin` | 停止 SnowLuma 子进程 |
-| `/axs qqbot snowluma status` | `arcartxsuite.qqbot.admin` | 查看 SnowLuma 安装/运行状态 |
+| `/axs qqbot snowluma install` | `arcartxsuite.qqbot.admin` | 从 GitHub 下载安装/更新（原生）或拉取镜像/运行容器（Docker） |
+| `/axs qqbot snowluma start` | `arcartxsuite.qqbot.admin` | 启动 SnowLuma（子进程 / Docker 容器） |
+| `/axs qqbot snowluma stop` | `arcartxsuite.qqbot.admin` | 停止 SnowLuma |
+| `/axs qqbot snowluma status` | `arcartxsuite.qqbot.admin` | 查看 SnowLuma 安装/运行状态及版本号 |
+| `/axs qqbot snowluma logs` | `arcartxsuite.qqbot.admin` | 查看 Docker 容器最近日志（仅 Docker 模式） |
+| `/axs qqbot snowluma check-update` | `arcartxsuite.qqbot.admin` | 检查 GitHub Release 是否有新版本 |
 | `/axs qqbot blacklist add <QQ号>` | `arcartxsuite.qqbot.admin` | 将指定 QQ 加入黑名单 |
 | `/axs qqbot blacklist remove <QQ号>` | `arcartxsuite.qqbot.admin` | 将指定 QQ 移出黑名单 |
 | `/axs qqbot blacklist list` | `arcartxsuite.qqbot.admin` | 查看当前数据库黑名单列表 |
@@ -141,8 +143,17 @@ onebot:
   reconnect-interval-seconds: 10
   heartbeat-interval-seconds: 30
   snowluma:
-    dir: "snowluma"              # 安装目录（相对服务端根目录）
+    # 运行模式：native（本地子进程）/ docker（Docker 容器，推荐 Linux VPS）
+    mode: "native"
+    dir: "snowluma"              # 安装目录（相对服务端根目录，仅 native 模式有效）
     auto-start: false            # 模块启动时自动拉起 SnowLuma
+    docker:
+      container-name: "snowluma"
+      image: "motricseven7/snowluma:latest"
+      webui-port: 5099
+      ws-port: 3001
+      http-port: 3000
+      auto-install: false        # 模块启动时若容器不存在则自动拉取并运行容器
 
 # 监听的 QQ 群（支持多群）
 groups:
@@ -495,9 +506,26 @@ QQBotModule (AbstractAXSModule)
 
 ## SnowLuma 快速接入
 
-推荐使用 [SnowLuma](https://github.com/SnowLuma/SnowLuma) 作为 OneBot 11 实现端，以下是最小化接入步骤：
+推荐使用 [SnowLuma](https://github.com/SnowLuma/SnowLuma) 作为 OneBot 11 实现端。以下按运行模式分别说明。
 
-### 1. 安装 SnowLuma
+### 模式选择：native vs docker
+
+| 模式 | 适用场景 | 特点 |
+|------|---------|------|
+| **native**（默认） | Windows / Linux 有图形环境 | 本地子进程，解压即用，支持 WebUI 扫码登录 |
+| **docker** | Linux VPS（无图形环境） | 容器运行，内置 Xvfb + noVNC，**需 Docker 环境** |
+
+::: warning Linux native 的局限
+SnowLuma 官方说明：**"Linux 版本仅提供 OneBot 桥接能力，NTQQ 进程注入仅在 Windows 下生效。"**
+- **Linux native 模式**：无 NTQQ 客户端 hook，功能和 NapCat 类似
+- **Linux Docker 模式**：容器内完整环境（Linux QQ + Xvfb + SnowLuma），**有完整客户端能力**，和 Windows 体验一致
+:::
+
+---
+
+### Native 模式（Windows / Linux）
+
+#### 1. 安装 SnowLuma
 
 AXS 附带了一键脚本，**自动下载最新版 SnowLuma 并启动**（需要 Node.js 18+）：
 
@@ -511,16 +539,21 @@ chmod +x start-snowluma.sh && ./start-snowluma.sh
 
 脚本会自动从 GitHub Release 下载、解压到 `snowluma/` 目录，后续再次运行会直接启动（不重复下载）。
 
+> **架构自动匹配**：安装脚本会根据系统架构自动下载正确的构建产物：
+> - `SnowLuma-vX.Y.Z-win-x64.zip`
+> - `SnowLuma-vX.Y.Z-linux-x64.tar.gz`
+> - `SnowLuma-vX.Y.Z-linux-arm64.tar.gz`
+
 首次启动后 WebUI 默认监听 `5099` 端口，控制台会打印初始密码：
 ```
 initial credentials: user=admin password=<随机密码>
 ```
 
-### 2. 登录 QQ 账号
+#### 2. 登录 QQ 账号
 
 浏览器打开 `http://127.0.0.1:5099`，用初始密码登录 WebUI，然后扫码或密码登录你的 QQ 机器人账号。
 
-### 3. 配置 WebSocket 适配器
+#### 3. 配置 WebSocket 适配器
 
 在 SnowLuma WebUI 中操作：
 
@@ -535,7 +568,7 @@ initial credentials: user=admin password=<随机密码>
 如果 SnowLuma 的 WS 节点设置了 Token，QQBot 配置也**必须填写完全相同的 Token**，否则连接会被服务端以 `code=1008 invalid access token` 拒绝。
 :::
 
-### 4. 配置 AXS QQBot
+#### 4. 配置 AXS QQBot
 
 编辑 `plugins/ArcartXSuite/data/qqbot/ArcartXQQBot.yml`：
 
@@ -543,25 +576,79 @@ initial credentials: user=admin password=<随机密码>
 onebot:
   ws-url: "ws://127.0.0.1:3001"     # 端口与 SnowLuma WS 节点一致
   access-token: "你在 SnowLuma 设置的 token"  # 留空则两边都不设
+  snowluma:
+    mode: "native"
+    dir: "snowluma"
+    auto-start: false
 ```
 
-> **端口说明**：SnowLuma 默认 WS 服务端端口是 `3001`（不是 `8080`）。如果你在 SnowLuma 中修改了端口，这里需要对应修改。
-
-### 5. 验证连接
+#### 5. 验证连接
 
 重载模块或重启服务器：
 ```
 /axs qqbot reload
 ```
 
-控制台应出现：
-```
-[QQBot] WebSocket 已连接: ws://127.0.0.1:3001/ (HTTP 101)
-[QQBot] OneBot 已连接 | client=true | 群数=1
-[QQBot] 登录账号: 你的昵称 (QQ号)
+---
+
+### Docker 模式（Linux VPS 推荐）
+
+#### 1. 前提条件
+
+确保服务器已安装 Docker，且当前用户有 docker 权限（或在 `root` 下运行）。
+
+#### 2. 配置 AXS QQBot
+
+编辑 `ArcartXQQBot.yml`，切换到 `docker` 模式：
+
+```yaml
+onebot:
+  ws-url: "ws://127.0.0.1:3001"
+  access-token: ""
+  snowluma:
+    mode: "docker"
+    auto-start: true
+    docker:
+      container-name: "snowluma"
+      image: "motricseven7/snowluma:latest"
+      webui-port: 5099
+      ws-port: 3001
+      http-port: 3000
+      auto-install: true
 ```
 
-如果看到 `code=1008 reason=invalid access token`，说明 Token 不匹配，请检查两边配置。
+#### 3. 启动
+
+执行：
+```
+/axs qqbot snowluma install
+/axs qqbot snowluma start
+```
+
+或直接重启服务器（`auto-install: true` 时模块启动会自动拉取镜像并运行容器）。
+
+#### 4. 登录 QQ
+
+容器启动后，WebUI 映射到宿主机 `5099` 端口。在浏览器访问：
+```
+http://<VPS_IP>:5099
+```
+
+> 注意：VPS 需开放 `5099` 端口，或配置反向代理 / SSH 隧道。
+
+#### 5. Docker 管理命令
+
+```
+/axs qqbot snowluma status      # 查看容器运行状态 + 版本号
+/axs qqbot snowluma logs       # 查看容器最近 50 行日志
+/axs qqbot snowluma stop       # docker stop
+/axs qqbot snowluma start      # docker start
+/axs qqbot snowluma install    # docker pull + docker run（更新镜像时重新执行）
+```
+
+::: tip 版本检测
+执行 `/axs qqbot snowluma check-update` 可异步检查 GitHub 最新版本，与本地版本比对后提示是否需要更新。
+:::
 
 ::: tip 多账号
 SnowLuma 支持同一进程托管多个 QQ 账号，每个账号独立 WebSocket 端口。如果你有多个群需要不同机器人，可以在 SnowLuma 中配置多账号，AXS 侧只需连接主账号即可。
