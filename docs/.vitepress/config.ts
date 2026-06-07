@@ -53,6 +53,7 @@ export default defineConfig({
           text: '架构',
           items: [
             { text: '概览', link: '/architecture/' },
+            { text: '系统架构', link: '/architecture/system-architecture' },
             { text: '模块化架构', link: '/architecture/modular' },
             { text: '桥接层 (Bridge)', link: '/architecture/bridges' },
             { text: '跨服通信 (CrossServer)', link: '/architecture/cross-server' },
