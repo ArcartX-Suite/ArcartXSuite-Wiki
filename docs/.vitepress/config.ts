@@ -43,6 +43,7 @@ export default defineConfig({
             { text: '货币系统配置', link: '/guide/currencies' },
             { text: '配置智能体检', link: '/guide/config-management' },
             { text: '跨服功能配置', link: '/guide/cross-server-setup' },
+            { text: 'Warehouse 多服 MySQL 部署', link: '/guide/warehouse-cross-server' },
             { text: '多 UI 同时发包', link: '/guide/multi-ui' },
             { text: 'Proxy 代理端插件', link: '/guide/proxy-usage' },
           ],

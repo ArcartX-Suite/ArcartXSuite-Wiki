@@ -43,6 +43,8 @@ cross-server:
 | OnlineRewards | `ArcartXOnlineRewards.yml` → `cross-server.enabled` | 自动（签到/补签后 refresh） | **MySQL 必需** |
 | Market | `ArcartXMarket.yml` → `cross-server.enabled` | 拍卖事件自动广播 | **MySQL 必需**；`redis` 节仅缓存 |
 | Warehouse | `ArcartXWarehouse.yml` → `cross-server.enabled` | 共享仓库编辑锁同步 | **MySQL 必需**；`shared.enabled: true` |
+
+完整部署步骤（MySQL 建库、`config.yml` 示例、验证清单）见 [Warehouse 多服 MySQL 部署](/guide/warehouse-cross-server)。
 | EntityTracker | `ArcartXEntityTracker.yml` → `cross-server.enabled` | `new-features.cross-server-ranking.enabled: true` | 共享 SQLite 或依赖 SDK 入站合并 |
 
 ## Chat 跨服示例
@@ -65,20 +67,6 @@ cross-server: true
 
 重载后 `/axs chat status` 应显示跨服通道已激活。
 
-## 从旧版迁移
-
-`1.2.0-beta` 之前各模块独立的配置**已失效**，请删除并改用新结构：
-
-| 旧配置（已移除） | 新配置 |
-| --- | --- |
-| `ArcartXChat.yml` → `transport.redis` / `transport.proxy` | 宿主 `cross-server` + 模块 `cross-server.enabled` |
-| `ArcartXAnnouncer.yml` → `transport.proxy` | 同上 |
-| `ArcartXMail.yml` → `redis`（Pub/Sub） | 同上 |
-| `ArcartXOnlineRewards.yml` → `redis` | 同上 |
-| `ArcartXTab.yml` → 模块内 Redis/Proxy 节 | 同上 |
-| Market `redis.channel`（Pub/Sub） | 跨服用宿主 SDK；`redis` 仅保留缓存字段 |
-
-旧频道名（`AXS:chat`、`AXS_ANNOUNCER` 等）不再使用；统一为 Redis `AXS:CROSS`、Proxy `AXS_CROSS`。
 
 ## 验证
 
