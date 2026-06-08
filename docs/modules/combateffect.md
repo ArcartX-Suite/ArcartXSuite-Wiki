@@ -42,11 +42,15 @@
 
 ### 伤害飘字
 
-- **智能来源检测**：MythicLib → CraneAttribute → AttributePlus → Bukkit 原版
-- **来源回退**：指定来源不可用时自动回退
-- **分类显示**：原始伤害、玩家伤害、属性伤害分别使用不同配置 ID
-- **治疗飘字**：原版治疗和 MythicMobs 技能治疗，支持精确模式
-- **最小阈值**：避免微量数字刷屏
+- **智能来源检测**：MythicLib → CraneAttribute → AttributePlus → Symphony → Bukkit 原版
+- **来源回退**：指定来源不可用时自动回退到下一个可用来源
+- **分类显示**：原始伤害、PVP 伤害、各属性插件伤害分别使用不同配置 ID
+- **Projectile 支持**：弓箭、三叉戟、投掷药水等原版远程攻击，通过 shooter 解析归属玩家
+- **伤害合并**：短时间内的多段伤害自动合并为一次飘字，避免数字刷屏
+- **治疗合并**：短时间内的多段治疗自动合并为一次飘字（原版治疗、MythicMobs 治疗、CraneAttribute/Symphony 属性治疗）
+- **可见性控制**：`show-others-damage` 开关，默认仅攻击者自己可见，开启后其他能看到目标的玩家也可见
+- **治疗飘字**：原版治疗、MythicMobs 技能治疗、CraneAttribute 恢复生命触发器、Symphony 治疗事件，支持精确模式
+- **最小阈值**：各来源独立配置最小显示阈值，过滤微量数字
 
 ---
 
@@ -57,8 +61,9 @@
 | 必需 | ArcartX | 播放特效、包发送、伤害飘字、服务器变量同步 | 模块无法向客户端展示任何战斗反馈 |
 | 可选 | Chronos | 连击追踪的 Chronos 状态源、死亡缓冲强制状态、`state`/`controller` 触发器 | 自动回退 Bukkit 事件源；死亡状态功能不可用；state/controller 触发器不可用 |
 | 可选 | MythicLib / MMOItems | 读取 MythicLib 属性伤害 | 自动回退到下一个来源 |
-| 可选 | CraneAttribute | 读取 CraneAttribute 属性伤害 | 自动回退 |
-| 可选 | AttributePlus | 读取 AttributePlus 属性伤害 | 自动回退到 Bukkit 原版 |
+| 可选 | CraneAttribute | 读取 CraneAttribute 属性伤害和治疗（`RegainHealthTriggerEvent`） | 自动回退；治疗走原版 `EntityRegainHealthEvent` 或直接触发飘字 |
+| 可选 | AttributePlus | 读取 AttributePlus 属性伤害 | 自动回退到 Bukkit 原版；治疗无独立事件，走原版或内部实现 |
+| 可选 | Symphony | 读取 Symphony 属性伤害（元素伤害、暴击伤害）和治疗（`SymphonyHealEvent`） | 自动回退到 Bukkit 原版；治疗不走原版事件，需独立监听 |
 | 可选 | MythicMobs / MythicBukkit | MythicMob ID 黑名单、MythicMob 名称解析、技能治疗识别 | 原版实体照常显示 |
 
 ---
@@ -299,15 +304,22 @@ digis-display:
     # 伤害来源检测配置
     source:
       # 伤害来源模式:
-      #   auto            — 按优先级自动选择: MythicLib → CraneAttribute → AttributePlus → Bukkit
+      #   auto            — 按优先级自动选择: MythicLib → CraneAttribute → AttributePlus → Symphony → Bukkit
       #   craneattribute  — 仅优先使用 CraneAttribute 属性结算后的伤害
       #   attributeplus   — 仅优先使用 AttributePlus 伤害事件
+      #   symphony        — 仅优先使用 Symphony 伤害事件
       #   bukkit          — 仅使用 Bukkit 原版伤害事件
       mode: "auto"
       fallback: true                 # 指定来源不可用时是否自动回退到下一个可用来源
       debug: false                   # 是否输出伤害来源选择与回退日志
 
-    # 原始伤害（非玩家对玩家）
+    # 是否允许其他能看到目标的玩家也看到伤害飘字
+    # true: 所有能看到目标的玩家都看到（PVP 场景下所有人可见）
+    # false: 只有造成伤害的玩家自己看到（默认，避免信息过载）
+    show-others-damage: false
+
+    # 原始伤害（非玩家对玩家，包括玩家对怪物/动物）
+    # 支持: 玩家近战攻击、Projectile（弓箭/三叉戟/投掷药水等原版远程攻击）
     original:
       enabled: true                  # 是否启用原始伤害飘字
       config-id: "damage"            # ArcartX 客户端 digis 配置 ID，决定飘字颜色/字体/动画等样式
@@ -315,12 +327,14 @@ digis-display:
       ap-compatible: true            # 当伤害来源为 AttributePlus 时，是否允许显示
 
     # 玩家对玩家伤害（PVP）
+    # 支持: 玩家近战攻击、Projectile（弓箭/三叉戟等）对玩家造成的伤害
     player:
       enabled: true                  # 是否启用 PVP 伤害飘字
       config-id: "player-damage"     # ArcartX 客户端 digis 配置 ID（可与原始伤害使用不同样式）
       min-amount: 1.0                # 最小显示阈值
 
     # MythicLib / MMOItems 属性伤害（需安装 MythicLib 插件）
+    # 支持: MythicLib 结算后的玩家对实体伤害（含 Projectile 的 shooter 解析）
     mythiclib:
       enabled: false                 # 是否启用 MythicLib 属性伤害飘字
       config-id: "damage"            # 普通目标伤害的 ArcartX digis 配置 ID
@@ -329,12 +343,29 @@ digis-display:
       player-min-amount: 1.0         # PVP 伤害最小显示阈值
 
     # CraneAttribute 属性伤害（需安装 CraneAttribute 插件）
+    # 支持: CraneAttribute 结算后的玩家对实体伤害
     craneattribute:
       enabled: false                 # 是否启用 CraneAttribute 属性伤害飘字
       config-id: "damage"            # 普通目标伤害的 ArcartX digis 配置 ID
       player-config-id: "player-damage" # 目标为玩家时使用的 digis 配置 ID
       min-amount: 1.0                # 最小显示阈值
       player-min-amount: 1.0         # PVP 伤害最小显示阈值
+
+    # Symphony 属性伤害（需安装 Symphony 插件）
+    # 支持: Symphony 结算后的玩家对实体伤害（含元素伤害、暴击伤害）
+    symphony:
+      enabled: false                 # 是否启用 Symphony 属性伤害飘字
+      config-id: "damage"            # 普通目标伤害的 ArcartX digis 配置 ID
+      player-config-id: "player-damage" # 目标为玩家时使用的 digis 配置 ID
+      min-amount: 1.0                # 最小显示阈值
+      player-min-amount: 1.0         # PVP 伤害最小显示阈值
+
+    # 伤害合并配置（将短时间内的多段伤害合并为一次飘字）
+    damage-merge:
+      enabled: false                 # 是否启用伤害合并
+      window-ticks: 2                # 合并窗口（tick），在此窗口内对同一目标同一类型的伤害进行累加
+      min-amount: 1.0                # 合并后最小显示阈值，低于此值不显示
+      max-entries: 500               # 最大缓存条目数，防止异常场景下内存无限增长
 
   # 治疗显示配置
   heal-display:
@@ -350,6 +381,13 @@ digis-display:
       config-id: "heal"             # ArcartX 客户端 digis 配置 ID（治疗样式）
       min-amount: 1.0                # 最小显示阈值
       exact-mode: true               # true: 显示实际生效的治疗量；false: 显示技能理论治疗量
+
+    # 治疗合并配置（将短时间内的多段治疗合并为一次飘字）
+    heal-merge:
+      enabled: false                 # 是否启用治疗合并
+      window-ticks: 2                # 合并窗口（tick），在此窗口内对同一目标的治疗进行累加
+      min-amount: 1.0                # 合并后最小显示阈值，低于此值不显示
+      max-entries: 500               # 最大缓存条目数，防止异常场景下内存无限增长
 ```
 
 **字段速查表：**
@@ -358,6 +396,7 @@ digis-display:
 | --- | --- | --- |
 | `mode` | string | 伤害来源选择模式，决定读取哪个插件的伤害数据 |
 | `fallback` | boolean | 指定来源不可用时是否自动回退到下一个来源 |
+| `show-others-damage` | boolean | 是否允许其他能看到目标的玩家也看到伤害飘字 |
 | `enabled` | boolean | 是否启用该类别的飘字 |
 | `config-id` | string | ArcartX 客户端 `digis` 配置中的样式 ID，控制飘字外观 |
 | `player-config-id` | string | PVP 场景单独使用的 digis 样式 ID |
@@ -365,13 +404,46 @@ digis-display:
 | `player-min-amount` | double | PVP 场景的最小显示阈值 |
 | `ap-compatible` | boolean | 是否允许 AttributePlus 结算的伤害触发此飘字 |
 | `exact-mode` | boolean | MythicMobs 治疗：true 显示实际生效量，false 显示技能原始值 |
+| `damage-merge.enabled` | boolean | 是否启用伤害合并 |
+| `damage-merge.window-ticks` | int | 合并窗口（tick），同目标同类型伤害在此窗口内累加 |
+| `damage-merge.min-amount` | double | 合并后最小显示阈值 |
+| `damage-merge.max-entries` | int | 最大缓存条目数，防止内存无限增长 |
+| `heal-merge.enabled` | boolean | 是否启用治疗合并 |
+| `heal-merge.window-ticks` | int | 合并窗口（tick），同目标同类型治疗在此窗口内累加 |
+| `heal-merge.min-amount` | double | 合并后最小显示阈值 |
+| `heal-merge.max-entries` | int | 最大缓存条目数，防止内存无限增长 |
 
-| 来源模式 | 优先级链 |
-| --- | --- |
-| `auto` | MythicLib/MMOItems → CraneAttribute → AttributePlus → Bukkit |
-| `craneattribute` | CraneAttribute → Bukkit（fallback=true 时） |
-| `attributeplus` | AttributePlus → Bukkit（fallback=true 时） |
-| `bukkit` | 仅 Bukkit 原版，不回退 |
+| 来源模式 | 优先级链 | 支持的伤害类型 |
+| --- | --- | --- |
+| `auto` | MythicLib/MMOItems → CraneAttribute → AttributePlus → Symphony → Bukkit | 自动选择最高优先级的可用来源 |
+| `craneattribute` | CraneAttribute → Bukkit（fallback=true 时） | 玩家近战、CraneAttribute 技能触发伤害 |
+| `attributeplus` | AttributePlus → Bukkit（fallback=true 时） | 玩家近战、AttributePlus 属性附加伤害 |
+| `symphony` | Symphony → Bukkit（fallback=true 时） | 玩家近战、Symphony 元素/暴击伤害 |
+| `bukkit` | 仅 Bukkit 原版，不回退 | 玩家近战、Projectile（弓箭/三叉戟/投掷药水等） |
+
+**伤害渠道与防重复机制：**
+
+CombatDisplay 通过 `activeDamageSource` 单一来源选择机制，避免属性插件伤害与原版伤害重复飘字：
+
+| 插件 | 是否触发原版 `EntityDamageByEntityEvent` | 防重复方式 | 结论 |
+| --- | --- | --- | --- |
+| **AttributePlus** | 是（拦截并修改原版伤害） | `activeDamageSource = ATTRIBUTEPLUS` 时 `handleDamage()` 直接 return | 无重复 |
+| **CraneAttribute** | 是（`getEvent()` 返回 `EntityDamageEvent` 子类） | `activeDamageSource = CRANEATTRIBUTE` 时跳过原版 | 无重复 |
+| **MythicLib** | 是（`toBukkit()` 返回 `EntityDamageEvent`） | `activeDamageSource = MYTHICLIB` 时跳过原版 | 无重复 |
+| **Symphony** | 否（`SymphonyDamageEvent` 完全独立，不走 Bukkit 管道） | `activeDamageSource = SYMPHONY` 时跳过原版，但原版本就不触发 | 无遗漏 |
+
+> **注意**：`SymphonyDamageEvent` 不基于原版伤害事件，因此 `bukkit` 模式下 Symphony 伤害**不会**被捕获。若需显示 Symphony 伤害，必须将 `mode` 设为 `symphony` 或 `auto`（且 Symphony 插件已安装）。
+
+**治疗渠道说明：**
+
+| 治疗类型 | 事件渠道 | 是否需属性插件监听 |
+| --- | --- | --- |
+| 原版治疗（药水、生命恢复） | `EntityRegainHealthEvent` | 否，Bukkit 原生 |
+| MythicMobs 技能治疗 | MythicMobs 内部 API → `CombatDisplayService.handleMythicHeal()` | 否，模块内部 hook |
+| CraneAttribute 恢复生命 | `RegainHealthTriggerEvent$After` → `AttributeHealEvent` | 是，反射桥接 |
+| Symphony 治疗 | `SymphonyHealEvent` → `AttributeHealEvent` | 是，反射桥接 |
+| AttributePlus 治疗 | 无独立事件，走原版 `EntityRegainHealthEvent` 或直接 `setHealth()` | 否，已由原版监听覆盖 |
+| MythicLib 治疗 | 无公开事件，可能走原版或直接修改 health | 否，原版监听已覆盖 |
 
 ---
 
