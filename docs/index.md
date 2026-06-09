@@ -56,9 +56,13 @@ features:
     title: OnlineRewards 在线奖励
     details: 在线时长阶段奖励、每日签到、连续签到、补签卡、四维排行榜、跨服同步
     link: /modules/onlinerewards
+  - icon: 📋
+    title: Menu 通用菜单
+    details: 配置驱动 ArcartX 菜单系统，支持 ESC 替换、命令/物品绑定、按钮图标，类 TrMenu 体验
+    link: /modules/menu
   - icon: ♨️
-    title: AfkReward 区域挂机奖励
-    details: 多边形区域挂机、周期命令奖励、VIP 权限阶梯、人数/次数上限控制、PAPI 输出、HUD 面板
+    title: AfkReward 挂机奖励
+    details: 区域挂机 + 原地挂机双模式、周期命令奖励、VIP 权限阶梯、人数/次数上限控制、服崩恢复、排行榜、PAPI 输出、HUD 面板
     link: /modules/afkreward
   - icon: ✨
     title: Pickup 拾取提示
@@ -112,7 +116,7 @@ features:
 
 <div class="stats-bar">
   <div class="stat-item">
-    <div class="stat-number">22</div>
+    <div class="stat-number">23</div>
     <div class="stat-label">主模块</div>
   </div>
   <div class="stat-item">
