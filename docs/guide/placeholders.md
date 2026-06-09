@@ -8,10 +8,11 @@
 
 ## 占位符总览
 
-AXS 共有 **12 个模块** 对外输出 PAPI 占位符：
+AXS 共有 **13 个模块** 对外输出 PAPI 占位符：
 
 | 模块 | 前缀 | 必装 PAPI? | 说明 |
 | --- | --- | --- | --- |
+| [AfkReward](/modules/afkreward) | `%axsafk_*%` | 可选 | 区域挂机状态、时长、奖励次数、区域人数 |
 | [EntityTracker](/modules/entitytracker) | `%AXSentitytracker_*%` | 可选 | Boss 追踪、伤害排行、结算数据 |
 | [Essentials](/modules/essentials) | `%AXSess_*%` | 可选 | AFK、隐身、飞行、昵称等玩家状态 |
 | [Title](/modules/title) | `%AXStitle_*%` | 可选 | 称号前缀/后缀、装备状态、属性加成 |
@@ -24,6 +25,31 @@ AXS 共有 **12 个模块** 对外输出 PAPI 占位符：
 | [Market](/modules/market) | `%AXSmarket_*%` | 可选 | 拍卖数量、商店数、回收数、Redis 状态 |
 | [QQBot](/modules/qqbot) | `%AXSqqbot_*%` | 可选 | OneBot 连接状态、玩家 QQ 绑定信息、群数量 |
 | [Tab](/modules/tab) | `%AXStab_*%` | 可选 | Tab 在线列表变量、玩家状态 |
+
+---
+
+## AfkReward 占位符
+
+前缀：`%axsafk_<字段>%`
+
+| 占位符 | 返回值 | 说明 |
+| --- | --- | --- |
+| `%axsafk_type%` | 文本 | 挂机类型：`区域挂机` / `未挂机` |
+| `%axsafk_area%` | 文本 | 当前所在区域名称，未挂机时返回空 |
+| `%axsafk_time%` | 文本 | 当前区域挂机时长，格式化（如 `15分32秒`） |
+| `%axsafk_total_time%` | 文本 | 累计总挂机时长（格式化） |
+| `%axsafk_today%` | 数字 | 今日已获得奖励次数 |
+| `%axsafk_total%` | 数字 | 累计获得奖励总次数 |
+| `%axsafk_players%` | 数字 | 当前区域同时挂机人数 |
+| `%axsafk_next%` | 数字 | 距离下次奖励的剩余秒数 |
+
+**使用示例**：
+```
+%axsafk_area%          → 返回 "温泉"
+%axsafk_time%          → 返回 "15分32秒"
+%axsafk_players%       → 返回 "12"
+%axsafk_next%          → 返回 "742"
+```
 
 ---
 

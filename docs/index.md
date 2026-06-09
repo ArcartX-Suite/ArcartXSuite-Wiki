@@ -56,6 +56,10 @@ features:
     title: OnlineRewards 在线奖励
     details: 在线时长阶段奖励、每日签到、连续签到、补签卡、四维排行榜、跨服同步
     link: /modules/onlinerewards
+  - icon: ♨️
+    title: AfkReward 区域挂机奖励
+    details: 多边形区域挂机、周期命令奖励、VIP 权限阶梯、人数/次数上限控制、PAPI 输出、HUD 面板
+    link: /modules/afkreward
   - icon: ✨
     title: Pickup 拾取提示
     details: 物品拾取 HUD 弹出提示 + 扫描器模式，双模式可切换
@@ -108,7 +112,7 @@ features:
 
 <div class="stats-bar">
   <div class="stat-item">
-    <div class="stat-number">21</div>
+    <div class="stat-number">22</div>
     <div class="stat-label">主模块</div>
   </div>
   <div class="stat-item">

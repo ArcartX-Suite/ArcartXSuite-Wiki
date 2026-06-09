@@ -248,6 +248,13 @@ map, questgps, warehouse, essentials, regions, market, qqbot
 | `/axs onlinerewards add\|remove\|set <时长> <玩家>` | 修改玩家的在线时长。`add` 增加、`remove` 减少、`set` 设置为指定值。时长如 `30m`、`2h`、`1d` | `/axs onlinerewards add 2h Steve`<br>`/axs onlinerewards set 0m Steve` |
 | `/axs onlinerewards card add\|remove\|set <数量> <玩家>` | 修改玩家的补签卡数量 | `/axs onlinerewards card add 3 Steve` |
 
+#### AfkReward（区域挂机奖励）
+
+| 命令 | 说明 | 使用示例 |
+| --- | --- | --- |
+| `/axs afkreward status` | 查看模块状态：区域数、类型数、当前挂机人数 | `/axs afkreward status` |
+| `/axs afkreward reload` | 重载 AfkReward 配置文件 | `/axs afkreward reload` |
+
 #### Warehouse（仓库系统）
 
 | 命令 | 说明 | 使用示例 |
@@ -375,6 +382,15 @@ map, questgps, warehouse, essentials, regions, market, qqbot
 | `/onlinerewards status` | 在聊天中查看自己的在线时长统计（今日/本周/本月/总计）和签到状态 | `/onlinerewards status` |
 | `/onlinerewards signin` 或 `/signin` | 进行今日签到。使用别名 `/signin` 可直接签到不打开菜单 | `/signin` |
 | `/onlinerewards top <范围> [页码]` | 查看在线时长排行榜。范围可选：`daily`（日）、`weekly`（周）、`monthly`（月）、`total`（总计） | `/onlinerewards top daily`<br>`/onlinerewards top total 2` |
+
+### AfkReward — 区域挂机奖励（`/afkreward`，别名 `/afk`）
+
+权限：`arcartxsuite.afkreward.use`
+
+| 命令 | 说明 | 使用示例 |
+| --- | --- | --- |
+| `/afkreward toggle` 或 `/afk toggle` | 开启/关闭挂机 HUD 显示 | `/afk toggle` |
+| `/afkreward status` 或 `/afk status` | 查看当前挂机状态：区域名、时长、今日奖励次数、区域人数 | `/afk status` |
 
 ### QuestGPS — 任务导航（`/questgps`）
 
