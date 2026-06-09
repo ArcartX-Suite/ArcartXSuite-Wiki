@@ -248,7 +248,7 @@ map, questgps, warehouse, essentials, regions, market, qqbot
 | `/axs onlinerewards add\|remove\|set <时长> <玩家>` | 修改玩家的在线时长。`add` 增加、`remove` 减少、`set` 设置为指定值。时长如 `30m`、`2h`、`1d` | `/axs onlinerewards add 2h Steve`<br>`/axs onlinerewards set 0m Steve` |
 | `/axs onlinerewards card add\|remove\|set <数量> <玩家>` | 修改玩家的补签卡数量 | `/axs onlinerewards card add 3 Steve` |
 
-#### AfkReward（区域挂机奖励）
+#### AfkReward（挂机奖励）
 
 | 命令 | 说明 | 使用示例 |
 | --- | --- | --- |
@@ -383,14 +383,18 @@ map, questgps, warehouse, essentials, regions, market, qqbot
 | `/onlinerewards signin` 或 `/signin` | 进行今日签到。使用别名 `/signin` 可直接签到不打开菜单 | `/signin` |
 | `/onlinerewards top <范围> [页码]` | 查看在线时长排行榜。范围可选：`daily`（日）、`weekly`（周）、`monthly`（月）、`total`（总计） | `/onlinerewards top daily`<br>`/onlinerewards top total 2` |
 
-### AfkReward — 区域挂机奖励（`/afkreward`，别名 `/afk`）
+### AfkReward — 挂机奖励（`/afkreward`，别名 `/afk`）
 
 权限：`arcartxsuite.afkreward.use`
 
 | 命令 | 说明 | 使用示例 |
 | --- | --- | --- |
 | `/afkreward toggle` 或 `/afk toggle` | 开启/关闭挂机 HUD 显示 | `/afk toggle` |
-| `/afkreward status` 或 `/afk status` | 查看当前挂机状态：区域名、时长、今日奖励次数、区域人数 | `/afk status` |
+| `/afkreward status` 或 `/afk status` | 查看当前挂机状态：模式、区域名、时长、今日奖励次数、区域人数 | `/afk status` |
+| `/afkreward start <区域>` 或 `/afk start <区域>` | 原地挂机：传送至区域挂机点并开始计时 | `/afk start 温泉` |
+| `/afkreward end` 或 `/afk end` | 结束原地挂机，一次性结算奖励并恢复行为 | `/afk end` |
+| `/afkreward list` 或 `/afk list` | 查看当前在线挂机玩家列表 | `/afk list` |
+| `/afkreward top` 或 `/afk top` | 查看挂机时长排行榜 | `/afk top` |
 
 ### QuestGPS — 任务导航（`/questgps`）
 

@@ -1,19 +1,26 @@
-# AfkReward 区域挂机奖励
+# AfkReward 挂机奖励
 
 ## 功能定位
 
-AfkReward 模块为服务器提供**多边形区域挂机奖励**系统。玩家在指定区域内停留即可按周期自动获得奖励，支持多区域、多奖励类型、多级 VIP 权限阶梯和人数/次数上限控制。
+AfkReward 模块为服务器提供**双模式挂机奖励**系统：
+- **区域挂机（REGION）**：玩家进入指定多边形区域后自动累计时长，按周期发放奖励。
+- **原地挂机（MANUAL）**：玩家通过命令主动选择区域并传送至挂机点，挂机期间行为被封锁，结束挂机后一次性结算奖励。
+
+支持多区域、多奖励类型、多级 VIP 权限阶梯、人数/次数上限控制、服崩恢复和排行榜。
 
 ### 核心特性
 
 | 分类 | 功能 |
 | --- | --- |
 | 区域定义 | 基于 `X,Z` 多边形角坐标定义任意形状挂机区域，支持多世界 |
+| 原地挂机 | 玩家可主动选择区域传送挂机，支持多世界传送、行为封锁、结束结算 |
 | 周期奖励 | 按配置周期（分钟）自动发放，支持命令奖励 + PAPI 变量 + 简单四则运算 |
 | 权限阶梯 | 同一区域内按 `vip3 > vip2 > vip1 > common` 权限匹配不同奖励档次 |
 | 人数上限 | 限制区域同时挂机人数，满员后新玩家进入会收到提示 |
 | 次数上限 | 每日最大奖励次数限制，防止过度收益 |
 | 统计追踪 | 当前挂机时长、总挂机时长、今日/总奖励次数，支持 PAPI 输出 |
+| 排行榜 | 按总挂机时长排序的在线排行榜 |
+| 服崩恢复 | 服崩后自动检测并结算未正常结束的原地挂机记录 |
 | HUD 面板 | ArcartX UI 实时显示当前区域、挂机时长、下次奖励倒计时、区域人数 |
 | 数据持久化 | SQLite / MySQL 双存储，支持跨服共享 |
 
@@ -33,7 +40,7 @@ modules:
 
 ## 快速开始
 
-### 1. 定义区域
+### 1. 定义区域（双模式）
 
 在 `ArcartXAfkReward.yml` 的 `areas` 节中添加区域：
 
@@ -48,10 +55,21 @@ areas:
       - "150,150"
       - "100,150"
     type: 温泉奖励
+    # 是否支持原地挂机
+    manual-enabled: true
+    # 原地挂机传送点（不配置则不支持原地挂机）
+    teleport:
+      world: world
+      x: 125.5
+      y: 64.0
+      z: 125.5
+      yaw: 0
+      pitch: 0
 ```
 
 - `pos` 为多边形**按顺序排列的角坐标**（`X,Z`），最少 3 个点围成闭合区域。
 - 支持凹凸多边形，自动使用射线法判定玩家是否在区域内。
+- `teleport` 为原地挂机传送目标，支持跨世界传送；不配置则该区域仅支持区域挂机。
 
 ### 2. 定义奖励类型
 
@@ -104,7 +122,7 @@ reward:
 ### 主配置（`ArcartXAfkReward.yml`）
 
 ```yaml
-config-version: 1
+config-version: 2
 
 debug: false
 
@@ -133,6 +151,20 @@ areas:
       - "X2,Z2"
       - "X3,Z3"
     type: <关联的types名>
+    manual-enabled: true
+    teleport:
+      world: <世界名>
+      x: 0.0
+      y: 64.0
+      z: 0.0
+      yaw: 0
+      pitch: 0
+
+manual:
+  restrict-actions: true
+  return-on-end: false
+  broadcast-rewards: true
+  leaderboard-size: 10
 
 storage:
   dialect: sqlite      # sqlite / mysql
@@ -153,7 +185,19 @@ ui:
 
 ### 动态配置节
 
-`types` 和 `areas` 为**动态节**，你可以在用户配置中自由增删，不会被智能配置诊断覆盖。
+`types`、`areas` 和 `manual` 为**动态节**（`types` 与 `areas` 允许自由增删；`manual` 为固定结构），不会被智能配置诊断覆盖。
+
+### 双模式对比
+
+| 特性 | 区域挂机（REGION） | 原地挂机（MANUAL） |
+| --- | --- | --- |
+| 触发方式 | 进入多边形区域自动开始 | `/afk start <区域>` 手动开启 |
+| 位置检测 | 实时检测是否在区域内 | 不检测位置，传送到指定点后固定 |
+| 行为限制 | 无（可正常移动/交互） | 封锁移动、交互、破坏、开箱、传送、受击 |
+| 奖励发放 | 每周期自动发放 | 结束挂机时一次性结算 |
+| 服崩恢复 | 退出即失效，无需恢复 | 服崩后自动结算离线期间时长 |
+| 排行榜 | 计入总时长 | 计入总时长 |
+| 跨世界 | 区域绑定的 world | 传送点可配置不同 world，Bukkit API 自动处理 |
 
 ---
 
@@ -164,7 +208,11 @@ ui:
 | 命令 | 别名 | 说明 | 权限 |
 | --- | --- | --- | --- |
 | `/afkreward toggle` | `/afk toggle` | 开启/关闭 HUD 显示 | `arcartxsuite.afkreward.use` |
-| `/afkreward status` | `/afk status` | 查看当前挂机状态（区域/时长/今日奖励/总人数） | `arcartxsuite.afkreward.use` |
+| `/afkreward status` | `/afk status` | 查看当前挂机状态（模式/区域/时长/今日奖励/总人数） | `arcartxsuite.afkreward.use` |
+| `/afkreward start <区域>` | `/afk start <区域>` | 原地挂机：传送至区域挂机点并开始计时 | `arcartxsuite.afkreward.use` |
+| `/afkreward end` | `/afk end` | 结束原地挂机，一次性结算奖励 | `arcartxsuite.afkreward.use` |
+| `/afkreward list` | `/afk list` | 查看当前在线挂机玩家列表 | `arcartxsuite.afkreward.use` |
+| `/afkreward top` | `/afk top` | 查看挂机时长排行榜 | `arcartxsuite.afkreward.use` |
 
 ### 管理命令
 
@@ -183,7 +231,7 @@ ui:
 
 | 占位符 | 返回值 | 说明 |
 | --- | --- | --- |
-| `%axsafk_type%` | 文本 | 挂机类型：`区域挂机` / `未挂机` |
+| `%axsafk_type%` | 文本 | 挂机类型：`区域挂机` / `原地挂机` / `未挂机` |
 | `%axsafk_area%` | 文本 | 当前所在区域名称，未挂机时返回空 |
 | `%axsafk_time%` | 文本 | 当前区域挂机时长，格式化（如 `15分32秒`） |
 | `%axsafk_total_time%` | 文本 | 累计总挂机时长（格式化） |
@@ -191,6 +239,9 @@ ui:
 | `%axsafk_total%` | 数字 | 累计获得奖励总次数 |
 | `%axsafk_players%` | 数字 | 当前区域同时挂机人数 |
 | `%axsafk_next%` | 数字 | 距离下次奖励的剩余秒数 |
+| `%axsafk_top_1_name%` | 文本 | 排行榜第 1 名玩家名称 |
+| `%axsafk_top_1_time%` | 文本 | 排行榜第 1 名总时长（格式化） |
+| `%axsafk_top_1_rewards%` | 数字 | 排行榜第 1 名总奖励次数 |
 
 **使用示例**：
 ```
@@ -239,6 +290,7 @@ storage:
 
 数据表：
 - `<prefix>stats` — 玩家挂机统计（player_uuid / player_name / today_date / today_count / total_count / total_seconds）
+- `<prefix>sessions` — 原地挂机 session（服崩恢复用：player_uuid / area_name / reward_type / mode / start_seconds / start_time / today_count / total_count / today_date / total_seconds）
 
 跨服部署时建议共享 MySQL 库，确保玩家在不同子服的挂机数据一致。
 
@@ -248,13 +300,17 @@ storage:
 
 | 权限 | 说明 | 默认 |
 | --- | --- | --- |
-| `axs.afkreward.area.<区域名>` | 允许进入该区域挂机 | OP |
-| `axs.afkreward.start.<类型>.<tier>` | 获得该类型的对应 tier 奖励 | OP |
+| `axs.afkreward.area.<区域名>` | 允许进入该区域挂机（区域+原地共用） | OP |
+| `axs.afkreward.start.<类型>.<tier>` | 获得该类型的对应 tier 奖励（区域+原地共用） | OP |
 | `axs.afkreward.start.<tier>` | 简写形式，全局 tier 匹配 | OP |
 | `axs.afkreward.not.reward.limit` | 绕过每日奖励次数上限 | OP |
 | `axs.afkreward.not.player.limit` | 绕过区域人数上限 | OP |
 | `arcartxsuite.afkreward.use` | 使用 `/afkreward` 玩家命令 | 所有人 |
 | `arcartxsuite.admin` | 管理命令权限 | OP |
+
+::: tip 原地挂机权限复用
+原地挂机**复用**区域挂机的权限体系，无需额外配置。进入区域需要 `axs.afkreward.area.<区域名>`，获得 tier 奖励需要 `axs.afkreward.start.<类型>.<tier>`。
+:::
 
 ---
 
