@@ -78,6 +78,7 @@ export default defineConfig({
           collapsed: false,
           items: [
             { text: 'Announcer 播报系统', link: '/modules/announcer' },
+            { text: 'BattlePass 战令系统', link: '/modules/battlepass' },
             { text: 'Chat 聊天', link: '/modules/chat' },
             { text: 'EventPacket 事件引擎', link: '/modules/eventpacket' },
             { text: 'CombatEffect 战斗特效', link: '/modules/combateffect' },

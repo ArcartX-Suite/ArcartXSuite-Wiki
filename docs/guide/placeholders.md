@@ -8,11 +8,12 @@
 
 ## 占位符总览
 
-AXS 共有 **13 个模块** 对外输出 PAPI 占位符：
+AXS 共有 **14 个模块** 对外输出 PAPI 占位符：
 
 | 模块 | 前缀 | 必装 PAPI? | 说明 |
 | --- | --- | --- | --- |
 | [AfkReward](/modules/afkreward) | `%axsafk_*%` | 可选 | 区域挂机状态、时长、奖励次数、区域人数 |
+| [BattlePass](/modules/battlepass) | `%AXSbattlepass_*%` | 可选 | 战令等级、XP、通行证层级、活跃任务数 |
 | [EntityTracker](/modules/entitytracker) | `%AXSentitytracker_*%` | 可选 | Boss 追踪、伤害排行、结算数据 |
 | [Essentials](/modules/essentials) | `%AXSess_*%` | 可选 | AFK、隐身、飞行、昵称等玩家状态 |
 | [Title](/modules/title) | `%AXStitle_*%` | 可选 | 称号前缀/后缀、装备状态、属性加成 |
@@ -448,6 +449,33 @@ AXS 共有 **13 个模块** 对外输出 PAPI 占位符：
 %AXSqqbot_connected_display%                 → 返回 "已连接"
 %AXSqqbot_bound_qq%                          → 返回 "12345678"
 %AXSqqbot_is_bound%                          → 返回 "true"
+```
+
+---
+
+## BattlePass 占位符
+
+前缀：`%AXSbattlepass_<字段>%`
+
+| 占位符 | 返回值 | 说明 |
+| --- | --- | --- |
+| `%AXSbattlepass_season%` | 文本 | 当前赛季 ID |
+| `%AXSbattlepass_season_display%` | 文本 | 当前赛季显示名称 |
+| `%AXSbattlepass_level%` | 数字 | 当前等级 |
+| `%AXSbattlepass_max_level%` | 数字 | 最大等级 |
+| `%AXSbattlepass_xp%` | 数字 | 当前 XP |
+| `%AXSbattlepass_xp_per_level%` | 数字 | 每级所需 XP |
+| `%AXSbattlepass_xp_needed%` | 数字 | 升级还需 XP |
+| `%AXSbattlepass_premium%` | 文本 | 高级版状态（`已激活`/`未激活`） |
+| `%AXSbattlepass_deluxe%` | 文本 | 典藏版状态（`已激活`/`未激活`） |
+| `%AXSbattlepass_tier%` | 文本 | 当前通行证层级（`免费`/`高级`/`典藏`） |
+| `%AXSbattlepass_active_tasks%` | 数字 | 当前未完成的任务数量 |
+
+**使用示例**：
+```
+%AXSbattlepass_level%                         → 返回 "12"
+%AXSbattlepass_tier%                          → 返回 "高级"
+%AXSbattlepass_active_tasks%                  → 返回 "5"
 ```
 
 ---

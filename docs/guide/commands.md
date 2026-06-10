@@ -264,6 +264,14 @@ map, questgps, warehouse, essentials, regions, market, qqbot
 | `/axs warehouse password <玩家> clear` | 清除玩家的二级密码。适用于玩家忘记密码的情况 | `/axs warehouse password Steve clear` |
 | `/axs warehouse bank <玩家> <货币ID> <set\|add\|take> <金额>` | 管理玩家银行余额。`set` 设定、`add` 增加、`take` 扣除 | `/axs warehouse bank Steve gold add 1000`<br>`/axs warehouse bank Steve diamond set 50` |
 
+#### BattlePass（战令系统）
+
+| 命令 | 说明 | 使用示例 |
+| --- | --- | --- |
+| `/axs battlepass status` | 查看战令模块状态：赛季 ID、活跃玩家数、跨服同步状态 | `/axs battlepass status` |
+| `/axs battlepass reset <玩家>` | 重置指定玩家的全部战令进度（等级、XP、任务、已领取奖励） | `/axs battlepass reset Steve` |
+| `/axs battlepass unlock <玩家> <premium\|deluxe>` | 为玩家解锁高级或典藏通行证 | `/axs battlepass unlock Steve deluxe` |
+
 #### CombatEffect（战斗特效）
 
 | 命令 | 说明 | 使用示例 |

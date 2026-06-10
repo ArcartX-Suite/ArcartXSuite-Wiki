@@ -19,6 +19,32 @@
 
 - **RGB** — 移除不可用的 Shimmer/Glimmer 函数桥接（`ArcartRgbShimmerBridge`）与运行时编译逻辑，同时清除宿主 `renderArcartRgbShimmer` 入口和 `shimmerOptions` 全局配置。RGB 模块保留 PlaceholderAPI `%arcartrgb_*%` 输出，扫光动画参数改为条目级配置。
 
+### 1.1.0-beta (Build 2026-06-11) — BattlePass 战令系统全面重构
+
+- **三层通行证体系** — 免费（FREE）、高级（PREMIUM）、典藏（DELUXE）。典藏额外提供 1.5x XP 加成。
+- **任务模板化** — 引入 `BattlePassTask` → `TaskTemplate`，支持 difficulty、description、weight、conditions、incrementStrategy 字段。
+- **难度与 XP 加成** — EASY（1.0x）、NORMAL（1.2x）、HARD（1.5x）。最终 XP = baseXpReward × difficultyMultiplier × xpMultiplier。
+- **条件系统** — 新增 `TaskCondition` 接口：`EventPayloadCondition`（事件字段过滤：equals/contains/gt/lt/regex）和 `PlayerStateCondition`（Chronos 状态 / Region / World 过滤）。
+- **增量策略系统** — 新增 `IncrementStrategy` 接口：`FixedIncrementStrategy`（固定 +1）和 `PayloadValueStrategy`（从事件 Payload 读取数值，支持 `max-per-event` 上限和 `scale` 缩放）。
+- **加权随机分配器** — 新增 `TaskAssignmentService`，每日/每周任务从池中按 `weight` 加权随机抽取 `daily-count`/`weekly-count` 个分配给玩家。
+- **自动日/周重置引擎** — 异步线程每 5 分钟检查，每日 0 点重置每日任务，每隔 >= 7 天重置周任务并递增 `currentWeekNumber`。
+- **PlayerTaskInstance** — 新增玩家任务实例模型，独立表 `bp_player_tasks`，支持进度追踪和完成状态。
+- **管理员命令** — 新增 `/axs battlepass unlock <玩家> <premium|deluxe>` 解锁通行证。
+- **PAPI 占位符扩展** — 新增 `%AXSbattlepass_deluxe%`、`%AXSbattlepass_tier%`、`%AXSbattlepass_active_tasks%`。
+- **PacketHandler** — 新增 `BattlePassPacketHandler`，支持 `open_main` / `open_tasks` 客户端包推送。
+- **UI 增强** — 任务列表新增难度标签（绿/黄/红）、任务描述、进度百分比。主界面层级标签改为动态（免费=灰、高级=金、典藏=紫）。
+- **配置迁移** — `xp-reward` → `base-xp-reward`（migration `1-2.yml`）；`config-version` 升至 `2`；`PassTier` 兼容旧数据（`unlocked_premium=1` 自动推断为 PREMIUM）。
+
+### 1.1.0-beta (Build 2026-06-10) — AfkReward 跨模块联动增强
+
+- **独立区域配置** — 挂机区域从主配置 `ArcartXAfkReward.yml` 的 `areas:` 节迁移至独立文件 `data/afkreward/areas/area-<id>.yml`，支持热加载多区域，主配置新增 `areas-directory` 字段。配置版本从 `2` 升至 `3`，自动迁移 `areas` → `USER_DEPRECATED`。
+- **Mail 联动** — `AfkRewardType` 新增 `mail-presets` 字段，奖励发放时自动触发 Mail 模块邮件；原地挂机结束时按 `manual.end-mail-presets` 发送结算邮件。
+- **EventPacket 联动** — 新增 5 个生命周期信号：`afk_start`、`afk_reward`、`afk_end`、`afk_enter_area`、`afk_leave_area`。`manual` 新增 `signal-on-reward`、`signal-on-end`、`subtitle-on-reward`、`subtitle-on-end` 字段，支持奖励/结束时触发信号与字幕。
+- **Essentials AFK 冲突处理** — AfkReward 注册 `AfkRewardDispatchable` capability；Essentials `checkAfk()` 检测到玩家正在 AfkReward 挂机时，自动跳过 AFK 标记与踢人。`ArcartXEssentials.yml` 新增 `afkreward-integration` 配置节。
+- **区域统计** — 新增 `axs_afk_area_stats` 数据表，按玩家+区域记录累计总时长与今日时长。
+- **PAPI 扩展** — 新增区域占位符：`%axsafk_area_<name>%`（累计秒数）、`%axsafk_area_<name>_today%`（今日秒数）、`%axsafk_area_<name>_status%`（挂机状态）、`%axsafk_total_all%`（全区域总秒数）。
+- **Capability 接口** — 新增 `AfkRewardDispatchable`（`axs-api`），提供 `isAfk` / `getCurrentArea` / `getCurrentMode` / `startManualAfk` / `endManualAfk` 等方法供跨模块调用。
+
 ### 1.1.0-beta (Build 2026-06-02) — QQBot 功能四期扩展
 
 - **死亡广播** — 新增 `PlayerDeathEvent` 监听，游戏内玩家死亡自动推送到 QQ 群。配置：`broadcast.death.enabled` / `broadcast.death.format`（占位符 `{player}`），与击杀广播独立开关。
