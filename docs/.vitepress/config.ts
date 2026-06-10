@@ -3,7 +3,7 @@ import { defineConfig } from 'vitepress'
 export default defineConfig({
   lang: 'zh-CN',
   title: 'ArcartXSuite',
-  description: 'ArcartX 服务器模块化插件 — 23 个主模块，开箱即用',
+  description: 'ArcartX 服务器模块化插件 — 24 个主模块，开箱即用',
   base: '/ArcartXSuite-Wiki/',
   head: [
     ['link', { rel: 'icon', href: '/ArcartXSuite-Wiki/favicon.ico' }],
@@ -78,7 +78,6 @@ export default defineConfig({
           collapsed: false,
           items: [
             { text: 'Announcer 播报系统', link: '/modules/announcer' },
-            { text: 'BattlePass 战令系统', link: '/modules/battlepass' },
             { text: 'Chat 聊天', link: '/modules/chat' },
             { text: 'EventPacket 事件引擎', link: '/modules/eventpacket' },
             { text: 'CombatEffect 战斗特效', link: '/modules/combateffect' },
@@ -97,12 +96,14 @@ export default defineConfig({
           text: '付费模块',
           collapsed: false,
           items: [
+            { text: 'Fishing 钓鱼系统', link: '/modules/fishing' },
             { text: 'Title 称号', link: '/modules/title' },
             { text: 'Warehouse 仓库银行', link: '/modules/warehouse' },
             { text: 'Mail 邮箱', link: '/modules/mail' },
             { text: 'QuestGPS 任务导航', link: '/modules/questgps' },
             { text: 'Map 地图', link: '/modules/map' },
             { text: 'Conversation 对话桥', link: '/modules/conversation' },
+            { text: 'BattlePass 战令系统', link: '/modules/battlepass' },
             { text: 'Market 全球市场', link: '/modules/market' },
             { text: 'QQBot QQ群服互联', link: '/modules/qqbot' },
           ],

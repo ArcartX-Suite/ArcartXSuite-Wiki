@@ -104,7 +104,11 @@ features:
     title: Regions 区域保护
     details: 区域创建/40+ 标志/优先级继承、世界规则、UI 区域查看 + 管理员编辑面板
     link: /modules/regions
-  - icon: 🏪
+  - icon: �
+    title: Fishing 钓鱼系统
+    details: 星露谷风格钓鱼小游戏、多水域生态、鱼种季节/天气/时间分布、宝藏奖励、饵料加成、钓鱼图鉴收集
+    link: /modules/fishing
+  - icon: �
     title: Market 全球市场
     details: 系统商店 + 玩家拍卖行 + 回收商店，多货币支持、CrossServer 跨服同步、ArcartX UI 全套交易界面
     link: /modules/market
@@ -116,7 +120,7 @@ features:
 
 <div class="stats-bar">
   <div class="stat-item">
-    <div class="stat-number">23</div>
+    <div class="stat-number">24</div>
     <div class="stat-label">主模块</div>
   </div>
   <div class="stat-item">
@@ -135,7 +139,7 @@ features:
 
 <div class="comparison-section">
   <h2>为什么选择 ArcartXSuite ？</h2>
-  <p class="comparison-subtitle">一个插件覆盖 23 个功能领域，统一 ArcartX UI 体验，模块间深度联动，消除适配 ArcartX 的烦恼</p>
+  <p class="comparison-subtitle">一个插件覆盖 24 个功能领域，统一 ArcartX UI 体验，模块间深度联动，消除适配 ArcartX 的烦恼</p>
   <div class="comparison-table-wrapper">
     <table class="comparison-table">
       <thead>
@@ -267,8 +271,14 @@ features:
           <td class="col-alt">MiraiMC / QChat / 自研Bot</td>
           <td class="col-advantage">OneBot 11 标准协议、双向消息同步、绑定+白名单闭环、群指令+PAPI查询、跨模块广播能力</td>
         </tr>
+        <tr>
+          <td>战令系统</td>
+          <td class="col-module">BattlePass</td>
+          <td class="col-alt">无直接竞品</td>
+          <td class="col-advantage">三层通行证体系、日/周/赛季任务池、条件过滤 + 动态增量、加权随机分配、ArcartX UI 面板、PAPI 输出</td>
+        </tr>
       </tbody>
     </table>
   </div>
-  <p class="comparison-footer"><strong>一个插件，23 个模块</strong> — 统一 UI 体验，模块间零配置联动，告别插件兼容性地狱</p>
+  <p class="comparison-footer"><strong>一个插件，24 个模块</strong> — 统一 UI 体验，模块间零配置联动，告别插件兼容性地狱</p>
 </div>

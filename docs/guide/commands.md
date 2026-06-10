@@ -266,6 +266,16 @@ map, questgps, warehouse, essentials, regions, market, qqbot
 
 #### BattlePass（战令系统）
 
+**玩家命令**：
+
+| 命令 | 说明 | 使用示例 |
+| --- | --- | --- |
+| `/bp` | 打开战令主界面（等同于 `/bp open`） | `/bp` |
+| `/bp tasks` | 打开任务列表界面 | `/bp tasks` |
+| `/bp help` | 显示命令帮助 | `/bp help` |
+
+**管理员命令**：
+
 | 命令 | 说明 | 使用示例 |
 | --- | --- | --- |
 | `/axs battlepass status` | 查看战令模块状态：赛季 ID、活跃玩家数、跨服同步状态 | `/axs battlepass status` |

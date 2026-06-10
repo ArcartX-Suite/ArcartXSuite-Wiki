@@ -1,7 +1,7 @@
 # BattlePass 战令系统
 
-::: tip 免费模块
-BattlePass 为免费模块，开箱即用。
+::: tip 付费模块
+BattlePass 为付费模块，售价 **¥88**（含内置 UI）。
 :::
 
 **BattlePass** 模块为服务器提供一套完整的赛季制战令（Battle Pass）系统，支持 **免费 / 高级 / 典藏** 三层通行证体系，以及 **每日任务（短期）/ 每周挑战（中期）/ 赛季目标（长期）** 三类任务周期。任务系统内置条件过滤、动态增量计算、加权随机分配、难度 XP 加成等机制，通过 ArcartX 客户端 UI 呈现主界面与任务列表。
@@ -39,7 +39,13 @@ BattlePass 为免费模块，开箱即用。
 
 ### 玩家命令
 
-> 战令系统没有独立的玩家命令。主界面通过 Packet 触发打开，通常由其他模块（如 Menu）的按钮调用 `Packet.send('AXS_BATTLEPASS', 'open_main')` 打开。
+| 命令 | 权限 | 说明 |
+|------|------|------|
+| `/bp` | 无 | 打开战令主界面（等同于 `/bp open`） |
+| `/bp tasks` | 无 | 打开任务列表界面 |
+| `/bp help` | 无 | 显示帮助 |
+
+> 也可以通过 Menu 模块按钮调用 `Packet.send('AXS_BATTLEPASS', 'open_main')` 打开。
 
 ### 管理员命令
 
@@ -132,84 +138,6 @@ tasks:
   daily-count: 3                  # 每天分配给玩家的每日任务数量
   weekly-count: 2                 # 每周分配给玩家的每周任务数量
   tasks-directory: "tasks"        # 任务文件所在目录（相对模块数据目录）
-
-### 外部任务文件
-
-任务模板已拆分到模块数据目录下的 `tasks/` 文件夹中，与主配置文件分离，便于管理和热更新。
-
-**文件位置**：`plugins/ArcartXSuite/modules/battlepass/tasks/`
-
-#### `tasks/daily.yml`（每日任务池）
-
-```yaml
-# 每日任务池 — 每天 0 点自动重置并按 weight 加权随机抽取 daily-count 个分配
-daily-login:
-  display-name: "每日登录"
-  description: "每天登录游戏即可获得奖励"
-  difficulty: easy
-  event-topic: "axs.onlinerewards.signin_success"
-  required-count: 1
-  base-xp-reward: 100
-  conditions: []
-  increment-strategy:
-    type: fixed
-    value: 1
-  weight: 5
-
-daily-kill-zombie:
-  display-name: "击杀僵尸"
-  description: "在主世界击杀20个僵尸"
-  difficulty: normal
-  event-topic: "axs.combateffect.kill_entity"
-  required-count: 20
-  base-xp-reward: 150
-  conditions:
-    - type: event_payload
-      key: entity_type
-      operator: equals
-      value: zombie
-  increment-strategy:
-    type: fixed
-    value: 1
-  weight: 3
-```
-
-#### `tasks/weekly.yml`（每周任务池）
-
-```yaml
-# 每周任务池 — 每 7 天自动重置并按 weight 加权随机抽取 weekly-count 个分配
-weekly-quest-5:
-  display-name: "完成悬赏任务"
-  description: "本周累计完成5个悬赏任务"
-  difficulty: normal
-  event-topic: "axs.questgps.quest_completed"
-  required-count: 5
-  base-xp-reward: 500
-  conditions: []
-  increment-strategy:
-    type: fixed
-    value: 1
-  weight: 3
-```
-
-#### `tasks/season.yml`（赛季任务池）
-
-```yaml
-# 赛季任务池 — 不会重置，所有玩家共享同一批赛季目标
-season-kill-1000:
-  display-name: "千人斩"
-  description: "本赛季累计击杀1000个生物"
-  difficulty: hard
-  event-topic: "axs.combateffect.kill_entity"
-  required-count: 1000
-  base-xp-reward: 2000
-  conditions: []
-  increment-strategy:
-    type: fixed
-    value: 1
-```
-
-> **向后兼容**：如果主配置 `ArcartXBattlePass.yml` 中仍保留了 `tasks.daily`、`tasks.weekly`、`tasks.season` 内联定义，系统会优先使用内联配置，忽略外部文件。
 
 # ---------------------------------------------------------------------------
 # 奖励配置
@@ -387,6 +315,86 @@ increment-strategy:
 
 ---
 
+## 外部任务文件
+
+任务模板已拆分到模块数据目录下的 `tasks/` 文件夹中，与主配置文件分离，便于管理和热更新。
+
+**文件位置**：`plugins/ArcartXSuite/modules/battlepass/tasks/`
+
+> **向后兼容**：如果主配置 `ArcartXBattlePass.yml` 中仍保留了 `tasks.daily`、`tasks.weekly`、`tasks.season` 内联定义，系统会优先使用内联配置，忽略外部文件。
+
+### `tasks/daily.yml`（每日任务池）
+
+```yaml
+# 每日任务池 — 每天 0 点自动重置并按 weight 加权随机抽取 daily-count 个分配
+daily-login:
+  display-name: "每日登录"
+  description: "每天登录游戏即可获得奖励"
+  difficulty: easy
+  event-topic: "axs.onlinerewards.signin_success"
+  required-count: 1
+  base-xp-reward: 100
+  conditions: []
+  increment-strategy:
+    type: fixed
+    value: 1
+  weight: 5
+
+daily-kill-zombie:
+  display-name: "击杀僵尸"
+  description: "在主世界击杀20个僵尸"
+  difficulty: normal
+  event-topic: "axs.combateffect.kill_entity"
+  required-count: 20
+  base-xp-reward: 150
+  conditions:
+    - type: event_payload
+      key: entity_type
+      operator: equals
+      value: zombie
+  increment-strategy:
+    type: fixed
+    value: 1
+  weight: 3
+```
+
+### `tasks/weekly.yml`（每周任务池）
+
+```yaml
+# 每周任务池 — 每 7 天自动重置并按 weight 加权随机抽取 weekly-count 个分配
+weekly-quest-5:
+  display-name: "完成悬赏任务"
+  description: "本周累计完成5个悬赏任务"
+  difficulty: normal
+  event-topic: "axs.questgps.quest_completed"
+  required-count: 5
+  base-xp-reward: 500
+  conditions: []
+  increment-strategy:
+    type: fixed
+    value: 1
+  weight: 3
+```
+
+### `tasks/season.yml`（赛季任务池）
+
+```yaml
+# 赛季任务池 — 不会重置，所有玩家共享同一批赛季目标
+season-kill-1000:
+  display-name: "千人斩"
+  description: "本赛季累计击杀1000个生物"
+  difficulty: hard
+  event-topic: "axs.combateffect.kill_entity"
+  required-count: 1000
+  base-xp-reward: 2000
+  conditions: []
+  increment-strategy:
+    type: fixed
+    value: 1
+```
+
+---
+
 ## UI 面板
 
 ### 主界面 `battlepass_main`
@@ -467,17 +475,17 @@ rewards:
 
 目前 `type` 支持 `command`，`{player}` 会被替换为玩家名。
 
-### 步骤 4：通过菜单或其他模块打开 UI
+### 步骤 4：打开 UI
 
-在 Menu 模块的按钮或命令中配置：
+玩家直接输入 `/bp` 打开战令主界面，或 `/bp tasks` 打开任务列表。
+
+也可在 Menu 模块的按钮中配置：
 
 ```yaml
 action:
   clickLeft: |-
     Packet.send('AXS_BATTLEPASS', 'open_main')
 ```
-
-或直接用命令触发 Packet（需配合 ArcartX 客户端）。
 
 ### 步骤 5：管理玩家通行证
 
