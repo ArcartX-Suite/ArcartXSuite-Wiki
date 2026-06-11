@@ -75,21 +75,21 @@ BattlePass 为付费模块，需要有效授权码激活。
 
 ## PAPI 占位符
 
-前缀：`%AXSbattlepass_xxx%`
+前缀：`%axsbattlepass_xxx%`
 
 | 占位符 | 说明 |
 |--------|------|
-| `%AXSbattlepass_season%` | 当前赛季 ID |
-| `%AXSbattlepass_season_display%` | 当前赛季显示名称 |
-| `%AXSbattlepass_level%` | 当前等级 |
-| `%AXSbattlepass_max_level%` | 最大等级 |
-| `%AXSbattlepass_xp%` | 当前 XP |
-| `%AXSbattlepass_xp_per_level%` | 每级所需 XP |
-| `%AXSbattlepass_xp_needed%` | 升级还需 XP |
-| `%AXSbattlepass_premium%` | 高级版是否已激活（"已激活" / "未激活"） |
-| `%AXSbattlepass_deluxe%` | 典藏版是否已激活（"已激活" / "未激活"） |
-| `%AXSbattlepass_tier%` | 当前通行证层级（免费 / 高级 / 典藏） |
-| `%AXSbattlepass_active_tasks%` | 当前未完成的任务数量 |
+| `%axsbattlepass_season%` | 当前赛季 ID |
+| `%axsbattlepass_season_display%` | 当前赛季显示名称 |
+| `%axsbattlepass_level%` | 当前等级 |
+| `%axsbattlepass_max_level%` | 最大等级 |
+| `%axsbattlepass_xp%` | 当前 XP |
+| `%axsbattlepass_xp_per_level%` | 每级所需 XP |
+| `%axsbattlepass_xp_needed%` | 升级还需 XP |
+| `%axsbattlepass_premium%` | 高级版是否已激活（"已激活" / "未激活"） |
+| `%axsbattlepass_deluxe%` | 典藏版是否已激活（"已激活" / "未激活"） |
+| `%axsbattlepass_tier%` | 当前通行证层级（免费 / 高级 / 典藏） |
+| `%axsbattlepass_active_tasks%` | 当前未完成的任务数量 |
 
 ---
 

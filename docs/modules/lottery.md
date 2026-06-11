@@ -68,13 +68,13 @@ modules:
 
 ## PAPI 占位符
 
-前缀：`%AXSlottery_xxx%`
+前缀：`%axslottery_xxx%`
 
 | 占位符 | 说明 |
 |--------|------|
-| `%AXSlottery_pools_total%` | 已加载奖池总数 |
-| `%AXSlottery_pools_active%` | 已启用奖池数 |
-| `%AXSlottery_history_<奖池ID>%` | 玩家在该奖池的总抽奖次数 |
+| `%axslottery_pools_total%` | 已加载奖池总数 |
+| `%axslottery_pools_active%` | 已启用奖池数 |
+| `%axslottery_history_<奖池ID>%` | 玩家在该奖池的总抽奖次数 |
 
 ## 配置文件
 

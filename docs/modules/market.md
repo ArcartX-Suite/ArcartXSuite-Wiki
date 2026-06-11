@@ -68,15 +68,15 @@ Market 为付费模块，需要有效授权码激活。
 
 ## PAPI 占位符
 
-前缀：`%AXSmarket_xxx%`
+前缀：`%axsmarket_xxx%`
 
 | 占位符 | 说明 |
 |--------|------|
-| `%AXSmarket_auction_count%` | 当前活跃拍卖数量 |
-| `%AXSmarket_shop_count%` | 已加载系统商店数量 |
-| `%AXSmarket_recycle_count%` | 回收表条目数量 |
-| `%AXSmarket_redis_status%` | Redis 连接状态 |
-| `%AXSmarket_my_listings%` | 我的上架数量 |
+| `%axsmarket_auction_count%` | 当前活跃拍卖数量 |
+| `%axsmarket_shop_count%` | 已加载系统商店数量 |
+| `%axsmarket_recycle_count%` | 回收表条目数量 |
+| `%axsmarket_redis_status%` | Redis 连接状态 |
+| `%axsmarket_my_listings%` | 我的上架数量 |
 
 ## 配置文件
 

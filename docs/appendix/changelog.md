@@ -30,7 +30,7 @@
 - **自动日/周重置引擎** — 异步线程每 5 分钟检查，每日 0 点重置每日任务，每隔 >= 7 天重置周任务并递增 `currentWeekNumber`。
 - **PlayerTaskInstance** — 新增玩家任务实例模型，独立表 `bp_player_tasks`，支持进度追踪和完成状态。
 - **管理员命令** — 新增 `/axs battlepass unlock <玩家> <premium|deluxe>` 解锁通行证。
-- **PAPI 占位符扩展** — 新增 `%AXSbattlepass_deluxe%`、`%AXSbattlepass_tier%`、`%AXSbattlepass_active_tasks%`。
+- **PAPI 占位符扩展** — 新增 `%axsbattlepass_deluxe%`、`%axsbattlepass_tier%`、`%axsbattlepass_active_tasks%`。
 - **PacketHandler** — 新增 `BattlePassPacketHandler`，支持 `open_main` / `open_tasks` 客户端包推送。
 - **UI 增强** — 任务列表新增难度标签（绿/黄/红）、任务描述、进度百分比。主界面层级标签改为动态（免费=灰、高级=金、典藏=紫）。
 - **配置迁移** — `xp-reward` → `base-xp-reward`（migration `1-2.yml`）；`config-version` 升至 `2`；`PassTier` 兼容旧数据（`unlocked_premium=1` 自动推断为 PREMIUM）。
@@ -103,7 +103,7 @@
 - **核心** — 新增宿主级统一账号识别服务：`axs-api` 新增 `api.account.AccountType` 枚举与 `api.account.AccountTypeService` 接口；`ModuleContext` 新增 `accountTypeService()` 访问方法（`@Stable`，永不为 null）。
 - **核心** — 宿主 `AccountTypeServiceImpl` 统一实现微软正版 / LittleSkin / 离线判定，含 Mojang API 查询、authlib-injector 检测与缓存，并在 `AsyncPlayerPreLogin` 异步阶段预热缓存；区分「确认不存在」(HTTP 204/404) 与「网络失败」，后者不写缓存以便重试。
 - **判定规则** — 玩家名在 Mojang 正版库存在 → 微软正版（无论 UUID v3/v4）；玩家名不在 Mojang 且 UUID 为 v4（已认证）→ LittleSkin；其余 → 离线。
-- **LoginView** — 删除自带账号判定（`classifyAccountType`、Mojang 查询、本地缓存与 `AsyncPlayerPreLogin` 监听），改用宿主统一服务；删除冗余的 `LoginAccountType` 枚举；PAPI 占位符 `%AXSloginview_account_type%`/`is_microsoft`/`is_premium` 等行为不变。
+- **LoginView** — 删除自带账号判定（`classifyAccountType`、Mojang 查询、本地缓存与 `AsyncPlayerPreLogin` 监听），改用宿主统一服务；删除冗余的 `LoginAccountType` 枚举；PAPI 占位符 `%axsloginview_account_type%`/`is_microsoft`/`is_premium` 等行为不变。
 - **QQBot** — 白名单登录门控 `QQBotLoginGateListener` 删除自带 Mojang 查询与缓存，改用统一服务；`microsoft-pass` / `littleskin-require-bind` / `deny-offline` 策略语义保持不变。
 - **EventPacket** — 规则上下文新增内置变量 `{account_type}` / `{account_type_display}` / `{account_premium}`，底层委托统一服务（主线程非阻塞，走预热缓存）。
 - **配置** — 宿主 `config.yml` 新增 `account-type` 节（`enable-mojang-lookup` / `mojang-timeout-ms` / `debug`，均带默认值，属 `JAR_NEW` 自动同步，无破坏性、无需迁移）。
@@ -149,7 +149,7 @@
 - **QQBot** — 网络层：Java 17 内置 `java.net.http.WebSocket`，零外部依赖；自动重连 + 心跳保活 + access-token 鉴权
 - **QQBot** — 存储：SQLite（默认）/ MySQL（HikariCP 连接池），表 `axs_qqbot_bindings`（`UNIQUE(qq_id, player_uuid)`）
 - **QQBot** — 命令：`/qqbot bind|unbind|info`（玩家）、`/axs qqbot status|reload|send|lookup`（管理员）
-- **QQBot** — PAPI 占位符：`%AXSqqbot_connected%`、`%AXSqqbot_bound_qq%`、`%AXSqqbot_is_bound%`、`%AXSqqbot_bound_name%`、`%AXSqqbot_group_count%` 等
+- **QQBot** — PAPI 占位符：`%axsqqbot_connected%`、`%axsqqbot_bound_qq%`、`%axsqqbot_is_bound%`、`%axsqqbot_bound_name%`、`%axsqqbot_group_count%` 等
 - **QQBot** — 配置诊断：声明 `SyncPolicy`（2 个动态节：`groups`、`custom-commands`）+ 3 条 `ValidationRule`（`onebot.ws-url` 必填、`storage.mode` 枚举、`storage.pool-size` 范围 1–50）
 - **QQBot** — `plugin.yml` 新增 `qqbot` 命令和权限 `arcartxsuite.qqbot.use`、`arcartxsuite.qqbot.admin`
 - **QQBot** — API 扩展：新增 `axs-api/capability/QQBotBroadcastable` 接口
@@ -165,7 +165,7 @@
 - **Market** — 货币：全面集成 `CurrencyBridgeAPI` 多货币体系（Vault/PlayerPoints/自定义）
 - **Market** — UI：4 个 ArcartX 客户端 UI 页面（拍卖行、系统商店、回收商店、交易历史）
 - **Market** — 命令：`/market`（玩家，别名 `/mk` `/ah`）、`/axs market`（管理员）
-- **Market** — PAPI 占位符：`%AXSmarket_auction_count%`、`%AXSmarket_shop_count%`、`%AXSmarket_recycle_count%`、`%AXSmarket_redis_status%`、`%AXSmarket_my_listings%`
+- **Market** — PAPI 占位符：`%axsmarket_auction_count%`、`%axsmarket_shop_count%`、`%axsmarket_recycle_count%`、`%axsmarket_redis_status%`、`%axsmarket_my_listings%`
 - **Market** — 配置诊断：声明 `SyncPolicy`（5 个动态节）+ 8 条 `ValidationRule`（storage.mode/pool-size/拍卖参数/Redis TTL）
 - **Market** — 客户端包协议：`AXS_MARKET` 包，8 种 action（auction_list/buy/bid/cancel/favorite/shop_buy/recycle_all/recycle_single）
 - **Market** — `plugin.yml` 新增 `market` 命令（别名 `mk`/`ah`）和权限 `arcartxsuite.market.use`、`arcartxsuite.market.admin`
@@ -337,7 +337,7 @@
 ### 1.1.0-beta (Build 2026-05-24c) — Title 总展示称号 PAPI
 
 - **Title** — 新增 `display-title` 配置节，支持按指定分组列表（或全部分组）拼接已装备称号的总展示文本，可自定义分隔符和空文本。
-- **Title** — 新增 6 个 PAPI 占位符：`%AXStitle_display%` / `%AXStitle_display_name%`（总称号名称）、`%AXStitle_display_chat_prefix%` / `%AXStitle_display_chat_suffix%`（聊天前/后缀）、`%AXStitle_display_tab_prefix%` / `%AXStitle_display_tab_suffix%`（TAB 前/后缀）。
+- **Title** — 新增 6 个 PAPI 占位符：`%axstitle_display%` / `%axstitle_display_name%`（总称号名称）、`%axstitle_display_chat_prefix%` / `%axstitle_display_chat_suffix%`（聊天前/后缀）、`%axstitle_display_tab_prefix%` / `%axstitle_display_tab_suffix%`（TAB 前/后缀）。
 - **Title** — 只想展示单个组称号时，`display-title.groups` 只填一个组 ID 即可；想展示多组则填多个，留空则按定义顺序展示所有组。
 - **Title** — 称号菜单 UI 新增「总展示称号」预览行，实时显示拼接后的总展示称号名称；packet 新增 `display_title_name`、`display_title_chat_prefix`、`display_title_chat_suffix`、`display_title_tab_prefix`、`display_title_tab_suffix` 字段。
 - **Title** — wiki `docs/modules/title.md` 同步更新：新增「总展示称号」PAPI 段落、数据契约字段、`display-title` 配置说明及典型场景表。

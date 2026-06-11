@@ -89,31 +89,31 @@ auth:
 
 ### PlaceholderAPI
 
-前缀：`%AXSloginview_<字段>%`
+前缀：`%axsloginview_<字段>%`
 
 | 占位符 | 返回值 | 说明 |
 | --- | --- | --- |
-| `%AXSloginview_account_type%` | `microsoft` / `littleskin` / `offline` | 账号来源标识，最适合写进 EventPacket `conditions` |
-| `%AXSloginview_account_type_display%` | 文本 | 中文显示名：`微软正版` / `LittleSkin` / `离线` |
-| `%AXSloginview_account_type_name%` | 文本 | 与 `account_type_display` 相同，兼容别名 |
-| `%AXSloginview_is_microsoft%` | `true` / `false` | 是否为微软正版账号 |
-| `%AXSloginview_is_littleskin%` | `true` / `false` | 是否为 LittleSkin 账号 |
-| `%AXSloginview_is_offline%` | `true` / `false` | 是否为离线账号 |
-| `%AXSloginview_is_premium%` | `true` / `false` | 是否为认证账号（微软正版或 LittleSkin） |
+| `%axsloginview_account_type%` | `microsoft` / `littleskin` / `offline` | 账号来源标识，最适合写进 EventPacket `conditions` |
+| `%axsloginview_account_type_display%` | 文本 | 中文显示名：`微软正版` / `LittleSkin` / `离线` |
+| `%axsloginview_account_type_name%` | 文本 | 与 `account_type_display` 相同，兼容别名 |
+| `%axsloginview_is_microsoft%` | `true` / `false` | 是否为微软正版账号 |
+| `%axsloginview_is_littleskin%` | `true` / `false` | 是否为 LittleSkin 账号 |
+| `%axsloginview_is_offline%` | `true` / `false` | 是否为离线账号 |
+| `%axsloginview_is_premium%` | `true` / `false` | 是否为认证账号（微软正版或 LittleSkin） |
 
 示例：
 
 ```text
-%AXSloginview_account_type%           -> microsoft
-%AXSloginview_account_type_display%   -> 微软正版
-%AXSloginview_is_littleskin%          -> false
+%axsloginview_account_type%           -> microsoft
+%axsloginview_account_type_display%   -> 微软正版
+%axsloginview_is_littleskin%          -> false
 ```
 
 在 EventPacket 中的典型写法：
 
 ```yaml
 conditions:
-  - "%AXSloginview_account_type% == littleskin"
+  - "%axsloginview_account_type% == littleskin"
 ```
 
 ---
@@ -423,7 +423,7 @@ welcome_official_player:
   trigger: command-signal
   signal: "premium_bypass"
   conditions:
-    - "%AXSloginview_account_type% == microsoft"
+    - "%axsloginview_account_type% == microsoft"
   actions:
     - type: subtitle.play
       group-id: "welcome_cinematic"

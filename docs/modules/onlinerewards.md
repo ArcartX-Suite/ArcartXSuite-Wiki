@@ -131,27 +131,27 @@ streak-rewards:
 
 ## PAPI
 
-前缀：`%AXSonlinerewards_*%`
+前缀：`%axsonlinerewards_*%`
 
 ### 个人数据
 
 | 占位符 | 说明 |
 | --- | --- |
-| `%AXSonlinerewards_daily_minutes%` | 今日在线分钟数 |
-| `%AXSonlinerewards_weekly_minutes%` | 本周在线分钟数 |
-| `%AXSonlinerewards_monthly_minutes%` | 本月在线分钟数 |
-| `%AXSonlinerewards_total_minutes%` | 总在线分钟数 |
-| `%AXSonlinerewards_daily_time%` | 今日在线时间（格式化显示） |
-| `%AXSonlinerewards_weekly_time%` | 本周在线时间（格式化） |
-| `%AXSonlinerewards_monthly_time%` | 本月在线时间（格式化） |
-| `%AXSonlinerewards_total_time%` | 总在线时间（格式化） |
-| `%AXSonlinerewards_signin_signed_today%` | 今日是否已签到（`true`/`false`） |
-| `%AXSonlinerewards_signin_streak%` | 连续签到天数 |
-| `%AXSonlinerewards_signin_total%` | 累计签到天数 |
+| `%axsonlinerewards_daily_minutes%` | 今日在线分钟数 |
+| `%axsonlinerewards_weekly_minutes%` | 本周在线分钟数 |
+| `%axsonlinerewards_monthly_minutes%` | 本月在线分钟数 |
+| `%axsonlinerewards_total_minutes%` | 总在线分钟数 |
+| `%axsonlinerewards_daily_time%` | 今日在线时间（格式化显示） |
+| `%axsonlinerewards_weekly_time%` | 本周在线时间（格式化） |
+| `%axsonlinerewards_monthly_time%` | 本月在线时间（格式化） |
+| `%axsonlinerewards_total_time%` | 总在线时间（格式化） |
+| `%axsonlinerewards_signin_signed_today%` | 今日是否已签到（`true`/`false`） |
+| `%axsonlinerewards_signin_streak%` | 连续签到天数 |
+| `%axsonlinerewards_signin_total%` | 累计签到天数 |
 
 ### 排行榜
 
-格式：`%AXSonlinerewards_top_<范围>_<名次>_<字段>%`
+格式：`%axsonlinerewards_top_<范围>_<名次>_<字段>%`
 
 | 参数 | 可选值 |
 | --- | --- |

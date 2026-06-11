@@ -88,13 +88,13 @@ modules:
 
 ## PAPI
 
-前缀：`%AXSmail_*%`
+前缀：`%axsmail_*%`
 
 | 占位符 | 返回值 | 说明 |
 | --- | --- | --- |
-| `%AXSmail_unread_count%` | 数字 | 未读邮件数量 |
-| `%AXSmail_claimable_count%` | 数字 | 有附件但尚未领取的邮件数量 |
-| `%AXSmail_total_count%` | 数字 | 收件箱邮件总数 |
+| `%axsmail_unread_count%` | 数字 | 未读邮件数量 |
+| `%axsmail_claimable_count%` | 数字 | 有附件但尚未领取的邮件数量 |
+| `%axsmail_total_count%` | 数字 | 收件箱邮件总数 |
 
 ## 聊天卡片通知
 

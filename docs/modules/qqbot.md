@@ -121,16 +121,16 @@ QQBot 为付费模块，需要有效授权码激活。
 
 ## PAPI 占位符
 
-前缀：`%AXSqqbot_xxx%`
+前缀：`%axsqqbot_xxx%`
 
 | 占位符 | 说明 |
 |--------|------|
-| `%AXSqqbot_connected%` | 机器人连接状态（true/false） |
-| `%AXSqqbot_connected_display%` | 机器人连接状态（已连接/未连接） |
-| `%AXSqqbot_is_bound%` | 当前玩家是否已绑定（true/false） |
-| `%AXSqqbot_bound_qq%` | 当前玩家绑定的 QQ 号 |
-| `%AXSqqbot_bound_name%` | 当前玩家绑定时的游戏名 |
-| `%AXSqqbot_group_count%` | 已配置监听的群数量 |
+| `%axsqqbot_connected%` | 机器人连接状态（true/false） |
+| `%axsqqbot_connected_display%` | 机器人连接状态（已连接/未连接） |
+| `%axsqqbot_is_bound%` | 当前玩家是否已绑定（true/false） |
+| `%axsqqbot_bound_qq%` | 当前玩家绑定的 QQ 号 |
+| `%axsqqbot_bound_name%` | 当前玩家绑定时的游戏名 |
+| `%axsqqbot_group_count%` | 已配置监听的群数量 |
 
 ## 配置文件
 

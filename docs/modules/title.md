@@ -37,7 +37,7 @@ Title 为付费模块，需要有效授权码激活。
 | 类型 | 依赖 | 作用 | 缺少时表现 |
 | --- | --- | --- | --- |
 | 必需 | ArcartX | 称号管理 UI、头顶显示和客户端图标文本 | 模块无法提供可视化称号界面 |
-| 可选 | PlaceholderAPI | 输出 `%AXStitle_*%`，供聊天、TAB、计分板读取 | 称号 UI 仍可用，PAPI 输出不可用 |
+| 可选 | PlaceholderAPI | 输出 `%axstitle_*%`，供聊天、TAB、计分板读取 | 称号 UI 仍可用，PAPI 输出不可用 |
 | 可选 | AttributePlus | 接收 `*-attributes` 转出的文本行与 `*-attribute-lines`，调用 `addSourceAttribute` | AttributePlus 属性不生效 |
 | 可选 | CraneAttribute | 同 AttributePlus。使用 `addStaticAttributeSource` / `addAttributeSource` | CraneAttribute 属性不生效 |
 | 可选 | MythicLib | 只读 `*-attributes`（Map），键当 stat-id 注册 FLAT StatModifier；MMOItems 可通过其注册的 stat-id 间接使用本通道 | MythicLib stat 加成不生效 |
@@ -140,32 +140,32 @@ StorageDescriptor currentDescriptor();
 
 ## PAPI
 
-前缀：`%AXStitle_*%`
+前缀：`%axstitle_*%`
 
 ### 统计
 
 | 占位符 | 说明 |
 | --- | --- |
-| `%AXStitle_owned_count%` | 拥有的称号总数 |
-| `%AXStitle_hidden_count%` | 已隐藏的称号数 |
+| `%axstitle_owned_count%` | 拥有的称号总数 |
+| `%axstitle_hidden_count%` | 已隐藏的称号数 |
 
 ### 聊天 / Tab 前后缀
 
 | 占位符 | 说明 |
 | --- | --- |
-| `%AXStitle_chat_<组ID>_prefix%` | 该组已装备称号的聊天前缀 |
-| `%AXStitle_chat_<组ID>_suffix%` | 该组已装备称号的聊天后缀 |
-| `%AXStitle_tab_<组ID>_prefix%` | 该组已装备称号的 Tab 前缀 |
-| `%AXStitle_tab_<组ID>_suffix%` | 该组已装备称号的 Tab 后缀 |
+| `%axstitle_chat_<组ID>_prefix%` | 该组已装备称号的聊天前缀 |
+| `%axstitle_chat_<组ID>_suffix%` | 该组已装备称号的聊天后缀 |
+| `%axstitle_tab_<组ID>_prefix%` | 该组已装备称号的 Tab 前缀 |
+| `%axstitle_tab_<组ID>_suffix%` | 该组已装备称号的 Tab 后缀 |
 
 ### 装备状态
 
 | 占位符 | 说明 |
 | --- | --- |
-| `%AXStitle_equipped_<组ID>_id%` | 该组已装备称号的 ID |
-| `%AXStitle_equipped_<组ID>_name%` | 该组已装备称号的显示名称 |
-| `%AXStitle_equipped_<组ID>_group%` | 该组已装备称号所属组的显示名 |
-| `%AXStitle_equipped_<组ID>_quality%` | 该组已装备称号的品质名 |
+| `%axstitle_equipped_<组ID>_id%` | 该组已装备称号的 ID |
+| `%axstitle_equipped_<组ID>_name%` | 该组已装备称号的显示名称 |
+| `%axstitle_equipped_<组ID>_group%` | 该组已装备称号所属组的显示名 |
+| `%axstitle_equipped_<组ID>_quality%` | 该组已装备称号的品质名 |
 
 ### 总展示称号
 
@@ -173,12 +173,12 @@ StorageDescriptor currentDescriptor();
 
 | 占位符 | 说明 |
 | --- | --- |
-| `%AXStitle_display%` | 总展示称号名称（拼接各组 `displayName`） |
-| `%AXStitle_display_name%` | 同 `%AXStitle_display%` |
-| `%AXStitle_display_chat_prefix%` | 总展示称号的聊天前缀拼接 |
-| `%AXStitle_display_chat_suffix%` | 总展示称号的聊天后缀拼接 |
-| `%AXStitle_display_tab_prefix%` | 总展示称号的 Tab 前缀拼接 |
-| `%AXStitle_display_tab_suffix%` | 总展示称号的 Tab 后缀拼接 |
+| `%axstitle_display%` | 总展示称号名称（拼接各组 `displayName`） |
+| `%axstitle_display_name%` | 同 `%axstitle_display%` |
+| `%axstitle_display_chat_prefix%` | 总展示称号的聊天前缀拼接 |
+| `%axstitle_display_chat_suffix%` | 总展示称号的聊天后缀拼接 |
+| `%axstitle_display_tab_prefix%` | 总展示称号的 Tab 前缀拼接 |
+| `%axstitle_display_tab_suffix%` | 总展示称号的 Tab 后缀拼接 |
 
 > 只想展示单个组的称号时，`display-title.groups` 只填一个组 ID；想展示多组则填多个，留空则按定义顺序展示所有组。
 
@@ -186,32 +186,32 @@ StorageDescriptor currentDescriptor();
 
 | 占位符 | 说明 |
 | --- | --- |
-| `%AXStitle_owned_<称号ID>%` | 是否拥有指定称号（`true`/`false`） |
-| `%AXStitle_hidden_<称号ID>%` | 是否隐藏了指定称号 |
-| `%AXStitle_remaining_<称号ID>%` | 剩余有效时间（毫秒），永久返回 `永久` |
+| `%axstitle_owned_<称号ID>%` | 是否拥有指定称号（`true`/`false`） |
+| `%axstitle_hidden_<称号ID>%` | 是否隐藏了指定称号 |
+| `%axstitle_remaining_<称号ID>%` | 剩余有效时间（毫秒），永久返回 `永久` |
 
 ### 属性加成
 
 | 占位符 | 说明 |
 | --- | --- |
-| `%AXStitle_display_attr_<属性键>%` | 当前展示中称号的属性加成值 |
-| `%AXStitle_collection_attr_<属性键>%` | 收藏图鉴属性加成 |
-| `%AXStitle_total_attr_<属性键>%` | 展示 + 收藏 + 套装的总属性加成 |
-| `%AXStitle_set_bonus_attr_<属性键>%` | 套装加成属性值 |
+| `%axstitle_display_attr_<属性键>%` | 当前展示中称号的属性加成值 |
+| `%axstitle_collection_attr_<属性键>%` | 收藏图鉴属性加成 |
+| `%axstitle_total_attr_<属性键>%` | 展示 + 收藏 + 套装的总属性加成 |
+| `%axstitle_set_bonus_attr_<属性键>%` | 套装加成属性值 |
 
 ### 日期区间
 
 | 占位符 | 说明 |
 | --- | --- |
-| `%AXStitle_activates_<称号ID>%` | 称号的激活时间戳 |
-| `%AXStitle_effective_<称号ID>%` | 称号当前是否在有效区间内（`true`/`false`） |
+| `%axstitle_activates_<称号ID>%` | 称号的激活时间戳 |
+| `%axstitle_effective_<称号ID>%` | 称号当前是否在有效区间内（`true`/`false`） |
 
 ### 套装
 
 | 占位符 | 说明 |
 | --- | --- |
-| `%AXStitle_set_<套装ID>_completion%` | 该套装已拥有的称号数量 |
-| `%AXStitle_set_<套装ID>_active%` | 该套装是否已激活（`true`/`false`） |
+| `%axstitle_set_<套装ID>_completion%` | 该套装已拥有的称号数量 |
+| `%axstitle_set_<套装ID>_active%` | 该套装是否已激活（`true`/`false`） |
 
 ## 头顶显示
 
@@ -473,7 +473,7 @@ display-title:
 
 ### 典型场景
 
-| 场景 | 配置 | `%AXStitle_display%` 输出示例 |
+| 场景 | 配置 | `%axstitle_display%` 输出示例 |
 | --- | --- | --- |
 | 只展示冒险组称号 | `groups: [adventure]` | `勇者` |
 | 展示冒险+探索两组 | `groups: [adventure, exploration]` | `勇者 探险家` |

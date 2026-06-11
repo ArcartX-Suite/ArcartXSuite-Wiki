@@ -342,19 +342,19 @@ Warehouse 为付费模块，需要有效授权码激活。
 
 ## PAPI 占位符
 
-前缀：`%AXSwarehouse_*%`
+前缀：`%axswarehouse_*%`
 
 | 占位符 | 说明 |
 |--------|------|
-| `%AXSwarehouse_total_items%` | 仓库物品总数（所有个人仓库合计） |
-| `%AXSwarehouse_personal_used%` | 个人仓库已使用格子数 |
-| `%AXSwarehouse_personal_capacity%` | 个人仓库总容量 |
-| `%AXSwarehouse_shared_owned_count%` | 拥有的共享仓库数量 |
-| `%AXSwarehouse_shared_joined_count%` | 加入的他人共享仓库数量（含拥有） |
-| `%AXSwarehouse_category_<分类ID>_amount%` | 指定分类的物品数量 |
-| `%AXSwarehouse_bank_balance_<货币ID>%` | 指定货币的银行活期余额 |
-| `%AXSwarehouse_bank_fixed_active_<货币ID>%` | 活跃（未领取）定期存款笔数 |
-| `%AXSwarehouse_bank_fixed_matured_<货币ID>%` | 已到期且未领取的定期存款笔数 |
+| `%axswarehouse_total_items%` | 仓库物品总数（所有个人仓库合计） |
+| `%axswarehouse_personal_used%` | 个人仓库已使用格子数 |
+| `%axswarehouse_personal_capacity%` | 个人仓库总容量 |
+| `%axswarehouse_shared_owned_count%` | 拥有的共享仓库数量 |
+| `%axswarehouse_shared_joined_count%` | 加入的他人共享仓库数量（含拥有） |
+| `%axswarehouse_category_<分类ID>_amount%` | 指定分类的物品数量 |
+| `%axswarehouse_bank_balance_<货币ID>%` | 指定货币的银行活期余额 |
+| `%axswarehouse_bank_fixed_active_<货币ID>%` | 活跃（未领取）定期存款笔数 |
+| `%axswarehouse_bank_fixed_matured_<货币ID>%` | 已到期且未领取的定期存款笔数 |
 
 ## 配置文件
 

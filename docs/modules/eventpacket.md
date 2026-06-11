@@ -104,7 +104,7 @@ first_join_guide:
 ```yaml
 conditions:
   - "%player_level% >= 30"
-  - "%AXSloginview_account_type% == microsoft"
+  - "%axsloginview_account_type% == microsoft"
 ```
 
 **Aria 示例：**
@@ -963,7 +963,7 @@ welcome_new_player:
   trigger: command-signal
   signal: "first_register"
   conditions:
-    - "%AXSloginview_account_type% == microsoft"
+    - "%axsloginview_account_type% == microsoft"
   repeatable: false
   actions:
     - type: subtitle.play
@@ -987,7 +987,7 @@ welcome_littleskin_player:
   trigger: command-signal
   signal: "first_register"
   conditions:
-    - "%AXSloginview_account_type% == littleskin"
+    - "%axsloginview_account_type% == littleskin"
   repeatable: false
   actions:
     - type: chat.card

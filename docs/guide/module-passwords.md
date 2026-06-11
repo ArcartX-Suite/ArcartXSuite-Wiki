@@ -19,7 +19,7 @@ modules:
 - 付费模块：`enabled: true` 后，还必须通过 `license.yml` 云端授权。
 - 福利模块：消费额度达标或单独购买后获得授权码，与付费模块共用授权流程。
 
-当前付费模块：`warehouse`、`map`、`mail`、`title`、`questgps`、`conversation`、`market`、`qqbot`。
+当前付费模块：`warehouse`、`map`、`mail`、`title`、`questgps`、`conversation`、`market`、`qqbot`、`battlepass`、`fishing`、`lottery`。
 
 当前福利模块：`tab`、`entitytracker`。
 

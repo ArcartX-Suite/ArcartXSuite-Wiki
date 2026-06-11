@@ -330,13 +330,13 @@ cross-server:
 
 ## PAPI
 
-前缀：`%AXSchat_*%`
+前缀：`%axschat_*%`
 
 | 占位符 | 返回值 | 说明 |
 | --- | --- | --- |
-| `%AXSchat_current_channel%` | 文本 | 当前所在频道的 ID |
-| `%AXSchat_current_channel_display%` | 文本 | 当前频道的显示名称 |
-| `%AXSchat_reply_target%` | 文本 | 最近私聊对象的玩家名，没有时返回空 |
-| `%AXSchat_spy_enabled%` | `true`/`false` | 社交监听是否开启 |
-| `%AXSchat_ignore_count%` | 数字 | 已屏蔽的玩家数量 |
-| `%AXSchat_muted%` | `true`/`false` | 是否处于被禁言状态 |
+| `%axschat_current_channel%` | 文本 | 当前所在频道的 ID |
+| `%axschat_current_channel_display%` | 文本 | 当前频道的显示名称 |
+| `%axschat_reply_target%` | 文本 | 最近私聊对象的玩家名，没有时返回空 |
+| `%axschat_spy_enabled%` | `true`/`false` | 社交监听是否开启 |
+| `%axschat_ignore_count%` | 数字 | 已屏蔽的玩家数量 |
+| `%axschat_muted%` | `true`/`false` | 是否处于被禁言状态 |

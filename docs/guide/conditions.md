@@ -658,7 +658,7 @@ boolean ariaReady = context.ariaBridge().available();
 
 ## 相关链接
 
-- [PlaceholderAPI 速查](/guide/placeholders) — AXS 输出的 `%AXS...%` 变量
+- [PlaceholderAPI 速查](/guide/placeholders) — AXS 输出的 `%axs...%` 变量
 - [Menu 通用菜单](/modules/menu) — 可见/使用/打开条件详解
 - [Blink 开发者手册](https://github.com/17Artist/Blink/blob/main/DEVELOPER.md) — AriaScriptManager API
 - [Aria 语言仓库](https://github.com/17Artist/Aria) — 语法与 JIT 特性

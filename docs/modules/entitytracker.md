@@ -597,31 +597,31 @@ database:
 
 ## PAPI 占位符
 
-前缀：`%AXSentitytracker_*%`
+前缀：`%axsentitytracker_*%`
 
 ### 全局 / 模块信息
 
 | 占位符 | 说明 |
 | --- | --- |
-| `%AXSentitytracker_sort_mode%` | 当前 Boss 排序模式（如 `spawn-order`） |
-| `%AXSentitytracker_max_visible_bars%` | 配置中最大同时显示的 Boss 血条数 |
-| `%AXSentitytracker_configured_boss_count%` | 配置文件中定义的 Boss 总数 |
-| `%AXSentitytracker_damage_ranking_boss_count%` | 开启伤害排行的 Boss 数量 |
-| `%AXSentitytracker_max_damage_ranking_entries%` | 所有 Boss 中最大的 `max-entries` 值 |
-| `%AXSentitytracker_active_session_count%` | 当前活跃的 Boss 战斗会话数 |
-| `%AXSentitytracker_active_viewer_count%` | 当前正在观察 Boss 的玩家总数 |
-| `%AXSentitytracker_boss_count%` | 该玩家视野中的 Boss 数量 |
-| `%AXSentitytracker_total_boss_count%` | 全服正在追踪的 Boss 总数 |
-| `%AXSentitytracker_ui_id%` | 配置的 UI ID |
-| `%AXSentitytracker_runtime_ui_id%` | 运行时实际使用的 UI ID |
-| `%AXSentitytracker_bridge_ready%` | ArcartX 桥接是否就绪（`true`/`false`） |
+| `%axsentitytracker_sort_mode%` | 当前 Boss 排序模式（如 `spawn-order`） |
+| `%axsentitytracker_max_visible_bars%` | 配置中最大同时显示的 Boss 血条数 |
+| `%axsentitytracker_configured_boss_count%` | 配置文件中定义的 Boss 总数 |
+| `%axsentitytracker_damage_ranking_boss_count%` | 开启伤害排行的 Boss 数量 |
+| `%axsentitytracker_max_damage_ranking_entries%` | 所有 Boss 中最大的 `max-entries` 值 |
+| `%axsentitytracker_active_session_count%` | 当前活跃的 Boss 战斗会话数 |
+| `%axsentitytracker_active_viewer_count%` | 当前正在观察 Boss 的玩家总数 |
+| `%axsentitytracker_boss_count%` | 该玩家视野中的 Boss 数量 |
+| `%axsentitytracker_total_boss_count%` | 全服正在追踪的 Boss 总数 |
+| `%axsentitytracker_ui_id%` | 配置的 UI ID |
+| `%axsentitytracker_runtime_ui_id%` | 运行时实际使用的 UI ID |
+| `%axsentitytracker_bridge_ready%` | ArcartX 桥接是否就绪（`true`/`false`） |
 
 ### 当前 Boss / 槽位
 
 | 占位符 | 说明 |
 | --- | --- |
-| `%AXSentitytracker_current_<字段>%` | 视野中第 1 个 Boss 的信息（等同 `slot_1_<字段>`） |
-| `%AXSentitytracker_slot_<N>_<字段>%` | 视野中第 N 个 Boss 的信息 |
+| `%axsentitytracker_current_<字段>%` | 视野中第 1 个 Boss 的信息（等同 `slot_1_<字段>`） |
+| `%axsentitytracker_slot_<N>_<字段>%` | 视野中第 N 个 Boss 的信息 |
 
 **常用 `<字段>`**：
 
@@ -641,7 +641,7 @@ database:
 
 | 占位符 | 说明 |
 | --- | --- |
-| `%AXSentitytracker_last_<字段>%` | 玩家参与的最近一次 Boss 结算信息 |
+| `%axsentitytracker_last_<字段>%` | 玩家参与的最近一次 Boss 结算信息 |
 
 **常用 `<字段>`**：`rank`（排名）、`damage`（伤害值）、`boss_name`（Boss 名称）、`total_participants`（参与人数）、`total_damage`（总伤害）。
 
