@@ -5,6 +5,10 @@ description: ArcartXSuite Conversation 对话桥，Chemdah 对话 + Adyeshach NP
 
 # Conversation 对话桥
 
+::: tip 付费模块
+
+Conversation 为付费模块，需要有效授权码激活。
+:::
 ## 功能定位
 
 将 Chemdah 对话系统桥接到 ArcartX UI，配合 Adyeshach NPC 实现可视化对话面板。

@@ -1,10 +1,14 @@
 ---
-title: mail
-description: 
+title: Mail 邮箱插件 | ArcartXSuite Minecraft
+description: ArcartXSuite Mail 邮件系统，玩家写信、管理员预设派发、CDK 兑换、物品附件、跨服广播，我的世界服务器邮件插件。
 ---
 
 # Mail 邮箱
 
+::: tip 付费模块
+
+Mail 为付费模块，需要有效授权码激活。
+:::
 ## 功能定位
 
 完整的游戏内邮箱系统：玩家写信、管理员预设派发、CDK 兑换、物品附件、货币手续费、跨服广播。
