@@ -92,7 +92,7 @@ first_join_guide:
 
 ### 规则条件（conditions）
 
-规则动作执行前统一校验，语法与 [条件系统（PAPI + Aria）](/guide/conditions) 一致。
+规则动作执行前统一校验，语法与 [条件系统（PAPI + Aria + JS）](/guide/conditions) 一致。
 
 **PAPI 行内示例：**
 

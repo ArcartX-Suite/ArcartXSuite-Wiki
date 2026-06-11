@@ -111,7 +111,7 @@ CONDITION_NOT_MET: "&7[&dArcartXProp&7]&c{NAME} &f使用条件不满足: &e{COND
 
 ### 使用条件（conditions）
 
-通过 [条件系统](/guide/conditions) 配置使用门槛，支持 **PlaceholderAPI 行内表达式** 与 **Aria 脚本**。所有条件必须同时满足（AND）。
+通过 [条件系统](/guide/conditions) 配置使用门槛，支持 **PlaceholderAPI 行内表达式**、**Aria 脚本** 与 **JavaScript 脚本**。所有条件必须同时满足（AND）。
 
 **PAPI 行内格式**：`<PlaceholderAPI变量> <运算符> <期望值>`
 
@@ -143,11 +143,17 @@ conditions:
   - "aria: return player.getHealth() > 5"
   - type: aria
     script: "return player.hasPermission('prop.advanced.use')"
+
+  # JavaScript 脚本（零依赖，JVM 自带）
+  - "js: player.getHealth() > 5"
+  - type: js
+    script: "return player.hasPermission('prop.advanced.use')"
 ```
 
 ::: tip 依赖说明
-- **PAPI 条件**：需安装 PlaceholderAPI；未安装时占位符不解析，条件通常不通过。  
-- **Aria 条件**：需 Blink 系插件注入 Aria；未部署时条件求值为 false。  
+- **PAPI 条件**：需安装 PlaceholderAPI；未安装时占位符不解析，条件通常不通过。
+- **Aria 条件**：需 Blink 系插件注入 Aria；未部署时条件求值为 false。
+- **JS 条件**：零外部依赖，Java 8+ 自带 Nashorn 引擎；无 Blink 时优先使用 JS 替代 Aria。
 详见 [条件系统](/guide/conditions)。
 :::
 

@@ -9,7 +9,7 @@
 3. [第一次启用流程](first-run) — 推荐的"先开 1 个最小模块 → 全开"流程。
 4. [命令速查](commands) — 管理命令（`/AXS`）与玩家命令一表打尽。
 5. [PlaceholderAPI 速查](placeholders) — 各模块的 PAPI 前缀与典型字段。
-6. [条件系统（PAPI + Aria）](conditions) — Menu / Prop / EventPacket / Mail 统一条件语法与 Aria 脚本教学。
+6. [条件系统（PAPI + Aria + JS）](conditions) — Menu / Prop / EventPacket / Mail 统一条件语法，支持 PAPI 行内、Aria 脚本、原生 JavaScript 三种模式。
 7. [跨服功能配置](cross-server-setup) — 多服 Chat / Tab / Mail 等（`1.2.0-beta` 统一 CrossServer SDK）。
 8. [Warehouse 多服 MySQL 部署](warehouse-cross-server) — 仓库跨服数据共享。
 9. [多 UI 同时发包](multi-ui) — 多界面并存时的包路由。
