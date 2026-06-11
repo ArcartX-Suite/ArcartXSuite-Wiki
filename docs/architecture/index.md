@@ -3,7 +3,7 @@ title: index | ArcartXSuite Minecraft插件架构文档
 description: index - ArcartXSuite Minecraft 服务器插件文档。 ArcartXSuite 我的世界服务器插件套件。
 ---
 
-﻿# 架构
+# 架构
 
 AXS 共享**同一组反射桥、同一套客户端包守卫、同一种资源加密协议、同一份数据包流向约定**。
 

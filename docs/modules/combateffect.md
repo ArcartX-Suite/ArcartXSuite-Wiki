@@ -3,7 +3,7 @@ title: CombatEffect 战斗特效插件 | ArcartXSuite
 description: ArcartXSuite CombatEffect 战斗特效，击杀特效、连击追踪、死亡缓冲、伤害飘字，四插件属性来源自动检测，Minecraft 服务器战斗增强插件。
 ---
 
-﻿# CombatEffect 战斗特效
+# CombatEffect 战斗特效
 
 ## 功能定位
 

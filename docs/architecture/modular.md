@@ -3,7 +3,7 @@ title: modular | ArcartXSuite Minecraft插件架构文档
 description: modular - ArcartXSuite Minecraft 服务器插件文档。 ArcartXSuite 我的世界服务器插件套件。
 ---
 
-﻿# 模块化架构
+# 模块化架构
 
 ArcartXSuite 1.1.0-beta 使用 **宿主 + 模块 Jar** 架构。宿主（`axs-core`）提供核心基础设施，各功能模块可以打包为独立 Jar 放入 `modules/` 目录按需加载。
 

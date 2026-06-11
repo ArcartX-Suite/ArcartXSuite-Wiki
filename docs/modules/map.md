@@ -3,7 +3,7 @@ title: Map 世界地图插件 | ArcartXSuite Minecraft服务器
 description: ArcartXSuite Map 世界地图，锚点传送、玩家路径点、小地图 HUD、世界解锁，我的世界服务器地图插件。
 ---
 
-﻿# Map 地图
+# Map 地图
 
 ## 功能定位
 

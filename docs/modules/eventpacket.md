@@ -3,7 +3,7 @@ title: EventPacket 事件引擎插件 | ArcartXSuite Minecraft
 description: ArcartXSuite EventPacket 事件引擎，9种触发器11种动作自由组合，内置实体清理和定时命令，支持跨模块联动，我的世界服务器自动化插件。
 ---
 
-﻿# EventPacket 事件引擎
+# EventPacket 事件引擎
 
 ## 功能定位-ArcartXSuite的最具有学习意义的模块
 

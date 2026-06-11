@@ -3,7 +3,7 @@ title: LoginView 登录界面插件 | ArcartXSuite Minecraft
 description: ArcartXSuite LoginView 登录注册面板，ArcartX UI 渲染，支持独立模式和 AuthMe 兼容，我的世界服务器登录认证插件。
 ---
 
-﻿# LoginView 登录界面
+# LoginView 登录界面
 
 ## 功能定位
 

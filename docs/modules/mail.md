@@ -3,7 +3,7 @@ title: mail
 description: 
 ---
 
-﻿# Mail 邮箱
+# Mail 邮箱
 
 ## 功能定位
 

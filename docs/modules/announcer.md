@@ -3,7 +3,7 @@ title: Announcer 播报系统插件 | ArcartXSuite Minecraft服务器
 description: ArcartXSuite Announcer 播报系统，提供常驻/轮播 HUD 公告与打字机字幕动画，可点击执行命令，我的世界服务器信息播报一站式解决。
 ---
 
-﻿# Announcer 播报系统
+# Announcer 播报系统
 
 ## 功能定位
 

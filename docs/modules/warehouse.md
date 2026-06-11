@@ -3,7 +3,7 @@ title: Warehouse 仓库银行插件 | ArcartXSuite Minecraft
 description: ArcartXSuite Warehouse 仓库银行，个人仓库NBT分类、共享仓库、多货币银行、定期存款、二级密码，我的世界服务器仓库银行插件。
 ---
 
-﻿# Warehouse 仓库银行
+# Warehouse 仓库银行
 
 **Warehouse** 模块提供完整的个人仓库、共享仓库与多货币银行系统，所有交互通过 ArcartX 客户端 UI 完成，支持 SQLite / MySQL 双存储后端。
 

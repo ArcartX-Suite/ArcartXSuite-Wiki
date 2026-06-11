@@ -3,7 +3,7 @@ title: RGB 渐变文本插件 | ArcartXSuite Minecraft服务器
 description: ArcartXSuite RGB 渐变文本，通过 PAPI 输出渐变/扫光效果文本，支持嵌套其他占位符，我的世界服务器美化插件。
 ---
 
-﻿# RGB 渐变文本
+# RGB 渐变文本
 
 ## 功能定位
 

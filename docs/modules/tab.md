@@ -3,7 +3,7 @@ title: Tab 在线列表插件 | ArcartXSuite Minecraft服务器
 description: ArcartXSuite Tab 在线列表，ArcartX TAB UI 渲染，支持排序、分组、PAPI 变量、跨服快照，我的世界服务器 Tab 列表插件。
 ---
 
-﻿# Tab 在线列表
+# Tab 在线列表
 
 ::: tip 福利模块
 Tab 属于福利模块，消费额度满 ¥300 或 找我购买高级会员 即可获得授权码。启用后仍需在 `license.yml` 中配置对应授权码。

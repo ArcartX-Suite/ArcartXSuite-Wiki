@@ -3,7 +3,7 @@ title: index | ArcartXSuite Minecraft插件文档
 description: index - ArcartXSuite Minecraft 服务器插件文档。 ArcartXSuite 我的世界服务器插件套件。
 ---
 
-﻿# 快速开始
+# 快速开始
 
 新接触 AXS 的服主请按下面顺序读完本章 — 整个过程大约 **15 分钟**就能让一个模块跑起来。
 
