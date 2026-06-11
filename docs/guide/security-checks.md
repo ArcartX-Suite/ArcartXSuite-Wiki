@@ -6,14 +6,14 @@ ArcartXSuite 在启动时会执行**四步保护流水线**的安全检测（Ste
 
 ## 检测维度一览
 
-`JarIntegrityVerifier` 启动时通过 `verify()` 检查五个维度，结果以 `integrityFlags`（位掩码）上报给授权服务器：
+`JarIntegrityVerifier` 启动时通过 `verify()` 检查五个维度，结果以 `integrityFlags`（位掩码）上报给授权服务器（其中 `ATTACH_OPEN` 在心跳采集时已被客户端过滤，不上报）：
 
 | 位掩码 | 名称 | 检测内容 | 严重程度 | 是否需要处理 |
 |---|---|---|---|---|
 | `0x01` (1) | `TAMPERED` | Jar 完整性校验失败（SHA-256 摘要不符） | **critical** | **必须处理** |
 | `0x02` (2) | `AGENT_DETECTED` | 检测到非预期的 Java Agent（`-javaagent`） | **critical** | **必须处理** |
 | `0x04` (4) | `DEBUG_ATTACHED` | 检测到调试器参数（`-Xdebug`/jdwp） | warning | 生产服建议处理 |
-| `0x08` (8) | `ATTACH_OPEN` | JVM Attach API 未关闭 | info | 按需选择 |
+| `0x08` (8) | `ATTACH_OPEN` | JVM Attach API 未关闭 | — | 不上报，仅控制台提示 |
 | `0x10` (16) | `NATIVE_ALERT` | Native（C++ JNI）侧环境告警 | **critical** | **必须处理** |
 
 > 控制台日志格式：`[AXS-Security] 安全警告: [Agent注入] [Attach未封锁]`  
@@ -63,7 +63,7 @@ ArcartXSuite 在启动时会执行**四步保护流水线**的安全检测（Ste
 
 **处理建议：**
 - 在意安全的服务器：启动参数加 `-XX:+DisableAttachMechanism`
-- 需要随时 `jstack`/`jmap` 诊断的运维环境：可不加（属于 info 级别，不触发告警）
+- 需要随时 `jstack`/`jmap` 诊断的运维环境
 - 不会影响 authlib-injector 等**启动时加载**的 Agent
 
 ```bash
@@ -87,10 +87,10 @@ java -XX:+DisableAttachMechanism -javaagent:plugins/ArcartXSuite/authlib-injecto
 | `INTEGRITY_AGENT` | `flags & 2 != 0` | critical | ✅ 是 |
 | `INTEGRITY_NATIVE` | `flags & 16 != 0` | critical | ✅ 是 |
 | `INTEGRITY_DEBUG` | `flags & 4 != 0` | warning | ❌ 否 |
-| `INTEGRITY_ATTACH` | `flags & 8 != 0` | info | ❌ 否 |
+| `INTEGRITY_ATTACH` | `flags & 8 != 0` | — | ❌ **不上报** |
 
 这意味着：
-- **纯 Attach 未封锁**（`flags = 8`）不再显示红色的 `INTEGRITY_VIOLATION`，后台只会记录一条 info 级别的 `INTEGRITY_ATTACH`
+- **Attach 未封锁**（`flags = 8`）启动时控制台会打印 `[AXS-Security] 安全警告: [Attach未封锁]` 作为本地提示。
 - **调试器连接**（`flags = 4`）降级为 warning，不会触发机器人告警推送
 - 真正的篡改和非法 Agent 仍保持 critical，继续进告警队列
 
@@ -105,7 +105,7 @@ A：如果该插件以 `-javaagent` 方式注入 JVM，且**不在白名单内**
 A：请核对 Agent 文件名是否包含 `classfinal` 或 `authlib-injector` 关键字（白名单匹配规则）。如果确认是合法工具，可以在 `JarIntegrityVerifier.checkAgentInjection()` 的白名单条件中添加对应关键字，然后重新构建。
 
 **Q：`[Attach未封锁]` 会导致功能异常吗？**  
-A：不会。这只是安全建议，不影响任何游戏功能或授权验证。从 `1.2.0-beta` 起已降级为 info，不会在授权后台产生红色异常。
+A：不会。这只是安全建议，不影响任何游戏功能或授权验证。
 
 **Q：启动脚本里加了 `-XX:+DisableAttachMechanism` 后，authlib-injector 还能用吗？**  
 A：可以。`DisableAttachMechanism` 关闭的是**运行时动态 attach**，authlib-injector 作为**启动时通过 `-javaagent` 加载**的 Agent 完全不受影响。
@@ -122,5 +122,5 @@ A：启动日志中 `JarIntegrityVerifier.summary()` 会打印完整的警告摘
 - [ ] Jar 来源可信（从官方渠道下载，核对 SHA）
 - [ ] 没有多余的 `-javaagent`（除 authlib-injector / classfinal 外）
 - [ ] 生产环境已移除 `-Xdebug`/`-agentlib:jdwp`
-- [ ] 在意安全的服务器已加 `-XX:+DisableAttachMechanism`
+- [ ] （可选）在意安全的服务器加 `-XX:+DisableAttachMechanism`，关闭 Attach API
 - [ ] `authlib-injector` 通过官方脚本启动（`start-mixed-auth.bat` 或 `start-secure.bat`）
