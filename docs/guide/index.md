@@ -19,6 +19,7 @@ description: index - ArcartXSuite Minecraft 服务器插件文档。 ArcartXSuit
 8. [Warehouse 多服 MySQL 部署](warehouse-cross-server) — 仓库跨服数据共享。
 9. [多 UI 同时发包](multi-ui) — 多界面并存时的包路由。
 10. [Proxy 代理端插件](proxy-usage) — Velocity / Bungee 侧配置。
+11. [运行时安全检测](security-checks) — 理解 `[AXS-Security]` 警告含义与授权后台异常分级。
 
 ## 一句话总览
 
