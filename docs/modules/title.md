@@ -1,3 +1,8 @@
+---
+title: Title 称号插件 | ArcartXSuite Minecraft服务器
+description: ArcartXSuite Title 分组称号系统，支持有效期/永久、品质等级、属性加成、套装加成、头顶显示、聊天Tab前缀，我的世界服务器称号插件。
+---
+
 ﻿# Title 称号
 
 ## 功能定位

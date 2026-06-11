@@ -1,3 +1,8 @@
+---
+title: QuestGPS 任务导航插件 | ArcartXSuite Minecraft
+description: ArcartXSuite QuestGPS Chemdah 任务追踪、路径寻路 + 3D模型标记、任务指引HUD，我的世界服务器任务导航插件。
+---
+
 ﻿# QuestGPS 任务导航
 
 ## 功能定位

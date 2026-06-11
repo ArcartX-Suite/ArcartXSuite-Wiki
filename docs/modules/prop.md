@@ -1,3 +1,8 @@
+---
+title: Prop 快捷道具插件 | ArcartXSuite Minecraft
+description: ArcartXSuite Prop 快捷道具系统，道具快捷键绑定、客户端按键效果、临时属性加成，我的世界服务器道具插件。
+---
+
 ﻿# Prop 快捷道具
 
 ## 功能定位

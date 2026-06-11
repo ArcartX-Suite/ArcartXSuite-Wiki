@@ -1,3 +1,8 @@
+---
+title: 跨服通信（CrossServer SDK） | ArcartXSuite Minecraft插件架构文档
+description: 跨服通信（CrossServer SDK） - ArcartXSuite Minecraft 服务器插件文档。 ArcartXSuite 我的世界服务器插件套件。
+---
+
 # 跨服通信（CrossServer SDK）
 
 `1.2.0-beta` 起，ArcartXSuite 将跨服能力收敛为**宿主侧统一 SDK**，各模块不再各自维护 Redis Pub/Sub 或 BungeeCord 专用频道。

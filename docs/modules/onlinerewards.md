@@ -1,3 +1,8 @@
+---
+title: OnlineRewards 在线奖励插件 | ArcartXSuite
+description: ArcartXSuite OnlineRewards 在线时长阶段奖励、每日签到、连续签到、补签卡、四维排行榜、跨服同步，Minecraft 服务器签到插件。
+---
+
 ﻿# OnlineRewards 在线奖励
 
 ## 功能定位

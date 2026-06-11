@@ -1,3 +1,8 @@
+---
+title: BattlePass 战令系统插件 | ArcartXSuite Minecraft
+description: ArcartXSuite BattlePass 战令系统，三层通行证、日/周/赛季任务池、条件过滤、ArcartX UI 面板，我的世界服务器战令插件。
+---
+
 # BattlePass 战令系统
 
 ::: tip 付费模块

@@ -1,3 +1,8 @@
+---
+title: 模块生命周期 | ArcartXSuite Minecraft插件API文档
+description: 模块生命周期 - ArcartXSuite Minecraft 服务器插件文档。 ArcartXSuite 我的世界服务器插件套件。
+---
+
 # 模块生命周期
 
 ## AXSModule

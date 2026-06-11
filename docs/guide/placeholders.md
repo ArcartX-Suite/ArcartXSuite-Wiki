@@ -1,3 +1,8 @@
+---
+title: PlaceholderAPI 占位符速查 | ArcartXSuite Minecraft插件文档
+description: PlaceholderAPI 占位符速查 - ArcartXSuite Minecraft 服务器插件文档。 ArcartXSuite 我的世界服务器插件套件。
+---
+
 # PlaceholderAPI 占位符速查
 
 本页列出 ArcartXSuite 对外输出的**全部 PlaceholderAPI 占位符**，包括每个字段的含义、返回值类型和使用示例。

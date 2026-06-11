@@ -1,3 +1,8 @@
+---
+title: 桥接 API | ArcartXSuite Minecraft插件API文档
+description: 桥接 API - ArcartXSuite Minecraft 服务器插件文档。 ArcartXSuite 我的世界服务器插件套件。
+---
+
 # 桥接 API
 
 ArcartXSuite 1.1.0 起提供三个类型安全的桥接接口，取代原先返回 `Object` 的旧 API。模块通过 `ModuleContext` 获取实例。

@@ -1,3 +1,8 @@
+---
+title: 货币系统配置 | ArcartXSuite Minecraft插件文档
+description: 货币系统配置 - ArcartXSuite Minecraft 服务器插件文档。 ArcartXSuite 我的世界服务器插件套件。
+---
+
 # 货币系统配置
 
 ArcartXSuite 内置统一货币桥接层，所有涉及经济的模块（Warehouse、Mail、Map、Market、OnlineRewards 等）共享同一组货币定义。你只需在 `config.yml` 顶部的 `currencies` 节配置一次，全局生效。

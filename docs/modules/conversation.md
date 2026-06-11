@@ -1,3 +1,8 @@
+---
+title: Conversation 对话桥插件 | ArcartXSuite Minecraft
+description: ArcartXSuite Conversation 对话桥，Chemdah 对话 + Adyeshach NPC 联动，ArcartX UI 渲染，我的世界服务器 NPC 对话插件。
+---
+
 ﻿# Conversation 对话桥
 
 ## 功能定位

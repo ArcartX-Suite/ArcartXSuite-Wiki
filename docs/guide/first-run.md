@@ -1,3 +1,8 @@
+---
+title: plugins/ArcartXSuite/ArcartXAnnouncer.yml | ArcartXSuite Minecraft插件文档
+description: plugins/ArcartXSuite/ArcartXAnnouncer.yml - ArcartXSuite Minecraft 服务器插件文档。 ArcartXSuite 我的世界服务器插件套件。
+---
+
 ﻿# 第一次启用流程
 
 为避免一次开全部模块导致排查困难，<strong>强烈推荐“先单模块 → 再全量”</strong>的渐进流程。

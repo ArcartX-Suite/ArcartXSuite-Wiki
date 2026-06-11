@@ -1,3 +1,8 @@
+---
+title: ArcartXSuite-Proxy 使用文档 | ArcartXSuite Minecraft插件文档
+description: ArcartXSuite-Proxy 使用文档 - ArcartXSuite Minecraft 服务器插件文档。 ArcartXSuite 我的世界服务器插件套件。
+---
+
 # ArcartXSuite-Proxy 使用文档
 
 ## 概述

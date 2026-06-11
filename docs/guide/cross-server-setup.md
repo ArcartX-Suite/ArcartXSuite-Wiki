@@ -1,3 +1,8 @@
+---
+title: 跨服功能配置指南 | ArcartXSuite Minecraft插件文档
+description: 跨服功能配置指南 - ArcartXSuite Minecraft 服务器插件文档。 ArcartXSuite 我的世界服务器插件套件。
+---
+
 # 跨服功能配置指南
 
 本页是**运维向**快速上手。架构细节见 [跨服通信（CrossServer SDK）](/architecture/cross-server)。

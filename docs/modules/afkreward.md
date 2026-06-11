@@ -1,3 +1,8 @@
+---
+title: AfkReward 挂机奖励插件 | ArcartXSuite Minecraft
+description: ArcartXSuite AfkReward 区域挂机 + 原地挂机双模式、周期命令奖励、VIP 权限阶梯、排行榜、HUD 面板，我的世界服务器挂机插件。
+---
+
 # AfkReward 挂机奖励
 
 ## 功能定位

@@ -1,3 +1,8 @@
+---
+title: commands | ArcartXSuite Minecraft插件文档
+description: commands - ArcartXSuite Minecraft 服务器插件文档。 ArcartXSuite 我的世界服务器插件套件。
+---
+
 ﻿# 命令速查
 
 本页列出 ArcartXSuite 全部可用命令及其用法，分为**管理命令**（服务器管理员/OP 使用）和**玩家命令**（普通玩家使用）两部分。

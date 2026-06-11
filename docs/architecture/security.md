@@ -1,3 +1,8 @@
+---
+title: 客户端包守卫 + 授权门控 | ArcartXSuite Minecraft插件架构文档
+description: 客户端包守卫 + 授权门控 - ArcartXSuite Minecraft 服务器插件文档。 ArcartXSuite 我的世界服务器插件套件。
+---
+
 # 客户端包守卫 + 授权门控
 
 AXS 的安全由两部分组成：

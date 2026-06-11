@@ -1,3 +1,8 @@
+---
+title: 模块启用与授权 | ArcartXSuite Minecraft插件文档
+description: 模块启用与授权 - ArcartXSuite Minecraft 服务器插件文档。 ArcartXSuite 我的世界服务器插件套件。
+---
+
 # 模块启用与授权
 
 AXS 的 `config.yml` 只负责模块启用意图：

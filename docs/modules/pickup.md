@@ -1,3 +1,8 @@
+---
+title: Pickup 拾取提示插件 | ArcartXSuite Minecraft
+description: ArcartXSuite Pickup 物品拾取 HUD 弹出提示，支持扫描器模式，双模式可切换，我的世界服务器拾取增强插件。
+---
+
 ﻿# Pickup 拾取模块
 
 ## 功能定位

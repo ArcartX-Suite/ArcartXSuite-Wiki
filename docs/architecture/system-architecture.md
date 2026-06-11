@@ -1,3 +1,8 @@
+---
+title: ArcartXSuite 系统架构 | ArcartXSuite Minecraft插件架构文档
+description: ArcartXSuite 系统架构 - ArcartXSuite Minecraft 服务器插件文档。 ArcartXSuite 我的世界服务器插件套件。
+---
+
 # ArcartXSuite 系统架构
 
 ## 整体架构图

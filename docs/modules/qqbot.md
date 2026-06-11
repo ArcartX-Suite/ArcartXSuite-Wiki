@@ -1,3 +1,8 @@
+---
+title: QQBot QQ群服互联插件 | ArcartXSuite Minecraft
+description: ArcartXSuite QQBot OneBot 11 双向消息同步、QQ-游戏账号绑定、白名单联动、群指令查玩家数据，我的世界服务器 QQ 群联动插件。
+---
+
 # QQBot QQ群服互联
 
 ::: tip 付费模块

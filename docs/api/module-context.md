@@ -1,3 +1,8 @@
+---
+title: ModuleContext 上下文 | ArcartXSuite Minecraft插件API文档
+description: ModuleContext 上下文 - ArcartXSuite Minecraft 服务器插件文档。 ArcartXSuite 我的世界服务器插件套件。
+---
+
 # ModuleContext 上下文
 
 `ModuleContext` 是宿主提供给每个模块的上下文接口。模块通过此接口获取基础设施能力（桥接、文件、UI 注册、事件、命令等），而无需直接引用宿主插件主类。

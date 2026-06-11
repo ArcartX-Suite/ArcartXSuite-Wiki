@@ -1,3 +1,8 @@
+---
+title: 事件 | ArcartXSuite Minecraft插件API文档
+description: 事件 - ArcartXSuite Minecraft 服务器插件文档。 ArcartXSuite 我的世界服务器插件套件。
+---
+
 # 事件
 
 ArcartXSuite 提供标准 Bukkit 事件，供第三方插件监听模块状态变化。

@@ -1,3 +1,8 @@
+---
+title: Capability 跨模块通信 | ArcartXSuite Minecraft插件API文档
+description: Capability 跨模块通信 - ArcartXSuite Minecraft 服务器插件文档。 ArcartXSuite 我的世界服务器插件套件。
+---
+
 # Capability 跨模块通信
 
 Capability 是 ArcartXSuite 推荐的跨模块通信机制。模块通过 `ModuleContext` 注册自己提供的能力接口，其他模块通过类型查找来调用，实现松耦合的模块间协作。

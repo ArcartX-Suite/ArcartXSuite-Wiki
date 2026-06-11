@@ -1,3 +1,8 @@
+---
+title: 数据包流向 (init / update / close) | ArcartXSuite Minecraft插件架构文档
+description: 数据包流向 (init / update / close) - ArcartXSuite Minecraft 服务器插件文档。 ArcartXSuite 我的世界服务器插件套件。
+---
+
 # 数据包流向 (init / update / close)
 
 所有 UI 类模块都遵循**五段式生命周期**。

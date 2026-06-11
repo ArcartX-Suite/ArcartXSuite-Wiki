@@ -1,3 +1,8 @@
+---
+title: Lottery 抽奖系统插件 | ArcartXSuite Minecraft
+description: ArcartXSuite Lottery 抽奖系统，CS 开箱横向滚动动画 + 原神祈愿卡池，纯色块 UI、保底机制、磨损度系统，我的世界服务器抽奖开箱插件。
+---
+
 # Lottery 抽奖系统
 
 ::: tip 付费模块

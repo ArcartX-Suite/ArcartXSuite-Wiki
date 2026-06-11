@@ -1,3 +1,8 @@
+---
+title: Regions 区域保护插件 | ArcartXSuite Minecraft
+description: ArcartXSuite Regions 区域保护，类 WorldGuard 区域保护、40+ 标志、世界规则、UI 区域查看，我的世界服务器领地插件。
+---
+
 # Regions 区域保护
 
 ## 功能定位

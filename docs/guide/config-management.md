@@ -1,3 +1,8 @@
+---
+title: 配置智能体检 | ArcartXSuite Minecraft插件文档
+description: 配置智能体检 - ArcartXSuite Minecraft 服务器插件文档。 ArcartXSuite 我的世界服务器插件套件。
+---
+
 # 配置智能体检
 
 ArcartXSuite 内置**智能配置自动修正系统**，可在不中断服务的情况下，自动检测并修复 21 个模块的配置文件问题。

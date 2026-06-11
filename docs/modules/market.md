@@ -1,3 +1,8 @@
+---
+title: Market 全球市场插件 | ArcartXSuite Minecraft服务器
+description: ArcartXSuite Market 全球市场插件，系统商店 + 玩家拍卖行 + 回收商店，多货币支持、CrossServer 跨服同步、ArcartX UI 全套交易界面，我的世界服务器经济插件。
+---
+
 # Market 全球市场
 
 ::: tip 付费模块

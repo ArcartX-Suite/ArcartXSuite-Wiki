@@ -1,3 +1,8 @@
+---
+title: EntityTracker 实体追踪插件 | ArcartXSuite
+description: ArcartXSuite EntityTracker Boss血条HUD、实时伤害排行、自动结算奖励、攻击目标信息显示、跨服排行，我的世界服务器 Boss 追踪插件。
+---
+
 ﻿# EntityTracker 实体追踪
 
 ::: tip 福利模块

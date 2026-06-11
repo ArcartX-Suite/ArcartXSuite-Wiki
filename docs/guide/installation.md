@@ -1,3 +1,8 @@
+---
+title: 或 | ArcartXSuite Minecraft插件文档
+description: 或 - ArcartXSuite Minecraft 服务器插件文档。 ArcartXSuite 我的世界服务器插件套件。
+---
+
 ﻿# 安装
 
 ## 环境要求

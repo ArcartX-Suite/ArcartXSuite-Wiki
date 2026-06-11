@@ -1,5 +1,7 @@
 ---
 layout: home
+title: ArcartXSuite - 26个Minecraft服务器模块插件套件 | 我的世界插件
+titleTemplate: false
 hero:
   name: ArcartXSuite
   text: 生态全面 自带UI 为每一个 ArcartX服务器 筑梦未来
@@ -104,11 +106,11 @@ features:
     title: Regions 区域保护
     details: 区域创建/40+ 标志/优先级继承、世界规则、UI 区域查看 + 管理员编辑面板
     link: /modules/regions
-  - icon: �
+  - icon: 🎣
     title: Fishing 钓鱼系统
     details: 星露谷风格钓鱼小游戏、多水域生态、鱼种季节/天气/时间分布、宝藏奖励、饵料加成、钓鱼图鉴收集
     link: /modules/fishing
-  - icon: �
+  - icon: 🛒
     title: Market 全球市场
     details: 系统商店 + 玩家拍卖行 + 回收商店，多货币支持、CrossServer 跨服同步、ArcartX UI 全套交易界面
     link: /modules/market
@@ -281,8 +283,38 @@ features:
           <td class="col-alt">无直接竞品</td>
           <td class="col-advantage">三层通行证体系、日/周/赛季任务池、条件过滤 + 动态增量、加权随机分配、ArcartX UI 面板、PAPI 输出</td>
         </tr>
+        <tr>
+          <td>抽奖系统</td>
+          <td class="col-module">Lottery</td>
+          <td class="col-alt">无直接竞品</td>
+          <td class="col-advantage">CS 开箱横向滚动动画 + 原神祈愿卡池、纯色块 UI、品质颜色 lore 绑定、保底机制、磨损度系统</td>
+        </tr>
+        <tr>
+          <td>钓鱼系统</td>
+          <td class="col-module">Fishing</td>
+          <td class="col-alt">无直接竞品</td>
+          <td class="col-advantage">星露谷风格钓鱼小游戏、多水域生态、季节/天气/时间分布、宝藏奖励、饵料加成、钓鱼图鉴收集</td>
+        </tr>
+        <tr>
+          <td>挂机奖励</td>
+          <td class="col-module">AfkReward</td>
+          <td class="col-alt">无直接竞品</td>
+          <td class="col-advantage">区域挂机 + 原地挂机双模式、周期命令奖励、VIP 权限阶梯、服崩恢复、排行榜、HUD 面板</td>
+        </tr>
+        <tr>
+          <td>快捷道具</td>
+          <td class="col-module">Prop</td>
+          <td class="col-alt">无直接竞品</td>
+          <td class="col-advantage">道具快捷键绑定、客户端按键效果、临时属性加成</td>
+        </tr>
+        <tr>
+          <td>通用菜单</td>
+          <td class="col-module">Menu</td>
+          <td class="col-alt">TrMenu / DeluxeMenus</td>
+          <td class="col-advantage">配置驱动 ArcartX 菜单系统、ESC 替换、命令/物品绑定、按钮图标、Aria 条件系统</td>
+        </tr>
       </tbody>
     </table>
   </div>
-  <p class="comparison-footer"><strong>一个插件，24 个模块</strong> — 统一 UI 体验，模块间零配置联动，告别插件兼容性地狱</p>
+  <p class="comparison-footer"><strong>一个插件，26 个模块</strong> — 统一 UI 体验，模块间零配置联动，告别插件兼容性地狱</p>
 </div>

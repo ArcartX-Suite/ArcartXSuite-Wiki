@@ -1,3 +1,8 @@
+---
+title: Menu 通用菜单插件 | ArcartXSuite Minecraft服务器
+description: ArcartXSuite Menu 配置驱动 ArcartX 菜单系统，ESC 替换、命令/物品绑定、按钮图标，类 TrMenu 体验，我的世界服务器菜单插件。
+---
+
 # Menu 通用 ArcartX 菜单系统
 
 ## 功能定位

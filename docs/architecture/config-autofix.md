@@ -1,3 +1,8 @@
+---
+title: 配置智能诊断 (Config Autofix) | ArcartXSuite Minecraft插件架构文档
+description: 配置智能诊断 (Config Autofix) - ArcartXSuite Minecraft 服务器插件文档。 ArcartXSuite 我的世界服务器插件套件。
+---
+
 # 配置智能诊断 (Config Autofix)
 
 ArcartXSuite 提供**四层配置诊断体系**，在模块加载阶段自动完成配置校验与修复，无需中断服务。

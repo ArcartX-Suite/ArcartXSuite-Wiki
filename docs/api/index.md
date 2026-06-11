@@ -1,3 +1,8 @@
+---
+title: 开放 API 参考 | ArcartXSuite Minecraft插件API文档
+description: 开放 API 参考 - ArcartXSuite Minecraft 服务器插件文档。 ArcartXSuite 我的世界服务器插件套件。
+---
+
 # 开放 API 参考
 
 ArcartXSuite 1.1.0 起提供 **`axs-api`** 模块作为第三方开发的稳定接口层。所有公开 API 均位于 `xuanmo.arcartxsuite.api` 包下，第三方模块只需 `compileOnly` 依赖 `axs-api` 即可开发自定义模块。

@@ -1,3 +1,8 @@
+---
+title: Warehouse 多子服 MySQL + 跨服编辑锁部署清单 | ArcartXSuite Minecraft插件文档
+description: Warehouse 多子服 MySQL + 跨服编辑锁部署清单 - ArcartXSuite Minecraft 服务器插件文档。 ArcartXSuite 我的世界服务器插件套件。
+---
+
 # Warehouse 多子服 MySQL + 跨服编辑锁部署清单
 
 本页面向**运维**，说明如何在 BungeeCord / Velocity 群组下，让多台子服共用同一套仓库 MySQL 数据，并启用**共享仓库跨服编辑锁**（避免 A 服与 B 服同时编辑同一共享仓）。

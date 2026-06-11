@@ -1,3 +1,8 @@
+---
+title: 条件系统（PlaceholderAPI + Aria + JavaScript） | ArcartXSuite Minecraft插件文档
+description: 条件系统（PlaceholderAPI + Aria + JavaScript） - ArcartXSuite Minecraft 服务器插件文档。 ArcartXSuite 我的世界服务器插件套件。
+---
+
 # 条件系统（PlaceholderAPI + Aria + JavaScript）
 
 AXS 在 **Menu、Prop、EventPacket、Mail** 等模块中统一使用同一套条件引擎。你可以用 **PlaceholderAPI 行内表达式** 做简单数值/字符串判断，也可以用 **Aria 脚本** 或 **原生 JavaScript** 编写复杂逻辑。

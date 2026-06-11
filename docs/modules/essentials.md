@@ -1,3 +1,8 @@
+---
+title: Essentials 基础工具插件 | ArcartXSuite Minecraft
+description: ArcartXSuite Essentials 基础工具，传送/家/Warp、飞行/无敌/治疗、一键砍树、背包整理、UI 玩家菜单，我的世界服务器基础工具插件。
+---
+
 # Essentials 基础工具
 
 ## 功能定位

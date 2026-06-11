@@ -1,3 +1,8 @@
+---
+title: 桥接层 (Bridge) | ArcartXSuite Minecraft插件架构文档
+description: 桥接层 (Bridge) - ArcartXSuite Minecraft 服务器插件文档。 ArcartXSuite 我的世界服务器插件套件。
+---
+
 # 桥接层 (Bridge)
 
 AXS 在 `plugin.yml` 里只硬依赖 `ArcartX`，其他全是软依赖。**软依赖意味着插件可能不存在，直接 import 会让 AXS 启动失败**。所以内部使用反射桥接：

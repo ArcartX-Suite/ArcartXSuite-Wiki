@@ -1,3 +1,8 @@
+---
+title: Chat 频道聊天插件 | ArcartXSuite Minecraft服务器
+description: ArcartXSuite Chat 多频道聊天系统，支持私聊回复、@提及通知、物品展示、敏感词过滤、CrossServer 跨服转发，Minecraft 服务器聊天插件。
+---
+
 ﻿# Chat 聊天
 
 ## 功能定位
