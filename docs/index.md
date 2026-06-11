@@ -112,6 +112,10 @@ features:
     title: Market 全球市场
     details: 系统商店 + 玩家拍卖行 + 回收商店，多货币支持、CrossServer 跨服同步、ArcartX UI 全套交易界面
     link: /modules/market
+  - icon: 🎰
+    title: Lottery 抽奖系统
+    details: CS 开箱 + 原神祈愿双模式，纯色块 UI 开箱动画、品质颜色绑定、保底机制、磨损度系统
+    link: /modules/lottery
   - icon: 🤖
     title: QQBot QQ群服互联
     details: OneBot 11 双向消息同步、QQ-游戏账号绑定、白名单联动、群指令查玩家数据
@@ -120,7 +124,7 @@ features:
 
 <div class="stats-bar">
   <div class="stat-item">
-    <div class="stat-number">24</div>
+    <div class="stat-number">26</div>
     <div class="stat-label">主模块</div>
   </div>
   <div class="stat-item">

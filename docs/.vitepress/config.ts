@@ -100,6 +100,7 @@ export default defineConfig({
             { text: 'Title 称号', link: '/modules/title' },
             { text: 'Warehouse 仓库银行', link: '/modules/warehouse' },
             { text: 'Mail 邮箱', link: '/modules/mail' },
+            { text: 'Lottery 抽奖系统', link: '/modules/lottery' },
             { text: 'QuestGPS 任务导航', link: '/modules/questgps' },
             { text: 'Map 地图', link: '/modules/map' },
             { text: 'Conversation 对话桥', link: '/modules/conversation' },
