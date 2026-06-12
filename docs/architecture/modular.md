@@ -89,8 +89,7 @@ onEnable()
 
 1. 检查模块未加载（已加载则拒绝，提示走 reload）。
 2. 扫描 `modules/` 目录寻找 id 匹配的 jar。
-3. license 校验（`LicenseService.isModuleAllowed(id)`）。
-4. 进入与启动期相同的 `loadAndEnable(DiscoveredModule)` 流程：
+3. 进入与启动期相同的 `loadAndEnable(DiscoveredModule)` 流程：
    - 检查外部插件依赖 / AXS 模块依赖（depends）
    - 创建独立 `ModuleClassLoader`（URLClassLoader 子类）
    - 实例化 `AXSModule` 主类

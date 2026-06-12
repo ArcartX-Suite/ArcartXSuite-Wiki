@@ -10,7 +10,7 @@ description: index - ArcartXSuite Minecraft 服务器插件文档。 ArcartXSuit
 ## 路线图
 
 1. [安装](installation) — 把 jar 丢进 `plugins/`，确认依赖、Java、MC 版本无误。
-2. [模块授权门控](module-passwords) — 理解 `modules.<module>.enabled` 与 license.yml 授权。
+2. [模块启用](module-passwords) — 理解 `modules.<module>.enabled` 模块开关。
 3. [第一次启用流程](first-run) — 推荐的"先开 1 个最小模块 → 全开"流程。
 4. [命令速查](commands) — 管理命令（`/AXS`）与玩家命令一表打尽。
 5. [PlaceholderAPI 速查](placeholders) — 各模块的 PAPI 前缀与典型字段。
@@ -27,7 +27,7 @@ ArcartX 客户端 MOD  ──────  网络包 ──────  AXS 服
      ↑ 渲染 UI / HUD                           ↑ 业务逻辑 / 数据库 / 桥接
      │                                          │
      └────── plugins/ArcartXSuite/ ─────────────┘
-              ├── config.yml          总开关 + 模块授权 + cross-server 跨服
+              ├── config.yml          总开关 + cross-server 跨服
               ├── ArcartX*.yml        各模块配置
               ├── ui/                 ArcartX UI 模板
               ├── chat/, mail/, ...   模块子资源

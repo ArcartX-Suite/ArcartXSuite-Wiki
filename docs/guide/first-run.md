@@ -19,28 +19,6 @@ description: plugins/ArcartXSuite/ArcartXAnnouncer.yml - ArcartXSuite Minecraft 
 
 以 `Announcer` 为例：
 
-### 0. 先确认授权
-
-免费模块可以直接启用；如果要测试 `warehouse`、`map`、`mail`、`title`、`questgps`、`conversation`、`market`、`qqbot` 这些付费模块，或福利模块 `tab`、`entitytracker`，需要先完成授权激活。
-
-1. 管理员在授权后台为 QQ 发放授权码。
-2. 把 QQ 和授权码写入：
-
-```txt
-plugins/ArcartXSuite/license.yml
-```
-
-3. 执行：
-
-```txt
-/axs license activate
-/axs license status
-```
-
-4. `license status` 显示 `VALID`，并且模块列表包含目标付费模块后，再启用对应模块。
-
-云端 Worker 会把授权码绑定到当前服务器的 `install_id + 机器指纹 + local-salt.dat`。迁服或重装前请备份 `plugins/ArcartXSuite/license.yml` 和 `plugins/ArcartXSuite/security/`。
-
 ### 1. 改 config.yml
 
 ```yaml

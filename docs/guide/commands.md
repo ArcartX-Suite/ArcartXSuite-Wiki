@@ -24,10 +24,10 @@ description: commands - ArcartXSuite Minecraft 服务器插件文档。 ArcartXS
 | `/axs help [模块名]` | 查看帮助。不指定模块时列出所有模块概览；指定模块时显示该模块的详细命令用法 | `/axs help title` |
 | `/axs reload all` | 按依赖顺序重载全部已启用模块的配置、UI 和服务，适用于修改配置后刷新 | `/axs reload all` |
 | `/axs reload <模块名>` | 仅重载指定模块的配置。常用于只改了某个模块的 YAML 后快速生效 | `/axs reload mail` |
-| `/axs load <模块名>` | 热加载新模块。从 `modules/` 扫描指定 id 的 jar，执行 license 校验 → 实例化 → onEnable。**不重启服务端**即可上线新模块或重新启用已 unload 的模块 | `/axs load mail` |
+| `/axs load <模块名>` | 热加载新模块。从 `modules/` 扫描指定 id 的 jar，执行实例化 → onEnable。**不重启服务端**即可上线新模块或重新启用已 unload 的模块 | `/axs load mail` |
 | `/axs unload <模块名>` | 热卸载模块。执行 `onDisable` → 移除命令/包/能力注册 → 关闭 ClassLoader 释放 jar 文件句柄。若有其他模块依赖它，则会被拒绝并提示 dependents | `/axs unload mail` |
 | `/axs purge <玩家名\|all> [模块ID\|all]` | **仅控制台**。删除指定玩家（或全部玩家）在指定模块（或全部模块）中的持久化数据。需 10 秒内重复输入确认。省略模块ID等同 `all`。每次执行自动生成审计日志到 `purge-logs/` | `/axs purge Steve`<br>`/axs purge Steve chat`<br>`/axs purge all title`<br>`/axs purge all` |
-| `/axs diagnostic` | 生成诊断包文件（含 Server/JVM/模块/授权/依赖信息），输出到 `diagnostics/` 目录供客服排查 | `/axs diagnostic` |
+| `/axs diagnostic` | 生成诊断包文件（含 Server/JVM/模块/依赖信息），输出到 `diagnostics/` 目录供客服排查 | `/axs diagnostic` |
 | `/axs migrate <模块ID\|all> <sqlite-to-mysql\|mysql-to-sqlite> [overwrite]` | **仅控制台**。跨源数据库一键迁移，自动调用子 Repository 建表，通过 JDBC 事务分批复制数据。支持 12 个持久化模块 | `/axs migrate all sqlite-to-mysql`<br>`/axs migrate warehouse mysql-to-sqlite overwrite` |
 | `/axs config diagnose [owner]` | 重新运行配置诊断（`owner` 可以是 `core`、模块 ID 或留空查全部） | `/axs config diagnose`<br>`/axs config diagnose warehouse` |
 | `/axs config preview <owner>` | 查看某模块的诊断报告 Markdown | `/axs config preview core` |
@@ -35,12 +35,6 @@ description: commands - ArcartXSuite Minecraft 服务器插件文档。 ArcartXS
 | `/axs config rollback <owner>` | 回滚到最近一次 apply 之前的备份 | `/axs config rollback warehouse` |
 | `/axs config status [owner]` | 查看诊断状态统计 | `/axs config status` |
 | `/axs <模块名> status` | 查看单个模块的状态详情，包括加载的配置数量、数据库连接状态等 | `/axs entitytracker status` |
-| `/axs license status` | 查看授权状态、QQ、已解锁模块、授权入口、代理状态、缓存状态和每个授权码的诊断结果 | `/axs license status` |
-| `/axs license refresh` | 刷新当前服务器绑定的授权票据。不会消耗换绑次数，适合改完 `license.yml` 后手动同步 | `/axs license refresh` |
-| `/axs license activate` | 主动激活当前服务器，把 `qq + keys + install_id + 机器指纹` 绑定到授权中心 | `/axs license activate` |
-| `/axs license rebind` | 显式把授权码换绑到当前服务器，会消耗该授权码的自助换绑次数/冷却 | `/axs license rebind` |
-| `/axs license cloud-code` | 生成云端网页换绑挑战码，用于证明你控制新目标服务器 | `/axs license cloud-code` |
-| `/axs license fingerprint` | 输出当前服务器机器指纹、localSaltHash 和参与指纹计算的组件，用于授权诊断 | `/axs license fingerprint` |
 
 ### 多方认证管理
 
@@ -75,9 +69,8 @@ map, questgps, warehouse, essentials, regions, market, qqbot
 **执行流程**：
 1. 检查模块未加载（已加载则拒绝，提示使用 reload）
 2. 扫描 `modules/` 目录寻找 id 匹配的 jar 文件
-3. 执行 license 校验（`LicenseService.isModuleAllowed(id)`）
-4. 创建独立 `ModuleClassLoader` 并实例化模块主类
-5. 调用 `instance.onEnable(context)` 完成初始化
+3. 创建独立 `ModuleClassLoader` 并实例化模块主类
+4. 调用 `instance.onEnable(context)` 完成初始化
 
 **使用场景**：
 - 首次部署新的模块 Jar
@@ -131,37 +124,6 @@ map, questgps, warehouse, essentials, regions, market, qqbot
 | **资源释放** | 完全释放 jar 句柄 | 仅重置状态 |
 | **依赖检查** | unload 时检查反向依赖 | 不检查 |
 | **适用场景** | 动态插拔、版本更新 | 配置刷新、状态重置 |
-
----
-
-### 授权命令说明
-
-授权命令用于排查和管理 `plugins/ArcartXSuite/license.yml` 中的 QQ + 授权码配置。当前付费模块为 `warehouse`、`map`、`mail`、`title`、`questgps`、`conversation`、`market`、`qqbot`，福利模块 `tab`、`entitytracker` 也需要授权码（与付费模块共用同一套 license 流程），免费模块只受 `config.yml` 的 `modules.<module>.enabled` 控制。
-
-| 命令 | 什么时候使用 | 关键输出 |
-| --- | --- | --- |
-| `/axs license status` | 日常检查授权是否生效、哪些模块已解锁、网络是否走代理 | `状态`、`原因`、`QQ`、`Subject`、`模块`、`使用缓存`、`授权入口`、`代理`、`预检`、`最后操作`、`成功入口`、`授权码结果` |
-| `/axs license refresh` | 授权码已绑定本服务器，需要重新向 Worker 验证并刷新缓存 | 本次请求的入口、是否成功、失败原因 |
-| `/axs license activate` | 首次绑定、缓存过旧、或出现 `BINDING_NOT_FOUND` 时手动激活 | 成功后会写入新的 `security/license.cache` |
-| `/axs license rebind` | 授权码已经绑定到另一台服务器或旧机器指纹，且你确认要迁移到当前服务器 | 成功后旧绑定失效；失败时会显示换绑次数或冷却原因 |
-| `/axs license cloud-code` | 需要使用云端网页换绑，且旧服务器不可用或不想消耗服务器内换绑次数 | 输出 10 分钟有效的一次性 `challengeCode` |
-| `/axs license fingerprint` | 对比后台记录、排查机器指纹不匹配、确认本地 salt 是否变化 | `hash`、`localSaltHash` 和各指纹组件 |
-
-常见授权错误：
-
-| 错误 | 含义 | 处理方式 |
-| --- | --- | --- |
-| `MISSING_QQ` | `license.qq` 未填写 | 填写授权所属 QQ |
-| `MISSING_LICENSE_KEYS` | `license.keys` 为空 | 写入至少一个授权码 |
-| `QQ_MISMATCH` | 授权码不属于当前 QQ | 检查 QQ 或换成该 QQ 名下的码 |
-| `LICENSE_CODE_NOT_FOUND` | 授权中心不存在该授权码 | 检查是否填错，或确认是否发到远程 D1 |
-| `LICENSE_CODE_NOT_ACTIVE` | 授权码已停用 | 后台启用或重新发码 |
-| `LICENSE_CODE_EXPIRED` | 授权码已过期 | 后台延长有效期或重新发码 |
-| `BINDING_NOT_FOUND` | 当前授权码还没有绑定本服务器 | 执行 `/axs license activate` |
-| `BOUND_TO_OTHER_INSTALL` | 授权码已绑定其他服务器或旧机器指纹，常见于删除/重建 `security/local-salt.dat` 后 | 确认迁移后执行 `/axs license rebind`；如果是误删 salt，优先恢复旧 `local-salt.dat` |
-| `REBIND_QUOTA_EXHAUSTED` | 自助换绑次数不足 | 后台补换绑次数或管理员删除绑定 |
-| `REBIND_COOLDOWN_ACTIVE` | 换绑冷却中 | 等待冷却结束或后台重置冷却 |
-| `NETWORK_ERROR` | 授权入口不可达 | 检查服务器是否能访问 `axs.021209.xyz`，再检查 Cloudflare Workers 兜底入口或临时代理配置 |
 
 ---
 

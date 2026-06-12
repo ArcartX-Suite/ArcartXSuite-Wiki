@@ -25,12 +25,11 @@ graph TB
     
     %% 模块系统
     Module[模块系统] --> Core[核心模块]
-    Module --> Paid[付费模块]
-    Module --> Free[免费模块]
+    Module --> Modules[功能模块]
     
     %% 文件系统结构（作为服务端的子部分）
     subgraph "plugins/ArcartXSuite/ 目录结构"
-        ConfigYml["config.yml<br/>总开关 + 模块授权"]
+        ConfigYml["config.yml<br/>总开关"]
         ModuleConfigs["ArcartX*.yml<br/>各模块配置"]
         UIDir["ui/<br/>UI模板文件"]
         DataDirs["chat/, mail/, ...<br/>模块数据目录"]
@@ -76,7 +75,7 @@ graph TB
 
 ### 3. 文件系统结构
 `plugins/ArcartXSuite/` 目录包含：
-- **config.yml**: 总开关配置和模块授权设置
+- **config.yml**: 总开关配置
 - **ArcartX*.yml**: 各模块的主配置文件
 - **ui/**: ArcartX UI模板文件
 - **chat/, mail/, ...**: 各模块的数据目录
@@ -119,9 +118,8 @@ graph TB
             CoreJar[axs-core]
         end
         
-        subgraph "功能模块 (21个)"
-            Free[免费模块]
-            Paid[付费模块]
+        subgraph "功能模块 (26个)"
+            Modules[功能模块]
         end
     end
 ```
