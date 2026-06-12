@@ -4,18 +4,6 @@
 
 ---
 
-## 1.2.0-beta — 运行时安全检测分级优化
-
-- **安全检测（JarIntegrityVerifier）** — Agent 检测白名单新增 `authlib-injector`（`@d:\IDEA\project\ArcartXSuite\src\main\java\xuanmo\arcartxsuite\security\JarIntegrityVerifier.java:89`），消除 authlib-injector 作为合法外置登录代理被误报为「非预期 Agent」的问题。
-- **授权后台（heartbeat）** — `integrityFlags` 不再统一映射为单一的 `INTEGRITY_VIOLATION`。改为按位拆分：
-  - `INTEGRITY_TAMPERED` / `INTEGRITY_AGENT` / `INTEGRITY_NATIVE` → **critical**（进告警队列）
-  - `INTEGRITY_DEBUG` → **warning**
-  - `INTEGRITY_ATTACH` → 客户端采集时主动过滤（`runtimeFlags &= ~0x08`），**不再上报到后台**
-- **客户端（HeartbeatService）** — 心跳响应中的异常提示从模糊的"检测到 N 个异常"改为打印具体异常类型（如 `[UNREGISTERED_ACCOUNT]`、`[INSTALL_NOT_BOUND]`），方便服主定位问题。
-- **文档** — 新增 [运行时安全检测详解](/guide/security-checks)，解释 5 个检测维度、白名单机制、授权后台异常分级与常见 Q&A。
-
----
-
 ## 1.2.0-beta — 统一跨服 SDK
 
 - **架构** — 子服侧 `CrossServerService` 统一跨服总线；Redis `AXS:CROSS` + BungeeCord `AXS_CROSS` 双后端；JSON `CrossServerEnvelope` + 可选 HMAC + message-id 去重。Proxy 插件仅负责认证，**不是**跨服总线。
