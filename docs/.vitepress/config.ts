@@ -1,6 +1,7 @@
 import { defineConfig } from 'vitepress'
+import { withMermaid } from 'vitepress-plugin-mermaid'
 
-export default defineConfig({
+export default withMermaid(defineConfig<any>({
   lang: 'zh-CN',
   title: 'ArcartXSuite',
   description: 'ArcartXSuite 是面向 ArcartX 客户端的 26 模块 Minecraft 服务器插件套件，涵盖全球市场、抽奖开箱、钓鱼、称号、战令、仓库等核心玩法，自带 ArcartX UI 界面，我的世界服务器开发者的首选插件。',
@@ -52,6 +53,7 @@ export default defineConfig({
             { text: 'Warehouse 多服 MySQL 部署', link: '/guide/warehouse-cross-server' },
             { text: '多 UI 同时发包', link: '/guide/multi-ui' },
             { text: 'Proxy 代理端插件', link: '/guide/proxy-usage' },
+            { text: '云端模块', link: '/guide/cloud-modules' },
           ],
         },
       ],
@@ -68,6 +70,7 @@ export default defineConfig({
             { text: '资源加密 (.axb)', link: '/architecture/protected-resources' },
             { text: '数据包流向', link: '/architecture/packet-flow' },
             { text: '配置智能诊断', link: '/architecture/config-autofix' },
+            { text: 'UI Packet 数据全景', link: '/ui-packet-data' },
           ],
         },
       ],
@@ -177,4 +180,4 @@ export default defineConfig({
     sidebarMenuLabel: '菜单',
     darkModeSwitchLabel: '主题',
   },
-})
+}))
