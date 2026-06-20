@@ -4,6 +4,16 @@
 
 ---
 
+## 1.3.0-beta — PAPI 统一重构
+
+- **API** — 在 `axs-api` 新增 `PlaceholderResolverAPI` / `PlaceholderExpansionRegistry`，由 `axs-core` 统一实现；模块通过 `context.placeholderResolver()` 解析占位符，不再直接调用 `PlaceholderAPI.setPlaceholders()`。
+- **破坏性** — 所有模块 PlaceholderAPI 标识符统一为 `axs*` 小写前缀，例如 `axsafkreward`、`axsessentials`、`axsfishing`、`axslottery`、`axsrgb`、`axstab`、`axsqqbot`、`axschat`、`axsbattlepass` 等。旧大写 `%AXS...%` 前缀不再支持。
+- **Tab** — 新增独立 `axstab` 占位符：`%axstab_pvp%`、`%axstab_pvp_color%`、`%axstab_vanished%`、`%axstab_vanish_color%`、`%axstab_ping%`、`%axstab_ping_icon%`、`%axstab_uuid%`、`%axstab_ip%`，由 `TabPlaceholderExpansion` 提供。
+- **移除** — 删除 `chat`、`announcer` 模块对 `PlaceholderAPI` 的直接编译依赖；`CurrencyBridgeManager`、`DefaultScriptConditionEvaluator`、`PapiWatcherService`、`RewardActionExecutor`、`BossDamageSettlementService` 等内部逻辑统一改用 `PlaceholderResolverAPI`。
+- **Wiki** — 全站 `%AXS...%` 示例已统一改为 `%axs...%`。
+
+---
+
 ## 1.2.0-beta — 统一跨服 SDK
 
 - **架构** — 子服侧 `CrossServerService` 统一跨服总线；Redis `AXS:CROSS` + BungeeCord `AXS_CROSS` 双后端；JSON `CrossServerEnvelope` + 可选 HMAC + message-id 去重。Proxy 插件仅负责认证，**不是**跨服总线。
@@ -17,7 +27,7 @@
 
 ## 1.1.0-beta（当前）
 
-- **RGB** — 移除不可用的 Shimmer/Glimmer 函数桥接（`ArcartRgbShimmerBridge`）与运行时编译逻辑，同时清除宿主 `renderArcartRgbShimmer` 入口和 `shimmerOptions` 全局配置。RGB 模块保留 PlaceholderAPI `%arcartrgb_*%` 输出，扫光动画参数改为条目级配置。
+- **RGB** — 移除不可用的 Shimmer/Glimmer 函数桥接（`ArcartRgbShimmerBridge`）与运行时编译逻辑，同时清除宿主 `renderArcartRgbShimmer` 入口和 `shimmerOptions` 全局配置。RGB 模块保留 PlaceholderAPI `%axsrgb_*%` 输出，扫光动画参数改为条目级配置。
 
 ### 1.1.0-beta (Build 2026-06-11) — BattlePass 战令系统全面重构
 

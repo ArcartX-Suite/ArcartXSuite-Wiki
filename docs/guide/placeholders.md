@@ -22,7 +22,7 @@ AXS 共有 **14 个模块** 对外输出 PAPI 占位符：
 | [EntityTracker](/modules/entitytracker) | `%axsentitytracker_*%` | 可选 | Boss 追踪、伤害排行、结算数据 |
 | [Essentials](/modules/essentials) | `%axsess_*%` | 可选 | AFK、隐身、飞行、昵称等玩家状态 |
 | [Title](/modules/title) | `%axstitle_*%` | 可选 | 称号前缀/后缀、装备状态、属性加成 |
-| [RGB](/modules/rgb) | `%arcartrgb_*%` | **必装** | 动态渐变彩色文本渲染 |
+| [RGB](/modules/rgb) | `%axsrgb_*%` | **必装** | 动态渐变彩色文本渲染 |
 | [OnlineRewards](/modules/onlinerewards) | `%axsonlinerewards_*%` | 可选 | 在线时长、签到状态、排行榜 |
 | [Mail](/modules/mail) | `%axsmail_*%` | 可选 | 邮箱未读数、可领取数 |
 | [Chat](/modules/chat) | `%axschat_*%` | 可选 | 聊天频道、禁言状态 |
@@ -154,12 +154,12 @@ AXS 共有 **14 个模块** 对外输出 PAPI 占位符：
 | --- | --- | --- |
 | `%axstab_ping%` | 数字 | 玩家当前 ping 值（毫秒） |
 | `%axstab_ping_icon%` | 文本 | 根据 ping 值返回的信号图标 |
-| `%axstab_pvp%` | `1`/`0` | 玩家是否处于 PvP 状态 |
-| `%axstab_pvp_color%` | 文本 | PvP 状态对应颜色代码（由 `style.pvp-color` 配置） |
-| `%axstab_vanished%` | `1`/`0` | 玩家是否处于隐身状态（公共可见性） |
-| `%axstab_vanish_color%` | 文本 | 隐身状态对应颜色代码（由 `style.vanish-color` 配置，若 `vanish-grey-enabled` 关闭则返回空） |
-| `%axstab_uuid%` | 文本 | 玩家 UUID（若 `privacy.hide-uuid` 开启则返回空） |
-| `%axstab_ip%` | 文本 | 玩家 IP 地址（若 `privacy.hide-ip` 开启则返回空） |
+| `%axstab_pvp%` | `true`/`false` | 玩家是否处于 PvP 状态 |
+| `%axstab_pvp_color%` | 文本 | PvP 状态对应颜色代码（由 `style.pvp-highlight.color` 配置，未启用或不在窗口时返回空） |
+| `%axstab_vanished%` | `true`/`false` | 玩家是否处于隐身状态（公共可见性） |
+| `%axstab_vanish_color%` | 文本 | 隐身状态对应颜色代码（由 `style.vanish-grey.color` 配置，未启用或未隐身时返回空） |
+| `%axstab_uuid%` | 文本 | 玩家 UUID；`privacy.hide-uuid: true` 时只显示前 8 位 + `...` |
+| `%axstab_ip%` | 文本 | 玩家 IP 地址；`privacy.hide-ip: true` 时隐藏最后一段 |
 
 ### 按 Definition 维度
 
@@ -243,18 +243,18 @@ AXS 共有 **14 个模块** 对外输出 PAPI 占位符：
 
 ## RGB 占位符
 
-前缀：`%arcartrgb_<条目ID>%`
+前缀：`%axsrgb_<条目ID>%`
 
 > **注意**：此模块**必须安装 PAPI** 才能使用，因为渐变文本的渲染依赖占位符替换。
 
 | 占位符 | 返回值 | 说明 |
 | --- | --- | --- |
-| `%arcartrgb_<条目ID>%` | 彩色文本 | 渲染配置中定义的渐变文本条目。条目 ID 在 `ArcartXRGB.yml` 中配置 |
+| `%axsrgb_<条目ID>%` | 彩色文本 | 渲染配置中定义的渐变文本条目。条目 ID 在 `ArcartXRGB.yml` 中配置 |
 
 **使用示例**：
 ```
-%arcartrgb_server_name%                      → 返回经过渐变渲染的服务器名称文本
-%arcartrgb_vip_tag%                          → 返回渐变 VIP 标签
+%axsrgb_server_name%                      → 返回经过渐变渲染的服务器名称文本
+%axsrgb_vip_tag%                          → 返回渐变 VIP 标签
 ```
 
 ---
