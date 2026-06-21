@@ -169,16 +169,16 @@ StorageDescriptor currentDescriptor();
 
 ### 总展示称号
 
-按 `display-title.groups` 配置的分组顺序，拼接已装备称号的对应字段。多组用 `separator` 分隔，无装备时返回 `empty-text`。
+玩家可在称号菜单中手动指定一个已装备的称号作为主展示称号。未指定时，按 `display-title.groups` 配置的分组顺序回退到第一个已装备的称号。无装备时返回 `empty-text`。
 
 | 占位符 | 说明 |
 | --- | --- |
-| `%axstitle_display%` | 总展示称号名称（拼接各组 `displayName`） |
+| `%axstitle_display%` | 玩家指定的主展示称号名称；未指定时按 `display-title.groups` 顺序回退到第一个已装备的称号 |
 | `%axstitle_display_name%` | 同 `%axstitle_display%` |
-| `%axstitle_display_chat_prefix%` | 总展示称号的聊天前缀拼接 |
-| `%axstitle_display_chat_suffix%` | 总展示称号的聊天后缀拼接 |
-| `%axstitle_display_tab_prefix%` | 总展示称号的 Tab 前缀拼接 |
-| `%axstitle_display_tab_suffix%` | 总展示称号的 Tab 后缀拼接 |
+| `%axstitle_display_chat_prefix%` | 主展示称号的聊天前缀 |
+| `%axstitle_display_chat_suffix%` | 主展示称号的聊天后缀 |
+| `%axstitle_display_tab_prefix%` | 主展示称号的 Tab 前缀 |
+| `%axstitle_display_tab_suffix%` | 主展示称号的 Tab 后缀 |
 
 > 只想展示单个组的称号时，`display-title.groups` 只填一个组 ID；想展示多组则填多个，留空则按定义顺序展示所有组。
 
@@ -393,19 +393,48 @@ titles-directory: "titles"
 
 打开称号菜单时，packet 携带的属性字段统一为 `List<String>`（每行一个属性）。ArcartX `Text` 控件的 `texts` 字段拿到 List 时会自动按多行渲染，所以 UI 端只要把字段直接绑给 `texts` 即可：
 
-| 字段（`List<String>`） | 含义 |
+| 字段 | 含义 |
 | --- | --- |
-| `selected_display_attributes_text` | 当前选中称号的佩戴属性 |
-| `selected_collection_attributes_text` | 当前选中称号的收集属性 |
-| `display_attributes_text` | 玩家当前装备所有称号汇总后的佩戴属性 |
-| `collection_attributes_text` | 玩家所有已拥有称号汇总后的收集属性 |
-| `total_attributes_text` | 装备 + 收集 + 套装加成的总属性 |
-| `set_bonus_attributes_text` | 已激活套装提供的额外属性 |
-| `display_title_name` | 总展示称号名称（按 `display-title` 配置拼接） |
-| `display_title_chat_prefix` | 总展示称号聊天前缀 |
-| `display_title_chat_suffix` | 总展示称号聊天后缀 |
-| `display_title_tab_prefix` | 总展示称号 Tab 前缀 |
-| `display_title_tab_suffix` | 总展示称号 Tab 后缀 |
+| `titles` | 全部称号字典，key 为称号 ID，value 包含 `id`、`display_name`、`group_id`、`quality_id`、`owned`、`hidden`、`equipped`、`selected`、`remaining_text` 等 |
+| `groups` | 分组筛选字典，包含 `all`（全部）与配置的分组 |
+| `qualities` | 品质筛选字典，包含 `all`（全部）与配置的品质 |
+| `filter_modes` | 模式筛选字典，固定为 `all` / `owned` / `hidden` |
+| `selected_id` | 当前选中的称号 ID |
+| `selected_display_name` | 当前选中称号的展示名 |
+| `selected_kind` | 当前选中称号类型：`text` / `icon` |
+| `selected_group_id` | 当前选中称号的分组 ID |
+| `selected_group_name` | 当前选中称号的分组名 |
+| `selected_quality_name` | 当前选中称号的品质名 |
+| `selected_chat_prefix` / `selected_chat_suffix` | 当前选中称号的聊天前缀 / 后缀 |
+| `selected_tab_prefix` / `selected_tab_suffix` | 当前选中称号的 Tab 前缀 / 后缀 |
+| `selected_description` | 当前选中称号的介绍 |
+| `selected_source` | 当前选中称号的获取渠道 |
+| `selected_owned` | 当前选中称号是否已拥有 |
+| `selected_hidden` | 当前选中称号是否已隐藏 |
+| `selected_remaining_text` | 当前选中称号的剩余时间文本 |
+| `selected_can_equip` | 当前选中称号是否可装备（已拥有且未装备） |
+| `selected_is_equipped` | 当前选中称号是否已装备在所属分组 |
+| `selected_group_equipped_name` | 当前选中称号所属分组中已装备的称号名（兼容字段） |
+| `selected_display_attributes_text` | 当前选中称号的佩戴属性（`List<String>`） |
+| `selected_collection_attributes_text` | 当前选中称号的收集属性（`List<String>`） |
+| `display_attributes_text` | 玩家当前装备所有称号汇总后的佩戴属性（`List<String>`） |
+| `collection_attributes_text` | 玩家所有已拥有称号汇总后的收集属性（`List<String>`） |
+| `total_attributes_text` | 装备 + 收集 + 套装加成的总属性（`List<String>`） |
+| `set_bonus_attributes_text` | 已激活套装提供的额外属性（`List<String>`） |
+| `display_title_id` | 当前主展示称号 ID（无则空） |
+| `display_title_name` | 当前主展示称号名称（无则返回 `empty-text`） |
+| `display_title_chat_prefix` | 主展示称号聊天前缀 |
+| `display_title_chat_suffix` | 主展示称号聊天后缀 |
+| `display_title_tab_prefix` | 主展示称号 Tab 前缀 |
+| `display_title_tab_suffix` | 主展示称号 Tab 后缀 |
+| `selected_display_title_id` | 玩家已选的主展示称号 ID（可能为空） |
+| `selected_is_display_title` | 当前选中称号是否就是主展示称号 |
+| `equipped_summary` | 已装备称号汇总文本（兼容字段） |
+| `equipped_count` | 已装备的分组数量 |
+| `equipped_by_group` | 按组展示的装备状态字典，每个条目含 `group_id`、`group_name`、`title_id`、`display_name`、`quality_name` |
+| `owned_count` | 已拥有的称号数量 |
+| `hidden_count` | 已隐藏的称号数量 |
+| `sets` | 套装进度字典，每个条目含 `id`、`display_name`、`owned_count`、`total_count`、`active`、`progress`、`bonus_text`、`required_titles_text` |
 
 所有字段在生成时都会做**同名同类合并**（解析为 `名:数值` 或 `名:数值%` 的行会累加，其他形如 `名:1~5` / `名:5(%)` 的复杂行原样保留并去重），并在每一项前自动加上颜色前缀。空列表时会发出单元素列表 `[<前缀><占位符>]`。
 
@@ -431,37 +460,73 @@ ui:
   empty-attribute-placeholder: "-"
 ```
 
+### 称号菜单界面
+
+`title_menu.yml` 采用 **左 - 中 - 右三栏布局**，宽度分别约为 420、540、440，整体面板 1520×900。
+
+- **左栏**
+  - 顶部三个模式按钮：`全部` / `已拥有` / `已隐藏`（当前选中的按钮会高亮）
+  - 分组筛选条、品质筛选条（横向滚动，均支持 `all` 选项）
+  - 称号列表（纵向滚动，带 `装备 ✔` 标记与选中高亮）
+  - 点击任意称号项即可发送 `select` 包并刷新中间详情
+
+- **中栏**
+  - 当前选中称号的展示名、类型（文本/图标）、分组、品质
+  - 聊天前缀 / 后缀、Tab 前缀 / 后缀
+  - 介绍、获取渠道、拥有状态、剩余时间
+  - 佩戴属性、收集属性（仅针对选中称号）
+  - 当前装备属性、当前收集属性、总属性、套装加成属性
+  - 套装详情卡片（进度、所需称号、加成说明）
+
+- **右栏**
+  - 当前已按组装备的称号列表（未装备的分组显示为空）
+  - 总属性汇总
+  - 当前主展示称号（玩家手动指定或自动回退）
+  - 动作按钮：`设为主展示` / `装备本组` / `卸下本组` / `全部卸下` / `隐藏` / `取消隐藏` / `刷新`
+    - `设为主展示` 仅在选中称号已装备且不是当前主展示称号时显示
+
+> 称号列表不再使用 `Observer`，改为 `HStack` / `VStack` + `action.create` 手动 `copy` 模板项，每个项通过 `entryKey` / `entry` 自定义属性绑定到 `var.titles`。过滤条件由 `var.filterMode`、`var.filterGroup`、`var.filterQuality` 控制。
+
 ### UI 推荐用法
 
-`title_menu.yml` 默认采用最简洁的"标题 Text + 列表 Text"两件套：
+属性文本字段统一为 `List<String>`，直接绑给 `Text` 控件的 `texts` 字段即可多行渲染：
 
 ```yaml
-selected_display_label:
-  type: Text
-  attribute:
-    width: 660
-    fontSize: 49
-    texts: "'&0佩戴属性'"
 selected_display_value:
   type: Text
   attribute:
     width: 660
-    fontSize: 49
+    fontSize: 36
     lineSpace: 4
-    texts: var.selectedDisplayAttributesText   # 直接绑 List<String>，自动多行
+    texts: var.selectedDisplayAttributesText
 ```
 
-如果想自己控制每行渲染（例如不同奇偶行染色、加图标等），也可以用 VStack + Observer + `self.entry` 迭代，写法见 `set_stack` / `set_observer` 的官方示例。
+列表项模板示例：
+
+```yaml
+称号模板:
+  type: Texture
+  attribute:
+    entryKey: ''
+    entry: var.titles[self.entryKey]
+    width: 372
+    height: 64
+    normal: "self.entry != null && self.entry['selected'] ? '120,190,255,230' : '145,145,145,255'"
+    visible: "self.entryKey != '' && self.entry != null && ..."
+  action:
+    clickLeft: |-
+      Packet.send('AXS_TITLE_MENU', 'select', self.entryKey)
+```
 
 ## 总展示称号配置
 
-`display-title` 配置节控制「总展示称号」的行为——把多个组的已装备称号拼接为一个字符串，供 PAPI 和 UI 使用。
+`display-title` 配置节控制「总展示称号」的行为——玩家可从**所有已装备的称号中选择一个**作为主展示称号，供 PAPI 和 UI 使用。未手动指定时，按 `groups` 顺序自动回退到第一个已装备的称号。
 
 ```yaml
 display-title:
-  # 要展示的分组列表，按此顺序拼接。
-  # 留空 [] 表示按分组定义顺序展示所有组。
-  # 只想展示单个组的称号时，只填一个组 ID。
+  # 可选主展示称号的分组列表，按顺序优先回退。
+  # 留空 [] 表示按分组定义顺序回退。
+  # 玩家未指定时，取第一个已装备的分组称号。
   groups: []
 
   # 多组拼接时的分隔符。

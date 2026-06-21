@@ -2997,69 +2997,79 @@ flowchart LR
 ```mermaid
 flowchart LR
     subgraph SRV_title_title_menu["服务端 title"]
-        SRVF_title_title_menu["collection_attributes_text<br/>display_attributes_text<br/>display_title_chat_prefix<br/>display_title_chat_suffix<br/>display_title_name<br/>display_title_tab_prefix<br/>display_title_tab_suffix<br/>equipped_summary<br/>...(26 more)"]
+        SRVF_title_title_menu["titles<br/>groups<br/>qualities<br/>filter_modes<br/>selected_id<br/>equipped_summary<br/>equipped_count<br/>equipped_by_group<br/>owned_count<br/>hidden_count<br/>sets<br/>selected_*<br/>*_attributes_text<br/>display_title_*"]
     end
     subgraph CLI_title_title_menu["客户端 title_menu"]
-        CLIV_title_title_menu["titles<br/>groups<br/>qualities<br/>selectedId<br/>filterMode<br/>filterGroup<br/>filterQuality<br/>groupScrollRatio<br/>...(33 more)"]
+        CLIV_title_title_menu["titles<br/>groups<br/>qualities<br/>filterModes<br/>equippedByGroup<br/>selectedId<br/>filterMode<br/>filterGroup<br/>filterQuality<br/>selected*<br/>..."]
     end
-    CLIV_title_title_menu -->|"'select'(self.key)"| SND_title_title_menu_0(["'AXS_TITLE_MENU'"])
+    CLIV_title_title_menu -->|"'select'(self.entryKey)"| SND_title_title_menu_0(["'AXS_TITLE_MENU'"])
     CLIV_title_title_menu -->|"'equip'(var.selectedId)"| SND_title_title_menu_1(["'AXS_TITLE_MENU'"])
     CLIV_title_title_menu -->|"'unequip_group'(var.selectedGroupId)"| SND_title_title_menu_2(["'AXS_TITLE_MENU'"])
     CLIV_title_title_menu -->|"'unequip_all'"| SND_title_title_menu_3(["'AXS_TITLE_MENU'"])
     CLIV_title_title_menu -->|"'hide'(var.selectedId)"| SND_title_title_menu_4(["'AXS_TITLE_MENU'"])
     CLIV_title_title_menu -->|"'unhide'(var.selectedId)"| SND_title_title_menu_5(["'AXS_TITLE_MENU'"])
-    CLIV_title_title_menu -->|"'refresh'"| SND_title_title_menu_6(["'AXS_TITLE_MENU'"])
+    CLIV_title_title_menu -->|"'set_display'(var.selectedId)"| SND_title_title_menu_6(["'AXS_TITLE_MENU'"])
+    CLIV_title_title_menu -->|"'refresh'"| SND_title_title_menu_7(["'AXS_TITLE_MENU'"])
 ```
 
 **接收字段（服务端 → 客户端）**
 
 | 字段名 | 说明 |
 | --- | --- |
-| `collection_attributes_text` | |
-| `display_attributes_text` | |
-| `display_title_chat_prefix` | |
-| `display_title_chat_suffix` | |
-| `display_title_name` | |
-| `display_title_tab_prefix` | |
-| `display_title_tab_suffix` | |
-| `equipped_summary` | |
-| `groups` | |
-| `hidden_count` | |
-| `owned_count` | |
-| `qualities` | |
-| `selected_chat_prefix` | |
-| `selected_chat_suffix` | |
-| `selected_collection_attributes_text` | |
-| `selected_description` | |
-| `selected_display_attributes_text` | |
-| `selected_display_name` | |
-| `selected_group_equipped_name` | |
-| `selected_group_id` | |
-| `selected_group_name` | |
-| `selected_hidden` | |
-| `selected_id` | |
-| `selected_kind` | |
-| `selected_owned` | |
-| `selected_quality_name` | |
-| `selected_remaining_text` | |
-| `selected_source` | |
-| `selected_tab_prefix` | |
-| `selected_tab_suffix` | |
-| `set_bonus_attributes_text` | |
-| `sets` | |
-| `titles` | |
-| `total_attributes_text` | |
+| `titles` | 全部称号字典 |
+| `groups` | 分组筛选字典（含 `all`） |
+| `qualities` | 品质筛选字典（含 `all`） |
+| `filter_modes` | 模式筛选字典（`all` / `owned` / `hidden`） |
+| `selected_id` | 当前选中称号 ID |
+| `equipped_summary` | 已装备汇总文本（兼容） |
+| `equipped_count` | 已装备分组数量 |
+| `equipped_by_group` | 按组装备状态字典 |
+| `owned_count` | 已拥有称号数量 |
+| `hidden_count` | 已隐藏称号数量 |
+| `sets` | 套装进度字典 |
+| `selected_display_name` | 当前选中称号展示名 |
+| `selected_kind` | 当前选中称号类型 |
+| `selected_chat_prefix` | 当前选中称号聊天前缀 |
+| `selected_chat_suffix` | 当前选中称号聊天后缀 |
+| `selected_tab_prefix` | 当前选中称号 Tab 前缀 |
+| `selected_tab_suffix` | 当前选中称号 Tab 后缀 |
+| `selected_group_id` | 当前选中称号分组 ID |
+| `selected_group_equipped_name` | 当前选中分组已装备名（兼容） |
+| `selected_group_name` | 当前选中分组名 |
+| `selected_quality_name` | 当前选中品质名 |
+| `selected_description` | 当前选中称号介绍 |
+| `selected_source` | 当前选中称号来源 |
+| `selected_owned` | 当前选中称号是否已拥有 |
+| `selected_hidden` | 当前选中称号是否已隐藏 |
+| `selected_remaining_text` | 当前选中称号剩余时间 |
+| `selected_can_equip` | 当前选中称号是否可装备 |
+| `selected_is_equipped` | 当前选中称号是否已装备 |
+| `selected_display_attributes_text` | 当前选中称号佩戴属性 |
+| `selected_collection_attributes_text` | 当前选中称号收集属性 |
+| `display_attributes_text` | 当前装备汇总佩戴属性 |
+| `collection_attributes_text` | 当前收藏汇总收集属性 |
+| `total_attributes_text` | 总属性 |
+| `set_bonus_attributes_text` | 套装加成属性 |
+| `display_title_id` | 当前主展示称号 ID |
+| `display_title_name` | 当前主展示称号名 |
+| `display_title_chat_prefix` | 主展示聊天前缀 |
+| `display_title_chat_suffix` | 主展示聊天后缀 |
+| `display_title_tab_prefix` | 主展示 Tab 前缀 |
+| `display_title_tab_suffix` | 主展示 Tab 后缀 |
+| `selected_display_title_id` | 玩家已选主展示称号 ID |
+| `selected_is_display_title` | 当前选中是否为主展示 |
 
 **发送调用（客户端 → 服务端）**
 
 | 目标路由 | Action | 参数 |
 | --- | --- | --- |
-| `'AXS_TITLE_MENU'` | `'select'` | `self.key` |
+| `'AXS_TITLE_MENU'` | `'select'` | `self.entryKey` |
 | `'AXS_TITLE_MENU'` | `'equip'` | `var.selectedId` |
 | `'AXS_TITLE_MENU'` | `'unequip_group'` | `var.selectedGroupId` |
 | `'AXS_TITLE_MENU'` | `'unequip_all'` | `—` |
 | `'AXS_TITLE_MENU'` | `'hide'` | `var.selectedId` |
 | `'AXS_TITLE_MENU'` | `'unhide'` | `var.selectedId` |
+| `'AXS_TITLE_MENU'` | `'set_display'` | `var.selectedId` |
 | `'AXS_TITLE_MENU'` | `'refresh'` | `—` |
 
 **本地变量（action.load / action.open 默认值）**
@@ -3069,24 +3079,47 @@ flowchart LR
 | `var.titles` | `packet['titles']` |
 | `var.groups` | `packet['groups']` |
 | `var.qualities` | `packet['qualities']` |
+| `var.filterModes` | `packet['filter_modes']` |
+| `var.sets` | `packet['sets']` |
+| `var.equippedByGroup` | `packet['equipped_by_group']` |
 | `var.selectedId` | `packet['selected_id']` |
-| `var.filterMode` | `'all'` |
-| `var.filterGroup` | `'all'` |
-| `var.filterQuality` | `'all'` |
-| `var.groupScrollRatio` | `0` |
-| `var.qualityScrollRatio` | `0` |
-| `var.detailScrollRatio` | `0` |
-| `var.equippedSummary` | `packet['equipped_summary']` |
-| `var.ownedCount` | `packet['owned_count']` |
-| `var.hiddenCount` | `packet['hidden_count']` |
+| `var.selectedCanEquip` | `packet['selected_can_equip']` |
+| `var.selectedIsEquipped` | `packet['selected_is_equipped']` |
 | `var.selectedName` | `packet['selected_display_name']` |
 | `var.selectedKind` | `packet['selected_kind']` |
+| `var.selectedKindText` | `var.selectedKind == 'text' ? '文本称号' : (var.selectedKind == 'icon' ? '贴图称号' : '')` |
 | `var.selectedChatPrefix` | `packet['selected_chat_prefix']` |
 | `var.selectedChatSuffix` | `packet['selected_chat_suffix']` |
 | `var.selectedTabPrefix` | `packet['selected_tab_prefix']` |
 | `var.selectedTabSuffix` | `packet['selected_tab_suffix']` |
 | `var.selectedGroupId` | `packet['selected_group_id']` |
-| ... | 共 41 个变量 |
+| `var.selectedGroupName` | `packet['selected_group_name']` |
+| `var.selectedQualityName` | `packet['selected_quality_name']` |
+| `var.selectedDescription` | `packet['selected_description']` |
+| `var.selectedSource` | `packet['selected_source']` |
+| `var.selectedOwned` | `packet['selected_owned']` |
+| `var.selectedHidden` | `packet['selected_hidden']` |
+| `var.selectedRemainingText` | `packet['selected_remaining_text']` |
+| `var.selectedDisplayAttributesText` | `packet['selected_display_attributes_text']` |
+| `var.selectedCollectionAttributesText` | `packet['selected_collection_attributes_text']` |
+| `var.displayAttributesText` | `packet['display_attributes_text']` |
+| `var.collectionAttributesText` | `packet['collection_attributes_text']` |
+| `var.totalAttributesText` | `packet['total_attributes_text']` |
+| `var.setBonusAttributesText` | `packet['set_bonus_attributes_text']` |
+| `var.displayTitleName` | `packet['display_title_name']` |
+| `var.displayTitleId` | `packet['display_title_id']` |
+| `var.selectedIsDisplayTitle` | `packet['selected_is_display_title']` |
+| `var.ownedCount` | `packet['owned_count']` |
+| `var.hiddenCount` | `packet['hidden_count']` |
+| `var.equippedCount` | `packet['equipped_count']` |
+| `var.filterMode` | `'all'` |
+| `var.filterGroup` | `'all'` |
+| `var.filterQuality` | `'all'` |
+| `var.titleListScrollRatio` | `0` |
+| `var.groupScrollRatio` | `0` |
+| `var.qualityScrollRatio` | `0` |
+| `var.detailScrollRatio` | `0` |
+| `var.rightScrollRatio` | `0` |
 
 ---
 
