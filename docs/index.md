@@ -1,13 +1,11 @@
 ---
 layout: home
-title: ArcartX-Suite - 26个Minecraft服务器模块插件套件 | 我的世界插件
+title: ArcartX-Suite - Minecraft服务器组曲套件 | 我的世界插件
 titleTemplate: false
 hero:
   name: ArcartX-Suite
-  text: 26 个乐章 · 一部交响 · 为 ArcartX 服务器谱写未来
-  image:
-    src: /logo.svg
-    alt: ArcartX-Suite
+  text: 26+ 个乐章 · 一部组曲 · 为 ArcartX 服务器谱写未来
+  tagline: Suite — 组曲，亦是套装
   actions:
     - theme: brand
       text: 五分钟上手
@@ -125,30 +123,30 @@ features:
 ---
 
 <div class="brand-meaning" style="text-align: center; padding: 2rem 1rem; margin: 1rem 0; border-radius: 12px; background: linear-gradient(135deg, #1a1a2e 0%, #16213e 100%);">
-  <h2 style="color: #e0aaff; margin-bottom: 0.5rem;">🎵 Suite 组曲</h2>
+  <h2 style="color: #e0aaff; margin-bottom: 0.5rem;">🎵 Suite — 组曲，亦是套装</h2>
   <p style="color: #c8b6ff; max-width: 700px; margin: 0 auto; line-height: 1.8;">
     在音乐中，<strong>Suite（组曲）</strong>是由多首独立小曲串联而成的成套器乐作品。
-    巴赫的《英国组曲》、德彪西的《贝加莫组曲》——每一段风格、节奏各不相同，
-    <strong>分开能单独演奏，合起来是一部完整作品</strong>，统一于同一调性之下。
+    一部组曲有四段——<strong>序曲启程</strong>，<strong>变奏展开</strong>，<strong>华彩交织</strong>，<strong>终章回响</strong>。
+    每一段风格、节奏各不相同，<strong>分开能单独演奏，合起来是一部统一于同一调性的完整作品</strong>。
     <br><br>
-    <strong>ArcartX-Suite</strong> 正是这样的理念：26+ 个模块如同 26 个乐章，
+    <strong>ArcartX-Suite</strong> 正是这样的理念：26+ 个模块如同 26+ 个乐章，
     每一个独立运作、各具音色、按需启用，共享 ArcartX 的统一调性与 UI 主题，
-    组合成一部属于你自己的<strong>服务器交响乐</strong>。
+    组合成一部属于你自己的<strong>服务器组曲</strong>。
   </p>
 </div>
 
 <div class="stats-bar">
   <div class="stat-item">
     <div class="stat-number">26</div>
-    <div class="stat-label">主模块</div>
+    <div class="stat-label">乐章</div>
   </div>
   <div class="stat-item">
     <div class="stat-number">10</div>
-    <div class="stat-label">PAPI 输出</div>
+    <div class="stat-label">PAPI 变奏</div>
   </div>
   <div class="stat-item">
     <div class="stat-number">10</div>
-    <div class="stat-label">数据库模块</div>
+    <div class="stat-label">数据声部</div>
   </div>
   <div class="stat-item">
     <div class="stat-number">8</div>
@@ -158,7 +156,7 @@ features:
 
 <div class="comparison-section">
   <h2>为什么选择 ArcartX-Suite ？</h2>
-  <p class="comparison-subtitle">一个插件覆盖 26 个功能领域，统一 ArcartX UI 体验，模块间深度联动，消除适配 ArcartX 的烦恼</p>
+  <p class="comparison-subtitle">26+ 个乐章统一于同一调性，各自独立，按需奏响，消除适配烦恼</p>
   <div class="comparison-table-wrapper">
     <table class="comparison-table">
       <thead>
@@ -329,5 +327,5 @@ features:
       </tbody>
     </table>
   </div>
-  <p class="comparison-footer"><strong>一个插件，26 个模块</strong> — 统一 UI 体验，模块间零配置联动，告别插件兼容性地狱</p>
+  <p class="comparison-footer"><strong>一部组曲，26+ 个乐章</strong> — 统一调性，各自独立，按需奏响，告别插件兼容性地狱</p>
 </div>

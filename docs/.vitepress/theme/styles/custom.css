@@ -26,35 +26,37 @@
   --vp-nav-bg-color: rgba(7,9,18,0.85);
 }
 
-/* --- Hero Section Enhancement --- */
+/* --- Hero Section: No image, centered text --- */
 
-/* Keep image left, text right (VitePress default) */
-
-/* Hero image: float animation + glow */
-.VPHero .image-container .image-bg {
-  opacity: 0.6;
+/* Hide the hero image completely */
+.VPHero .image-container,
+.VPHero .image-bg,
+.VPHero .VPImage {
+  display: none !important;
 }
 
-.VPHero .image-container img,
-.VPHero .image-container .VPImage {
-  animation: heroFloat 4s ease-in-out infinite;
-  filter: drop-shadow(0 0 34px rgba(91, 110, 251, 0.45));
-  max-width: 280px !important;
-  max-height: 280px !important;
+/* Center all hero text content */
+.VPHero .container {
+  flex-direction: column !important;
+  text-align: center !important;
+  align-items: center !important;
 }
 
-@keyframes heroFloat {
-  0%, 100% { transform: translateY(0); }
-  50%      { transform: translateY(-14px); }
+.VPHero .main {
+  display: flex !important;
+  flex-direction: column !important;
+  align-items: center !important;
+  max-width: 720px !important;
 }
 
 .VPHero .name {
-  font-size: 3rem !important;
-  line-height: 1.2 !important;
+  font-size: 3.2rem !important;
+  line-height: 1.15 !important;
+  letter-spacing: -0.02em;
 }
 
 .VPHero .text {
-  font-size: 1.4rem !important;
+  font-size: 1.5rem !important;
   background: linear-gradient(135deg, #6750a4 30%, #5b6efb 70%);
   -webkit-background-clip: text;
   -webkit-text-fill-color: transparent;
@@ -76,7 +78,13 @@
 .VPHero .tagline {
   font-size: 1.1rem !important;
   max-width: 720px;
-  white-space: nowrap;
+  margin-left: auto;
+  margin-right: auto;
+}
+
+/* Center action buttons */
+.VPHero .actions {
+  justify-content: center !important;
 }
 
 /* --- Feature Cards Enhancement --- */
