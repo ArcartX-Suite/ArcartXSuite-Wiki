@@ -1,18 +1,28 @@
 <template>
   <div class="home-bg">
-    <!-- 深色调音乐厅背景 -->
-    <div class="stage-gradient"></div>
+    <!-- 基底 -->
+    <div class="stage-base"></div>
 
-    <!-- 五线谱 -->
-    <div class="staff staff-1" aria-hidden="true"></div>
-    <div class="staff staff-2" aria-hidden="true"></div>
-    <div class="staff staff-3" aria-hidden="true"></div>
+    <!-- 舞台暗角（从中心向外变暗） -->
+    <div class="stage-vignette"></div>
 
-    <!-- 暖金聚光 -->
-    <div class="spotlight spotlight--gold"></div>
-    <div class="spotlight spotlight--purple"></div>
+    <!-- 顶部穹顶弧光 -->
+    <div class="dome dome-1" aria-hidden="true"></div>
+    <div class="dome dome-2" aria-hidden="true"></div>
+    <div class="dome dome-3" aria-hidden="true"></div>
 
-    <!-- 漂浮音符 -->
+    <!-- 主聚光灯 -->
+    <div class="spotlight-main" aria-hidden="true"></div>
+    <div class="spotlight-side" aria-hidden="true"></div>
+
+    <!-- 声波弧线（装饰性） -->
+    <svg class="soundwave" viewBox="0 0 1440 400" preserveAspectRatio="none" aria-hidden="true">
+      <path d="M0,200 C240,120 480,280 720,200 S1200,120 1440,200" fill="none" />
+      <path d="M0,200 C240,150 480,250 720,200 S1200,150 1440,200" fill="none" />
+      <path d="M0,200 C240,80 480,320 720,200 S1200,80 1440,200" fill="none" />
+    </svg>
+
+    <!-- 音符 -->
     <div class="notes" aria-hidden="true">
       <span class="note">♪</span>
       <span class="note">♫</span>
@@ -21,13 +31,10 @@
       <span class="note">♭</span>
       <span class="note">♯</span>
       <span class="note">𝄞</span>
-      <span class="note">♪</span>
     </div>
 
-    <!-- 流动的旋律线 -->
-    <div class="wave-line wave-1" aria-hidden="true"></div>
-    <div class="wave-line wave-2" aria-hidden="true"></div>
-    <div class="wave-line wave-3" aria-hidden="true"></div>
+    <!-- Logo 水印 -->
+    <img src="/logo.svg" class="bg-logo" alt="" aria-hidden="true" />
   </div>
 </template>
 
@@ -40,156 +47,204 @@
   pointer-events: none;
 }
 
-/* 舞台渐变：深色音乐厅氛围 */
-.stage-gradient {
+/* 深色基底 */
+.stage-base {
   position: absolute;
   inset: 0;
   background:
-    radial-gradient(ellipse at 50% 0%, rgba(140, 110, 60, 0.08) 0%, transparent 50%),
-    radial-gradient(ellipse at 80% 20%, rgba(103, 80, 164, 0.06) 0%, transparent 45%),
-    radial-gradient(ellipse at 20% 80%, rgba(60, 40, 90, 0.05) 0%, transparent 45%),
-    #0b0c15;
+    radial-gradient(ellipse 80% 60% at 50% 10%, rgba(212,175,110,0.10) 0%, transparent 55%),
+    radial-gradient(ellipse 60% 50% at 70% 20%, rgba(155,140,216,0.08) 0%, transparent 50%),
+    #0c0d18;
 }
 
-:root:not(.dark) .stage-gradient {
+:root:not(.dark) .stage-base {
   background:
-    radial-gradient(ellipse at 50% 0%, rgba(140, 110, 60, 0.06) 0%, transparent 50%),
-    radial-gradient(ellipse at 80% 20%, rgba(103, 80, 164, 0.04) 0%, transparent 45%),
-    #f8f6f3;
+    radial-gradient(ellipse 80% 60% at 50% 10%, rgba(212,175,110,0.07) 0%, transparent 55%),
+    radial-gradient(ellipse 60% 50% at 70% 20%, rgba(155,140,216,0.05) 0%, transparent 50%),
+    #f3f1ed;
 }
 
-/* 五线谱 */
-.staff {
+/* 暗角效果 */
+.stage-vignette {
+  position: absolute;
+  inset: 0;
+  background: radial-gradient(ellipse 90% 90% at 50% 45%, transparent 0%, rgba(0,0,0,0.45) 100%);
+}
+
+:root:not(.dark) .stage-vignette {
+  background: radial-gradient(ellipse 90% 90% at 50% 45%, transparent 0%, rgba(0,0,0,0.06) 100%);
+}
+
+/* 穹顶弧线 */
+.dome {
+  position: absolute;
+  left: 50%;
+  transform: translateX(-50%);
+  border-radius: 50% 50% 0 0 / 100% 100% 0 0;
+  border-top: 1px solid rgba(212, 175, 110, 0.18);
+  border-left: 1px solid rgba(212, 175, 110, 0.06);
+  border-right: 1px solid rgba(212, 175, 110, 0.06);
+  border-bottom: none;
+}
+
+:root:not(.dark) .dome {
+  border-top: 1px solid rgba(103, 80, 164, 0.14);
+  border-left: 1px solid rgba(103, 80, 164, 0.05);
+  border-right: 1px solid rgba(103, 80, 164, 0.05);
+}
+
+.dome-1 {
+  width: 140vw;
+  height: 70vh;
+  top: -15vh;
+  animation: domePulse 14s ease-in-out infinite alternate;
+}
+
+.dome-2 {
+  width: 120vw;
+  height: 60vh;
+  top: -10vh;
+  animation: domePulse 18s ease-in-out infinite alternate;
+  animation-delay: -4s;
+  border-top-color: rgba(212, 175, 110, 0.08);
+}
+
+.dome-3 {
+  width: 100vw;
+  height: 50vh;
+  top: -5vh;
+  animation: domePulse 22s ease-in-out infinite alternate;
+  animation-delay: -8s;
+  border-top-color: rgba(155, 140, 216, 0.10);
+}
+
+@keyframes domePulse {
+  from { opacity: 0.4; transform: translateX(-50%) scale(1); }
+  to   { opacity: 0.8; transform: translateX(-50%) scale(1.03); }
+}
+
+/* 主聚光灯 */
+.spotlight-main {
+  position: absolute;
+  width: 500px;
+  height: 500px;
+  left: 50%;
+  top: 5%;
+  transform: translateX(-50%);
+  border-radius: 50%;
+  background: radial-gradient(circle, rgba(212, 175, 110, 0.18) 0%, rgba(155, 140, 216, 0.08) 40%, transparent 70%);
+  filter: blur(40px);
+  animation: spotPulse 10s ease-in-out infinite alternate;
+}
+
+:root:not(.dark) .spotlight-main {
+  background: radial-gradient(circle, rgba(212, 175, 110, 0.12) 0%, rgba(155, 140, 216, 0.06) 40%, transparent 70%);
+}
+
+.spotlight-side {
+  position: absolute;
+  width: 350px;
+  height: 350px;
+  right: 5%;
+  top: 25%;
+  border-radius: 50%;
+  background: radial-gradient(circle, rgba(155, 140, 216, 0.10) 0%, transparent 60%);
+  filter: blur(50px);
+  animation: spotPulse 12s ease-in-out infinite alternate;
+  animation-delay: -3s;
+}
+
+:root:not(.dark) .spotlight-side {
+  background: radial-gradient(circle, rgba(155, 140, 216, 0.07) 0%, transparent 60%);
+}
+
+@keyframes spotPulse {
+  from { transform: scale(1) translateX(-50%); opacity: 0.6; }
+  to   { transform: scale(1.15) translateX(-50%); opacity: 1; }
+}
+
+/* 声波弧线 SVG */
+.soundwave {
   position: absolute;
   left: 0;
   right: 0;
-  height: 70px;
-  background-image: repeating-linear-gradient(
-    to bottom,
-    transparent,
-    transparent 13px,
-    rgba(180, 160, 120, 0.06) 13px,
-    rgba(180, 160, 120, 0.06) 14px
-  );
-  opacity: 0.5;
-  animation: staffDrift 18s ease-in-out infinite alternate;
+  bottom: 20%;
+  height: 200px;
+  width: 100%;
+  opacity: 0.12;
+  overflow: visible;
 }
 
-.staff-1 { top: 15%; }
-.staff-2 { top: 55%; animation-delay: -7s; animation-duration: 22s; }
-.staff-3 { top: 82%; animation-delay: -12s; animation-duration: 25s; }
-
-:root:not(.dark) .staff {
-  background-image: repeating-linear-gradient(
-    to bottom,
-    transparent,
-    transparent 13px,
-    rgba(103, 80, 164, 0.04) 13px,
-    rgba(103, 80, 164, 0.04) 14px
-  );
+.soundwave path {
+  stroke: url(#waveGrad);
+  stroke-width: 1.5;
+  fill: none;
+  animation: waveShift 8s ease-in-out infinite alternate;
 }
 
-@keyframes staffDrift {
-  from { transform: translateX(-20px); opacity: 0.3; }
-  to   { transform: translateX(20px);  opacity: 0.6; }
+.soundwave path:nth-child(2) {
+  animation-delay: -2s;
+  stroke-opacity: 0.7;
 }
 
-/* 暖金聚光 */
-.spotlight {
-  position: absolute;
-  width: 600px;
-  height: 600px;
-  border-radius: 999px;
-  filter: blur(80px);
-  animation: spotDrift 12s ease-in-out infinite alternate;
+.soundwave path:nth-child(3) {
+  animation-delay: -4s;
+  stroke-opacity: 0.4;
 }
 
-.spotlight--gold {
-  left: 45%;
-  top: -10%;
-  background: radial-gradient(circle, rgba(212, 175, 110, 0.12) 0%, transparent 70%);
+@keyframes waveShift {
+  from { transform: translateX(-30px); }
+  to   { transform: translateX(30px); }
 }
 
-.spotlight--purple {
-  right: 5%;
-  bottom: -5%;
-  background: radial-gradient(circle, rgba(103, 80, 164, 0.10) 0%, transparent 70%);
-  animation-delay: -5s;
-}
-
-:root:not(.dark) .spotlight--gold {
-  background: radial-gradient(circle, rgba(212, 175, 110, 0.07) 0%, transparent 70%);
-}
-
-:root:not(.dark) .spotlight--purple {
-  background: radial-gradient(circle, rgba(103, 80, 164, 0.05) 0%, transparent 70%);
-}
-
-@keyframes spotDrift {
-  from { transform: translate3d(0, 0, 0) scale(1); }
-  to   { transform: translate3d(-30px, 20px, 0) scale(1.12); }
-}
-
-/* 漂浮音符 */
+/* 音符 */
 .notes .note {
   position: absolute;
-  font-size: 18px;
-  color: rgba(212, 175, 110, 0.20);
+  font-size: 20px;
+  color: rgba(212, 175, 110, 0.35);
   animation: noteFloat ease-in-out infinite alternate;
   user-select: none;
+  font-family: Georgia, serif;
 }
 
 :root:not(.dark) .notes .note {
-  color: rgba(103, 80, 164, 0.12);
+  color: rgba(103, 80, 164, 0.22);
 }
 
-.notes .note:nth-child(1) { left: 10%; top: 18%;  font-size: 20px; animation-duration: 6s;  animation-delay: -1s; }
-.notes .note:nth-child(2) { left: 25%; top: 38%;  font-size: 14px; animation-duration: 8s;  animation-delay: -3s; }
-.notes .note:nth-child(3) { left: 42%; top: 12%;  font-size: 22px; animation-duration: 7s;  animation-delay: -5s; }
-.notes .note:nth-child(4) { left: 58%; top: 55%;  font-size: 16px; animation-duration: 9s;  animation-delay: -2s; }
-.notes .note:nth-child(5) { left: 72%; top: 25%;  font-size: 18px; animation-duration: 7.5s; animation-delay: -4s; }
-.notes .note:nth-child(6) { left: 85%; top: 48%;  font-size: 15px; animation-duration: 8s;  animation-delay: -6s; }
-.notes .note:nth-child(7) { left: 15%; top: 62%;  font-size: 26px; animation-duration: 10s; animation-delay: -7s; }
-.notes .note:nth-child(8) { left: 50%; top: 78%;  font-size: 17px; animation-duration: 6.5s; animation-delay: -8s; }
+.notes .note:nth-child(1) { left: 8%;  top: 22%;  font-size: 22px; animation-duration: 6s;  animation-delay: -1s; }
+.notes .note:nth-child(2) { left: 22%; top: 15%;  font-size: 16px; animation-duration: 8s;  animation-delay: -3s; }
+.notes .note:nth-child(3) { left: 45%; top: 10%;  font-size: 26px; animation-duration: 7s;  animation-delay: -5s; }
+.notes .note:nth-child(4) { left: 62%; top: 28%;  font-size: 18px; animation-duration: 9s;  animation-delay: -2s; }
+.notes .note:nth-child(5) { left: 78%; top: 18%;  font-size: 20px; animation-duration: 7.5s; animation-delay: -4s; }
+.notes .note:nth-child(6) { left: 88%; top: 35%;  font-size: 14px; animation-duration: 8s;  animation-delay: -6s; }
+.notes .note:nth-child(7) { left: 35%; top: 38%;  font-size: 30px; animation-duration: 10s; animation-delay: -7s; }
 
 @keyframes noteFloat {
-  from { transform: translateY(0) rotate(-5deg);  opacity: 0.15; }
-  to   { transform: translateY(-16px) rotate(5deg); opacity: 0.35; }
+  from { transform: translateY(0) rotate(-6deg);  opacity: 0.25; }
+  to   { transform: translateY(-20px) rotate(6deg); opacity: 0.55; }
 }
 
-/* 旋律波浪线 */
-.wave-line {
+/* Logo 水印 */
+.bg-logo {
   position: absolute;
-  left: 0;
-  right: 0;
-  height: 2px;
-  border-radius: 1px;
-  background: linear-gradient(90deg,
-    transparent 0%,
-    rgba(180, 160, 120, 0.08) 20%,
-    rgba(103, 80, 164, 0.12) 50%,
-    rgba(180, 160, 120, 0.08) 80%,
-    transparent 100%
-  );
-  animation: waveMove 10s ease-in-out infinite alternate;
+  right: -8%;
+  top: 55%;
+  transform: translateY(-50%) rotate(15deg);
+  width: 480px;
+  height: 480px;
+  opacity: 0.06;
+  filter: blur(3px);
+  animation: logoDrift 20s ease-in-out infinite alternate;
+  pointer-events: none;
+  user-select: none;
 }
 
-.wave-1 { top: 30%;  animation-delay: -2s; }
-.wave-2 { top: 50%;  animation-delay: -5s; animation-duration: 14s; }
-.wave-3 { top: 68%;  animation-delay: -8s; animation-duration: 12s; }
-
-:root:not(.dark) .wave-line {
-  background: linear-gradient(90deg,
-    transparent 0%,
-    rgba(103, 80, 164, 0.05) 20%,
-    rgba(212, 175, 110, 0.06) 50%,
-    rgba(103, 80, 164, 0.05) 80%,
-    transparent 100%
-  );
+:root:not(.dark) .bg-logo {
+  opacity: 0.04;
 }
 
-@keyframes waveMove {
-  from { transform: translateX(-60px); opacity: 0.4; }
-  to   { transform: translateX(60px);  opacity: 0.8; }
+@keyframes logoDrift {
+  from { transform: translateY(-50%) rotate(15deg); }
+  to   { transform: translateY(-50%) rotate(18deg) translateX(-15px); }
 }
 </style>

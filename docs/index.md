@@ -5,7 +5,6 @@ titleTemplate: false
 hero:
   name: ArcartX-Suite
   text: 26+ 个乐章 · 一部组曲 · 为 ArcartX 服务器谱写未来
-  tagline: Suite — 组曲，亦是套装
   actions:
     - theme: brand
       text: 五分钟上手
@@ -122,13 +121,14 @@ features:
     link: /modules/qqbot
 ---
 
-<div class="brand-meaning" style="text-align: center; padding: 2rem 1rem; margin: 1rem 0; border-radius: 12px; background: linear-gradient(135deg, #1a1a2e 0%, #16213e 100%);">
-  <h2 style="color: #e0aaff; margin-bottom: 0.5rem;">🎵 Suite — 组曲，亦是套装</h2>
-  <p style="color: #c8b6ff; max-width: 700px; margin: 0 auto; line-height: 1.8;">
+<div class="brand-meaning">
+  <h2>🎵 Suite — 组曲，亦是套装</h2>
+  <p>
     在音乐中，<strong>Suite（组曲）</strong>是由多首独立小曲串联而成的成套器乐作品。
     一部组曲有四段——<strong>序曲启程</strong>，<strong>变奏展开</strong>，<strong>华彩交织</strong>，<strong>终章回响</strong>。
     每一段风格、节奏各不相同，<strong>分开能单独演奏，合起来是一部统一于同一调性的完整作品</strong>。
-    <br><br>
+  </p>
+  <p>
     <strong>ArcartX-Suite</strong> 正是这样的理念：26+ 个模块如同 26+ 个乐章，
     每一个独立运作、各具音色、按需启用，共享 ArcartX 的统一调性与 UI 主题，
     组合成一部属于你自己的<strong>服务器组曲</strong>。

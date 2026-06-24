@@ -26,27 +26,13 @@
   --vp-nav-bg-color: rgba(7,9,18,0.85);
 }
 
-/* --- Hero Section: No image, centered text --- */
+/* --- Hero Section: No image, left-aligned text --- */
 
 /* Hide the hero image completely */
 .VPHero .image-container,
 .VPHero .image-bg,
 .VPHero .VPImage {
   display: none !important;
-}
-
-/* Center all hero text content */
-.VPHero .container {
-  flex-direction: column !important;
-  text-align: center !important;
-  align-items: center !important;
-}
-
-.VPHero .main {
-  display: flex !important;
-  flex-direction: column !important;
-  align-items: center !important;
-  max-width: 720px !important;
 }
 
 .VPHero .name {
@@ -77,14 +63,6 @@
 
 .VPHero .tagline {
   font-size: 1.1rem !important;
-  max-width: 720px;
-  margin-left: auto;
-  margin-right: auto;
-}
-
-/* Center action buttons */
-.VPHero .actions {
-  justify-content: center !important;
 }
 
 /* --- Feature Cards Enhancement --- */
@@ -264,6 +242,54 @@
 /* --- Better code blocks --- */
 .vp-doc div[class*='language-'] {
   border-radius: 8px;
+}
+
+/* --- Brand Meaning Section --- */
+.brand-meaning {
+  text-align: center;
+  padding: 2.5rem 1.5rem;
+  margin: 1.5rem 0;
+  border-radius: 16px;
+  background: linear-gradient(135deg, rgba(103,80,164,0.06) 0%, rgba(91,110,251,0.04) 100%);
+  border: 1px solid var(--vp-c-divider);
+  max-width: 720px;
+  margin-left: auto;
+  margin-right: auto;
+}
+
+.dark .brand-meaning {
+  background: linear-gradient(135deg, rgba(103,80,164,0.10) 0%, rgba(60,40,90,0.08) 100%);
+}
+
+.brand-meaning h2 {
+  margin: 0 0 1rem;
+  font-size: 1.4rem;
+  background: linear-gradient(135deg, #6750a4, #5b6efb);
+  -webkit-background-clip: text;
+  -webkit-text-fill-color: transparent;
+  background-clip: text;
+}
+
+.dark .brand-meaning h2 {
+  background: linear-gradient(120deg, #e0aaff 0%, #c8b6ff 100%);
+  -webkit-background-clip: text;
+  -webkit-text-fill-color: transparent;
+}
+
+.brand-meaning p {
+  color: var(--vp-c-text-2);
+  max-width: 640px;
+  margin: 0 auto 1rem;
+  line-height: 1.9;
+  font-size: 0.95rem;
+}
+
+.brand-meaning p:last-child {
+  margin-bottom: 0;
+}
+
+.brand-meaning strong {
+  color: var(--vp-c-brand-1);
 }
 
 /* --- Responsive --- */

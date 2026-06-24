@@ -1,38 +1,51 @@
 <svg xmlns="http://www.w3.org/2000/svg" width="256" height="256" viewBox="0 0 256 256" fill="none">
   <defs>
-    <!-- Main gradient: purple → blue → cyan -->
-    <linearGradient id="main" x1="0%" y1="0%" x2="100%" y2="100%">
+    <!-- 紫 → 暖金渐变，组曲主题 -->
+    <linearGradient id="suite" x1="0%" y1="0%" x2="100%" y2="100%">
       <stop offset="0%" stop-color="#6750a4"/>
-      <stop offset="45%" stop-color="#5b6efb"/>
-      <stop offset="100%" stop-color="#22d3ee"/>
+      <stop offset="45%" stop-color="#9b8cd8"/>
+      <stop offset="100%" stop-color="#d4af6e"/>
     </linearGradient>
-    <!-- Outer glow -->
-    <filter id="glow">
-      <feGaussianBlur stdDeviation="8" result="blur"/>
+    <!-- 柔和光晕 -->
+    <filter id="softGlow">
+      <feGaussianBlur stdDeviation="5" result="blur"/>
       <feMerge>
         <feMergeNode in="blur"/>
         <feMergeNode in="SourceGraphic"/>
       </feMerge>
     </filter>
-    <!-- Soft shadow under text -->
-    <filter id="shadow">
-      <feDropShadow dx="0" dy="4" stdDeviation="6" flood-color="#5b6efb" flood-opacity="0.5"/>
-    </filter>
-    <!-- Highlight gradient for accent line -->
-    <linearGradient id="accent" x1="0%" y1="0%" x2="100%" y2="0%">
-      <stop offset="0%" stop-color="#6750a4" stop-opacity="0"/>
-      <stop offset="30%" stop-color="#5b6efb"/>
-      <stop offset="70%" stop-color="#22d3ee"/>
-      <stop offset="100%" stop-color="#22d3ee" stop-opacity="0"/>
+    <!-- 外圈金色描边渐变 -->
+    <linearGradient id="ring" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" stop-color="#6750a4" stop-opacity="0.6"/>
+      <stop offset="50%" stop-color="#9b8cd8" stop-opacity="0.4"/>
+      <stop offset="100%" stop-color="#d4af6e" stop-opacity="0.6"/>
     </linearGradient>
   </defs>
-  <!-- Background glow circle -->
-  <circle cx="128" cy="120" r="90" fill="#5b6efb" opacity="0.08" filter="url(#glow)"/>
-  <!-- AS main text -->
-  <text x="128" y="155" text-anchor="middle" font-family="Inter,'SF Pro Display','Segoe UI',system-ui,sans-serif" font-size="130" font-weight="900" letter-spacing="-8" fill="url(#main)" filter="url(#shadow)">AS</text>
-  <!-- Thin accent line below -->
-  <line x1="48" y1="175" x2="208" y2="175" stroke="url(#accent)" stroke-width="2.5" stroke-linecap="round"/>
-  <!-- Small dot accents -->
-  <circle cx="48" cy="175" r="3" fill="#6750a4" opacity="0.6"/>
-  <circle cx="208" cy="175" r="3" fill="#22d3ee" opacity="0.6"/>
+
+  <!-- 外圈圆环 -->
+  <circle cx="128" cy="128" r="110" stroke="url(#ring)" stroke-width="1.5" opacity="0.5"/>
+  <circle cx="128" cy="128" r="102" stroke="url(#ring)" stroke-width="0.5" opacity="0.25"/>
+
+  <!-- 五线谱弧线（像唱片纹路） -->
+  <path d="M 40 128 Q 128 82 216 128" stroke="url(#suite)" stroke-width="1.2" opacity="0.2" fill="none"/>
+  <path d="M 40 128 Q 128 92 216 128" stroke="url(#suite)" stroke-width="1.2" opacity="0.16" fill="none"/>
+  <path d="M 40 128 Q 128 102 216 128" stroke="url(#suite)" stroke-width="1.2" opacity="0.12" fill="none"/>
+  <path d="M 40 128 Q 128 112 216 128" stroke="url(#suite)" stroke-width="1.2" opacity="0.08" fill="none"/>
+  <path d="M 40 128 Q 128 122 216 128" stroke="url(#suite)" stroke-width="1.2" opacity="0.05" fill="none"/>
+
+  <!-- 下方反向弧线 -->
+  <path d="M 40 128 Q 128 174 216 128" stroke="url(#suite)" stroke-width="1.2" opacity="0.2" fill="none"/>
+  <path d="M 40 128 Q 128 164 216 128" stroke="url(#suite)" stroke-width="1.2" opacity="0.16" fill="none"/>
+  <path d="M 40 128 Q 128 154 216 128" stroke="url(#suite)" stroke-width="1.2" opacity="0.12" fill="none"/>
+
+  <!-- 中心高音谱号 -->
+  <text x="128" y="168" text-anchor="middle" font-family="Georgia, 'Times New Roman', 'Noto Music', serif" font-size="130" fill="url(#suite)" filter="url(#softGlow)">𝄞</text>
+
+  <!-- 小音符装饰 -->
+  <text x="65" y="82" font-family="Georgia, serif" font-size="16" fill="#d4af6e" opacity="0.45">♪</text>
+  <text x="185" y="78" font-family="Georgia, serif" font-size="13" fill="#9b8cd8" opacity="0.35">♫</text>
+  <text x="72" y="198" font-family="Georgia, serif" font-size="15" fill="#d4af6e" opacity="0.3">♩</text>
+  <text x="178" y="200" font-family="Georgia, serif" font-size="18" fill="#9b8cd8" opacity="0.25">♬</text>
+  <text x="128" y="55" text-anchor="middle" font-family="Georgia, serif" font-size="12" fill="#d4af6e" opacity="0.35">♭</text>
+  <text x="128" y="225" text-anchor="middle" font-family="Georgia, serif" font-size="14" fill="#9b8cd8" opacity="0.25">♯</text>
 </svg>
