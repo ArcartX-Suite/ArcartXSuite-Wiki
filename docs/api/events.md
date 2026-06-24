@@ -1,17 +1,17 @@
----
-title: 事件 | ArcartXSuite Minecraft插件API文档
-description: 事件 - ArcartXSuite Minecraft 服务器插件文档。 ArcartXSuite 我的世界服务器插件套件。
+﻿---
+title: 事件 | ArcartX-Suite Minecraft插件API文档
+description: 事件 - ArcartX-Suite Minecraft 服务器插件文档。 ArcartX-Suite 我的世界服务器插件套件。
 ---
 
 # 事件
 
-ArcartXSuite 提供标准 Bukkit 事件，供第三方插件监听模块状态变化。
+ArcartX-Suite 提供标准 Bukkit 事件，供第三方插件监听模块状态变化。
 
 ## ModuleLifecycleEvent
 
 模块生命周期事件——模块加载 / 卸载 / 重载时触发。标记为 `@ApiStability.Stable`。
 
-**第三方插件**（不仅限于 AXS 模块）可通过标准 Bukkit 事件机制监听此事件，在 ArcartXSuite 模块状态变化时执行相应逻辑。
+**第三方插件**（不仅限于 AXS 模块）可通过标准 Bukkit 事件机制监听此事件，在 ArcartX-Suite 模块状态变化时执行相应逻辑。
 
 ### 使用示例
 
@@ -71,3 +71,4 @@ public class MyListener implements Listener {
 | 清理对某模块的引用 | `DISABLING` |
 | 重载后刷新缓存 | `RELOADED` |
 | 记录模块失败日志 | `ENABLE_FAILED` |
+

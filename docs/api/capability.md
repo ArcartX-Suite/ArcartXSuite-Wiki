@@ -1,11 +1,11 @@
----
-title: Capability 跨模块通信 | ArcartXSuite Minecraft插件API文档
-description: Capability 跨模块通信 - ArcartXSuite Minecraft 服务器插件文档。 ArcartXSuite 我的世界服务器插件套件。
+﻿---
+title: Capability 跨模块通信 | ArcartX-Suite Minecraft插件API文档
+description: Capability 跨模块通信 - ArcartX-Suite Minecraft 服务器插件文档。 ArcartX-Suite 我的世界服务器插件套件。
 ---
 
 # Capability 跨模块通信
 
-Capability 是 ArcartXSuite 推荐的跨模块通信机制。模块通过 `ModuleContext` 注册自己提供的能力接口，其他模块通过类型查找来调用，实现松耦合的模块间协作。
+Capability 是 ArcartX-Suite 推荐的跨模块通信机制。模块通过 `ModuleContext` 注册自己提供的能力接口，其他模块通过类型查找来调用，实现松耦合的模块间协作。
 
 ## 工作原理
 
@@ -91,7 +91,7 @@ public class EventPacketDispatchService {
 
 ## 内置 Capability 接口
 
-以下是 ArcartXSuite 内置模块注册的 Capability 接口，第三方模块可通过 `getCapability()` 查找并调用。
+以下是 ArcartX-Suite 内置模块注册的 Capability 接口，第三方模块可通过 `getCapability()` 查找并调用。
 
 ### MailDispatchable
 
@@ -465,3 +465,4 @@ player.sendMessage(msg.get("purge.confirm", "10"));
 ```
 
 模块首次加载时自动从 JAR 导出默认 `messages.yml`；用户可自定义文本而无需修改代码。
+

@@ -1,11 +1,11 @@
----
-title: 桥接 API | ArcartXSuite Minecraft插件API文档
-description: 桥接 API - ArcartXSuite Minecraft 服务器插件文档。 ArcartXSuite 我的世界服务器插件套件。
+﻿---
+title: 桥接 API | ArcartX-Suite Minecraft插件API文档
+description: 桥接 API - ArcartX-Suite Minecraft 服务器插件文档。 ArcartX-Suite 我的世界服务器插件套件。
 ---
 
 # 桥接 API
 
-ArcartXSuite 1.1.0 起提供三个类型安全的桥接接口，取代原先返回 `Object` 的旧 API。模块通过 `ModuleContext` 获取实例。
+ArcartX-Suite 1.1.0 起提供三个类型安全的桥接接口，取代原先返回 `Object` 的旧 API。模块通过 `ModuleContext` 获取实例。
 
 所有桥接接口均标记为 `@ApiStability.Stable`。
 
@@ -308,3 +308,4 @@ bridge.ifPresent(b -> b.apply(player, "strength", 10.0, 30000L));
 |------|------|
 | `bridge(String provider)` | 按提供者 ID 获取桥接实例 |
 | `isAvailable(String provider)` | 判断指定属性系统是否已加载 |
+

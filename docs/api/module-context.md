@@ -1,6 +1,6 @@
----
-title: ModuleContext 上下文 | ArcartXSuite Minecraft插件API文档
-description: ModuleContext 上下文 - ArcartXSuite Minecraft 服务器插件文档。 ArcartXSuite 我的世界服务器插件套件。
+﻿---
+title: ModuleContext 上下文 | ArcartX-Suite Minecraft插件API文档
+description: ModuleContext 上下文 - ArcartX-Suite Minecraft 服务器插件文档。 ArcartX-Suite 我的世界服务器插件套件。
 ---
 
 # ModuleContext 上下文
@@ -15,9 +15,9 @@ description: ModuleContext 上下文 - ArcartXSuite Minecraft 服务器插件文
 |------|----------|------|
 | `plugin()` | `JavaPlugin` | 宿主插件实例（用于注册事件、调度 BukkitTask） |
 | `logger()` | `Logger` | 带模块前缀的 Logger |
-| `dataFolder()` | `File` | 模块私有数据目录（`plugins/ArcartXSuite/data/<moduleId>/`） |
-| `uiFolder()` | `File` | UI 文件输出目录（`plugins/ArcartXSuite/ui/`） |
-| `pluginDataFolder()` | `File` | 宿主插件数据目录（`plugins/ArcartXSuite/`） |
+| `dataFolder()` | `File` | 模块私有数据目录（`plugins/ArcartX-Suite/data/<moduleId>/`） |
+| `uiFolder()` | `File` | UI 文件输出目录（`plugins/ArcartX-Suite/ui/`） |
+| `pluginDataFolder()` | `File` | 宿主插件数据目录（`plugins/ArcartX-Suite/`） |
 | `hasPlugin(String)` | `boolean` | 检查外部 Bukkit 插件是否已安装 |
 
 ### 数据迁移工具
@@ -151,7 +151,7 @@ Optional<AXSModule> module = context.getModule("warehouse");
 
 ### Capability 跨模块通信
 
-Capability 是 ArcartXSuite 推荐的跨模块通信方式。模块通过注册 Capability 暴露自己的能力，其他模块通过查找 Capability 来调用。
+Capability 是 ArcartX-Suite 推荐的跨模块通信方式。模块通过注册 Capability 暴露自己的能力，其他模块通过查找 Capability 来调用。
 
 ```java
 // 注册 Capability（通常在 startService 中）
@@ -321,3 +321,4 @@ context.unregisterUi(registeredUiId);
 // 读取模块 Jar 内的受保护资源流
 InputStream stream = context.openProtectedResource("data/template.dat", getClass().getClassLoader());
 ```
+
