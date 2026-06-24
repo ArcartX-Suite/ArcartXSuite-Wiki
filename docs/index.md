@@ -1,13 +1,13 @@
 ---
 layout: home
-title: ArcartXSuite - 26个Minecraft服务器模块插件套件 | 我的世界插件
+title: ArcartX-Suite - 26个Minecraft服务器模块插件套件 | 我的世界插件
 titleTemplate: false
 hero:
-  name: ArcartXSuite
-  text: 生态全面 自带UI 为每一个 ArcartX服务器 筑梦未来
+  name: ArcartX-Suite
+  text: 26 个乐章 · 一部交响 · 为 ArcartX 服务器谱写未来
   image:
     src: /logo.svg
-    alt: ArcartXSuite
+    alt: ArcartX-Suite
   actions:
     - theme: brand
       text: 五分钟上手
@@ -17,7 +17,7 @@ hero:
       link: /modules/
     - theme: alt
       text: GitHub
-      link: https://github.com/xuanmomo233/ArcartXSuite
+      link: https://github.com/xuanmomo233/ArcartX-Suite
     - theme: alt
       text: 云端换绑
       link: https://axs.021209.xyz/rebind
@@ -124,6 +124,19 @@ features:
     link: /modules/qqbot
 ---
 
+<div class="brand-meaning" style="text-align: center; padding: 2rem 1rem; margin: 1rem 0; border-radius: 12px; background: linear-gradient(135deg, #1a1a2e 0%, #16213e 100%);">
+  <h2 style="color: #e0aaff; margin-bottom: 0.5rem;">🎵 Suite 组曲</h2>
+  <p style="color: #c8b6ff; max-width: 700px; margin: 0 auto; line-height: 1.8;">
+    在音乐中，<strong>Suite（组曲）</strong>是由多首独立小曲串联而成的成套器乐作品。
+    巴赫的《英国组曲》、德彪西的《贝加莫组曲》——每一段风格、节奏各不相同，
+    <strong>分开能单独演奏，合起来是一部完整作品</strong>，统一于同一调性之下。
+    <br><br>
+    <strong>ArcartX-Suite</strong> 正是这样的理念：26+ 个模块如同 26 个乐章，
+    每一个独立运作、各具音色、按需启用，共享 ArcartX 的统一调性与 UI 主题，
+    组合成一部属于你自己的<strong>服务器交响乐</strong>。
+  </p>
+</div>
+
 <div class="stats-bar">
   <div class="stat-item">
     <div class="stat-number">26</div>
@@ -144,14 +157,14 @@ features:
 </div>
 
 <div class="comparison-section">
-  <h2>为什么选择 ArcartXSuite ？</h2>
-  <p class="comparison-subtitle">一个插件覆盖 24 个功能领域，统一 ArcartX UI 体验，模块间深度联动，消除适配 ArcartX 的烦恼</p>
+  <h2>为什么选择 ArcartX-Suite ？</h2>
+  <p class="comparison-subtitle">一个插件覆盖 26 个功能领域，统一 ArcartX UI 体验，模块间深度联动，消除适配 ArcartX 的烦恼</p>
   <div class="comparison-table-wrapper">
     <table class="comparison-table">
       <thead>
         <tr>
           <th>功能领域</th>
-          <th>ArcartXSuite</th>
+          <th>ArcartX-Suite</th>
           <th>同类插件模组</th>
           <th>核心优势</th>
         </tr>
@@ -159,7 +172,7 @@ features:
       <tbody>
         <tr>
           <td>挖掘AX潜力</td>
-          <td class="col-module">ArcartXSuite</td>
+          <td class="col-module">ArcartX-Suite</td>
           <td class="col-alt">ArcartX 同类扩展</td>
           <td class="col-advantage">混合端高兼容、原生模块联动、跨服功能完善、跟随ArcartX版本更新、更优秀的UI技术</td>
         </tr>

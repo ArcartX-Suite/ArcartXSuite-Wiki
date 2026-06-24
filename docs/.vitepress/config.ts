@@ -3,29 +3,29 @@ import { withMermaid } from 'vitepress-plugin-mermaid'
 
 export default withMermaid(defineConfig<any>({
   lang: 'zh-CN',
-  title: 'ArcartXSuite',
-  description: 'ArcartXSuite 是面向 ArcartX 客户端的 26 模块 Minecraft 服务器插件套件，涵盖全球市场、抽奖开箱、钓鱼、称号、战令、仓库等核心玩法，自带 ArcartX UI 界面，我的世界服务器开发者的首选插件。',
+  title: 'ArcartX-Suite',
+  description: 'ArcartX-Suite 是面向 ArcartX 客户端的 26 模块 Minecraft 服务器插件套件，涵盖全球市场、抽奖开箱、钓鱼、称号、战令、仓库等核心玩法，自带 ArcartX UI 界面，我的世界服务器开发者的首选插件。',
   base: '/ArcartXSuite-Wiki/',
   head: [
     ['link', { rel: 'icon', href: '/ArcartXSuite-Wiki/favicon.ico' }],
     ['meta', { name: 'theme-color', content: '#6750a4' }],
-    ['meta', { name: 'description', content: 'ArcartXSuite 是面向 ArcartX 客户端框架的 26 模块 Minecraft 服务器插件套件，涵盖聊天、战斗、播报、经济交易、全球市场、抽奖、钓鱼等核心玩法，自带 ArcartX UI 界面。' }],
-    ['meta', { name: 'keywords', content: 'ArcartXSuite, ArcartX, Minecraft插件, 服务器插件, 全球市场插件, 抽奖插件, 开箱插件, 钓鱼插件, 称号插件, 邮箱插件, 仓库插件, 战令插件, 拍卖行, 玩家商店, Minecraft UI, 服务器模组' }],
-    ['meta', { property: 'og:title', content: 'ArcartXSuite - 26个Minecraft服务器模块插件套件' }],
-    ['meta', { property: 'og:description', content: 'ArcartXSuite 提供 26 个功能模块，涵盖经济交易、全球市场、抽奖开箱、钓鱼、称号、战令等核心玩法，自带 ArcartX UI 界面。' }],
+    ['meta', { name: 'description', content: 'ArcartX-Suite 是面向 ArcartX 客户端框架的 26 模块 Minecraft 服务器插件套件，涵盖聊天、战斗、播报、经济交易、全球市场、抽奖、钓鱼等核心玩法，自带 ArcartX UI 界面。' }],
+    ['meta', { name: 'keywords', content: 'ArcartX-Suite, ArcartXSuite, ArcartX, Minecraft插件, 服务器插件, 全球市场插件, 抽奖插件, 开箱插件, 钓鱼插件, 称号插件, 邮箱插件, 仓库插件, 战令插件, 拍卖行, 玩家商店, Minecraft UI, 服务器模组' }],
+    ['meta', { property: 'og:title', content: 'ArcartX-Suite - 26个Minecraft服务器模块插件套件' }],
+    ['meta', { property: 'og:description', content: 'ArcartX-Suite 提供 26 个功能模块，涵盖经济交易、全球市场、抽奖开箱、钓鱼、称号、战令等核心玩法，自带 ArcartX UI 界面。' }],
     ['meta', { property: 'og:type', content: 'website' }],
   ],
 
   themeConfig: {
     logo: '/logo.svg',
-    siteTitle: 'ArcartXSuite',
+    siteTitle: 'ArcartX-Suite',
 
     nav: [
       { text: '指南', link: '/guide/', activeMatch: '/guide/' },
       { text: '架构', link: '/architecture/', activeMatch: '/architecture/' },
       { text: 'API', link: '/api/', activeMatch: '/api/' },
       { text: '模块', link: '/modules/', activeMatch: '/modules/' },
-      { text: '变更日志', link: '/appendix/changelog' },
+      { text: '云端授权', link: '/guide/cloud-modules' },
       {
         text: '链接',
         items: [
@@ -144,7 +144,7 @@ export default withMermaid(defineConfig<any>({
         {
           text: '附录',
           items: [
-            { text: '变更日志', link: '/appendix/changelog' },
+            { text: '云端授权', link: '/guide/cloud-modules' },
           ],
         },
       ],

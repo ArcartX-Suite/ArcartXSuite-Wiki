@@ -1,6 +1,6 @@
-# UI Packet 数据全景
+﻿# UI Packet 数据全景
 
-本文档自动生成，汇总 ArcartXSuite 全部 UI YAML 的数据交互全景。
+本文档自动生成，汇总 ArcartX-Suite 全部 UI YAML 的数据交互全景。
 
 - **左侧**：服务端 `packetHandler` 下发字段（`packet['xxx']`）
 - **中间**：客户端本地变量（`var.xxx`）与 UI 渲染
@@ -3430,3 +3430,4 @@ flowchart LR
 | ... | 共 48 个变量 |
 
 ---
+
