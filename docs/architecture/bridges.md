@@ -1,6 +1,6 @@
----
-title: 桥接层 (Bridge) | ArcartXSuite Minecraft插件架构文档
-description: 桥接层 (Bridge) - ArcartXSuite Minecraft 服务器插件文档。 ArcartXSuite 我的世界服务器插件套件。
+﻿---
+title: 桥接层 (Bridge) | ArcartX-Suite Minecraft插件架构文档
+description: 桥接层 (Bridge) - ArcartX-Suite Minecraft 服务器插件文档。 ArcartX-Suite 我的世界服务器插件套件。
 ---
 
 # 桥接层 (Bridge)
@@ -53,3 +53,4 @@ if (bridge != null && bridge.isAvailable()) {
 ## 桥失败时的降级策略
 
 每个 Service 在 `enable()` 阶段调 `bridge.isAvailable()`，失败则标 `bridge missing`，**不阻止其他模块启动**。
+

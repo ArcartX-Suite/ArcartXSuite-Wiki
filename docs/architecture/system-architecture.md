@@ -1,9 +1,9 @@
----
-title: ArcartXSuite 系统架构 | ArcartXSuite Minecraft插件架构文档
-description: ArcartXSuite 系统架构 - ArcartXSuite Minecraft 服务器插件文档。 ArcartXSuite 我的世界服务器插件套件。
+﻿---
+title: ArcartX-Suite 系统架构 | ArcartX-Suite Minecraft插件架构文档
+description: ArcartX-Suite 系统架构 - ArcartX-Suite Minecraft 服务器插件文档。 ArcartX-Suite 我的世界服务器插件套件。
 ---
 
-# ArcartXSuite 系统架构
+# ArcartX-Suite 系统架构
 
 ## 整体架构图
 
@@ -28,7 +28,7 @@ graph TB
     Module --> Modules[功能模块]
     
     %% 文件系统结构（作为服务端的子部分）
-    subgraph "plugins/ArcartXSuite/ 目录结构"
+    subgraph "plugins/ArcartX-Suite/ 目录结构"
         ConfigYml["config.yml<br/>总开关"]
         ModuleConfigs["ArcartX*.yml<br/>各模块配置"]
         UIDir["ui/<br/>UI模板文件"]
@@ -69,12 +69,12 @@ graph TB
 ### 2. 服务端核心
 - **AXS 服务端 jar**: 服务端插件主程序，包含核心业务逻辑
 - **业务逻辑层**: 处理模块管理、配置解析、UI渲染等核心功能
-- **模块系统**: 管理 21 个功能模块的加载、卸载和交互
+- **模块系统**: 管理 26 个功能模块的加载、卸载和交互
 - **配置管理**: 统一管理所有配置文件和热重载
 - **UI渲染**: 生成ArcartX UI界面并发送给客户端
 
 ### 3. 文件系统结构
-`plugins/ArcartXSuite/` 目录包含：
+`plugins/ArcartX-Suite/` 目录包含：
 - **config.yml**: 总开关配置
 - **ArcartX*.yml**: 各模块的主配置文件
 - **ui/**: ArcartX UI模板文件
@@ -144,3 +144,4 @@ graph LR
 3. 明确的数据流向和组件关系
 4. 模块系统的层次结构
 5. 配置文件的管理层次
+

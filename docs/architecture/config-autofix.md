@@ -1,11 +1,11 @@
 ---
-title: 配置智能诊断 (Config Autofix) | ArcartXSuite Minecraft插件架构文档
-description: 配置智能诊断 (Config Autofix) - ArcartXSuite Minecraft 服务器插件文档。 ArcartXSuite 我的世界服务器插件套件。
+title: 配置智能诊断 (Config Autofix) | ArcartX-Suite Minecraft插件架构文档
+description: 配置智能诊断 (Config Autofix) - ArcartX-Suite Minecraft 服务器插件文档。 ArcartX-Suite 我的世界服务器插件套件。
 ---
 
 # 配置智能诊断 (Config Autofix)
 
-ArcartXSuite 提供**四层配置诊断体系**，在模块加载阶段自动完成配置校验与修复，无需中断服务。
+ArcartX-Suite 提供**四层配置诊断体系**，在模块加载阶段自动完成配置校验与修复，无需中断服务。
 
 ## 架构概览
 
@@ -154,7 +154,7 @@ public List<ModuleConfigSpec> configSpecs() {
 
 1. **物理迁移检测**：`ensureConfigExists()` 检测旧文件迁移并设置 `configFileJustMigrated` 标志
 2. **配置声明注册**：`configSpecs()` 自动构建基于 `configFileName()` 的规范
-3. **诊断启动提示**：若刚发生迁移，`onEnable()` 提示使用 `/arcartxsuite config preview`
+3. **诊断启动提示**：若刚发生迁移，`onEnable()` 提示使用 `/ArcartX-Suite config preview`
 
 ### 非继承模块手动集成
 
@@ -217,7 +217,7 @@ public class CombatEffectModule implements AXSModule {
 
 ### 宿主插件集成
 
-`ArcartXSuitePlugin` 提供：
+`ArcartX-SuitePlugin` 提供：
 
 ```java
 // 注册模块配置规范（ModuleRegistry 调用）
@@ -233,7 +233,7 @@ ConfigDiagnosisStore getConfigDiagnosisStore();
 ## 文件结构
 
 ```
-plugins/ArcartXSuite/
+plugins/ArcartX-Suite/
 ├── diagnosis/
 │   └── 2026-05-18_15-30-22/
 │       ├── summary.md           # 可读诊断报告
@@ -261,7 +261,7 @@ plugins/ArcartXSuite/
 1. **准确声明 dynamicSection**：所有用户可自由增删的键都应声明，避免被结构同步误删
 2. **合理设置 version**：破坏性变更时递增 `currentConfigVersion()`，提供 migrations
 3. **全面校验关键字段**：`storage.mode`、`pool-size` 等影响启动的字段必须加校验
-4. **测试迁移路径**：使用 `/arcartxsuite config apply <module>` 验证 migrations 正确性
+4. **测试迁移路径**：使用 `/ArcartX-Suite config apply <module>` 验证 migrations 正确性
 
 ### 服务端管理员
 
@@ -274,7 +274,7 @@ plugins/ArcartXSuite/
 
 ### 诊断引擎未运行
 
-检查 `ArcartXSuitePlugin` 初始化日志：
+检查 `ArcartX-SuitePlugin` 初始化日志：
 ```
 [AXS] 配置诊断引擎初始化完成，资源加载器: ModuleRegistry
 ```
@@ -298,3 +298,4 @@ plugins/ArcartXSuite/
 | **加密资源加载** | `ProtectedResourceOpener` 支持 ownerId 路由 |
 | **UI 配置导出** | `ModuleContext.exportConfigResource()` 独立处理 |
 | **备份清理** | `RetentionCleaner` 管理旧诊断文件与备份 |
+

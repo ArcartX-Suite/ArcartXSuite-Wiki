@@ -1,11 +1,11 @@
----
-title: 跨服通信（CrossServer SDK） | ArcartXSuite Minecraft插件架构文档
-description: 跨服通信（CrossServer SDK） - ArcartXSuite Minecraft 服务器插件文档。 ArcartXSuite 我的世界服务器插件套件。
+﻿---
+title: 跨服通信（CrossServer SDK） | ArcartX-Suite Minecraft插件架构文档
+description: 跨服通信（CrossServer SDK） - ArcartX-Suite Minecraft 服务器插件文档。 ArcartX-Suite 我的世界服务器插件套件。
 ---
 
 # 跨服通信（CrossServer SDK）
 
-`1.2.0-beta` 起，ArcartXSuite 将跨服能力收敛为**宿主侧统一 SDK**，各模块不再各自维护 Redis Pub/Sub 或 BungeeCord 专用频道。
+`1.2.0-beta` 起，ArcartX-Suite 将跨服能力收敛为**宿主侧统一 SDK**，各模块不再各自维护 Redis Pub/Sub 或 BungeeCord 专用频道。
 
 ## 设计原则
 
@@ -189,12 +189,12 @@ CrossServerChannelConfig cfg = CrossServerChannelConfigs.fromSection(
 
 详见 [ModuleContext — crossServer()](/api/module-context#跨服-api-crossserverapi)。
 
-## 与 ArcartXSuite-Proxy 的关系
+## 与 ArcartX-Suite-Proxy 的关系
 
 | 组件 | 职责 |
 | --- | --- |
 | **CrossServerService（子服）** | 跨服游戏数据：聊天、Tab、邮件刷新、拍卖同步等 |
-| **ArcartXSuite-Proxy（代理端）** | Yggdrasil 多源认证、离线拦截、账号类型标记 |
+| **ArcartX-Suite-Proxy（代理端）** | Yggdrasil 多源认证、离线拦截、账号类型标记 |
 
 两者独立部署、独立配置。跨服消息**不需要**在 Proxy 插件中额外配置频道（子服 SDK 直接使用 BungeeCord `Forward`）。
 
@@ -207,3 +207,4 @@ CrossServerChannelConfig cfg = CrossServerChannelConfigs.fromSection(
 | Tab 跨服不完整 | 仅 Proxy 且 payload 超 32KB → 启用 Redis |
 | 验签失败 | 各子服 `signature.secret` 不一致或未配置 |
 | Proxy 发不出 | 子服无在线玩家；改用 Redis |
+

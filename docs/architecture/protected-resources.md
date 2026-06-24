@@ -1,6 +1,6 @@
----
-title: 资源加密 (.axb) | ArcartXSuite Minecraft插件架构文档
-description: 资源加密 (.axb) - ArcartXSuite Minecraft 服务器插件文档。 ArcartXSuite 我的世界服务器插件套件。
+﻿---
+title: 资源加密 (.axb) | ArcartX-Suite Minecraft插件架构文档
+description: 资源加密 (.axb) - ArcartX-Suite Minecraft 服务器插件文档。 ArcartX-Suite 我的世界服务器插件套件。
 ---
 
 # 资源加密 (.axb)
@@ -42,3 +42,4 @@ val protectYamlResources by tasks.registering(ProtectYamlResourcesTask::class) {
 ::: danger 不要去掉 protectYamlResources 任务
 去掉后默认 YAML 会直接打进 jar，违反 AXS 发行约定。
 :::
+

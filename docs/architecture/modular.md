@@ -1,16 +1,16 @@
----
-title: modular | ArcartXSuite Minecraft插件架构文档
-description: modular - ArcartXSuite Minecraft 服务器插件文档。 ArcartXSuite 我的世界服务器插件套件。
+﻿---
+title: modular | ArcartX-Suite Minecraft插件架构文档
+description: modular - ArcartX-Suite Minecraft 服务器插件文档。 ArcartX-Suite 我的世界服务器插件套件。
 ---
 
 # 模块化架构
 
-ArcartXSuite 1.1.0-beta 使用 **宿主 + 模块 Jar** 架构。宿主（`axs-core`）提供核心基础设施，各功能模块可以打包为独立 Jar 放入 `modules/` 目录按需加载。
+ArcartX-Suite 1.1.0-beta 使用 **宿主 + 模块 Jar** 架构。宿主（`axs-core`）提供核心基础设施，各功能模块可以打包为独立 Jar 放入 `modules/` 目录按需加载。
 
 ## 项目结构
 
 ```
-ArcartXSuite/
+ArcartX-Suite/
 ├── axs-api/              # 模块 API 接口层（AXSModule, ModuleContext 等）
 ├── axs-core/             # 宿主核心（ShadowJar 输出）
 ├── modules/
@@ -34,7 +34,12 @@ ArcartXSuite/
 │   ├── title/            # Title 称号
 │   ├── warehouse/        # Warehouse 仓库银行
 │   ├── market/           # Market 全球市场
-│   └── qqbot/            # QQBot QQ群服互联
+│   ├── qqbot/            # QQBot QQ群服互联
+│   ├── battlepass/       # BattlePass 战令系统
+│   ├── fishing/          # Fishing 钓鱼系统
+│   ├── lottery/          # Lottery 抽奖系统
+│   ├── afkreward/        # AfkReward 挂机奖励
+│   └── menu/             # Menu 通用菜单系统
 ```
 
 ## 核心组件
@@ -197,8 +202,8 @@ external-softdepends: []
 |------|----------|--------|------|
 | `plugin()` | `JavaPlugin` | — | 宿主插件实例 |
 | `logger()` | `Logger` | — | 模块专用 Logger |
-| `dataFolder()` | `File` | — | 模块私有数据目录（`plugins/ArcartXSuite/data/<moduleId>/`） |
-| `pluginDataFolder()` | `File` | — | 宿主插件数据目录（`plugins/ArcartXSuite/`） |
+| `dataFolder()` | `File` | — | 模块私有数据目录（`plugins/ArcartX-Suite/data/<moduleId>/`） |
+| `pluginDataFolder()` | `File` | — | 宿主插件数据目录（`plugins/ArcartX-Suite/`） |
 | `packetBridge()` | `PacketBridgeAPI` | `@Stable` | ArcartX UI/Packet 桥接 |
 | `clientBridge()` | `ClientBridgeAPI` | `@Stable` | ArcartX 客户端桥接 |
 | `itemStackBridge()` | `ItemBridgeAPI` | `@Stable` | ItemStack → JSON |
@@ -239,4 +244,5 @@ external-softdepends: []
 | qqbot | QQBot | ✅ 独立 | — | 自建 QQBotService，OneBot 11 WebSocket 连接 |
 
 > 所有 17 个基础模块均已完成独立化迁移，业务逻辑封装在各自的 `XxxService` 中，由模块 Jar 自行管理生命周期。宿主仅提供基础设施（`ModuleContext`、反射桥、配置诊断等），不再包含模块业务源码。
+
 

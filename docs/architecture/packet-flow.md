@@ -1,6 +1,6 @@
----
-title: 数据包流向 (init / update / close) | ArcartXSuite Minecraft插件架构文档
-description: 数据包流向 (init / update / close) - ArcartXSuite Minecraft 服务器插件文档。 ArcartXSuite 我的世界服务器插件套件。
+﻿---
+title: 数据包流向 (init / update / close) | ArcartX-Suite Minecraft插件架构文档
+description: 数据包流向 (init / update / close) - ArcartX-Suite Minecraft 服务器插件文档。 ArcartX-Suite 我的世界服务器插件套件。
 ---
 
 # 数据包流向 (init / update / close)
@@ -68,3 +68,4 @@ switch (action) {
 ::: tip 调试 packet
 每个模块的 `settings.debug: true` 会打印 init / update / close 的完整 payload。
 :::
+
