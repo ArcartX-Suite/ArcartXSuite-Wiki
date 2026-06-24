@@ -1,6 +1,6 @@
----
-title: index | ArcartXSuite Minecraft插件文档
-description: index - ArcartXSuite Minecraft 服务器插件文档。 ArcartXSuite 我的世界服务器插件套件。
+﻿---
+title: index | ArcartX-Suite Minecraft插件文档
+description: index - ArcartX-Suite Minecraft 服务器插件文档。 ArcartX-Suite 我的世界服务器插件套件。
 ---
 
 # 快速开始
@@ -26,7 +26,7 @@ description: index - ArcartXSuite Minecraft 服务器插件文档。 ArcartXSuit
 ArcartX 客户端 MOD  ──────  网络包 ──────  AXS 服务端 jar
      ↑ 渲染 UI / HUD                           ↑ 业务逻辑 / 数据库 / 桥接
      │                                          │
-     └────── plugins/ArcartXSuite/ ─────────────┘
+     └────── plugins/ArcartX-Suite/ ─────────────┘
               ├── config.yml          总开关 + cross-server 跨服
               ├── ArcartX*.yml        各模块配置
               ├── ui/                 ArcartX UI 模板
@@ -37,3 +37,4 @@ ArcartX 客户端 MOD  ──────  网络包 ──────  AXS 服
 ::: tip 顺序很重要
 **先安装 ArcartX 客户端 MOD，再装 AXS 服务端**。AXS 在 `plugin.yml` 中 `depend: ArcartX`，服务端缺少 ArcartX 时 AXS **不会启动**。
 :::
+

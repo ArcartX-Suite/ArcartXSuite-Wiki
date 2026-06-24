@@ -1,6 +1,6 @@
 ---
-title: Chat 频道聊天插件 | ArcartXSuite Minecraft服务器
-description: ArcartXSuite Chat 多频道聊天系统，支持私聊回复、@提及通知、物品展示、敏感词过滤、CrossServer 跨服转发，Minecraft 服务器聊天插件。
+title: Chat 频道聊天插件 | ArcartX-Suite Minecraft服务器
+description: ArcartX-Suite Chat 多频道聊天系统，支持私聊回复、@提及通知、物品展示、敏感词过滤、CrossServer 跨服转发，Minecraft 服务器聊天插件。
 ---
 
 # Chat 聊天
@@ -77,7 +77,7 @@ storage:
   mysql:
     host: "127.0.0.1"
     port: 3306
-    database: "arcartxsuite"
+    database: "ArcartX-Suite"
     username: "root"
     password: ""
   pool-size: 4
@@ -199,7 +199,7 @@ spy-format: "&5[监听 {player_name} -> {target_name}] &r{message}"
 
 ### 快速步骤
 
-1. 编辑宿主 `plugins/ArcartXSuite/config.yml` 的 [`cross-server`](/architecture/cross-server) 节（Redis/Proxy/签名/`node-id`）
+1. 编辑宿主 `plugins/ArcartX-Suite/config.yml` 的 [`cross-server`](/architecture/cross-server) 节（Redis/Proxy/签名/`node-id`）
 2. 每台子服 `node-id` **必须不同**
 3. `ArcartXChat.yml` 设置 `cross-server.enabled: true`
 4. 在 `data/chat/channels/` 中为需要跨服的频道设置 `cross-server: true`（`global` / `staff` 默认已开）
@@ -340,3 +340,4 @@ cross-server:
 | `%axschat_spy_enabled%` | `true`/`false` | 社交监听是否开启 |
 | `%axschat_ignore_count%` | 数字 | 已屏蔽的玩家数量 |
 | `%axschat_muted%` | `true`/`false` | 是否处于被禁言状态 |
+

@@ -1,6 +1,6 @@
----
-title: 模块启用 | ArcartXSuite Minecraft插件文档
-description: 模块启用 - ArcartXSuite Minecraft 服务器插件文档。 ArcartXSuite 我的世界服务器插件套件。
+﻿---
+title: 模块启用 | ArcartX-Suite Minecraft插件文档
+description: 模块启用 - ArcartX-Suite Minecraft 服务器插件文档。 ArcartX-Suite 我的世界服务器插件套件。
 ---
 
 # 模块启用
@@ -47,3 +47,4 @@ AXS 提供以下模块：
 - `lottery` — 抽奖系统
 - `menu` — 通用 ArcartX 菜单系统（配置驱动，支持 ESC 暂停界面替换）
 - `afkreward` — 挂机奖励
+

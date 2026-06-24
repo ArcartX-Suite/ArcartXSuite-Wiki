@@ -1,11 +1,11 @@
----
-title: 货币系统配置 | ArcartXSuite Minecraft插件文档
-description: 货币系统配置 - ArcartXSuite Minecraft 服务器插件文档。 ArcartXSuite 我的世界服务器插件套件。
+﻿---
+title: 货币系统配置 | ArcartX-Suite Minecraft插件文档
+description: 货币系统配置 - ArcartX-Suite Minecraft 服务器插件文档。 ArcartX-Suite 我的世界服务器插件套件。
 ---
 
 # 货币系统配置
 
-ArcartXSuite 内置统一货币桥接层，所有涉及经济的模块（Warehouse、Mail、Map、Market、OnlineRewards 等）共享同一组货币定义。你只需在 `config.yml` 顶部的 `currencies` 节配置一次，全局生效。
+ArcartX-Suite 内置统一货币桥接层，所有涉及经济的模块（Warehouse、Mail、Map、Market、OnlineRewards 等）共享同一组货币定义。你只需在 `config.yml` 顶部的 `currencies` 节配置一次，全局生效。
 
 ## 基本结构
 
@@ -109,7 +109,7 @@ PlayerPoints 是整数点数系统，建议设置 `precision: 0`。
 
 ### rondo — Rondo 多货币
 
-[Rondo](https://wiki.arcartx.com) 是 ArcartX 生态的多货币插件，原生支持多种货币 ID。ArcartXSuite 会将配置中的货币 ID 直接传递给 Rondo API。
+[Rondo](https://wiki.arcartx.com) 是 ArcartX 生态的多货币插件，原生支持多种货币 ID。ArcartX-Suite 会将配置中的货币 ID 直接传递给 Rondo API。
 
 ```yaml
 currencies:
@@ -131,11 +131,11 @@ currencies:
 
 **工作原理：**
 - 余额查询：调用 `RondoAPI.getBalance(uuid, currencyId)`
-- 扣款：调用 `RondoAPI.withdraw(uuid, currencyId, amount, "ArcartXSuite")`
-- 入账：调用 `RondoAPI.deposit(uuid, currencyId, amount, "ArcartXSuite")`
+- 扣款：调用 `RondoAPI.withdraw(uuid, currencyId, amount, "ArcartX-Suite")`
+- 入账：调用 `RondoAPI.deposit(uuid, currencyId, amount, "ArcartX-Suite")`
 
 ::: info 货币 ID 映射
-ArcartXSuite 中的货币 ID（即 `currencies:` 下的键名）会直接作为 Rondo 的 `currencyId` 参数传递。因此请确保两边的 ID **完全一致**。
+ArcartX-Suite 中的货币 ID（即 `currencies:` 下的键名）会直接作为 Rondo 的 `currencyId` 参数传递。因此请确保两边的 ID **完全一致**。
 :::
 
 ---
@@ -307,7 +307,7 @@ currencies:
 使用 `/axs status` 命令可以查看当前已注册的货币数量：
 
 ```
-ArcartXSuite v1.1.0-beta
+ArcartX-Suite v1.1.0-beta
  - ArcartX 桥接: 已连接
  - 货币桥接: 已注册 3 种货币
 ```
@@ -350,3 +350,4 @@ ArcartXSuite v1.1.0-beta
 1. 在控制台手动执行扣款命令（替换变量），确认命令本身可用
 2. 检查命令是否需要特定权限（控制台通常拥有所有权限）
 3. 确认命令格式正确（不带 `/` 前缀）
+

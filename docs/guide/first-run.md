@@ -1,6 +1,6 @@
----
-title: plugins/ArcartXSuite/ArcartXAnnouncer.yml | ArcartXSuite Minecraft插件文档
-description: plugins/ArcartXSuite/ArcartXAnnouncer.yml - ArcartXSuite Minecraft 服务器插件文档。 ArcartXSuite 我的世界服务器插件套件。
+﻿---
+title: plugins/ArcartX-Suite/ArcartXAnnouncer.yml | ArcartX-Suite Minecraft插件文档
+description: plugins/ArcartX-Suite/ArcartXAnnouncer.yml - ArcartX-Suite Minecraft 服务器插件文档。 ArcartX-Suite 我的世界服务器插件套件。
 ---
 
 # 第一次启用流程
@@ -30,7 +30,7 @@ modules:
 ### 2. 改模块配置（可选）
 
 ```yaml
-# plugins/ArcartXSuite/ArcartXAnnouncer.yml
+# plugins/ArcartX-Suite/ArcartXAnnouncer.yml
 entries:
   welcome:
     enabled: true
@@ -63,3 +63,4 @@ entries:
 /axs reload all
 /axs status
 ```
+

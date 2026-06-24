@@ -1,11 +1,11 @@
----
-title: 配置智能体检 | ArcartXSuite Minecraft插件文档
-description: 配置智能体检 - ArcartXSuite Minecraft 服务器插件文档。 ArcartXSuite 我的世界服务器插件套件。
+﻿---
+title: 配置智能体检 | ArcartX-Suite Minecraft插件文档
+description: 配置智能体检 - ArcartX-Suite Minecraft 服务器插件文档。 ArcartX-Suite 我的世界服务器插件套件。
 ---
 
 # 配置智能体检
 
-ArcartXSuite 内置**智能配置自动修正系统**，可在不中断服务的情况下，自动检测并修复 21 个模块的配置文件问题。
+ArcartX-Suite 内置**智能配置自动修正系统**，可在不中断服务的情况下，自动检测并修复 26 个模块的配置文件问题。
 
 ## 功能概览
 
@@ -53,7 +53,7 @@ ArcartXSuite 内置**智能配置自动修正系统**，可在不中断服务的
 |------|------|--------|------|
 | `keybinds.interact.name` | STRING | `AXS_INTERACT` | 交互按键注册名 |
 | `keybinds.interact.default-key` | STRING | `F` | 默认键位（GLFW 键名） |
-| `keybinds.interact.category` | STRING | `ArcartXSuite` | 按键设置界面分类名 |
+| `keybinds.interact.category` | STRING | `ArcartX-Suite` | 按键设置界面分类名 |
 | `keybinds.navigate-prev.name` | STRING | `AXS_NAVIGATE_PREV` | 导航上一项按键注册名 |
 | `keybinds.navigate-prev.default-key` | STRING | `NUMPAD_8` | 默认键位 |
 | `keybinds.navigate-next.name` | STRING | `AXS_NAVIGATE_NEXT` | 导航下一项按键注册名 |
@@ -115,7 +115,7 @@ client-packet-guard:
 
 ## 命令使用
 
-### `/arcartxsuite config` 子命令
+### `/axs config` 子命令
 
 | 子命令 | 权限 | 说明 |
 |--------|------|------|
@@ -129,46 +129,46 @@ client-packet-guard:
 
 #### 场景 1：首次升级后检查
 
-升级 ArcartXSuite 或模块 jar 后，控制台会显示：
+升级 ArcartX-Suite 或模块 jar 后，控制台会显示：
 
 ```
-[AXS] 配置诊断: 21 个目标, 0 ERROR / 0 WARN / 21 INFO
-[AXS] 报告: plugins/ArcartXSuite/diagnosis/2026-05-18_15-30-22
+[AXS] 配置诊断: 26 个目标, 0 ERROR / 0 WARN / 26 INFO
+[AXS] 报告: plugins/ArcartX-Suite/diagnosis/2026-05-18_15-30-22
 ```
 
 若看到 `ERROR` 或 `WARN`，执行：
 
 ```
-/arcartxsuite config preview core          # 查看宿主配置问题
-/arcartxsuite config preview warehouse     # 查看仓库模块问题
+/axs config preview core          # 查看宿主配置问题
+/axs config preview warehouse     # 查看仓库模块问题
 ```
 
 #### 场景 2：安全应用修复
 
 ```
-/arcartxsuite config apply warehouse       # 应用仓库模块修复（会自动备份）
-/arcartxsuite config status warehouse      # 确认修复成功
+/axs config apply warehouse       # 应用仓库模块修复（会自动备份）
+/axs config status warehouse      # 确认修复成功
 ```
 
 如需回滚：
 
 ```
-/arcartxsuite config rollback warehouse     # 恢复到修复前状态
+/axs config rollback warehouse     # 恢复到修复前状态
 ```
 
 #### 场景 3：配置文件刚从旧位置迁移
 
-当模块检测到配置文件从 `plugins/ArcartXSuite/xxx.yml` 迁移到 `plugins/ArcartXSuite/data/<module>/config.yml` 时，控制台会提示：
+当模块检测到配置文件从 `plugins/ArcartX-Suite/xxx.yml` 迁移到 `plugins/ArcartX-Suite/data/<module>/config.yml` 时，控制台会提示：
 
 ```
-[模块名] 配置文件已迁移至新位置，建议运行 '/arcartxsuite config preview <module>' 检查配置兼容性
+[模块名] 配置文件已迁移至新位置，建议运行 '/axs config preview <module>' 检查配置兼容性
 ```
 
 此时建议执行 preview 检查是否有结构差异。
 
 ## 诊断报告解读
 
-诊断报告存储在 `plugins/ArcartXSuite/diagnosis/YYYY-MM-DD_HH-mm-ss/summary.md`，包含：
+诊断报告存储在 `plugins/ArcartX-Suite/diagnosis/YYYY-MM-DD_HH-mm-ss/summary.md`，包含：
 
 ### 问题分级
 
@@ -214,7 +214,7 @@ config-version: 1
 
 ```
 启动流程:
-1. 旧配置文件检测 → 从 plugins/ArcartXSuite/xxx.yml 迁移到 data/<module>/config.yml
+1. 旧配置文件检测 → 从 plugins/ArcartX-Suite/xxx.yml 迁移到 data/<module>/config.yml
 2. 触发智能诊断 → 对比 jar 内默认配置，检测结构差异
 3. 提示管理员 → 建议运行 config preview 检查兼容性
 4. 服务正常启动 → 即使存在配置问题也不中断
@@ -268,7 +268,7 @@ server_name:
 
 ## 最佳实践
 
-1. **定期检查**：每周执行一次 `/arcartxsuite config diagnose` 检查累积问题
+1. **定期检查**：每周执行一次 `/axs config diagnose` 检查累积问题
 2. **先 preview 后 apply**：重要生产环境务必先查看报告再应用修复
 3. **利用备份**：apply 会自动创建 `.bak` 备份，rollback 可快速恢复
 4. **关注日志**：启动时若看到 `configFileJustMigrated` 提示，及时检查兼容性
@@ -279,7 +279,7 @@ server_name:
 
 检查目录权限：
 ```bash
-ls -la plugins/ArcartXSuite/diagnosis/
+ls -la plugins/ArcartX-Suite/diagnosis/
 ```
 
 ### apply 后配置未生效
@@ -360,7 +360,7 @@ protected int currentConfigVersion() {
 2. ✅ 如重命名/移动字段 → 写 migration + 升版本号
 3. ✅ 如有新增值约束 → 加 `ValidationRule`
 4. ✅ 如有新增动态节 → 更新 `SyncPolicy`
-5. ✅ 在 `docs/appendix/changelog.md` 记录改动
+5. ✅ 同步更新 `docs/guide/config-management.md` 和 `docs/architecture/config-autofix.md` 相关描述
 6. ✅ 跑 `.\gradlew.bat build` 验证
 
 ### 反模式（禁止）
@@ -368,4 +368,5 @@ protected int currentConfigVersion() {
 - ❌ 重命名字段但不写 migration → 用户值丢失
 - ❌ 修改字段含义但保持名字不变 → 用户值会被错误保留
 - ❌ 删除已发布的 migration 文件 → 老版本升级路径断裂
+
 

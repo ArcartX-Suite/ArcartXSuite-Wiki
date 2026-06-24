@@ -1,11 +1,11 @@
----
-title: PlaceholderAPI 占位符速查 | ArcartXSuite Minecraft插件文档
-description: PlaceholderAPI 占位符速查 - ArcartXSuite Minecraft 服务器插件文档。 ArcartXSuite 我的世界服务器插件套件。
+﻿---
+title: PlaceholderAPI 占位符速查 | ArcartX-Suite Minecraft插件文档
+description: PlaceholderAPI 占位符速查 - ArcartX-Suite Minecraft 服务器插件文档。 ArcartX-Suite 我的世界服务器插件套件。
 ---
 
 # PlaceholderAPI 占位符速查
 
-本页列出 ArcartXSuite 对外输出的**全部 PlaceholderAPI 占位符**，包括每个字段的含义、返回值类型和使用示例。
+本页列出 ArcartX-Suite 对外输出的**全部 PlaceholderAPI 占位符**，包括每个字段的含义、返回值类型和使用示例。
 
 > **前置条件**：服务器需安装 [PlaceholderAPI](https://www.spigotmc.org/resources/placeholderapi.6245/) 插件，AXS 会在启动时自动注册占位符。
 
@@ -495,3 +495,4 @@ AXS 共有 **14 个模块** 对外输出 PAPI 占位符：
 | EventPacket | `rules.<id>.placeholder` / `rules.<id>.conditions` | 监控占位符值变化，或在触发后按条件表达式判断是否执行规则动作 |
 | Mail | `currencies.<id>.balance-placeholder` | 通过占位符读取玩家的货币余额，用于购买邮票等消费操作 |
 | EntityTracker | `bosses.<id>.title-format` | Boss 名称格式中可嵌入占位符，先替换内置变量再走 PAPI |
+

@@ -1,6 +1,6 @@
 ---
-title: Market 全球市场插件 | ArcartXSuite Minecraft服务器
-description: ArcartXSuite Market 全球市场插件，系统商店 + 玩家拍卖行 + 回收商店，多货币支持、CrossServer 跨服同步、ArcartX UI 全套交易界面，我的世界服务器经济插件。
+title: Market 全球市场插件 | ArcartX-Suite Minecraft服务器
+description: ArcartX-Suite Market 全球市场插件，系统商店 + 玩家拍卖行 + 回收商店，多货币支持、CrossServer 跨服同步、ArcartX UI 全套交易界面，我的世界服务器经济插件。
 ---
 
 # Market 全球市场
@@ -99,7 +99,7 @@ storage:
   mode: "mysql"
   host: "localhost"
   port: 3306
-  database: "arcartxsuite"
+  database: "ArcartX-Suite"
   username: "root"
   password: ""
   table-prefix: "axs_market_"
@@ -611,3 +611,4 @@ MarketModule (AbstractAXSModule)
 ├── MarketPlaceholderExpansion (PAPI)
 └── MarketEventListener (自动回收监听)
 ```
+

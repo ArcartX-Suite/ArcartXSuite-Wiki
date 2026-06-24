@@ -1,11 +1,11 @@
----
-title: 多 UI 同时发包 | ArcartXSuite Minecraft插件文档
-description: 多 UI 同时发包 - ArcartXSuite Minecraft 服务器插件文档。 ArcartXSuite 我的世界服务器插件套件。
+﻿---
+title: 多 UI 同时发包 | ArcartX-Suite Minecraft插件文档
+description: 多 UI 同时发包 - ArcartX-Suite Minecraft 服务器插件文档。 ArcartX-Suite 我的世界服务器插件套件。
 ---
 
 # 多 UI 同时发包
 
-ArcartXSuite 大多数模块的 `ui-id` 字段都支持**字符串**和**列表**两种格式。当配置为列表时，服务端会把同一个 payload 同时发送给列表中的每一个 UI，适用于一份数据同时驱动多套 UI 展现的场景。
+ArcartX-Suite 大多数模块的 `ui-id` 字段都支持**字符串**和**列表**两种格式。当配置为列表时，服务端会把同一个 payload 同时发送给列表中的每一个 UI，适用于一份数据同时驱动多套 UI 展现的场景。
 
 ## 适用场景
 
@@ -74,3 +74,4 @@ ui-targets:
 - 客户端回包的 `packet-id` 不受多 UI 影响，仍然使用配置中的单一 `packet-id` 字段
 - 多 UI 发包只是服务端广播同一份 payload，不会为不同 UI 生成不同的数据
 - 首个 UI ID 会作为向后兼容的 "主 UI ID"，用于日志输出和 PAPI 等需要单值的场景
+

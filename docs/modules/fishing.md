@@ -1,6 +1,6 @@
 ---
-title: Fishing 钓鱼系统插件 | ArcartXSuite Minecraft
-description: ArcartXSuite Fishing 钓鱼系统，星露谷风格钓鱼小游戏、多水域生态、季节/天气/时间分布、钓鱼图鉴收集，我的世界服务器钓鱼小游戏插件。
+title: Fishing 钓鱼系统插件 | ArcartX-Suite Minecraft
+description: ArcartX-Suite Fishing 钓鱼系统，星露谷风格钓鱼小游戏、多水域生态、季节/天气/时间分布、钓鱼图鉴收集，我的世界服务器钓鱼小游戏插件。
 ---
 
 # Fishing 钓鱼系统
@@ -572,3 +572,4 @@ legendary_first_catch:
 |------|------|
 | `axs_fishing_player` | 玩家等级、经验、总捕获数、完美捕获数 |
 | `axs_fishing_collection` | 图鉴条目：鱼种 ID、捕获次数、最大尺寸、首次捕获时间 |
+

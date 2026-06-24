@@ -1,5 +1,5 @@
 ---
-title: 云端模块 | ArcartXSuite Minecraft插件文档
+title: 云端模块 | ArcartX-Suite Minecraft插件文档
 description: 通过 AXS 云端平台自动下载并加载加密模块。
 ---
 
@@ -15,28 +15,31 @@ AXS 云端平台提供**加密模块分发**功能。服主无需手动把模块
 
 ## 服务器端配置
 
-编辑 `plugins/ArcartXSuite/config.yml`，在最外层添加 `cloud` 节：
+编辑 `plugins/ArcartX-Suite/config.yml`，在最外层添加 `cloud` 节：
 
 ```yaml
 cloud:
   qq: "你的QQ号"
-  password: "云端密码"
+  apiKey: "验证密匙"
   server-name: "我的服务器"
 ```
 
 | 字段 | 必填 | 说明 |
 |------|------|------|
 | `qq` | ✅ | 注册云端平台时用的 QQ 号 |
-| `password` | ✅ | 云端平台的登录密码 |
+| `apiKey` | ✅ | 从云端后台「设置 → 验证密匙」复制的 API 密钥 |
 | `server-name` | ❌ | 服务器昵称（仅用于云端展示，可随意填写） |
 
 ::: warning 配置安全
-`config.yml` 中的密码会被服务器管理员看到。若多人运维，建议单独创建一个服主 QQ 专门用于云端绑定，不要用自己的私人 QQ 密码。
+`apiKey` 仅用于服务器与云端通信，无法登录管理后台，与登录密码完全分离。但 `config.yml` 仍以明文存储，建议：
+1. 设置 `plugins/ArcartX-Suite/` 目录权限为仅服务器进程可读。
+2. 不要在公共仓库或聊天群中分享此配置文件。
+3. 如怀疑泄露，登录云端后台重新生成密匙。
 :::
 
 ## 首次绑定流程
 
-配置好 `cloud.qq` 和 `cloud.password` 后，**重启服务器**即可：
+配置好 `cloud.qq` 和 `cloud.apiKey` 后，**重启服务器**即可：
 
 ```
 [AXS-Cloud] 正在向云端绑定服务器...
@@ -80,8 +83,8 @@ cloud:
 
 ### 绑定失败：USER_NOT_FOUND / INVALID_CREDENTIALS
 
-- 检查 `cloud.qq` 和 `cloud.password` 是否与云端平台注册时一致
-- 云端密码区分大小写
+- 检查 `cloud.qq` 和 `cloud.apiKey` 是否与云端平台「设置 → 验证密匙」中复制的一致
+- `apiKey` 区分大小写，且与登录密码不同
 
 ### 未装备任何云端模块
 
@@ -96,8 +99,41 @@ cloud:
 
 ### 服务器码丢失
 
-绑定成功后，服务器码会自动写回 `config.yml` 的 `cloud.server-code` 字段。若因配置重置丢失，只需保留 `qq` 和 `password` 重新启动即可，云端会返回同一个服务器码。
+绑定成功后，服务器码会自动写回 `config.yml` 的 `cloud.server-code` 字段。若因配置重置丢失，只需保留 `qq` 和 `apiKey` 重新启动即可，云端会返回同一个服务器码。
 
 ### 多服共用同一个 QQ
 
 一个 QQ 可以绑定**多个服务器**，每个服务器有独立的 `serverCode`。装备模块时需要分别给每个服务器勾选。
+
+## 模块签名验证（可选安全加固）
+
+如果你使用了第三方/私人定制模块，且对方提供了 Ed25519 公钥，可在 `config.yml` 中配置：
+
+```yaml
+module-signature-public-keys:
+  - "Base64编码的Ed25519公钥1"
+  - "Base64编码的Ed25519公钥2"
+```
+
+启用后，`modules/` 目录下所有 `.jar` 模块必须经过有效数字签名才能加载。签名无效或缺失的模块将被拒绝，并在控制台输出警告。
+
+::: tip 向后兼容
+旧版单字符串配置 `module-signature-public-key` 仍可正常读取，无需手动迁移。
+:::
+
+## .axb 加密模块加载流程
+
+云端下载的模块以 `.axb` 格式存储（AES 加密），加载时自动解密：
+
+1. 服务器向云端申请模块令牌（24 小时有效）
+2. 云端返回已装备模块列表及加密 `.axb` 数据
+3. AXS 使用 native 安全库解密 `.axb`，在内存中还原为 jar 字节码
+4. 通过 `ByteArrayModuleClassLoader` 在内存中直接加载，不落地磁盘
+5. 模块启用时执行正常的 `AXSModule.onEnable()` 生命周期
+
+::: warning native 库依赖
+解密 `.axb` 需要 AXS 内置的 native 库（`axs-native.dll` / `libaxs-native.so`）。若出现解密失败，请确认：
+- 服务器操作系统为 Windows 或 Linux（x86_64）
+- AXS jar 内 `native/` 目录包含对应平台的库文件
+- 无其他插件冲突占用 native 符号
+:::

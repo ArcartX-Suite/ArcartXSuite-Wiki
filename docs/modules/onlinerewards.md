@@ -1,6 +1,6 @@
 ---
-title: OnlineRewards 在线奖励插件 | ArcartXSuite
-description: ArcartXSuite OnlineRewards 在线时长阶段奖励、每日签到、连续签到、补签卡、四维排行榜、跨服同步，Minecraft 服务器签到插件。
+title: OnlineRewards 在线奖励插件 | ArcartX-Suite
+description: ArcartX-Suite OnlineRewards 在线时长阶段奖励、每日签到、连续签到、补签卡、四维排行榜、跨服同步，Minecraft 服务器签到插件。
 ---
 
 # OnlineRewards 在线奖励
@@ -168,3 +168,4 @@ OnlineRewards 在签到成功时自动向 EventPacket 发射信号：
 | `signin_success` | 玩家签到成功 | `streak`, `total`, `date`, `day_of_month` |
 
 可在 `ArcartXEventPacket.yml` 中配置对应规则实现连续签到里程碑奖励、邮件派发等联动效果。
+

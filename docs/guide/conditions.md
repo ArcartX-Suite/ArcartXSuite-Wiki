@@ -1,6 +1,6 @@
----
-title: 条件系统（PlaceholderAPI + Aria + JavaScript） | ArcartXSuite Minecraft插件文档
-description: 条件系统（PlaceholderAPI + Aria + JavaScript） - ArcartXSuite Minecraft 服务器插件文档。 ArcartXSuite 我的世界服务器插件套件。
+﻿---
+title: 条件系统（PlaceholderAPI + Aria + JavaScript） | ArcartX-Suite Minecraft插件文档
+description: 条件系统（PlaceholderAPI + Aria + JavaScript） - ArcartX-Suite Minecraft 服务器插件文档。 ArcartX-Suite 我的世界服务器插件套件。
 ---
 
 # 条件系统（PlaceholderAPI + Aria + JavaScript）
@@ -663,3 +663,4 @@ boolean ariaReady = context.ariaBridge().available();
 - [Blink 开发者手册](https://github.com/17Artist/Blink/blob/main/DEVELOPER.md) — AriaScriptManager API
 - [Aria 语言仓库](https://github.com/17Artist/Aria) — 语法与 JIT 特性
 - [Nashorn 用户指南](https://docs.oracle.com/javase/8/docs/technotes/guides/scripting/nashorn/) — JVM 内置 JS 引擎文档
+

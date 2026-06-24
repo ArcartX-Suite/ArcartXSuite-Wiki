@@ -1,6 +1,6 @@
 ---
-title: Map 世界地图插件 | ArcartXSuite Minecraft服务器
-description: ArcartXSuite Map 世界地图，锚点传送、玩家路径点、小地图 HUD、世界解锁，我的世界服务器地图插件。
+title: Map 世界地图插件 | ArcartX-Suite Minecraft服务器
+description: ArcartX-Suite Map 世界地图，锚点传送、玩家路径点、小地图 HUD、世界解锁，我的世界服务器地图插件。
 ---
 
 # Map 地图
@@ -76,7 +76,7 @@ storage:
   mysql:
     host: "127.0.0.1"
     port: 3306
-    database: "arcartxsuite"
+    database: "ArcartX-Suite"
     username: "root"
     password: ""
   pool-size: 4
@@ -142,7 +142,7 @@ worlds:
 
 ```yaml
 default-unlocks:
-  - permission: "ArcartXSuite.map.use"
+  - permission: "arcartxsuite.map.use"
     anchors:              # 持有该权限时默认可见/可用的锚点 ID 列表
       - "spawn"
 ```
@@ -217,7 +217,7 @@ waypoints:
   auto-name-prefix: "标记点"    # 自动命名前缀
   default-max-count: 5          # 玩家默认最多可创建的路径点数
   limits:                       # 按权限设置更高上限
-    - permission: "ArcartXSuite.map.admin"
+    - permission: "arcartxsuite.map.admin"
       max-count: 20
 ```
 
@@ -257,3 +257,4 @@ waypoints:
 | `waypoints` | 数据库 | 玩家自己创建的路径点列表 |
 | `player.x/y/z` | 玩家坐标 | 玩家当前位置，用于地图光标定位 |
 | `tracking` | 追踪状态 | 当前追踪目标的坐标（来自 QuestGPS 或手动标记） |
+

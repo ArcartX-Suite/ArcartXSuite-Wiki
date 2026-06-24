@@ -1,6 +1,6 @@
----
-title: Warehouse 多子服 MySQL + 跨服编辑锁部署清单 | ArcartXSuite Minecraft插件文档
-description: Warehouse 多子服 MySQL + 跨服编辑锁部署清单 - ArcartXSuite Minecraft 服务器插件文档。 ArcartXSuite 我的世界服务器插件套件。
+﻿---
+title: Warehouse 多子服 MySQL + 跨服编辑锁部署清单 | ArcartX-Suite Minecraft插件文档
+description: Warehouse 多子服 MySQL + 跨服编辑锁部署清单 - ArcartX-Suite Minecraft 服务器插件文档。 ArcartX-Suite 我的世界服务器插件套件。
 ---
 
 # Warehouse 多子服 MySQL + 跨服编辑锁部署清单
@@ -13,7 +13,7 @@ description: Warehouse 多子服 MySQL + 跨服编辑锁部署清单 - ArcartXSu
 
 ```
                     ┌─────────────────────────────────┐
-                    │  MySQL（arcartxsuite_warehouse） │
+                    │  MySQL（ArcartX-Suite_warehouse） │
                     │  个人仓 / 共享仓 / 银行 / 槽位    │
                     └───────────────┬─────────────────┘
                                     │ JDBC（各子服相同连接参数）
@@ -43,11 +43,11 @@ description: Warehouse 多子服 MySQL + 跨服编辑锁部署清单 - ArcartXSu
 
 ## 部署前检查清单
 
-- [ ] 已安装 **ArcartX** 客户端与 **ArcartXSuite**（含 Warehouse 授权）
+- [ ] 已安装 **ArcartX** 客户端与 **ArcartX-Suite**（含 Warehouse 授权）
 - [ ] 群组代理（BungeeCord / Velocity）与子服网络互通
 - [ ] 独立 **MySQL 8.0+**（或 5.7+）实例，子服均可访问
 - [ ] 独立 **Redis**（推荐；跨服锁消息量小，1 核 512MB 足够）
-- [ ] 各子服 `plugins/ArcartXSuite/config.yml` 中 **`node-id` 互不相同**
+- [ ] 各子服 `plugins/ArcartX-Suite/config.yml` 中 **`node-id` 互不相同**
 - [ ] 各子服 **`signature.secret` 完全一致**（若启用验签）
 - [ ] Warehouse 模块 `modules.warehouse.enabled: true`
 
@@ -58,13 +58,13 @@ description: Warehouse 多子服 MySQL + 跨服编辑锁部署清单 - ArcartXSu
 在 MySQL 上执行（可按实际环境修改库名/密码）：
 
 ```sql
-CREATE DATABASE arcartxsuite_warehouse
+CREATE DATABASE ArcartX-Suite_warehouse
   CHARACTER SET utf8mb4
   COLLATE utf8mb4_unicode_ci;
 
 CREATE USER 'axs_wh'@'%' IDENTIFIED BY '请替换为强密码';
 GRANT SELECT, INSERT, UPDATE, DELETE, CREATE, ALTER, INDEX, DROP
-  ON arcartxsuite_warehouse.* TO 'axs_wh'@'%';
+  ON ArcartX-Suite_warehouse.* TO 'axs_wh'@'%';
 FLUSH PRIVILEGES;
 ```
 
@@ -103,7 +103,7 @@ redis:
 
 ## 第三步：宿主 config.yml（每台子服）
 
-路径：`plugins/ArcartXSuite/config.yml`
+路径：`plugins/ArcartX-Suite/config.yml`
 
 **三台子服示例**：除 `node-id` 外，其余字段保持一致。
 
@@ -163,7 +163,7 @@ cross-server:
 
 ## 第四步：Warehouse 模块配置（各子服相同）
 
-路径：`plugins/ArcartXSuite/data/warehouse/ArcartXWarehouse.yml`
+路径：`plugins/ArcartX-Suite/data/warehouse/ArcartXWarehouse.yml`
 
 ```yaml
 config-version: 1
@@ -181,7 +181,7 @@ storage:
   mysql:
     host: "192.168.1.100"            # MySQL 地址（各子服相同）
     port: 3306
-    database: "arcartxsuite_warehouse"
+    database: "ArcartX-Suite_warehouse"
     username: "axs_wh"
     password: "请替换为强密码"
   pool-size: 4                       # 每子服连接池；子服多时适当增大
@@ -210,7 +210,7 @@ shared:
 ## 第五步：仅 Proxy 方案（无 Redis 时的备选）
 
 ```yaml
-# plugins/ArcartXSuite/config.yml（各子服 node-id 仍须不同）
+# plugins/ArcartX-Suite/config.yml（各子服 node-id 仍须不同）
 cross-server:
   node-id: "survival-1"
   redis:
@@ -313,9 +313,9 @@ cross-server:
 
 | 文件 | 路径 | 各子服是否相同 |
 | --- | --- | --- |
-| 宿主跨服 | `plugins/ArcartXSuite/config.yml` | **除 `node-id` 外相同** |
+| 宿主跨服 | `plugins/ArcartX-Suite/config.yml` | **除 `node-id` 外相同** |
 | 仓库模块 | `data/warehouse/ArcartXWarehouse.yml` | **MySQL 连接相同**；业务配置建议相同 |
-| 授权 | `plugins/ArcartXSuite/license.yml` | 各子服均需 Warehouse 授权 |
+| 授权 | `plugins/ArcartX-Suite/license.yml` | 各子服均需 Warehouse 授权 |
 
 ---
 
@@ -324,3 +324,4 @@ cross-server:
 - [跨服功能配置指南](/guide/cross-server-setup) — 通用 CrossServer 两步启用
 - [跨服通信架构](/architecture/cross-server) — SDK、`warehouse` 频道 payload 格式
 - [Warehouse 模块说明](/modules/warehouse) — 共享仓、银行、UI 包协议
+

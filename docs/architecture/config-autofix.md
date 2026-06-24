@@ -154,7 +154,7 @@ public List<ModuleConfigSpec> configSpecs() {
 
 1. **物理迁移检测**：`ensureConfigExists()` 检测旧文件迁移并设置 `configFileJustMigrated` 标志
 2. **配置声明注册**：`configSpecs()` 自动构建基于 `configFileName()` 的规范
-3. **诊断启动提示**：若刚发生迁移，`onEnable()` 提示使用 `/ArcartX-Suite config preview`
+3. **诊断启动提示**：若刚发生迁移，`onEnable()` 提示使用 `/axs config preview`
 
 ### 非继承模块手动集成
 
@@ -261,7 +261,7 @@ plugins/ArcartX-Suite/
 1. **准确声明 dynamicSection**：所有用户可自由增删的键都应声明，避免被结构同步误删
 2. **合理设置 version**：破坏性变更时递增 `currentConfigVersion()`，提供 migrations
 3. **全面校验关键字段**：`storage.mode`、`pool-size` 等影响启动的字段必须加校验
-4. **测试迁移路径**：使用 `/ArcartX-Suite config apply <module>` 验证 migrations 正确性
+4. **测试迁移路径**：使用 `/axs config apply <module>` 验证 migrations 正确性
 
 ### 服务端管理员
 

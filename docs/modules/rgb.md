@@ -1,6 +1,6 @@
 ---
-title: RGB 渐变文本插件 | ArcartXSuite Minecraft服务器
-description: ArcartXSuite RGB 渐变文本，通过 PAPI 输出渐变/扫光效果文本，支持嵌套其他占位符，我的世界服务器美化插件。
+title: RGB 渐变文本插件 | ArcartX-Suite Minecraft服务器
+description: ArcartX-Suite RGB 渐变文本，通过 PAPI 输出渐变/扫光效果文本，支持嵌套其他占位符，我的世界服务器美化插件。
 ---
 
 # RGB 渐变文本
@@ -122,3 +122,4 @@ RGB 模块本身不直接发包，输出通过 PAPI 渠道调用：
 | PAPI `%axsrgb_<id>%` | 服务端任意支持 PAPI 的字段均可使用 |
 
 动画帧由服务端每隔条目级 `switch-interval-ticks` tick 自动推进，PAPI 每次被解析时返回当前帧的渐变文本。
+

@@ -1,11 +1,11 @@
 ---
-title: EventPacket 事件引擎插件 | ArcartXSuite Minecraft
-description: ArcartXSuite EventPacket 事件引擎，9种触发器11种动作自由组合，内置实体清理和定时命令，支持跨模块联动，我的世界服务器自动化插件。
+title: EventPacket 事件引擎插件 | ArcartX-Suite Minecraft
+description: ArcartX-Suite EventPacket 事件引擎，9种触发器11种动作自由组合，内置实体清理和定时命令，支持跨模块联动，我的世界服务器自动化插件。
 ---
 
 # EventPacket 事件引擎
 
-## 功能定位-ArcartXSuite的最具有学习意义的模块
+## 功能定位-ArcartX-Suite的最具有学习意义的模块
 
 **通用触发器 + 动作链**模块。当指定事件发生时，按顺序执行一组动作（发 UI 包、播字幕、执行命令、派发邮件、授予称号等）。支持 9 种触发器和 13 种动作类型，覆盖服务端事件监听和客户端回包驱动两大场景。现在每条规则还支持与 `prop` 模块一致的 `conditions` 条件判断，可先校验 PlaceholderAPI 值再决定是否执行动作。此外还内置了**实体清理（ClearLag）**和**定时命令**两项服务端实用功能。
 
@@ -45,11 +45,11 @@ settings:
 storage:                       # 击杀计数 + 规则触发记录的数据库配置
   mode: sqlite                 # sqlite 或 mysql
   sqlite:
-    file: "eventpacket.db"     # 位于 plugins/ArcartXSuite/data/eventpacket/
+    file: "eventpacket.db"     # 位于 plugins/ArcartX-Suite/data/eventpacket/
   mysql:
     host: "127.0.0.1"
     port: 3306
-    database: "arcartxsuite"
+    database: "ArcartX-Suite"
     username: "root"
     password: ""
   pool-size: 2                 # HikariCP 连接池最大连接数
@@ -462,7 +462,7 @@ rules:
 
 #### 方式一：预设文件（推荐，简单场景）（本方式等同社区ArcartXPacketCommand插件）
 
-在 `plugins/ArcartXSuite/eventpacket/packet-command-presets/` 目录下创建 YAML 文件，每个顶层键就是一个预设 ID：
+在 `plugins/ArcartX-Suite/eventpacket/packet-command-presets/` 目录下创建 YAML 文件，每个顶层键就是一个预设 ID：
 
 ```yaml
 # eventpacket/packet-command-presets/shop.yml
@@ -1149,3 +1149,4 @@ scheduled-commands:
 | `interval-seconds` | 执行间隔 |
 | `type` | `console` 以控制台执行；`player` 对每个在线玩家执行 |
 | `commands` | 命令列表，按顺序执行 |
+

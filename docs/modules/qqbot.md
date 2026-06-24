@@ -1,6 +1,6 @@
 ---
-title: QQBot QQ群服互联插件 | ArcartXSuite Minecraft
-description: ArcartXSuite QQBot OneBot 11 双向消息同步、QQ-游戏账号绑定、白名单联动、群指令查玩家数据，我的世界服务器 QQ 群联动插件。
+title: QQBot QQ群服互联插件 | ArcartX-Suite Minecraft
+description: ArcartX-Suite QQBot OneBot 11 双向消息同步、QQ-游戏账号绑定、白名单联动、群指令查玩家数据，我的世界服务器 QQ 群联动插件。
 ---
 
 # QQBot QQ群服互联
@@ -361,7 +361,7 @@ storage:
   mysql:
     host: "127.0.0.1"
     port: 3306
-    database: "arcartxsuite"
+    database: "ArcartX-Suite"
     username: "root"
     password: ""
     table-prefix: "axs_qqbot_"
@@ -378,7 +378,7 @@ storage:
 
 ## 存储结构
 
-QQBot 数据库表（SQLite 默认在 `plugins/ArcartXSuite/data/qqbot/qqbot.db`，MySQL 使用 `table-prefix`）：
+QQBot 数据库表（SQLite 默认在 `plugins/ArcartX-Suite/data/qqbot/qqbot.db`，MySQL 使用 `table-prefix`）：
 
 | 表名 | 字段 | 用途 |
 |------|------|------|
@@ -575,7 +575,7 @@ initial credentials: user=admin password=<随机密码>
 
 #### 4. 配置 AXS QQBot
 
-编辑 `plugins/ArcartXSuite/data/qqbot/ArcartXQQBot.yml`：
+编辑 `plugins/ArcartX-Suite/data/qqbot/ArcartXQQBot.yml`：
 
 ```yaml
 onebot:
@@ -709,7 +709,7 @@ qq-binding:
 ```
 
 ::: tip 代理端离线拦截
-Velocity/BungeeCord 群组服在代理端部署 `ArcartXSuite-Proxy-*.jar`，通过 `online-mode=true` 和 Yggdrasil 认证源配置实现离线玩家拦截，无需后端子服额外配置。
+Velocity/BungeeCord 群组服在代理端部署 `ArcartX-Suite-Proxy-*.jar`，通过 `online-mode=true` 和 Yggdrasil 认证源配置实现离线玩家拦截，无需后端子服额外配置。
 :::
 
 ### 4. 账号判定流程
@@ -731,3 +731,4 @@ Velocity/BungeeCord 群组服在代理端部署 `ArcartXSuite-Proxy-*.jar`，通
 - **远程连接** 时务必启用 token，并通过 SSH 隧道 / VPN / 反向代理加密链路
 - **`#执行命令`** 默认仅群管/群主可用，建议结合 `permission: 1` 严格控制
 - **白名单联动** 在不熟悉时可先关闭 `auto-add-on-bind`，待绑定流程稳定后再启用
+

@@ -1,6 +1,6 @@
 ---
-title: Warehouse 仓库银行插件 | ArcartXSuite Minecraft
-description: ArcartXSuite Warehouse 仓库银行，个人仓库NBT分类、共享仓库、多货币银行、定期存款、二级密码，我的世界服务器仓库银行插件。
+title: Warehouse 仓库银行插件 | ArcartX-Suite Minecraft
+description: ArcartX-Suite Warehouse 仓库银行，个人仓库NBT分类、共享仓库、多货币银行、定期存款、二级密码，我的世界服务器仓库银行插件。
 ---
 
 # Warehouse 仓库银行
@@ -391,7 +391,7 @@ storage:
   mysql:
     host: "127.0.0.1"
     port: 3306
-    database: "arcartxsuite"
+    database: "ArcartX-Suite"
     username: "root"
     password: ""
   pool-size: 4                      # 连接池大小（SQLite 建议 1，MySQL 建议 4+）
@@ -667,7 +667,7 @@ showcase:
 
 ## UI 文件
 
-模块自带三套 AXUI 定义文件，会在启用时自动导出到 `plugins/ArcartXSuite/ui/`：
+模块自带三套 AXUI 定义文件，会在启用时自动导出到 `plugins/ArcartX-Suite/ui/`：
 
 | 资源文件 | 导出路径 | 用途 |
 |----------|----------|------|
@@ -805,3 +805,4 @@ WarehouseModule (AbstractAXSModule)
 - 共享仓库编辑采用**互斥锁**：同一时间只有一个成员可进入编辑模式，其他人以只读方式打开；多子服场景下通过 CrossServer SDK 同步锁状态（见上文「跨服共享仓库与编辑锁」）
 - 所有银行扣款/存款操作使用**原子数据库操作**，失败自动回滚
 - 定期存款领取为**原子操作**：`claimFixedDepositAtomic` 在数据库层面标记 claimed 并计算本息入账，避免并发重复领取
+

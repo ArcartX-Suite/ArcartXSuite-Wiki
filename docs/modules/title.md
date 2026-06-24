@@ -1,6 +1,6 @@
 ---
-title: Title 称号插件 | ArcartXSuite Minecraft服务器
-description: ArcartXSuite Title 分组称号系统，支持有效期/永久、品质等级、属性加成、套装加成、头顶显示、聊天Tab前缀，我的世界服务器称号插件。
+title: Title 称号插件 | ArcartX-Suite Minecraft服务器
+description: ArcartX-Suite Title 分组称号系统，支持有效期/永久、品质等级、属性加成、套装加成、头顶显示、聊天Tab前缀，我的世界服务器称号插件。
 ---
 
 # Title 称号
@@ -386,7 +386,7 @@ titles-directory: "titles"
 - **在菜单里看到属性显示 `-`**：检查字段名是不是拼错了。有效的只有这 4 个：`display-attributes`、`collection-attributes`、`display-attribute-lines`、`collection-attribute-lines`。其他如 `display-attributeplus` 之类不被识别。
 - **中文属性名不生效**：确保写在 `*-attribute-lines` 里（不是 Map），且 AttributePlus / CraneAttribute 的属性表中存在该中文属性。
 - **MythicLib 警告 `stat 未注册`**：`*-attributes` 里的键不是 MythicLib/MMOItems 仓库里已有的 stat-id。请查 `MythicLib/stats/*.yml` 或 MMOItems 属性配置。
-- **菜单里同名属性堆在一行 / 分散显示**：本版本起，后端会把同名同类（`名:数值` 形式）的行**累加合并**为一项，并把 `*_attributes_text` 字段以 `List&lt;String&gt;` 形式发送，UI Text 控件的 `texts` 字段拿到 List 会自动按行渲染。若仍异常，请确认 `plugins/ArcartXSuite/ui/title_menu.yml` 已被新版本覆盖。
+- **菜单里同名属性堆在一行 / 分散显示**：本版本起，后端会把同名同类（`名:数值` 形式）的行**累加合并**为一项，并把 `*_attributes_text` 字段以 `List&lt;String&gt;` 形式发送，UI Text 控件的 `texts` 字段拿到 List 会自动按行渲染。若仍异常，请确认 `plugins/ArcartX-Suite/ui/title_menu.yml` 已被新版本覆盖。
 - **属性行没有颜色 / 颜色不对**：在 `ArcartXTitle.yml` 的 `ui.attribute-line-color` 配置统一改（默认 `&0`），不要在每个称号定义里加颜色码。
 
 ## 服务端 → UI 数据契约（属性相关）
@@ -550,7 +550,7 @@ display-title:
 以下是一份可直接使用的 `ArcartXTitle.yml` 骨架，覆盖存储、UI、分组、品质、套装和属性插件前缀：
 
 ```yaml
-# 称号定义目录，相对模块数据目录（plugins/ArcartXSuite/modules/title/）
+# 称号定义目录，相对模块数据目录（plugins/ArcartX-Suite/modules/title/）
 titles-directory: "titles"
 
 settings:
@@ -566,7 +566,7 @@ storage:
   mysql:
     host: "127.0.0.1"
     port: 3306
-    database: "arcartxsuite"
+    database: "ArcartX-Suite"
     username: "root"
     password: ""
 
@@ -624,3 +624,4 @@ symphony:
 ```
 
 > **提示**：`groups`、`qualities`、`titles`、`sets` 均为动态节点，用户增删不会被 `ConfigDiagnosticEngine` 判定为废弃。
+

@@ -1,6 +1,6 @@
 ---
-title: Announcer 播报系统插件 | ArcartXSuite Minecraft服务器
-description: ArcartXSuite Announcer 播报系统，提供常驻/轮播 HUD 公告与打字机字幕动画，可点击执行命令，我的世界服务器信息播报一站式解决。
+title: Announcer 播报系统插件 | ArcartX-Suite Minecraft服务器
+description: ArcartX-Suite Announcer 播报系统，提供常驻/轮播 HUD 公告与打字机字幕动画，可点击执行命令，我的世界服务器信息播报一站式解决。
 ---
 
 # Announcer 播报系统
@@ -74,7 +74,7 @@ entries-directory: "announcer"         # 公告条目目录，相对模块数据
 | `debug` | boolean | `false` | 开启后在控制台打印每次 `display` 发包内容和玩家点击回包信息 |
 | `ui-id` | string / list | `"AXS:announcer_hud"` | 公告 HUD 的 UI ID，支持列表格式同时向多个 UI 发包 |
 | `register-ui-on-enable` | boolean | `true` | 模块启动/重载时是否自动向 ArcartX 注册 HUD |
-| `overwrite-ui-file` | boolean | `false` | 是否在每次启动时强制覆盖 `plugins/ArcartXSuite/ui/announcer_hud.yml` |
+| `overwrite-ui-file` | boolean | `false` | 是否在每次启动时强制覆盖 `plugins/ArcartX-Suite/ui/announcer_hud.yml` |
 | `auto-play` | boolean | `true` | 是否自动轮播公告；`false` 时 HUD 仍注册但不主动滚动 |
 | `check-interval-ticks` | long | `20` | 后台定时任务检查周期（tick），20 tick = 1 秒 |
 | `cooldown-ms` | long | `30000` | 全部公告播完一整轮后的冷却等待时间（毫秒） |
@@ -245,13 +245,13 @@ subtitle:
 **`status` 输出示例：**
 
 ```
-◆ ArcartXSuite | Announcer 状态
-◆ ArcartXSuite | 活跃公告: 2
-◆ ArcartXSuite | 已初始化玩家: 5
-◆ ArcartXSuite | 字幕组: 3
-◆ ArcartXSuite | 字幕播放中: 1
-◆ ArcartXSuite | 待播队列: 0
-◆ ArcartXSuite | 跨服传输: 已启用
+◆ ArcartX-Suite | Announcer 状态
+◆ ArcartX-Suite | 活跃公告: 2
+◆ ArcartX-Suite | 已初始化玩家: 5
+◆ ArcartX-Suite | 字幕组: 3
+◆ ArcartX-Suite | 字幕播放中: 1
+◆ ArcartX-Suite | 待播队列: 0
+◆ ArcartX-Suite | 跨服传输: 已启用
 ```
 
 **命令示例：**
@@ -424,3 +424,4 @@ join_welcome_subtitle:
 | `SubtitleService` | `announcer.service` | 字幕组加载与播放 |
 | `AnnouncerEnvelope` | `announcer.transport` | 跨服业务 payload record |
 | `AnnouncerEnvelopeCodec` | `announcer.transport` | payload YAML 编解码 |
+

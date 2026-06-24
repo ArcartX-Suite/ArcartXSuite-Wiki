@@ -1,6 +1,6 @@
 ---
-title: AfkReward 挂机奖励插件 | ArcartXSuite Minecraft
-description: ArcartXSuite AfkReward 区域挂机 + 原地挂机双模式、周期命令奖励、VIP 权限阶梯、排行榜、HUD 面板，我的世界服务器挂机插件。
+title: AfkReward 挂机奖励插件 | ArcartX-Suite Minecraft
+description: ArcartX-Suite AfkReward 区域挂机 + 原地挂机双模式、周期命令奖励、VIP 权限阶梯、排行榜、HUD 面板，我的世界服务器挂机插件。
 ---
 
 # AfkReward 挂机奖励
@@ -196,7 +196,7 @@ storage:
   sqlite-file: "afkreward.db"
   host: "127.0.0.1"
   port: 3306
-  database: "arcartxsuite"
+  database: "ArcartX-Suite"
   username: "root"
   password: ""
   table-prefix: "axs_afk_"
@@ -317,7 +317,7 @@ storage:
   sqlite-file: "afkreward.db"
   host: "127.0.0.1"
   port: 3306
-  database: "arcartxsuite"
+  database: "ArcartX-Suite"
   username: "root"
   password: ""
   table-prefix: "axs_afk_"
@@ -409,3 +409,4 @@ AfkReward 通过 AXS Capability 系统与以下模块联动：
 4. **跨世界重置**：玩家传送到其他世界后自动离开区域，再次进入时重新计时。
 5. **日期切换**：服务端日期切换（0 点）后，`today_count` 会自动重置为 0。
 6. **奖励命令解析**：命令在执行前会替换 `%player_name%`，但不自动解析其他插件的 PAPI。如需 PAPI 解析，请在命令中直接使用外部插件的占位符（若目标插件支持控制台执行时解析）。
+

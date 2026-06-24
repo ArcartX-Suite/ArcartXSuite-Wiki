@@ -1,6 +1,6 @@
 ---
-title: Regions 区域保护插件 | ArcartXSuite Minecraft
-description: ArcartXSuite Regions 区域保护，类 WorldGuard 区域保护、40+ 标志、世界规则、UI 区域查看，我的世界服务器领地插件。
+title: Regions 区域保护插件 | ArcartX-Suite Minecraft
+description: ArcartX-Suite Regions 区域保护，类 WorldGuard 区域保护、40+ 标志、世界规则、UI 区域查看，我的世界服务器领地插件。
 ---
 
 # Regions 区域保护
@@ -247,7 +247,7 @@ storage:
   sqlite-file: "regions.db"
   host: "127.0.0.1"
   port: 3306
-  database: "arcartxsuite"
+  database: "ArcartX-Suite"
   username: "root"
   password: ""
   table-prefix: "axs_rg_"
@@ -278,3 +278,4 @@ storage:
 | `axs.regions.bypass` | 绕过所有区域保护 | OP |
 | `axs.regions.bypass.limit` | 绕过区域数量限制 | OP |
 | `axs.regions.group.<name>` | 区域权限组成员 | false |
+

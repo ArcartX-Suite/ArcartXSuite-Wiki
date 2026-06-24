@@ -1,13 +1,13 @@
----
-title: ArcartXSuite-Proxy 使用文档 | ArcartXSuite Minecraft插件文档
-description: ArcartXSuite-Proxy 使用文档 - ArcartXSuite Minecraft 服务器插件文档。 ArcartXSuite 我的世界服务器插件套件。
+﻿---
+title: ArcartX-Suite-Proxy 使用文档 | ArcartX-Suite Minecraft插件文档
+description: ArcartX-Suite-Proxy 使用文档 - ArcartX-Suite Minecraft 服务器插件文档。 ArcartX-Suite 我的世界服务器插件套件。
 ---
 
-# ArcartXSuite-Proxy 使用文档
+# ArcartX-Suite-Proxy 使用文档
 
 ## 概述
 
-ArcartXSuite-Proxy 是 ArcartXSuite 的代理端伴侣插件，用于 Velocity / BungeeCord 代理服务器环境。它提供以下功能：
+ArcartX-Suite-Proxy 是 ArcartX-Suite 的代理端伴侣插件，用于 Velocity / BungeeCord 代理服务器环境。它提供以下功能：
 
 - **多 Yggdrasil 源认证路由**：同时支持微软正版 + LittleSkin + 其他自定义 Yggdrasil 源
 - **离线玩家拦截**：在代理层拒绝离线账号（不进入后端服务器）
@@ -44,7 +44,7 @@ Proxy 插件**不负责** Chat / Tab / Mail 等游戏数据的跨服同步。`1.
 
 ## 配置
 
-Proxy 插件首次启动会在 `plugins/ArcartXSuite-Proxy/` 下生成 `config.yml`：
+Proxy 插件首次启动会在 `plugins/ArcartX-Suite-Proxy/` 下生成 `config.yml`：
 
 ```yaml
 # Yggdrasil 认证源（按优先级排列）
@@ -83,7 +83,7 @@ debug: false
 
 ## 后端接收账号类型
 
-后端子服的 ArcartXSuite 会自动读取 Proxy 传递的账号类型，无需额外配置。通过以下方式访问：
+后端子服的 ArcartX-Suite 会自动读取 Proxy 传递的账号类型，无需额外配置。通过以下方式访问：
 
 ```java
 AccountTypeService service = /* 从 ModuleContext 获取 */;
@@ -105,3 +105,4 @@ Proxy 通过 GameProfile Property `axs_account_type` 传递类型标识。
 
 ### Q: 为什么 LittleSkin 玩家 UUID 是 v4？
 **A:** LittleSkin 使用 v4 UUID 分配策略，与 Mojang 一致。旧版 authlib-injector（<1.2.0）可能使用 v3，建议更新到最新版。
+

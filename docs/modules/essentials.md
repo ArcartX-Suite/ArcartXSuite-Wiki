@@ -1,6 +1,6 @@
 ---
-title: Essentials 基础工具插件 | ArcartXSuite Minecraft
-description: ArcartXSuite Essentials 基础工具，传送/家/Warp、飞行/无敌/治疗、一键砍树、背包整理、UI 玩家菜单，我的世界服务器基础工具插件。
+title: Essentials 基础工具插件 | ArcartX-Suite Minecraft
+description: ArcartX-Suite Essentials 基础工具，传送/家/Warp、飞行/无敌/治疗、一键砍树、背包整理、UI 玩家菜单，我的世界服务器基础工具插件。
 ---
 
 # Essentials 基础工具
@@ -150,7 +150,7 @@ UI 面板需要玩家安装 ArcartX 客户端 mod。未安装时命令会提示"
 
 ## 配置文件
 
-配置文件位于 `plugins/ArcartXSuite/data/essentials/ArcartXEssentials.yml`
+配置文件位于 `plugins/ArcartX-Suite/data/essentials/ArcartXEssentials.yml`
 
 ### 一键砍树 (TreeCapitator)
 
@@ -222,7 +222,7 @@ storage:
   mysql:
     host: localhost
     port: 3306
-    database: arcartxsuite
+    database: ArcartX-Suite
     username: root
     password: ''
     table-prefix: axs_ess_
@@ -251,3 +251,4 @@ storage:
 | `axs.essentials.autotool` | 自动工具切换 | false |
 | `axs.essentials.fly.bypass` | 绕过世界禁飞 | OP |
 | `axs.essentials.interact.bypass` | 绕过交互限制 | OP |
+

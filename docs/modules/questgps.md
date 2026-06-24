@@ -1,6 +1,6 @@
 ---
-title: QuestGPS 任务导航插件 | ArcartXSuite Minecraft
-description: ArcartXSuite QuestGPS Chemdah 任务追踪、路径寻路 + 3D模型标记、任务指引HUD，我的世界服务器任务导航插件。
+title: QuestGPS 任务导航插件 | ArcartX-Suite Minecraft
+description: ArcartX-Suite QuestGPS Chemdah 任务追踪、路径寻路 + 3D模型标记、任务指引HUD，我的世界服务器任务导航插件。
 ---
 
 # QuestGPS 任务导航
@@ -458,3 +458,4 @@ first_join_questgps:
 2. **HUD 变更** — 旧 `hud-ui-id` / `auto-open-hud-on-track` / `hud-enabled-by-default` 配置已移除，替换为 `guide-ui-id` 任务指引 HUD
 3. **命令变更** — `/questgps hud` 子命令已移除；指引 HUD 随追踪自动开关
 4. **依赖变更** — 3D 模型标记功能需要 Adyeshach 插件；如果缺少 Adyeshach，标记功能会静默跳过，Waypoint 罗盘仍正常工作
+

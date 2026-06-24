@@ -1,6 +1,6 @@
 ---
-title: Conversation 对话桥插件 | ArcartXSuite Minecraft
-description: ArcartXSuite Conversation 对话桥，Chemdah 对话 + Adyeshach NPC 联动，ArcartX UI 渲染，我的世界服务器 NPC 对话插件。
+title: Conversation 对话桥插件 | ArcartX-Suite Minecraft
+description: ArcartX-Suite Conversation 对话桥，Chemdah 对话 + Adyeshach NPC 联动，ArcartX UI 渲染，我的世界服务器 NPC 对话插件。
 ---
 
 # Conversation 对话桥
@@ -204,3 +204,4 @@ __option__:
 - **常驻 HUD**：`isHud: true`，`through: true`，不拦截游戏操作
 - **屏幕缩放**：`screenScale: true`，`level: 0`
 - **Pickup 联动**：选择器面板（`selector_root`）通过 `enter` / `leave` 事件控制客户端变量 `client.pickup`，鼠标悬停在选择器上时置为 `false`，离开时恢复为 `true`，避免点击 NPC 选项时误触 Pickup 拾取
+

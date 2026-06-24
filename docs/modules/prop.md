@@ -1,6 +1,6 @@
 ---
-title: Prop 快捷道具插件 | ArcartXSuite Minecraft
-description: ArcartXSuite Prop 快捷道具系统，道具快捷键绑定、客户端按键效果、临时属性加成，我的世界服务器道具插件。
+title: Prop 快捷道具插件 | ArcartX-Suite Minecraft
+description: ArcartX-Suite Prop 快捷道具系统，道具快捷键绑定、客户端按键效果、临时属性加成，我的世界服务器道具插件。
 ---
 
 # Prop 快捷道具
@@ -213,3 +213,4 @@ Prop 模块通过 ArcartX 的 NBT 系统将道具 ID 写入物品：
 - MythicLib 效果需要在 `ArcartXProp.yml` 中启用 `mythiclib.enabled: true`
 - 条件中使用的 PlaceholderAPI 变量取决于服务端已安装的 PAPI 扩展
 - 条件值支持中文（如 `%player_biome% == 森林`、`%luckperms_primary_group% == 战士`）
+

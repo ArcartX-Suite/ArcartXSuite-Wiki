@@ -1,6 +1,6 @@
 ---
-title: Menu 通用菜单插件 | ArcartXSuite Minecraft服务器
-description: ArcartXSuite Menu 配置驱动 ArcartX 菜单系统，ESC 替换、命令/物品绑定、按钮图标，类 TrMenu 体验，我的世界服务器菜单插件。
+title: Menu 通用菜单插件 | ArcartX-Suite Minecraft服务器
+description: ArcartX-Suite Menu 配置驱动 ArcartX 菜单系统，ESC 替换、命令/物品绑定、按钮图标，类 TrMenu 体验，我的世界服务器菜单插件。
 ---
 
 # Menu 通用 ArcartX 菜单系统
@@ -34,7 +34,7 @@ modules:
     enabled: true
 ```
 
-部署 `plugins/ArcartXSuite/modules/ArcartXSuite-Menu-*.jar` 后执行 `/axs menu reload`。
+部署 `plugins/ArcartX-Suite/modules/ArcartX-Suite-Menu-*.jar` 后执行 `/axs menu reload`。
 
 ## 命令
 
@@ -468,3 +468,4 @@ if (menu != null) {
 | PAPI 条件异常 | 确认 PAPI 与 Expansion；见 [条件系统](/guide/conditions#故障排查) |
 | Aria 条件全失败 | 确认 `BlinkAriaHost` 已加载；见 [条件系统 · Aria](/guide/conditions#二aria-脚本条件)；若无 Blink 请改用 **JS 条件** |
 | JS 条件全失败 | 确认 Java 版本 ≥ 8（Nashorn）；脚本语法错误查看服务端 fine 日志 |
+

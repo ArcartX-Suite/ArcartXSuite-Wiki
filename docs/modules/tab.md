@@ -1,6 +1,6 @@
 ---
-title: Tab 在线列表插件 | ArcartXSuite Minecraft服务器
-description: ArcartXSuite Tab 在线列表，ArcartX TAB UI 渲染，支持排序、分组、PAPI 变量、跨服快照，我的世界服务器 Tab 列表插件。
+title: Tab 在线列表插件 | ArcartX-Suite Minecraft服务器
+description: ArcartX-Suite Tab 在线列表，ArcartX TAB UI 渲染，支持排序、分组、PAPI 变量、跨服快照，我的世界服务器 Tab 列表插件。
 ---
 
 # Tab 在线列表
@@ -120,7 +120,7 @@ packet-handler: "tab"
 | --- | --- | --- |
 | 在线列表 | `tab` | 服务端按 `refresh-interval-ticks` 周期 diff 推送；客户端 `Packet.send("TAB", "update")` 触发一次强制重发（受 `client-refresh-guard` 限流） |
 
-> UI 注册 ID 由 `ArcartXTab.yml` 中 `tabs.<id>.ui-id` 决定，默认 `tab`。模块内置 UI 文件为 `arcartx/ui/tab.yml`，启动时复制到 `plugins/ArcartXSuite/ui/tab.yml`。
+> UI 注册 ID 由 `ArcartXTab.yml` 中 `tabs.<id>.ui-id` 决定，默认 `tab`。模块内置 UI 文件为 `arcartx/ui/tab.yml`，启动时复制到 `plugins/ArcartX-Suite/ui/tab.yml`。
 
 ## 排序、过滤与置顶
 
@@ -289,7 +289,7 @@ pack:
   health: "%player_health%"
 ```
 
-> **内置完整示例**：模块自带两套示例 UI（启用时自动复制到 `plugins/ArcartXSuite/ui/`），都在 `ArcartXTab.yml` 中以 `enabled: false` 形式提供，把对应 definition 切到 `true` 即可体验（建议同时关掉 `tabs.online-tab.enabled` 避免双 HUD）：
+> **内置完整示例**：模块自带两套示例 UI（启用时自动复制到 `plugins/ArcartX-Suite/ui/`），都在 `ArcartXTab.yml` 中以 `enabled: false` 形式提供，把对应 definition 切到 `true` 即可体验（建议同时关掉 `tabs.online-tab.enabled` 避免双 HUD）：
 >
 > - **`tab-rich`** + `tabs.demo`：头像 + PVP 视觉风格的完整版"在线列表"形态。
 > - **`tab-arena`** + `tabs.arena`：CS / LOL 风格的**双队 PVP 计分板**——红蓝左右分栏 / 常驻显示 / 按住 TAB 切换详细模式 / 队友战斗状态图标。队伍来源默认 `%player_scoreboardteam%`。UI 端按 `packet.get(i).team` 在客户端拆桶（不依赖服务端 grouping，因 map pack 在服务端 grouping 下会退化）。
@@ -456,7 +456,7 @@ settings:
 
 ### snapshot 调试快照
 
-存档目录：`plugins/ArcartXSuite/data/tab/snapshots/<name>.json`，格式 `version: 2`，包含：
+存档目录：`plugins/ArcartX-Suite/data/tab/snapshots/<name>.json`，格式 `version: 2`，包含：
 
 - `localEntries`：本服每个 definition 的 `TabRemoteEntry` 列表（含 `sortValues` / `sortStringValues` / `groupKey` / `renderedPack`）。
 - `remoteSnapshots`：当前已知的真实跨服节点快照（不包含 `snapshot:*` 虚拟节点，避免循环嵌套）。
@@ -466,3 +466,4 @@ settings:
 > **限制**：load 路径**不重新解析内置变量**，使用存档落盘时的 `renderedPack`。这意味着存档中玩家的 `%player_health%` 等占位符值是落盘时刻的快照，不会跟随真实玩家变化。该行为用于"忠实复现"调试场景，不适合作为长期跨服数据源。
 
 > **安全提示**：load 会让本服所有 viewer 看到存档玩家。请仅在测试服或受控环境使用，并在排查完成后及时 `unload`。
+

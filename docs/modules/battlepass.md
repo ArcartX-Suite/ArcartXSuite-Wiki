@@ -1,6 +1,6 @@
 ---
-title: BattlePass 战令系统插件 | ArcartXSuite Minecraft
-description: ArcartXSuite BattlePass 战令系统，三层通行证、日/周/赛季任务池、条件过滤、ArcartX UI 面板，我的世界服务器战令插件。
+title: BattlePass 战令系统插件 | ArcartX-Suite Minecraft
+description: ArcartX-Suite BattlePass 战令系统，三层通行证、日/周/赛季任务池、条件过滤、ArcartX UI 面板，我的世界服务器战令插件。
 ---
 
 # BattlePass 战令系统
@@ -325,7 +325,7 @@ increment-strategy:
 
 任务模板已拆分到模块数据目录下的 `tasks/` 文件夹中，与主配置文件分离，便于管理和热更新。
 
-**文件位置**：`plugins/ArcartXSuite/modules/battlepass/tasks/`
+**文件位置**：`plugins/ArcartX-Suite/modules/battlepass/tasks/`
 
 > **向后兼容**：如果主配置 `ArcartXBattlePass.yml` 中仍保留了 `tasks.daily`、`tasks.weekly`、`tasks.season` 内联定义，系统会优先使用内联配置，忽略外部文件。
 
@@ -440,7 +440,7 @@ season-kill-1000:
 
 ### 步骤 1：配置赛季与存储
 
-编辑 `plugins/ArcartXSuite/modules/battlepass/ArcartXBattlePass.yml`，设定：
+编辑 `plugins/ArcartX-Suite/modules/battlepass/ArcartXBattlePass.yml`，设定：
 
 ```yaml
 season:
@@ -559,3 +559,4 @@ action:
 - 新增 BattlePassPacketHandler，支持 `open_main` / `open_tasks` 客户端包
 - UI 任务列表新增难度标签、任务描述、进度百分比
 - UI 主界面层级标签改为动态（免费/高级/典藏，颜色区分）
+

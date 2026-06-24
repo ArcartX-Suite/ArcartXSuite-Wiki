@@ -1,6 +1,6 @@
 ---
-title: Mail 邮箱插件 | ArcartXSuite Minecraft
-description: ArcartXSuite Mail 邮件系统，玩家写信、管理员预设派发、CDK 兑换、物品附件、跨服广播，我的世界服务器邮件插件。
+title: Mail 邮箱插件 | ArcartX-Suite Minecraft
+description: ArcartX-Suite Mail 邮件系统，玩家写信、管理员预设派发、CDK 兑换、物品附件、跨服广播，我的世界服务器邮件插件。
 ---
 
 # Mail 邮箱
@@ -174,3 +174,4 @@ cross-server:
 连接参数见宿主 `config.yml` → `cross-server`。启用后，任一子服向玩家发信会广播 `refresh:<uuid>`，其他子服上该玩家在线时自动刷新收件箱 UI。
 
 详见 [跨服功能配置指南](/guide/cross-server-setup)。
+
