@@ -50,7 +50,6 @@
 .home-bg {
   position: fixed;
   inset: 0;
-  z-index: -1;
   overflow: hidden;
   pointer-events: none;
 }
