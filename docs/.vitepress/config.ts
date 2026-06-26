@@ -3,6 +3,7 @@ import { withMermaid } from 'vitepress-plugin-mermaid'
 
 export default withMermaid(defineConfig<any>({
   lang: 'zh-CN',
+  appearance: 'dark',
   title: 'ArcartX-Suite',
   description: 'ArcartX-Suite 是面向 ArcartX 客户端的 26 模块 Minecraft 服务器插件套件，涵盖全球市场、抽奖开箱、钓鱼、称号、战令、仓库等核心玩法，自带 ArcartX UI 界面，我的世界服务器开发者的首选插件。',
   base: '/ArcartXSuite-Wiki/',
@@ -178,6 +179,5 @@ export default withMermaid(defineConfig<any>({
     docFooter: { prev: '上一页', next: '下一页' },
     returnToTopLabel: '回到顶部',
     sidebarMenuLabel: '菜单',
-    darkModeSwitchLabel: '主题',
   },
 }))

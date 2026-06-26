@@ -90,24 +90,16 @@ onUnmounted(() => {
 .carousel-tagline {
   font-size: 1.1rem;
   font-weight: 600;
-  color: var(--vp-c-text-1);
+  color: #e2e4eb;
   margin: 0;
   line-height: 1.6;
 }
 
 .carousel-sub {
   font-size: 0.95rem;
-  color: var(--vp-c-text-2);
+  color: #a9adbd;
   margin: 6px 0 0;
   line-height: 1.5;
-}
-
-.dark .carousel-tagline {
-  color: #e2e4eb;
-}
-
-.dark .carousel-sub {
-  color: #a9adbd;
 }
 
 .cursor {
