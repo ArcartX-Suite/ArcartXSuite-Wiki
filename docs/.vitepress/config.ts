@@ -54,7 +54,7 @@ export default withMermaid(defineConfig<any>({
             { text: 'Warehouse 多服 MySQL 部署', link: '/guide/warehouse-cross-server' },
             { text: '多 UI 同时发包', link: '/guide/multi-ui' },
             { text: 'Proxy 代理端插件', link: '/guide/proxy-usage' },
-            { text: '云端模块', link: '/guide/cloud-modules' },
+            { text: '云端授权', link: '/guide/cloud-modules' },
           ],
         },
       ],
