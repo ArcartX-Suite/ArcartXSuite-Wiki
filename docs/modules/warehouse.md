@@ -102,7 +102,7 @@ Warehouse 为付费模块，需要有效授权码激活。
 2. 仓库网格会只显示该分类下的物品
 3. 再次点击同一分类或「全部」可取消筛选
 
-分类由服务端配置文件的 `categories` 节定义，默认按物品 NBT 标签（`pdc:axs:item_type`）自动归类，未匹配到的归入「其它」。
+分类由服务端配置文件的 `categories` 节定义，默认按物品 NBT 标签（`pdc:ArcartX-Suite:item_type`）自动归类，未匹配到的归入「其它」。
 
 #### 2.4 分页切换
 
@@ -372,11 +372,11 @@ cross-server:
 
 # UI 设置
 ui:
-  id: "AXS:warehouse_storage"         # 仓库 UI ID
+  id: "ArcartX-Suite:warehouse_storage"         # 仓库 UI ID
   file: "arcartx/ui/warehouse_menu.yml"
-  manage-id: "AXS:warehouse_manage" # 共享管理 UI ID
+  manage-id: "ArcartX-Suite:warehouse_manage" # 共享管理 UI ID
   manage-file: "arcartx/ui/warehouse_manage.yml"
-  bank-id: "AXS:warehouse_bank"     # 银行 UI ID
+  bank-id: "ArcartX-Suite:warehouse_bank"     # 银行 UI ID
   bank-file: "arcartx/ui/warehouse_bank.yml"
   packet-id: "AXS_WAREHOUSE"        # 客户端包 ID
   register-ui-on-enable: true         # 启动时自动注册 UI
@@ -445,19 +445,19 @@ categories:
     display-name: "装备"
     priority: 10                    # 优先级越小越靠前
     nbt:
-      path: "pdc:axs:item_type"    # NBT 路径：material / display-name / custom-model-data / pdc:namespace:key
+      path: "pdc:ArcartX-Suite:item_type"    # NBT 路径：material / display-name / custom-model-data / pdc:namespace:key
       values: ["weapon", "armor", "accessory"]
   consumable:
     display-name: "消耗品"
     priority: 20
     nbt:
-      path: "pdc:axs:item_type"
+      path: "pdc:ArcartX-Suite:item_type"
       values: ["consumable", "potion"]
   material:
     display-name: "材料"
     priority: 30
     nbt:
-      path: "pdc:axs:item_type"
+      path: "pdc:ArcartX-Suite:item_type"
       values: ["material"]
   other:
     display-name: "其它"

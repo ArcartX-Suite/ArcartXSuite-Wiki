@@ -452,7 +452,7 @@ titles-directory: "titles"
 
 ```yaml
 ui:
-  ui-id: "AXS:title_menu"
+  ui-id: "ArcartX-Suite:title_menu"
   register-ui-on-enable: true
   # 属性列表每行的统一颜色前缀，支持 &0~&f、&l 等
   attribute-line-color: "&0"
@@ -571,7 +571,7 @@ storage:
     password: ""
 
 ui:
-  ui-id: "AXS:title_menu"
+  ui-id: "ArcartX-Suite:title_menu"
   register-ui-on-enable: true
   attribute-line-color: "&0"
   empty-attribute-placeholder: "-"

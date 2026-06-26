@@ -1,16 +1,16 @@
-﻿---
+---
 title: index | ArcartX-Suite Minecraft插件文档
 description: index - ArcartX-Suite Minecraft 服务器插件文档。 ArcartX-Suite 我的世界服务器插件套件。
 ---
 
 # 快速开始
 
-新接触 AXS 的服主请按下面顺序读完本章 — 整个过程大约 **15 分钟**就能让一个模块跑起来。
+新接触 ArcartX-Suite 的服主请按下面顺序读完本章 — 整个过程大约 **15 分钟**就能让一个模块跑起来。
 
 ## 路线图
 
 1. [安装](installation) — 把 jar 丢进 `plugins/`，确认依赖、Java、MC 版本无误。
-2. [模块启用](module-passwords) — 理解 `modules.<module>.enabled` 模块开关。
+2. [模块启用](module-enablement) — 理解 `modules.<module>.enabled` 模块开关。
 3. [第一次启用流程](first-run) — 推荐的"先开 1 个最小模块 → 全开"流程。
 4. [命令速查](commands) — 管理命令（`/AXS`）与玩家命令一表打尽。
 5. [PlaceholderAPI 速查](placeholders) — 各模块的 PAPI 前缀与典型字段。
@@ -23,7 +23,7 @@ description: index - ArcartX-Suite Minecraft 服务器插件文档。 ArcartX-Su
 ## 一句话总览
 
 ```
-ArcartX 客户端 MOD  ──────  网络包 ──────  AXS 服务端 jar
+ArcartX 客户端 MOD  ──────  网络包 ──────  ArcartX-Suite 服务端 jar
      ↑ 渲染 UI / HUD                           ↑ 业务逻辑 / 数据库 / 桥接
      │                                          │
      └────── plugins/ArcartX-Suite/ ─────────────┘
@@ -35,6 +35,6 @@ ArcartX 客户端 MOD  ──────  网络包 ──────  AXS 服
 ```
 
 ::: tip 顺序很重要
-**先安装 ArcartX 客户端 MOD，再装 AXS 服务端**。AXS 在 `plugin.yml` 中 `depend: ArcartX`，服务端缺少 ArcartX 时 AXS **不会启动**。
+**先安装 ArcartX 客户端 MOD，再装 ArcartX-Suite 服务端**。ArcartX-Suite 在 `plugin.yml` 中 `depend: ArcartX`，服务端缺少 ArcartX 时 ArcartX-Suite **不会启动**。
 :::
 

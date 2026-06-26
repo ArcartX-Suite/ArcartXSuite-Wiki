@@ -39,7 +39,7 @@ Regions 模块提供两个 ArcartX UI 面板，需要玩家安装 ArcartX 客户
 ### 管理员面板
 
 命令：`/rg admin`  
-权限：`axs.regions.admin`
+权限：`ArcartX-Suite.regions.admin`
 
 | 页面 | 功能 |
 | --- | --- |
@@ -63,27 +63,27 @@ UI 面板需要玩家安装 ArcartX 客户端 mod。未安装时命令会提示"
 | 命令 | 说明 | 权限 |
 | --- | --- | --- |
 | `/rg menu` | 打开区域查看菜单 | 无 |
-| `/rg admin` | 打开区域管理面板 | `axs.regions.admin` |
+| `/rg admin` | 打开区域管理面板 | `ArcartX-Suite.regions.admin` |
 
 ### 区域 CRUD
 
 | 命令 | 说明 | 权限 |
 | --- | --- | --- |
-| `/rg define <名称>` | 用当前选区创建区域 | `axs.regions.select` |
-| `/rg remove <名称>` | 删除区域 | 所有者或 `axs.regions.admin` |
+| `/rg define <名称>` | 用当前选区创建区域 | `ArcartX-Suite.regions.select` |
+| `/rg remove <名称>` | 删除区域 | 所有者或 `ArcartX-Suite.regions.admin` |
 | `/rg redefine <名称>` | 用新选区重定义区域范围 | 所有者或 admin |
-| `/rg list [世界]` | 列出区域 | `axs.regions.admin` |
+| `/rg list [世界]` | 列出区域 | `ArcartX-Suite.regions.admin` |
 | `/rg info <名称>` | 查看区域详细信息 | 所有人 |
-| `/rg tp <名称>` | 传送到区域中心 | `axs.regions.admin` |
+| `/rg tp <名称>` | 传送到区域中心 | `ArcartX-Suite.regions.admin` |
 
 ### 选区
 
 | 命令 | 说明 | 权限 |
 | --- | --- | --- |
-| `/rg pos1` | 将当前位置设为点1 | `axs.regions.select` |
-| `/rg pos2` | 将当前位置设为点2 | `axs.regions.select` |
-| 木斧左键 | 设置点1（自动识别选区工具） | `axs.regions.select` |
-| 木斧右键 | 设置点2 | `axs.regions.select` |
+| `/rg pos1` | 将当前位置设为点1 | `ArcartX-Suite.regions.select` |
+| `/rg pos2` | 将当前位置设为点2 | `ArcartX-Suite.regions.select` |
+| 木斧左键 | 设置点1（自动识别选区工具） | `ArcartX-Suite.regions.select` |
+| 木斧右键 | 设置点2 | `ArcartX-Suite.regions.select` |
 
 ### 标志管理
 
@@ -214,9 +214,9 @@ world-rules:
 
 | 功能 | 说明 | 绕过权限 |
 | --- | --- | --- |
-| 禁飞 | 指定世界禁止飞行，进入时自动取消 | `axs.essentials.fly.bypass` |
+| 禁飞 | 指定世界禁止飞行，进入时自动取消 | `ArcartX-Suite.essentials.fly.bypass` |
 | 禁活塞 | 指定世界所有活塞推拉无效 | 无 |
-| 禁交互 | 指定世界中特定方块类型不可交互 | `axs.essentials.interact.bypass` |
+| 禁交互 | 指定世界中特定方块类型不可交互 | `ArcartX-Suite.essentials.interact.bypass` |
 
 ---
 
@@ -273,9 +273,9 @@ storage:
 
 | 权限 | 说明 | 默认 |
 | --- | --- | --- |
-| `axs.regions.select` | 使用选区工具 | false |
-| `axs.regions.admin` | 管理所有区域 | OP |
-| `axs.regions.bypass` | 绕过所有区域保护 | OP |
-| `axs.regions.bypass.limit` | 绕过区域数量限制 | OP |
-| `axs.regions.group.<name>` | 区域权限组成员 | false |
+| `ArcartX-Suite.regions.select` | 使用选区工具 | false |
+| `ArcartX-Suite.regions.admin` | 管理所有区域 | OP |
+| `ArcartX-Suite.regions.bypass` | 绕过所有区域保护 | OP |
+| `ArcartX-Suite.regions.bypass.limit` | 绕过区域数量限制 | OP |
+| `ArcartX-Suite.regions.group.<name>` | 区域权限组成员 | false |
 

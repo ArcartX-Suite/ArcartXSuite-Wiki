@@ -38,7 +38,7 @@ modules:
     enabled: true
 ```
 
-同时需要在 Chemdah 的对应对话配置中指定 AXS 注册的对话主题：
+同时需要在 Chemdah 的对应对话配置中指定 ArcartX-Suite 注册的对话主题：
 
 ```yaml
 theme: 'ArcartXConversation'
@@ -56,8 +56,8 @@ theme:
 
 client:
   # 支持列表格式，详见 [多 UI 同时发包](/guide/multi-ui)
-  dialog-ui-id: AXS:conversation_menu
-  selector-ui-id: AXS:conversation_selector_hud
+  dialog-ui-id: ArcartX-Suite:conversation_menu
+  selector-ui-id: ArcartX-Suite:conversation_selector_hud
   register-ui-on-enable: true
   overwrite-ui-files: false
 
@@ -178,7 +178,7 @@ __option__:
 | 现象 | 常见原因 | 处理方式 |
 | --- | --- | --- |
 | Conversation 模块已加载，但仍显示 Chemdah 默认聊天栏对话 | Chemdah 对话文件没有写 `theme: 'ArcartXConversation'` | 给对应对话补上 theme 并重载 |
-| 控制台显示已注册 `ArcartXConversation`，但某个 NPC 不弹 AXS UI | 只有部分对话配置了 theme | 检查该 NPC 对应的 Chemdah 对话文件 |
+| 控制台显示已注册 `ArcartXConversation`，但某个 NPC 不弹 ArcartX-Suite UI | 只有部分对话配置了 theme | 检查该 NPC 对应的 Chemdah 对话文件 |
 | 修改 `ArcartXConversation.yml` 的 `theme.name` 后全部失效 | Chemdah 侧仍写旧主题名 | 两边主题名保持一致 |
 
 ## 命令
@@ -195,8 +195,8 @@ __option__:
 
 ## UI / Packet
 
-- 对话 UI ID：`AXS:conversation_menu`
-- NPC 选择 HUD ID：`AXS:conversation_selector_hud`
+- 对话 UI ID：`ArcartX-Suite:conversation_menu`
+- NPC 选择 HUD ID：`ArcartX-Suite:conversation_selector_hud`
 - 服务端推对话帧（说话人、文本、选项列表），客户端推选项选择回包
 
 ### NPC 选择器 HUD 特性

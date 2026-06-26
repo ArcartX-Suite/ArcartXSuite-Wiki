@@ -1,11 +1,11 @@
-﻿---
+---
 title: 条件系统（PlaceholderAPI + Aria + JavaScript） | ArcartX-Suite Minecraft插件文档
 description: 条件系统（PlaceholderAPI + Aria + JavaScript） - ArcartX-Suite Minecraft 服务器插件文档。 ArcartX-Suite 我的世界服务器插件套件。
 ---
 
 # 条件系统（PlaceholderAPI + Aria + JavaScript）
 
-AXS 在 **Menu、Prop、EventPacket、Mail** 等模块中统一使用同一套条件引擎。你可以用 **PlaceholderAPI 行内表达式** 做简单数值/字符串判断，也可以用 **Aria 脚本** 或 **原生 JavaScript** 编写复杂逻辑。
+ArcartX-Suite 在 **Menu、Prop、EventPacket、Mail** 等模块中统一使用同一套条件引擎。你可以用 **PlaceholderAPI 行内表达式** 做简单数值/字符串判断，也可以用 **Aria 脚本** 或 **原生 JavaScript** 编写复杂逻辑。
 
 本页是**通用参考**；各模块的字段名与行为差异见文末「模块对照表」，并链接到对应模块文档。
 
@@ -106,7 +106,7 @@ conditions:
 
 ## 二、Aria 脚本条件
 
-[Aria](https://github.com/17Artist/Aria) 是运行在 JVM 上的轻量脚本语言（与 Shimmer 同系，支持 JS 兼容模式）。AXS 通过 Blink 的 `AriaScriptManager` 执行脚本，并将 **`player`** 注入为脚本全局变量。
+[Aria](https://github.com/17Artist/Aria) 是运行在 JVM 上的轻量脚本语言（与 Shimmer 同系，支持 JS 兼容模式）。ArcartX-Suite 通过 Blink 的 `AriaScriptManager` 执行脚本，并将 **`player`** 注入为脚本全局变量。
 
 ### 2.1 运行时架构（简要）
 
@@ -114,7 +114,7 @@ conditions:
 flowchart LR
   A[Symphony / Overture 等 Blink 插件] --> B[BlinkAriaHost]
   B --> C[Aria 引擎]
-  D[AXS 条件评估] -->|eval + player| C
+  D[ArcartX-Suite 条件评估] -->|eval + player| C
   E[PlaceholderAPI 条件] --> D
   F[Aria 条件 YAML] --> D
 ```
@@ -169,12 +169,12 @@ conditions:
 
 ::: tip 与 Overture 物品脚本的关系
 [Overture](https://github.com/17Artist/Overture) 物品事件使用同一 Aria 运行时，并注册了 `item`、`cooldown` 等命名空间。  
-**AXS 通用条件只注入 `player`**，不包含 `item` 流；物品相关逻辑请在 Overture 配置或自定义 Aria 函数中编写。
+**ArcartX-Suite 通用条件只注入 `player`**，不包含 `item` 流；物品相关逻辑请在 Overture 配置或自定义 Aria 函数中编写。
 :::
 
 ### 2.5 脚本中可用的 `player`
 
-评估时 AXS 注入：
+评估时 ArcartX-Suite 注入：
 
 ```text
 bindings = { "player": <Bukkit Player 对象> }
@@ -198,7 +198,7 @@ return player.getLevel() >= 50 || player.isOp()
 ```
 
 ::: warning 不要在 Aria 条件里直接写 %placeholder%
-AXS **不会**在 Aria 脚本内自动展开 PAPI。若要用 PAPI 值，需通过 Aria 的 Java 互操作自行调用，或改用 PAPI 行内条件。
+ArcartX-Suite **不会**在 Aria 脚本内自动展开 PAPI。若要用 PAPI 值，需通过 Aria 的 Java 互操作自行调用，或改用 PAPI 行内条件。
 :::
 
 ### 2.6 返回值与布尔语义
@@ -303,7 +303,7 @@ open-requirements:
 
 ## 三、JavaScript 脚本条件（JS）
 
-JS 条件使用 JVM 内置的 `javax.script.ScriptEngine` 执行，**无需安装任何额外插件**。AXS 在 `DefaultScriptConditionEvaluator` 中自动初始化引擎（优先 `JavaScript`，若 Java 8 则 fallback 到 `nashorn`），并将 **`player`** 与 **`Bukkit`** 注入为脚本全局变量。
+JS 条件使用 JVM 内置的 `javax.script.ScriptEngine` 执行，**无需安装任何额外插件**。ArcartX-Suite 在 `DefaultScriptConditionEvaluator` 中自动初始化引擎（优先 `JavaScript`，若 Java 8 则 fallback 到 `nashorn`），并将 **`player`** 与 **`Bukkit`** 注入为脚本全局变量。
 
 ### 3.1 与 Aria 的核心差异
 
@@ -367,7 +367,7 @@ conditions:
 
 ### 3.5 脚本中可用的变量
 
-评估时 AXS 注入：
+评估时 ArcartX-Suite 注入：
 
 ```text
 bindings = {
@@ -394,7 +394,7 @@ cal.get(java.util.Calendar.DAY_OF_WEEK)
 ```
 
 ::: warning 不要在 JS 条件里直接写 %placeholder%
-AXS **不会**在 JS 脚本内自动展开 PAPI。若要用 PAPI 值，请改用 PAPI 行内条件，或通过 `Bukkit.dispatchCommand` 等间接方式获取。
+ArcartX-Suite **不会**在 JS 脚本内自动展开 PAPI。若要用 PAPI 值，请改用 PAPI 行内条件，或通过 `Bukkit.dispatchCommand` 等间接方式获取。
 :::
 
 ### 3.6 返回值与布尔语义
@@ -544,7 +544,7 @@ conditions:
 /papi parse me %player_level%
 ```
 
-有正常数值输出即可。AXS 占位符见 [PlaceholderAPI 速查](/guide/placeholders)。
+有正常数值输出即可。ArcartX-Suite 占位符见 [PlaceholderAPI 速查](/guide/placeholders)。
 
 ### 步骤 2 — 写一条最简单的 PAPI 条件
 
@@ -658,7 +658,7 @@ boolean ariaReady = context.ariaBridge().available();
 
 ## 相关链接
 
-- [PlaceholderAPI 速查](/guide/placeholders) — AXS 输出的 `%axs...%` 变量
+- [PlaceholderAPI 速查](/guide/placeholders) — ArcartX-Suite 输出的 `%ArcartX-Suite...%` 变量
 - [Menu 通用菜单](/modules/menu) — 可见/使用/打开条件详解
 - [Blink 开发者手册](https://github.com/17Artist/Blink/blob/main/DEVELOPER.md) — AriaScriptManager API
 - [Aria 语言仓库](https://github.com/17Artist/Aria) — 语法与 JIT 特性

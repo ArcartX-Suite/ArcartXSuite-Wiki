@@ -1,11 +1,11 @@
-﻿---
+---
 title: 开放 API 参考 | ArcartX-Suite Minecraft插件API文档
 description: 开放 API 参考 - ArcartX-Suite Minecraft 服务器插件文档。 ArcartX-Suite 我的世界服务器插件套件。
 ---
 
 # 开放 API 参考
 
-ArcartX-Suite 1.1.0 起提供 **`axs-api`** 模块作为第三方开发的稳定接口层。所有公开 API 均位于 `xuanmo.arcartxsuite.api` 包下，第三方模块只需 `compileOnly` 依赖 `axs-api` 即可开发自定义模块。
+ArcartX-Suite 1.2.0-beta 起提供 **`ArcartX-Suite-api`** 模块作为第三方开发的稳定接口层。所有公开 API 均位于 `xuanmo.arcartxsuite.api` 包下，第三方模块只需 `compileOnly` 依赖 `ArcartX-Suite-api` 即可开发自定义模块。
 
 ## API 稳定性标记
 
@@ -42,7 +42,7 @@ ArcartX-Suite 1.1.0 起提供 **`axs-api`** 模块作为第三方开发的稳定
 ```groovy
 // build.gradle.kts
 dependencies {
-    compileOnly(project(":axs-api"))
+    compileOnly(project(":ArcartX-Suite-api"))
     // 或使用发布的 jar
     // compileOnly(files("libs/axs-api.jar"))
 }

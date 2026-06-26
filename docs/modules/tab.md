@@ -157,7 +157,7 @@ filters:
   include:                    # 任一命中保留；为空表示不过滤
     - { papi: "%player_world%", equals: "world" }
   exclude:                    # 任一命中剔除
-    - { permission: "axs.tab.hide" }
+    - { permission: "ArcartX-Suite.tab.hide" }
     - { papi: "%player_gamemode%", equals: "SPECTATOR" }
 ```
 
@@ -172,9 +172,9 @@ filters:
 # data/tab/tabs/online-tab.yml
 pinned:
   top:
-    - { permission: "axs.tab.pin-top" }   # 管理员置顶
+    - { permission: "ArcartX-Suite.tab.pin-top" }   # 管理员置顶
   bottom:
-    - { permission: "axs.tab.pin-bottom" }
+    - { permission: "ArcartX-Suite.tab.pin-bottom" }
 ```
 
 命中 `top` 的玩家排在所有"中间层"之前；命中 `bottom` 的排在最后。三个分桶各自再用 `sort-keys` 内部排序，因此置顶后仍保持权限组/内置变量排序结果。

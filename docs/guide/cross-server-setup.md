@@ -1,4 +1,4 @@
-﻿---
+---
 title: 跨服功能配置指南 | ArcartX-Suite Minecraft插件文档
 description: 跨服功能配置指南 - ArcartX-Suite Minecraft 服务器插件文档。 ArcartX-Suite 我的世界服务器插件套件。
 ---
@@ -19,7 +19,7 @@ cross-server:
     host: "192.168.1.100"
     port: 6379
     password: ""
-    channel: "AXS:CROSS"
+    channel: "ArcartX-Suite:CROSS"
   proxy:
     enabled: false       # 无 Redis 时可改为 true（有 32KB 与在线玩家限制）
   signature:

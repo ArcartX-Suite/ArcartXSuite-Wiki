@@ -80,7 +80,7 @@ settings:
 ```yaml
 notification:
   # 目标 HUD 的 UI ID
-  ui-id: "AXS:pickup_hud"
+  ui-id: "ArcartX-Suite:pickup_hud"
   # 启动时自动注册 HUD
   register-ui-on-enable: true
   # 是否强制覆盖 UI 文件
@@ -96,9 +96,9 @@ notification:
 ```yaml
 scanner:
   # 目标 HUD 的 UI ID
-  ui-id: "AXS:loot_panel"
+  ui-id: "ArcartX-Suite:loot_panel"
   # 交互菜单的 UI ID（按 F 键打开的透明菜单，捕获鼠标光标）
-  interact-ui-id: "AXS:loot_interact"
+  interact-ui-id: "ArcartX-Suite:loot_interact"
   # 启动时自动注册 HUD
   register-ui-on-enable: true
   # 是否强制覆盖 UI 文件
@@ -292,7 +292,7 @@ PickupModule
   3. 滚轮切换时发送 select 包（仅 selectedIndex）
 
 客户端 → 服务端（loot_panel HUD）:
-  1. F 键 → Screen.open('AXS:loot_interact') + Packet.send('pickup', 'open_menu')
+  1. F 键 → Screen.open('ArcartX-Suite:loot_interact') + Packet.send('pickup', 'open_menu')
   2. 滚轮 → 本地更新 var.selectedIndex + Packet.send('pickup', 'scroll_up/scroll_down')
   3. 点击条目 → Packet.send('pickup', 'pick_N')  （N = 0~7，指定索引拾取）
   4. 点击空白 → Packet.send('pickup', 'pick')     （拾取当前选中）

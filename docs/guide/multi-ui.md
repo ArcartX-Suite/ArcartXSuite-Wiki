@@ -1,4 +1,4 @@
-﻿---
+---
 title: 多 UI 同时发包 | ArcartX-Suite Minecraft插件文档
 description: 多 UI 同时发包 - ArcartX-Suite Minecraft 服务器插件文档。 ArcartX-Suite 我的世界服务器插件套件。
 ---
@@ -20,15 +20,15 @@ ArcartX-Suite 大多数模块的 `ui-id` 字段都支持**字符串**和**列表
 ### 单 UI（默认写法）
 
 ```yaml
-ui-id: "AXS:boss_tracker"
+ui-id: "ArcartX-Suite:boss_tracker"
 ```
 
 ### 多 UI（列表写法）
 
 ```yaml
 ui-id:
-  - "AXS:boss_tracker"
-  - "AXS:boss_tracker_alt"
+  - "ArcartX-Suite:boss_tracker"
+  - "ArcartX-Suite:boss_tracker_alt"
 ```
 
 ::: tip 向后兼容

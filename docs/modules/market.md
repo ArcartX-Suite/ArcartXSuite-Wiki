@@ -589,7 +589,7 @@ Market 模块声明了以下配置校验规则：
 
 ::: tip Redis 两用途
 - **`redis` 节**：模块内 Jedis 连接，仅 `cache-ttl-seconds` 列表缓存
-- **宿主 `cross-server.redis`**：全模块共用 `AXS:CROSS` 跨服总线
+- **宿主 `cross-server.redis`**：全模块共用 `ArcartX-Suite:CROSS` 跨服总线
 
 两者可指向同一 Redis 实例，但配置位置不同。
 :::

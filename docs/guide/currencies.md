@@ -307,7 +307,7 @@ currencies:
 使用 `/axs status` 命令可以查看当前已注册的货币数量：
 
 ```
-ArcartX-Suite v1.1.0-beta
+ArcartX-Suite v1.2.0-beta
  - ArcartX 桥接: 已连接
  - 货币桥接: 已注册 3 种货币
 ```

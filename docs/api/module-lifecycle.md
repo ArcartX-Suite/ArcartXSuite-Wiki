@@ -1,4 +1,4 @@
-﻿---
+---
 title: 模块生命周期 | ArcartX-Suite Minecraft插件API文档
 description: 模块生命周期 - ArcartX-Suite Minecraft 服务器插件文档。 ArcartX-Suite 我的世界服务器插件套件。
 ---
@@ -97,7 +97,7 @@ public class MyModule extends AbstractAXSModule {
         return ModuleDescriptor.builder("mymodule")
             .name("MyModule").version("1.0.0")
             .mainClass(getClass().getName())
-            .depends(List.of())              // 依赖的其他 AXS 模块
+            .depends(List.of())              // 依赖的其他 ArcartX-Suite 模块
             .externalDepends(List.of())      // 依赖的外部 Bukkit 插件
             .build();
     }
@@ -147,8 +147,8 @@ ModuleDescriptor desc = ModuleDescriptor.builder("mymodule")
     .name("MyModule")                        // 显示名称
     .version("1.0.0")                        // 版本号
     .mainClass("com.example.MyModule")       // 主类全限定名
-    .depends(List.of("title"))               // 必须已加载的 AXS 模块
-    .softDepends(List.of("warehouse"))       // 可选增强的 AXS 模块
+    .depends(List.of("title"))               // 必须已加载的 ArcartX-Suite 模块
+    .softDepends(List.of("warehouse"))       // 可选增强的 ArcartX-Suite 模块
     .externalDepends(List.of("MythicMobs"))  // 必须已安装的外部插件
     .externalSoftDepends(List.of("Vault"))   // 可选的外部插件
     .build();
@@ -162,8 +162,8 @@ ModuleDescriptor desc = ModuleDescriptor.builder("mymodule")
 | `name` | `String` | 显示名称，默认同 `id` |
 | `version` | `String` | 版本号，默认 `"1.0.0"` |
 | `mainClass` | `String` | AXSModule 实现类全限定名 |
-| `depends` | `List<String>` | 强依赖的其他 AXS 模块 id |
-| `softDepends` | `List<String>` | 软依赖的其他 AXS 模块 id |
+| `depends` | `List<String>` | 强依赖的其他 ArcartX-Suite 模块 id |
+| `softDepends` | `List<String>` | 软依赖的其他 ArcartX-Suite 模块 id |
 | `externalDepends` | `List<String>` | 强依赖的外部 Bukkit 插件名 |
 | `externalSoftDepends` | `List<String>` | 软依赖的外部 Bukkit 插件名 |
 

@@ -43,16 +43,16 @@ modules:
 | `/menu open <菜单ID>` | `arcartxsuite.menu.use` | 打开指定菜单 |
 | `/menu list` | `arcartxsuite.menu.use` | 列出已加载菜单 |
 | `/axmenu` | 同上 | `/menu` 别名 |
-| `/axs menu reload` | `axs.menu.reload` | 重载配置与菜单定义 |
-| `/axs menu open <ID> [玩家]` | `axs.menu.open.other` | 管理员代开 |
+| `/axs menu reload` | `ArcartX-Suite.menu.reload` | 重载配置与菜单定义 |
+| `/axs menu open <ID> [玩家]` | `ArcartX-Suite.menu.open.other` | 管理员代开 |
 
 ## 主配置（`ArcartXMenu.yml`）
 
 ```yaml
 client:
   packet-id: "AXS_MENU"
-  panel-ui-id: "AXS:menu_panel"
-  esc-ui-id: "AXS:menu_esc"
+  panel-ui-id: "ArcartX-Suite:menu_panel"
+  esc-ui-id: "ArcartX-Suite:menu_esc"
   esc-menu-id: "esc_main"          # ESC 界面默认加载的菜单 ID
   register-ui-on-enable: true
   overwrite-ui-files: false
@@ -431,8 +431,8 @@ if (menu != null) {
 | 节点 | 默认 | 说明 |
 | --- | --- | --- |
 | `arcartxsuite.menu.use` | true | 玩家 `/menu` |
-| `axs.menu.reload` | op | 重载模块 |
-| `axs.menu.open.other` | op | 管理员代开 |
+| `ArcartX-Suite.menu.reload` | op | 重载模块 |
+| `ArcartX-Suite.menu.open.other` | op | 管理员代开 |
 
 菜单/按钮级 `permission:` 字段可进一步限制。
 
@@ -445,7 +445,7 @@ if (menu != null) {
 
 ## 与 TrMenu 迁移对照
 
-| TrMenu | AXS Menu |
+| TrMenu | ArcartX-Suite Menu |
 | --- | --- |
 | `/trmenu open xxx` | `/menu open xxx` |
 | 命令绑定 RegEx | `command-regex` |

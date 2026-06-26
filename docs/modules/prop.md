@@ -27,7 +27,7 @@ description: ArcartX-Suite Prop 快捷道具系统，道具快捷键绑定、客
 | 可选 | PlaceholderAPI | 解析道具使用条件中的 `%...%` 变量 | 条件原样保留无法解析，等同未配置条件 |
 | 可选 | MythicLib / MMOItems | `ml\|...` / `mythiclib\|...` 临时属性效果 | 对应属性效果跳过，命令/消息类效果仍可用 |
 | 可选 | AttributePlus | `ap\|...` AttributePlus 属性加成效果 | 对应属性效果跳过 |
-| 可选 | 其他命令型插件 | 道具效果中执行该插件命令 | AXS 不强依赖，命令不存在时由服务端返回未知命令 |
+| 可选 | 其他命令型插件 | 道具效果中执行该插件命令 | ArcartX-Suite 不强依赖，命令不存在时由服务端返回未知命令 |
 
 ## 启用步骤
 

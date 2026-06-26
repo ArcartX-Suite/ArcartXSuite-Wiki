@@ -1,4 +1,4 @@
-﻿---
+---
 title: ArcartX-Suite 系统架构 | ArcartX-Suite Minecraft插件架构文档
 description: ArcartX-Suite 系统架构 - ArcartX-Suite Minecraft 服务器插件文档。 ArcartX-Suite 我的世界服务器插件套件。
 ---
@@ -13,7 +13,7 @@ graph TB
     Client[ArcartX 客户端 MOD] -->|网络包| Server
     
     %% 服务端侧
-    Server[AXS 服务端 jar] -->|业务逻辑| Business
+    Server[ArcartX-Suite 服务端 jar] -->|业务逻辑| Business
     Server -->|数据库| Database
     Server -->|桥接| Bridge
     
@@ -67,7 +67,7 @@ graph TB
 - **ArcartX 客户端 MOD**: 玩家安装的客户端模组，负责UI渲染和HUD显示
 
 ### 2. 服务端核心
-- **AXS 服务端 jar**: 服务端插件主程序，包含核心业务逻辑
+- **ArcartX-Suite 服务端 jar**: 服务端插件主程序，包含核心业务逻辑
 - **业务逻辑层**: 处理模块管理、配置解析、UI渲染等核心功能
 - **模块系统**: 管理 26 个功能模块的加载、卸载和交互
 - **配置管理**: 统一管理所有配置文件和热重载
@@ -114,8 +114,8 @@ graph TB
         Loader --> Modules
         
         subgraph "核心模块"
-            API[AXS-API]
-            CoreJar[axs-core]
+            API[ArcartX-Suite-API]
+            CoreJar[ArcartX-Suite-core]
         end
         
         subgraph "功能模块 (26个)"

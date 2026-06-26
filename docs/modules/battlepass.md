@@ -100,7 +100,7 @@ BattlePass 为付费模块，需要有效授权码激活。
 ```yaml
 # =============================================================================
 # 战令系统主配置文件
-# 版本: 2 (1.1.0-beta+)
+# 版本: 2 (1.2.0-beta+)
 # =============================================================================
 
 config-version: 2
@@ -227,7 +227,7 @@ cross-server:
 | `display-name` | String | 否 | `task-id` | 显示在 UI 上的任务名称 |
 | `description` | String | 否 | `""` | 任务描述，展示在 UI 上 |
 | `difficulty` | String | 否 | `easy` | 难度：`easy` / `normal` / `hard` |
-| `event-topic` | String | 是 | — | 监听的事件主题（如 `axs.combateffect.kill_entity`） |
+| `event-topic` | String | 是 | — | 监听的事件主题（如 `ArcartX-Suite.combateffect.kill_entity`） |
 | `required-count` | int | 否 | `1` | 完成任务所需累计值 |
 | `base-xp-reward` | int | 否 | `0` | 基础 XP 奖励（最终 = baseXpReward × difficultyMultiplier） |
 | `difficulty-multiplier` | float | 否 | 按难度自动 | 可覆盖难度默认倍率 |
@@ -337,7 +337,7 @@ daily-login:
   display-name: "每日登录"
   description: "每天登录游戏即可获得奖励"
   difficulty: easy
-  event-topic: "axs.onlinerewards.signin_success"
+  event-topic: "ArcartX-Suite.onlinerewards.signin_success"
   required-count: 1
   base-xp-reward: 100
   conditions: []
@@ -350,7 +350,7 @@ daily-kill-zombie:
   display-name: "击杀僵尸"
   description: "在主世界击杀20个僵尸"
   difficulty: normal
-  event-topic: "axs.combateffect.kill_entity"
+  event-topic: "ArcartX-Suite.combateffect.kill_entity"
   required-count: 20
   base-xp-reward: 150
   conditions:
@@ -372,7 +372,7 @@ weekly-quest-5:
   display-name: "完成悬赏任务"
   description: "本周累计完成5个悬赏任务"
   difficulty: normal
-  event-topic: "axs.questgps.quest_completed"
+  event-topic: "ArcartX-Suite.questgps.quest_completed"
   required-count: 5
   base-xp-reward: 500
   conditions: []
@@ -390,7 +390,7 @@ season-kill-1000:
   display-name: "千人斩"
   description: "本赛季累计击杀1000个生物"
   difficulty: hard
-  event-topic: "axs.combateffect.kill_entity"
+  event-topic: "ArcartX-Suite.combateffect.kill_entity"
   required-count: 1000
   base-xp-reward: 2000
   conditions: []
@@ -456,7 +456,7 @@ season:
 
 在 `tasks.daily`、`tasks.weekly`、`tasks.season` 下定义任务模板。关键点：
 
-- **事件主题** 必须与实际发出的 EventBus 事件主题一致。例如 CombatEffect 击杀事件主题为 `axs.combateffect.kill_entity`。
+- **事件主题** 必须与实际发出的 EventBus 事件主题一致。例如 CombatEffect 击杀事件主题为 `ArcartX-Suite.combateffect.kill_entity`。
 - **条件** 用于过滤任务匹配范围。比如限定只统计僵尸击杀、只统计 Boss 伤害。
 - **增量策略** 决定每次事件增加多少进度。普通计数用 `fixed:1`，伤害累计用 `payload_value`。
 - **weight** 控制随机分配概率。如果想让某任务出现频率更高，调高 weight。
@@ -545,7 +545,7 @@ action:
 
 ## 更新日志
 
-### 1.1.0-beta
+### 1.2.0-beta
 
 - 重构任务系统：引入 TaskTemplate + PlayerTaskInstance 双层模型
 - 新增三层通行证体系：FREE / PREMIUM / DELUXE（典藏额外 1.5x XP）

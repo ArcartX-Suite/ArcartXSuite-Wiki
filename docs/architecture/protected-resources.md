@@ -1,11 +1,11 @@
-﻿---
+---
 title: 资源加密 (.axb) | ArcartX-Suite Minecraft插件架构文档
 description: 资源加密 (.axb) - ArcartX-Suite Minecraft 服务器插件文档。 ArcartX-Suite 我的世界服务器插件套件。
 ---
 
 # 资源加密 (.axb)
 
-AXS 在 Gradle 阶段把**除 `plugin.yml` 之外的所有 YAML** 加密成 `.axb` 文件打进 jar，运行时才解密释放。
+ArcartX-Suite 在 Gradle 阶段把**除 `plugin.yml` 之外的所有 YAML** 加密成 `.axb` 文件打进 jar，运行时才解密释放。
 
 ## 加密时机
 
@@ -40,6 +40,6 @@ val protectYamlResources by tasks.registering(ProtectYamlResourcesTask::class) {
 3. 最终 YAML 交给模块 Configuration POJO 解析
 
 ::: danger 不要去掉 protectYamlResources 任务
-去掉后默认 YAML 会直接打进 jar，违反 AXS 发行约定。
+去掉后默认 YAML 会直接打进 jar，违反 ArcartX-Suite 发行约定。
 :::
 

@@ -121,12 +121,12 @@ types:
 
 ### 3. 设置权限
 
-- 进入区域挂机需要 `axs.afkreward.area.<区域名>` 权限
-- 获得对应 tier 奖励需要 `axs.afkreward.start.<类型>.<tier>` 权限
-  - 例：`axs.afkreward.start.温泉奖励.vip3`
-  - 也支持简写：`axs.afkreward.start.vip3`
-- 绕过每日次数上限：`axs.afkreward.not.reward.limit`
-- 绕过区域人数上限：`axs.afkreward.not.player.limit`
+- 进入区域挂机需要 `ArcartX-Suite.afkreward.area.<区域名>` 权限
+- 获得对应 tier 奖励需要 `ArcartX-Suite.afkreward.start.<类型>.<tier>` 权限
+  - 例：`ArcartX-Suite.afkreward.start.温泉奖励.vip3`
+  - 也支持简写：`ArcartX-Suite.afkreward.start.vip3`
+- 绕过每日次数上限：`ArcartX-Suite.afkreward.not.reward.limit`
+- 绕过区域人数上限：`ArcartX-Suite.afkreward.not.player.limit`
 
 ### 4. 周期与上限
 
@@ -203,7 +203,7 @@ storage:
   pool-size: 3
 
 ui:
-  hud-id: "AXS:afk_reward_hud"
+  hud-id: "ArcartX-Suite:afk_reward_hud"
   register-on-enable: true
   overwrite-ui-file: false
 ```
@@ -334,7 +334,7 @@ storage:
 
 ## 跨模块联动
 
-AfkReward 通过 AXS Capability 系统与以下模块联动：
+AfkReward 通过 ArcartX-Suite Capability 系统与以下模块联动：
 
 ### Mail 邮件
 
@@ -387,16 +387,16 @@ AfkReward 通过 AXS Capability 系统与以下模块联动：
 
 | 权限 | 说明 | 默认 |
 | --- | --- | --- |
-| `axs.afkreward.area.<区域名>` | 允许进入该区域挂机（区域+原地共用） | OP |
-| `axs.afkreward.start.<类型>.<tier>` | 获得该类型的对应 tier 奖励（区域+原地共用） | OP |
-| `axs.afkreward.start.<tier>` | 简写形式，全局 tier 匹配 | OP |
-| `axs.afkreward.not.reward.limit` | 绕过每日奖励次数上限 | OP |
-| `axs.afkreward.not.player.limit` | 绕过区域人数上限 | OP |
+| `ArcartX-Suite.afkreward.area.<区域名>` | 允许进入该区域挂机（区域+原地共用） | OP |
+| `ArcartX-Suite.afkreward.start.<类型>.<tier>` | 获得该类型的对应 tier 奖励（区域+原地共用） | OP |
+| `ArcartX-Suite.afkreward.start.<tier>` | 简写形式，全局 tier 匹配 | OP |
+| `ArcartX-Suite.afkreward.not.reward.limit` | 绕过每日奖励次数上限 | OP |
+| `ArcartX-Suite.afkreward.not.player.limit` | 绕过区域人数上限 | OP |
 | `arcartxsuite.afkreward.use` | 使用 `/afkreward` 玩家命令 | 所有人 |
 | `arcartxsuite.admin` | 管理命令权限 | OP |
 
 ::: tip 原地挂机权限复用
-原地挂机**复用**区域挂机的权限体系，无需额外配置。进入区域需要 `axs.afkreward.area.<区域名>`，获得 tier 奖励需要 `axs.afkreward.start.<类型>.<tier>`。
+原地挂机**复用**区域挂机的权限体系，无需额外配置。进入区域需要 `ArcartX-Suite.afkreward.area.<区域名>`，获得 tier 奖励需要 `ArcartX-Suite.afkreward.start.<类型>.<tier>`。
 :::
 
 ---

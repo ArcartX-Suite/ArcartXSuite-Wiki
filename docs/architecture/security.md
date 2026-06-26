@@ -1,11 +1,11 @@
-﻿---
+---
 title: 客户端包守卫 | ArcartX-Suite Minecraft插件架构文档
 description: 客户端包守卫 - ArcartX-Suite Minecraft 服务器插件文档。 ArcartX-Suite 我的世界服务器插件套件。
 ---
 
 # 客户端包守卫
 
-AXS 的安全由 `ClientPacketGuard` 负责，防止伪造 / 高频回包 DoS。
+ArcartX-Suite 的安全由 `ClientPacketGuard` 负责，防止伪造 / 高频回包 DoS。
 
 ## ClientPacketGuard
 

@@ -201,7 +201,7 @@ public class CombatEffectModule implements AXSModule {
 
 ## API 扩展
 
-### axs-api 新增类型
+### ArcartX-Suite-api 新增类型
 
 | 类型 | 说明 |
 |------|------|
@@ -276,7 +276,7 @@ plugins/ArcartX-Suite/
 
 检查 `ArcartX-SuitePlugin` 初始化日志：
 ```
-[AXS] 配置诊断引擎初始化完成，资源加载器: ModuleRegistry
+[ArcartX-Suite] 配置诊断引擎初始化完成，资源加载器: ModuleRegistry
 ```
 
 ### 迁移文件加载失败

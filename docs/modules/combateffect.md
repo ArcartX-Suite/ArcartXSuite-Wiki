@@ -929,13 +929,13 @@ visible: "server.combo_count > 0 || var.combo_show"
 ### status 命令输出示例
 
 ```
-[AXS] CombatEffect v1.0.2-beta 运行中
-[AXS] 包定义: 7/8
-[AXS] 战斗显示: 已启用
-[AXS] 死亡缓冲: 未启用
-[AXS] 连击追踪: 已启用
-[AXS] 按键触发: 已启用
-[AXS] 状态触发: 已启用
+[ArcartX-Suite] CombatEffect v1.0.2-beta 运行中
+[ArcartX-Suite] 包定义: 7/8
+[ArcartX-Suite] 战斗显示: 已启用
+[ArcartX-Suite] 死亡缓冲: 未启用
+[ArcartX-Suite] 连击追踪: 已启用
+[ArcartX-Suite] 按键触发: 已启用
+[ArcartX-Suite] 状态触发: 已启用
 ```
 
 - **包定义**：`已启用数/总数`，`enabled: false` 的包不计入已启用

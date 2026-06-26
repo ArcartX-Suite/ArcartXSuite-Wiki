@@ -1,4 +1,4 @@
-﻿---
+---
 title: ArcartX-Suite-Proxy 使用文档 | ArcartX-Suite Minecraft插件文档
 description: ArcartX-Suite-Proxy 使用文档 - ArcartX-Suite Minecraft 服务器插件文档。 ArcartX-Suite 我的世界服务器插件套件。
 ---
@@ -14,7 +14,7 @@ ArcartX-Suite-Proxy 是 ArcartX-Suite 的代理端伴侣插件，用于 Velocity
 - **账号类型标记**：将玩家账号类型（微软正版 / LittleSkin / 离线）通过 GameProfile Property 传递给后端，后端可直接读取
 
 ::: info 与跨服 SDK 的区别
-Proxy 插件**不负责** Chat / Tab / Mail 等游戏数据的跨服同步。`1.2.0-beta` 起跨服由子服 `CrossServerService` 统一处理（Redis `AXS:CROSS` + BungeeCord `AXS_CROSS`），与 Proxy 认证插件独立。详见 [跨服通信架构](/architecture/cross-server)。
+Proxy 插件**不负责** Chat / Tab / Mail 等游戏数据的跨服同步。`1.2.0-beta` 起跨服由子服 `CrossServerService` 统一处理（Redis `ArcartX-Suite:CROSS` + BungeeCord `AXS_CROSS`），与 Proxy 认证插件独立。详见 [跨服通信架构](/architecture/cross-server)。
 :::
 
 > **注意**：Proxy 插件**不能替代 authlib-injector**。后端子服仍需要 authlib-injector 作为 JVM Agent 运行，以正确处理 Mixed Mode 下的 UUID 和 Skin 回调。

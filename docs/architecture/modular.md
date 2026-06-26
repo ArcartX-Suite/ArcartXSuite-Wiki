@@ -1,18 +1,18 @@
-﻿---
+---
 title: modular | ArcartX-Suite Minecraft插件架构文档
 description: modular - ArcartX-Suite Minecraft 服务器插件文档。 ArcartX-Suite 我的世界服务器插件套件。
 ---
 
 # 模块化架构
 
-ArcartX-Suite 1.1.0-beta 使用 **宿主 + 模块 Jar** 架构。宿主（`axs-core`）提供核心基础设施，各功能模块可以打包为独立 Jar 放入 `modules/` 目录按需加载。
+ArcartX-Suite 1.2.0-beta 使用 **宿主 + 模块 Jar** 架构。宿主（`ArcartX-Suite-core`）提供核心基础设施，各功能模块可以打包为独立 Jar 放入 `modules/` 目录按需加载。
 
 ## 项目结构
 
 ```
 ArcartX-Suite/
-├── axs-api/              # 模块 API 接口层（AXSModule, ModuleContext 等）
-├── axs-core/             # 宿主核心（ShadowJar 输出）
+├── ArcartX-Suite-api/              # 模块 API 接口层（AXSModule, ModuleContext 等）
+├── ArcartX-Suite-core/             # 宿主核心（ShadowJar 输出）
 ├── modules/
 │   ├── announcer/        # Announcer 播报 + Subtitle 字幕
 │   ├── entitytracker/    # EntityTracker 实体追踪 + 目标 HUD
@@ -46,13 +46,13 @@ ArcartX-Suite/
 
 | 组件 | 包路径 | 说明 |
 |------|--------|------|
-| `AXSModule` | `axs-api` | 模块生命周期接口：`onEnable` / `onDisable` / `onReload` / `isReady` |
-| `ModuleContext` | `axs-api` | 宿主暴露给模块的上下文：plugin 实例、Logger、各种 Bridge |
-| `ModuleDescriptor` | `axs-api` | 模块元数据：id / name / version / depends |
-| `ModuleCommandHandler` | `axs-api` | 可选命令处理接口，实现后自动注册 `/axs <moduleId>` 子命令 |
-| `ModuleRegistry` | `axs-core` | 模块扫描 / 加载 / 启用 / 禁用 / 重载 |
-| `ModuleClassLoader` | `axs-core` | 模块隔离 ClassLoader，每个模块 Jar 独立加载 |
-| `DefaultModuleContext` | `axs-core` | `ModuleContext` 的默认实现 |
+| `AXSModule` | `ArcartX-Suite-api` | 模块生命周期接口：`onEnable` / `onDisable` / `onReload` / `isReady` |
+| `ModuleContext` | `ArcartX-Suite-api` | 宿主暴露给模块的上下文：plugin 实例、Logger、各种 Bridge |
+| `ModuleDescriptor` | `ArcartX-Suite-api` | 模块元数据：id / name / version / depends |
+| `ModuleCommandHandler` | `ArcartX-Suite-api` | 可选命令处理接口，实现后自动注册 `/axs <moduleId>` 子命令 |
+| `ModuleRegistry` | `ArcartX-Suite-core` | 模块扫描 / 加载 / 启用 / 禁用 / 重载 |
+| `ModuleClassLoader` | `ArcartX-Suite-core` | 模块隔离 ClassLoader，每个模块 Jar 独立加载 |
+| `DefaultModuleContext` | `ArcartX-Suite-core` | `ModuleContext` 的默认实现 |
 
 ## 启动流程
 
@@ -95,7 +95,7 @@ onEnable()
 1. 检查模块未加载（已加载则拒绝，提示走 reload）。
 2. 扫描 `modules/` 目录寻找 id 匹配的 jar。
 3. 进入与启动期相同的 `loadAndEnable(DiscoveredModule)` 流程：
-   - 检查外部插件依赖 / AXS 模块依赖（depends）
+   - 检查外部插件依赖 / ArcartX-Suite 模块依赖（depends）
    - 创建独立 `ModuleClassLoader`（URLClassLoader 子类）
    - 实例化 `AXSModule` 主类
    - 构建 `DefaultModuleContext`
@@ -147,7 +147,7 @@ public final class RgbModule implements AXSModule {
     @Override
     public ModuleDescriptor descriptor() {
         return ModuleDescriptor.builder("rgb")
-            .name("RGB").version("1.1.0-beta")
+            .name("RGB").version("1.2.0-beta")
             .mainClass(getClass().getName()).build();
     }
 
@@ -174,7 +174,7 @@ public final class RgbModule implements AXSModule {
 
 ### 委托模式（历史说明）
 
-1.1.0-beta 早期有部分模块采用「委托模式」——模块 Jar 的 `onEnable`/`onDisable` 委托给宿主的 `reloadXxxState()` / `shutdownXxxModule()`，业务逻辑仍在宿主中执行。截至 2026-05-14，**全部 17 个基础模块已完成独立化迁移**，委托模式已退出使用。
+1.2.0-beta 早期有部分模块采用「委托模式」——模块 Jar 的 `onEnable`/`onDisable` 委托给宿主的 `reloadXxxState()` / `shutdownXxxModule()`，业务逻辑仍在宿主中执行。截至 2026-05-14，**全部 17 个基础模块已完成独立化迁移**，委托模式已退出使用。
 
 当前所有模块均使用「独立模式」实现，业务逻辑封装在模块自身的 `XxxService` 中，宿主只负责提供 `ModuleContext` 基础设施。
 
@@ -185,7 +185,7 @@ public final class RgbModule implements AXSModule {
 ```yaml
 id: mymodule           # 唯一标识，与 config.yml 中的键对应
 name: MyModule         # 显示名称
-version: 1.1.0-beta
+version: 1.2.0-beta
 main: com.example.MyModule   # AXSModule 实现类全限定名
 api-version: 1.0
 depends: []            # 强依赖的其他模块 id

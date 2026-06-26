@@ -1,11 +1,11 @@
-﻿---
+---
 title: 模块启用 | ArcartX-Suite Minecraft插件文档
 description: 模块启用 - ArcartX-Suite Minecraft 服务器插件文档。 ArcartX-Suite 我的世界服务器插件套件。
 ---
 
 # 模块启用
 
-AXS 的 `config.yml` 负责模块启用开关：
+ArcartX-Suite 的 `config.yml` 负责模块启用开关：
 
 ```yaml
 modules:
@@ -19,7 +19,7 @@ modules:
 
 ## 模块列表
 
-AXS 提供以下模块：
+ArcartX-Suite 提供以下模块：
 
 - `announcer` — 播报系统（含 HUD 公告 + 打字机字幕）
 - `entitytracker` — 实体追踪（含 Boss 追踪 + 攻击目标 HUD）

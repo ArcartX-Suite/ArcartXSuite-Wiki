@@ -49,13 +49,13 @@ debug: false
 
 client:
   packet-id: "AXS_MAP"           # 客户端 Packet.send / 服务端 packetHandler 通信标识
-  menu-ui-id: "AXS:map_menu"     # 全屏地图 UI
-  hud-ui-id: "AXS:map_hud"       # 小地图 HUD
+  menu-ui-id: "ArcartX-Suite:map_menu"     # 全屏地图 UI
+  hud-ui-id: "ArcartX-Suite:map_hud"       # 小地图 HUD
   register-ui-on-enable: true
   overwrite-ui-files: false
 
 keybinds:
-  category: "AXS Map"
+  category: "ArcartX-Suite Map"
   open-menu:
     enabled: true
     display-name: "打开地图"
@@ -213,7 +213,7 @@ mine:
 waypoints:
   enabled: true
   default-style-id: "default"   # 路径点导航样式
-  id-prefix: "AXS-map-wp-"     # 路径点 ID 前缀
+  id-prefix: "ArcartX-Suite-map-wp-"     # 路径点 ID 前缀
   auto-name-prefix: "标记点"    # 自动命名前缀
   default-max-count: 5          # 玩家默认最多可创建的路径点数
   limits:                       # 按权限设置更高上限
@@ -245,8 +245,8 @@ waypoints:
 
 | 功能 | UI ID | 说明 |
 | --- | --- | --- |
-| 全屏地图 | `AXS:map_menu` | 服务端推送世界数据、锚点列表、玩家路径点和当前位置；客户端点击锚点/路径点回包 |
-| 小地图 HUD | `AXS:map_hud` | 服务端按玩家移动/传送事件推送坐标和追踪目标；`packet-id: "AXS_MAP"` |
+| 全屏地图 | `ArcartX-Suite:map_menu` | 服务端推送世界数据、锚点列表、玩家路径点和当前位置；客户端点击锚点/路径点回包 |
+| 小地图 HUD | `ArcartX-Suite:map_hud` | 服务端按玩家移动/传送事件推送坐标和追踪目标；`packet-id: "AXS_MAP"` |
 
 ### 地图 Packet 主要字段
 

@@ -1,4 +1,4 @@
-﻿---
+---
 title: Warehouse 多子服 MySQL + 跨服编辑锁部署清单 | ArcartX-Suite Minecraft插件文档
 description: Warehouse 多子服 MySQL + 跨服编辑锁部署清单 - ArcartX-Suite Minecraft 服务器插件文档。 ArcartX-Suite 我的世界服务器插件套件。
 ---
@@ -24,7 +24,7 @@ description: Warehouse 多子服 MySQL + 跨服编辑锁部署清单 - ArcartX-S
         │                           │                           │
         └───────────────────────────┴───────────────────────────┘
                                     │
-                    Redis Pub/Sub  channel: AXS:CROSS
+                    Redis Pub/Sub  channel: ArcartX-Suite:CROSS
                     （或 BungeeCord Forward，生产推荐 Redis）
                                     │
               warehouse 频道：LOCK / UNLOCK 编辑锁同步
@@ -84,7 +84,7 @@ FLUSH PRIVILEGES;
 
 ## 第二步：Redis（推荐）
 
-所有子服指向同一 Redis，`channel` 使用默认值 `AXS:CROSS` 即可。
+所有子服指向同一 Redis，`channel` 使用默认值 `ArcartX-Suite:CROSS` 即可。
 
 ```yaml
 # 仅需保证各子服 host/port/password/database/channel 一致
@@ -94,7 +94,7 @@ redis:
   port: 6379
   password: ""
   database: 0
-  channel: "AXS:CROSS"
+  channel: "ArcartX-Suite:CROSS"
 ```
 
 无 Redis 时可改用 Proxy Forward（见下文「仅 Proxy 方案」），但 Warehouse 锁消息虽很小，仍建议与其他跨服模块一并使用 Redis。
@@ -122,7 +122,7 @@ cross-server:
     port: 6379
     password: ""
     database: 0
-    channel: "AXS:CROSS"
+    channel: "ArcartX-Suite:CROSS"
     connect-timeout-ms: 5000
   proxy:
     enabled: false                   # 与 Redis 二选一或同时 true（双发+去重）

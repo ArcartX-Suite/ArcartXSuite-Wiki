@@ -2,21 +2,13 @@
    ArcartX-Suite VitePress — Custom Theme
    ============================================================ */
 
-/* --- Brand Colors --- */
+/* --- Brand Colors (Dark Only) --- */
 :root {
-  --vp-c-brand-1: #6750a4;
-  --vp-c-brand-2: #7c6bbf;
-  --vp-c-brand-3: #9b8cd8;
-  --vp-c-brand-soft: rgba(103, 80, 164, 0.14);
-  --vp-home-hero-name-color: transparent;
-  --vp-home-hero-name-background: linear-gradient(135deg, #6750a4 0%, #5b6efb 50%, #00d4ff 100%);
-}
-
-.dark {
   --vp-c-brand-1: #9b8cd8;
   --vp-c-brand-2: #7c6bbf;
   --vp-c-brand-3: #6750a4;
   --vp-c-brand-soft: rgba(155, 140, 216, 0.14);
+  --vp-home-hero-name-color: transparent;
   --vp-home-hero-name-background: linear-gradient(120deg, #ffffff 0%, #bfc6ff 35%, #7c8aff 62%, #22d3ee 100%);
   --vp-home-hero-image-background-image: linear-gradient(135deg, rgba(103,80,164,0.3) 0%, rgba(91,110,251,0.3) 50%, rgba(0,212,255,0.2) 100%);
   --vp-home-hero-image-filter: blur(56px);
@@ -43,13 +35,6 @@
 
 .VPHero .text {
   font-size: 1.5rem !important;
-  background: linear-gradient(135deg, #6750a4 30%, #5b6efb 70%);
-  -webkit-background-clip: text;
-  -webkit-text-fill-color: transparent;
-  background-clip: text;
-}
-
-.dark .VPHero .text {
   background: linear-gradient(120deg, #fff 0%, #bfc6ff 35%, #7c8aff 62%, #22d3ee 100%);
   -webkit-background-clip: text;
   -webkit-text-fill-color: transparent;
@@ -57,34 +42,22 @@
   text-shadow: 0 0 60px rgba(91,110,251,0.25);
 }
 
-.dark .VPHero .tagline {
-  color: #c6c8d3;
-}
-
 .VPHero .tagline {
   font-size: 1.1rem !important;
+  color: #c6c8d3;
 }
 
 /* --- Feature Cards Enhancement --- */
 .VPFeatures .VPFeature {
   border-radius: 12px !important;
   transition: all 0.3s ease;
-  border: 1px solid var(--vp-c-divider) !important;
+  border: 1px solid rgba(255, 255, 255, 0.11) !important;
+  background: rgba(255, 255, 255, 0.055) !important;
+  backdrop-filter: blur(16px);
 }
 
 .VPFeatures .VPFeature:hover {
   transform: translateY(-4px);
-  box-shadow: 0 12px 32px rgba(103, 80, 164, 0.15);
-  border-color: var(--vp-c-brand-1) !important;
-}
-
-.dark .VPFeatures .VPFeature {
-  background: rgba(255, 255, 255, 0.055) !important;
-  backdrop-filter: blur(16px);
-  border-color: rgba(255, 255, 255, 0.11) !important;
-}
-
-.dark .VPFeatures .VPFeature:hover {
   box-shadow: 0 22px 48px rgba(0, 0, 0, 0.25);
   border-color: rgba(34, 211, 238, 0.3) !important;
 }
@@ -147,31 +120,16 @@
 }
 
 .badge-stable {
-  background: rgba(34, 197, 94, 0.15);
-  color: #16a34a;
-}
-
-.dark .badge-stable {
   background: rgba(34, 197, 94, 0.2);
   color: #4ade80;
 }
 
 .badge-wip {
-  background: rgba(245, 158, 11, 0.15);
-  color: #d97706;
-}
-
-.dark .badge-wip {
   background: rgba(245, 158, 11, 0.2);
   color: #fbbf24;
 }
 
 .badge-merged {
-  background: rgba(103, 80, 164, 0.12);
-  color: #6750a4;
-}
-
-.dark .badge-merged {
   background: rgba(155, 140, 216, 0.15);
   color: #9b8cd8;
 }
@@ -181,12 +139,8 @@
   margin: 48px 0;
   padding: 32px;
   border-radius: 16px;
-  background: linear-gradient(135deg, rgba(103,80,164,0.06) 0%, rgba(91,110,251,0.04) 100%);
-  border: 1px solid var(--vp-c-divider);
-}
-
-.dark .config-showcase {
   background: linear-gradient(135deg, rgba(103,80,164,0.12) 0%, rgba(91,110,251,0.08) 100%);
+  border: 1px solid var(--vp-c-divider);
 }
 
 .config-showcase h3 {
@@ -250,30 +204,20 @@
   padding: 2.5rem 1.5rem;
   margin: 1.5rem 0;
   border-radius: 16px;
-  background: linear-gradient(135deg, rgba(103,80,164,0.06) 0%, rgba(91,110,251,0.04) 100%);
+  background: linear-gradient(135deg, rgba(103,80,164,0.10) 0%, rgba(60,40,90,0.08) 100%);
   border: 1px solid var(--vp-c-divider);
   max-width: 720px;
   margin-left: auto;
   margin-right: auto;
 }
 
-.dark .brand-meaning {
-  background: linear-gradient(135deg, rgba(103,80,164,0.10) 0%, rgba(60,40,90,0.08) 100%);
-}
-
 .brand-meaning h2 {
   margin: 0 0 1rem;
   font-size: 1.4rem;
-  background: linear-gradient(135deg, #6750a4, #5b6efb);
-  -webkit-background-clip: text;
-  -webkit-text-fill-color: transparent;
-  background-clip: text;
-}
-
-.dark .brand-meaning h2 {
   background: linear-gradient(120deg, #e0aaff 0%, #c8b6ff 100%);
   -webkit-background-clip: text;
   -webkit-text-fill-color: transparent;
+  background-clip: text;
 }
 
 .brand-meaning p {
@@ -318,12 +262,8 @@
   margin: 0 auto 48px;
   padding: 40px 32px;
   border-radius: 16px;
-  background: linear-gradient(135deg, rgba(103,80,164,0.05) 0%, rgba(91,110,251,0.03) 100%);
-  border: 1px solid var(--vp-c-divider);
-}
-
-.dark .comparison-section {
   background: linear-gradient(135deg, rgba(103,80,164,0.10) 0%, rgba(91,110,251,0.06) 100%);
+  border: 1px solid var(--vp-c-divider);
 }
 
 .comparison-section h2 {
@@ -360,16 +300,12 @@
 }
 
 .comparison-table thead th {
-  background: var(--vp-c-brand-1);
+  background: rgba(103, 80, 164, 0.55);
   color: #fff;
   font-weight: 600;
   padding: 12px 16px;
   text-align: left;
   white-space: nowrap;
-}
-
-.dark .comparison-table thead th {
-  background: rgba(103, 80, 164, 0.55);
 }
 
 .comparison-table tbody td {
@@ -379,18 +315,10 @@
 }
 
 .comparison-table tbody tr:nth-child(even) td {
-  background: rgba(103, 80, 164, 0.03);
-}
-
-.dark .comparison-table tbody tr:nth-child(even) td {
   background: rgba(255, 255, 255, 0.025);
 }
 
 .comparison-table tbody tr:hover td {
-  background: rgba(103, 80, 164, 0.08);
-}
-
-.dark .comparison-table tbody tr:hover td {
   background: rgba(155, 140, 216, 0.10);
 }
 
