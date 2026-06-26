@@ -54,6 +54,32 @@
   color: #c6c8d3;
 }
 
+/* --- Hero Buttons (Dark Only) --- */
+.VPHero .action .VPButton {
+  border-radius: 24px !important;
+}
+
+.VPHero .action .VPButton.brand {
+  background: var(--vp-c-brand-3) !important;
+  color: #fff !important;
+  border-color: transparent !important;
+}
+
+.VPHero .action .VPButton.brand:hover {
+  background: var(--vp-c-brand-2) !important;
+}
+
+.VPHero .action .VPButton.alt {
+  background: rgba(255, 255, 255, 0.08) !important;
+  color: #e2e4eb !important;
+  border-color: rgba(255, 255, 255, 0.14) !important;
+}
+
+.VPHero .action .VPButton.alt:hover {
+  background: rgba(255, 255, 255, 0.14) !important;
+  border-color: rgba(155, 140, 216, 0.4) !important;
+}
+
 /* --- Feature Cards Enhancement --- */
 .VPFeatures .VPFeature {
   border-radius: 12px !important;

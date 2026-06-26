@@ -4,7 +4,7 @@ import HomeBackground from './components/HomeBackground.vue'
 import HeroSubtagline from './components/HeroSubtagline.vue'
 import { h } from 'vue'
 
-// 空组件：彻底移除主题切换按钮
+// 空组件：彻底移除主题切换按钮，但保留导航栏占位避免布局破坏
 const EmptyComponent = { render: () => null }
 
 export default {
@@ -17,7 +17,5 @@ export default {
   },
   enhanceApp({ app }) {
     app.component('VPSwitchAppearance', EmptyComponent)
-    app.component('VPNavBarAppearance', EmptyComponent)
-    app.component('VPNavScreenAppearance', EmptyComponent)
   },
 }
