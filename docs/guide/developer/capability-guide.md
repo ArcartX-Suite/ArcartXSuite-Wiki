@@ -1,6 +1,6 @@
 ---
 title: Capability 详解 | ArcartX-Suite 开发者指南
-description: ArcartX-Suite 跨模块通信机制 Capability——原理、内置能力表、提供方与消费方开发教程、多实例与 EventBus。
+description: ArcartX-Suite 跨模块通信机制 Capability——原理、内置能力表、提供方与使用方开发教程、多实例与 EventBus。
 ---
 
 # Capability 详解
@@ -38,7 +38,7 @@ sequenceDiagram
 提供方 startService()
     └── context.registerCapability(接口.class, 实现)
 
-消费方 startService()
+使用方 startService()
     └── capability = context.getCapability(接口.class)  // 可能为 null
 
 宿主 onDisable(提供方)
@@ -83,11 +83,11 @@ bus.publish("market.purchase", player, Map.of("item", "diamond"));
 
 `module.yml` 中：
 
-- **`depends`**：硬依赖，保证提供方 **先于** 消费方 `onEnable`
-- **`softdepends`**：软依赖，提供方可能不存在——消费方 **必须判空**
+- **`depends`**：硬依赖，保证提供方 **先于** 使用方 `onEnable`
+- **`softdepends`**：软依赖，提供方可能不存在——使用方 **必须判空**
 
 ```yaml
-# 消费方 module.yml
+# 使用方 module.yml
 id: mymodule
 depends: []
 softdepends: [title, mail, eventpacket]
@@ -143,7 +143,7 @@ context.registerCapability(TitleConfigQueryable.class, titleId -> {
 });
 ```
 
-## 消费方：如何调用其他模块
+## 使用方：如何调用其他模块
 
 ### 基本用法
 
@@ -189,9 +189,9 @@ public void onQuestComplete(Player player) {
 
 ## 内置 Capability 能力图
 
-下表列出 AXS 官方模块 **提供** 的能力及典型 **消费方**。第三方模块也可 `getCapability` 调用这些接口。
+下表列出 AXS 官方模块 **提供** 的能力及典型 **使用方**。第三方模块也可 `getCapability` 调用这些接口。
 
-| Capability 接口 | 提供模块 | 典型消费方 | 用途 |
+| Capability 接口 | 提供模块 | 典型使用方 | 用途 |
 |-----------------|----------|------------|------|
 | `TitleGrantable` | title | eventpacket, battlepass | 发放称号 |
 | `TitleConfigQueryable` | title | tab, chat | 查询称号元数据 |
@@ -271,7 +271,7 @@ protected void startService() {
 }
 ```
 
-**模块 B（消费方）** — `shop` 商店折扣：
+**模块 B（使用方）** — `shop` 商店折扣：
 
 ```yaml
 # shop/module.yml
@@ -306,7 +306,7 @@ B 的 Jar **不需要** 依赖 A 的实现类，只需 `compileOnly` A 发布的
 | `/axs unload` | 同上，并关闭 ClassLoader |
 
 ::: warning 不要在 onDisable 里留悬挂引用
-消费方应把 Capability 引用置空；提供方无需手动 unregister（宿主会处理）。若你在静态字段缓存了 Capability，unload 后可能持有已失效对象。
+使用方应把 Capability 引用置空；提供方无需手动 unregister（宿主会处理）。若你在静态字段缓存了 Capability，unload 后可能持有已失效对象。
 :::
 
 ## 与 EventPacket / 配置联动
@@ -321,7 +321,7 @@ B 的 Jar **不需要** 依赖 A 的实现类，只需 `compileOnly` A 发布的
 ## 最佳实践 checklist
 
 - [ ] 接口放在 `api` 包，仅含业务方法，不暴露内部 Service
-- [ ] 消费方对 `getCapability` 结果 **始终判 null**
+- [ ] 使用方对 `getCapability` 结果 **始终判 null**
 - [ ] 可选依赖写 `softdepends`，必选依赖写 `depends`
 - [ ] 使用 `Supplier` 延迟查找
 - [ ] 单接口单一职责；不要做一个「万能 Capability」

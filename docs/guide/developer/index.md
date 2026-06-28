@@ -37,7 +37,7 @@ plugins/
 
 - **模块**：实现 `AXSModule` 或继承 `AbstractAXSModule` 的独立 Jar，通过 `module.yml` 声明入口类与依赖。
 - **ModuleContext**：模块与宿主通信的唯一入口——取桥接 API、注册命令、注册 Capability，都通过它完成。
-- **Capability**：AXS **推荐的跨模块调用方式**。提供方注册接口实例，消费方按类型查找，避免模块之间直接 `import` 实现类。
+- **Capability**：AXS **推荐的跨模块调用方式**。提供方注册接口实例，使用方按类型查找，避免模块之间直接 `import` 实现类。
 
 ## 开发路线图
 
@@ -66,7 +66,7 @@ flowchart LR
 | [ArcartXSuite-Core](https://github.com/xuanmomo233/ArcartXSuite-Core) | 开源 SDK 仓库（`axs-api` 源码、`MODULAR-README.md`） |
 | [开发第三方模块](./module-development) | 项目结构、Gradle、`module.yml`、`AbstractAXSModule`、UI 绑定、客户端包、子命令 |
 | [使用第三方模块](./using-third-party-modules) | 服主安装、启用、热加载、依赖与签名、常见问题 |
-| [Capability 详解](./capability-guide) | 原理、内置能力表、提供方/消费方完整示例、多实例 Capability |
+| [Capability 详解](./capability-guide) | 原理、内置能力表、提供方/使用方完整示例、多实例 Capability |
 | [模块生命周期 API](/api/module-lifecycle) | `AXSModule` / `AbstractAXSModule` 接口说明 |
 | [ModuleContext](/api/module-context) | 桥接、跨服、资源导出等上下文 API |
 | [Capability API 速查](/api/capability) | 各内置 Capability 接口方法签名 |
