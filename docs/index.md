@@ -17,10 +17,10 @@ hero:
       link: /modules/
     - theme: alt
       text: 开源 SDK
-      link: https://github.com/xuanmomo233/ArcartXSuite-Core
+      link: https://github.com/ArcartX-Suite/ArcartXSuite-Core
     - theme: alt
       text: 文档仓库
-      link: https://github.com/xuanmomo233/ArcartXSuite-Wiki
+      link: https://github.com/ArcartX-Suite/ArcartXSuite-Wiki
     - theme: alt
       text: 云端授权
       link: https://cloud.021209.xyz/

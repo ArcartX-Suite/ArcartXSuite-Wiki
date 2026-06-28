@@ -8,7 +8,7 @@ description: modular - ArcartX-Suite Minecraft 服务器插件文档。 ArcartX-
 ArcartX-Suite 1.2.0-beta 使用 **宿主 + 模块 Jar** 架构。宿主提供核心基础设施，各功能模块可以打包为独立 Jar 放入 `modules/` 目录按需加载。
 
 ::: tip 开源 SDK 仓库
-公开 API 与宿主参考实现见 [ArcartXSuite-Core](https://github.com/xuanmomo233/ArcartXSuite-Core)。下述目录结构与该仓库一致（`axs-api/`、`proxy/` 等）。
+公开 API 与宿主参考实现见 [ArcartXSuite-Core](https://github.com/ArcartX-Suite/ArcartXSuite-Core)。下述目录结构与该仓库一致（`axs-api/`、`proxy/` 等）。
 :::
 
 ## 项目结构

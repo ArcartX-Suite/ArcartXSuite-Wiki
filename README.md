@@ -92,8 +92,8 @@
 
 ## 🌐 相关链接
 
-- 📖 **[官方文档](https://xuanmomo233.github.io/ArcartXSuite-Wiki/)** — Minecraft 服务器插件配置教程与 API 参考
-- 💻 **[开源 SDK（ArcartXSuite-Core）](https://github.com/xuanmomo233/ArcartXSuite-Core)** — 模块开发 API 源码与 `MODULAR-README.md`
-- 📝 **[文档仓库（ArcartXSuite-Wiki）](https://github.com/xuanmomo233/ArcartXSuite-Wiki)** — Wiki 源码与 Issue 反馈
+- 📖 **[官方文档](https://arcartx-suite.github.io/ArcartXSuite-Wiki/)** — Minecraft 服务器插件配置教程与 API 参考
+- 💻 **[开源 SDK（ArcartXSuite-Core）](https://github.com/ArcartX-Suite/ArcartXSuite-Core)** — 模块开发 API 源码与 `MODULAR-README.md`
+- 📝 **[文档仓库（ArcartXSuite-Wiki）](https://github.com/ArcartX-Suite/ArcartXSuite-Wiki)** — Wiki 源码与 Issue 反馈
 - 🏰 **[ArcartX 社区](https://arcartx.com)** — 连接 Minecraft 服主与开发者
 - 🔗 **[ArcartX 官方文档](https://wiki.arcartx.com/docs)** — ArcartX 客户端框架使用指南

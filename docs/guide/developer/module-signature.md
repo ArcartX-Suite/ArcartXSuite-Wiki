@@ -92,7 +92,7 @@ module-signature-public-keys:
 
 ### 方式一：OpenSource 仓库脚本（推荐）
 
-[ArcartXSuite-Core](https://github.com/xuanmomo233/ArcartXSuite-Core) 提供 `scripts/sign-module.py`：
+[ArcartXSuite-Core](https://github.com/ArcartX-Suite/ArcartXSuite-Core) 提供 `scripts/sign-module.py`：
 
 ```bash
 # 1. 首次：生成密钥对（私钥仅保存在本机，勿提交 Git）

@@ -141,7 +141,7 @@ export default withMermaid(defineConfig<any>({
         text: '链接',
         items: [
           { text: 'ArcartX 官方文档', link: 'https://wiki.arcartx.com/docs' },
-          { text: 'GitHub', link: 'https://github.com/xuanmomo233/ArcartXSuite-Wiki' },
+          { text: 'GitHub', link: 'https://github.com/ArcartX-Suite/ArcartXSuite-Wiki' },
         ],
       },
     ],
@@ -222,7 +222,7 @@ export default withMermaid(defineConfig<any>({
           collapsed: true,
           items: [
             { text: '→ API 参考', link: '/api/' },
-            { text: 'ArcartXSuite-Core（开源 SDK）', link: 'https://github.com/xuanmomo233/ArcartXSuite-Core' },
+            { text: 'ArcartXSuite-Core（开源 SDK）', link: 'https://github.com/ArcartX-Suite/ArcartXSuite-Core' },
             { text: '模块化架构', link: '/architecture/modular' },
             { text: 'Capability API', link: '/api/capability' },
             { text: 'ModuleContext', link: '/api/module-context' },
@@ -271,7 +271,7 @@ export default withMermaid(defineConfig<any>({
     },
 
     socialLinks: [
-      { icon: 'github', link: 'https://github.com/xuanmomo233/ArcartXSuite-Wiki' },
+      { icon: 'github', link: 'https://github.com/ArcartX-Suite/ArcartXSuite-Wiki' },
     ],
 
     search: {
