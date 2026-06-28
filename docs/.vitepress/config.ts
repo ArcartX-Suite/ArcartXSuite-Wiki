@@ -9,7 +9,6 @@ const moduleSidebar = [
     collapsed: true,
     items: [
       { text: 'Announcer 播报', link: '/modules/announcer' },
-      { text: 'Chat 聊天', link: '/modules/chat' },
       { text: 'EventPacket 事件引擎', link: '/modules/eventpacket' },
       { text: 'CombatEffect 战斗特效', link: '/modules/combateffect' },
       { text: 'LoginView 登录界面', link: '/modules/loginview' },
@@ -44,6 +43,7 @@ const moduleSidebar = [
     text: '福利模块',
     collapsed: false,
     items: [
+      { text: 'Chat 聊天', link: '/modules/chat' },
       { text: 'Tab 在线列表', link: '/modules/tab' },
       { text: 'EntityTracker 实体追踪', link: '/modules/entitytracker' },
     ],

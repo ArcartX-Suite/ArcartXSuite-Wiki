@@ -30,10 +30,10 @@ modules:
 ArcartX-Suite 提供以下模块：
 
 - `announcer` — 播报系统（含 HUD 公告 + 打字机字幕）
-- `entitytracker` — 实体追踪（含 Boss 追踪 + 攻击目标 HUD）
+- `entitytracker` — 实体追踪（含 Boss 追踪 + 攻击目标 HUD；**福利模块**，消费满 ¥200 可领 5 份额）
 - `combateffect` — 战斗特效（含击杀特效 + 伤害飘字）
 - `eventpacket` — 事件引擎（含客户端回包预设功能）
-- `chat` — 聊天系统
+- `chat` — 聊天系统（**福利模块**，任意消费可领 5 份额）
 - `conversation` — 对话系统（NPC 对话 + 选择器）
 - `loginview` — 登录界面
 - `mail` — 邮箱系统
@@ -41,7 +41,7 @@ ArcartX-Suite 提供以下模块：
 - `pickup` — 拾取提示
 - `prop` — 快捷道具
 - `rgb` — RGB 渐变文本
-- `tab` — Tab 在线列表
+- `tab` — Tab 在线列表（**福利模块**，消费满 ¥100 可领 5 份额）
 - `title` — 称号系统
 - `map` — 地图系统
 - `questgps` — 任务导航
