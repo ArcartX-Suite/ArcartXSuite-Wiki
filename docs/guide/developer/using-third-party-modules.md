@@ -96,14 +96,18 @@ external-depends: [PlaceholderAPI]
 
 ## 模块签名（可选）
 
-宿主支持 Ed25519 模块签名校验。在 `config.yml` 配置作者公钥后，**无有效签名** 的 Jar 会被拒绝加载：
+宿主支持对 `module.yml` 做 **Ed25519** 校验：开发者用私钥签名，服主在 `config.yml` 配置作者公钥后，无有效签名的 Jar 会被拒绝加载。
 
 ```yaml
 module-signature-public-keys:
   - "BASE64_ENCODED_ED25519_PUBLIC_KEY"
 ```
 
-留空 `[]` 表示关闭校验（默认）。向模块作者索取公钥后再开启，可防止 Jar 被篡改。
+留空 `[]` 表示关闭（默认）。
+
+::: warning 开启前请读完整说明
+配置**任意**公钥后，**所有**模块（含官方云端模块）都必须带合法 `signature`，否则无法加载。公钥格式、签名 payload、Gradle 集成与脚本用法见 **[模块 Ed25519 签名](./module-signature)**。
+:::
 
 ## 云端模块 vs 本地 Jar
 
@@ -167,7 +171,7 @@ module-signature-public-keys:
 2. `module.yml` 中的 `depends` / `external-depends` 列表
 3. `config.yml` 中需添加的 `modules.<id>.enabled` 片段
 4. 若使用 Capability，说明需要启用哪些官方模块
-5. （可选）Ed25519 公钥供服主开启签名校验
+5. （可选）[Ed25519 公钥与签名说明](./module-signature) — 供服主开启 `module-signature-public-keys`
 
 ## 相关文档
 

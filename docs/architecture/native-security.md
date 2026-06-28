@@ -59,14 +59,18 @@ AXSModule.onEnable(context)
 
 ## 模块签名验证（可选）
 
-对 `modules/` 目录下的**明文 jar**（本地独立部署或第三方模块），可在 `config.yml` 配置 Ed25519 公钥列表，拒绝未签名或签名无效的 jar：
+对 `modules/` 下的模块 Jar（含云端内存加载），可在 `config.yml` 配置 Ed25519 公钥列表，校验 `module.yml` 中的 `signature` 字段：
 
 ```yaml
 module-signature-public-keys:
   - "Base64编码的Ed25519公钥"
 ```
 
-云端下发的 `.axb` 模块走另一套令牌与校验链路，与本地 jar 签名互不替代。
+::: warning 默认应留空
+官方模块通常无 `signature`。列表非空时，**未签名模块一律拒绝加载**。开发者签名流程与服主配置见 **[模块 Ed25519 签名](/guide/developer/module-signature)**。
+:::
+
+云端 `.axb` 的令牌与平台校验链路与此独立，但内存还原后仍会执行 `module.yml` 验签（若已配置公钥）。
 
 ## 与服主的关系
 

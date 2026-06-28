@@ -159,7 +159,7 @@ cloud:
 
 ## 模块签名验证（可选安全加固）
 
-如果你使用了第三方/私人定制模块，且对方提供了 Ed25519 公钥，可在 `config.yml` 中配置：
+若你使用**第三方/私人定制**本地 Jar，且作者提供了 Ed25519 公钥，可在 `config.yml` 中配置：
 
 ```yaml
 module-signature-public-keys:
@@ -167,7 +167,11 @@ module-signature-public-keys:
   - "Base64编码的Ed25519公钥2"
 ```
 
-启用后，`modules/` 目录下所有 `.jar` 模块必须经过有效数字签名才能加载。签名无效或缺失的模块将被拒绝，并在控制台输出警告。
+配置后，所有待加载模块的 `module.yml` 必须带有效 `signature`，否则拒绝加载（**含官方云端模块**，若其未签名也会失败）。
+
+::: tip 完整说明
+签名规则、公钥格式、与云端/跨服签名的区别、开发者如何生成密钥，见 **[模块 Ed25519 签名](/guide/developer/module-signature)**。
+:::
 
 ::: tip 向后兼容
 旧版单字符串配置 `module-signature-public-key` 仍可正常读取，无需手动迁移。

@@ -212,6 +212,7 @@ export default withMermaid(defineConfig<any>({
           items: [
             { text: '概览', link: '/guide/developer/' },
             { text: '开发第三方模块', link: '/guide/developer/module-development' },
+            { text: '模块 Ed25519 签名', link: '/guide/developer/module-signature' },
             { text: '使用第三方模块', link: '/guide/developer/using-third-party-modules' },
             { text: 'Capability 教程', link: '/guide/developer/capability-guide' },
           ],

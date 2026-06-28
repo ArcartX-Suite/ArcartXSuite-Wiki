@@ -65,6 +65,7 @@ flowchart LR
 |------|------|
 | [ArcartXSuite-Core](https://github.com/xuanmomo233/ArcartXSuite-Core) | 开源 SDK 仓库（`axs-api` 源码、`MODULAR-README.md`） |
 | [开发第三方模块](./module-development) | 项目结构、Gradle、`module.yml`、`AbstractAXSModule`、UI 绑定、客户端包、子命令 |
+| [模块 Ed25519 签名](./module-signature) | 开发者生成密钥、签名 `module.yml`；服主配置 `module-signature-public-keys` |
 | [使用第三方模块](./using-third-party-modules) | 服主安装、启用、热加载、依赖与签名、常见问题 |
 | [Capability 详解](./capability-guide) | 原理、内置能力表、提供方/使用方完整示例、多实例 Capability |
 | [模块生命周期 API](/api/module-lifecycle) | `AXSModule` / `AbstractAXSModule` 接口说明 |
