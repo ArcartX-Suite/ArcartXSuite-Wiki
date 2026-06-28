@@ -17,6 +17,7 @@
 
 **ArcartXSuite** 是专为 **ArcartX** 生态构建的下一代全场景 Minecraft 服务器核心套件与玩法基础设施。一个插件覆盖 **26 个功能领域**，涵盖经济交易、全球市场、抽奖开箱、钓鱼小游戏、称号系统、战令系统、仓库银行等核心玩法，统一 ArcartX UI 体验，模块间深度联动，消除适配烦恼。
 
+注意：ArcartXSuite 不属于 ArcartX 官方插件，它是基于 ArcartX 客户端模组生态构建的第三方宿主框架。核心职责包括：统一管理 AttributePlus / CraneAttribute / MythicLib / Symphony 等属性桥接、MythicMobs / NeigeItems / MMOItems 等物品来源桥接、Vault / PlayerPoints 等经济桥接；提供模块加载、生命周期管理与配置诊断引擎；内置跨服传输（Redis + Proxy）、按键绑定服务、聊天签名绕过、账号类型识别（正版 / LittleSkin / 离线）等基础设施。所有业务逻辑均通过 modules/*.jar 独立模块加载，宿主本身不持有任何业务服务，你可以把 Suite 看做是工具，通过本插件可以与其他模块内部联动，调用API。
 ---
 
 ## 📦 模块一览（26 个）
