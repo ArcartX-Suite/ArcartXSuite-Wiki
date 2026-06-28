@@ -198,6 +198,8 @@ external-softdepends: []
 
 完整参考见 [ModuleContext 上下文](/api/module-context)。
 
+跨模块协作请阅读 **[Capability 详解](/guide/developer/capability-guide)**；第三方模块开发见 **[开发者指南](/guide/developer/)**。
+
 | 方法 | 返回类型 | 稳定性 | 说明 |
 |------|----------|--------|------|
 | `plugin()` | `JavaPlugin` | — | 宿主插件实例 |

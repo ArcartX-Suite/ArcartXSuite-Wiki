@@ -10,6 +10,9 @@ hero:
       text: 五分钟上手
       link: /guide/
     - theme: alt
+      text: 模块开发
+      link: /guide/developer/
+    - theme: alt
       text: 浏览模块
       link: /modules/
     - theme: alt

@@ -18,7 +18,15 @@ description: index - ArcartX-Suite Minecraft 服务器插件文档。 ArcartX-Su
 7. [跨服功能配置](cross-server-setup) — 多服 Chat / Tab / Mail 等（`1.2.0-beta` 统一 CrossServer SDK）。
 8. [Warehouse 多服 MySQL 部署](warehouse-cross-server) — 仓库跨服数据共享。
 9. [多 UI 同时发包](multi-ui) — 多界面并存时的包路由。
-10. [Proxy 代理端插件](proxy-usage) — Velocity / Bungee 侧配置。
+10. [Proxy 代理端插件](proxy-usage) — 群组服代理端装哪个 jar、BC/VC 目录示例、与跨服 SDK 的区别。
+
+## 开发者
+
+若要 **自己开发第三方模块** 或 **通过 Capability 调用官方模块**，请阅读 [开发者指南](./developer/)：
+
+- [开发第三方模块](./developer/module-development) — 从零搭建 Gradle 工程到部署
+- [使用第三方模块](./developer/using-third-party-modules) — 服主安装他人模块 Jar
+- [Capability 详解](./developer/capability-guide) — 跨模块通信的开发与使用（AXS 核心联动机制）
 
 ## 一句话总览
 

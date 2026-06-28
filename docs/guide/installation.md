@@ -134,35 +134,30 @@ ArcartX 现已支持 UI 自动导入，ArcartX-Suite 不再需要在启动或重
 
 ## 代理端部署（Velocity / BungeeCord 群组服）
 
-如果使用 Velocity 或 BungeeCord 作为代理，需要额外部署 Proxy 伴侣插件。
+若使用 Velocity / BungeeCord / Waterfall 群组架构，**代理服与子服安装不同的 jar**：
 
-### 部署结构
+| 机器 | 安装 |
+| --- | --- |
+| **代理服** | `ArcartXSuite-Proxy-Velocity-*.jar` 或 `ArcartXSuite-Proxy-Bungee-*.jar` → 代理 `plugins/` |
+| **各子服** | `ArcartX-Suite-*.jar` + ArcartX → 子服 `plugins/`（**不要**装 Proxy jar） |
 
 ```
-代理端 plugins/
-├── ArcartXSuite-Proxy-Velocity.jar     # Velocity 环境
-# 或
-├── ArcartXSuite-Proxy-Bungee.jar       # BungeeCord 环境
+velocity/plugins/
+  ArcartXSuite-Proxy-Velocity-1.2.0-beta.jar
+  arcartxsuite-proxy/proxy-config.yml
 
-后端子服 plugins/
-├── ArcartX-x.x.x.jar
-├── ArcartXSuite.jar
-├── authlib-injector.jar               # 仍需 JVM Agent
+lobby/plugins/
+  ArcartX-Suite-1.2.0-beta.jar
 ```
 
-### 后端子服启动命令
+::: tip 认证与跨服是两件独立的事
+- **Proxy**：代理入口认证辅助、离线拦截 → 见 [Proxy 代理端插件](proxy-usage)
+- **CrossServer**：子服间 Chat / Tab / Mail 等数据同步 → 见 [跨服功能配置](cross-server-setup)
 
-后端子服**仍需**启动 authlib-injector：
+群组服混合登录在**代理端**配置 MultiLogin / authlib-injector；子服 `auth.enabled` 保持 `false`，**不要**在各子服用 `/axs auth setup`。
+:::
 
-- **纯 LittleSkin**：直接在启动命令中加入 `-javaagent`：
-  ```bat
-  java -javaagent:plugins/authlib-injector.jar=https://littleskin.cn/api/yggdrasil -jar paper.jar nogui
-  ```
-- **Mixed Auth（LittleSkin + 微软正版）**：后端子服使用 ArcartX-Suite 生成的 `start-mixed-auth` 脚本启动（先启动本地混合代理，再启动服务器）。详见 [LoginView 模块的 Mixed Auth 配置](../modules/loginview.md#mixed-auth-mode混合认证)。
-
-> Proxy 插件只负责代理层的认证路由和离线拦截，**不替代** authlib-injector。authlib-injector 仍必须在每个后端子服作为 JVM Agent 加载，否则 Yggdrasil 会话无法通过 Minecraft 协议握手。
-
-详见 [Proxy 使用文档](proxy-usage.md)。
+完整 BC/VC 目录示例、配置项与验证清单见 **[Proxy 代理端插件](proxy-usage)**。
 
 ## 升级 / 替换 jar
 

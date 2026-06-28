@@ -25,6 +25,7 @@ export default withMermaid(defineConfig<any>({
 
     nav: [
       { text: '指南', link: '/guide/', activeMatch: '/guide/' },
+      { text: '开发者', link: '/guide/developer/', activeMatch: '/guide/developer/' },
       { text: '架构', link: '/architecture/', activeMatch: '/architecture/' },
       { text: 'API', link: '/api/', activeMatch: '/api/' },
       { text: '模块', link: '/modules/', activeMatch: '/modules/' },
@@ -57,6 +58,37 @@ export default withMermaid(defineConfig<any>({
             { text: '多 UI 同时发包', link: '/guide/multi-ui' },
             { text: 'Proxy 代理端插件', link: '/guide/proxy-usage' },
             { text: '云端授权', link: '/guide/cloud-modules' },
+          ],
+        },
+        {
+          text: '开发者指南',
+          collapsed: false,
+          items: [
+            { text: '概览', link: '/guide/developer/' },
+            { text: '开发第三方模块', link: '/guide/developer/module-development' },
+            { text: '使用第三方模块', link: '/guide/developer/using-third-party-modules' },
+            { text: 'Capability 详解', link: '/guide/developer/capability-guide' },
+          ],
+        },
+      ],
+      '/guide/developer/': [
+        {
+          text: '开发者指南',
+          items: [
+            { text: '概览', link: '/guide/developer/' },
+            { text: '开发第三方模块', link: '/guide/developer/module-development' },
+            { text: '使用第三方模块', link: '/guide/developer/using-third-party-modules' },
+            { text: 'Capability 详解', link: '/guide/developer/capability-guide' },
+          ],
+        },
+        {
+          text: 'API 参考',
+          collapsed: true,
+          items: [
+            { text: 'API 概览', link: '/api/' },
+            { text: '模块生命周期', link: '/api/module-lifecycle' },
+            { text: 'ModuleContext', link: '/api/module-context' },
+            { text: 'Capability 速查', link: '/api/capability' },
           ],
         },
       ],
@@ -139,6 +171,7 @@ export default withMermaid(defineConfig<any>({
             { text: '桥接 API', link: '/api/bridge-api' },
             { text: '事件', link: '/api/events' },
             { text: 'Capability 跨模块通信', link: '/api/capability' },
+            { text: '→ Capability 开发教程', link: '/guide/developer/capability-guide' },
             { text: '消息外部化 (i18n)', link: '/api/i18n' },
           ],
         },

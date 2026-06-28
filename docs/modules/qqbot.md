@@ -709,7 +709,7 @@ qq-binding:
 ```
 
 ::: tip 代理端离线拦截
-Velocity/BungeeCord 群组服在代理端部署 `ArcartX-Suite-Proxy-*.jar`，通过 `online-mode=true` 和 Yggdrasil 认证源配置实现离线玩家拦截，无需后端子服额外配置。
+Velocity/BungeeCord 群组服在**代理服** `plugins/` 部署对应平台的 Proxy jar（`ArcartXSuite-Proxy-Velocity` 或 `ArcartXSuite-Proxy-Bungee`），配合 `online-mode=true` 与 MultiLogin / authlib-injector 实现入口认证与离线拦截；**子服不要装 Proxy jar**。完整目录结构与 BC/VC 示例见 [Proxy 代理端插件](/guide/proxy-usage)。
 :::
 
 ### 4. 账号判定流程
