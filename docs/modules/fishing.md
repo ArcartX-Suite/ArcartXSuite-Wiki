@@ -6,8 +6,7 @@ description: ArcartX-Suite Fishing 钓鱼系统，星露谷风格钓鱼小游戏
 # Fishing 钓鱼系统
 
 ::: tip 付费模块
-
-Fishing 为付费模块，需要有效授权码激活。
+本模块为付费模块。从 **1.2.0-beta** 起，授权由 [云端平台](/guide/cloud-modules) 统一管理：在 [cloud.021209.xyz](https://cloud.021209.xyz) 购买/领取授权后，于「装备模块」页面勾选到对应服务器即可，无需填写 `password` 或 `license.yml`。
 :::
 
 **Fishing** 模块为服务器提供一套完整的 **星露谷风格钓鱼小游戏**，通过 ArcartX UI HUD 实时渲染钓鱼过程。玩家抛竿后进入钓鱼小游戏，操控绿条追逐游动的鱼，填满进度条即可捕获。支持多水域生态、鱼种季节/天气/时间分布、宝藏奖励、饵料加成和钓鱼图鉴收集。

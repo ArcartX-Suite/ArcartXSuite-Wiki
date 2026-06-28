@@ -315,7 +315,7 @@ cross-server:
 | --- | --- | --- |
 | 宿主跨服 | `plugins/ArcartX-Suite/config.yml` | **除 `node-id` 外相同** |
 | 仓库模块 | `data/warehouse/ArcartXWarehouse.yml` | **MySQL 连接相同**；业务配置建议相同 |
-| 授权 | `plugins/ArcartX-Suite/license.yml` | 各子服均需 Warehouse 授权 |
+| 授权 | `config.yml` → `cloud` + 云端「装备模块」 | 各子服均需 Warehouse 云端授权并装备 |
 
 ---
 

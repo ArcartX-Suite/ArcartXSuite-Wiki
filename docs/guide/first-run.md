@@ -29,14 +29,19 @@ modules:
 
 ### 2. 改模块配置（可选）
 
+首次启用后，模块会自动导出默认公告条目。也可手动编辑：
+
 ```yaml
-# plugins/ArcartX-Suite/ArcartXAnnouncer.yml
-entries:
-  welcome:
-    enabled: true
-    text: "欢迎来到 ArcartX 测试服 — 你好，%player_name%。"
-    click-command: "say <player> 点了公告"
+# data/announcer/announcer/default.yml
+welcome:
+  enabled: true
+  text: "欢迎来到 ArcartX 测试服 — 你好，%player_name%。"
+  click-command: "say <player> 点了公告"
 ```
+
+::: tip 配置目录
+从 1.1.0-beta 起，公告条目不再写在 `ArcartXAnnouncer.yml` 内联 `entries:` 中，而是放在 `data/announcer/announcer/` 目录。详见 [Announcer 模块文档](/modules/announcer)。
+:::
 
 ### 3. reload 并验证
 

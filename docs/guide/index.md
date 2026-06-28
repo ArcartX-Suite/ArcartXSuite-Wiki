@@ -10,23 +10,25 @@ description: index - ArcartX-Suite Minecraft 服务器插件文档。 ArcartX-Su
 ## 路线图
 
 1. [安装](installation) — 把 jar 丢进 `plugins/`，确认依赖、Java、MC 版本无误。
-2. [模块启用](module-enablement) — 理解 `modules.<module>.enabled` 模块开关。
-3. [第一次启用流程](first-run) — 推荐的"先开 1 个最小模块 → 全开"流程。
-4. [命令速查](commands) — 管理命令（`/AXS`）与玩家命令一表打尽。
-5. [PlaceholderAPI 速查](placeholders) — 各模块的 PAPI 前缀与典型字段。
-6. [条件系统（PAPI + Aria + JS）](conditions) — Menu / Prop / EventPacket / Mail 统一条件语法，支持 PAPI 行内、Aria 脚本、原生 JavaScript 三种模式。
-7. [跨服功能配置](cross-server-setup) — 多服 Chat / Tab / Mail 等（`1.2.0-beta` 统一 CrossServer SDK）。
-8. [Warehouse 多服 MySQL 部署](warehouse-cross-server) — 仓库跨服数据共享。
-9. [多 UI 同时发包](multi-ui) — 多界面并存时的包路由。
-10. [Proxy 代理端插件](proxy-usage) — 群组服代理端装哪个 jar、BC/VC 目录示例、与跨服 SDK 的区别。
+2. [云端授权](cloud-modules) — 配置 `cloud.qq` / `apiKey`，在云端装备授权模块（**也可从顶栏「云端授权」进入**）。
+3. [模块启用](module-enablement) — 理解 `modules.<module>.enabled` 模块开关。
+4. [第一次启用流程](first-run) — 推荐的"先开 1 个最小模块 → 全开"流程。
+5. [命令速查](commands) — 管理命令（`/axs`）与玩家命令一表打尽。
+6. [配置管理](config-management) — 智能诊断、`/axs config` 修复与配置目录拆分说明。
+7. [PlaceholderAPI 速查](placeholders) — 各模块的 PAPI 前缀与典型字段。
+8. [条件系统（PAPI + Aria + JS）](conditions) — Menu / Prop / EventPacket / Mail 统一条件语法，支持 PAPI 行内、Aria 脚本、原生 JavaScript 三种模式。
+9. [跨服功能配置](cross-server-setup) — 多服 Chat / Tab / Mail 等（`1.2.0-beta` 统一 CrossServer SDK）。
+10. [Warehouse 多服 MySQL 部署](warehouse-cross-server) — 仓库跨服数据共享。
+11. [多 UI 同时发包](multi-ui) — 多界面并存时的包路由。
+12. [Proxy 代理端插件](proxy-usage) — 群组服代理端装哪个 jar、BC/VC 目录示例、与跨服 SDK 的区别。
 
 ## 开发者
 
-若要 **自己开发第三方模块** 或 **通过 Capability 调用官方模块**，请阅读 [开发者指南](./developer/)：
+若要 **自己开发第三方模块**，请从顶栏 **[开发者](/guide/developer/)** 进入，或阅读：
 
 - [开发第三方模块](./developer/module-development) — 从零搭建 Gradle 工程到部署
 - [使用第三方模块](./developer/using-third-party-modules) — 服主安装他人模块 Jar
-- [Capability 详解](./developer/capability-guide) — 跨模块通信的开发与使用（AXS 核心联动机制）
+- [Capability 详解](./developer/capability-guide) — 跨模块通信（开发向教程；API 速查见顶栏 **[API](/api/capability)**）
 
 ## 一句话总览
 

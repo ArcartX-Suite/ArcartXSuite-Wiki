@@ -69,3 +69,7 @@ switch (action) {
 每个模块的 `settings.debug: true` 会打印 init / update / close 的完整 payload。
 :::
 
+## UI Packet 全景索引
+
+各模块 UI 模板中的 `var.*` 变量、客户端 `Packet.send` 动作与服务端 handler 的完整对照表见 **[UI Packet 数据全景](/ui-packet-data)**（自动生成，含 Mermaid 交互图）。开发或排错 UI 时建议与本文五段式生命周期对照阅读。
+

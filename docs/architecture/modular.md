@@ -174,7 +174,7 @@ public final class RgbModule implements AXSModule {
 
 ### 委托模式（历史说明）
 
-1.2.0-beta 早期有部分模块采用「委托模式」——模块 Jar 的 `onEnable`/`onDisable` 委托给宿主的 `reloadXxxState()` / `shutdownXxxModule()`，业务逻辑仍在宿主中执行。截至 2026-05-14，**全部 17 个基础模块已完成独立化迁移**，委托模式已退出使用。
+1.2.0-beta 早期有部分模块采用「委托模式」——模块 Jar 的 `onEnable`/`onDisable` 委托给宿主的 `reloadXxxState()` / `shutdownXxxModule()`，业务逻辑仍在宿主中执行。截至 2026-05-14，**全部 26 个模块已完成独立化迁移**，委托模式已退出使用。
 
 当前所有模块均使用「独立模式」实现，业务逻辑封装在模块自身的 `XxxService` 中，宿主只负责提供 `ModuleContext` 基础设施。
 

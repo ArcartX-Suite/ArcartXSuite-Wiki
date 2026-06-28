@@ -226,7 +226,7 @@ config-version: 1
 
 | 模块 | 原内联段 | 新配置键 | 目录内容 |
 |------|---------|---------|---------|
-| announcer | `entries:` | `entries-directory: "entries"` | 公告条目 |
+| announcer | `entries:` | `entries-directory: "announcer"` | 公告条目（`data/announcer/announcer/*.yml`） |
 | combateffect | `packets:` | `packets-directory: "packets"` | 战斗特效包定义 |
 | title | `titles:` | `titles-directory: "titles"` | 称号定义（按组分文件） |
 | rgb | `entries:` | `entries-directory: "entries"` | 渐变色条目 |

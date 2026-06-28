@@ -6,8 +6,7 @@ description: ArcartX-Suite Mail 邮件系统，玩家写信、管理员预设派
 # Mail 邮箱
 
 ::: tip 付费模块
-
-Mail 为付费模块，需要有效授权码激活。
+本模块为付费模块。从 **1.2.0-beta** 起，授权由 [云端平台](/guide/cloud-modules) 统一管理：在 [cloud.021209.xyz](https://cloud.021209.xyz) 购买/领取授权后，于「装备模块」页面勾选到对应服务器即可，无需填写 `password` 或 `license.yml`。
 :::
 ## 功能定位
 
@@ -60,6 +59,103 @@ modules:
   mail:
     enabled: true
 ```
+
+## 配置
+
+主配置文件：`data/mail/ArcartXMail.yml`（首次启动自动导出）。
+
+### 存储与跨服
+
+```yaml
+storage:
+  mode: sqlite          # sqlite | mysql
+  sqlite:
+    file: mail.db
+  mysql:
+    host: 127.0.0.1
+    port: 3306
+    database: arcartxsuite
+    username: root
+    password: ""
+  pool-size: 4
+
+cross-server:
+  enabled: false        # 多服 UI 刷新通知；数据本身需 MySQL 共享库
+```
+
+### UI 四界面
+
+```yaml
+ui:
+  inbox-ui-id: AXS:mail_inbox
+  compose-ui-id: AXS:mail_compose
+  logs-ui-id: AXS:mail_logs
+  admin-ui-id: AXS:mail_admin
+  register-ui-on-enable: true
+  compose-inventory-title: AXS Mail Compose
+  notify-card-id: "axs_mail_notify"   # 留空关闭新邮件聊天卡片
+```
+
+### 玩家写信与手续费
+
+```yaml
+player-send:
+  enabled: true
+  require-permission: true
+  cooldown-seconds: 120
+  base-fee: 0.0
+  item-fee: 0.0
+  fee-currency: money
+  attachment-tax-rates:
+    money: 0.05
+    points: 0.0
+  allow-self-send: false
+  allow-offline-send: true
+  max-attachments: 6
+  subject-max-length: 48
+  body-max-length: 400
+```
+
+货币定义复用宿主 [货币系统](/guide/currencies) 的 `currencies` 节（`vault` / `playerpoints` / `placeholder-command` 等 provider）。
+
+### 审核与保留
+
+```yaml
+moderation:
+  blocked-words: []
+  blocked-patterns: []
+  blocked-materials: [BEDROCK, COMMAND_BLOCK, BARRIER]
+  blocked-lore-patterns: []
+
+retention:
+  cleanup-interval-ticks: 1200
+  default-expire-after-days: 15
+  claimed-retention-days: 7
+  deleted-retention-days: 7
+  allow-delete-with-unclaimed-attachments: false
+```
+
+### 预设邮件目录
+
+```yaml
+presets:
+  directory: mail/presets    # 相对 data/mail/
+```
+
+预设文件示例 `data/mail/mail/presets/welcome.yml`：
+
+```yaml
+welcome:
+  subject: "欢迎礼包"
+  body: "领取附件即可获得新手物资。"
+  attachments: []           # 物品附件列表
+  claim-commands:
+    - "give {player} bread 16"
+  claim-conditions: []      # 见下文「领取条件」
+  cdks: []                  # 可选：内嵌固定 CDK 定义
+```
+
+重载：`/axs mail reload`（同步预设与 CDK 到数据库）。
 
 ## 命令
 
@@ -175,3 +271,24 @@ cross-server:
 
 详见 [跨服功能配置指南](/guide/cross-server-setup)。
 
+## UI / Packet
+
+| 界面 | UI ID | 说明 |
+| --- | --- | --- |
+| 收件箱 | `AXS:mail_inbox` | 查看、领取、删除邮件 |
+| 写信 | `AXS:mail_compose` | 填写标题正文、放入附件槽 |
+| 日志 | `AXS:mail_logs` | 发信/收信记录 |
+| 管理 | `AXS:mail_admin` | 管理员查看全服邮件 |
+
+客户端回包动作（受 [ClientPacketGuard](/architecture/security) 限流）：`compose-send`、`claim`、`claimall`、`deleteall`、`cdk` 等。
+
+完整变量与点击流参见 [UI Packet 数据全景](/ui-packet-data)。
+
+## 故障排查
+
+| 现象 | 排查 |
+| --- | --- |
+| 模块未加载 | 确认云端已装备 Mail 授权；`modules.mail.enabled: true` |
+| 跨服收不到新邮件 | 各子服 `storage.mysql` 必须指向**同一库**；`cross-server.enabled: true` |
+| 附件领取失败 | 检查 `claim-conditions`；背包满时部分奖励会发失败 |
+| 写信被 silently 丢弃 | 命中 `moderation` 或 ClientPacketGuard 限流；查看控制台 debug |

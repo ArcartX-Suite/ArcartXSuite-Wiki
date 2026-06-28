@@ -36,6 +36,15 @@ description: commands - ArcartX-Suite Minecraft 服务器插件文档。 ArcartX
 | `/axs config status [owner]` | 查看诊断状态统计 | `/axs config status` |
 | `/axs <模块名> status` | 查看单个模块的状态详情，包括加载的配置数量、数据库连接状态等 | `/axs entitytracker status` |
 
+### 云端模块管理
+
+需在 `config.yml` 配置 `cloud.qq` 与 `cloud.apiKey` 后使用。详见 [云端模块](/guide/cloud-modules)。
+
+| 命令 | 说明 | 使用示例 |
+| --- | --- | --- |
+| `/axs sync` | 从云端同步授权与装备列表；新装备的模块自动下载加载，已取消装备的模块自动卸载 | `/axs sync` |
+| `/axs update <模块ID\|all>` | 拉取云端模块最新 `.axb` 并热重载。`all` 更新所有已加载的云端模块 | `/axs update warehouse`<br>`/axs update all` |
+
 ### 多方认证管理
 
 | 命令 | 说明 | 使用示例 |

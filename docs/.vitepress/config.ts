@@ -1,6 +1,89 @@
 import { defineConfig } from 'vitepress'
 import { withMermaid } from 'vitepress-plugin-mermaid'
 
+/** 模块文档侧栏（指南 / 开发者 / 架构 / API / 云端 共用引用，避免重复维护） */
+const moduleSidebar = [
+  { text: '总览', link: '/modules/' },
+  {
+    text: '免费模块',
+    collapsed: true,
+    items: [
+      { text: 'Announcer 播报', link: '/modules/announcer' },
+      { text: 'Chat 聊天', link: '/modules/chat' },
+      { text: 'EventPacket 事件引擎', link: '/modules/eventpacket' },
+      { text: 'CombatEffect 战斗特效', link: '/modules/combateffect' },
+      { text: 'LoginView 登录界面', link: '/modules/loginview' },
+      { text: 'OnlineRewards 在线奖励', link: '/modules/onlinerewards' },
+      { text: 'Pickup 拾取提示', link: '/modules/pickup' },
+      { text: 'Prop 快捷道具', link: '/modules/prop' },
+      { text: 'RGB 渐变文本', link: '/modules/rgb' },
+      { text: 'Essentials 基础工具', link: '/modules/essentials' },
+      { text: 'Regions 区域保护', link: '/modules/regions' },
+      { text: 'Menu 通用菜单', link: '/modules/menu' },
+      { text: 'AfkReward 挂机奖励', link: '/modules/afkreward' },
+    ],
+  },
+  {
+    text: '付费模块',
+    collapsed: true,
+    items: [
+      { text: 'Fishing 钓鱼', link: '/modules/fishing' },
+      { text: 'Title 称号', link: '/modules/title' },
+      { text: 'Warehouse 仓库银行', link: '/modules/warehouse' },
+      { text: 'Mail 邮箱', link: '/modules/mail' },
+      { text: 'Lottery 抽奖', link: '/modules/lottery' },
+      { text: 'QuestGPS 任务导航', link: '/modules/questgps' },
+      { text: 'Map 地图', link: '/modules/map' },
+      { text: 'Conversation 对话桥', link: '/modules/conversation' },
+      { text: 'BattlePass 战令', link: '/modules/battlepass' },
+      { text: 'Market 全球市场', link: '/modules/market' },
+      { text: 'QQBot 群服互联', link: '/modules/qqbot' },
+    ],
+  },
+  {
+    text: '福利模块',
+    collapsed: false,
+    items: [
+      { text: 'Tab 在线列表', link: '/modules/tab' },
+      { text: 'EntityTracker 实体追踪', link: '/modules/entitytracker' },
+    ],
+  },
+]
+
+const architectureSidebar = [
+  {
+    text: '架构',
+    items: [
+      { text: '概览', link: '/architecture/' },
+      { text: '系统架构', link: '/architecture/system-architecture' },
+      { text: '模块化架构', link: '/architecture/modular' },
+    ],
+  },
+  {
+    text: '集成与通信',
+    items: [
+      { text: '桥接层 (Bridge)', link: '/architecture/bridges' },
+      { text: '跨服通信 (CrossServer)', link: '/architecture/cross-server' },
+      { text: '数据包流向', link: '/architecture/packet-flow' },
+    ],
+  },
+  {
+    text: '安全与资源',
+    items: [
+      { text: '客户端包守卫', link: '/architecture/security' },
+      { text: 'Native 安全与模块加密', link: '/architecture/native-security' },
+      { text: '资源加密 (.axb)', link: '/architecture/protected-resources' },
+    ],
+  },
+  {
+    text: '配置与 UI',
+    items: [
+      { text: '配置智能诊断', link: '/architecture/config-autofix' },
+      { text: 'UI Packet 数据全景', link: '/ui-packet-data' },
+    ],
+  },
+]
+
 export default withMermaid(defineConfig<any>({
   lang: 'zh-CN',
   appearance: 'force-dark',
@@ -24,12 +107,36 @@ export default withMermaid(defineConfig<any>({
     siteTitle: 'ArcartX-Suite',
 
     nav: [
-      { text: '指南', link: '/guide/', activeMatch: '/guide/' },
-      { text: '开发者', link: '/guide/developer/', activeMatch: '/guide/developer/' },
-      { text: '架构', link: '/architecture/', activeMatch: '/architecture/' },
-      { text: 'API', link: '/api/', activeMatch: '/api/' },
-      { text: '模块', link: '/modules/', activeMatch: '/modules/' },
-      { text: '云端授权', link: '/guide/cloud-modules' },
+      {
+        text: '指南',
+        link: '/guide/',
+        activeMatch: '^/guide/(?!developer|cloud-modules)',
+      },
+      {
+        text: '开发者',
+        link: '/guide/developer/',
+        activeMatch: '/guide/developer/',
+      },
+      {
+        text: '架构',
+        link: '/architecture/',
+        activeMatch: '/architecture/',
+      },
+      {
+        text: 'API',
+        link: '/api/',
+        activeMatch: '/api/',
+      },
+      {
+        text: '模块',
+        link: '/modules/',
+        activeMatch: '/modules/',
+      },
+      {
+        text: '云端授权',
+        link: '/guide/cloud-modules',
+        activeMatch: '/guide/cloud-modules',
+      },
       {
         text: '链接',
         items: [
@@ -40,37 +147,65 @@ export default withMermaid(defineConfig<any>({
     ],
 
     sidebar: {
+      // ── 服主指南（不含开发者 / 云端，避免顶栏与侧栏归属冲突）──
       '/guide/': [
         {
-          text: '快速开始',
+          text: '入门',
           items: [
             { text: '概览', link: '/guide/' },
             { text: '安装', link: '/guide/installation' },
-            { text: '模块授权门控', link: '/guide/module-enablement' },
-            { text: '第一次启用流程', link: '/guide/first-run' },
-            { text: '命令速查', link: '/guide/commands' },
-            { text: 'PlaceholderAPI 速查', link: '/guide/placeholders' },
-            { text: '条件系统（PAPI + Aria）', link: '/guide/conditions' },
-            { text: '货币系统配置', link: '/guide/currencies' },
-            { text: '配置智能体检', link: '/guide/config-management' },
-            { text: '跨服功能配置', link: '/guide/cross-server-setup' },
-            { text: 'Warehouse 多服 MySQL 部署', link: '/guide/warehouse-cross-server' },
-            { text: '多 UI 同时发包', link: '/guide/multi-ui' },
-            { text: 'Proxy 代理端插件', link: '/guide/proxy-usage' },
-            { text: '云端授权', link: '/guide/cloud-modules' },
+            { text: '模块启用', link: '/guide/module-enablement' },
+            { text: '第一次启用', link: '/guide/first-run' },
           ],
         },
         {
-          text: '开发者指南',
-          collapsed: false,
+          text: '配置与运维',
           items: [
-            { text: '概览', link: '/guide/developer/' },
-            { text: '开发第三方模块', link: '/guide/developer/module-development' },
-            { text: '使用第三方模块', link: '/guide/developer/using-third-party-modules' },
-            { text: 'Capability 详解', link: '/guide/developer/capability-guide' },
+            { text: '命令速查', link: '/guide/commands' },
+            { text: 'PlaceholderAPI', link: '/guide/placeholders' },
+            { text: '条件系统', link: '/guide/conditions' },
+            { text: '货币系统', link: '/guide/currencies' },
+            { text: '配置智能体检', link: '/guide/config-management' },
+            { text: '多 UI 发包', link: '/guide/multi-ui' },
+          ],
+        },
+        {
+          text: '跨服与群组',
+          items: [
+            { text: '跨服功能配置', link: '/guide/cross-server-setup' },
+            { text: 'Warehouse 多服部署', link: '/guide/warehouse-cross-server' },
+            { text: 'Proxy 代理端', link: '/guide/proxy-usage' },
           ],
         },
       ],
+
+      // ── 云端授权（独立顶栏 → 独立侧栏）──
+      '/guide/cloud-modules': [
+        {
+          text: '云端授权',
+          items: [
+            { text: '平台与服主配置', link: '/guide/cloud-modules' },
+          ],
+        },
+        {
+          text: '运维',
+          items: [
+            { text: 'sync / update 命令', link: '/guide/commands#云端模块管理' },
+          ],
+        },
+        {
+          text: '延伸阅读',
+          collapsed: true,
+          items: [
+            { text: '模块启用开关', link: '/guide/module-enablement' },
+            { text: '安装与 Bootstrap', link: '/guide/installation' },
+            { text: 'Native 模块加密', link: '/architecture/native-security' },
+            { text: '使用第三方模块', link: '/guide/developer/using-third-party-modules' },
+          ],
+        },
+      ],
+
+      // ── 开发者（仅开发向文档，API 通过顶栏切换）──
       '/guide/developer/': [
         {
           text: '开发者指南',
@@ -78,109 +213,56 @@ export default withMermaid(defineConfig<any>({
             { text: '概览', link: '/guide/developer/' },
             { text: '开发第三方模块', link: '/guide/developer/module-development' },
             { text: '使用第三方模块', link: '/guide/developer/using-third-party-modules' },
-            { text: 'Capability 详解', link: '/guide/developer/capability-guide' },
+            { text: 'Capability 教程', link: '/guide/developer/capability-guide' },
           ],
         },
         {
-          text: 'API 参考',
+          text: '相关文档',
           collapsed: true,
           items: [
-            { text: 'API 概览', link: '/api/' },
-            { text: '模块生命周期', link: '/api/module-lifecycle' },
-            { text: 'ModuleContext', link: '/api/module-context' },
-            { text: 'Capability 速查', link: '/api/capability' },
-          ],
-        },
-      ],
-      '/architecture/': [
-        {
-          text: '架构',
-          items: [
-            { text: '概览', link: '/architecture/' },
-            { text: '系统架构', link: '/architecture/system-architecture' },
+            { text: '→ API 参考', link: '/api/' },
             { text: '模块化架构', link: '/architecture/modular' },
-            { text: '桥接层 (Bridge)', link: '/architecture/bridges' },
-            { text: '跨服通信 (CrossServer)', link: '/architecture/cross-server' },
-            { text: '客户端包守卫', link: '/architecture/security' },
-            { text: '资源加密 (.axb)', link: '/architecture/protected-resources' },
-            { text: '数据包流向', link: '/architecture/packet-flow' },
-            { text: '配置智能诊断', link: '/architecture/config-autofix' },
-            { text: 'UI Packet 数据全景', link: '/ui-packet-data' },
+            { text: 'Capability API', link: '/api/capability' },
+            { text: 'ModuleContext', link: '/api/module-context' },
           ],
         },
       ],
-      '/modules/': [
-        {
-          text: '模块',
-          items: [
-            { text: '总览', link: '/modules/' },
-          ],
-        },
-        {
-          text: '免费模块',
-          collapsed: false,
-          items: [
-            { text: 'Announcer 播报系统', link: '/modules/announcer' },
-            { text: 'Chat 聊天', link: '/modules/chat' },
-            { text: 'EventPacket 事件引擎', link: '/modules/eventpacket' },
-            { text: 'CombatEffect 战斗特效', link: '/modules/combateffect' },
-            { text: 'LoginView 登录界面', link: '/modules/loginview' },
-            { text: 'OnlineRewards 在线奖励', link: '/modules/onlinerewards' },
-            { text: 'Pickup 拾取提示', link: '/modules/pickup' },
-            { text: 'Prop 快捷道具', link: '/modules/prop' },
-            { text: 'RGB 渐变文本', link: '/modules/rgb' },
-            { text: 'Essentials 基础工具', link: '/modules/essentials' },
-            { text: 'Regions 区域保护', link: '/modules/regions' },
-            { text: 'Menu 通用菜单', link: '/modules/menu' },
-            { text: 'AfkReward 挂机奖励', link: '/modules/afkreward' },
-          ],
-        },
-        {
-          text: '付费模块',
-          collapsed: false,
-          items: [
-            { text: 'Fishing 钓鱼系统', link: '/modules/fishing' },
-            { text: 'Title 称号', link: '/modules/title' },
-            { text: 'Warehouse 仓库银行', link: '/modules/warehouse' },
-            { text: 'Mail 邮箱', link: '/modules/mail' },
-            { text: 'Lottery 抽奖系统', link: '/modules/lottery' },
-            { text: 'QuestGPS 任务导航', link: '/modules/questgps' },
-            { text: 'Map 地图', link: '/modules/map' },
-            { text: 'Conversation 对话桥', link: '/modules/conversation' },
-            { text: 'BattlePass 战令系统', link: '/modules/battlepass' },
-            { text: 'Market 全球市场', link: '/modules/market' },
-            { text: 'QQBot QQ群服互联', link: '/modules/qqbot' },
-          ],
-        },
-        {
-          text: '福利模块',
-          collapsed: false,
-          items: [
-            { text: 'Tab 在线列表', link: '/modules/tab' },
-            { text: 'EntityTracker 实体追踪', link: '/modules/entitytracker' },
-          ],
-        },
-      ],
+
+      // ── 架构 + UI Packet 全景（同套侧栏，避免跳转后侧栏消失）──
+      '/architecture/': architectureSidebar,
+      '/ui-packet-data': architectureSidebar,
+
+      // ── 模块 ──
+      '/modules/': [{ text: '模块', items: moduleSidebar }],
+
+      // ── API ──
       '/api/': [
         {
           text: 'API 参考',
+          items: [{ text: '概览', link: '/api/' }],
+        },
+        {
+          text: '模块开发',
           items: [
-            { text: '概览', link: '/api/' },
             { text: '模块生命周期', link: '/api/module-lifecycle' },
-            { text: 'ModuleContext 上下文', link: '/api/module-context' },
-            { text: '桥接 API', link: '/api/bridge-api' },
-            { text: '事件', link: '/api/events' },
-            { text: 'Capability 跨模块通信', link: '/api/capability' },
-            { text: '→ Capability 开发教程', link: '/guide/developer/capability-guide' },
+            { text: 'ModuleContext', link: '/api/module-context' },
             { text: '消息外部化 (i18n)', link: '/api/i18n' },
           ],
         },
-      ],
-      '/appendix/': [
         {
-          text: '附录',
+          text: '桥接与协作',
           items: [
-            { text: '云端授权', link: '/guide/cloud-modules' },
+            { text: '桥接 API', link: '/api/bridge-api' },
+            { text: '事件', link: '/api/events' },
+            { text: 'Capability API', link: '/api/capability' },
+          ],
+        },
+        {
+          text: '教程',
+          collapsed: true,
+          items: [
+            { text: 'Capability 开发教程', link: '/guide/developer/capability-guide' },
+            { text: '开发第三方模块', link: '/guide/developer/module-development' },
           ],
         },
       ],

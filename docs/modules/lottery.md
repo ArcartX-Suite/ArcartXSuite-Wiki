@@ -6,7 +6,7 @@ description: ArcartX-Suite Lottery 抽奖系统，CS 开箱横向滚动动画 + 
 # Lottery 抽奖系统
 
 ::: tip 付费模块
-Lottery 为付费模块，需要有效授权码激活。
+本模块为付费模块。从 **1.2.0-beta** 起，授权由 [云端平台](/guide/cloud-modules) 统一管理：在 [cloud.021209.xyz](https://cloud.021209.xyz) 购买/领取授权后，于「装备模块」页面勾选到对应服务器即可，无需填写 `password` 或 `license.yml`。
 :::
 
 **Lottery** 模块为服务器提供完整的抽奖系统，包含 **CS 开箱**（Case Opening）和 **原神祈愿**（Gacha）两种模式。所有 UI 界面均使用纯色块与渐变色渲染，无外部贴图依赖。

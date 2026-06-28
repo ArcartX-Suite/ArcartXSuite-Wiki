@@ -118,6 +118,10 @@ features:
     title: Lottery 抽奖系统
     details: CS 开箱 + 原神祈愿双模式，纯色块 UI 开箱动画、品质颜色绑定、保底机制、磨损度系统
     link: /modules/lottery
+  - icon: 🎖️
+    title: BattlePass 战令系统
+    details: 三层通行证、日/周/赛季任务池、条件过滤、ArcartX UI 面板、跨服同步
+    link: /modules/battlepass
   - icon: 🤖
     title: QQBot QQ群服互联
     details: OneBot 11 双向消息同步、QQ-游戏账号绑定、白名单联动、群指令查玩家数据

@@ -107,7 +107,80 @@ streak-rewards:
   - days: 7
     commands:
       - "give {player} diamond 3"
+
+# 累计签到里程碑（恰好等于 days 时触发）
+total-rewards:
+  - days: 30
+    mail-presets: ["signin_30d"]
+
+# 每月指定日期奖励（day-of-month-rewards）
+day-of-month-rewards:
+  - day: 1
+    commands: ["give {player} gold_ingot 1"]
+
+# 节日奖励（holiday-rewards，按 month + day）
+holiday-rewards:
+  - month: 1
+    day: 1
+    name: "元旦签到"
+    commands: []
+
+# 权限额外奖励（permission-bonus-groups，取 priority 最高匹配）
+permission-bonus-groups:
+  - permission: "ArcartXSuite.onlinerewards.signin.bonus"
+    priority: 10
+    commands: []
+
+# 补签卡（makeup）
+makeup:
+  enabled: true
+  card-name: "补签卡"
 ```
+
+### 主配置扩展（`ArcartXOnlineRewards.yml`）
+
+除今日阶段奖励外，主配置还支持：
+
+```yaml
+time-bonus:
+  permission-groups:
+    - permission: "ArcartXSuite.onlinerewards.time.2"
+      multiplier: 2.0
+      priority: 20
+
+weekly-rewards:      # 本周累计在线时长里程碑
+  - id: "weekly_5h"
+    minutes: 300
+    commands: []
+
+monthly-rewards:     # 本月累计在线时长里程碑
+  - id: "monthly_10h"
+    minutes: 600
+    mail-presets: []
+
+offline-savings:     # 离线时长储蓄（次日登录加成）
+  enabled: true
+  max-minutes: 120
+  storage-rate: 1.0
+
+server-sign-in-goal: # 全服签到人数目标，达成后给在线玩家发奖
+  enabled: true
+  targets:
+    - id: "goal_50"
+      required: 50
+      broadcast: "§e今日 50 人签到已达成！"
+```
+
+### UI 菜单
+
+```yaml
+ui:
+  menu-ui-id: AXS:online_rewards_menu
+  packet-id: AXS_ONLINE_REWARDS
+  register-ui-on-enable: true
+```
+
+玩家通过 `/onlinerewards open` 打开菜单，可查看在线进度、签到日历、补签与排行榜。`menu-ui-id` 支持列表格式，详见 [多 UI 同时发包](/guide/multi-ui)。
 
 ## 命令
 
@@ -148,6 +221,9 @@ streak-rewards:
 | `%axsonlinerewards_signin_signed_today%` | 今日是否已签到（`true`/`false`） |
 | `%axsonlinerewards_signin_streak%` | 连续签到天数 |
 | `%axsonlinerewards_signin_total%` | 累计签到天数 |
+| `%axsonlinerewards_offline_savings_minutes%` | 离线储蓄分钟数 |
+| `%axsonlinerewards_server_signin_count%` | 今日全服已签到人数 |
+| `%axsonlinerewards_signin_history_yyyy-MM_count%` | 指定月份签到天数（替换日期） |
 
 ### 排行榜
 
@@ -168,4 +244,13 @@ OnlineRewards 在签到成功时自动向 EventPacket 发射信号：
 | `signin_success` | 玩家签到成功 | `streak`, `total`, `date`, `day_of_month` |
 
 可在 `ArcartXEventPacket.yml` 中配置对应规则实现连续签到里程碑奖励、邮件派发等联动效果。
+
+## 故障排查
+
+| 现象 | 排查 |
+| --- | --- |
+| 跨服签到不同步 | `storage.mode` 必须为 `mysql` 且各子服连接同一库 |
+| 阶段奖励未发放 | 检查 `rewards.yml` 的 `minutes` 阈值；VIP 倍率见 `time-bonus` |
+| 补签失败 | `makeup.enabled` 是否为 true；玩家是否有补签卡 |
+| UI 不显示 | 客户端需安装 ArcartX MOD；检查 `ui.menu-ui-id` 是否已注册 |
 

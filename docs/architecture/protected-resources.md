@@ -7,6 +7,10 @@ description: 资源加密 (.axb) - ArcartX-Suite Minecraft 服务器插件文档
 
 ArcartX-Suite 在 Gradle 阶段把**除 `plugin.yml` 之外的所有 YAML** 加密成 `.axb` 文件打进 jar，运行时才解密释放。
 
+::: info 与模块类加密的区别
+本文描述的是 **YAML 配置资源**加密。云端下发的**模块 Java 类字节码** `.axb` 走另一套 native 解密与内存 ClassLoader 链路，详见 [Native 安全与模块加密](native-security)。
+:::
+
 ## 加密时机
 
 `build.gradle.kts` 注册了 `protectYamlResources` 任务：
