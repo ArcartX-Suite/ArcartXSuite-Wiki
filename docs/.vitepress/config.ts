@@ -221,6 +221,7 @@ export default withMermaid(defineConfig<any>({
           collapsed: true,
           items: [
             { text: '→ API 参考', link: '/api/' },
+            { text: 'ArcartXSuite-Core（开源 SDK）', link: 'https://github.com/xuanmomo233/ArcartXSuite-Core' },
             { text: '模块化架构', link: '/architecture/modular' },
             { text: 'Capability API', link: '/api/capability' },
             { text: 'ModuleContext', link: '/api/module-context' },

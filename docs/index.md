@@ -16,8 +16,11 @@ hero:
       text: 浏览模块
       link: /modules/
     - theme: alt
-      text: GitHub
-      link: https://github.com/xuanmomo233/ArcartX-Suite
+      text: 开源 SDK
+      link: https://github.com/xuanmomo233/ArcartXSuite-Core
+    - theme: alt
+      text: 文档仓库
+      link: https://github.com/xuanmomo233/ArcartXSuite-Wiki
     - theme: alt
       text: 云端授权
       link: https://cloud.021209.xyz/

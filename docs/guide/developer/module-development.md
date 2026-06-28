@@ -15,7 +15,7 @@ description: 从零编写 ArcartX-Suite 第三方模块——Gradle 工程、mod
 | 构建 | Gradle（推荐）或 Maven |
 | 服务端 | 已安装 **ArcartX** 插件 + **ArcartXSuite** 宿主 |
 | 客户端 | 玩家需安装 **ArcartX 模组**（UI/HUD/自定义包依赖客户端） |
-| SDK | `axs-api-x.x.x.jar`（[OpenSource Releases](https://github.com/xuanmomo233/ArcartXSuite-OpenSource/releases)） |
+| SDK | `axs-api` JAR（[ArcartXSuite-Core](https://github.com/xuanmomo233/ArcartXSuite-Core) 仓库 `axs-api/`） |
 
 ::: warning 不要引用宿主实现
 模块代码中 **只能** `import xuanmo.arcartxsuite.api.*`。不要 `import xuanmo.arcartxsuite.bridge.*` 或宿主 `module` 包——会导致 ClassLoader 隔离失败，且在不同版本间不兼容。
