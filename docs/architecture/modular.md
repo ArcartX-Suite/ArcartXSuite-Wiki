@@ -252,7 +252,7 @@ external-softdepends: []
 ### QuestGPS × Chemdah
 
 - overlay 根键 = Chemdah `Template.getId()`（裸 ID，如 `gps_main_newcomer`）
-- 分类：`category.id-prefix-rules` → `meta.type` → overlay `category`（按 `category.source`）
+- 分类：`category.source` 二选一 — `chemdah` 仅 meta.type，`overlay` 仅 overlay `category`
 - UI 发包：`categories` / `quests` / `tasks` / `rewards` Map（Title 式 `entryKey` 模板列表）
 - 详见 [QuestGPS 模块文档](/modules/questgps)
 
