@@ -309,9 +309,116 @@ gps_main_newcomer:                       # Chemdah Template.getId()
 | `required-mainline` | list | 接取前必须完成的主线 Chemdah ID 列表 |
 | `presentation` | map | 单任务级展示字段来源覆盖 |
 | `hooks` | map | 各阶段 EventPacket 信号名 |
-| `rewards` | list | 奖励预览，支持 `neigeitems` / `mythicmobs` / `mmoitems` / `title` / `material` / `text` |
+| `rewards` | list | 奖励预览列表（**仅 UI 展示**），见下方「奖励预览配置详解」 |
 | `navigation` | map | 任务级导航坐标（`navigation.mode: hybrid` 时 Chemdah 优先） |
 | `tasks.<id>` | map | 子目标排序与 overlay 导航；`display-text` 等为可选覆盖 |
+
+### 奖励预览配置详解
+
+`rewards` 段只影响任务菜单中的**奖励预览图标与文案**，不会在接取/完成时自动发放物品。实际奖励仍由 Chemdah 任务模板执行。
+
+展示数据来源由 `presentation.rewards-source`（或单任务 `presentation.rewards-source`）控制：
+
+| 值 | 行为 |
+| --- | --- |
+| `chemdah`（默认） | 优先读 Chemdah 模板 `QUEST_COMPLETED` agent / `reward` 列表的文本预览；overlay `rewards` 为空时作回退 |
+| `overlay` | 仅使用 overlay `rewards` |
+| `merge` | Chemdah 预览 + overlay `rewards` 合并展示 |
+
+#### 支持的 `type`
+
+| `type` | 依赖插件 / 说明 | 主要 ID 字段 |
+| --- | --- | --- |
+| `neigeitems` | NeigeItems | `neige-item-id` |
+| `mythicmobs` / `mythicitems` | MythicMobs | `mythic-item-id`（别名：`mythicmobs-item-id`、`item-id`） |
+| `overture` | Overture | `overture-item-id`（别名：`overture-id`） |
+| `mmoitems` | MMOItems | `type-id` + `id`（别名：`mmo-type`/`mmoitems-type`、`mmo-id`/`mmoitems-id`） |
+| `material` / `itemstack` | 原版 Bukkit 材质 | `material`（如 `DIAMOND`） |
+| `title` | Title 模块（可选） | `title-id` |
+| `text` | 无 | 纯文本行，无物品图标 |
+
+#### 通用可选字段
+
+| 字段 | 说明 |
+| --- | --- |
+| `amount` | 数量，默认 `1` |
+| `display-name` | 预览标题（覆盖物品/称号默认名） |
+| `text` | 预览描述副文案 |
+| `lore` | 物品 lore 行（`material` / 物品库类型可用） |
+| `fallback-material` | 物品库未安装或 ID 无效时，用该原版材质占位显示 |
+
+#### 各物品库完整示例
+
+```yaml
+rewards:
+  # NeigeItems
+  - type: neigeitems
+    neige-item-id: "starter_sword"
+    amount: 1
+    display-name: "&6新手长剑"
+    text: "&7NeigeItems 示例武器"
+    lore:
+      - "&7完成任务后可从 Chemdah 获得"
+    fallback-material: "IRON_SWORD"
+
+  # MythicMobs（mythicitems 与 mythicmobs 等价）
+  - type: mythicmobs
+    mythic-item-id: "starter_relic"
+    amount: 1
+    display-name: "&d远古遗物"
+    fallback-material: "AMETHYST_SHARD"
+  # 等价写法：
+  # - type: mythicitems
+  #   item-id: "starter_relic"
+
+  # Overture
+  - type: overture
+    overture-item-id: "treasure_chest"
+    amount: 2
+    display-name: "&6宝箱"
+    text: "&7Overture 自定义物品"
+    fallback-material: "CHEST"
+
+  # MMOItems（type + id 双字段）
+  - type: mmoitems
+    type-id: "SWORD"
+    id: "STEEL_LONGSWORD"
+    amount: 1
+    display-name: "&b钢之长剑"
+    fallback-material: "IRON_SWORD"
+  # 等价字段名：
+  #   mmo-type / mmoitems-type  → type-id
+  #   mmo-id / mmoitems-id      → id
+
+  # 原版材质（material 与 itemstack 等价）
+  - type: material
+    material: "GOLD_INGOT"
+    amount: 16
+    display-name: "&e金锭"
+    lore:
+      - "&7基础货币奖励"
+
+  # Title 称号预览（需 Title 模块；通过 TitleConfigQueryable 读取显示名/品质）
+  - type: title
+    title-id: "newcomer"
+    duration: "permanent"          # permanent 显示「永久」；其他值显示「限时 xxx」
+    display-name: "&e称号: 初来乍到"
+    text: "&7完成主线后解锁"
+
+  # 纯文本（无物品 JSON，适合经验/货币等 Chemdah 脚本奖励说明）
+  - type: text
+    display-name: "&a经验 +500"
+    text: "&7实际数值由 Chemdah agent 发放"
+    amount: 1
+```
+
+::: tip 物品库未安装时
+对应 `type` 会尝试用 `fallback-material` 生成占位图标；若仍失败，则退化为 `text` 样式并打服务端 fine 日志。
+:::
+
+::: warning 与 Chemdah 奖励的关系
+overlay `rewards` **不会**替代 Chemdah 发奖逻辑。请保证 Chemdah 任务模板内已配置真实 `give` / `item` agent；此处仅用于让玩家在菜单里提前看到奖励外观。
+:::
 
 ### 支线与奇遇示例
 
