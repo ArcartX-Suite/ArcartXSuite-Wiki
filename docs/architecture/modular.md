@@ -241,13 +241,20 @@ external-softdepends: []
 | map | Map | ✅ 独立 | Menu+HUD | 自建 MapService |
 | onlinerewards | OnlineRewards | ✅ 独立 | — | 自建 OnlineRewardsService |
 | prop | Prop | ✅ 独立 | — | 自建 PropService |
-| questgps | QuestGPS | ✅ 独立 | Menu+HUD | 自建 QuestGpsService |
+| questgps | QuestGPS | ✅ 独立 | Menu+HUD | 自建 QuestGpsService；Chemdah SSOT + overlay 白名单 |
 | title | Title | ✅ 独立 | — | 自建 TitleService |
 | warehouse | Warehouse | ✅ 独立 | — | 自建 WarehouseService |
 | essentials | Essentials | ✅ 独立 | UI | 自建 EssentialsService，玩家菜单 + 管理员面板 |
 | regions | Regions | ✅ 独立 | UI | 自建 RegionsService，区域查看 + 管理编辑面板 |
 | market | Market | ✅ 独立 | UI | 自建 MarketService，商店 + 拍卖行 + 回收 |
 | qqbot | QQBot | ✅ 独立 | — | 自建 QQBotService，OneBot 11 WebSocket 连接 |
+
+### QuestGPS × Chemdah
+
+- overlay 根键 = Chemdah `Template.getId()`（裸 ID，如 `gps_main_newcomer`）
+- 分类：`category.id-prefix-rules` → `meta.type` → overlay `category`（按 `category.source`）
+- UI 发包：`categories` / `quests` / `tasks` / `rewards` Map（Title 式 `entryKey` 模板列表）
+- 详见 [QuestGPS 模块文档](/modules/questgps)
 
 > 所有 17 个基础模块均已完成独立化迁移，业务逻辑封装在各自的 `XxxService` 中，由模块 Jar 自行管理生命周期。宿主仅提供基础设施（`ModuleContext`、反射桥、配置诊断等），不再包含模块业务源码。
 

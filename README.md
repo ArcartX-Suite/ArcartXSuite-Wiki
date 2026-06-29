@@ -45,7 +45,7 @@
 | **Conversation** | NPC 对话引擎，Chemdah + Adyeshach 联动，ArcartX UI 渲染 |
 | **Mail** | 邮件系统，玩家写信/预设派发/CDK兑换/物品附件/跨服广播 |
 | **Warehouse** | 仓库银行，个人/共享仓库、多货币银行、定期存款、二级密码 |
-| **QuestGPS** | 任务导航，Chemdah 任务追踪、路径寻路 + 3D模型标记 |
+| **QuestGPS** | Chemdah SSOT + overlay 白名单；动态分类菜单、路径寻路、指引 HUD |
 | **Map** | 大地图 / 锚点传送 / 玩家路径点 / 小地图 HUD |
 | **BattlePass** | 战令系统，三层通行证 + 日/周/赛季任务池 + ArcartX UI 面板 |
 | **Market** | 全球市场插件，系统商店 + 玩家拍卖行 + 回收商店，多货币跨服同步 |

@@ -170,7 +170,7 @@ rules:
       - type: subtitle.play
         group-id: "welcome_cinematic"
       - type: questgps.offer
-        quest-id: "main/tutorial"
+        quest-id: "gps_main_newcomer"
         open-menu: true
       - type: command.dispatch
         executor: console
@@ -321,7 +321,7 @@ rules:
     repeatable: false
     actions:
       - type: questgps.offer
-        quest-id: "dungeon/zombie_lair"
+        quest-id: "gps_side_silk_trade"
         open-menu: true
       - type: subtitle.play
         group-id: "dungeon_unlock"
@@ -548,14 +548,14 @@ action:
 
 | 专属字段 | 类型 | 说明 |
 | --- | --- | --- |
-| `signal` | string | 可选，指定任务 ID 过滤（如 `"main/tutorial"`） |
+| `signal` | string | 可选，指定任务 ID 过滤（如 `"gps_main_newcomer"`） |
 
 ```yaml
 rules:
   quest_complete_reward:
     enabled: true
     trigger: quest-complete
-    signal: "main/tutorial"
+    signal: "gps_main_newcomer"
     repeatable: false
     actions:
       - type: subtitle.play
@@ -574,7 +574,7 @@ rules:
 
 | 专属字段 | 类型 | 说明 |
 | --- | --- | --- |
-| `signal` | string | 可选，指定 `quest_id`（如 `"main/tutorial"`）或 `objective_name`（如 `"player kill"`）过滤 |
+| `signal` | string | 可选，指定 `quest_id`（如 `"gps_main_newcomer"`）或 `objective_name`（如 `"player kill"`）过滤 |
 
 ```yaml
 # 按 quest_id 过滤
@@ -582,7 +582,7 @@ rules:
   objective_done_notify:
     enabled: true
     trigger: objective-complete
-    signal: "main/tutorial"
+    signal: "gps_main_newcomer"
     repeatable: true
     cooldown: "1s"
     actions:
@@ -790,7 +790,7 @@ controls:
 - type: chat.card
   card-id: "quest_offer"
   data:
-    quest: "main/tutorial"
+    quest: "gps_main_newcomer"
     title: "新手引导"
 ```
 
@@ -811,12 +811,12 @@ controls:
 
 | 参数 | 类型 | 说明 |
 | --- | --- | --- |
-| `quest-id` | string | QuestGPS 任务 ID |
+| `quest-id` | string | Chemdah 任务裸 ID（如 `gps_main_newcomer`） |
 | `open-menu` | boolean | 是否同时打开任务菜单 |
 
 ```yaml
 - type: questgps.offer
-  quest-id: "main/tutorial"
+  quest-id: "gps_main_newcomer"
   open-menu: true
 ```
 
@@ -824,11 +824,11 @@ controls:
 
 | 参数 | 类型 | 说明 |
 | --- | --- | --- |
-| `quest-id` | string | QuestGPS 任务 ID |
+| `quest-id` | string | Chemdah 任务裸 ID（须已在 QuestGPS overlay 登记或 discovery.mode=auto） |
 
 ```yaml
 - type: questgps.accept
-  quest-id: "main/tutorial"
+  quest-id: "gps_main_newcomer"
 ```
 
 ### `questgps.open` — 打开任务菜单
@@ -843,13 +843,13 @@ controls:
 
 | 参数 | 类型 | 说明 |
 | --- | --- | --- |
-| `quest-id` | string | QuestGPS 任务 ID |
+| `quest-id` | string | Chemdah 任务裸 ID（如 `gps_main_newcomer`） |
 | `task-id` | string | 可选，具体任务步骤 ID |
 
 ```yaml
 - type: questgps.track
-  quest-id: "main/tutorial"
-  task-id: "step_1"
+  quest-id: "gps_main_newcomer"
+  task-id: "0"
 ```
 
 ### `mail.send` — 发送邮件预设
@@ -1146,7 +1146,7 @@ welcome_new_player:
     - type: subtitle.play
       group-id: "welcome_cinematic"
     - type: questgps.offer
-      quest-id: "main/tutorial"
+      quest-id: "gps_main_newcomer"
       open-menu: true
     - type: mail.send
       preset-id: "welcome_gift"
@@ -1189,7 +1189,7 @@ zombie_dungeon_unlock:
   repeatable: false
   actions:
     - type: questgps.offer
-      quest-id: "dungeon/zombie_lair"
+      quest-id: "gps_side_silk_trade"
       open-menu: true
     - type: subtitle.play
       group-id: "dungeon_unlock"
@@ -1213,7 +1213,7 @@ level_30_unlock:
       title-id: "advanced_warrior"
       duration: "permanent"
     - type: questgps.offer
-      quest-id: "main/advanced_zone"
+      quest-id: "gps_main_advanced"
 ```
 
 ### CDK 兑换特效

@@ -170,10 +170,16 @@ public interface ChatCardSendable {
 ```java
 public interface QuestGpsNavigable {
     void offerQuest(Player player, String questId, boolean openMenu);
-    void startTracking(Player player, String questId);
-    void stopTracking(Player player);
+    void acceptQuest(Player player, String questId);
+    void openMenu(Player player);
+    void trackQuest(Player player, String questId);
+    void trackTask(Player player, String questId, String taskId);
+    boolean eventRuleLocked(Player player, String ruleId);
+    boolean moduleEntryLocked(Player player, String moduleEntryId);
 }
 ```
+
+`quest-id` / `task-id` 均为 Chemdah 裸 ID（如 `gps_main_newcomer`、`0`），须与 Chemdah 模板一致。
 
 ### MapNavigable
 

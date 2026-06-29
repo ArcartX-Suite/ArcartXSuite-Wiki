@@ -2629,7 +2629,7 @@ flowchart LR
 | `progressText` | |
 | `questName` | |
 | `taskCount` | |
-| `tasks` | |
+| `tasks` | Map，任务目标（最多展示 3 条）；`{id, text, description, completed, status}` |
 | `totalCount` | |
 
 **发送调用（客户端 → 服务端）**
@@ -2665,12 +2665,12 @@ flowchart LR
 ```mermaid
 flowchart LR
     subgraph SRV_questgps_questgps_menu["服务端 questgps"]
-        SRVF_questgps_questgps_menu["activeCount<br/>availableCount<br/>canAbandon<br/>canAccept<br/>canClearTrack<br/>canTrackQuest<br/>canTrackTask<br/>categoryId<br/>...(19 more)"]
+        SRVF_questgps_questgps_menu["categories<br/>pages<br/>quests<br/>tasks<br/>rewards<br/>categoryId<br/>...(24 more)"]
     end
     subgraph CLI_questgps_questgps_menu["客户端 questgps_menu"]
-        CLIV_questgps_questgps_menu["packetId<br/>categoryId<br/>pageId<br/>categoryName<br/>pageName<br/>availableCount<br/>activeCount<br/>completedCount<br/>...(19 more)"]
+        CLIV_questgps_questgps_menu["categories<br/>pages<br/>quests<br/>tasks<br/>rewards<br/>categoryId<br/>pageId<br/>...(24 more)"]
     end
-    CLIV_questgps_questgps_menu -->|"'switch_category'('mainline')"| SND_questgps_questgps_menu_0(["var.packetId"])
+    CLIV_questgps_questgps_menu -->|"'switch_category'(self.entry['id'])"| SND_questgps_questgps_menu_0(["var.packetId"])
     CLIV_questgps_questgps_menu -->|"'switch_page'('available')"| SND_questgps_questgps_menu_3(["var.packetId"])
     CLIV_questgps_questgps_menu -->|"'select_quest'(self.entry['id'])"| SND_questgps_questgps_menu_6(["var.packetId"])
     CLIV_questgps_questgps_menu -->|"'clear_track'"| SND_questgps_questgps_menu_7(["var.packetId"])
@@ -2683,45 +2683,44 @@ flowchart LR
 
 | 字段名 | 说明 |
 | --- | --- |
-| `activeCount` | |
-| `availableCount` | |
-| `canAbandon` | |
-| `canAccept` | |
-| `canClearTrack` | |
-| `canTrackQuest` | |
-| `canTrackTask` | |
-| `categoryId` | |
-| `categoryName` | |
-| `completedCount` | |
-| `navigationReady` | |
-| `packetId` | |
-| `pageId` | |
-| `pageName` | |
-| `questCount` | |
-| `questRows` | |
-| `questTracked` | |
-| `rewardCount` | |
-| `rewardRows` | |
-| `selectedQuestDescriptionText` | |
-| `selectedQuestId` | |
-| `selectedQuestName` | |
-| `selectedQuestPath` | |
-| `selectedQuestState` | |
-| `taskCount` | |
-| `taskRows` | |
-| `trackSummary` | |
+| `activeCount` | 进行中任务数 |
+| `availableCount` | 可接取任务数 |
+| `canAbandon` | 是否可放弃 |
+| `canAccept` | 是否可接取 |
+| `canClearTrack` | 是否可清除导航 |
+| `canTrackQuest` | 是否可追踪任务 |
+| `canTrackTask` | 是否可追踪子目标 |
+| `categories` | Map，分类 Tab：`{id, name, sort_order, selected}` |
+| `pages` | Map，页签：`{id, name, count, selected}` |
+| `quests` | Map，当前页任务行：`{id, name, summary, state, trackable, selected}` |
+| `tasks` | Map，选中任务目标：`{id, text, status, completed, trackable, tracked}` |
+| `rewards` | Map，选中任务奖励预览 |
+| `categoryId` | 当前分类 ID |
+| `categoryName` | 当前分类显示名 |
+| `completedCount` | 已完成任务数 |
+| `navigationReady` | 导航是否就绪 |
+| `packetId` | 包 ID |
+| `pageId` | 当前页签 ID |
+| `pageName` | 当前页签名 |
+| `questCount` | 当前页任务数 |
+| `questTracked` | 当前任务是否正在追踪 |
+| `rewardCount` | 奖励预览条数 |
+| `selectedQuestDescriptionText` | 选中任务描述（多行文本） |
+| `selectedQuestId` | 选中任务 ID |
+| `selectedQuestName` | 选中任务名 |
+| `selectedQuestPath` | Chemdah 模板 path |
+| `selectedQuestState` | 选中任务状态文案 |
+| `taskCount` | 目标条数 |
+| `trackSummary` | 当前追踪摘要 |
 
 **发送调用（客户端 → 服务端）**
 
 | 目标路由 | Action | 参数 |
 | --- | --- | --- |
-| `var.packetId` | `'switch_category'` | `'mainline'` |
-| `var.packetId` | `'switch_category'` | `'side'` |
-| `var.packetId` | `'switch_category'` | `'encounter'` |
-| `var.packetId` | `'switch_page'` | `'available'` |
-| `var.packetId` | `'switch_page'` | `'active'` |
-| `var.packetId` | `'switch_page'` | `'completed'` |
+| `var.packetId` | `'switch_category'` | `self.entry['id']`（动态分类 ID） |
+| `var.packetId` | `'switch_page'` | `'available'` / `'active'` / `'completed'` |
 | `var.packetId` | `'select_quest'` | `self.entry['id']` |
+| `var.packetId` | `'track_task'` | `var.selectedQuestId`, `self.parent.entry['id']` |
 | `var.packetId` | `'clear_track'` | `—` |
 | `var.packetId` | `'accept_quest'` | `var.selectedQuestId` |
 | `var.packetId` | `'abandon_quest'` | `var.selectedQuestId` |
@@ -2732,6 +2731,11 @@ flowchart LR
 | 变量名 | 默认值 |
 | --- | --- |
 | `var.packetId` | `packet['packetId']` |
+| `var.categories` | `packet['categories']` |
+| `var.pages` | `packet['pages']` |
+| `var.quests` | `packet['quests']` |
+| `var.tasks` | `packet['tasks']` |
+| `var.rewards` | `packet['rewards']` |
 | `var.categoryId` | `packet['categoryId']` |
 | `var.pageId` | `packet['pageId']` |
 | `var.categoryName` | `packet['categoryName']` |
@@ -2740,7 +2744,6 @@ flowchart LR
 | `var.activeCount` | `packet['activeCount']` |
 | `var.completedCount` | `packet['completedCount']` |
 | `var.questCount` | `packet['questCount']` |
-| `var.questRows` | `packet['questRows']` |
 | `var.selectedQuestId` | `packet['selectedQuestId']` |
 | `var.selectedQuestName` | `packet['selectedQuestName']` |
 | `var.selectedQuestState` | `packet['selectedQuestState']` |
@@ -2751,7 +2754,11 @@ flowchart LR
 | `var.canAbandon` | `packet['canAbandon']` |
 | `var.canTrackQuest` | `packet['canTrackQuest']` |
 | `var.canTrackTask` | `packet['canTrackTask']` |
-| ... | 共 27 个变量 |
+| `var.canClearTrack` | `packet['canClearTrack']` |
+| `var.questTracked` | `packet['questTracked']` |
+| `var.navigationReady` | `packet['navigationReady']` |
+| `var.taskCount` | `packet['taskCount']` |
+| `var.rewardCount` | `packet['rewardCount']` |
 
 ---
 

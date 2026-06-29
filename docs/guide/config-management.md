@@ -231,7 +231,7 @@ config-version: 1
 | title | `titles:` | `titles-directory: "titles"` | 称号定义（按组分文件） |
 | rgb | `entries:` | `entries-directory: "entries"` | 渐变色条目 |
 | map | `anchors:` | `anchors-directory: "anchors"` | 锚点定义 |
-| questgps | `quests:` | `quests-directory: "quests"` | 任务定义（按分类分文件） |
+| questgps | `quests:` | `quests-directory: "quests"` | Chemdah overlay 白名单（根键 = 裸任务 ID）；主配置含 `category` / `presentation` / `discovery` |
 | onlinerewards | `sign-in:` / `rewards:` | `sign-in-file` / `rewards-file` | 签到与奖励 |
 | tab | `tabs:` | `tabs-directory: "tabs"` | Tab 面板定义 |
 | entitytracker | bosses (旧根级) | `bosses-directory: "bosses"` | Boss 追踪定义 |

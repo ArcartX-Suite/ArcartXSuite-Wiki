@@ -398,8 +398,11 @@ battlepass, fishing, lottery, afkreward, menu
 | 命令 | 说明 | 使用示例 |
 | --- | --- | --- |
 | `/questgps` 或 `/questgps open` | 打开任务导航菜单，可查看可用任务和追踪目标位置 | `/questgps` |
-| `/questgps cleartrack` | 清除当前追踪的任务目标，HUD 导航箭头将消失 | `/questgps cleartrack` |
-| `/questgps hud [on\|off\|toggle]` | 控制 HUD 导航显示。`on` 开启、`off` 关闭、`toggle` 切换状态（默认） | `/questgps hud off`<br>`/questgps hud` |
+| `/questgps cleartrack` | 清除当前追踪，关闭指引 HUD 与导航可视化 | `/questgps cleartrack` |
+
+::: tip 指引 HUD
+追踪任务时指引 HUD（`questgps_guide`）会自动打开；取消追踪后自动关闭。无需 `/questgps hud` 命令。
+:::
 
 ### Map — 地图（`/map`，别名 `/axmap`）
 
