@@ -39,10 +39,6 @@ welcome:
   click-command: "say <player> 点了公告"
 ```
 
-::: tip 配置目录
-从 1.1.0-beta 起，公告条目不再写在 `ArcartXAnnouncer.yml` 内联 `entries:` 中，而是放在 `data/announcer/announcer/` 目录。详见 [Announcer 模块文档](/modules/announcer)。
-:::
-
 ### 3. reload 并验证
 
 ```

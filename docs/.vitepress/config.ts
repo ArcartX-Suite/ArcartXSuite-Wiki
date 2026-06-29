@@ -6,7 +6,7 @@ const moduleSidebar = [
   { text: '总览', link: '/modules/' },
   {
     text: '免费模块',
-    collapsed: true,
+    collapsed: false,
     items: [
       { text: 'Announcer 播报', link: '/modules/announcer' },
       { text: 'EventPacket 事件引擎', link: '/modules/eventpacket' },
@@ -24,7 +24,7 @@ const moduleSidebar = [
   },
   {
     text: '付费模块',
-    collapsed: true,
+    collapsed: false,
     items: [
       { text: 'Fishing 钓鱼', link: '/modules/fishing' },
       { text: 'Title 称号', link: '/modules/title' },

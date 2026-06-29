@@ -5,7 +5,7 @@ description: modular - ArcartX-Suite Minecraft 服务器插件文档。 ArcartX-
 
 # 模块化架构
 
-ArcartX-Suite 1.2.0-beta 使用 **宿主 + 模块 Jar** 架构。宿主提供核心基础设施，各功能模块可以打包为独立 Jar 放入 `modules/` 目录按需加载。
+ArcartX-Suite 使用 **宿主 + 模块 Jar** 架构。宿主提供核心基础设施，各功能模块可以打包为独立 Jar 放入 `modules/` 目录按需加载。
 
 ::: tip 开源 SDK 仓库
 公开 API 与宿主参考实现见 [ArcartXSuite-Core](https://github.com/ArcartX-Suite/ArcartXSuite-Core)。下述目录结构与该仓库一致（`axs-api/`、`proxy/` 等）。
@@ -176,12 +176,6 @@ public final class RgbModule implements AXSModule {
 }
 ```
 
-### 委托模式（历史说明）
-
-1.2.0-beta 早期有部分模块采用「委托模式」——模块 Jar 的 `onEnable`/`onDisable` 委托给宿主的 `reloadXxxState()` / `shutdownXxxModule()`，业务逻辑仍在宿主中执行。截至 2026-05-14，**全部 26 个模块已完成独立化迁移**，委托模式已退出使用。
-
-当前所有模块均使用「独立模式」实现，业务逻辑封装在模块自身的 `XxxService` 中，宿主只负责提供 `ModuleContext` 基础设施。
-
 ## 模块 Jar 描述文件
 
 每个模块 Jar 在 `resources/` 中必须包含 `module.yml`：
@@ -190,6 +184,7 @@ public final class RgbModule implements AXSModule {
 id: mymodule           # 唯一标识，与 config.yml 中的键对应
 name: MyModule         # 显示名称
 version: 1.2.0-beta
+
 main: com.example.MyModule   # AXSModule 实现类全限定名
 api-version: 1.0
 depends: []            # 强依赖的其他模块 id
@@ -223,39 +218,11 @@ external-softdepends: []
 | `getCapability()` | `T` | `@Stable` | 查找跨模块能力 |
 | `hasPlugin(String)` | `boolean` | — | 检查外部 Bukkit 插件 |
 
-## 迁移状态
-
-| 模块 Jar | 对应功能模块 | 模式 | UI | 说明 |
-|----------|-------------|------|-----|------|
-| rgb | RGB | ✅ 独立 | — | 自建 ArcartRgbService |
-| pickup | Pickup | ✅ 独立 | HUD | 自建 PickupService |
-| tab | Tab | ✅ 独立 | — | 自建 TabSyncService |
-| combateffect | CombatEffect + 伤害飘字 | ✅ 独立 | — | 自建 CombatEffectService，伤害飘字随 CombatEffect 加载 |
-| announcer | Announcer + Subtitle | ✅ 独立 | HUD | 自建 AnnouncerService，Subtitle 随 Announcer 加载 |
-| entitytracker | EntityTracker + 目标 HUD | ✅ 独立 | HUD | 自建 EntityTrackerService，目标 HUD 随 EntityTracker 加载 |
-| chat | Chat | ✅ 独立 | — | 自建 ChatService |
-| conversation | Conversation | ✅ 独立 | UI+Selector | 自建 ConversationService |
-| eventpacket | EventPacket | ✅ 独立 | — | 自建 EventPacketDispatchService |
-| loginview | LoginView | ✅ 独立 | UI | 自建 LoginViewService |
-| mail | Mail | ✅ 独立 | — | 自建 MailService |
-| map | Map | ✅ 独立 | Menu+HUD | 自建 MapService |
-| onlinerewards | OnlineRewards | ✅ 独立 | — | 自建 OnlineRewardsService |
-| prop | Prop | ✅ 独立 | — | 自建 PropService |
-| questgps | QuestGPS | ✅ 独立 | Menu+HUD | 自建 QuestGpsService；Chemdah SSOT + overlay 白名单 |
-| title | Title | ✅ 独立 | — | 自建 TitleService |
-| warehouse | Warehouse | ✅ 独立 | — | 自建 WarehouseService |
-| essentials | Essentials | ✅ 独立 | UI | 自建 EssentialsService，玩家菜单 + 管理员面板 |
-| regions | Regions | ✅ 独立 | UI | 自建 RegionsService，区域查看 + 管理编辑面板 |
-| market | Market | ✅ 独立 | UI | 自建 MarketService，商店 + 拍卖行 + 回收 |
-| qqbot | QQBot | ✅ 独立 | — | 自建 QQBotService，OneBot 11 WebSocket 连接 |
-
 ### QuestGPS × Chemdah
 
 - overlay 根键 = Chemdah `Template.getId()`（裸 ID，如 `gps_main_newcomer`）
 - 分类：`category.source` 二选一 — `chemdah` 仅 meta.type，`overlay` 仅 overlay `category`
 - UI 发包：`categories` / `quests` / `tasks` / `rewards` Map（Title 式 `entryKey` 模板列表）
 - 详见 [QuestGPS 模块文档](/modules/questgps)
-
-> 所有 17 个基础模块均已完成独立化迁移，业务逻辑封装在各自的 `XxxService` 中，由模块 Jar 自行管理生命周期。宿主仅提供基础设施（`ModuleContext`、反射桥、配置诊断等），不再包含模块业务源码。
 
 

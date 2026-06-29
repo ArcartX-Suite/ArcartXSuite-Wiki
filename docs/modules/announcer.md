@@ -80,11 +80,7 @@ entries-directory: "announcer"         # 公告条目目录，相对模块数据
 | `cooldown-ms` | long | `30000` | 全部公告播完一整轮后的冷却等待时间（毫秒） |
 | `between-entry-interval-ms` | long | `30000` | 同一轮中，上一条公告显示结束后切到下一条公告的等待时间（毫秒） |
 | `text-width-font-size` | int | `60` | 服务端估算滚动文字宽度的字体大小参数（自适应坐标单位）。CJK 字符宽度 ≈ 此值，Latin 字符宽度 ≈ 此值 × 0.55。调大此值会让背景条显示更久，调小则更快隐藏 |
-| `entries-directory` | string | `"announcer"` | 公告条目所在目录，路径相对模块数据目录 `data/announcer/`。1.0.x 旧默认值为 `"entries"`，升级后旧目录会自动迁移 |
-
-::: tip 从 1.0.x 升级
-如果你之前使用默认的 `entries/` 目录，升级到 1.2.0-beta 后**无需手动操作**。模块启动时会自动检测到旧目录 `data/announcer/entries/` 并将其重命名为 `data/announcer/announcer/`，日志会输出 `已将旧公告目录 entries/ 迁移至 announcer/`。如果你在配置中自定义了 `entries-directory` 为其他名称，则不受影响。
-:::
+| `entries-directory` | string | `"announcer"` | 公告条目所在目录，路径相对模块数据目录 `data/announcer/` |
 
 ### 公告条目
 

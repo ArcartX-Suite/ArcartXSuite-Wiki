@@ -173,10 +173,6 @@ module-signature-public-keys:
 签名规则、公钥格式、与云端/跨服签名的区别、开发者如何生成密钥，见 **[模块 Ed25519 签名](/guide/developer/module-signature)**。
 :::
 
-::: tip 向后兼容
-旧版单字符串配置 `module-signature-public-key` 仍可正常读取，无需手动迁移。
-:::
-
 ## .axb 加密模块加载流程
 
 云端下载的模块以 `.axb` 格式存储（AES 加密），加载时自动解密：

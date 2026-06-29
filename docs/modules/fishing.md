@@ -6,7 +6,7 @@ description: ArcartX-Suite Fishing 钓鱼系统，星露谷风格钓鱼小游戏
 # Fishing 钓鱼系统
 
 ::: tip 付费模块
-本模块为付费模块。从 **1.2.0-beta** 起，授权由 [云端平台](/guide/cloud-modules) 统一管理：在 [cloud.021209.xyz](https://cloud.021209.xyz) 购买/领取授权后，于「装备模块」页面勾选到对应服务器即可，无需填写 `password` 或 `license.yml`。
+本模块为付费模块。授权由 [云端平台](/guide/cloud-modules) 统一管理：在 [cloud.021209.xyz](https://cloud.021209.xyz) 购买/领取授权后，于「装备模块」页面勾选到对应服务器即可，无需填写 `password` 或 `license.yml`。
 :::
 
 **Fishing** 模块为服务器提供一套完整的 **星露谷风格钓鱼小游戏**，通过 ArcartX UI HUD 实时渲染钓鱼过程。玩家抛竿后进入钓鱼小游戏，操控绿条追逐游动的鱼，填满进度条即可捕获。支持多水域生态、鱼种季节/天气/时间分布、宝藏奖励、饵料加成和钓鱼图鉴收集。
@@ -562,7 +562,7 @@ legendary_first_catch:
 | 鱼种不刷新 | 季节/天气/时间/水域类型不匹配 | 检查当前服务器季节、天气和时间段是否符合鱼种配置条件 |
 | 饵料不生效 | 鱼竿 lore 格式与 `lore-pattern` 不匹配 | 确认 lore 严格匹配，例如 `&7饵料: 蚯蚓`（注意空格和颜色码） |
 | Market 无法回收鱼 | recycle 表中未配置 `source: "fishing"` 条目 | 参考上方 Market 回收联动配置 |
-| `/fishing sell` 提示"不是钓鱼产物" | 鱼物品缺少 PDC 标记 | 这些鱼是旧版本生成的，重新钓鱼即可获得带标记的新物品 |
+| `/fishing sell` 提示"不是钓鱼产物" | 鱼物品缺少 PDC 标记 | 重新钓鱼即可获得带标记的新物品 |
 | EventPacket 收不到 Signal | EventPacket 模块未安装或未启用 fishing 相关规则 | 确认模块已安装，并在规则中配置正确的 `signal-id` |
 
 ## 数据库表

@@ -17,7 +17,7 @@ description: index - ArcartX-Suite Minecraft 服务器插件文档。 ArcartX-Su
 6. [配置管理](config-management) — 智能诊断、`/axs config` 修复与配置目录拆分说明。
 7. [PlaceholderAPI 速查](placeholders) — 各模块的 PAPI 前缀与典型字段。
 8. [条件系统（PAPI + Aria + JS）](conditions) — Menu / Prop / EventPacket / Mail 统一条件语法，支持 PAPI 行内、Aria 脚本、原生 JavaScript 三种模式。
-9. [跨服功能配置](cross-server-setup) — 多服 Chat / Tab / Mail 等（`1.2.0-beta` 统一 CrossServer SDK）。
+9. [跨服功能配置](cross-server-setup) — 多服 Chat / Tab / Mail 等（统一 CrossServer SDK）。
 10. [Warehouse 多服 MySQL 部署](warehouse-cross-server) — 仓库跨服数据共享。
 11. [多 UI 同时发包](multi-ui) — 多界面并存时的包路由。
 12. [Proxy 代理端插件](proxy-usage) — 群组服代理端装哪个 jar、BC/VC 目录示例、与跨服 SDK 的区别。

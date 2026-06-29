@@ -82,8 +82,6 @@ module-signature-public-keys:
   - "MCowBQYDK2VwAyEA..."   # 作者 B 的公钥（可多个）
 ```
 
-旧版单字符串 `module-signature-public-key` 仍可读，建议迁移为列表。
-
 留空 `[]` 表示**关闭**模块签名校验（默认）。
 
 ---

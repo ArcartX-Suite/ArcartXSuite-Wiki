@@ -158,8 +158,6 @@ auth:
    - 若 `auth.yggdrasil-source` **不包含 `?mixed`**（纯 LittleSkin）：生成 `start-littleskin.bat` / `start-littleskin.sh`
 4. **自动修改现有启动脚本**（如 `run.bat`），注入 `-javaagent` 参数（原脚本备份为 `.bak`）
 
-> 旧版 `/axs loginview setup-authlib` 已移除，功能统一由本体的 `/axs auth setup` 覆盖。
-
 ##### 第三步：重启服务器
 
 ```

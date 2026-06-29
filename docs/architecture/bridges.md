@@ -11,7 +11,7 @@ ArcartX-Suite 在 `plugin.yml` 里只硬依赖 `ArcartX`，其他全是软依赖
 - 调用时通过 `MethodHandle / Method.invoke` 远程调对方 API
 
 ::: tip 开发者 API
-1.2.0-beta 起，模块开发者无需关心反射细节，直接使用 [类型安全的桥接 API](/api/bridge-api) 即可。
+模块开发者无需关心反射细节，直接使用 [类型安全的桥接 API](/api/bridge-api) 即可。
 :::
 
 ## 公开桥接 API
@@ -51,7 +51,7 @@ ArcartX-Suite 在 `plugin.yml` 里只硬依赖 `ArcartX`，其他全是软依赖
 
 Aria 脚本条件通过 `DefaultAriaBridge` 对接 BlinkAriaHost；未安装时 Aria 条件求值为 false，可改用 JS 条件，见 [条件系统](/guide/conditions)。
 
-> **货币桥接已统一**：1.2.0-beta 起，所有经济相关读写统一通过全局 `CurrencyBridgeAPI`（`context.currencyManager()`）完成，支持 Vault / PlayerPoints / Rondo / Command / PlaceholderCommand / Custom 多 provider。`VaultEconomyBridge` 已从内部反射桥列表中移除，模块**不再**直接依赖 Vault 桥。详见 [桥接 API → 货币](/api/bridge-api)。
+> **货币桥接**：所有经济相关读写统一通过全局 `CurrencyBridgeAPI`（`context.currencyManager()`）完成，支持 Vault / PlayerPoints / Rondo / Command / PlaceholderCommand / Custom 多 provider。详见 [桥接 API → 货币](/api/bridge-api)。
 
 ## 使用示例
 

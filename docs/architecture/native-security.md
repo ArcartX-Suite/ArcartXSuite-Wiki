@@ -42,7 +42,7 @@ AXSModule.onEnable(context)
 
 ## Bootstrap 瘦壳
 
-1.2.0-beta 起，服主首次安装的是 **bootstrap jar**（瘦壳），启动后从云端下载加密**核心本体** `.axb` 并注入运行。这样核心逻辑可随云端更新，无需手动替换整包 jar。
+服主首次安装的是 **bootstrap jar**（瘦壳），启动后从云端下载加密**核心本体** `.axb` 并注入运行。这样核心逻辑可随云端更新，无需手动替换整包 jar。
 
 ## Native 库依赖
 

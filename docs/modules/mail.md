@@ -6,7 +6,7 @@ description: ArcartX-Suite Mail 邮件系统，玩家写信、管理员预设派
 # Mail 邮箱
 
 ::: tip 付费模块
-本模块为付费模块。从 **1.2.0-beta** 起，授权由 [云端平台](/guide/cloud-modules) 统一管理：在 [cloud.021209.xyz](https://cloud.021209.xyz) 购买/领取授权后，于「装备模块」页面勾选到对应服务器即可，无需填写 `password` 或 `license.yml`。
+本模块为付费模块。授权由 [云端平台](/guide/cloud-modules) 统一管理：在 [cloud.021209.xyz](https://cloud.021209.xyz) 购买/领取授权后，于「装备模块」页面勾选到对应服务器即可，无需填写 `password` 或 `license.yml`。
 :::
 ## 功能定位
 

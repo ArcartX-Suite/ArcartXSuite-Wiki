@@ -17,12 +17,8 @@ modules:
 
 所有模块统一受 `config.yml` 的 `modules.<module>.enabled` 控制，`true` 后即可加载。
 
-::: tip 1.2.0-beta 授权方式
+::: tip 授权方式
 付费/福利模块的授权由 [云端平台](cloud-modules) 管理：在 [cloud.021209.xyz](https://cloud.021209.xyz) 领取或购买后，于「装备模块」勾选到服务器，再在本机 `config.yml` 将对应模块 `enabled: true`。执行 `/axs sync` 可立即同步装备列表。
-:::
-
-::: tip 关于模块密码（已废弃）
-1.1.0-beta 及更早版本需要为付费模块填写 `password` 字段。从 **1.2.0-beta 起，模块密码机制已移除**，授权改由 [云端平台](cloud-modules.md) 统一管理。`config.yml` 中的 `modules.<module>.password` 字段已废弃，无需填写。
 :::
 
 ## 模块列表

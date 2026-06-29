@@ -70,7 +70,7 @@ battlepass, fishing, lottery, afkreward, menu
 
 ### 热加载/卸载命令说明
 
-热加载和热卸载是 1.2.0-beta 版本新增的运行时模块管理能力，允许在不重启服务端的情况下动态加载或卸载模块。
+热加载和热卸载允许在不重启服务端的情况下动态加载或卸载模块。
 
 #### `/axs load <模块名>`
 
@@ -111,7 +111,7 @@ battlepass, fishing, lottery, afkreward, menu
 
 **使用场景**：
 - 临时禁用某个模块进行调试
-- 更新模块 Jar 前先卸载旧版本
+- 更新模块 Jar 前先卸载
 - 释放服务器资源
 
 **示例**：
