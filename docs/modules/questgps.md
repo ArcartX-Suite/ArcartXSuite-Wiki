@@ -182,7 +182,7 @@ Waypoint 罗盘样式在 ArcartX 的 `waypoint/` 目录定义，与 `waypoint-st
 
 | 字段 | 类型 | 默认值 | 说明 |
 | --- | --- | --- | --- |
-| `enabled` | boolean | `false` | `true` = QuestGPS 启动时为 Chemdah 注册 MySQL（`DatabaseSQL`） |
+| `enabled` | boolean | `false` | `true` = QuestGPS 启动时为 Chemdah 注册 MySQL 数据库 |
 | `load-in-join-event` | boolean | `true` | 玩家进服加载 Chemdah 档案 |
 | `release-in-quit-event` | boolean | `true` | 玩家退服释放档案 |
 | `disable-auto-save` | boolean | `false` | `true` = 禁止 Chemdah 自动保存 |
@@ -190,7 +190,7 @@ Waypoint 罗盘样式在 ArcartX 的 `waypoint/` 目录定义，与 `waypoint-st
 
 ::: info 何时需要开启
 Chemdah `config.yml` 使用 `database.use=LOCAL`（本地）时保持 `enabled: false`。  
-使用 `database.use=SQL`（MySQL）时设 `enabled: true`，且 Chemdah JAR 须含 `DatabaseSQL`（付费版或 patched 免费 JAR）。
+使用 `database.use=SQL`（MySQL）时设 `enabled: true`。QuestGPS 会优先使用内置 `DatabaseMySQL`（基于 Chemdah 免费版 `Relational`），免费版通常无需 patched JAR。
 :::
 
 #### `gate`（主线门禁）

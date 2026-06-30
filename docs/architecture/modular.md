@@ -120,22 +120,25 @@ onEnable()
 
 ### 已知约束
 
-- **UI 残留**：ArcartX 的 UI 不支持显式 unregister，卸载后旧 UI 仍由 ArcartX 持有，但 packetHandler 已断开。重新 `load` 会重新 export + register 覆盖旧 UI。
 - **Capability 清理**：当前 capability 表不跟踪 owner，模块需在 `onDisable` 中自行清理 capabilities（否则旧引用会持有死对象）。`ModuleRegistry.removeCapabilities(id)` 保留作为接口契约位。
 - **依赖图变化**：`unload` 不会自动 disable dependents，要求管理员按依赖顺序手动 unload。
 
 ### UI 注册与更新
 
-每个有 UI 的模块在 reload 时严格执行四步：
+每个有 UI 的模块在 reload 时严格执行以下步骤：
 
 | 步骤 | 操作 |
 |------|------|
-| 1 | 停止旧 Service 并注销旧 UI |
-| 2 | 加载新配置 → 导出 UI YAML 文件到 ArcartX 目录 |
-| 3 | `prepareUiBinding()` → `packetBridge.registerOrReloadUi()` 注册/更新 UI |
+| 1 | `onDisable()` 停止旧 Service，基类自动注销所有已注册 UI |
+| 2 | `onEnable()` 加载新配置 → 根据 `uiResourceMappings()` 导出 UI YAML 文件 |
+| 3 | `startService()` 中调用 `registerModuleUi()` → 内部使用 `packetBridge.registerOrReloadUi()` 重新读取文件并注册/热重载 |
 | 4 | 创建并启动新 Service |
 
-`registerOrReloadUi()` 先尝试 reload（已注册则刷新），再尝试 register（未注册则注册），是**幂等安全**的。ArcartX 现已支持 UI 自动导入，不再需要手动执行 `ax reload`。
+`registerModuleUi()` 是 `AbstractAXSModule` 提供的统一封装，内部调用 `registerOrReloadUi()`，每次都会**重新读取磁盘上的 UI 文件**，确保手动修改的 YAML 在 `/axs reload` 后立即生效。`onDisable()` 时基类会自动 `unregisterUi`，不再存在 UI 残留问题。
+
+::: tip 替代旧 API
+旧代码中使用的 `context.prepareUiBinding()` 在 reload 时不会重新读取文件，已废弃。新模块或重构时请改用 `registerModuleUi()`。
+:::
 
 ## 模块实现模式
 

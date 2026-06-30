@@ -291,15 +291,40 @@ File uiFile = context.exportUiResource(
 
 ### UI 注册与注销
 
-```java
-// 高层 API（推荐，自动处理注册 + 绑定）
-UiBinding binding = context.prepareUiBinding("MyModule", "my_ui", true, uiFile);
-if (binding != null) {
-    String runtimeUiId = binding.runtimeUiId();
-    String registeredUiId = binding.registeredUiId();
-}
+#### 在 AbstractAXSModule 子类中（推荐）
 
-// 注销
+基类提供 `registerModuleUi()`，统一封装导出 + `registerOrReloadUi()`，reload 时自动重新读取磁盘上的 UI 文件：
+
+```java
+// 基于 uiResourceMappings() 注册
+UiBinding binding = registerModuleUi("ui/my_view.yml", "my_ui", true);
+
+// 显式指定 jar 内资源路径
+UiBinding binding = registerModuleUi(
+    "arcartx/ui/my_view.yml", "ui/my_view.yml", "my_ui", true
+);
+
+// 获取已注册 UI 的 runtime ID
+String runtimeUiId = getModuleUiId("ui/my_view.yml");
+
+// 注销由基类 onDisable / onReload 自动处理
+```
+
+#### 直接使用 ModuleContext（不推荐用于 reload 场景）
+
+```java
+// 导出 UI 文件
+File uiFile = context.exportUiResource(
+    "arcartx/ui/my_view.yml", "ui/my_view.yml", false, getClass().getClassLoader()
+);
+
+// 注册或热重载（reload 时会重新读取文件）
+UiRegistrationResult reg = context.packetBridge().registerOrReloadUi("my_ui", uiFile);
+
+// 旧版高层 API（prepareUiBinding reload 时不刷新文件，已不推荐使用）
+UiBinding binding = context.prepareUiBinding("MyModule", "my_ui", true, uiFile);
+
+// 手动注销
 context.unregisterUi(registeredUiId);
 ```
 

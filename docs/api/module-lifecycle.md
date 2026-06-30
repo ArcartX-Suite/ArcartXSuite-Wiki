@@ -69,13 +69,43 @@ protected abstract void startService() throws Exception;
 protected abstract void stopService();
 ```
 
+### UI 注册工具方法（`1.2.0-beta` 起）
+
+基类提供 `registerModuleUi()` 统一封装导出 + 注册/热重载，替代旧的 `context.prepareUiBinding()`。
+
+```java
+// 基于 uiResourceMappings() 中的映射注册
+UiBinding binding = registerModuleUi("ui/my_view.yml", "my_ui", true);
+
+// 显式指定 jar 内资源路径（用于动态生成的 UI）
+UiBinding binding = registerModuleUi(
+    "arcartx/ui/my_view.yml",   // jar 内路径
+    "ui/my_view.yml",            // 输出路径
+    "my_ui",                     // 配置的 UI ID
+    true                         // 是否注册
+);
+
+// 获取已注册 UI 的 runtime ID
+String runtimeUiId = getModuleUiId("ui/my_view.yml");
+```
+
+| 方法 | 说明 |
+|------|------|
+| `registerModuleUi(relativePath, uiId, register)` | 基于 `uiResourceMappings()` 注册，未声明会抛异常 |
+| `registerModuleUi(resourcePath, relativePath, uiId, register)` | 显式路径，不依赖 `uiResourceMappings()` |
+| `getModuleUiId(relativePath)` | 获取已注册 UI 的 runtime ID |
+
+::: tip `prepareUiBinding` 已不推荐使用
+`context.prepareUiBinding()` 在 reload 时不会重新读取磁盘上的 UI 文件，导致手动修改的 YAML 无法生效。请改用 `registerModuleUi()`，其内部调用 `registerOrReloadUi()`，每次都会重新读取文件并热重载。
+:::
+
 ### 自动处理的生命周期流程
 
 `onEnable` 时基类按以下顺序自动执行：
 
 1. **导出配置** — 从模块 Jar 导出默认配置文件到宿主数据目录
 2. **加载配置** — 调用 `loadConfiguration(configFile)`
-3. **导出 UI** — 根据 `uiResourceMappings()` 导出并注册 UI 文件
+3. **导出 UI** — 根据 `uiResourceMappings()` 导出 UI 文件到数据目录（注册由 `startService()` 中调用 `registerModuleUi()` 完成）
 4. **绑定命令** — 根据 `commandBindings()` 注册命令；若模块实现了 `ModuleCommandHandler`，则额外注册 `/axs <commandId>` 子命令路由
 5. **启动服务** — 调用 `startService()`
 6. **注册监听器** — 注册 `createListeners()` 返回的监听器
