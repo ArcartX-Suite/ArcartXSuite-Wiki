@@ -93,7 +93,7 @@ QuestGPS 以 **Chemdah 为单一事实来源**，overlay 只负责「哪些任�
 | --- | --- | --- | --- | --- |
 | `source` | string | `chemdah` | `chemdah` / `overlay` | UI 展示**全局唯一来源**：名称、描述、目标文案、目标说明、奖励预览均读同一侧 |
 
-单任务可在 overlay 写 `presentation.source` 覆盖。已废弃 `presentation.*-source` 与 `merge`。
+单任务可在 overlay 写 `presentation.source` 覆盖。`presentation.*-source` 与 `merge` 均不再支持。
 
 #### `category`
 
@@ -679,5 +679,4 @@ first_join_questgps:
       quest-id: "example_mainline_quest"
       open-menu: true
 ```
-
 

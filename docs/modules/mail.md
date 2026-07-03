@@ -23,7 +23,7 @@ description: ArcartX-Suite Mail 邮件系统，玩家写信、管理员预设派
 - **自动过期**：可配置邮件保留天数、已领取/已删除邮件保留天数
 
 **预设邮件：**
-- **预设定义**：在 `mail/presets/*.yml` 中定义邮件模板，包含标题、正文、附件、命令
+- **预设定义**：在 `data/mail/presets/*.yml` 中定义邮件模板，包含标题、正文、附件、命令
 - **批量派发**：`/axs mail preset send` 支持指定玩家、全部在线、全部已注册三种目标
 - **模块联动**：OnlineRewards 签到奖励、EntityTracker Boss 结算等均可通过预设邮件发奖
 
@@ -139,10 +139,10 @@ retention:
 
 ```yaml
 presets:
-  directory: mail/presets    # 相对 data/mail/
+  directory: presets    # 相对 data/mail/
 ```
 
-预设文件示例 `data/mail/mail/presets/welcome.yml`：
+预设文件示例 `data/mail/presets/welcome.yml`：
 
 ```yaml
 welcome:
@@ -230,7 +230,7 @@ Mail 模块在 CDK 兑换成功时自动向 EventPacket 发射信号：
 预设邮件与部分系统邮件可配置**领取门槛**，玩家点击领取附件/执行 `claim-commands` 前校验。语法见 **[条件系统（PAPI + Aria + JS）](/guide/conditions)**。
 
 ```yaml
-# mail/presets/starter.yml 片段
+# data/mail/presets/starter.yml 片段
 preset:
   claim-conditions:
     - "%player_level% >= 10"                    # PAPI 行内

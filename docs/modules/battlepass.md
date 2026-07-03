@@ -136,7 +136,7 @@ season:
 #   - season.yml : 赛季任务池
 #
 # 每日/每周任务从池中按 weight 加权随机抽取，抽取数量由 daily-count / weekly-count 控制
-# 也可在主配置 tasks.daily / tasks.weekly / tasks.season 中直接内联定义
+# 任务仅使用 `tasks/*.yml` 外部文件
 # ---------------------------------------------------------------------------
 tasks:
   daily-count: 3                  # 每天分配给玩家的每日任务数量
@@ -325,7 +325,7 @@ increment-strategy:
 
 **文件位置**：`plugins/ArcartX-Suite/modules/battlepass/tasks/`
 
-> 若主配置 `ArcartXBattlePass.yml` 中包含 `tasks.daily`、`tasks.weekly`、`tasks.season` 内联定义，系统会优先使用内联配置，忽略外部文件。
+> 任务定义仅使用 `tasks/*.yml` 外部文件，主配置不再支持 `tasks.daily`、`tasks.weekly`、`tasks.season` 内联定义。
 
 ### `tasks/daily.yml`（每日任务池）
 
@@ -523,7 +523,7 @@ action:
 | 表名 | 说明 |
 |------|------|
 | `bp_player_progress` | 玩家赛季进度（等级、XP、PassTier、日/周重置日期、周数） |
-| `bp_task_progress` | 赛季任务进度（兼容旧表，用于无实例的赛季任务） |
+| `bp_task_progress` | 赛季任务进度表 |
 | `bp_claimed_rewards` | 已领取奖励记录 |
 | `bp_player_tasks` | 玩家任务实例（每日/每周分配的任务，含进度和完成状态） |
 
@@ -548,4 +548,3 @@ action:
 - 新增 BattlePassPacketHandler，支持 `open_main` / `open_tasks` 客户端包
 - UI 任务列表新增难度标签、任务描述、进度百分比
 - UI 主界面层级标签改为动态（免费/高级/典藏，颜色区分）
-

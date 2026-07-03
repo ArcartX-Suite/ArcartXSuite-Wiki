@@ -11,13 +11,13 @@ description: ArcartX-Suite Prop 快捷道具系统，道具快捷键绑定、客
 
 ### 核心特性
 
-- **道具定义**：在 `prop/props/*.yml` 中定义快捷道具，每个道具有独立的按键绑定、冷却、消耗和效果
+- **道具定义**：在 `data/prop/props/*.yml` 中定义快捷道具，每个道具有独立的按键绑定、冷却、消耗和效果
 - **按键触发**：绑定 ArcartX 客户端自定义按键，按下即触发道具效果
 - **冷却与消耗**：每个道具可配置使用冷却和消耗条件
 - **使用条件**：通过 PlaceholderAPI 变量配置使用条件（等级、余额、职业等），支持数值比较、字符串匹配、包含判断和正则匹配
 - **临时属性加成**：道具使用时可附加 MythicLib 临时属性（如攻击力、暴击率），效果结束后自动移除
-- **提示文案**：自定义道具使用、冷却中、消耗不足等提示文本（`prop/language.yml`）
-- **按键配置**：按键绑定定义在 `prop/key.yml`，可自定义客户端按键映射
+- **提示文案**：自定义道具使用、冷却中、消耗不足等提示文本（`data/prop/language.yml`）
+- **按键配置**：按键绑定定义在 `data/prop/key.yml`，可自定义客户端按键映射
 
 ## 依赖
 
@@ -56,7 +56,7 @@ mythiclib:
 | `mythiclib.enabled` | boolean | `false` | 是否启用 MythicLib 临时属性效果 |
 | `mythiclib.source-prefix` | string | `AXS_PROP` | MythicLib modifier 前缀，最终生成 `<前缀>_<道具ID>_<属性>` |
 
-### 按键映射（`prop/key.yml`）
+### 按键映射（`data/prop/key.yml`）
 
 ```yaml
 category: "ArcartX 快捷道具按键"
@@ -79,7 +79,7 @@ keys:
 | `keys.<名称>.defaultKey` | 默认绑定的按键 |
 | `keys.<名称>.slot` | 对应的 ArcartX 额外槽位 ID |
 
-### 提示文案（`prop/language.yml`）
+### 提示文案（`data/prop/language.yml`）
 
 ```yaml
 COOL_DOWN: "&7[&dArcartXProp&7]&c{NAME}&f还在冷却,你还需要等待&a{TIME}秒&f才能使用道具"
@@ -97,7 +97,7 @@ CONDITION_NOT_MET: "&7[&dArcartXProp&7]&c{NAME} &f使用条件不满足: &e{COND
 
 ## 道具定义
 
-道具定义文件位于 `prop/props/*.yml`，支持子目录。每个 `.yml` 文件定义一个道具。
+道具定义文件位于 `data/prop/props/*.yml`，支持子目录。每个 `.yml` 文件定义一个道具。
 
 ### 字段说明
 
@@ -184,7 +184,7 @@ Prop 模块通过 ArcartX 的 NBT 系统将道具 ID 写入物品：
 
 | NBT 标签 | 说明 |
 | --- | --- |
-| `prop_id` | 道具定义 ID（对应 `prop/props/` 下文件名，不含扩展名） |
+| `prop_id` | 道具定义 ID（对应 `data/prop/props/` 下文件名，不含扩展名） |
 | `cooldown` | 冷却组标签，用于 ArcartX 冷却系统 |
 
 使用 `/axs prop set <道具ID>` 可将手持物品绑定为指定道具（调试用）。

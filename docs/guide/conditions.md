@@ -512,9 +512,9 @@ conditions:
 | 模块 | 配置文件 | 条件字段 | 不满足时行为 | 文档 |
 | --- | --- | --- | --- | --- |
 | **Menu** | `data/menu/menus/*.yml` | `open-requirements`（打开）<br>`requirements` / `view-conditions`（可见）<br>`condition` / `use-conditions`（可点击） | 打不开 / 隐藏按钮 / 灰色禁用 | [Menu](/modules/menu) |
-| **Prop** | `prop/props/*.yml` | `conditions` | 禁止使用，提示 `CONDITION_NOT_MET` | [Prop](/modules/prop) |
+| **Prop** | `data/prop/props/*.yml` | `conditions` | 禁止使用，提示 `CONDITION_NOT_MET` | [Prop](/modules/prop) |
 | **EventPacket** | `data/eventpacket/rules/*.yml` | `conditions` | 跳过该规则动作链 | [EventPacket](/modules/eventpacket) |
-| **Mail** | `mail/presets/*.yml` 等 | `claim-conditions` | 无法领取附件/命令奖励 | [Mail](/modules/mail) |
+| **Mail** | `data/mail/presets/*.yml` 等 | `claim-conditions` | 无法领取附件/命令奖励 | [Mail](/modules/mail) |
 
 ### Menu 特有：可见 vs 使用
 
@@ -551,7 +551,7 @@ conditions:
 在 Prop 道具定义中：
 
 ```yaml
-# prop/props/healing_potion.yml
+# data/prop/props/healing_potion.yml
 conditions:
   - "%player_health% < 10"    # 血量低于 10 才可用
 ```
@@ -663,4 +663,3 @@ boolean ariaReady = context.ariaBridge().available();
 - [Blink 开发者手册](https://github.com/17Artist/Blink/blob/main/DEVELOPER.md) — AriaScriptManager API
 - [Aria 语言仓库](https://github.com/17Artist/Aria) — 语法与 JIT 特性
 - [Nashorn 用户指南](https://docs.oracle.com/javase/8/docs/technotes/guides/scripting/nashorn/) — JVM 内置 JS 引擎文档
-

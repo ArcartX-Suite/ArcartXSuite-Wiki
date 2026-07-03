@@ -125,7 +125,7 @@ cross-server:
 ```
 
 ::: warning 注意
-**仅手动广播会跨服转发**（`/axs announcer gbroadcast` / `gbroadcastnow`），`entries/` 目录中的自动轮播条目**不会**跨服，各子服独立轮播。
+**仅手动广播会跨服转发**（`/axs announcer gbroadcast` / `gbroadcastnow`），`announcer/` 目录中的自动轮播条目**不会**跨服，各子服独立轮播。
 :::
 
 **多服部署示例：**
@@ -420,4 +420,3 @@ join_welcome_subtitle:
 | `SubtitleService` | `announcer.service` | 字幕组加载与播放 |
 | `AnnouncerEnvelope` | `announcer.transport` | 跨服业务 payload record |
 | `AnnouncerEnvelopeCodec` | `announcer.transport` | payload YAML 编解码 |
-
