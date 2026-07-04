@@ -221,14 +221,14 @@ messages:
 
 #### 按钮图标
 
-按钮左侧显示 `Slot ~Icon` 物品预览。图标字段按其作用方式分为三类：
+按钮左侧显示 `Slot ~Icon` 物品预览。图标字段按其作用方式分为四类：
 
 - **直接构建 ItemStack**：`material`、`amount`、`name`、`lore`、`custom-model-data`
-- **外部物品来源**：`source` + `id` / `item-id` + `mmo-type` / `mmo-id`
-- **原始 JSON**：`json`；一旦非空即**直接使用该 JSON 并短路**，其余所有图标字段都会被忽略
+- **外部物品来源**：`source` + `id` / `item-id` + `mmo-type` / `mmo-id`（见「外部物品来源」）
+- **原始 JSON**：`json`（见独立章节「原始 JSON 图标」）
 - **外观修饰**：`glow`、`skull-texture`、`color`、`texture`、`texture-url`、`nbt`
 
-`source` 可选值（含别名）：`mythic` / `mythicmobs`、`neige` / `neigeitems`、`overture`、`mmo` / `mmoitems`。
+优先级规则：`json` 非空时**直接使用该 JSON 并短路**，其余所有字段都会被忽略；否则依次尝试 `source` / `mmo-type+mmo-id` / `material` 路径。
 
 ```yaml
 icon:
@@ -238,18 +238,101 @@ icon:
   lore:
     - "&7描述"
   custom-model-data: 10001
-  # 外部物品库（来源三选一）：
-  # source: mythic          # mythic/mythicmobs | neige/neigeitems | overture | mmo/mmoitems
-  # id: SomeItemId          # 或 item-id
-  # mmo-type: SWORD         # source=mmo 时可分开写
-  # mmo-id: STEEL_SWORD
-  # 直接指定完整物品 JSON（会忽略上面所有字段）：
-  # json: '{"id":"minecraft:diamond_sword","Count":1b}'
 ```
 
 无 `icon` 或解析失败时仅显示文字按钮。
 
-##### ArcartX 自定义贴图 NBT
+##### 外部物品来源
+
+当按钮图标需要展示外部物品库（NeigeItems、MythicMobs、Overture、MMOItems）生成的物品时，使用 `source` 系列字段。外部来源会保留物品库自身的 NBT、属性与外观，便于与服务器现有装备体系保持一致。
+
+| 来源 | `source` 写法（含别名） | 必填字段 | 适用场景 |
+| --- | --- | --- | --- |
+| NeigeItems | `neigeitems`、`neige` | `id` | 展示 NI 物品、礼包、材料 |
+| MythicMobs | `mythicmobs`、`mythic` | `id` | 展示 MM 掉落、武器、任务物品 |
+| Overture | `overture` | `id` | 展示 Overture 自定义物品（生成时携带玩家上下文） |
+| MMOItems | `mmoitems`、`mmo` | `mmo-type` + `mmo-id`，或合并的 `id` | 展示 MMOItems 装备、道具 |
+
+**单一 ID 定位示例**（NeigeItems / MythicMobs / Overture）：
+
+```yaml
+# NeigeItems：单一 ID 定位
+neige_demo:
+  text: "&fNeigeItems 物品"
+  order: 0
+  icon:
+    source: neigeitems         # 也可写 neige
+    id: herb_bundle            # 替换为你 NeigeItems 里真实的物品 ID
+    name: "&aNeigeItems 示例"   # 覆盖显示名（可选）
+    lore:
+      - "&7source: neigeitems"
+      - "&7id: <物品ID>"
+  actions:
+    - "close"
+```
+
+```yaml
+# MythicMobs：单一 ID 定位
+mythic_demo:
+  text: "&fMythicMobs 物品"
+  order: 1
+  icon:
+    source: mythicmobs         # 也可写 mythic
+    id: MagicSword             # 替换为你 MythicMobs 里真实的物品 ID
+    name: "&aMythicMobs 示例"
+    lore:
+      - "&7source: mythicmobs"
+      - "&7id: <物品ID>"
+  actions:
+    - "close"
+```
+
+```yaml
+# Overture：单一 ID 定位（生成时携带玩家上下文）
+overture_demo:
+  text: "&fOverture 物品"
+  order: 2
+  icon:
+    source: overture
+    id: sample_item            # 替换为你 Overture 里真实的物品 ID
+    name: "&aOverture 示例"
+    lore:
+      - "&7source: overture"
+      - "&7id: <物品ID>"
+  actions:
+    - "close"
+```
+
+**MMOItems 两段定位示例**：
+
+```yaml
+# MMOItems：需要 类型(type) + ID 两段定位
+mmoitems_demo:
+  text: "&fMMOItems 物品"
+  order: 3
+  icon:
+    source: mmoitems           # 也可写 mmo
+    mmo-type: SWORD            # MMOItems 类型
+    mmo-id: STEEL_SWORD        # MMOItems ID
+    # 或合并写：id: "SWORD:STEEL_SWORD"（用 : 或 ; 分隔，二选一）
+    name: "&aMMOItems 示例"
+    lore:
+      - "&7source: mmoitems"
+      - "&7mmo-type: SWORD"
+      - "&7mmo-id: STEEL_SWORD"
+  actions:
+    - "close"
+```
+
+::: tip
+外部物品库图标支持用 `name`、`lore` 等字段做显示覆盖，但如果外部物品本身包含复杂的 NBT 或自定义模型，建议直接通过 `json` 字段传入完整物品 JSON，以避免字段冲突。
+:::
+
+::: warning
+所有 `id` 都必须替换为服务器对应物品库中真实存在的 ID；来源插件未安装或 ID 无效时，图标解析失败，按钮会回退为文字按钮或默认材质。
+:::
+
+##### ArcartX 自定义贴图 NBT（YAML 简写）
 
 ArcartX 会读取物品上的 `icon` / `url` NBT 来选择贴图。Menu 在把 ItemStack 转成 JSON 之前，通过 ArcartX 的 ItemBridge 写入这些 NBT；若桥接不可用则静默跳过。
 
@@ -270,6 +353,10 @@ icon:
   #   url: "https://example.com/icon.gif"
 ```
 
+::: info ArcartX 贴图资源准备
+将 PNG 贴图放入客户端资源目录的 `resource/item_icon/` 下；如需子目录，路径写成 `xxx/xxx`。文件名加 `_handheld` 后缀（如 `sword_handheld.png`）会以工具形式手持；序列帧贴图需同时放入 `.mcmeta` 文件。仅识别 PNG 格式。
+:::
+
 ##### 外观修饰字段
 
 以下字段在**直接构建 ItemStack**（`material` 路径）时生效；`json` 非空会短路并忽略它们：
@@ -288,7 +375,68 @@ icon:
 # icon:
 #   material: LEATHER_CHESTPLATE
 #   color: "#FF5555"
+
+#### 原始 JSON 图标
+
+当需要精确控制物品的完整 NBT 结构、或外部物品库字段无法满足需求时，使用 `json` 字段直接传入 Minecraft 物品 JSON / SNBT 字符串。
+
+- `json` 非空时，**所有其他 icon 字段都会被忽略**（包括 `material`、`source`、`name`、`texture` 等）。
+- 字符串须符合 Minecraft `ItemStack` 格式：`{id:"<物品ID>", Count:<数量>b, tag:{...}}`。
+- YAML 中建议将整个 JSON 用**单引号**包裹，避免与 JSON 内部的双引号冲突。
+
+##### 基础格式
+
+最简物品 JSON，只指定物品 ID 与数量：
+
+```yaml
+icon:
+  json: '{"id":"minecraft:diamond_sword","Count":1b}'
 ```
+
+##### 复杂嵌套结构
+
+带有 `display`（名称、Lore）、`Enchantments`、`HideFlags`、`CustomModelData` 等标签的完整示例：
+
+```yaml
+icon:
+  json: '{"id":"minecraft:diamond_sword","Count":1b,"tag":{"display":{"Name":"{\"text\":\"苍穹之刃\",\"color\":\"aqua\",\"italic\":false}","Lore":["{\"text\":\"传说级武器\",\"color\":\"gray\",\"italic\":false}","{\"text\":\"+10 攻击力\",\"color\":\"red\",\"italic\":false}"]},"Enchantments":[{"id":"minecraft:sharpness","lvl":5s},{"id":"minecraft:unbreaking","lvl":3s}],"HideFlags":127,"CustomModelData":10001}}'
+```
+
+::: warning YAML 转义注意
+JSON 字符串内部的双引号需要转义。使用单引号 YAML 字符串时，内部仅需 `\"`；若使用双引号 YAML 字符串，则需 `\\\"`。复杂 JSON 建议先用 SNBT 生成器生成，再粘贴到 YAML 中。
+:::
+
+##### ArcartX 自定义贴图 NBT JSON 写法
+
+若要通过 JSON 直接写入 ArcartX 的 `icon` / `url` NBT，实现自定义贴图或 GUI 图标，在 `tag` 根级添加 `icon` 或 `url` 键。
+
+```yaml
+# 使用 icon NBT 渲染 resource/item_icon/ 下的贴图（手持 / AX-UI 有效）
+icon:
+  json: '{"id":"minecraft:paper","Count":1b,"tag":{"display":{"Name":"{\"text\":\"自定义贴图\",\"color\":\"aqua\",\"italic\":false}"},"icon":"item"}}'
+```
+
+```yaml
+# 使用 url NBT 渲染原版 GUI 图标（支持本地路径 / 网络链接 / GIF）
+icon:
+  json: '{"id":"minecraft:paper","Count":1b,"tag":{"display":{"Name":"{\"text\":\"GUI 图标\",\"color\":\"aqua\",\"italic\":false}"},"url":"menu/demo_icon.png"}}'
+```
+
+```yaml
+# 子目录贴图：resource/item_icon/menu/vip.png
+icon:
+  json: '{"id":"minecraft:paper","Count":1b,"tag":{"display":{"Name":"{\"text\":\"VIP 图标\",\"color\":\"aqua\",\"italic\":false}"},"icon":"menu/vip"}}'
+```
+
+::: info 与 YAML 简写的对应关系
+| YAML 字段 | 等效 JSON NBT |
+| --- | --- |
+| `texture: "item"` | `"icon":"item"` |
+| `texture-url: "menu/demo_icon.png"` | `"url":"menu/demo_icon.png"` |
+| `nbt: { icon: "item", url: "..." }` | `"icon":"item", "url":"..."` |
+
+JSON 写法适合需要同时组合多个 NBT、或从外部工具导出完整物品数据的场景。
+:::
 
 #### 条件系统
 
