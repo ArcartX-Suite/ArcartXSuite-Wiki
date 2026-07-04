@@ -84,7 +84,7 @@ const architectureSidebar = [
   },
 ]
 
-export default withMermaid(defineConfig<any>({
+export default withMermaid(defineConfig({
   lang: 'zh-CN',
   appearance: 'force-dark',
   title: 'ArcartX-Suite',
@@ -175,6 +175,12 @@ export default withMermaid(defineConfig<any>({
             { text: '跨服功能配置', link: '/guide/cross-server-setup' },
             { text: 'Warehouse 多服部署', link: '/guide/warehouse-cross-server' },
             { text: 'Proxy 代理端', link: '/guide/proxy-usage' },
+          ],
+        },
+        {
+          text: '模块使用指南',
+          items: [
+            { text: 'Menu 通用菜单', link: '/guide/menu-usage' },
           ],
         },
       ],
