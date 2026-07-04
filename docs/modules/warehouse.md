@@ -365,22 +365,18 @@ settings:
   debug: false                      # 调试日志开关
   flush-interval-ticks: 100         # 数据刷新间隔（tick）
 
-# 跨服共享仓库编辑锁（多子服共用 MySQL 时建议开启；连接参数见宿主 config.yml cross-server 节）
-cross-server:
-  enabled: false
-
 # UI 设置
 ui:
-  id: "ArcartX-Suite:warehouse_storage"         # 仓库 UI ID
+  id: "AXS:warehouse_storage"         # 仓库 UI ID
   file: "arcartx/ui/warehouse_menu.yml"
-  manage-id: "ArcartX-Suite:warehouse_manage" # 共享管理 UI ID
+  manage-id: "AXS:warehouse_manage" # 共享管理 UI ID
   manage-file: "arcartx/ui/warehouse_manage.yml"
-  bank-id: "ArcartX-Suite:warehouse_bank"     # 银行 UI ID
+  bank-id: "AXS:warehouse_bank"     # 银行 UI ID
   bank-file: "arcartx/ui/warehouse_bank.yml"
   packet-id: "AXS_WAREHOUSE"        # 客户端包 ID
   register-ui-on-enable: true         # 启动时自动注册 UI
   overwrite-ui-files: false         # 是否覆盖已存在的 UI 文件
-  page-size: 54                     # UI 分页大小（默认 54 格）
+  page-size: 18                     # UI 分页大小（默认 18 格）
 
 # 存储设置
 storage:
@@ -390,7 +386,7 @@ storage:
   mysql:
     host: "127.0.0.1"
     port: 3306
-    database: "ArcartX-Suite"
+    database: "arcartxsuite"
     username: "root"
     password: ""
   pool-size: 4                      # 连接池大小（SQLite 建议 1，MySQL 建议 4+）
@@ -543,7 +539,6 @@ Warehouse **支持多子服共用同一 MySQL 库**实现共享仓库数据同�
 | `shared.enabled: true` | 启用共享仓库功能 |
 | `storage.mode: mysql` | 各子服共用同一仓库库 |
 | 宿主 `config.yml` → `cross-server` 已启用 | Redis 或 Proxy 通道可用 |
-| `cross-server.enabled: true` | 模块级开关（`ArcartXWarehouse.yml`） |
 
 **频道**：`warehouse`  
 **Payload**：`LOCK\t{sharedId}\t{playerUuid}\t{playerName}\t{nodeId}` / `UNLOCK\t{sharedId}\t{playerUuid}\t{nodeId}`
@@ -618,12 +613,13 @@ showcase:
 
 | 字段 | 类型 | 必填 | 默认值 | 说明 |
 |------|------|------|--------|------|
-| `provider` | String | ✅ | — | `vault` / `playerpoints` / `placeholder` / `command` |
+| `enabled` | Boolean | ❌ | `true` | 是否启用该货币 |
+| `provider` | String | ✅ | — | 货币提供者标识，如 `vault`、`playerpoints`、`placeholder-command` 等，由货币桥识别 |
 | `display-name` | String | ❌ | 货币 ID | UI 显示名称 |
 | `scale` | Int | ❌ | `0` | 小数位数 |
-| `balance-placeholder` | String | ❌ | `""` | `provider=placeholder` 时使用的 `%xxx%` 变量（不含百分号） |
-| `withdraw-command` | String | ❌ | `""` | `provider=command` 时执行的扣款命令，`{player}` `{amount}` 占位 |
-| `deposit-command` | String | ❌ | `""` | `provider=command` 时执行的放款命令 |
+| `balance-placeholder` | String | ❌ | `""` | `provider=placeholder-command` 时使用的 `%xxx%` 变量（不含百分号） |
+| `withdraw-command` | String | ❌ | `""` | `provider=placeholder-command` 时执行的扣款命令，`{player}` `{amount}` 占位 |
+| `deposit-command` | String | ❌ | `""` | `provider=placeholder-command` 时执行的放款命令 |
 
 #### 定期产品字段
 

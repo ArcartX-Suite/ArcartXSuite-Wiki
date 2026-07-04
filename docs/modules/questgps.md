@@ -67,7 +67,7 @@ QuestGPS 以 **Chemdah 为单一事实来源**，overlay 只负责「哪些任�
 ## 配置
 
 配置文件路径：`plugins/ArcartXSuite/data/questgps/ArcartXQuestGPS.yml`  
-任务 overlay 目录：`data/questgps/quests/*.yml`（由 `quests-directory` 指定）
+任务 overlay 目录：`data/questgps/quests/*.yml`（目录名由模块内部固定，不可通过配置修改）
 
 ### ArcartXQuestGPS.yml 配置项一览
 
@@ -99,11 +99,11 @@ QuestGPS 以 **Chemdah 为单一事实来源**，overlay 只负责「哪些任�
 
 | 字段 | 类型 | 默认值 | 可选值 | 说明 |
 | --- | --- | --- | --- | --- |
-| `source` | string | `chemdah` | `chemdah` / `overlay` | 分类 Tab **全局唯一来源** |
+| `source` | string | `chemdah` | `chemdah` / `meta-type` / `meta_type` / `overlay` | 分类 Tab **全局唯一来源** |
 
 | `source` | 分类由谁决定 |
 | --- | --- |
-| `chemdah` | Chemdah `meta.type`，须在 `categories` 注册 |
+| `chemdah` / `meta-type` / `meta_type` | Chemdah `meta.type`，须在 `categories` 注册 |
 | `overlay` | 每条 overlay 的 `category` 字段 |
 
 未注册分类的任务**不进菜单**。删除 `categories` 段可关闭分类 Tab。
@@ -112,7 +112,7 @@ QuestGPS 以 **Chemdah 为单一事实来源**，overlay 只负责「哪些任�
 
 | 字段 | 类型 | 默认值 | 可选值 | 说明 |
 | --- | --- | --- | --- | --- |
-| `mode` | string | `auto` | `overlay` / `auto` | 任务列表来源 |
+| `mode` | string | `overlay` | `overlay` / `auto` | 任务列表来源 |
 
 | 模式 | 行为 |
 | --- | --- |
@@ -237,10 +237,7 @@ gate:
 
 #### 其他根级字段
 
-| 字段 | 类型 | 默认值 | 说明 |
-| --- | --- | --- | --- |
-| `quests-directory` | string | `quests` | overlay 任务目录名，相对 `data/questgps/` |
-| `config-version` | int | `1` | 配置版本号（预留） |
+当前版本暂无其他可配置根级字段。`quests-directory` 与 `config-version` 不被源码读取。
 
 ### 配置示例（精简）
 
@@ -307,8 +304,6 @@ gate:
   blocked-module-entries: []
   blocked-event-rule-ids: []
   deny-message: "&c你需要先完成必要主线任务。"
-
-quests-directory: "quests"
 ```
 
 ### `quests/*.yml` overlay 配置项一览
@@ -342,16 +337,29 @@ quests-directory: "quests"
 | `completed` | 任务完成 | `questgps_main_completed` |
 | `track-changed` | 开始/取消导航追踪 | `questgps_track_changed` |
 
-#### `navigation` / `tasks.<id>.navigation`
+#### `navigation`（任务级）
 
 | 字段 | 类型 | 说明 |
 | --- | --- | --- |
-| `enabled` | boolean | 是否启用该级导航坐标（任务级 `navigation`） |
+| `enabled` | boolean | 是否启用该级导航坐标 |
 | `point.world` | string | 世界名 |
 | `point.x` / `y` / `z` | double | 坐标 |
 | `point.title` | string | waypoint 罗盘显示标题 |
 | `point.style-id` | string | waypoint 样式 ID，对应 ArcartX `waypoint/*.yml`；空则用全局 `waypoint-style-id` |
 | `point.map-label` | string | 同步到 Map 模块时的标签 |
+
+#### `tasks.<id>.navigation`（子目标级）
+
+子目标导航坐标**直接写在 `navigation` 下**，不需要再包一层 `point`：
+
+| 字段 | 类型 | 说明 |
+| --- | --- | --- |
+| `enabled` | boolean | 是否启用该子目标导航坐标 |
+| `world` | string | 世界名 |
+| `x` / `y` / `z` | double | 坐标 |
+| `title` | string | waypoint 罗盘显示标题 |
+| `style-id` | string | waypoint 样式 ID；空则用全局 `waypoint-style-id` |
+| `map-label` | string | 同步到 Map 模块时的标签 |
 
 `navigation.mode: hybrid` 时 Chemdah tracker 优先；无 tracker 时使用上述 overlay 坐标。子目标 `tasks."0".navigation` 覆盖任务级坐标。
 
@@ -362,7 +370,7 @@ quests-directory: "quests"
 | `sort-order` | int | 子目标在 UI 中的排序 |
 | `display-text` | string | overlay 目标文案（`presentation.source=overlay` 时） |
 | `description` | list | overlay 目标说明行 |
-| `navigation` | map | 该子目标独立导航点（字段同 `navigation.point`） |
+| `navigation` | map | 该子目标独立导航点（字段见上表「子目标级」，直接写 `world`/`x`/`y`/`z`，无需 `point`） |
 
 ### 任务 overlay 示例
 

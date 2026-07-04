@@ -92,8 +92,17 @@ ui:
   logs-ui-id: AXS:mail_logs
   admin-ui-id: AXS:mail_admin
   register-ui-on-enable: true
+  overwrite-ui-files: false
   compose-inventory-title: AXS Mail Compose
   notify-card-id: "axs_mail_notify"   # 留空关闭新邮件聊天卡片
+  notify-char-width-full: 26          # 聊天卡片全角字符宽度
+  notify-char-width-half: 14          # 聊天卡片半角字符宽度
+  notify-line-height: 45              # 聊天卡片行高
+  notify-max-line-width: 320          # 聊天卡片最大行宽
+  notify-text-offset-x: 160           # 聊天卡片文本 X 偏移
+  notify-pad-right: 20                # 聊天卡片右侧内边距
+  notify-base-height: 100             # 聊天卡片基础高度
+  notify-min-width: 300               # 聊天卡片最小宽度
 ```
 
 ### 玩家写信与手续费
@@ -116,7 +125,40 @@ player-send:
   body-max-length: 400
 ```
 
-货币定义复用宿主 [货币系统](/guide/currencies) 的 `currencies` 节（`vault` / `playerpoints` / `placeholder-command` 等 provider）。
+货币定义在 `ArcartXMail.yml` 的 `currencies` 节中配置，模块自带 `money`（Vault 金币）和 `points`（PlayerPoints 点券）两个默认货币。每个货币字段如下：
+
+| 字段 | 类型 | 默认值 | 说明 |
+| --- | --- | --- | --- |
+| `enabled` | boolean | `true` | 是否启用该货币 |
+| `provider` | string | `vault` / `playerpoints` | 货币提供者：`vault`、`playerpoints`、`placeholder-command` |
+| `display-name` | string | 货币 ID | 显示名称 |
+| `scale` | int | `2` / `0` | 小数位精度 |
+| `balance-placeholder` | string | `""` | `placeholder-command`  provider 的余额 PAPI 占位符 |
+| `withdraw-command` | string | `""` | `placeholder-command` provider 的扣费命令 |
+| `deposit-command` | string | `""` | `placeholder-command` provider 的充值命令 |
+
+```yaml
+# ArcartXMail.yml
+currencies:
+  money:
+    enabled: true
+    provider: vault
+    display-name: "金币"
+    scale: 2
+  points:
+    enabled: true
+    provider: playerpoints
+    display-name: "点券"
+    scale: 0
+  custom_coin:
+    enabled: true
+    provider: placeholder-command
+    display-name: "赞助币"
+    scale: 0
+    balance-placeholder: "%mycoin_balance%"
+    withdraw-command: "mycoin take {player} {amount}"
+    deposit-command: "mycoin give {player} {amount}"
+```
 
 ### 审核与保留
 
@@ -145,15 +187,59 @@ presets:
 预设文件示例 `data/mail/presets/welcome.yml`：
 
 ```yaml
-welcome:
-  subject: "欢迎礼包"
-  body: "领取附件即可获得新手物资。"
-  attachments: []           # 物品附件列表
+preset:
+  id: "welcome"                    # 可选，默认使用文件名（不含 .yml）
+  enabled: true                    # 是否启用该预设
+  display-name: "欢迎礼包"          # 可选，默认与 ID 相同
+  subject: "欢迎礼包"               # 邮件主题，默认使用 display-name
+  body: "领取附件即可获得新手物资。" # 邮件正文
+  expires-after-days: 15           # 邮件过期天数（默认 15）
+
+  # 物品附件：material 为 Bukkit 材质名，支持 name/lore
+  item-attachments:
+    - material: "DIAMOND"
+      amount: 5
+      name: "&b新手钻石"
+      lore:
+        - "&7欢迎加入服务器"
+
+  # 货币附件：currency 对应 currencies 节中的货币 ID
+  currency-attachments:
+    - currency: "money"
+      amount: 1000
+      description: "金币 1000"
+
+  # 兼容旧版的 Vault 货币附件，等效于 currency: money
+  # vault-attachment: 1000
+
   claim-commands:
     - "give {player} bread 16"
-  claim-conditions: []      # 见下文「领取条件」
-  cdks: []                  # 可选：内嵌固定 CDK 定义
+  claim-conditions: []             # 见下文「领取条件」
+
+  # 内嵌固定 CDK 定义（也可通过命令 /axs mail cdk create 创建）
+  cdks:
+    - code: "WELCOME2024"
+      enabled: true
+      max-claims: 1                # 最大领取次数
+      expires-after: "7d"          # 有效期，支持 s/m/h/d/w
 ```
+
+预设字段一览：
+
+| 字段 | 类型 | 默认值 | 说明 |
+| --- | --- | --- | --- |
+| `id` | string | 文件名 | 预设唯一标识 |
+| `enabled` | boolean | `true` | 是否启用 |
+| `display-name` | string | 预设 ID | 管理命令与日志中的显示名 |
+| `subject` | string | `display-name` | 邮件主题 |
+| `body` | string | `""` | 邮件正文 |
+| `expires-after-days` | int | `15` | 邮件自动过期天数 |
+| `item-attachments` | list | `[]` | 物品附件，每项含 `material`、`amount`、`name`、`lore` |
+| `currency-attachments` | list | `[]` | 货币附件，每项含 `currency`、`amount`、`description` |
+| `vault-attachment` | double | `0` | 兼容旧版，等效于 `currency: money` 的附件 |
+| `claim-commands` | list | `[]` | 领取时执行的命令 |
+| `claim-conditions` | list | `[]` | 领取条件，见下文「领取条件」 |
+| `cdks` | list | `[]` | 内嵌 CDK 列表；也可用 `cdk:` 定义单个 |
 
 重载：`/axs mail reload`（同步预设与 CDK 到数据库）。
 

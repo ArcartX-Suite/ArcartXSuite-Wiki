@@ -38,24 +38,24 @@ description: ArcartX-Suite Fishing 钓鱼系统，星露谷风格钓鱼小游戏
 
 | 命令 | 权限 | 说明 |
 |------|------|------|
-| `/fishing` | `ArcartX-Suite.fishing.use` | 打开钓鱼图鉴界面 |
-| `/fishing sell` | `ArcartX-Suite.fishing.use` | 出售主手中的钓鱼产物 |
-| `/fishing sell all` | `ArcartX-Suite.fishing.use` | 出售背包中所有钓鱼产物 |
+| `/fishing` | `axs.fishing.use` | 打开钓鱼图鉴界面 |
+| `/fishing sell` | `axs.fishing.use` | 出售主手中的钓鱼产物 |
+| `/fishing sell all` | `axs.fishing.use` | 出售背包中所有钓鱼产物 |
 
 ### 管理员命令
 
 | 命令 | 权限 | 说明 |
 |------|------|------|
-| `/axs fishing stats [玩家]` | `ArcartX-Suite.fishing.admin` | 查看钓鱼统计 |
-| `/axs fishing givexp <玩家> <经验>` | `ArcartX-Suite.fishing.admin` | 给予钓鱼经验 |
-| `/axs fishing reset <玩家>` | `ArcartX-Suite.fishing.admin` | 重置钓鱼数据 |
+| `/axs fishing stats [玩家]` | `axs.fishing.admin` | 查看钓鱼统计 |
+| `/axs fishing givexp <玩家> <经验>` | `axs.fishing.admin` | 给予钓鱼经验 |
+| `/axs fishing reset <玩家>` | `axs.fishing.admin` | 重置钓鱼数据 |
 
 ## 权限
 
 | 权限节点 | 默认 | 说明 |
 |----------|------|------|
-| `ArcartX-Suite.fishing.use` | true | 使用钓鱼功能 |
-| `ArcartX-Suite.fishing.admin` | op | 管理员命令 |
+| `axs.fishing.use` | true | 使用钓鱼功能 |
+| `axs.fishing.admin` | op | 管理员命令 |
 
 ## PlaceholderAPI 占位符
 
@@ -76,8 +76,14 @@ description: ArcartX-Suite Fishing 钓鱼系统，星露谷风格钓鱼小游戏
 config-version: 2
 
 storage:
-  mode: sqlite          # sqlite / mysql
+  mode: sqlite              # sqlite / mysql
   sqlite-file-name: fishing.db
+  pool-size: 1
+  mysql-host: localhost
+  mysql-port: 3306
+  mysql-database: axs_fishing
+  mysql-username: root
+  mysql-password: ""
 
 fishing:
   replace-vanilla: true
@@ -90,13 +96,24 @@ fishing:
   progress-gain-rate: 1.0
   base-green-bar-height: 96
   height-per-level: 4
+  treasure-chance: 0.15       # 宝藏触发基础概率
   perfect-bonus-multiplier: 1.5
   base-xp-per-level: 100
 
+ui:
+  register-on-enable: true
+  minigame-id: "fishing_minigame"   # 钓鱼小游戏 UI ID
+  collection-id: "fishing_collection" # 图鉴 UI ID
+
+commands:
+  enabled: true
+  base-permission: "axs.fishing.use"  # 玩家命令基础权限
+
 # ─── 水域定义 ────────────────────────────────────────
+# waters.specified 为 map：根键为水域 ID，内部字段定义水域
 waters:
   specified:
-    - name: "dragon_lake"
+    dragon_lake:
       display-name: "&b龙泉湖"
       type: circle              # circle / rectangle
       world: "world"
@@ -110,7 +127,7 @@ waters:
         corn: 2.0
       require-permission: ""    # 可选进入权限
 
-    - name: "jade_river"
+    jade_river:
       display-name: "&a翡翠河"
       type: rectangle
       world: "world"
@@ -124,7 +141,6 @@ waters:
         bread: 1.3
 
   default:
-    name: "default"
     display-name: "&7普通水域"
     fish-pool: "default"
     treasure-pool: "default"
@@ -148,13 +164,6 @@ treasure-pools:
   default: ["old_boot", "lost_ring"]
   common: ["old_boot", "lost_ring", "ancient_coin"]
   rare: ["ancient_coin", "lost_ring"]
-
-# ─── 饵料设置 ──────────────────────────────────────
-baits:
-  enabled: true
-  default-bait: "worm"
-  lore-pattern: "&7饵料: {bait_name}"
-  nbt-tag: "axs_bait"
 ```
 
 ### fishes/ 鱼种文件
@@ -172,15 +181,23 @@ base-xp: 15
 seasons: [spring, summer, fall, winter]
 weathers: [clear, rain]
 water-types: [ocean, river]  # ocean / river / lake
+
+# time-ranges 为 map：根键任意，内部含 start / end
 time-ranges:
-  - start: "06:00"
+  day:
+    start: "06:00"
     end: "20:00"
+
 item: "minecraft:cod"
 difficulty: 30              # 1~100，影响鱼 AI 游动速度
+
+# behaviors 为 map：根键任意，内部含 type / weight
 behaviors:
-  - type: smooth
+  smooth:
+    type: smooth
     weight: 0.6
-  - type: dart
+  dart:
+    type: dart
     weight: 0.4
 
 # 捕获后自动发放的货币奖励（可选）
@@ -228,7 +245,7 @@ max-durability-bonus: 0
 &7饵料: 蚯蚓
 ```
 
-系统会根据 `baits.lore-pattern` 配置解析 lore 内容。未检测到饵料时使用 `default-bait` 指定的默认饵料。
+系统会扫描鱼竿 lore，只要某一行包含饵料的 `display-name`（如 `蚯蚓`）即视为使用该饵料。未检测到任何饵料时，使用 `baits/` 目录中第一个 `default: true` 的饵料作为默认饵料。
 
 ## 快速开始教程
 
@@ -257,14 +274,17 @@ seasons: [spring, summer, fall]
 weathers: [clear, rain]
 water-types: [ocean, river]
 time-ranges:
-  - start: "06:00"
+  day:
+    start: "06:00"
     end: "22:00"
 item: "minecraft:cod"
 difficulty: 25
 behaviors:
-  - type: smooth
+  smooth:
+    type: smooth
     weight: 0.8
-  - type: dart
+  dart:
+    type: dart
     weight: 0.2
 
 currency-reward:
@@ -285,14 +305,17 @@ seasons: [spring]
 weathers: [clear]
 water-types: [lake]
 time-ranges:
-  - start: "05:00"
+  dawn:
+    start: "05:00"
     end: "07:00"
 item: "minecraft:tropical_fish"
 difficulty: 85
 behaviors:
-  - type: dart
+  dart:
+    type: dart
     weight: 0.5
-  - type: sinker
+  sinker:
+    type: sinker
     weight: 0.5
 ```
 
@@ -336,7 +359,7 @@ max-durability-bonus: 0
 ```yaml
 waters:
   specified:
-    - name: "dragon_lake"
+    dragon_lake:
       display-name: "&b龙泉湖"
       type: circle
       world: "world"
@@ -349,7 +372,6 @@ waters:
         worm: 1.5
 
   default:
-    name: "default"
     display-name: "&7普通水域"
     fish-pool: "default"
     treasure-pool: "default"
@@ -544,13 +566,13 @@ legendary_hunter:
   display-name: "&c[传说猎人]"
 ```
 
-**Mail 模块**：在 `plugins/ArcartXMail/presets.yml` 中添加
+**Mail 模块**：在 `plugins/ArcartXMail/presets/legendary_first_catch.yml` 中添加
 ```yaml
-legendary_first_catch:
+preset:
   subject: "传说捕获嘉奖"
-  content: "恭喜你首次捕获传说级鱼类！这是你的奖励。"
-  attachments:
-    - item: "minecraft:diamond"
+  body: "恭喜你首次捕获传说级鱼类！这是你的奖励。"
+  item-attachments:
+    - material: "DIAMOND"
       amount: 5
 ```
 

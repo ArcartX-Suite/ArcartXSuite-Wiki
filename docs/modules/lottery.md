@@ -123,7 +123,7 @@ cost:
   ten: 1600               # 十连消耗
 
 gacha:
-  pool-type: CHARACTER    # 池子类型（仅展示用）
+  pool-type: CHARACTER    # 池子类型：CHARACTER / WEAPON / STANDARD
   pity-5star: 90          # 5星保底抽数
   pity-4star: 10          # 4星保底抽数
   soft-pity-start: 73     # 软保底起始抽数
@@ -131,11 +131,13 @@ gacha:
   base-5star-rate: 0.006      # 基础 5星概率
   base-4star-rate: 0.051      # 基础 4星概率
   up-rate: 0.5            # UP 物品在小保底内被歪时，下一次 5星必为 UP 的概率
+  fate-point-cap: 0       # 命定值上限（0 表示关闭命定值系统）
   shared-pity-group: "character_events"   # 跨池共享组（与主配置中 shared-pity-groups 对应）
 
-  # UP 5星物品（当期概率提升）
+  # UP 5星物品（当期概率提升）。注意：items 为 map，根键任意，内部必须含 id
   up-5star-items:
-    - id: "character_star"
+    character_star:
+      id: "character_star"
       name: "星辰"
       plugin-type: MYTHIC
       plugin-id: "StarCharacter"
@@ -144,7 +146,8 @@ gacha:
 
   # 标准 5星物品（小保底可能歪到的常驻）
   standard-5star-items:
-    - id: "character_moon"
+    character_moon:
+      id: "character_moon"
       name: "月影"
       plugin-type: MYTHIC
       plugin-id: "MoonCharacter"
@@ -153,7 +156,8 @@ gacha:
 
   # UP 4星物品
   up-4star-items:
-    - id: "weapon_sword"
+    weapon_sword:
+      id: "weapon_sword"
       name: "星光剑"
       plugin-type: NEIGE
       plugin-id: "StarSword"
@@ -162,7 +166,8 @@ gacha:
 
   # 标准 4星物品
   standard-4star-items:
-    - id: "weapon_bow"
+    weapon_bow:
+      id: "weapon_bow"
       name: "风之弓"
       plugin-type: NEIGE
       plugin-id: "WindBow"
@@ -171,7 +176,8 @@ gacha:
 
   # 3星基础物品（填充概率用）
   star3-items:
-    - id: "material_common"
+    material_common:
+      id: "material_common"
       name: "普通材料"
       plugin-type: PLAIN
       plugin-id: "minecraft:stone"
@@ -219,13 +225,15 @@ case:
 
   stattrak-chance: 0.1    # 暗金计数器概率
 
+  # items 为 map：根键任意，内部必须含 id
   items:
-    - id: "skin_ak47_redline"
+    skin_ak47_redline:
+      id: "skin_ak47_redline"
       name: "AK-47 | 红线"
       rarity: CLASSIFIED
       plugin-type: NEIGE
       plugin-id: "AK47_Redline"
-      delivery: DIRECT          # DIRECT 直接放入背包 / MAIL 满包时发邮件
+      delivery: DIRECT          # DIRECT 直接放入背包 / MAIL 邮件发送 / COMMAND 执行命令
       stattrak-enabled: true    # 是否可出暗金版本
       wear-distribution:        # 磨损度分布
         FACTORY_NEW:
@@ -264,9 +272,12 @@ case:
 | `cost.ten` | Int | `GACHA+CURRENCY` | — | 十连消耗数量 |
 | `cost.item-id` | String | `ITEM` 时 | — | 消耗物品标识 |
 | `cost.item-amount` | Int | `ITEM` 时 | — | 每次消耗数量 |
-| `plugin-type` | String | ✅ | — | 物品来源：`MYTHIC` / `NEIGE` / `PLAIN` |
-| `plugin-id` | String | ✅ | — | 物品在对应插件中的 ID |
-| `delivery` | String | ❌ | `DIRECT` | `DIRECT` 直接给 / `MAIL` 邮件发送 |
+| `gacha.fate-point-cap` | Int | ❌ | `0` | 命定值上限，`0` 表示关闭 |
+| `plugin-type` | String | ✅ | — | 物品来源：`MYTHIC` / `NEIGE` / `OVERTURE` / `MMO` / `PLAIN` |
+| `plugin-id` | String | ✅ | — | 物品在对应插件中的 ID；`PLAIN` 时写原版物品 ID，如 `minecraft:stone` |
+| `delivery` | String | ❌ | `DIRECT` | `DIRECT` 直接给 / `MAIL` 邮件发送 / `COMMAND` 执行命令 |
+| `commands` | List | ❌ | `[]` | `delivery=COMMAND` 时执行的命令，支持 `{player}` 占位 |
+| `mail-preset` | String | ❌ | — | `delivery=MAIL` 时使用的 Mail 预设 ID |
 
 ## UI 设计
 

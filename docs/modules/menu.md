@@ -73,8 +73,8 @@ modules:
 | 字段 | 类型 | 默认值 | 说明 |
 | --- | --- | --- | --- |
 | `packet-id` | string | `AXS_MENU` | 发包协议 ID，须与 UI 脚本一致 |
-| `panel-ui-id` | string / list | `ArcartX-Suite:menu_panel` | 居中面板菜单 UI；支持列表多 UI 同时发包，见 [多 UI 发包](/guide/multi-ui) |
-| `esc-ui-id` | string / list | `ArcartX-Suite:menu_esc` | ESC 暂停界面 UI |
+| `panel-ui-id` | string / list | `AXS:menu_panel` | 居中面板菜单 UI；支持列表多 UI 同时发包，见 [多 UI 发包](/guide/multi-ui) |
+| `esc-ui-id` | string / list | `AXS:menu_esc` | ESC 暂停界面 UI |
 | `esc-menu-id` | string | `esc_main` | 按 ESC 时默认打开的菜单 ID |
 | `register-ui-on-enable` | boolean | `true` | 模块启用时向 ArcartX 注册 UI 资源 |
 | `overwrite-ui-files` | boolean | `false` | 是否覆盖服内已有 UI 文件 |
@@ -116,8 +116,8 @@ debug:
 
 client:
   packet-id: "AXS_MENU"
-  panel-ui-id: "ArcartX-Suite:menu_panel"
-  esc-ui-id: "ArcartX-Suite:menu_esc"
+  panel-ui-id: "AXS:menu_panel"
+  esc-ui-id: "AXS:menu_esc"
   esc-menu-id: "esc_main"
   register-ui-on-enable: true
   overwrite-ui-files: false
@@ -251,7 +251,7 @@ icon:
 | NeigeItems | `neigeitems`、`neige` | `id` | 展示 NI 物品、礼包、材料 |
 | MythicMobs | `mythicmobs`、`mythic` | `id` | 展示 MM 掉落、武器、任务物品 |
 | Overture | `overture` | `id` | 展示 Overture 自定义物品（生成时携带玩家上下文） |
-| MMOItems | `mmoitems`、`mmo` | `mmo-type` + `mmo-id`，或合并的 `id` | 展示 MMOItems 装备、道具 |
+| MMOItems | `mmoitems`、`mmo` | `mmo-type` + `mmo-id` | 展示 MMOItems 装备、道具 |
 
 **单一 ID 定位示例**（NeigeItems / MythicMobs / Overture）：
 
