@@ -314,7 +314,6 @@ mmoitems_demo:
     source: mmoitems           # 也可写 mmo
     mmo-type: SWORD            # MMOItems 类型
     mmo-id: STEEL_SWORD        # MMOItems ID
-    # 或合并写：id: "SWORD:STEEL_SWORD"（用 : 或 ; 分隔，二选一）
     name: "&aMMOItems 示例"
     lore:
       - "&7source: mmoitems"
