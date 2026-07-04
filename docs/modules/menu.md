@@ -375,6 +375,7 @@ icon:
 # icon:
 #   material: LEATHER_CHESTPLATE
 #   color: "#FF5555"
+```
 
 #### 原始 JSON 图标
 
