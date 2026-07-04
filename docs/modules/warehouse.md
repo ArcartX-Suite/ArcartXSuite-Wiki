@@ -568,17 +568,21 @@ sort-profiles:
 
 # 物品黑名单（禁止存入仓库的物品匹配规则）
 blacklist:
-  materials: []                     # 材质列表，如 ["BEDROCK", "COMMAND_BLOCK"]
-  mythic-items: []                  # MythicMobs Internal Name 列表
-  neige-items: []                   # NeigeItems ID 列表
-  name-patterns: []                 # 物品显示名正则列表
-  lore-patterns: []                 # Lore 正则列表
+  material-ids: []                  # 原版 Material ID 列表，如 ["BEDROCK", "COMMAND_BLOCK"]
+  mythic-item-ids: []               # MythicMobs Internal Name 列表
+  neige-item-ids: []                # NeigeItems ID 列表
+  overture-item-ids: []             # Overture 物品 ID 列表
+  kinds: []                         # 物品种类（kind）列表
+  name-contains: []                 # 物品显示名包含任意关键词即拦截
+  lore-contains: []                 # 物品 Lore 包含任意关键词即拦截
+  name-regex: []                    # 物品显示名匹配任意正则即拦截
+  lore-regex: []                    # 物品 Lore 匹配任意正则即拦截
 
 # 展示设置
 showcase:
   enabled: true
-  cooldown-seconds: 60              # 展示冷却（秒）
-  max-items: 9                      # 展示列表最大物品数
+  cooldown-seconds: 60              # 展示冷却（秒），最短 5 秒
+  max-items: 9                      # 展示列表最大物品数，最少 1 个
   card-id: ""                      # 留空使用可点击聊天消息；填写则使用 ArcartX 聊天卡片 ID
   permission: "arcartxsuite.warehouse.showcase"
 ```

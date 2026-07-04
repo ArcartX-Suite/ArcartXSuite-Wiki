@@ -32,7 +32,7 @@ description: ArcartX-Suite Tab 在线列表，ArcartX TAB UI 渲染，支持排�
 - **客户端刷新入口**：保留客户端 `Packet.send("TAB", "update")` 兼容入口，带限流保护
 - **跨服玩家列表**：Redis Pub/Sub 或代理通道同步远程服务端玩家列表，超时自动移除过期快照
 - **条目过滤**：支持 `max-entries` 限制条目数、`omit-blank-values` 跳过空值
-- **PAPI 输出**：Tab 模块提供 `axstab` 占位符扩展，在 `settings.papi.enabled: true` 时对外输出 `%axstab_pvp%`、`%axstab_pvp_color%`、`%axstab_vanished%`、`%axstab_vanish_color%`、`%axstab_ping%`、`%axstab_ping_icon%`、`%axstab_uuid%`、`%axstab_ip%`。
+- **PAPI 输出**：Tab 模块在检测到 PlaceholderAPI 时会自动注册 `axstab` 占位符扩展，对外输出 `%axstab_pvp%`、`%axstab_pvp_color%`、`%axstab_vanished%`、`%axstab_vanish_color%`、`%axstab_ping%`、`%axstab_ping_icon%`、`%axstab_uuid%`、`%axstab_ip%`。
 - **称号前后缀集成**：Tab 模块内置解析器不处理外部 PAPI 占位符；pack 中的称号前后缀可通过 Title 模块的 `axstitle_*` 占位符或能力接口实现。
 
 ## 内置变量

@@ -148,9 +148,11 @@ tasks:
 # ---------------------------------------------------------------------------
 # 每个等级可配置 free / premium / deluxe 三层奖励
 # 玩家领取时，系统会自动检查其 PassTier，未解锁的层级无法领取
+# 注意：rewards 必须为 Mapping（键值对）结构，顶层键为任意唯一标识，代码通过 getKeys(false) 遍历。
 # ---------------------------------------------------------------------------
 rewards:
-  - level: 1
+  "1":
+    level: 1
     free:
       type: command
       data: "give {player} diamond 1"
@@ -161,7 +163,8 @@ rewards:
       type: command
       data: "give {player} diamond 8"
 
-  - level: 2
+  "2":
+    level: 2
     free:
       type: command
       data: "give {player} iron_ingot 8"
@@ -172,7 +175,8 @@ rewards:
       type: command
       data: "give {player} iron_ingot 48"
 
-  - level: 5
+  "5":
+    level: 5
     free:
       type: command
       data: "give {player} experience_bottle 4"
@@ -183,7 +187,8 @@ rewards:
       type: command
       data: "give {player} experience_bottle 24"
 
-  - level: 10
+  "10":
+    level: 10
     free:
       type: command
       data: "give {player} emerald 2"
@@ -461,11 +466,12 @@ season:
 
 ### 步骤 3：配置奖励
 
-在 `rewards` 下按等级定义三层奖励：
+在 `rewards` 下按等级定义三层奖励，注意使用 Mapping 格式：
 
 ```yaml
 rewards:
-  - level: 1
+  "1":
+    level: 1
     free:
       type: command
       data: "give {player} stone 16"
