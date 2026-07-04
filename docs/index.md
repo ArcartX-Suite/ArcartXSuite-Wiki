@@ -62,8 +62,8 @@ features:
     details: 在线时长阶段奖励、每日签到、连续签到、补签卡、四维排行榜、跨服同步
     link: /modules/onlinerewards
   - icon: 📋
-    title: Menu 通用菜单
-    details: 配置驱动 ArcartX 菜单系统，支持 ESC 替换、命令/物品绑定、按钮图标，类 TrMenu 体验
+    title: Menu 通用菜单 💎
+    details: 【付费模块】配置驱动 ArcartX 菜单系统，支持 ESC 替换、命令/物品绑定、按钮图标，类 TrMenu 体验
     link: /modules/menu
   - icon: ♨️
     title: AfkReward 挂机奖励

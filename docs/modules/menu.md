@@ -5,6 +5,10 @@ description: ArcartX-Suite Menu 配置驱动 ArcartX 菜单系统，ESC 替换�
 
 # Menu 通用 ArcartX 菜单系统
 
+::: tip 付费模块
+本模块为付费模块。授权由 [云端平台](/guide/cloud-modules) 统一管理：在 [cloud.021209.xyz](https://cloud.021209.xyz) 购买/领取授权后，于「装备模块」页面勾选到对应服务器即可，无需填写 `password` 或 `license.yml`。
+:::
+
 ## 功能定位
 
 Menu 模块提供 **配置驱动的 ArcartX 全屏菜单**，可替代 TrMenu 等插件的常见能力：

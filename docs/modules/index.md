@@ -13,7 +13,7 @@ ArcartX-Suite 共 **26 个功能模块**，涵盖聊天、战斗、播报、追�
 | --- | --- | --- | --- |
 | **Essentials** | ArcartX | PlaceholderAPI、Tab、Chat | 基础玩家工具集合 |
 | **Regions** | ArcartX | — | 区域保护 + 世界规则 |
-| **Menu** | ArcartX | PlaceholderAPI、BlinkAriaHost（Aria 条件）、MythicMobs/NeigeItems/MMOItems | 配置驱动菜单；[条件系统](/guide/conditions) |
+| **Menu** | ArcartX | PlaceholderAPI、BlinkAriaHost（Aria 条件）、MythicMobs/NeigeItems/MMOItems | **付费模块**；配置驱动菜单；[条件系统](/guide/conditions) |
 | **AfkReward** | ArcartX | PlaceholderAPI | PAPI 用于奖励命令解析和对外输出 |
 | Announcer | ArcartX | PlaceholderAPI、EventPacket | PAPI 只影响文本变量解析 |
 | Chat | ArcartX | PlaceholderAPI、MySQL | MySQL 用于跨服共享禁言/状态；跨服走宿主 cross-server |
@@ -37,6 +37,8 @@ ArcartX-Suite 共 **26 个功能模块**，涵盖聊天、战斗、播报、追�
 | Tab | ArcartX、PlaceholderAPI | Title | 跨服快照走宿主 cross-server（建议 Redis） |
 
 ## 功能模块
+
+### 免费模块
 
 <div class="module-grid">
   <a href="announcer" class="module-card">
@@ -99,12 +101,6 @@ ArcartX-Suite 共 **26 个功能模块**，涵盖聊天、战斗、播报、追�
     <div class="card-desc">类 WorldGuard 区域保护、40+ 标志、世界规则、UI 区域查看 + 管理员编辑面板</div>
     <span class="card-badge badge-stable">✅ 可用</span>
   </a>
-  <a href="menu" class="module-card">
-    <div class="card-icon">📋</div>
-    <div class="card-title">Menu 通用菜单</div>
-    <div class="card-desc">配置驱动 ArcartX 菜单、ESC 替换、命令/物品绑定、按钮图标，类 TrMenu 体验</div>
-    <span class="card-badge badge-stable">✅ 可用</span>
-  </a>
   <a href="afkreward" class="module-card">
     <div class="card-icon">♨️</div>
     <div class="card-title">AfkReward 挂机奖励</div>
@@ -113,74 +109,84 @@ ArcartX-Suite 共 **26 个功能模块**，涵盖聊天、战斗、播报、追�
   </a>
 </div>
 
+### 付费模块
+
 <div class="module-grid">
   <a href="fishing" class="module-card">
     <div class="card-icon">🎣</div>
     <div class="card-title">Fishing 钓鱼系统</div>
     <div class="card-desc">星露谷风格钓鱼小游戏、多水域生态、饵料加成、宝藏奖励、钓鱼图鉴</div>
-    <span class="card-badge badge-stable">✅ 可用</span>
+    <span class="card-badge badge-stable">💎 付费</span>
   </a>
   <a href="warehouse" class="module-card">
     <div class="card-icon">🏦</div>
     <div class="card-title">Warehouse 仓库银行</div>
     <div class="card-desc">个人/共享仓库、多货币银行、展示预览、定期存款</div>
-    <span class="card-badge badge-stable">✅ 可用</span>
+    <span class="card-badge badge-stable">💎 付费</span>
   </a>
   <a href="mail" class="module-card">
     <div class="card-icon">📬</div>
     <div class="card-title">Mail 邮箱</div>
     <div class="card-desc">玩家写信、预设派发、CDK 兑换、物品附件、跨服广播</div>
-    <span class="card-badge badge-stable">✅ 可用</span>
+    <span class="card-badge badge-stable">💎 付费</span>
+  </a>
+  <a href="menu" class="module-card">
+    <div class="card-icon">📋</div>
+    <div class="card-title">Menu 通用菜单</div>
+    <div class="card-desc">配置驱动 ArcartX 菜单、ESC 替换、命令/物品绑定、按钮图标，类 TrMenu 体验</div>
+    <span class="card-badge badge-stable">💎 付费</span>
   </a>
   <a href="title" class="module-card">
     <div class="card-icon">🏅</div>
     <div class="card-title">Title 称号</div>
     <div class="card-desc">分组称号、套装属性、日期区间、头顶显示、聊天/Tab 前缀</div>
-    <span class="card-badge badge-stable">✅ 可用</span>
+    <span class="card-badge badge-stable">💎 付费</span>
   </a>
   <a href="questgps" class="module-card">
     <div class="card-icon">🧭</div>
     <div class="card-title">QuestGPS 任务导航</div>
     <div class="card-desc">Chemdah SSOT + overlay 白名单；动态分类菜单、路径寻路、指引 HUD</div>
-    <span class="card-badge badge-stable">✅ 可用</span>
+    <span class="card-badge badge-stable">💎 付费</span>
   </a>
   <a href="map" class="module-card">
     <div class="card-icon">🗺️</div>
     <div class="card-title">Map 地图</div>
     <div class="card-desc">世界地图、锚点传送、玩家路径点、小地图 HUD</div>
-    <span class="card-badge badge-stable">✅ 可用</span>
+    <span class="card-badge badge-stable">💎 付费</span>
   </a>
   <a href="conversation" class="module-card">
     <div class="card-icon">🗣️</div>
     <div class="card-title">Conversation 对话桥</div>
     <div class="card-desc">Chemdah 对话 ArcartX UI 渲染，调用ArcartX 给 NPC 设置模型动画</div>
-    <span class="card-badge badge-stable">✅ 可用</span>
+    <span class="card-badge badge-stable">💎 付费</span>
   </a>
   <a href="battlepass" class="module-card">
     <div class="card-icon">🎖️</div>
     <div class="card-title">BattlePass 战令系统</div>
     <div class="card-desc">三层通行证（免费/高级/典藏）+ 每日/每周/赛季任务池 + 条件过滤 + 动态增量 + 加权随机分配 + ArcartX UI 面板</div>
-    <span class="card-badge badge-stable">✅ 可用</span>
+    <span class="card-badge badge-stable">💎 付费</span>
   </a>
   <a href="lottery" class="module-card">
     <div class="card-icon">🎰</div>
     <div class="card-title">Lottery 抽奖系统</div>
     <div class="card-desc">CS 开箱横向滚动动画 + 原神祈愿卡池系统，纯色块 UI、品质颜色绑定、保底机制、磨损度系统</div>
-    <span class="card-badge badge-stable">✅ 可用</span>
+    <span class="card-badge badge-stable">💎 付费</span>
   </a>
   <a href="market" class="module-card">
     <div class="card-icon">🏪</div>
     <div class="card-title">Market 全球市场</div>
     <div class="card-desc">系统商店 + 玩家拍卖行 + 回收商店，多货币支持、跨服同步、ArcartX UI 全套交易界面</div>
-    <span class="card-badge badge-stable">✅ 可用</span>
+    <span class="card-badge badge-stable">💎 付费</span>
   </a>
   <a href="qqbot" class="module-card">
     <div class="card-icon">🤖</div>
     <div class="card-title">QQBot QQ群服互联</div>
     <div class="card-desc">OneBot 11 双向同步、QQ-游戏账号绑定、白名单联动、群指令查玩家数据/PAPI/服务器命令</div>
-    <span class="card-badge badge-stable">✅ 可用</span>
+    <span class="card-badge badge-stable">💎 付费</span>
   </a>
 </div>
+
+### 福利模块
 
 <div class="module-grid">
   <a href="chat" class="module-card">
