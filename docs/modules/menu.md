@@ -11,24 +11,39 @@ description: ArcartX-Suite Menu 配置驱动 ArcartX 菜单系统，ESC 替换�
 
 ## 功能定位
 
-Menu 模块提供 **配置驱动的 ArcartX 全屏菜单**，可替代 TrMenu 等插件的常见能力：
+Menu 模块提供 **配置驱动的 ArcartX 全屏菜单**，可替代 TrMenu 等插件的常见能力，所有可视化由 ArcartX 客户端渲染，服务端仅负责数据推送与命令处理。
 
-- 多菜单、多页面、动态按钮渲染（Observer + 服务端发包）
-- 按钮动作：玩家命令、控制台命令、消息、打开子菜单、关闭、翻页、音效
-- 打开条件：权限 + PlaceholderAPI / **Aria 脚本** / **JavaScript** 表达式（见 [条件系统](/guide/conditions)）
-- **命令绑定**：精确命令 + 正则命令拦截
-- **物品绑定**：手持/副手物品右键打开菜单
-- **按钮图标**：Slot ~Icon 展示 Bukkit / Mythic / Neige / MMOItems 物品
-- **ESC 暂停界面替换**：左侧滑出菜单 + 第三人称镜头
+### 核心特性
+
+- **多菜单 / 多页面**：单个 YAML 文件可用 `---` 分隔定义多个菜单，每个菜单支持多页面并通过 `page:` 动作切换
+- **按钮动作**：支持玩家命令、控制台命令、消息、打开子菜单、关闭、翻页、音效等内置动作
+- **打开条件**：支持权限 + PlaceholderAPI / **Aria 脚本** / **JavaScript** 表达式（见 [条件系统](/guide/conditions)）
+- **命令绑定**：精确命令与正则命令拦截，命中后取消原命令并打开菜单
+- **物品绑定**：手持 / 副手物品右键（或自定义点击动作）打开菜单
+- **按钮图标**：Slot ~Icon 展示 Bukkit / MythicMobs / NeigeItems / MMOItems / Overture 物品，支持自定义模型数据、附魔光效、头颅材质、皮革染色
+- **ArcartX 自定义贴图**：通过 `icon` / `url` NBT 实现无资源包的 GUI 自定义贴图
+- **ESC 暂停界面替换**：左侧滑出菜单 + 第三人称镜头，支持 `match-esc` 菜单候选
+- **跨模块调用**：通过 `MenuOpenable` Capability 接口供其他模块打开菜单
+
+### 性能架构
+
+| 组件 | 渲染位置 | 服务端开销 |
+| --- | --- | --- |
+| 居中面板菜单 | 客户端 | 打开 / 翻页时 1 次 UI 数据包 |
+| ESC 暂停界面 | 客户端 | 按 ESC 时 1 次 `esc_open` 数据包 |
+| 按钮图标 | 客户端 | 物品 JSON 随 UI 数据包一次性下发 |
+| 命令 / 物品绑定 | 服务端事件 | 命中时单次打开逻辑，无持续 tick 开销 |
+
+**所有菜单 UI 均为客户端渲染，服务端仅在打开、关闭、点击动作时执行逻辑。**
 
 ## 依赖
 
-| 类型 | 依赖 | 作用 |
-| --- | --- | --- |
-| 必需 | ArcartX | UI 注册、发包、打开/关闭界面 |
-| 可选 | PlaceholderAPI | PAPI 行内条件、文本变量 |
-| 可选 | Blink 系 + **BlinkAriaHost** | Aria 脚本条件（Symphony / Overture 等注入） |
-| 可选 | MythicMobs / NeigeItems / MMOItems | 按钮 `icon.source` 外部物品生成 |
+| 类型 | 依赖 | 作用 | 缺少时表现 |
+| --- | --- | --- | --- |
+| 必需 | ArcartX | UI 注册、发包、打开/关闭界面 | 模块无法启动 |
+| 可选 | PlaceholderAPI | PAPI 行内条件、文本变量 | PAPI 条件不通过、变量不展开 |
+| 可选 | Blink 系 + **BlinkAriaHost** | Aria 脚本条件（Symphony / Overture 等注入） | Aria 条件恒为 false |
+| 可选 | MythicMobs / NeigeItems / MMOItems / Overture | 按钮 `icon.source` 外部物品生成 | 外部图标解析失败，回退为默认材质或隐藏 |
 
 ## 启用步骤
 
@@ -38,21 +53,64 @@ modules:
     enabled: true
 ```
 
-部署 `plugins/ArcartX-Suite/modules/ArcartX-Suite-Menu-*.jar` 后执行 `/axs menu reload`。
+部署 `plugins/ArcartX-Suite/modules/ArcartX-Suite-Menu-*.jar` 后执行 `/axs menu reload`，首次启用会自动导出默认 UI 文件与示例菜单。
 
-## 命令
+## 配置
 
-| 命令　　　　　　　　　　　　 | 权限　　　　　　　　　　| 说明　　　　　　　 |
-| ------------------------------| -------------------------| --------------------|
-| `/menu open <菜单ID>`　　　　| `arcartxsuite.menu.use` | 打开指定菜单　　　 |
-| `/menu list`　　　　　　　　 | `arcartxsuite.menu.use` | 列出已加载菜单　　 |
-| `/axmenu`　　　　　　　　　　| 同上　　　　　　　　　　| `/menu` 别名　　　 |
-| `/axs menu reload`　　　　　 | `axs.menu.reload`　　　 | 重载配置与菜单定义 |
-| `/axs menu open <ID> [玩家]` | `axs.menu.open.other`　 | 管理员代开　　　　 |
+配置文件路径：`plugins/ArcartXSuite/data/menu/ArcartXMenu.yml`  
+菜单定义目录：`data/menu/menus/*.yml`（由 `settings.menus-directory` 指定）
 
-## 主配置（`ArcartXMenu.yml`）
+### ArcartXMenu.yml 配置项一览
+
+#### `debug`
+
+| 字段 | 类型 | 默认值 | 说明 |
+| --- | --- | --- | --- |
+| `enabled` | boolean | `false` | 开发者调试日志 |
+
+#### `client`
+
+| 字段 | 类型 | 默认值 | 说明 |
+| --- | --- | --- | --- |
+| `packet-id` | string | `AXS_MENU` | 发包协议 ID，须与 UI 脚本一致 |
+| `panel-ui-id` | string / list | `ArcartX-Suite:menu_panel` | 居中面板菜单 UI；支持列表多 UI 同时发包，见 [多 UI 发包](/guide/multi-ui) |
+| `esc-ui-id` | string / list | `ArcartX-Suite:menu_esc` | ESC 暂停界面 UI |
+| `esc-menu-id` | string | `esc_main` | 按 ESC 时默认打开的菜单 ID |
+| `register-ui-on-enable` | boolean | `true` | 模块启用时向 ArcartX 注册 UI 资源 |
+| `overwrite-ui-files` | boolean | `false` | 是否覆盖服内已有 UI 文件 |
+
+#### `settings`
+
+| 字段 | 类型 | 默认值 | 可选值 | 说明 |
+| --- | --- | --- | --- | --- |
+| `menus-directory` | string | `menus` | — | 菜单定义目录名，相对 `data/menu/` |
+| `default-layout` | string | `panel` | `panel` / `esc` / `pause` / `pause-menu` | 菜单默认布局；`pause` / `pause-menu` 为 `esc` 别名 |
+| `columns` | int | `2` | ≥ 1 | 默认每行列数 |
+| `buttons-per-page` | int | `12` | ≥ 1 | 默认每页按钮数 |
+| `click-cooldown-ms` | long | `300` | ≥ 0 | 按钮点击冷却（毫秒） |
+| `close-on-action` | boolean | `true` | — | 执行动作后是否关闭菜单 |
+| `notify-open-failed` | boolean | `true` | — | 打开失败时是否提示玩家 |
+| `item-binds` | list | `[]` | — | 全局物品绑定，见下方「物品绑定」 |
+
+#### `messages`
+
+| 字段 | 类型 | 默认值 | 说明 |
+| --- | --- | --- | --- |
+| `prefix` | string | `&3◆ &6ArcartXSuite &7| &r` | 消息前缀 |
+| `no-permission` | string | `&c你没有权限执行此操作。` | 无权限提示 |
+| `player-only` | string | `&c该命令只能由玩家执行。` | 非玩家执行提示 |
+| `menu-not-found` | string | `&c未找到菜单: &f{menu}` | 菜单不存在提示 |
+| `menu-open-failed` | string | `&c无法打开菜单 &f{menu}&c: &7{reason}` | 打开失败提示 |
+| `menu-open-success` | string | `&a已打开菜单 &f{menu}` | 打开成功提示 |
+| `button-unavailable` | string | `&c该按钮当前不可用。` | 按钮不可用提示 |
+| `page-empty` | string | `&7当前页没有可用按钮。` | 当前页无可见按钮提示 |
+| `reload-success` | string | `&aMenu 模块配置已重载。` | 重载成功提示 |
+| `reload-failed` | string | `&cMenu 模块重载失败: &7{error}` | 重载失败提示 |
+
+### 配置示例（精简）
 
 ```yaml
+# plugins/ArcartXSuite/data/menu/ArcartXMenu.yml
 debug:
   enabled: false
 
@@ -60,26 +118,27 @@ client:
   packet-id: "AXS_MENU"
   panel-ui-id: "ArcartX-Suite:menu_panel"
   esc-ui-id: "ArcartX-Suite:menu_esc"
-  esc-menu-id: "esc_main"          # ESC 菜单的默认 ID
+  esc-menu-id: "esc_main"
   register-ui-on-enable: true
   overwrite-ui-files: false
 
 settings:
   menus-directory: "menus"
-  default-layout: "panel"          # panel | esc | pause | pause-menu（pause/pause-menu = esc）
+  default-layout: "panel"
   columns: 2
   buttons-per-page: 12
   click-cooldown-ms: 300
   close-on-action: true
   notify-open-failed: true
-  item-binds:                      # 全局物品绑定
+  item-binds:
+    # 全局物品绑定示例：手持指定物品右键打开 example 菜单
     - menu: example
       material: NETHER_STAR
       name-contains: "服务器菜单"
       action: RIGHT_CLICK
 
 messages:
-  prefix: "&3✦ &6ArcartXSuite &7| &r"
+  prefix: "&3◆ &6ArcartXSuite &7| &r"
   no-permission: "&c你没有权限执行该操作"
   player-only: "&c只有玩家可以执行该命令"
   menu-not-found: "&c菜单未找到: &f{menu}"
@@ -91,13 +150,294 @@ messages:
   reload-failed: "&cMenu 模块重载失败: &7{error}"
 ```
 
-## 菜单定义（`data/menu/menus/*.yml`）
+### `menus/*.yml` 菜单定义配置项一览
 
-每个文件可包含多个文档（用 `---` 分隔），每个文档定义一个菜单。
+菜单文件位于 `data/menu/menus/*.yml`。**一个文件可用 `---` 分隔定义多个菜单**，每个文档是一个独立菜单。
 
-### 基础结构
+#### 菜单级字段
+
+| 字段 | 类型 | 默认值 | 说明 |
+| --- | --- | --- | --- |
+| `id` | string | — | **必填**，菜单唯一标识，用于 `open:` 动作和命令 |
+| `title` | string | 同 `id` | 菜单标题，支持 `&` 颜色码与 MiniMessage |
+| `layout` | string | 继承 `settings.default-layout` | `panel` / `esc` / `pause` / `pause-menu` |
+| `columns` | int | 继承 `settings.columns` | 每行列数 |
+| `buttons-per-page` | int | 继承 `settings.buttons-per-page` | 每页最大按钮数，超出自动分页 |
+| `permission` | string | `""` | 打开菜单所需权限节点 |
+| `match-esc` | boolean | `false` | 是否作为 ESC 暂停界面的候选菜单 |
+| `open-requirements` | list | `[]` | 打开菜单的前置条件，见 [条件系统](/guide/conditions) |
+| `open-actions` | list | `[]` | 打开菜单时执行的动作列表 |
+| `close-actions` | list | `[]` | 关闭菜单时执行的动作列表 |
+| `commands` | list | `[]` | 精确命令绑定，如 `shop` 会响应 `/shop` |
+| `command-regex` | list | `[]` | 正则命令绑定，命中后取消原命令并打开菜单 |
+| `item-binds` | list | `[]` | 菜单级物品绑定，见下方「物品绑定」 |
+| `pages` | list / map | `[{id: main}]` | 页面列表，见下方「页面级字段」 |
+| `footer-buttons` | map | `{}` | 底部固定按钮（如 ESC 菜单的「选项」「退出」） |
+
+#### 页面级字段
+
+`pages` 支持两种写法：
+
+- **列表写法**（推荐）：每个页面是带 `id` 的 map
+- **Map 写法**：`pages.<id>.title` / `pages.<id>.buttons`
+
+| 字段 | 类型 | 默认值 | 说明 |
+| --- | --- | --- | --- |
+| `id` | string | `main` | 页面标识，用于 `page:` 动作跳转 |
+| `title` | string | 同页面 `id` | 页面标题 |
+| `buttons` | map | `{}` | 页面按钮集合，键为按钮 ID |
+
+#### 按钮级字段
+
+| 字段 | 类型 | 默认值 | 说明 |
+| --- | --- | --- | --- |
+| `text` | string | 按钮 `id` | 按钮显示文字 |
+| `order` | int | `0` | 排序权重，越小越靠前 |
+| `permission` | string | `""` | 按钮级权限，无权限时按钮不可见 |
+| `requirements` | list | `[]` | 可见条件，不满足时按钮从 UI 移除 |
+| `condition` | list | `[]` | 使用条件，不满足时点击无效 |
+| `deny-message` | string | `""` | 使用条件未通过时的提示消息 |
+| `actions` | list | `[]` | 点击通过使用条件后执行的动作 |
+| `client-action` | string | `""` | 客户端原生动作，如 `options` / `quit` |
+| `icon` | map | — | 按钮图标配置，见下方「按钮图标」 |
+
+#### 按钮动作
+
+每行格式：`<类型>: <参数>`。
+
+| 类型 | 别名 | 示例 | 说明 |
+| --- | --- | --- | --- |
+| `command` | `cmd`, `player` | `command: /spawn` | 以玩家身份执行命令，自动去掉开头的 `/` |
+| `console` | `op` | `console: eco give {player} 100` | 以控制台身份执行命令 |
+| `message` | `msg`, `tell` | `message: &a成功` | 向玩家发送聊天消息 |
+| `open` | `menu` | `open: teleport` | 打开另一个菜单 |
+| `close` | — | `close` | 关闭当前菜单 |
+| `page` | — | `page: next` / `page: main` | 切换同菜单内的页面 |
+| `sound` | — | `sound: UI_BUTTON_CLICK\|1\|1` | 播放音效，格式 `音效名|音量|音调` |
+
+- `command` / `console` 会展开 PlaceholderAPI 与 `{player}`。
+- `page` 支持 `prev` / `previous` / `-` / `<`（上一页）、`next` / `+` / `>`（下一页），其余值按页面 ID 处理。
+- Menu 内置动作仅上表这些；`title` / `subtitle` / `actionbar` / `delay` / `back` / `refresh` 等**不受支持**，请用 `command` / `console` 或 EventPacket 实现。
+
+#### 按钮图标
+
+按钮左侧显示 `Slot ~Icon` 物品预览。图标字段按其作用方式分为三类：
+
+- **直接构建 ItemStack**：`material`、`amount`、`name`、`lore`、`custom-model-data`
+- **外部物品来源**：`source` + `id` / `item-id` + `mmo-type` / `mmo-id`
+- **原始 JSON**：`json`；一旦非空即**直接使用该 JSON 并短路**，其余所有图标字段都会被忽略
+- **外观修饰**：`glow`、`skull-texture`、`color`、`texture`、`texture-url`、`nbt`
+
+`source` 可选值（含别名）：`mythic` / `mythicmobs`、`neige` / `neigeitems`、`overture`、`mmo` / `mmoitems`。
 
 ```yaml
+icon:
+  material: DIAMOND
+  amount: 1
+  name: "&b示例"
+  lore:
+    - "&7描述"
+  custom-model-data: 10001
+  # 外部物品库（来源三选一）：
+  # source: mythic          # mythic/mythicmobs | neige/neigeitems | overture | mmo/mmoitems
+  # id: SomeItemId          # 或 item-id
+  # mmo-type: SWORD         # source=mmo 时可分开写
+  # mmo-id: STEEL_SWORD
+  # 直接指定完整物品 JSON（会忽略上面所有字段）：
+  # json: '{"id":"minecraft:diamond_sword","Count":1b}'
+```
+
+无 `icon` 或解析失败时仅显示文字按钮。
+
+##### ArcartX 自定义贴图 NBT
+
+ArcartX 会读取物品上的 `icon` / `url` NBT 来选择贴图。Menu 在把 ItemStack 转成 JSON 之前，通过 ArcartX 的 ItemBridge 写入这些 NBT；若桥接不可用则静默跳过。
+
+| 字段 | 说明 |
+| --- | --- |
+| `texture` | 写入 `icon` NBT，渲染 `resource/item_icon/` 下的贴图；子目录写成 `xxx/xxx` |
+| `texture-url` / `url` | 写入 `url` NBT，用于原版 GUI / 箱子菜单图标，支持文件路径、网络链接、GIF |
+| `nbt` | 写入任意字符串 NBT 键值对 |
+
+```yaml
+icon:
+  material: PAPER
+  name: "&b自定义贴图"
+  texture: "item"                 # → icon NBT：resource/item_icon 贴图
+  # texture-url: "menu/icon.png"  # → url NBT：原版 GUI 图标（支持 GIF / 网络链接）
+  # nbt:                          # 或直接写任意字符串 NBT
+  #   icon: "item"
+  #   url: "https://example.com/icon.gif"
+```
+
+##### 外观修饰字段
+
+以下字段在**直接构建 ItemStack**（`material` 路径）时生效；`json` 非空会短路并忽略它们：
+
+- `glow`：布尔；`true` 时给图标加隐藏附魔光效。
+- `skull-texture`：当 `material` 为 `PLAYER_HEAD` 时生效；接受 base64 材质值或直接的 `http(s)` 贴图 URL。
+- `color`：当 `material` 为 `LEATHER_*` 时生效；十六进制颜色，如 `#FF5555`。
+
+```yaml
+icon:
+  material: PLAYER_HEAD
+  name: "&e自定义头颅"
+  skull-texture: "eyJ0ZXh0dXJlcyI6..."   # base64 材质值，或 http(s) 贴图 URL
+  glow: true                             # 隐藏附魔光效
+# 皮革染色示例：
+# icon:
+#   material: LEATHER_CHESTPLATE
+#   color: "#FF5555"
+```
+
+#### 条件系统
+
+Menu 的条件系统与 Prop / EventPacket / Mail **共用同一引擎**，完整语法见 **[条件系统](/guide/conditions)**。
+
+##### 两类条件：可见 vs 使用
+
+| 类型 | 配置字段 | 别名 | 不满足时的表现 |
+| --- | --- | --- | --- |
+| **可见条件** | `requirements` | `view-conditions`、`viewConditions`、`conditions`、`aria-conditions`、`ariaConditions` | 按钮**从 UI 移除** |
+| **使用条件** | `condition` | `use-conditions`、`useConditions`、`click-conditions`、`clickConditions`、`aria-condition`、`ariaCondition` | 按钮**仍显示但点击无效**；有 `deny-message` 时提示 |
+
+列表内多条条件为 **AND（且）**。
+
+**设计建议：**
+
+- 用 **可见条件** 隐藏「玩家根本不该知道」的入口（例如未解锁的系统）。
+- 用 **使用条件** + `deny-message` 提示「看得见但暂时不能用」（例如等级不足、材料不够）。
+
+##### 条件生效流程
+
+```mermaid
+flowchart TD
+  A[玩家打开菜单 / 渲染按钮] --> B{菜单 permission?}
+  B -->|否| Z[拒绝打开]
+  B -->|是| C{open-requirements 全部通过?}
+  C -->|否| Z
+  C -->|是| D[渲染当前页按钮]
+  D --> E{view-conditions 通过?}
+  E -->|否| F[不显示该按钮]
+  E -->|是| G[显示按钮]
+  G --> H{玩家点击}
+  H --> I{use-conditions 通过?}
+  I -->|否| J[发送 deny-message / 不执行动作]
+  I -->|是| K[执行 actions]
+```
+
+##### 常用写法示例
+
+```yaml
+buttons:
+  vip_shop:
+    text: "&fVIP 商城"
+    requirements:
+      - "%luckperms_groups% contains VIP"   # 可见：非 VIP 看不到
+    condition:
+      - "%player_level% >= 20"              # 使用：等级不足则灰色
+    deny-message: "&c需要达到 &e20 &c级才能进入 VIP 商城"
+    actions:
+      - "command: /vipshop"
+      - "close"
+```
+
+PlaceholderAPI 行内写法：
+
+```yaml
+requirements:
+  - "%luckperms_primary_group% == vip"
+  - "%player_world% == world"
+  - "%player_level% >= 10"
+  - "%luckperms_groups% contains admin"
+  - "%player_name% regex ^[A-Z].*"
+```
+
+Aria 脚本写法（需 BlinkAriaHost）：
+
+```yaml
+condition:
+  - "aria: return player.getLevel() >= 20"
+
+requirements:
+  - type: aria
+    script: "return player.isOp() || player.getLevel() >= 50"
+```
+
+::: warning
+Aria / JS 脚本内不会自动展开 `%placeholder%`。混用 PAPI 行 + 脚本时仍为 AND。
+:::
+
+##### 运算符参考
+
+| 运算符 | 说明 |
+| --- | --- |
+| `==` / `!=` | 等于 / 不等于（忽略大小写） |
+| `>=` `<=` `>` `<` | 数值比较（失败则字符串比较） |
+| `contains` / `regex` | 包含 / 正则 |
+
+#### 命令绑定
+
+##### 精确绑定
+
+```yaml
+commands:
+  - "shop"
+  - "openmenu"
+```
+
+玩家执行 `/shop` 或 `/shop 任意参数` 时，拦截并打开该菜单。
+
+##### 正则绑定
+
+```yaml
+command-regex:
+  - "warp(?:\\s+(?<target>\\w+))?"
+  - "^gm\\s+shop$"
+```
+
+- 匹配时不区分大小写
+- 命中后取消原命令并打开菜单
+- 需满足菜单 `permission` 与 `open-requirements`
+
+::: tip
+正则绑定无需在 `plugin.yml` 声明命令，适合迁移 TrMenu 的自定义命令。
+:::
+
+#### 物品绑定
+
+##### 菜单级
+
+```yaml
+item-binds:
+  - material: COMPASS
+    name-contains: "菜单"
+    name-regex: ".*功能.*"          # 可选，与 contains 同时满足
+    lore-contains: "右键打开"
+    custom-model-data: 10001
+    action: RIGHT_CLICK             # 见下方点击匹配说明
+    main-hand: true                 # 默认 true
+    off-hand: false                 # 默认 true
+    permission: ""
+```
+
+##### 全局（`ArcartXMenu.yml` → `settings.item-binds`）
+
+```yaml
+item-binds:
+  - menu: example                   # 必填：打开的菜单 ID（也可写 open）
+    material: NETHER_STAR
+    name-contains: "服务器菜单"
+```
+
+::: info 点击匹配（`action`）
+`action` 基于 Bukkit `Action` 判断，只区分**左键 / 右键 / 物理点击**：显式 `LEFT` / `LEFT_CLICK` / `LEFT_CLICK_AIR` / `LEFT_CLICK_BLOCK` 与 `PHYSICAL` 会被精确匹配，其余值（含 `RIGHT_CLICK`）按右键处理。因此 **shift-click 变体不做区分**。
+:::
+
+### 菜单定义示例
+
+```yaml
+# data/menu/menus/shop.yml
 id: shop
 title: "&f&l商城"
 layout: panel                     # panel=居中面板 | esc=暂停界面布局（pause/pause-menu 同 esc）
@@ -144,350 +484,84 @@ pages:
           lore:
             - "&7点击进入"
           custom-model-data: 10001
-          # 或使用外部物品库：
-          # source: mythic
-          # id: MagicCoin
-          # source: mmo
-          # mmo-type: SWORD
-          # mmo-id: STEEL_SWORD
         actions:
           - "command: /market shop"
           - "close"
-
-footer-buttons:
-  options:
-    text: "&f游戏选项"
-    client-action: "options"      # 客户端原生动作
-  quit:
-    text: "&f退出游戏"
-    client-action: "quit"
+      back:
+        text: "&7« 返回"
+        order: 100
+        actions:
+          - "page: main"
 ```
 
-### 布局类型
+## 命令
 
-| layout | UI 文件 | 说明 |
-| --- | --- | --- |
-| `panel` | `ui/menu_panel.yml` | 默认布局；`/menu open` 和无明确 layout 时使用 |
-| `esc` | `ui/menu_esc.yml` | ESC 暂停界面；`pause` / `pause-menu` 是它的别名 |
+### 管理命令（权限：`axs.menu.reload` / `axs.menu.open.other`）
 
-ESC 菜单在 UI `open` 时发送 `esc_open` 包，服务端只推送数据，不重复 `openUi`。
-
-## 命令绑定
-
-### 精确绑定
-
-```yaml
-commands:
-  - "shop"
-  - "openmenu"
-```
-
-玩家执行 `/shop` 或 `/shop 任意参数` 时，拦截并打开该菜单。
-
-### 正则绑定
-
-```yaml
-command-regex:
-  - "warp(?:\\s+(?<target>\\w+))?"
-  - "^gm\\s+shop$"
-```
-
-- 匹配时不区分大小写
-- 命中后取消原命令并打开菜单
-- 需满足菜单 `permission` 与 `open-requirements`
-
-::: tip
-正则绑定无需在 `plugin.yml` 声明命令，适合迁移 TrMenu 的自定义命令。
-:::
-
-## 物品绑定
-
-### 菜单级
-
-```yaml
-item-binds:
-  - material: COMPASS
-    name-contains: "菜单"
-    name-regex: ".*功能.*"          # 可选，与 contains 同时满足
-    lore-contains: "右键打开"
-    custom-model-data: 10001
-    action: RIGHT_CLICK             # 见下方点击匹配说明
-    main-hand: true                 # 默认 true
-    off-hand: false                 # 默认 true
-    permission: ""
-```
-
-### 全局（`ArcartXMenu.yml` → `settings.item-binds`）
-
-```yaml
-item-binds:
-  - menu: example                   # 必填：打开的菜单 ID（也可写 open）
-    material: NETHER_STAR
-    name-contains: "服务器菜单"
-```
-
-::: info 点击匹配（`action`）
-`action` 基于 Bukkit `Action` 判断，只区分**左键 / 右键 / 物理点击**：显式 `LEFT` / `LEFT_CLICK` / `LEFT_CLICK_AIR` / `LEFT_CLICK_BLOCK` 与 `PHYSICAL` 会被精确匹配，其余值（含 `RIGHT_CLICK`）按右键处理。因此 **shift-click 变体不做区分**。
-:::
-
-## 按钮动作
-
-每行格式：`<类型>: <参数>`
-
-| 类型 | 别名 | 示例 |
-| --- | --- | --- |
-| `command` | `cmd`, `player` | `command: /spawn` |
-| `console` | `op` | `console: eco give {player} 100` |
-| `message` | `msg`, `tell` | `message: &a成功` |
-| `open` | `menu` | `open: teleport` |
-| `close` | — | `close` |
-| `page` | — | `page: next` / `page: main` |
-| `sound` | — | `sound: UI_BUTTON_CLICK\|1\|1` |
-
-- `command` / `console` 会展开 PlaceholderAPI 与 `{player}`（`command` 自动去掉开头的 `/`），并遵循 `settings.close-on-action`。
-- `sound` 参数以 `|` 分隔：`sound: 音效名|音量|音调`。
-- `page` 支持 `prev` / `previous` / `-` / `<`（上一页）、`next` / `+` / `>`（下一页），其余值按页面 ID 处理。
-- Menu 内置动作仅上表这些；`title` / `subtitle` / `actionbar` / `delay` / `back` / `refresh` 等**不受支持**，请用 `command` / `console` 或 EventPacket 实现。
-
-## 按钮图标
-
-按钮左侧显示 `Slot ~Icon` 物品预览。图标字段按其作用方式分为三类（由 `MenuIconResolver` 处理）：
-
-- **直接构建 ItemStack**：`material`、`amount`、`name`、`lore`、`custom-model-data` / `customModelData`（其中只有 `name` / `lore` 会做占位符替换）
-- **外部物品来源**：`source` + `id` / `item-id`（→ `sourceId`）+ `mmo-type` / `mmo-id`
-- **原始 JSON**：`json`；一旦非空即**直接使用该 JSON 并短路**，其余所有图标字段（含 `texture` / `nbt` / `glow` / `skull-texture` / `color`）都会被忽略
-- **外观修饰**：`glow`、`skull-texture`、`color`（在直接构建 ItemStack 时生效，详见下方「外观修饰字段」）
-
-`source` 可选值（含别名）：`mythic` / `mythicmobs`、`neige` / `neigeitems`、`overture`、`mmo` / `mmoitems`。
-
-```yaml
-icon:
-  material: DIAMOND
-  amount: 1
-  name: "&b示例"
-  lore:
-    - "&7描述"
-  custom-model-data: 10001
-  # 外部物品库（来源三选一）：
-  # source: mythic          # mythic/mythicmobs | neige/neigeitems | overture | mmo/mmoitems
-  # id: SomeItemId          # 或 item-id
-  # mmo-type: SWORD         # source=mmo 时可分开写
-  # mmo-id: STEEL_SWORD
-  # 直接指定完整物品 JSON（会忽略上面所有字段）：
-  # json: '{"id":"minecraft:diamond_sword","Count":1b}'
-```
-
-无 `icon` 或解析失败时仅显示文字按钮。
-
-### ArcartX 自定义贴图 NBT
-
-ArcartX 会读取物品上的 `icon` / `url` NBT 来选择贴图。Menu 在把 ItemStack 转成 JSON 之前，通过 ArcartX 的 ItemBridge 写入这些 NBT；若桥接或 `putDeepTag` 不可用则静默跳过（no-op），不影响普通菜单物品。
-
-- `texture`：写入 `icon` NBT，渲染 `resource/item_icon/` 下的贴图（手持 / AX-UI）；子目录写成 `xxx/xxx`
-- `texture-url` / `url`：写入 `url` NBT，用于原版 GUI / 箱子菜单图标，支持文件路径、网络链接、GIF
-- `nbt:`：写入任意字符串 NBT 键值对（键 → 值）
-
-```yaml
-icon:
-  material: PAPER
-  name: "&b自定义贴图"
-  texture: "item"                 # → icon NBT：resource/item_icon 贴图
-  # texture-url: "menu/icon.png"  # → url NBT：原版 GUI 图标（支持 GIF / 网络链接）
-  # nbt:                          # 或直接写任意字符串 NBT
-  #   icon: "item"
-  #   url: "https://example.com/icon.gif"
-```
-
-> 机制详见 ArcartX Wiki 的「自定义物品贴图」，与示例菜单 `example.yml` 中的注释用法一致。
-
-### 外观修饰字段
-
-以下字段在**直接构建 ItemStack**（`material` 路径）时生效；`json` 非空会短路并忽略它们：
-
-- `glow`：布尔；`true` 时给图标加隐藏附魔光效（附魔 glint，不显示附魔行）。
-- `skull-texture`：当 `material` 为 `PLAYER_HEAD` 时生效；接受 base64 材质值（内含 `"url":"..."`）或直接的 `http(s)` 贴图 URL。
-- `color`：当 `material` 为 `LEATHER_*`（皮革盔甲）时生效；十六进制颜色，如 `#FF5555`。
-
-```yaml
-icon:
-  material: PLAYER_HEAD
-  name: "&e自定义头颅"
-  skull-texture: "eyJ0ZXh0dXJlcyI6..."   # base64 材质值，或 http(s) 贴图 URL
-  glow: true                             # 隐藏附魔光效
-# 皮革染色示例：
-# icon:
-#   material: LEATHER_CHESTPLATE
-#   color: "#FF5555"
-```
-
-## 按钮条件 {#按钮条件}
-
-Menu 的条件系统与 Prop / EventPacket / Mail **共用同一引擎**，完整语法见 **[条件系统（PlaceholderAPI + Aria + JS）](/guide/conditions)**。  
-本节侧重 Menu **字段名**、**可见 vs 使用** 语义，以及菜单场景下的教学示例。
-
-### 条件如何生效（流程）
-
-```mermaid
-flowchart TD
-  A[玩家打开菜单 / 渲染按钮] --> B{菜单 permission?}
-  B -->|否| Z[拒绝打开]
-  B -->|是| C{open-requirements 全部通过?}
-  C -->|否| Z
-  C -->|是| D[渲染当前页按钮]
-  D --> E{view-conditions 通过?}
-  E -->|否| F[不显示该按钮]
-  E -->|是| G[显示按钮]
-  G --> H{玩家点击}
-  H --> I{use-conditions 通过?}
-  I -->|否| J[发送 deny-message / 不执行动作]
-  I -->|是| K[执行 actions]
-```
-
-::: info 评估顺序
-1. **打开菜单**：`permission` → `open-requirements`  
-2. **渲染按钮**：按钮 `permission` → **可见条件**  
-3. **点击按钮**：**使用条件** → `actions`  
-
-命令绑定、物品绑定打开菜单时，同样检查菜单级 `permission` 与 `open-requirements`。
-:::
-
-### 两类条件：可见 vs 使用
-
-| 类型 | 配置字段 | 别名 | 不满足时的表现 |
-| --- | --- | --- | --- |
-| **可见条件** | `requirements` | `view-conditions`、`viewConditions`、`conditions`、`aria-conditions`、`ariaConditions` | 按钮**从 UI 移除**（可见性过滤），玩家看不到 |
-| **使用条件** | `condition` | `use-conditions`、`useConditions`、`click-conditions`、`clickConditions`、`aria-condition`、`ariaCondition` | 按钮**仍显示但点击无效**；有 `deny-message` 时提示 |
-
-- `js-conditions` / `js-condition` **不是** menu 按钮的独立键，button 源码不会读取它们。
-- JS 条件仍可通过共享条件系统使用：`condition` / `requirements` 里的行内条目会交给共享 `ScriptCondition` 解析器；共享条件文档里的 JS 写法同样适用。
-
-**设计建议：**
-
-- 用 **可见条件** 隐藏「玩家根本不该知道」的入口（例如未解锁的系统）。
-- 用 **使用条件** + `deny-message` 提示「看得见但暂时不能用」（例如等级不足、材料不够）。
-
-### 字段别名速查
-
-```yaml
-buttons:
-  vip_shop:
-    text: "&fVIP 商城"
-    requirements:
-      - "%luckperms_groups% contains VIP"   # 可见：非 VIP 看不到
-    condition:
-      - "%player_level% >= 20"              # 使用：等级不足则灰色
-    deny-message: "&c需要达到 &e20 &c级才能进入 VIP 商城"
-    actions:
-      - "command: /vipshop"
-      - "close"
-```
-
-列表内多条条件为 **AND（且）**。
-
-### PlaceholderAPI 行内写法
-
-```yaml
-requirements:
-  - "%luckperms_primary_group% == vip"
-  - "%player_world% == world"
-  - "%player_level% >= 10"
-  - "%luckperms_groups% contains admin"
-  - "%player_name% regex ^[A-Z].*"
-```
-
-格式：`%占位符% <运算符> <期望值>`。
-
-### 结构化写法
-
-```yaml
-condition:
-  - placeholder: "%player_level%"
-    operator: ">="
-    value: "10"
-  - expr: "%vault_eco_balance% >= 100"
-```
-
-### Aria 脚本写法
-
-需 **BlinkAriaHost**（Blink 系插件注入）。脚本内用 **`player`** 访问 Bukkit 玩家对象。
-
-```yaml
-# 行内 aria: 前缀
-condition:
-  - "aria: return player.getLevel() >= 20"
-
-# 独立 Aria 列表
-aria-conditions:
-  - "return player.hasPermission('menu.vip')"
-
-# 结构化
-requirements:
-  - type: aria
-    script: "return player.isOp() || player.getLevel() >= 50"
-```
-
-| 位置 | 可用条件键 |
+| 命令 | 说明 |
 | --- | --- |
-| 按钮可见 | `requirements`、`view-conditions`、`viewConditions`、`conditions`、`aria-conditions`、`ariaConditions` |
-| 按钮使用 | `condition`、`use-conditions`、`useConditions`、`click-conditions`、`clickConditions`、`aria-condition`、`ariaCondition` |
-| 菜单打开 | `open-requirements`、`aria-conditions`、`ariaConditions` |
+| `/axs menu reload` | 重载 Menu 模块配置与所有菜单定义 |
+| `/axs menu open <菜单ID> [玩家]` | 为指定玩家打开菜单（或自己） |
 
-::: warning
-Aria / JS 脚本内不会自动展开 `%placeholder%`。混用 PAPI 行 + 脚本时仍为 AND。
-:::
+### 玩家命令（权限：`arcartxsuite.menu.use`）
 
-### deny-message
-
-使用条件未通过且玩家点击时发送，支持 `{player}` 与 PAPI。
-
-### 教学示例：在线奖励 + VIP 专区
-
-```yaml
-rewards:
-  text: "&f在线奖励"
-  condition:
-    - "%player_level% >= 5"
-  deny-message: "&c需要 &e5 &c级"
-  actions:
-    - "command: /onlinerewards open"
-
-vip_zone:
-  text: "&6VIP 专区"
-  requirements:
-    - "%luckperms_groups% contains VIP"
-  condition:
-    - type: aria
-      script: |
-        var d = new Date().getDay()
-        return d == 0 || d == 6 || player.hasPermission('menu.vip.bypass')
-  deny-message: "&c仅周末开放"
-  actions:
-    - "open: vip_shop"
-```
-
-### 运算符参考
-
-| 运算符 | 说明 |
+| 命令 | 说明 |
 | --- | --- |
-| `==` / `!=` | 等于 / 不等于（忽略大小写） |
-| `>=` `<=` `>` `<` | 数值比较（失败则字符串比较） |
-| `contains` / `regex` | 包含 / 正则 |
+| `/menu open <菜单ID>` | 打开指定菜单 |
+| `/menu list` | 列出已加载菜单 |
+| `/axmenu` | `/menu` 别名 |
 
-PAPI 未安装时 PAPI 条件通常不通过；Aria 未部署时 Aria 条件为 **false**。
+菜单级与按钮级 `permission:` 字段可进一步限制访问。
 
-## 菜单打开条件
+## UI / Packet
+
+菜单 UI 发包结构对齐 ArcartX-Suite 统一数据包规范：服务端推送 UI 数据，客户端负责渲染。
+
+| 文件 | UI ID | 说明 |
+| --- | --- | --- |
+| `ui/menu_panel.yml` | `ArcartX-Suite:menu_panel` | 居中面板菜单 |
+| `ui/menu_esc.yml` | `ArcartX-Suite:menu_esc` | ESC 暂停界面 |
+
+### Menu Packet 主要字段
+
+| 字段 | 说明 |
+| --- | --- |
+| `packetId` | 包标识（`AXS_MENU`） |
+| `menuId` | 当前菜单 ID |
+| `pageId` | 当前页面 ID |
+| `title` | 菜单标题 |
+| `buttons` | 按钮列表，每项含 `id`、`text`、`order`、`icon`、`clientAction` 等 |
+| `footerButtons` | 底部固定按钮 |
+| `layout` | 当前布局类型 |
+
+修改 UI 后设置 `overwrite-ui-files: true` 或使用 `/axs menu reload` 重新导出。
+
+## EventPacket 联动
+
+可通过 EventPacket 动作向玩家推送菜单：
+
+| 动作类型 | 参数 | 说明 |
+| --- | --- | --- |
+| `menu.open` | `menu-id` | 为玩家打开指定菜单 |
+| `menu.close` | — | 关闭玩家当前 Menu 菜单 |
+
+EventPacket 配置示例（`data/eventpacket/rules/welcome.yml`）：
 
 ```yaml
-open-requirements:
-  - "%player_level% >= 10"
-  - "%player_world% == world"
-  - type: aria
-    script: "return player.hasPermission('menu.shop.open')"
+welcome_open_menu:
+  enabled: true
+  trigger: join
+  repeatable: false
+  conditions:
+    - "%player_has_played_before% == false"
+  actions:
+    - type: menu.open
+      menu-id: "example"
 ```
-
-不满足时命令/物品绑定与 `/menu open` 均无法打开。
 
 ## 跨模块调用
+
+其他模块可通过 Capability 打开 Menu 菜单：
 
 ```java
 MenuOpenable menu = context.getCapability(MenuOpenable.class);
@@ -495,32 +569,6 @@ if (menu != null) {
     menu.openMenu(player, "example");
 }
 ```
-
-## UI 资源
-
-| 文件 | 说明 |
-| --- | --- |
-| `ui/menu_panel.yml` | 居中面板菜单 |
-| `ui/menu_esc.yml` | ESC 暂停界面 |
-
-修改 UI 后设置 `overwrite-ui-files: true` 或使用 `/axs menu reload` 重新导出。
-
-## 权限
-
-| 节点 | 默认 | 说明 |
-| --- | --- | --- |
-| `arcartxsuite.menu.use` | true | 玩家 `/menu` |
-| `axs.menu.reload` | op | 重载模块 |
-| `axs.menu.open.other` | op | 管理员代开 |
-
-菜单/按钮级 `permission:` 字段可进一步限制。
-
-## 示例菜单
-
-首次启用自动导出：
-
-- `menus/example.yml` — 功能入口 + 传送子菜单 + 图标/命令/物品绑定示例
-- `menus/esc_main.yml` — ESC 暂停界面按钮
 
 ## 与 TrMenu 迁移对照
 

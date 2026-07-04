@@ -177,12 +177,6 @@ export default withMermaid(defineConfig({
             { text: 'Proxy 代理端', link: '/guide/proxy-usage' },
           ],
         },
-        {
-          text: '模块使用指南',
-          items: [
-            { text: 'Menu 通用菜单', link: '/guide/menu-usage' },
-          ],
-        },
       ],
 
       // ── 云端授权（独立顶栏 → 独立侧栏）──
