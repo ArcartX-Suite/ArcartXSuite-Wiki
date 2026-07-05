@@ -18,8 +18,9 @@ description: ArcartX-Suite Fishing 钓鱼系统，星露谷风格钓鱼小游戏
 | **星露谷钓鱼小游戏** | 服务端物理引擎驱动，实时同步到客户端 HUD |
 | **多水域系统** | 圆形/矩形指定地点 + 默认兜底，不同水域独立鱼池/难度/宝藏 |
 | **鱼种生态** | 季节、天气、水域类型、时间段四维过滤 |
-| **宝藏系统** | 不同水域拥有独立宝藏池，捕获时概率获得 |
-| **饵料加成** | 鱼竿 lore 识别饵料，提升特定鱼种吸引率和宝藏概率 |
+| **宝藏系统** | 不同水域拥有独立宝藏池，捕获时概率获得；支持外部物品库物品 |
+| **饵料加成** | PDC 标签识别装载饵料，提升特定鱼种吸引率和宝藏概率，并提供鱼竿耐久加成 |
+| **自定义钓竿** | 通过 `rods/` 配置钓竿属性，影响绿条高度、宝藏概率、经验倍率等 |
 | **钓鱼图鉴** | `/fishing` 打开图鉴 UI，记录捕获数量和最大尺寸 |
 | **等级系统** | 捕获获取经验，升级提升绿条高度 |
 | **售卖系统** | `/fishing sell` 直接出售手中鱼，`/fishing sell all` 批量出售背包中所有鱼 |
@@ -188,7 +189,15 @@ time-ranges:
     start: "06:00"
     end: "20:00"
 
-item: "minecraft:cod"
+item:
+  source: "minecraft"
+  item-id: "cod"
+  amount: 1
+  # texture: "item"                  # 可选：ArcartX 自定义贴图
+  # texture-url: "fishing/sea_bass.png" # 可选：ArcartX GUI 贴图
+  # json: '{"id":"minecraft:cod"}'  # 可选：完整 JSON 物品定义
+  # mmo-type: "ARMOR"               # MMOItems 类型
+  # mmo-id: "FISH_ARMOR"            # MMOItems ID
 difficulty: 30              # 1~100，影响鱼 AI 游动速度
 
 # behaviors 为 map：根键任意，内部含 type / weight
@@ -206,6 +215,19 @@ currency-reward:
   amount: 15                  # 基础数量（完美捕获会自动乘以 perfect-bonus-multiplier）
 ```
 
+**`item` 物品引用说明**：
+
+| 字段 | 必填 | 说明 |
+|------|------|------|
+| `source` | 否 | 物品来源：`minecraft` / `mythic` / `neige` / `overture` / `mmo` / `json`，默认 `minecraft` |
+| `item-id` | 否 | 外部物品 ID 或原版 Material 名称 |
+| `amount` | 否 | 数量，默认 `1` |
+| `mmo-type` | 否 | MMOItems 物品类型，仅在 `source: mmo` 时有效 |
+| `mmo-id` | 否 | MMOItems 物品 ID，仅在 `source: mmo` 时有效 |
+| `json` | 否 | 完整 JSON 物品定义，优先级最高 |
+| `texture` | 否 | ArcartX 自定义贴图 `icon` 字段 |
+| `texture-url` | 否 | ArcartX GUI 贴图 `url` 字段 |
+
 **行为类型**：`smooth`（平滑游动）、`dart`（快速冲刺）、`sinker`（下沉型）、`floater`（上浮型）
 
 ### treasures/ 宝藏文件
@@ -215,10 +237,11 @@ currency-reward:
 ```yaml
 id: "old_boot"
 display-name: "旧靴子"
-item: "minecraft:leather_boots"
+item:
+  source: "minecraft"
+  item-id: "leather_boots"
+  amount: 1
 chance: 0.3        # 在宝藏池中的出现概率
-min-amount: 1
-max-amount: 1
 ```
 
 ### baits/ 饵料文件
@@ -228,24 +251,78 @@ max-amount: 1
 ```yaml
 id: "worm"
 display-name: "蚯蚓"
-item: "minecraft:string"
+item:
+  source: "minecraft"
+  item-id: "string"
+  amount: 1
 default: true               # 是否为默认饵料
 fish-attract-modifiers:     # 针对特定鱼种的吸引倍率
   catfish: 2.0
   sea_bass: 1.5
 treasure-chance-boost: 0.02  # 宝藏概率加成
-max-durability-bonus: 0
+max-durability-bonus: 0     # 鱼竿耐久消耗减免值
 ```
 
 ## 使用饵料
 
-在鱼竿的 lore 中添加对应饵料名称即可生效。例如：
+### 装载机制
 
-```
-&7饵料: 蚯蚓
+Fishing 通过 **PersistentDataContainer（PDC）** 标签识别鱼竿上装载的饵料。玩家需要手持鱼竿并拥有饵料物品，通过调用 `FishingService.attachBait()`（通常由其他系统/命令触发）将饵料装载到鱼竿上。
+
+装载成功后：
+
+- 背包中的饵料物品会被消耗 1 个
+- 鱼竿的 PDC 中写入 `axs_fishing_bait_id` 标签
+- 后续抛竿时系统读取该标签并应用对应饵料属性
+
+未装载饵料时，使用 `baits/` 目录中第一个 `default: true` 的饵料作为默认饵料。
+
+### 饵料属性
+
+| 属性 | 说明 |
+|------|------|
+| `fish-attract-modifiers` | 针对特定鱼种的吸引倍率，影响选鱼权重 |
+| `treasure-chance-boost` | 宝藏触发概率加成，与钓竿加成叠加 |
+| `max-durability-bonus` | 鱼竿耐久消耗减免值，通过 `PlayerItemDamageEvent` 生效 |
+
+## 自定义钓竿
+
+### rods/ 钓竿文件
+
+每钓竿一个独立 YAML 文件，存放在 `rods/` 目录下：
+
+```yaml
+id: "wooden_rod"
+display-name: "木制钓竿"
+item:
+  source: "minecraft"
+  item-id: "fishing_rod"
+  amount: 1
+# 宝藏概率加成（加到基础概率上）
+treasure-chance-bonus: 0.05
+# 绿条高度加成（像素）
+green-bar-height-bonus: 8
+# 小游戏持续时间加成（ticks）
+catch-duration-bonus: 60
+# 经验倍率
+exp-multiplier: 1.1
+# 所需最低玩家钓鱼等级
+min-player-level: 0
 ```
 
-系统会扫描鱼竿 lore，只要某一行包含饵料的 `display-name`（如 `蚯蚓`）即视为使用该饵料。未检测到任何饵料时，使用 `baits/` 目录中第一个 `default: true` 的饵料作为默认饵料。
+### 钓竿识别
+
+钓竿通过 PDC 标签 `axs_fishing_rod_id` 识别。普通鱼竿（无标签）使用 `RodDefinition.DEFAULT` 默认属性。
+
+### 钓竿属性效果
+
+| 属性 | 说明 |
+|------|------|
+| `treasure-chance-bonus` | 增加宝藏触发概率 |
+| `green-bar-height-bonus` | 增加小游戏绿条高度（像素） |
+| `catch-duration-bonus` | 增加小游戏最大持续时间（ticks） |
+| `exp-multiplier` | 捕获获得经验的倍率 |
+| `min-player-level` | 使用该钓竿所需的最低钓鱼等级（可由外部系统校验） |
 
 ## 快速开始教程
 
@@ -277,7 +354,9 @@ time-ranges:
   day:
     start: "06:00"
     end: "22:00"
-item: "minecraft:cod"
+item:
+  source: "minecraft"
+  item-id: "cod"
 difficulty: 25
 behaviors:
   smooth:
@@ -308,7 +387,9 @@ time-ranges:
   dawn:
     start: "05:00"
     end: "07:00"
-item: "minecraft:tropical_fish"
+item:
+  source: "minecraft"
+  item-id: "tropical_fish"
 difficulty: 85
 behaviors:
   dart:
@@ -329,10 +410,10 @@ behaviors:
 # old_boot.yml
 id: "old_boot"
 display-name: "旧靴子"
-item: "minecraft:leather_boots"
+item:
+  source: "minecraft"
+  item-id: "leather_boots"
 chance: 0.5
-min-amount: 1
-max-amount: 1
 ```
 
 ### 第四步：创建饵料（baits/）
@@ -343,7 +424,9 @@ max-amount: 1
 # worm.yml
 id: "worm"
 display-name: "蚯蚓"
-item: "minecraft:string"
+item:
+  source: "minecraft"
+  item-id: "string"
 default: true
 fish-attract-modifiers:
   catfish: 2.0
@@ -352,7 +435,27 @@ treasure-chance-boost: 0.05
 max-durability-bonus: 0
 ```
 
-### 第五步：配置水域与池（ArcartXFishing.yml）
+### 第五步：创建钓竿（rods/）（可选）
+
+在 `plugins/ArcartXFishing/rods/` 目录下创建：
+
+```yaml
+# wooden_rod.yml
+id: "wooden_rod"
+display-name: "木制钓竿"
+item:
+  source: "minecraft"
+  item-id: "fishing_rod"
+treasure-chance-bonus: 0.05
+green-bar-height-bonus: 8
+catch-duration-bonus: 60
+exp-multiplier: 1.1
+min-player-level: 0
+```
+
+钓竿需要通过外部系统或命令将 `axs_fishing_rod_id` PDC 标签写入鱼竿物品。
+
+### 第六步：配置水域与池（ArcartXFishing.yml）
 
 编辑主配置，将鱼种和宝藏绑定到水域：
 
@@ -408,7 +511,11 @@ fishing_recycle:
       currency: "coin"
 ```
 
-### 第七步：使用
+### 第七步：装载饵料（可选）
+
+通过支持 PDC 写入的系统或命令调用 `FishingService.attachBait()`，将背包中的饵料装载到鱼竿上。装载后鱼竿会写入 `axs_fishing_bait_id` 标签。
+
+### 第八步：使用
 
 1. 玩家手持钓鱼竿，抛竿到指定水域或任意水面
 2. 鱼上钩后进入 HUD 小游戏，按住 **空格** 控制绿条
@@ -582,7 +689,8 @@ preset:
 |------|------|----------|
 | 抛竿后没有进入小游戏 | `replace-vanilla: false` 或 ArcartX UI 未正常加载 | 检查主配置 `replace-vanilla` 是否为 `true`，确认 ArcartX 客户端正常连接 |
 | 鱼种不刷新 | 季节/天气/时间/水域类型不匹配 | 检查当前服务器季节、天气和时间段是否符合鱼种配置条件 |
-| 饵料不生效 | 鱼竿 lore 格式与 `lore-pattern` 不匹配 | 确认 lore 严格匹配，例如 `&7饵料: 蚯蚓`（注意空格和颜色码） |
+| 饵料不生效 | 鱼竿未装载饵料或 PDC 标签写入失败 | 确认已调用 `FishingService.attachBait()` 消耗饵料并写入 `axs_fishing_bait_id` 标签 |
+| 钓竿属性不生效 | 鱼竿缺少 `axs_fishing_rod_id` PDC 标签 | 通过外部系统或命令写入正确的 PDC 标签 |
 | Market 无法回收鱼 | recycle 表中未配置 `source: "fishing"` 条目 | 参考上方 Market 回收联动配置 |
 | `/fishing sell` 提示"不是钓鱼产物" | 鱼物品缺少 PDC 标记 | 重新钓鱼即可获得带标记的新物品 |
 | EventPacket 收不到 Signal | EventPacket 模块未安装或未启用 fishing 相关规则 | 确认模块已安装，并在规则中配置正确的 `signal-id` |
