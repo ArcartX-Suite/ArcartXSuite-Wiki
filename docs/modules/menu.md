@@ -333,21 +333,21 @@ mmoitems_demo:
 
 ##### ArcartX 自定义贴图 NBT（YAML 简写）
 
-ArcartX 会读取物品上的 `icon` / `url` NBT 来选择贴图。Menu 在把 ItemStack 转成 JSON 之前，通过 ArcartX 的 ItemBridge 写入这些 NBT；若桥接不可用则静默跳过。
+ArcartX 会读取物品上的 `icon` / `url` NBT 来选择贴图。Menu 在把 ItemStack 转成 JSON 之前，通过 ArcartX 的 ItemBridge 写入这些 NBT；若桥接不可用则静默跳过；具体请查阅 [ArcartX 自定义物品贴图](https://wiki.arcartx.com/docs/arcartx_v2/2_simple/1_item_texture)  。
 
 | 字段 | 说明 |
 | --- | --- |
-| `texture` | 写入 `icon` NBT，渲染 `resource/item_icon/` 下的贴图；子目录写成 `xxx/xxx` |
-| `texture-url` / `url` | 写入 `url` NBT，用于原版 GUI / 箱子菜单图标，支持文件路径、网络链接、GIF |
+| `texture` | 写入 `icon` NBT，固定只渲染 `ArcartX/resource/item_icon/` 下的贴图；子目录写成 `xxx/xxx` |
+| `texture-url` / `url` | 写入 `url` NBT，渲染 `ArcartX/resource/` 下的任意文件夹贴图，支持文件路径、网络链接、GIF |
 | `nbt` | 写入任意字符串 NBT 键值对 |
 
 ```yaml
 icon:
   material: PAPER
   name: "&b自定义贴图"
-  texture: "item"                 # → icon NBT：resource/item_icon 贴图
-  # texture-url: "menu/icon.png"  # → url NBT：原版 GUI 图标（支持 GIF / 网络链接）
-  # nbt:                          # 或直接写任意字符串 NBT
+  texture: "item"                 # → icon NBT：ArcartX/resource/item_icon/item.png 贴图
+  # texture-url: "menu/icon.png"  # → url NBT：ArcartX/resource/menu/icon.png（支持 GIF / 网络链接）
+  # nbt:                          # 或直接写任意字符串 NBT（可用于支持其他插件或mod的渲染）
   #   icon: "item"
   #   url: "https://example.com/icon.gif"
 ```
