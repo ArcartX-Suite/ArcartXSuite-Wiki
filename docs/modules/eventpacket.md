@@ -12,7 +12,7 @@ description: ArcartX-Suite EventPacket 事件引擎，13种触发器13种动作�
 使用本模块可以提升你对ArcartX运用的上限，避免写脚本的情况下触发更多你想要的事件
 
 ::: tip 注意
-本模块已替代ArcartX社区的**ArcartXPacketCommand**附属插件功能，具体使用方法请阅读 [client-packet — 客户端回包触发](#_9-client-packet-—-客户端回包触发)
+本模块已替代 ArcartX 社区的 **ArcartXPacketCommand** 附属插件功能，并完整覆盖了其权限校验、冷却、参数透传、`<argN>` / `<uuid>` / `<world>` 占位符等特性。具体使用方法请阅读 [client-packet — 客户端回包触发](#_9-client-packet-—-客户端回包触发)。
 :::
 
 ## 依赖
@@ -57,6 +57,9 @@ storage:                       # 击杀计数 + 规则触发记录的数据库�
   pool-size: 2                 # HikariCP 连接池最大连接数
 
 packet-command:
+  # 客户端 Packet.send 回包预设入口，随 EventPacket 一起加载。
+  # 预设文件字段: type(op/console/player), permission, cooldown(秒, 如 5s/1m), allow-args, args-pattern, commands
+  # 可用占位符: <player>, <uuid>, <world>, <arg1>, <arg2> ...
   enabled: true                          # 是否启用 client-packet 预设
   packet-id: "ArcartXEventPacket"        # 客户端发包匹配的 packetId
   presets-directory: "eventpacket/packet-command-presets"  # 预设文件目录
@@ -472,16 +475,33 @@ rules:
 # 顶层键名就是 presetId，客户端通过 Packet.send('ArcartXEventPacket', '预设ID') 触发
 open_shop:
   type: op          # 命令执行身份：op / console / player
+  permission: ""    # 可选：触发该预设所需的 Bukkit 权限，留空不校验
+  cooldown: 0       # 可选：冷却时间，支持数字(秒)或 5s / 1m / 1h / 1d
+  allow-args: false # 可选：是否允许客户端透传额外参数
+  args-pattern: "[\\w.:-]{1,64}" # 可选：当 allow-args 为 true 时，对每个参数进行正则校验
   commands:
     - say <player> 打开了商店
     - openShop <player>
 
 buy_item:
   type: console
+  permission: ""
+  cooldown: 0
+  allow-args: false
+  args-pattern: "[\\w.:-]{1,64}"
   commands:
     - economy take <player> 100
     - give <player> diamond 1
     - say <player> 购买了钻石
+
+give_item:
+  type: op
+  permission: "eventpacket.preset.give"
+  cooldown: "5s"
+  allow-args: true
+  args-pattern: "[A-Z_0-9]{1,64}"
+  commands:
+    - give <player> <arg1> <arg2>
 ```
 
 **UI YAML 中发包：**
@@ -509,6 +529,42 @@ controls:
 - **`op`**：临时给予玩家 OP 权限执行命令，执行后立即恢复
 - **`console`**：以控制台身份执行
 - **`player`**：以玩家自身身份执行（不提权）
+:::
+
+::: tip 预设文件可用占位符
+预设文件中的 `commands` 支持以下占位符，执行前会被替换为对应值：
+
+| 占位符 | 说明 | 示例 |
+| --- | --- | --- |
+| `<player>` | 触发玩家名 | `Steve` |
+| `<uuid>` | 触发玩家 UUID | `00000000-0000-0000-0000-000000000000` |
+| `<world>` | 触发玩家所在世界名 | `world` |
+| `<arg1>` / `<arg2>` / ... | 客户端透传的额外参数，需 `allow-args: true` | `DIAMOND_SWORD` |
+
+对应动作变量为 `{player_name}`、`{player_uuid}`、`{player_world}`、`{arg1}`、`{arg2}` 等。
+:::
+
+::: tip 参数透传
+当 `allow-args: true` 时，客户端可以这样调用：
+
+```yaml
+action:
+  click: |-
+    Packet.send('ArcartXEventPacket', 'give_item', 'DIAMOND_SWORD', '1')
+```
+
+服务端预设：
+
+```yaml
+give_item:
+  type: op
+  allow-args: true
+  args-pattern: "[A-Z_0-9]{1,64}"
+  commands:
+    - give <player> <arg1> <arg2>
+```
+
+`args-pattern` 会对每个参数单独校验，不匹配则整个预设不会执行。
 :::
 
 #### 方式二：rules 配置（完整动作链）
@@ -967,6 +1023,13 @@ controls:
 | `{signal}` / `{command_signal}` | 信号名称 |
 | 自定义 key | `fire` 命令或模块发射时携带的 key=value 变量 |
 
+### 客户端回包预设变量
+
+| 变量 | 说明 |
+| --- | --- |
+| `{preset_id}` | 匹配的预设 ID |
+| `{arg1}` / `{arg2}` / ... | 客户端透传的额外参数（仅 `allow-args: true` 时可用） |
+
 ### 时间戳
 
 | 变量 | 说明 |
@@ -1298,6 +1361,8 @@ low_health_alert:
 | `/axs eventpacket status` | 查看规则数量和模块状态 | |
 | `/axs eventpacket reload` | 重载配置和预设文件 | |
 | `/axs eventpacket fire <信号名> <玩家> [key=value...]` | 手动触发信号，用于调试 | `/axs eventpacket fire boss_settlement Steve boss_id=dragon rank=1` |
+| `/axs eventpacket list` | 列出已加载的客户端回包预设 | `/axs eventpacket list` |
+| `/axs eventpacket run <玩家> <预设名> [arg...]` | 手动执行某个回包预设（绕过权限与冷却） | `/axs eventpacket run Steve give_item DIAMOND_SWORD 1` |
 | `/axs eventpacket clearlag` | 手动执行一次实体清理 | `/axs eventpacket clearlag` |
 
 ---
