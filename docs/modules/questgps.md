@@ -67,7 +67,7 @@ QuestGPS 以 **Chemdah 为单一事实来源**，overlay 只负责「哪些任�
 ## 配置
 
 配置文件路径：`plugins/ArcartXSuite/data/questgps/ArcartXQuestGPS.yml`  
-任务 overlay 目录：`data/questgps/quests/*.yml`（目录名由模块内部固定，不可通过配置修改）
+任务 overlay 目录：`data/questgps/quests/*.yml`（目录名由根级 `quests-directory` 配置，默认 `quests`）
 
 ### ArcartXQuestGPS.yml 配置项一览
 
@@ -112,7 +112,7 @@ QuestGPS 以 **Chemdah 为单一事实来源**，overlay 只负责「哪些任�
 
 | 字段 | 类型 | 默认值 | 可选值 | 说明 |
 | --- | --- | --- | --- | --- |
-| `mode` | string | `overlay` | `overlay` / `auto` | 任务列表来源 |
+| `mode` | string | `auto` | `overlay` / `auto` | 任务列表来源（**随附默认配置文件为 `auto`**；配置项缺失时代码回退为 `overlay`） |
 
 | 模式 | 行为 |
 | --- | --- |
@@ -237,7 +237,9 @@ gate:
 
 #### 其他根级字段
 
-当前版本暂无其他可配置根级字段。`quests-directory` 与 `config-version` 不被源码读取。
+根级 `quests-directory` **会被读取**（`QuestGpsModule` 据此定位 overlay 目录，默认 `quests`）。
+
+`config-version` 由模块基类 `AbstractAXSModule` 统一读取用于配置版本校验（默认字段名 `config-version`、当前版本 `1`），QuestGPS 自身不额外读取。
 
 ### 配置示例（精简）
 
@@ -259,7 +261,7 @@ category:
   source: chemdah
 
 discovery:
-  mode: overlay
+  mode: auto
 
 categories:
   mainline:
@@ -543,6 +545,7 @@ example_encounter_quest:
 
 | 命令 | 说明 |
 | --- | --- |
+| `/axs questgps help` | 查看子命令帮助（无参数时默认执行） |
 | `/axs questgps status` | 查看任务导航模块状态和已加载任务数 |
 | `/axs questgps reload` | 重载任务导航配置和 UI |
 | `/axs questgps open <玩家>` | 为在线玩家打开任务导航界面 |
@@ -672,7 +675,10 @@ QuestGPS 的 `hooks` 字段向 EventPacket 发出 command-signal，并通过 `Qu
 | --- | --- | --- |
 | `questgps.offer` | `quest-id`、`open-menu` | 向玩家推送任务并可选打开菜单 |
 | `questgps.accept` | `quest-id` | 直接为玩家接取任务 |
-| `questgps.track` | `quest-id` | 为玩家开始追踪指定任务 |
+| `questgps.track` | `quest-id`、`task-id` | 为玩家开始追踪指定任务；带 `task-id` 时追踪具体子目标，否则追踪整条任务 |
+| `questgps.open` | 无 | 直接为玩家打开任务菜单 |
+
+上述动作的 `quest-id` / `task-id` 参数均兼容驼峰写法 `questId` / `taskId`；`questgps.offer` 的 `open-menu` 默认为 `true`。
 
 EventPacket 配置示例（`data/eventpacket/rules/onboarding.yml`）：
 
