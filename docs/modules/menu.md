@@ -205,15 +205,16 @@ messages:
 
 每行格式：`<类型>: <参数>`。
 
-| 类型 | 别名 | 示例 | 说明 |
-| --- | --- | --- | --- |
-| `command` | `cmd`, `player` | `command: /spawn` | 以玩家身份执行命令，自动去掉开头的 `/` |
-| `console` | `op` | `console: eco give {player} 100` | 以控制台身份执行命令 |
-| `message` | `msg`, `tell` | `message: &a成功` | 向玩家发送聊天消息 |
-| `open` | `menu` | `open: teleport` | 打开另一个菜单 |
-| `close` | — | `close` | 关闭当前菜单 |
-| `page` | — | `page: next` / `page: main` | 切换同菜单内的页面 |
-| `sound` | — | `sound: UI_BUTTON_CLICK\|1\|1` | 播放音效，格式 `音效名|音量|音调` |
+| 类型 | 示例 | 说明 |
+| --- | --- | --- |
+| `command` | `command: /spawn` | 以玩家身份执行命令，自动去掉开头的 `/` |
+| `console` | `console: eco give {player} 100` | 以控制台身份执行命令 |
+| `op` | `op: /some-command` | 以玩家身份临时给予 OP 执行命令，用完自动收回 OP 状态 |
+| `message` | `message: &a成功` | 向玩家发送聊天消息 |
+| `open` | `open: teleport` | 打开另一个菜单 |
+| `close` | `close` | 关闭当前菜单 |
+| `page` | `page: next` / `page: main` | 切换同菜单内的页面 |
+| `sound` | `sound: UI_BUTTON_CLICK\|1\|1` | 播放音效，格式 `音效名|音量|音调` |
 
 - `command` / `console` 会展开 PlaceholderAPI 与 `{player}`。
 - `page` 支持 `prev` / `previous` / `-` / `<`（上一页）、`next` / `+` / `>`（下一页），其余值按页面 ID 处理。
