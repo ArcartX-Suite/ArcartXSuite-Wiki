@@ -215,8 +215,9 @@ messages:
 | `close` | `close` | 关闭当前菜单 |
 | `page` | `page: next` / `page: main` | 切换同菜单内的页面 |
 | `sound` | `sound: UI_BUTTON_CLICK\|1\|1` | 播放音效，格式 `音效名|音量|音调` |
+| `signal` | `signal: signin_success` / `signal: signin_success\|key=value\|key2=value2` | 触发 EventPacket 的 `trigger: command-signal` 规则；`signal:` 必须匹配，主题玩家为点击者，变量值支持 PlaceholderAPI / `{player}`，EventPacket 未启用时静默跳过 |
 
-- `command` / `console` 会展开 PlaceholderAPI 与 `{player}`。
+- `command` / `console` / `message` / `signal` 会展开 PlaceholderAPI 与 `{player}`；`signal` 的名称及变量值都会展开。
 - `page` 支持 `prev` / `previous` / `-` / `<`（上一页）、`next` / `+` / `>`（下一页），其余值按页面 ID 处理。
 - Menu 内置动作仅上表这些；`title` / `subtitle` / `actionbar` / `delay` / `back` / `refresh` 等**不受支持**，请用 `command` / `console` 或 EventPacket 实现。
 
