@@ -49,7 +49,7 @@ ArcartX-Suite 在 `plugin.yml` 里只硬依赖 `ArcartX`，其他全是软依赖
 
 物品库反射桥（NeigeItems、MythicMobs、MMOItems、Overture 等）由全局 `ItemSourceRegistry` 统一注册，Mail / Warehouse / Market 发奖与附件时自动识别物品来源。
 
-Aria 脚本条件通过 `DefaultAriaBridge` 对接 BlinkAriaHost；未安装时 Aria 条件求值为 false，可改用 JS 条件，见 [条件系统](/guide/conditions)。
+Aria 脚本条件通过 `DefaultAriaBridge` 对接 ArcartX 内置 Aria；Aria 不可用时条件求值为 false，可改用 JS 条件，见 [条件系统](/guide/conditions)。
 
 > **货币桥接**：所有经济相关读写统一通过全局 `CurrencyBridgeAPI`（`context.currencyManager()`）完成，支持 Vault / PlayerPoints / Rondo / Command / PlaceholderCommand / Custom 多 provider。详见 [桥接 API → 货币](/api/bridge-api)。
 

@@ -237,7 +237,7 @@ preset:
 | `item-attachments` | list | `[]` | 物品附件，每项含 `material`、`amount`、`name`、`lore` |
 | `currency-attachments` | list | `[]` | 货币附件，每项含 `currency`、`amount`、`description` |
 | `vault-attachment` | double | `0` | 兼容旧版，等效于 `currency: money` 的附件 |
-| `claim-commands` | list | `[]` | 领取时执行的命令 |
+| `claim-commands` | list | `[]` | 领取时以控制台身份执行的命令；仅替换 `<player>`、`{player}`、`%player%` 三种玩家名 token，不等同于任意 PAPI 展开 |
 | `claim-conditions` | list | `[]` | 领取条件，见下文「领取条件」 |
 | `cdks` | list | `[]` | 内嵌 CDK 列表；也可用 `cdk:` 定义单个 |
 
@@ -322,8 +322,9 @@ preset:
     - "%player_level% >= 10"                    # PAPI 行内
     - "%luckperms_groups% contains 新手"        # 权限组包含
     - "aria: return player.getHealth() > 0"     # Aria 脚本
-    - "js: player.getWorld().getName() == 'world'" # JS 脚本
+    - "js: player.getWorld() == 'world'" # JS 脚本（`AriaPlayer` 门面直接返回世界名）
   claim-commands:
+    # 仅支持 <player>、{player}、%player% 三种玩家名 token 替换
     - "eco give {player} 100"
 ```
 
@@ -335,11 +336,12 @@ preset:
 | Aria 结构化 | `type: aria` + `script:` 多行块 |
 | JS 行内 | `js: player.getLevel() >= 10` |
 | JS 结构化 | `type: js` + `script:` 多行块 |
-| 独立列表 | `aria-conditions:` / `js-conditions:` 下每行一段脚本 |
+| 独立列表 | `claim-conditions:` 中使用 `aria:` / `js:` 行内前缀区分脚本类型 |
 
 ::: warning
 - 未安装 PlaceholderAPI 时，PAPI 条件通常**不通过**，玩家无法领取。
-- 未部署 **BlinkAriaHost** 时，Aria 条件求值为 **false**；可改用 **JS 条件**（零依赖）。
+- Aria 由 ArcartX 内置，随 `depend: [ArcartX]` 提供，始终可用；Aria 会在求值前展开脚本文本中的 `%...%` PAPI 占位符和 `{player}`。
+- JS 需要 classpath 提供 JavaScript 引擎（Java 15+ 默认无 Nashorn）；JS 不做脚本级 `%...%` / `{player}` 预展开，取 PAPI 请使用 `player.papi()` 或 `player.papiNumber()`。两侧的 `player` 都是 `AriaPlayer` 门面，门面未覆盖的原生 API 使用 `player.bukkit()`。
 - 所有 `claim-conditions` 条目为 **AND** 关系。
 :::
 

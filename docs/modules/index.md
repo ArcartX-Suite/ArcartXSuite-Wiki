@@ -13,7 +13,7 @@ ArcartX-Suite 共 **26 个功能模块**，涵盖聊天、战斗、播报、追�
 | --- | --- | --- | --- |
 | **Essentials** | ArcartX | PlaceholderAPI、Tab、Chat | 基础玩家工具集合 |
 | **Regions** | ArcartX | — | 区域保护 + 世界规则 |
-| **Menu** | ArcartX | PlaceholderAPI、BlinkAriaHost（Aria 条件）、MythicMobs/NeigeItems/MMOItems | **付费模块**；配置驱动菜单；[条件系统](/guide/conditions) |
+| **Menu** | ArcartX | PlaceholderAPI、ArcartX 内置 Aria（Aria 条件）、MythicMobs/NeigeItems/MMOItems | **付费模块**；配置驱动菜单；[条件系统](/guide/conditions) |
 | **AfkReward** | ArcartX | PlaceholderAPI | PAPI 用于奖励命令解析和对外输出 |
 | Announcer | ArcartX | PlaceholderAPI、EventPacket | PAPI 只影响文本变量解析 |
 | Chat | ArcartX | PlaceholderAPI、MySQL | MySQL 用于跨服共享禁言/状态；跨服走宿主 cross-server |

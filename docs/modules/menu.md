@@ -42,7 +42,7 @@ Menu 模块提供 **配置驱动的 ArcartX 全屏菜单**，可替代 TrMenu �
 | --- | --- | --- | --- |
 | 必需 | ArcartX | UI 注册、发包、打开/关闭界面 | 模块无法启动 |
 | 可选 | PlaceholderAPI | PAPI 行内条件、文本变量 | PAPI 条件不通过、变量不展开 |
-| 可选 | Blink 系 + **BlinkAriaHost** | Aria 脚本条件（Symphony / Overture 等注入） | Aria 条件恒为 false |
+| 必需 | ArcartX | Aria 脚本条件（ArcartX 内置，随 `depend: [ArcartX]` 提供） | Aria 随 ArcartX 提供，始终可用 |
 | 可选 | MythicMobs / NeigeItems / MMOItems / Overture | 按钮 `icon.source` 外部物品生成 | 外部图标解析失败，回退为默认材质或隐藏 |
 
 ## 启用步骤
@@ -195,7 +195,7 @@ messages:
 | `order` | int | `0` | 排序权重，越小越靠前 |
 | `permission` | string | `""` | 按钮级权限，无权限时按钮不可见 |
 | `requirements` | list | `[]` | 可见条件，不满足时按钮从 UI 移除 |
-| `condition` | list | `[]` | 使用条件，不满足时点击无效 |
+| `use-conditions` | list | `[]` | 使用条件，不满足时点击无效 |
 | `deny-message` | string | `""` | 使用条件未通过时的提示消息 |
 | `actions` | list | `[]` | 点击通过使用条件后执行的动作 |
 | `client-action` | string | `""` | 客户端原生动作，如 `options` / `quit` |
@@ -216,10 +216,84 @@ messages:
 | `page` | `page: next` / `page: main` | 切换同菜单内的页面 |
 | `sound` | `sound: UI_BUTTON_CLICK\|1\|1` | 播放音效，格式 `音效名|音量|音调` |
 | `signal` | `signal: signin_success` / `signal: signin_success\|key=value\|key2=value2` | 触发 EventPacket 的 `trigger: command-signal` 规则；`signal:` 必须匹配，主题玩家为点击者，变量值支持 PlaceholderAPI / `{player}`，EventPacket 未启用时静默跳过 |
+| `aria` | `aria: player.command('warp vip')` | 执行 Aria 脚本动作；绑定 AXS `AriaPlayer` 门面，适合条件分支和多个副作用 |
+| `js` | `js: player.command('warp vip')` | 执行 JavaScript 动作；绑定 AXS `AriaPlayer` 门面和 `Bukkit`，需要 classpath 提供 JS 引擎 |
 
 - `command` / `console` / `message` / `signal` 会展开 PlaceholderAPI 与 `{player}`；`signal` 的名称及变量值都会展开。
+- `aria` / `js` 是脚本动作，不是条件别名：脚本作为副作用执行，返回值不参与动作成败判断；脚本在 Bukkit 主线程执行。`close-on-action` 为 `true` 时，动作执行后关闭菜单。
+- 脚本动作可以写成单行，也可以使用 YAML 块标量 `- |`，并在首行写 `aria:` 或 `js:`。Aria 脚本可用换行或 `;` 分隔多条语句。
+- 两侧脚本中的 `player` 都是 AXS 的 `AriaPlayer` 门面。常用方法包括 `hasPermission` / `hasPerm`、`papi` / `papiNumber`、`command` / `console` / `op`、`msg` / `sendMessage`、`title`、`sound`、`close` 和 `bukkit()`。
+- Aria 动作在求值前会预展开脚本文本中的 `%...%` PAPI 和 `{player}`；JS 动作不做脚本级预展开，JS 中取 PAPI 请使用 `player.papi()` 或 `player.papiNumber()`。
 - `page` 支持 `prev` / `previous` / `-` / `<`（上一页）、`next` / `+` / `>`（下一页），其余值按页面 ID 处理。
-- Menu 内置动作仅上表这些；`title` / `subtitle` / `actionbar` / `delay` / `back` / `refresh` 等**不受支持**，请用 `command` / `console` 或 EventPacket 实现。
+- Menu 没有独立的 `title:` / `subtitle:` / `actionbar:` / `delay:` / `back:` / `refresh:` 等内置动作关键字；需要这些效果时，可在脚本动作中使用 `player.title()` 等 `AriaPlayer` 方法，或通过 EventPacket 实现。
+
+脚本动作可以用于打开动作、关闭动作和按钮 `actions`。例如，下面的写法按 VIP 权限和余额选择折后价，扣除货币后发放物品：
+
+```yaml
+actions:
+  - |
+    aria:
+      if (player.hasPermission('shop.vip') && player.papiNumber('%vault_eco_balance%') >= 80) {
+        player.console('eco take %player_name% 80');
+        player.command('give %player_name% diamond 1');
+        player.msg('&aVIP 折扣购买成功：扣除 80 金币');
+      } elif (player.papiNumber('%vault_eco_balance%') >= 100) {
+        player.console('eco take %player_name% 100');
+        player.command('give %player_name% diamond 1');
+        player.msg('&a购买成功：扣除 100 金币');
+      } else {
+        player.msg('&c余额不足');
+      }
+```
+
+按余额分档发放不同奖励：
+
+```yaml
+actions:
+  - |
+    aria:
+      if (player.papiNumber('%vault_eco_balance%') >= 10000) {
+        player.console('give %player_name% diamond 3');
+      } elif (player.papiNumber('%vault_eco_balance%') >= 5000) {
+        player.console('give %player_name% diamond 2');
+      } elif (player.papiNumber('%vault_eco_balance%') >= 1000) {
+        player.console('give %player_name% diamond 1');
+      } else {
+        player.msg('&c余额未达到奖励档位');
+      }
+```
+
+按权限发放不同奖励：
+
+```yaml
+actions:
+  - |
+    aria:
+      if (player.hasPermission('rank.mvp')) {
+        player.command('give %player_name% diamond 5');
+      } elif (player.hasPermission('rank.vip')) {
+        player.command('give %player_name% diamond 2');
+      } else {
+        player.msg('&c需要 VIP 或 MVP 权限');
+      }
+```
+
+扣货币、发物资并组合声音与标题反馈：
+
+```yaml
+actions:
+  - |
+    aria:
+      if (player.papiNumber('%vault_eco_balance%') >= 250) {
+        player.console('eco take %player_name% 250');
+        player.command('give %player_name% emerald 8');
+        player.sound('ENTITY_PLAYER_LEVELUP', 1.0, 1.0);
+        player.title('&a购买成功', '&f获得 8 个绿宝石');
+      } else {
+        player.msg('&c需要 250 金币');
+        player.sound('ENTITY_VILLAGER_NO');
+      }
+```
 
 #### 按钮图标
 
@@ -448,8 +522,8 @@ Menu 的条件系统与 Prop / EventPacket / Mail **共用同一引擎**，完�
 
 | 类型 | 配置字段 | 别名 | 不满足时的表现 |
 | --- | --- | --- | --- |
-| **可见条件** | `requirements` | `view-conditions`、`viewConditions`、`conditions`、`aria-conditions`、`ariaConditions` | 按钮**从 UI 移除** |
-| **使用条件** | `condition` | `use-conditions`、`useConditions`、`click-conditions`、`clickConditions`、`aria-condition`、`ariaCondition` | 按钮**仍显示但点击无效**；有 `deny-message` 时提示 |
+| **可见条件** | `requirements` | 无别名 | 按钮**从 UI 移除** |
+| **使用条件** | `use-conditions` | 无别名 | 按钮**仍显示但点击无效**；有 `deny-message` 时提示 |
 
 列表内多条条件为 **AND（且）**。
 
@@ -467,7 +541,7 @@ flowchart TD
   B -->|是| C{open-requirements 全部通过?}
   C -->|否| Z
   C -->|是| D[渲染当前页按钮]
-  D --> E{view-conditions 通过?}
+  D --> E{requirements 通过?}
   E -->|否| F[不显示该按钮]
   E -->|是| G[显示按钮]
   G --> H{玩家点击}
@@ -503,7 +577,7 @@ requirements:
   - "%player_name% regex ^[A-Z].*"
 ```
 
-Aria 脚本写法（需 BlinkAriaHost）：
+Aria 脚本写法：
 
 ```yaml
 condition:
@@ -515,7 +589,7 @@ requirements:
 ```
 
 ::: warning
-Aria / JS 脚本内不会自动展开 `%placeholder%`。混用 PAPI 行 + 脚本时仍为 AND。
+Aria 脚本会在求值/执行前自动展开 `%...%` PAPI 占位符和 `{player}`；JS 脚本不会做脚本级预展开，JS 中请使用 `player.papi()` 或 `player.papiNumber()` 获取 PAPI 值。混用 PAPI 行 + 脚本时仍为 AND。
 :::
 
 ##### 运算符参考
@@ -741,8 +815,8 @@ if (menu != null) {
 | 物品绑定无效 | 核对 material 名、displayName、main/off hand |
 | 图标不显示 | 检查 `icon` 配置；外部物品需对应插件已安装 |
 | 贴图不生效 | 确认 ArcartX 在线且 ItemBridge 可用；`json` 非空会短路 `texture`/`nbt`；`texture` 对应 `resource/item_icon` 路径 |
-| 按钮灰色点不了 | **使用条件** `condition` 未通过；查看 `deny-message`；Aria 未部署时 Aria 条件恒失败，可改用 **JS 条件** |
+| 按钮灰色点不了 | **使用条件** `use-conditions` 未通过；查看 `deny-message`；Aria 条件应随 ArcartX 内置可用，请确认 ArcartX 已正常加载 |
 | 按钮不显示 | **可见条件** `requirements` 未通过 |
 | PAPI 条件异常 | 确认 PAPI 与 Expansion；见 [条件系统](/guide/conditions#故障排查) |
-| Aria 条件全失败 | 确认 `BlinkAriaHost` 已加载；见 [条件系统 · Aria](/guide/conditions#二aria-脚本条件)；若无 Blink 请改用 **JS 条件** |
-| JS 条件全失败 | 确认 Java 版本 ≥ 8（Nashorn）；脚本语法错误查看服务端 fine 日志 |
+| Aria 条件全失败 | 确认 ArcartX 已正常加载；见 [条件系统 · Aria](/guide/conditions#二aria-脚本条件)。Suite 硬依赖 ArcartX，Aria 随之提供，无需安装额外 Aria 宿主插件 |
+| JS 条件全失败 | 确认 classpath 已提供 JavaScript `ScriptEngine`（Java 15+ 默认无 Nashorn，可使用 GraalJS 或 standalone Nashorn）；脚本语法错误查看服务端日志 |

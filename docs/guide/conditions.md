@@ -13,23 +13,20 @@ ArcartX-Suite 在 **Menu、Prop、EventPacket、Mail** 等模块中统一使用�
 
 ## 前置知识：三种条件类型
 
-| 类型 | 配置识别方式 | 运行时依赖 | 典型用途 |
-| --- | --- | --- | --- |
-| **PAPI 条件** | `%变量% 运算符 期望值` | [PlaceholderAPI](https://www.spigotmc.org/resources/placeholderapi.6245/)（推荐安装） | 等级、余额、权限组、世界名 |
-| **Aria 条件** | `aria:` 前缀、`type: aria`、或 `aria-conditions` 键 | **ArcartX 内置**（ArcartX-Suite 硬依赖 ArcartX，Aria 随之提供，无需额外插件） | 调用 `player` 单层方法（等级/权限/血量等）+ PAPI 值算术/逻辑组合；与玩家无关的 Java 工具（`use()`） |
-| **JS 条件** | `js:` 前缀、`type: js`、或 `js-conditions` 键 | classpath 上的 **JS `ScriptEngine`**（Nashorn / GraalJS）；Java 15+ 默认已无内置引擎 | 复杂逻辑、Bukkit API 互操作 |
+| 类型　　　　　| 配置识别方式　　　　　　　　　　　　　　　　　　　　| 运行时依赖　　　　　　　　　　　　　　　　　　　　　　　　　　　　　　　　　　　　　　| 典型用途　　　　　　　　　　　　　　　　　　　　　　　　　　　　　　　　　　　　　　　　　　　　　　　　　　 |
+| ---------------| -----------------------------------------------------| ---------------------------------------------------------------------------------------| --------------------------------------------------------------------------------------------------------------|
+| **PAPI 条件** | `%变量% 运算符 期望值`　　　　　　　　　　　　　　　| [PlaceholderAPI](https://www.spigotmc.org/resources/placeholderapi.6245/)（推荐安装） | 等级、余额、权限组、世界名　　　　　　　　　　　　　　　　　　　　　　　　　　　　　　　　　　　　　　　　　 |
+| **Aria 条件** | `aria:` 前缀、`type: aria`、或 `conditions` 键 | **ArcartX 内置**（ArcartX-Suite 硬依赖 ArcartX，Aria 随之提供，无需额外插件）　　　　 | 调用 `AriaPlayer` 门面（等级/权限/血量/世界名等）+ PAPI 值算术/逻辑组合；需要原生 API 时用 `player.bukkit()` |
+| **JS 条件**　 | `js:` 前缀、`type: js`、或 `conditions` 键　　　 | classpath 上的 **JS `ScriptEngine`**（Nashorn / GraalJS）；Java 15+ 默认已无内置引擎　| 复杂逻辑、通过 `player.bukkit()` 或 `Bukkit` 进行 Bukkit API 互操作　　　　　　　　　　　　　　　　　　　　　|
 
 ::: info 逻辑关系
 同一列表内的**多条条件为 AND（且）关系**——必须全部通过才算满足。暂不支持 OR / NOT 组合；复杂逻辑请写进一条 Aria 或 JS 脚本。
 :::
 
 ::: warning Aria 由 ArcartX 内置提供，无需额外插件
-[Aria](https://github.com/17Artist/Aria) 是 ArcartX 内置的脚本语言运行时（Java 17，无第三方依赖）。**ArcartX-Suite 硬依赖 ArcartX**（`plugin.yml` 的 `depend: [ArcartX]`，ArcartX 必装才能启动），因此 Aria 运行时**随 ArcartX 一起提供、始终可用**——不再需要 Blink 系插件（Symphony / Overture / BlinkAriaHost）。
+[Aria](https://github.com/17Artist/Aria) 是 ArcartX 内置的脚本语言运行时。**ArcartX-Suite 硬依赖 ArcartX**（`plugin.yml` 的 `depend: [ArcartX]`），因此正常启动后 Aria 会随 ArcartX 一起提供并可用。
 
-Suite 通过 `DefaultAriaBridge` 在运行时连接 Aria，发现顺序为：
-
-1. **ArcartX 内置的新版 Aria**（`priv.seventeen.artist.aria.Aria`）——首选；
-2. Blink框架的 `AriaScriptManager`——仅作历史兼容回退，正常部署下不会用到。
+Aria 完全由 ArcartX 内置提供，正常启动 ArcartX 即可使用。
 :::
 
 ::: tip JS 条件与 Aria 条件的取舍
@@ -110,8 +107,8 @@ conditions:
 
 [Aria](https://github.com/17Artist/Aria) 是 ArcartX 内置、运行在 JVM 上的轻量脚本语言（与 Shimmer 同系，独立 KISS 语法——**不是 JavaScript**）。由于 ArcartX-Suite 硬依赖 ArcartX，Aria 始终可用。
 
-::: tip Aria 会注入活的 player 对象（原生 Bukkit Player）
-ArcartX-Suite 按 [Overture](https://github.com/17Artist/Overture) 的官方用法，在求值前把当前玩家以 `JavaObjectMirror` 包装成全局变量注入 Aria（`ObjectValue(JavaObjectMirror(player))` 写入 `globalStorage`）。因此脚本内可以直接用裸名 `player` 调用其 **Bukkit 方法**：
+::: tip Aria 会注入 AXS 的 `AriaPlayer` 门面
+ArcartX-Suite 会把当前玩家包装成 AXS 自有的 `AriaPlayer` 门面，并以全局变量 `player` 注入 Aria。因此脚本内可以直接调用门面提供的读方法、权限判断、PAPI 方法和动作方法：
 
 ```yaml
 conditions:
@@ -122,24 +119,24 @@ conditions:
 条件为**单个表达式**时，Suite 会自动补 `return` 再交给 Aria 求值。
 :::
 
-::: warning 只支持 player 上的【单层】方法调用
-经真机（`aria-1.0.1`）验证：`player.getLevel()`、`player.hasPermission('...')`、`player.performCommand('...')`、`player.sendMessage('...')` 这类**直接在 player 上**的调用可用；但**链式调用不可用**——`player.getWorld().getName()` 里 `getWorld()` 返回的对象不会被再次包装，读到 `none`。需要世界名、经济余额等时，请改用 `%...%` PAPI 占位符。
+::: info `player` 是 AXS 自有门面
+`player` 的类型是 `AriaPlayer`，不是原生 Bukkit `Player`。常用玩家信息、权限、PAPI 和动作均可通过门面单层调用；`player.getWorld()` 直接返回字符串世界名。需要门面未覆盖的 Bukkit API 或链式调用时，使用 `player.bukkit()` 取回原生对象。
 :::
 
-除了 `player`，Suite 还会在求值**前**把脚本文本里的 **PAPI 占位符（`%...%`）和 `{player}`** 展开成字面值——用于取那些不在 Player 对象上、或链式才能取到的值（如 `%player_world%`、`%vault_eco_balance%`）。字符串值记得加引号：
+除了 `player`，Aria 路径还会在求值**前**把脚本文本里的 **PAPI 占位符（`%...%`）和 `{player}`** 展开成字面值。常用玩家信息优先使用 `AriaPlayer` 的单层方法；需要门面未覆盖的 Bukkit API 或链式调用时，可通过 `player.bukkit()` 取回原生 Bukkit `Player`。字符串值记得加引号：
 
 ```yaml
 conditions:
-  # player 对象方法（直接调用）
+  # AriaPlayer 门面方法（直接调用）
   - "aria: player.getLevel() >= 10"
-  # PAPI 占位符（求值前展开为字面值；字符串加引号）
+  # Aria 路径会在求值前展开 PAPI 和 {player}
   - "aria: '%player_world%' == 'world'"
 ```
 
 ::: warning Aria 语法与 JS 不同
 Aria 有自己的语法，勿套用 JS 写法：
 - 注释用 `//`（无 `/* */`）；
-- 局部变量声明带命名空间前缀，如 `var.x = 1`（读取时可写裸名 `x`）；
+- 命名空间**完全隔离、读写不回退**：裸标识符（无前缀）、`var.`、`val.` 是三个互不相通的命名空间——`var.x = 10` 之后读裸名 `x` 得到的是 `none`（是另一个变量），反之亦然。写和读必须用**同一前缀**（局部变量最简单的写法是全程用裸名：`x = 1` 后读 `x`）；
 - 无 `new`；用 `use('全限定类名')` 取 Java 类，再 `类()` 构造 / `类.静态方法()` / `类.枚举字段`；
 - 空值是 `none`（不是 `null`）；
 - 区间 `a..b` 左闭右开；遍历用 `for (i in 0..n) { }` 或 `for (x in list) { }`；
@@ -154,7 +151,7 @@ Aria 有自己的语法，勿套用 JS 写法：
 flowchart LR
   A[ArcartX 内置 Aria 运行时] --> B[AriaBridge]
   C[ArcartX-Suite 硬依赖 ArcartX] --> A
-  G[注入活 player 对象<br/>ObjectValue+JavaObjectMirror] --> D[条件评估]
+  G[注入 AriaPlayer 门面<br/>player] --> D[条件评估]
   F[展开 PAPI %...% / {player}] --> D
   D -->|eval + 自动补 return| B
   E[Aria 条件 YAML] --> F
@@ -168,27 +165,21 @@ conditions:
   - "aria: '%player_world%' == 'world'"
 ```
 
-`aria:` 后面整段为脚本内容（可多行时用 YAML 块标量，见下文）。脚本里可用裸名 `player` 调用其单层 Bukkit 方法；出现的 `%...%` 与 `{player}` 会在求值前先展开成字面值。
+`aria:` 后面整段为脚本内容（可多行时用 YAML 块标量，见下文）。脚本里可用裸名 `player` 调用 `AriaPlayer` 门面方法；出现的 `%...%` 与 `{player}` 会在 Aria 求值前先展开成字面值。门面未覆盖的 Bukkit API 可通过 `player.bukkit()` 访问原生对象。
 
-### 2.3 写法二：独立 Aria 列表键
+### 2.3 写法二：在规范条件列表中使用 Aria
 
-以下键名下的**每一行字符串整段视为 Aria 脚本**（无需写 `aria:` 前缀）：
-
-| 键名 | 说明 |
-| --- | --- |
-| `aria-conditions` | 推荐，语义清晰 |
-| `ariaConditions` | 驼峰别名 |
-| `aria-condition` / `ariaCondition` | 单数形式 |
-| `aria` | 简短形式 |
+不再使用独立的 Aria 条件键。各模块只保留自己的规范条件键，在列表项前使用 `aria:` 前缀即可；例如 Prop 和 EventPacket 使用 `conditions`：
 
 ```yaml
-aria-conditions:
+conditions:
   - |
-    // 组合条件：等级 ≥ 10（player 对象方法）且余额 ≥ 100（%...% 求值前已展开成数字）
-    return player.getLevel() >= 10 && %vault_eco_balance% >= 100
+    aria: |
+      // 组合条件：等级 ≥ 10（AriaPlayer 门面）且余额 ≥ 100（%...% 求值前已展开成数字）
+      player.getLevel() >= 10 && %vault_eco_balance% >= 100
 ```
 
-Menu 模块还在按钮级支持 `condition` / `use-conditions` 等键旁挂载 Aria；见 [Menu 文档](/modules/menu#按钮条件)。
+Menu 按钮分别使用规范的 `requirements`（可见条件）或 `use-conditions`（使用条件）；见 [Menu 文档](/modules/menu#按钮条件)。
 
 ### 2.4 写法三：结构化 Map
 
@@ -196,8 +187,8 @@ Menu 模块还在按钮级支持 `condition` / `use-conditions` 等键旁挂载 
 conditions:
   - type: aria                    # 或 kind: aria
     script: |
-      var.level = player.getLevel()
-      return level >= 10 && level <= 100
+      level = player.getLevel()
+      level >= 10 && level <= 100
   - type: aria
     expression: "'%player_gamemode%' == 'SURVIVAL'"   # script / code / aria 字段等价
 ```
@@ -208,20 +199,46 @@ conditions:
 | `script` | 脚本正文（推荐） |
 | `expression` / `code` / `aria` | 与 `script` 等价 |
 
-::: tip 与 Overture 物品脚本的关系
-[Overture](https://github.com/17Artist/Overture) 物品事件使用同一 Aria 运行时，Suite 的 `player` 注入方式（`ObjectValue(JavaObjectMirror(...))` 写入 `globalStorage`）也与它一致。区别在于 Overture 还注入了 `item`、`event` 等物品/事件上下文对象，而 **ArcartX-Suite 通用条件只注入 `player`**（外加 PAPI/`{player}` 字面值展开）；物品相关逻辑请在 Overture 配置或自定义 Aria 函数中编写。
+::: tip 
+ArcartX-Suite 通用条件只注入 `player` 这一 `AriaPlayer` 门面（外加 Aria 路径的 PAPI/`{player}` 字面值展开）。
 :::
 
-### 2.5 脚本里能用什么值
+### 2.5 `AriaPlayer` 门面与脚本值
 
-Aria 脚本可用两类值：
+| 分类 | 方法 | 返回类型 | 说明 |
+| --- | --- | --- | --- |
+| 读取 | `getName()` / `getUuid()` / `getDisplayName()` | `String` | 玩家名称、UUID 字符串、显示名称 |
+| 读取 | `getLevel()` / `getFood()` / `getBlockX()` / `getBlockY()` / `getBlockZ()` | `int` | 等级、饱食度、方块坐标 |
+| 读取 | `getExp()` | `float` | 当前经验进度 |
+| 读取 | `getHealth()` / `getX()` / `getY()` / `getZ()` | `double` | 生命值、精确坐标 |
+| 读取 | `getGameMode()` / `getWorld()` | `String` | 游戏模式名；世界名称（`getWorld()` 直接返回字符串） |
+| 读取 | `isSneaking()` / `isSprinting()` / `isFlying()` / `isOp()` | `boolean` | 玩家状态 |
+| 权限 | `hasPermission(String permission)` / `hasPerm(String permission)` | `boolean` | 权限判断；`hasPerm` 是简写 |
+| PAPI | `papi(String input)` | `String` | 以当前玩家解析 PlaceholderAPI 占位符 |
+| PAPI | `papiNumber(String input)` | `double` | 解析 PAPI 结果；无法解析时返回 `0.0` |
 
-**1) 活的 `player` 对象**（直接注入，原生 Bukkit Player，仅支持单层方法调用）：
+`papiNumber` 解析失败或占位符不可用时按 `0.0` 处理。
+| 动作 | `command(String command)` / `console(String command)` / `op(String command)` | `boolean` | 玩家、控制台或临时 OP 身份执行命令 |
+| 动作 | `msg(String message)` / `sendMessage(String message)` | `void` | 发送支持 `&` 颜色代码的消息 |
+| 动作 | `title(String title, String subtitle)` | `void` | 发送标题，默认时间 `10, 60, 10` |
+| 动作 | `title(String title, String subtitle, int fadeIn, int stay, int fadeOut)` | `void` | 发送标题并指定显示时间 |
+| 动作 | `sound(String name)` | `void` | 播放声音，默认音量和音调 `1.0, 1.0` |
+| 动作 | `sound(String name, double volume, double pitch)` | `void` | 播放声音并指定音量、音调 |
+| 动作 | `close()` | `void` | 关闭玩家当前背包界面 |
+| 原生对象 | `bukkit()` | `Player` | 返回原生 Bukkit `Player`，用于门面未覆盖的 API 或链式调用 |
+
+命令、消息、标题和声音输入都会先经过 `papi()` 解析；命令开头的 `/` 会自动移除。`op()` 执行完成后会恢复玩家原本的 OP 状态。
+
+Aria 脚本中的 `player` 是 AXS 自有的 `AriaPlayer` 门面，不是原生 Bukkit `Player`。常用玩家信息和动作均通过单层门面方法提供：
+
+**1) `AriaPlayer` 门面方法**：
 
 ```aria
 return player.getLevel() >= 10
 return player.hasPermission('vip.access')
 return player.getHealth() > 10
+return player.getWorld() == 'world'
+return player.isSneaking()
 ```
 
 **2) 求值前展开的字面值记号**（Suite 先把脚本文本中的以下记号替换成字面值，其余部分原样交给 Aria）：
@@ -231,10 +248,10 @@ return player.getHealth() > 10
 | `%papi_placeholder%` | 对应 PlaceholderAPI 的返回值（字符串 / 数字文本） |
 | `{player}` | 当前玩家名 |
 
-对于 Player 对象上有的单层方法（等级、权限、血量…）优先用 `player.xxx()`；而**链式才能取到的值**（如世界名 `player.getWorld().getName()`）或 **PAPI 才有的值**（经济余额、权限组名、在线时长…）则用 `%...%`。`use()` 仍可调用与玩家无关的 Java 工具类（如 `java.util.Calendar`）。
+门面没有覆盖的值或需要链式调用时，使用 `player.bukkit()` 访问原生 Bukkit `Player`，例如 `player.bukkit().getInventory()`。Aria 路径仍会在求值前展开 `%...%` PAPI 和 `{player}`；`use()` 仍可调用与玩家无关的 Java 工具类（如 `java.util.Calendar`）。
 
 ```aria
-// player 对象方法（不需展开）
+// AriaPlayer 门面方法（不需展开）
 return player.getLevel() >= 10
 
 // player 方法 + PAPI 字面值混用
@@ -245,8 +262,8 @@ return player.getLevel() * 10 + %vault_eco_balance% / 100 >= 500
 `%...%` 展开是纯文本替换。`%player_name% == 'Steve'` 会变成 `Steve == 'Steve'`，左边 `Steve` 被当成变量（读到 `none`）。PAPI 字符串比较请写成 `'%player_name%' == 'Steve'`；数值比较不用引号：`%player_level% >= 30`。（`player.getName()` 等对象方法返回的字符串无需额外加引号。）
 :::
 
-::: warning 链式调用不可用
-只能调用 `player` 上的单层方法；`player.getWorld().getName()` 中 `getWorld()` 返回的对象不会被再次包装，后续 `.getName()` 读到 `none`。请改用对应的 PAPI 占位符（如 `%player_world%`）。
+::: tip 需要原生 Bukkit API 时使用 `bukkit()`
+常用值优先使用门面单层方法，例如 `player.getWorld()` 直接返回字符串世界名。门面没有覆盖的 API、需要链式调用或需要世界对象时，使用 `player.bukkit()`，例如 `player.bukkit().getWorld().getTime()`。
 :::
 
 ### 2.6 返回值与布尔语义
@@ -269,9 +286,9 @@ return player.getLevel() * 10 + %vault_eco_balance% / 100 >= 500
 conditions:
   - type: aria
     script: |
-      // 等级/权限用 player 对象方法；世界名链式取不到，改用展开的 PAPI（字符串加引号）
+      // 等级/权限/世界名直接使用 AriaPlayer 门面方法
       return player.getLevel() >= 30
-        && '%player_world%' == 'world'
+        && player.getWorld() == 'world'
         && player.hasPermission('group.warrior')
 ```
 
@@ -301,7 +318,7 @@ conditions:
 conditions:
   - type: aria
     script: |
-      var.world = '%player_world%'
+      world = '%player_world%'
       return world == 'world' || world == 'world_nether'
 ```
 
@@ -314,9 +331,9 @@ conditions:
     script: |
       // Aria 无 new；用 use() 取 java.util.Calendar 判断星期几
       Calendar = use('java.util.Calendar')
-      var.cal = Calendar.getInstance()
-      var.dow = cal.get(Calendar.DAY_OF_WEEK)   // 1=周日 ... 7=周六
-      var.isWeekend = dow == 1 || dow == 7
+      cal = Calendar.getInstance()
+      dow = cal.get(Calendar.DAY_OF_WEEK)   // 1=周日 ... 7=周六
+      isWeekend = dow == 1 || dow == 7
       return isWeekend && %player_level% >= 10
 ```
 
@@ -327,7 +344,7 @@ conditions:
 ```yaml
 open-requirements:
   - "%player_level% >= 5"                       # PAPI：快速筛等级
-  - "aria: player.hasPermission('vip.access')"  # Aria：player 对象方法
+  - "aria: player.hasPermission('vip.access')"  # AriaPlayer 门面
 ```
 
 ---
@@ -349,41 +366,35 @@ JS 条件通过 JVM 的 `javax.script.ScriptEngine` 执行。ArcartX-Suite 在 `
 | 维度 | JS 条件 | Aria 条件 |
 | --- | --- | --- |
 | **外部依赖** | 需 classpath 上的 JS 引擎（Java 15+ 默认无） | 无（ArcartX 内置，随硬依赖提供） |
-| **注入变量** | `player`、`Bukkit`（可反射调用、支持链式） | `player`（原生 Bukkit Player，仅单层方法）；外加 PAPI/`{player}` 字面值展开 |
+| **注入变量** | `player`（`AriaPlayer` 门面）、`Bukkit`（Bukkit 类）；可用 `player.bukkit()` 访问原生对象 | `player`（`AriaPlayer` 门面）；Aria 路径额外进行 PAPI/`{player}` 字面值展开 |
 | **脚本语法** | 标准 JavaScript（Nashorn / GraalJS 方言） | Aria 语言（KISS 语法：`//` 注释、`var.` 命名空间、`use()` 互操作） |
 | **性能** | 中等（解释执行） | 中等至优秀（支持 JIT） |
-| **适用场景** | 需链式 Bukkit API / 复杂逻辑（需引擎） | player 单层方法 + PAPI 值的算术/逻辑组合、与玩家无关的 Java 工具 |
+| **适用场景** | 复杂逻辑、JS 语法或需要通过 `player.bukkit()` / `Bukkit` 访问 Bukkit API（需引擎） | 门面方法 + Aria 路径预展开的 PAPI 值、与玩家无关的 Java 工具 |
 
 ### 3.2 写法一：行内 `js:` 前缀
 
 ```yaml
 conditions:
   - "js: player.getLevel() >= 10"
-  - "js: player.getWorld().getName() == 'world'"
-  - "js: player.getHealth() > player.getMaxHealth() * 0.5"
+  - "js: player.getWorld() == 'world'"
+  - "js: player.getHealth() > player.bukkit().getMaxHealth() * 0.5"
 ```
 
 `js:` 后面整段为脚本内容。与 `aria:` 前缀用法完全一致，只是引擎不同。
 
-### 3.3 写法二：独立 JS 列表键
+### 3.3 写法二：在规范条件列表中使用 JS
 
-以下键名下的**每一行字符串整段视为 JS 脚本**（无需写 `js:` 前缀）：
-
-| 键名 | 说明 |
-| --- | --- |
-| `js-conditions` | 推荐，语义清晰 |
-| `jsConditions` | 驼峰别名 |
-| `js-condition` / `jsCondition` | 单数形式 |
-| `js` | 简短形式 |
+不再使用独立的 JS 条件键。各模块只保留自己的规范条件键，在列表项前使用 `js:` 前缀即可；例如 Prop 和 EventPacket 使用 `conditions`：
 
 ```yaml
-js-conditions:
-  - "player.getLevel() >= 10 && player.hasPermission('vip.access')"
+conditions:
+  - "js: player.getLevel() >= 10 && player.hasPermission('vip.access')"
   - |
-    var world = player.getWorld().getName()
-    var isNether = world == 'world_nether'
-    var hasPerm = player.hasPermission('nether.travel')
-    return isNether && hasPerm
+    js: |
+      var world = player.getWorld()
+      var isNether = world == 'world_nether'
+      var hasPermission = player.hasPermission('nether.travel')
+      isNether && hasPermission
 ```
 
 ### 3.4 写法三：结构化 Map
@@ -393,9 +404,9 @@ conditions:
   - type: js                    # 或 kind: js
     script: |
       var level = player.getLevel()
-      return level >= 10 && level <= 100
+      level >= 10 && level <= 100
   - type: js
-    expression: "return !player.isOp()"   # script / code / js 字段等价
+    expression: "!player.isOp()"   # script / code / js 字段等价
 ```
 
 | 字段 | 别名 | 说明 |
@@ -410,7 +421,7 @@ conditions:
 
 ```text
 bindings = {
-  "player": <Bukkit Player 对象>,
+  "player": <AriaPlayer 门面>,
   "Bukkit": <org.bukkit.Bukkit 类对象>
 }
 ```
@@ -418,10 +429,12 @@ bindings = {
 这意味着你可以在 JS 中：
 
 ```javascript
-// 直接调用 Player API
+// 调用 AriaPlayer 门面 API
 player.getLevel()
-player.getWorld().getName()
+player.getWorld()
 player.hasPermission('myplugin.admin')
+player.papi('%vault_eco_balance%')
+player.bukkit().getInventory() // 门面未覆盖的原生 API
 
 // 通过 Bukkit 类调用静态方法
 Bukkit.getOnlinePlayers().size()   // 在线人数
@@ -434,13 +447,13 @@ cal.get(java.util.Calendar.DAY_OF_WEEK)
 // GraalJS 需改用 Java.type('java.util.Calendar') 取类。
 ```
 
-::: warning 不要在 JS 条件里直接写 %placeholder%
-ArcartX-Suite **不会**在 JS 脚本内自动展开 PAPI。若要用 PAPI 值，请改用 PAPI 行内条件，或通过 `Bukkit.dispatchCommand` 等间接方式获取。
+::: warning JS 不会做脚本级 PAPI 预展开
+JS 路径不会在脚本执行前自动展开 `{player}` 或 `%...%` PAPI 文本。需要 PAPI 值时，请在 JS 中使用 `player.papi('%placeholder%')` 或 `player.papiNumber('%placeholder%')`；不要把 `%placeholder%` 直接当作 JS 表达式的一部分。
 :::
 
 ### 3.6 返回值与布尔语义
 
-与 Aria 完全一致，脚本最后一行值会被转换为布尔：
+JS 路径不会自动补 `return`；脚本执行结果取 JavaScript 引擎返回的末表达式值，再按布尔规则判断：
 
 | 返回值 | 视为 |
 | --- | --- |
@@ -457,8 +470,8 @@ conditions:
   - type: js
     script: |
       var health = player.getHealth()
-      var max = player.getAttribute(org.bukkit.attribute.Attribute.GENERIC_MAX_HEALTH).getValue()
-      return health / max > 0.3   // 血量高于 30%
+      var max = player.bukkit().getAttribute(org.bukkit.attribute.Attribute.GENERIC_MAX_HEALTH).getValue()
+      health / max > 0.3   // 血量高于 30%
 ```
 
 #### 案例 2：在线人数限制
@@ -468,7 +481,7 @@ conditions:
   - type: js
     script: |
       var online = Bukkit.getOnlinePlayers().size()
-      return online >= 10 && online <= 50
+      online >= 10 && online <= 50
 ```
 
 #### 案例 3：世界时间判断（白天/黑夜）
@@ -477,8 +490,8 @@ conditions:
 conditions:
   - type: js
     script: |
-      var time = player.getWorld().getTime()
-      return time >= 0 && time < 13000   // 白天
+      var time = player.bukkit().getWorld().getTime()
+      time >= 0 && time < 13000   // 白天
 ```
 
 #### 案例 4：玩家名正则匹配
@@ -489,7 +502,7 @@ conditions:
     script: |
       var name = player.getName()
       var regex = /^[A-Z][a-z]+$/
-      return regex.test(name)   // 首字母大写，其余小写
+      regex.test(name)   // 首字母大写，其余小写
 ```
 
 #### 案例 5：持有特定物品判断
@@ -498,12 +511,10 @@ conditions:
 conditions:
   - type: js
     script: |
-      var inv = player.getInventory()
+      var inv = player.bukkit().getInventory()
       var item = inv.getItemInMainHand()
-      if (item == null) return false
-      var meta = item.getItemMeta()
-      if (meta == null) return false
-      return meta.hasDisplayName() && meta.getDisplayName().contains('神剑')
+      var meta = item == null ? null : item.getItemMeta()
+      meta != null && meta.hasDisplayName() && meta.getDisplayName().contains('神剑')
 ```
 
 #### 案例 6：多世界 OR 判断
@@ -512,8 +523,8 @@ conditions:
 conditions:
   - type: js
     script: |
-      var w = player.getWorld().getName()
-      return w == 'world' || w == 'world_nether' || w == 'world_the_end'
+      var w = player.getWorld()
+      w == 'world' || w == 'world_nether' || w == 'world_the_end'
 ```
 
 #### 案例 7：冷却时间计算（基于 System.currentTimeMillis）
@@ -523,11 +534,10 @@ conditions:
   - type: js
     script: |
       // 假设玩家 metadata 中存储了上次使用时间
-      var meta = player.getMetadata('last_use_skill')
-      if (meta.isEmpty()) return true
-      var last = meta.get(0).asLong()
+      var meta = player.bukkit().getMetadata('last_use_skill')
+      var last = meta.isEmpty() ? 0 : meta.get(0).asLong()
       var now = java.lang.System.currentTimeMillis()
-      return now - last > 30000   // 冷却 30 秒
+      meta.isEmpty() || now - last > 30000   // 冷却 30 秒
 ```
 
 #### 案例 8：PAPI + JS 混用
@@ -540,8 +550,8 @@ conditions:
   - "js: player.hasPermission('dungeon.entry')"  # JS：Bukkit 权限
   - type: js
     script: |
-      var world = player.getWorld().getName()
-      return world == 'dungeon_world'
+      var world = player.getWorld()
+      world == 'dungeon_world'
 ```
 
 ---
@@ -552,7 +562,7 @@ conditions:
 
 | 模块 | 配置文件 | 条件字段 | 不满足时行为 | 文档 |
 | --- | --- | --- | --- | --- |
-| **Menu** | `data/menu/menus/*.yml` | `open-requirements`（打开）<br>`requirements` / `view-conditions`（可见）<br>`condition` / `use-conditions`（可点击） | 打不开 / 隐藏按钮 / 灰色禁用 | [Menu](/modules/menu) |
+| **Menu** | `data/menu/menus/*.yml` | `open-requirements`（打开）<br>`requirements`（可见）<br>`use-conditions`（可点击） | 打不开 / 隐藏按钮 / 灰色禁用 | [Menu](/modules/menu) |
 | **Prop** | `data/prop/props/*.yml` | `conditions` | 禁止使用，提示 `CONDITION_NOT_MET` | [Prop](/modules/prop) |
 | **EventPacket** | `data/eventpacket/rules/*.yml` | `conditions` | 跳过该规则动作链 | [EventPacket](/modules/eventpacket) |
 | **Mail** | `data/mail/presets/*.yml` 等 | `claim-conditions` | 无法领取附件/命令奖励 | [Mail](/modules/mail) |
@@ -561,8 +571,8 @@ conditions:
 
 | 类型 | 字段 | 玩家看到的效果 |
 | --- | --- | --- |
-| **可见条件** | `requirements`、`view-conditions`、`conditions` | 不满足 → **按钮不渲染** |
-| **使用条件** | `condition`、`use-conditions`、`click-conditions` | 不满足 → **按钮灰色显示**，点击无效；可配 `deny-message` |
+| **可见条件** | `requirements` | 不满足 → **按钮不渲染** |
+| **使用条件** | `use-conditions` | 不满足 → **按钮灰色显示**，点击无效；可配 `deny-message` |
 
 详见 [Menu 按钮条件](/modules/menu#按钮条件)。
 
@@ -601,16 +611,16 @@ conditions:
 
 ### 步骤 3 — 使用 Aria 条件（ArcartX 内置，无需额外安装）
 
-1. ArcartX 是 Suite 的硬依赖，Aria 随 ArcartX 一起提供——服务器能正常启动即代表 Aria 可用，**无需再装 Symphony / Overture 等 Blink 插件**。
+1. ArcartX 是 Suite 的硬依赖，Aria 随 ArcartX 一起提供——服务器能正常启动即代表 Aria 可用，**无需额外安装任何 Aria 宿主组件**。
 2. 如需程序判断，可用开发者 API `context.ariaBridge().available()`。
 3. 在 Menu 按钮上添加：
 
 ```yaml
-condition:
+use-conditions:
   - "aria: player.getLevel() >= 1"
 ```
 
-4. 若 Aria 未就绪，按钮应显示为**禁用**（使用条件）或**打不开**（打开条件）。
+4. 若 Aria 条件异常，先确认 ArcartX 已正常加载；Aria 由 ArcartX 内置提供，正常启动后无需额外安装宿主插件。
 
 ### 步骤 4 — 用 Aria 替代多条 PAPI
 
@@ -629,9 +639,9 @@ conditions:
 conditions:
   - type: aria
     script: |
-      // 等级/权限用 player 对象方法；世界名链式取不到，改用展开的 PAPI
+      // 等级/权限/世界名直接使用 AriaPlayer 门面方法
       return player.getLevel() >= 30
-        && '%player_world%' == 'world'
+        && player.getWorld() == 'world'
         && player.hasPermission('group.warrior')
 ```
 
@@ -644,7 +654,7 @@ conditions:
   - type: js
     script: |
       return player.getLevel() >= 30
-        && player.getWorld().getName() == 'world'
+        && player.getWorld() == 'world'
         && player.hasPermission('group.warrior')
 ```
 
@@ -657,8 +667,8 @@ conditions:
 ```yaml
 conditions:
   - "%player_level% >= 30"                       # PAPI
-  - "aria: player.hasPermission('vip.access')"   # Aria（player 单层方法）
-  - "js: player.getWorld().getName() == 'world'"  # JS（需引擎，支持链式）
+  - "aria: player.hasPermission('vip.access')"   # AriaPlayer 门面
+  - "js: player.getWorld() == 'world'"            # JS（需引擎）
 ```
 
 ---
@@ -669,13 +679,13 @@ conditions:
 | ---------------------------| ------------------------------------| ----------------------------------------------------------------------------------------------------| --------------------------------|
 | PAPI 条件永远不满足　　　 | 未装 PAPI / Expansion 未注册　　　 | 安装 PAPI，`/papi ecloud download <expansion>`　　　　　　　　　　　　　　　　　　　　　　　　　　 | 　　　　　　　　　　　　　　　 |
 | 数值比较异常　　　　　　　| 占位符返回带单位字符串　　　　　　 | 检查 PAPI 返回值；必要时改用 JS 做 `parseInt`　　　　　　　　　　　　　　　　　　　　　　　　　　　| 　　　　　　　　　　　　　　　 |
-| Aria 条件永远不满足　　　 | 用了链式调用（如 `player.getWorld().getName()`，返回 `none`）| 改用单层 `player.xxx()` 或对应的 `%占位符%`；PAPI 字符串比较记得加引号 | 　　　　　　　　　　　　　　　 |
+| Aria 条件永远不满足 | 门面方法名、返回类型或脚本语法写错 | 先核对 `AriaPlayer` 方法表；世界名直接使用 `player.getWorld()`，门面未覆盖的 API 使用 `player.bukkit()`；Aria 中的 PAPI 字符串比较记得加引号 |　　　　　　　　　　　　　　　　|
 | Aria 条件恒 false（另一种）| 未发现 Aria 运行时（正常不应发生） | 确认 ArcartX 已正常加载（Suite 硬依赖之）；若仍不可用请反馈，可能是 ArcartX 版本的 Aria 包路径差异 | 　　　　　　　　　　　　　　　 |
 | JS 条件永远不满足　　　　 | classpath 上无 JS 引擎　　　　　　 | 本插件运行于 Java 21（无内置 Nashorn），需自行提供 GraalJS / standalone Nashorn；或改用 **Aria**　 | 　　　　　　　　　　　　　　　 |
 | 脚本语法错误　　　　　　　| YAML 缩进 / 引号　　　　　　　　　 | 用 `\　　　　　　　　　　　　　　　　　　　　　　　　　　　　　　　　　　　　　　　　　　　　　　　| ` 块标量；查看服务端 fine 日志 |
 | JS 报 `ReferenceError`　　| 变量名拼写 / 大小写　　　　　　　　| `player`、`Bukkit` 首字母大写；Bukkit API 严格区分大小写　　　　　　　　　　　　　　　　　　　　　 | 　　　　　　　　　　　　　　　 |
 | Menu 按钮「看得见点不了」 | 仅 **使用条件** 未通过　　　　　　 | 检查 `condition` / `deny-message`　　　　　　　　　　　　　　　　　　　　　　　　　　　　　　　　　| 　　　　　　　　　　　　　　　 |
-| Menu 按钮完全消失　　　　 | **可见条件** 未通过　　　　　　　　| 检查 `requirements` / `view-conditions`　　　　　　　　　　　　　　　　　　　　　　　　　　　　　　| 　　　　　　　　　　　　　　　 |
+| Menu 按钮完全消失　　　　 | **可见条件** 未通过　　　　　　　　| 检查 `requirements`　　　　　　　　　　　　　　　　　　　　　　　　　　　　　　| 　　　　　　　　　　　　　　　 |
 | Mail 领取失败无提示　　　 | `claim-conditions` 未满足　　　　　| 检查预设 YAML 与 PAPI/Aria/JS 条件　　　　　　　　　　　　　　　　　　　　　　　　　　　　　　　　 | 　　　　　　　　　　　　　　　 |
 
 ---
@@ -703,6 +713,5 @@ boolean ariaReady = context.ariaBridge().available();
 
 - [PlaceholderAPI 速查](/guide/placeholders) — ArcartX-Suite 输出的 `%ArcartX-Suite...%` 变量
 - [Menu 通用菜单](/modules/menu) — 可见/使用/打开条件详解
-- [Blink 开发者手册](https://github.com/17Artist/Blink/blob/main/DEVELOPER.md) — AriaScriptManager API
 - [Aria 语言仓库](https://github.com/17Artist/Aria) — 语法与 JIT 特性
 - [Nashorn 用户指南](https://docs.oracle.com/javase/8/docs/technotes/guides/scripting/nashorn/) — JVM 内置 JS 引擎文档
