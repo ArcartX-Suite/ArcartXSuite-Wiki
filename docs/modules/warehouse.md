@@ -805,3 +805,48 @@ WarehouseModule (AbstractAXSModule)
 - 所有银行扣款/存款操作使用**原子数据库操作**，失败自动回滚
 - 定期存款领取为**原子操作**：`claimFixedDepositAtomic` 在数据库层面标记 claimed 并计算本息入账，避免并发重复领取
 
+
+
+## 本轮功能补充
+
+### 接收人真实存在校验
+
+共享仓库成员邀请和所有权转让的接收人必须是真实玩家：在线玩家，或 `OfflinePlayer.hasPlayedBefore()` 为 `true` 的离线玩家。不存在或从未进服时会拒绝操作。
+
+### 管理员查看与删除指定个人仓库
+
+权限节点：`arcartxsuite.warehouse.admin`
+
+```text
+/axs warehouse view <玩家> <仓库ID>
+/axs warehouse delete <玩家> <仓库ID> confirm
+```
+
+`view` 输出指定玩家指定个人仓库的槽位物品清单；`delete` 必须带 `confirm` 才执行删除。
+
+### 黑名单 `nbt-keys`
+
+```yaml
+blacklist:
+  nbt-keys: []
+```
+
+匹配只判断配置的 key 是否存在，不比较 value；同一个 key 只要出现在 Bukkit `PersistentDataContainer`（PDC）或物品的原始 NMS NBT 复合标签中即会命中黑名单。原始 NBT 会递归检查顶层及嵌套 compound、list 中的 compound，因此可覆盖部分 mod 物品和老旧物品库；配置 key 沿用现有归一化规则，兼容纯 key 名与 namespaced key。原始 NBT 通过版本容错反射读取，反射失败时安全降级为不命中原始 NBT，不会中断存入流程。
+
+### 共享仓库转让两步确认
+
+owner 发起转让后先生成 pending 记录，接收人使用：
+
+```text
+/warehouse transfer confirm <sharedId>
+/warehouse transfer reject <sharedId>
+```
+
+接收人登录时会收到待确认提示。确认时会重新校验发起人仍是 owner、接收人仍是 member，通过后才完成所有权变更。
+
+```yaml
+settings:
+  transfer-confirm-expire-hours: 24
+```
+
+默认 24 小时；`<=0` 表示不过期。pending 采用惰性清理，确认、拒绝、过期访问以及删除共享仓库时会清理对应记录。

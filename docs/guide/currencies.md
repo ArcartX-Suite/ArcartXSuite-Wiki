@@ -16,6 +16,7 @@ currencies:
     provider: "<提供者类型>"
     display-name: "显示名称"
     precision: 2
+    rounding: "DOWN"
     # 以下三项仅 command / placeholder-command / custom 类型需要
     balance-placeholder: ""
     withdraw-command: ""
@@ -30,6 +31,7 @@ currencies:
 | `provider` | string | `"vault"` | 提供者类型，见下方详细说明 |
 | `display-name` | string | 货币 ID | 显示给玩家的名称（如 "金币"、"点券"） |
 | `precision` | int | `2` | 小数精度位数。`0` = 整数，`2` = 保留两位小数 |
+| `rounding` | string | `DOWN` | 舍入策略，支持 `HALF_UP` 等标准 `RoundingMode` 名称；缺失或非法值回退为 `DOWN` |
 
 ### 支持的 Provider 类型
 
@@ -37,6 +39,7 @@ currencies:
 |----------|----------|----------|
 | `vault` | [Vault](https://www.spigotmc.org/resources/vault.34315/) + 经济插件 | 最通用，适配 CMI / EssentialsX / 其他 Vault 经济 |
 | `playerpoints` | [PlayerPoints](https://www.spigotmc.org/resources/playerpoints.80745/) | 整数点券系统 |
+| `xconomy` | [XConomy](https://github.com/YiC200333/XConomy) | 直连 XConomy 原生 API，适用于 XConomy 货币 |
 | `rondo` | [Rondo](https://wiki.arcartx.com) | ArcartX 生态多货币插件 |
 | `command` | [PlaceholderAPI](https://www.spigotmc.org/resources/placeholderapi.6245/) | 通过控制台命令 + PAPI 占位符桥接任意经济 |
 | `placeholder-command` | PlaceholderAPI | 同 `command`，别名 |
@@ -61,6 +64,7 @@ currencies:
     provider: "vault"
     display-name: "金币"
     precision: 2
+    rounding: "DOWN"
 ```
 
 **前置条件：**
@@ -90,6 +94,7 @@ currencies:
     provider: "playerpoints"
     display-name: "点券"
     precision: 0
+    rounding: "DOWN"
 ```
 
 **前置条件：**
@@ -107,6 +112,26 @@ PlayerPoints 是整数点数系统，建议设置 `precision: 0`。
 
 ---
 
+### xconomy \u2014 XConomy \u539f\u751f\u7ecf\u6d4e
+
+`xconomy` \u76f4\u63a5\u8c03\u7528 XConomy \u539f\u751f `XConomyAPI`\uff0c\u4e0d\u7ecf\u8fc7 Vault\u3002\u4f59\u989d\u67e5\u8be2\u3001\u5145\u503c\u548c\u6263\u6b3e\u5168\u7a0b\u4f7f\u7528 `BigDecimal`\uff0c\u4e0d\u4f1a\u7ecf\u8fc7 `double` \u8f6c\u6362\u3002
+
+```yaml
+currencies:
+  money:
+    enabled: true
+    provider: "xconomy"
+    display-name: "\u91d1\u5e01"
+    precision: 2
+    rounding: "DOWN"
+```
+
+\u5c06 `money.provider` \u8bbe\u4e3a `"xconomy"` \u5373\u53ef\u4f7f\u7528\u3002\u670d\u52a1\u5668\u9700\u8981\u5b89\u88c5\u5e76\u542f\u7528 XConomy\uff1b\u672a\u5b89\u88c5\u3001API \u4e0d\u53ef\u7528\u6216\u64cd\u4f5c\u5931\u8d25\u65f6\uff0c\u6865\u63a5\u4f1a\u8fd4\u56de\u5931\u8d25\u7ed3\u679c\u3002
+
+\u64cd\u4f5c\u7ed3\u679c\u6cbf\u7528\u73b0\u6709\u4e2d\u6587\u63d0\u793a\uff1a\u4f59\u989d\u4e0d\u8db3\u8fd4\u56de\u201c\u4f59\u989d\u4e0d\u8db3\u201d\uff0c\u8d85\u8fc7 XConomy \u4f59\u989d\u4e0a\u9650\u8fd4\u56de\u201c\u91d1\u989d\u8d85\u51fa\u8be5\u8d27\u5e01\u53ef\u5904\u7406\u8303\u56f4\u201d\uff0c\u5176\u4ed6\u7981\u6b62\u6216\u5931\u8d25\u60c5\u51b5\u8fd4\u56de\u5bf9\u5e94\u5931\u8d25\u63d0\u793a\u3002
+
+---
+
 ### rondo — Rondo 多货币
 
 [Rondo](https://wiki.arcartx.com) 是 ArcartX 生态的多货币插件，原生支持多种货币 ID。ArcartX-Suite 会将配置中的货币 ID 直接传递给 Rondo API。
@@ -118,11 +143,13 @@ currencies:
     provider: "rondo"
     display-name: "金币"
     precision: 2
+    rounding: "DOWN"
   points:
     enabled: true
     provider: "rondo"
     display-name: "点券"
     precision: 0
+    rounding: "DOWN"
 ```
 
 **前置条件：**
@@ -151,6 +178,7 @@ currencies:
     provider: "command"
     display-name: "宝石"
     precision: 0
+    rounding: "DOWN"
     balance-placeholder: "%economy_balance_gems%"
     withdraw-command: "esc take gems %player% %amount%"
     deposit-command: "esc give gems %player% %amount%"
@@ -198,6 +226,7 @@ currencies:
     provider: "command"
     display-name: "宝石"
     precision: 0
+    rounding: "DOWN"
     balance-placeholder: "%economy_balance_gems%"
     withdraw-command: "eco take gems %player% %amount% gems"
     deposit-command: "eco give gems %player% %amount% gems"
@@ -212,6 +241,7 @@ currencies:
     provider: "command"
     display-name: "硬币"
     precision: 0
+    rounding: "DOWN"
     balance-placeholder: "%coinsengine_balance_coins%"
     withdraw-command: "coinsengine take %player% coins %amount%"
     deposit-command: "coinsengine give %player% coins %amount%"
@@ -228,6 +258,7 @@ currencies:
     provider: "command"
     display-name: "自定义货币"
     precision: 0
+    rounding: "DOWN"
     balance-placeholder: "%<PAPI扩展>_<余额占位符>%"
     withdraw-command: "<扣款命令> %player% %amount%"
     deposit-command: "<入账命令> %player% %amount%"
@@ -251,6 +282,7 @@ currencies:
     provider: "vault"
     display-name: "金币"
     precision: 2
+    rounding: "DOWN"
 
   # 2. 点券 — 使用 PlayerPoints
   points:
@@ -258,6 +290,7 @@ currencies:
     provider: "playerpoints"
     display-name: "点券"
     precision: 0
+    rounding: "DOWN"
 
   # 3. 宝石 — 使用命令桥接（Economy）
   money:
@@ -265,6 +298,7 @@ currencies:
     provider: "command"
     display-name: "宝石"
     precision: 0
+    rounding: "DOWN"
     balance-placeholder: "%Economy_balance_gems%"
     withdraw-command: "eco take gems %player% %amount% gems"
     deposit-command: "eco give gems %player% %amount% gems"
@@ -291,6 +325,7 @@ currencies:
     provider: "command"
     display-name: "仓库代币"
     precision: 0
+    rounding: "DOWN"
     balance-placeholder: "%some_placeholder%"
     withdraw-command: "token take %player% %amount%"
     deposit-command: "token give %player% %amount%"

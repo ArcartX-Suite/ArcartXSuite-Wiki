@@ -178,6 +178,8 @@ manual:
   restrict-actions: true
   return-on-end: false
   broadcast-rewards: true
+  # 参与战斗后开始原地挂机前的冷却时间（秒）
+  combat-cooldown-seconds: 10
   leaderboard-size: 10
   # 奖励发放时触发的 EventPacket 信号（可选，需 EventPacket 模块启用）
   signal-on-reward: "afk_reward"
@@ -220,13 +222,50 @@ ui:
 | --- | --- | --- |
 | 触发方式 | 进入多边形区域自动开始 | `/afk start <区域>` 手动开启 |
 | 位置检测 | 实时检测是否在区域内 | 不检测位置，传送到指定点后固定 |
-| 行为限制 | 无（可正常移动/交互） | 封锁移动、交互、破坏、开箱、传送、受击 |
+| 行为限制 | 无（可正常移动/交互） | 封锁移动、交互、破坏、开箱、传送、受击；无法对任何实体造成伤害（含近战与投射物）；不可碰撞；怪物不会锁定为目标 |
 | 奖励发放 | 每周期自动发放 | 结束挂机时一次性结算 |
 | 服崩恢复 | 退出即失效，无需恢复 | 服崩后自动结算离线期间时长 |
 | 排行榜 | 计入总时长 | 计入总时长 |
 | 跨世界 | 区域绑定的 world | 传送点可配置不同 world，Bukkit API 自动处理 |
 
+#### MANUAL 防滥用保护
+
+以下保护在 MANUAL 挂机期间默认生效；除战斗冷却时长外，均无单独配置开关：
+
+- MANUAL 只在结束挂机时按本次累计总时长一次性结算奖励，不会按周期逐轮发放，避免与结束结算重复。
+- 刚参与战斗（受到伤害或造成实体伤害）后，必须等待 `manual.combat-cooldown-seconds` 配置的冷却时间才能开始原地挂机；默认值为 10 秒，冷却期间开始请求会被拒绝并提示 `hints.manual.in-combat`。
+- 挂机玩家无法对任何实体造成伤害，近战攻击和由其发射的投射物都会被拦截，避免利用无敌状态刷怪。
+- 挂机玩家不可与其他实体碰撞；结束挂机后会恢复可碰撞状态，避免用无敌身体阻挡或堵住怪物。
+- 怪物不会将挂机玩家锁定为目标，避免把挂机玩家当作无敌诱饵。
+- 挂机期间不能进入或使用载具；开始挂机时会自动离开当前载具。
+- 挂机期间不能右键实体、丢弃物品、换手、拾取掉落物或获得经验。
+
 ---
+
+
+#### MANUAL 防滥用保护：逐项开关
+
+MANUAL 原地挂机的每项保护都可独立开关，默认值全部为 `true`，配置位于 `manual.protections`：
+
+| 配置路径 | 默认 | 作用 |
+| --- | --- | --- |
+| `manual.protections.movement` | `true` | 禁止移动 |
+| `manual.protections.teleport` | `true` | 禁止传送 |
+| `manual.protections.interact` | `true` | 禁交互方块或空气 |
+| `manual.protections.block-break` | `true` | 禁破坏方块 |
+| `manual.protections.inventory` | `true` | 禁打开容器或背包 |
+| `manual.protections.receive-damage` | `true` | 受到伤害无敌 |
+| `manual.protections.deal-damage` | `true` | 禁造成伤害 |
+| `manual.protections.entity-target` | `true` | 禁被怪物锁定为目标 |
+| `manual.protections.vehicle-enter` | `true` | 禁进入载具 |
+| `manual.protections.interact-entity` | `true` | 禁右键实体 |
+| `manual.protections.drop-item` | `true` | 禁丢弃物品 |
+| `manual.protections.swap-hand` | `true` | 禁副手换手 |
+| `manual.protections.pickup-item` | `true` | 禁拾取掉落物 |
+| `manual.protections.experience` | `true` | 禁获得经验 |
+| `manual.protections.collidable` | `true` | 禁碰撞 |
+
+可逐项关闭保护；`restrict-actions` 和 `combat-cooldown-seconds` 仍保持原有独立设置。`markCombat(...)` 与伤害保护开关无关，始终会执行。
 
 ## 命令
 
