@@ -172,7 +172,7 @@ messages:
 | `command-regex` | list | `[]` | 正则命令绑定，命中后取消原命令并打开菜单 |
 | `item-binds` | list | `[]` | 菜单级物品绑定，见下方「物品绑定」 |
 | `pages` | list / map | `[{id: main}]` | 页面列表，见下方「页面级字段」 |
-| `footer-buttons` | map | `{}` | 底部固定按钮（如 ESC 菜单的「选项」「退出」） |
+| `footer-buttons` | map | `{}` | 底部固定按钮（如 ESC 菜单的「选项」「退出」）；同样支持 `order`，与普通按钮共用排序规则，数字越小越靠前 |
 
 #### 页面级字段
 
