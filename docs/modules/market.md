@@ -583,7 +583,7 @@ Market 模块声明了以下配置校验规则：
 | `LISTING_CREATED:{id}` | 新物品上架 |
 | `LISTING_SOLD:{id}` | 一口价成交 |
 | `LISTING_CANCELLED:{id}` | 上架取消 |
-| `BID_PLACED:{id}:{amount}` | 新竞价 |
+| `BID_PLACED:{id}:{amount}:{uuid}` | 新竞价 |
 
 其他子服收到后清除本地 **Redis 列表缓存**（若启用 `redis` 节），保证拍卖列表一致。
 
