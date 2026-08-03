@@ -226,7 +226,7 @@ module-signature-public-keys:
 
 ### 和 Jar 内 PROTECTION.MF / native 校验的关系
 
-宿主 **core** 本体有 Merkle + native 完整性校验；**模块 Jar** 的 `module.yml` Ed25519 是独立机制，由服主按需开启。详见 [Native 安全](/architecture/native-security)。
+宿主 **core** 本体有 Merkle + native 完整性校验；**模块 Jar** 的 `module.yml` Ed25519 是独立机制，由服主按需开启。
 
 ---
 
@@ -235,4 +235,3 @@ module-signature-public-keys:
 - [开发第三方模块](./module-development) — `module.yml` 字段说明
 - [使用第三方模块](./using-third-party-modules) — 服主安装与排错
 - [云端模块](/guide/cloud-modules) — 云端授权与 `.axb` 加载
-- [Native 安全与模块加密](/architecture/native-security)

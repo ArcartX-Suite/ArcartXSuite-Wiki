@@ -189,5 +189,5 @@ module-signature-public-keys:
 - ArcartX-Suite jar 内 `native/` 目录包含对应平台的库文件
 - 无其他插件冲突占用 native 符号
 
-技术细节见 [Native 安全与模块加密](/architecture/native-security)。
+技术细节见 [系统架构](/architecture/system-architecture)。
 :::
