@@ -71,8 +71,6 @@ const architectureSidebar = [
     text: '安全与资源',
     items: [
       { text: '客户端包守卫', link: '/architecture/security' },
-      { text: 'Native 安全与模块加密', link: '/architecture/native-security' },
-      { text: '资源加密 (.axb)', link: '/architecture/protected-resources' },
     ],
   },
   {
@@ -199,7 +197,6 @@ export default withMermaid(defineConfig({
           items: [
             { text: '模块启用开关', link: '/guide/module-enablement' },
             { text: '安装与 Bootstrap', link: '/guide/installation' },
-            { text: 'Native 模块加密', link: '/architecture/native-security' },
             { text: '使用第三方模块', link: '/guide/developer/using-third-party-modules' },
           ],
         },

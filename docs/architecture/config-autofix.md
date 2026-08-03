@@ -186,7 +186,7 @@ public class CombatEffectModule implements AXSModule {
     │      └─ 调用 plugin.registerModuleConfigSpecs(specs, classLoader)
     │
     ├─ 2. ConfigDiagnosticEngine.diagnose()
-    │      ├─ 加载 jar 内默认配置 (ProtectedResourceOpener)
+    │      ├─ 加载 jar 内默认配置 (ResourceOpener)
     │      ├─ 加载磁盘当前配置
     │      ├─ 检测版本差异 → 加载并应用 migrations
     │      ├─ 结构同步 (SyncPolicy 指导合并)
@@ -295,7 +295,7 @@ plugins/ArcartX-Suite/
 | 系统 | 整合点 |
 |------|--------|
 | **物理文件迁移** | `AbstractAXSModule.configFileJustMigrated` 标志联动 |
-| **加密资源加载** | `ProtectedResourceOpener` 支持 ownerId 路由 |
+| **资源加载** | `ResourceOpener` 支持 ownerId 路由 |
 | **UI 配置导出** | `ModuleContext.exportConfigResource()` 独立处理 |
 | **备份清理** | `RetentionCleaner` 管理旧诊断文件与备份 |
 

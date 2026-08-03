@@ -5,7 +5,7 @@ description: index - ArcartX-Suite Minecraft 服务器插件文档。 ArcartX-Su
 
 # 架构
 
-ArcartX-Suite 共享**同一组反射桥、同一套客户端包守卫、同一种资源加密协议、同一份数据包流向约定**。
+ArcartX-Suite 共享**同一组反射桥、同一套客户端包守卫、同一份资源加载约定、同一份数据包流向约定**。
 
 ## 一图概览
 
@@ -15,7 +15,7 @@ ArcartX-Suite 共享**同一组反射桥、同一套客户端包守卫、同一�
 │                                                                │
 │  ┌──────────┐   ┌──────────┐   ┌──────────┐   ┌────────────┐   │
 │  │ Bridge   │   │ Security │   │ Config   │   │ Combat /   │   │
-│  │ (反射桥) │   │ (Guard,  │   │ (.axb +  │   │ Util       │   │
+│  │ (反射桥) │   │ (Guard,  │   │ (Sync)   │   │            │   │
 │  │          │   │  Sign)   │   │  Sync)   │   │            │   │
 │  └────┬─────┘   └────┬─────┘   └────┬─────┘   └─────┬──────┘   │
 │       │              │              │               │          │
@@ -47,8 +47,6 @@ ArcartX-Suite 共享**同一组反射桥、同一套客户端包守卫、同一�
 ### 安全与资源
 
 - [Security — ClientPacketGuard](security)：速率限制 + 包守卫
-- [Native Security — 本体与云端模块加密](native-security)：类字节码 `.axb`、bootstrap、native 解密
-- [Protected Resources — `.axb` 加密资源](protected-resources)：YAML 加密打包协议
 
 ### 配置与 UI
 

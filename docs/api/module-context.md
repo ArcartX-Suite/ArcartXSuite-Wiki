@@ -331,7 +331,7 @@ context.unregisterUi(registeredUiId);
 ### 受保护资源
 
 ```java
-// 读取模块 Jar 内的受保护资源流
-InputStream stream = context.openProtectedResource("data/template.dat", getClass().getClassLoader());
+// 读取模块 Jar 内的资源流
+InputStream stream = context.openResource("data/template.dat", getClass().getClassLoader());
 ```
 
