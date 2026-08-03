@@ -1,5 +1,5 @@
 ---
-title: Market 全球市场插件 | ArcartX-Suite Minecraft服务器
+title: Market 全球市场插件 | ArcartX-Suite Minecraft
 description: ArcartX-Suite Market 全球市场插件，系统商店 + 玩家拍卖行 + 回收商店，多货币支持、CrossServer 跨服同步、ArcartX UI 全套交易界面，我的世界服务器经济插件。
 ---
 
@@ -24,12 +24,12 @@ description: ArcartX-Suite Market 全球市场插件，系统商店 + 玩家拍�
 | 依赖 | 是否必须 | 用途 |
 |------|----------|------|
 | ArcartX | ✅ 必须 | UI 渲染 + 数据包通信 |
-| MySQL | ✅ 必须 | 拍卖/交易/限购数据持久化 |
+| PlaceholderAPI | 可选 | PAPI 占位符输出 |
+| MySQL | 可选 | 拍卖/交易/限购数据持久化（单服可用 SQLite） |
 | Redis | 可选 | 拍卖列表**缓存**（非跨服总线） |
 | CrossServer | 可选 | 拍卖上架/成交/竞价/取消事件跨服广播 |
 | Vault / PlayerPoints | 可选 | 多货币支持（通过 CurrencyBridgeAPI） |
-| PlaceholderAPI | 可选 | PAPI 占位符输出 |
-| MythicMobs / NeigeItems | 可选 | 系统商店自定义物品来源 |
+| MythicMobs / NeigeItems / Overture / MMOItems | 可选 | 系统商店/回收自定义物品来源 |
 
 ## 命令
 
@@ -38,8 +38,9 @@ description: ArcartX-Suite Market 全球市场插件，系统商店 + 玩家拍�
 | 命令 | 权限 | 说明 |
 |------|------|------|
 | `/market` | `arcartxsuite.market.use` | 打开拍卖行主界面 |
-| `/market shop [商店ID]` | `arcartxsuite.market.use` | 打开系统商店 |
-| `/market sell <一口价> [起拍价] [时长秒] [货币]` | `arcartxsuite.market.use` | 上架手持物品 |
+| `/market auction` 或 `/market ah` | `arcartxsuite.market.use` | 打开拍卖行主界面（别名） |
+| `/market shop [商店ID]` | `arcartxsuite.market.use` | 打开系统商店列表或指定商店 |
+| `/market sell <一口价> [起拍价] [时长秒] [货币]` | `arcartxsuite.market.use` | 上架手持物品（`list` 为同义子命令） |
 | `/market recycle [all]` | `arcartxsuite.market.use` | 打开回收界面 / 一键回收 |
 | `/market history` | `arcartxsuite.market.use` | 查看交易历史 |
 | `/market my` | `arcartxsuite.market.use` | 查看我的上架 |
@@ -64,7 +65,10 @@ description: ArcartX-Suite Market 全球市场插件，系统商店 + 玩家拍�
 | `arcartxsuite.market.use` | true | 使用市场基本功能 |
 | `arcartxsuite.market.admin` | op | 管理员命令 |
 | `axsmarket.autorecycle` | false | 自动回收拾取物品 |
-| `axsmarket.tax.vip` | false | 税率折扣（配置定义） |
+| `axsmarket.vip` | false | 拍卖税率减免 2%（配置定义） |
+| `axsmarket.mvp` | false | 拍卖税率减免 1%（配置定义） |
+| `axsmarket.recycle.vip` | false | 回收价格倍率 1.2x（配置定义） |
+| `axsmarket.recycle.mvp` | false | 回收价格倍率 1.5x（配置定义） |
 
 ## PAPI 占位符
 
@@ -75,7 +79,8 @@ description: ArcartX-Suite Market 全球市场插件，系统商店 + 玩家拍�
 | `%axsmarket_auction_count%` | 当前活跃拍卖数量 |
 | `%axsmarket_shop_count%` | 已加载系统商店数量 |
 | `%axsmarket_recycle_count%` | 回收表条目数量 |
-| `%axsmarket_redis_status%` | Redis 连接状态 |
+| `%axsmarket_redis_status%` | Redis 列表缓存连接状态（别名 `%axsmarket_list_cache_status%`） |
+| `%axsmarket_cross_server_status%` | CrossServer 跨服同步是否启用 |
 | `%axsmarket_my_listings%` | 我的上架数量 |
 
 ## 配置文件
@@ -83,72 +88,129 @@ description: ArcartX-Suite Market 全球市场插件，系统商店 + 玩家拍�
 ### 主配置 `ArcartXMarket.yml`
 
 ```yaml
-# 核心配置段
+config-version: 1
+
 settings:
-  scheduler-interval-ticks: 1200    # 到期检查间隔
+  debug: false
+  scheduler-interval-ticks: 200    # 到期检查间隔（20 tick = 1 秒）
 
 ui:
-  packet-id: "AXS_MARKET"          # 客户端包 ID
-  auction-id: "market_auction"      # 拍卖行 UI ID
-  shop-id: "market_shop"            # 商店 UI ID
-  recycle-id: "market_recycle"      # 回收 UI ID
-  history-id: "market_history"      # 历史 UI ID
+  shop-id: "AXS:market_shop"            # 系统商店 UI ID
+  shop-file: "arcartx/ui/market_shop.yml"
+  auction-id: "AXS:market_auction"      # 拍卖行 UI ID
+  auction-file: "arcartx/ui/market_auction.yml"
+  recycle-id: "AXS:market_recycle"      # 回收 UI ID
+  recycle-file: "arcartx/ui/market_recycle.yml"
+  history-id: "AXS:market_history"      # 历史 UI ID
+  history-file: "arcartx/ui/market_history.yml"
+  packet-id: "AXS_MARKET"               # 客户端包 ID
+  register-ui-on-enable: true
   overwrite-ui-files: false
 
 storage:
-  mode: "mysql"
-  host: "localhost"
-  port: 3306
-  database: "ArcartX-Suite"
-  username: "root"
-  password: ""
-  table-prefix: "axs_market_"
-  pool-size: 10
+  mode: "sqlite"                   # sqlite 或 mysql
+  sqlite:
+    file: "market.db"
+  mysql:
+    host: "127.0.0.1"
+    port: 3306
+    database: "arcartxsuite"
+    username: "root"
+    password: ""
+    table-prefix: "axs_market_"
+  pool-size: 8
 
 redis:
   enabled: false
-  host: "localhost"
+  host: "127.0.0.1"
   port: 6379
   password: ""
   database: 0
-  cache-ttl-seconds: 300
+  cache-ttl-seconds: 60         # 拍卖行列表缓存过期时间（秒）
 
 cross-server:
   enabled: false
 
 auction:
   enabled: true
-  max-listings-per-player: 20
-  default-duration-seconds: 86400
-  min-duration-seconds: 3600
-  max-duration-seconds: 604800
+  currencies:                    # 允许用于拍卖交易的货币列表
+    - id: "money"
+      name: "金币"
+  default-currency: "money"
+  min-price: 1
+  max-price: 1000000000
+  message-max-length: 50
+  min-duration-seconds: 3600        # 最短上架时长 1 小时
+  max-duration-seconds: 604800      # 最长上架时长 7 天
+  default-duration-seconds: 86400   # 默认上架时长 24 小时
+  max-listings-per-player: 10
+  min-bid-increment-ratio: 0.05     # 竞价加价比例 5%
+  min-bid-increment-absolute: 10    # 竞价加价绝对值
   listing-fee: 0
   listing-fee-currency: "money"
-  transaction-tax-rate: 0.05
-  min-bid-increment-ratio: 0.05
-  min-bid-increment-absolute: 1.0
-  expired-return-method: "inventory"  # inventory / mail
+  transaction-tax-rate: 0.05        # 成交税率 5%
+  transaction-tax-currency: "money"
+  tax-discount:                     # VIP 税率减免（取最大减免值）
+    "axsmarket.vip": 0.02
+    "axsmarket.mvp": 0.01
+  expired-return-method: "mail"     # mail 邮件退回 / inventory 背包退回
+  outbid-notify: "chat"             # 竞价被超越通知方式：chat / actionbar / title
+  blacklist:                        # 拍卖行物品黑名单
+    material-ids: []
+    mythic-item-ids: []
+    neige-item-ids: []
+    name-contains: ["绑定"]
+    lore-contains: ["不可交易"]
+    name-regex: []
+    lore-regex: []
+  categories:                       # 拍卖行分类定义
+    weapon:
+      display-name: "&c武器"
+      priority: 10
+      nbt:
+        path: "pdc:arcartx:item_category"
+        values: ["weapon"]
+    other:
+      display-name: "&7其他"
+      priority: 9999
+      default: true
 
 shop:
   enabled: true
-  shops-directory: "shops"
+  currencies:
+    - id: "money"
+      name: "金币"
   default-currency: "money"
-  refresh-interval-ticks: 72000
+  min-price: 1
+  max-price: 1000000000
+  message-max-length: 50
+  shops-directory: "shops"
+  refresh-interval-ticks: 6000      # 6000 tick = 5 分钟
 
 recycle:
   enabled: true
-  recycle-directory: "recycle"
+  currencies:
+    - id: "money"
+      name: "金币"
   default-currency: "money"
+  min-price: 1
+  max-price: 1000000000
+  message-max-length: 50
+  recycle-directory: "recycle"
   allow-auto-recycle: true
+  batch-confirm: true               # 一键回收前弹出确认窗口
+  price-multiplier:                 # 回收价格倍率（按权限取最高）
+    "axsmarket.recycle.vip": 1.2
+    "axsmarket.recycle.mvp": 1.5
 ```
 
 ### 商店配置 `shops/example_shop.yml`
 
 ```yaml
-display-name: "&6示例商店"
-icon: "CHEST"
+display-name: "&6综合商店"
+icon: "DIAMOND"
 permission: ""
-tags: ["全部", "武器", "材料"]
+tags: ["综合", "基础"]
 items:
   diamond_sword:
     source: "minecraft"
@@ -159,11 +221,11 @@ items:
     currency: "money"
     stock-mode: "unlimited"
     stock-amount: 0
-    limit-per-player: 5
-    limit-reset: "daily"
+    limit-per-player: 0
+    limit-reset: "never"
     discount:
-      "vip.gold": 0.8
-      "vip.diamond": 0.6
+      "axsmarket.vip": 0.9
+      "axsmarket.mvp": 0.8
     conditions:
       permission: ""
       min-level: 0
@@ -239,9 +301,6 @@ discount:
   "axsmarket.vip": 0.9    # VIP 9 折
   "axsmarket.mvp": 0.8    # MVP 8 折
 ```
-- 普通玩家：支付 `1000`
-- VIP 玩家：支付 `1000 * 0.9 = 900`
-- MVP 玩家（同时拥有 VIP 和 MVP）：支付 `1000 * 0.8 = 800`（取最低折扣）
 
 #### 条件系统
 
@@ -304,7 +363,7 @@ entries:
 recycle:
   price-multiplier:
     "axsmarket.recycle.vip": 1.2    # VIP +20%
-    "axsmarket.recycle.mvp": 1.5      # MVP +50%
+    "axsmarket.recycle.mvp": 1.5    # MVP +50%
 ```
 - 普通玩家回收钻石：`100 * 1.0 = 100`
 - VIP 玩家回收钻石：`100 * 1.2 = 120`
@@ -526,7 +585,7 @@ overture_treasure_box:
 
 ## 存储结构
 
-Market 使用 MySQL 存储，自动创建以下表：
+Market 支持 SQLite 和 MySQL 两种存储模式，自动创建以下表：
 
 | 表名 | 用途 |
 |------|------|
@@ -558,7 +617,7 @@ Market 模块声明了以下配置校验规则：
 
 | 字段 | 类型 | 约束 |
 |------|------|------|
-| `storage.mode` | STRING | 必填，枚举 `mysql` |
+| `storage.mode` | STRING | 必填，枚举 `sqlite` / `mysql` |
 | `storage.pool-size` | INT | 范围 1–100 |
 | `auction.max-listings-per-player` | INT | 范围 1–1000 |
 | `auction.min-bid-increment-ratio` | DOUBLE | 范围 0.01–1.0 |

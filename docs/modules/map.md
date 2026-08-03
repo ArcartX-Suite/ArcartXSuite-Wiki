@@ -1,5 +1,5 @@
 ---
-title: Map 世界地图插件 | ArcartX-Suite Minecraft服务器
+title: Map 世界地图插件 | ArcartX-Suite Minecraft
 description: ArcartX-Suite Map 世界地图，锚点传送、玩家路径点、小地图 HUD、世界解锁，我的世界服务器地图插件。
 ---
 
@@ -48,13 +48,13 @@ debug: false
 
 client:
   packet-id: "AXS_MAP"           # 客户端 Packet.send / 服务端 packetHandler 通信标识
-  menu-ui-id: "ArcartX-Suite:map_menu"     # 全屏地图 UI
-  hud-ui-id: "ArcartX-Suite:map_hud"       # 小地图 HUD
+  menu-ui-id: "AXS:map_menu"     # 全屏地图 UI
+  hud-ui-id: "AXS:map_hud"       # 小地图 HUD
   register-ui-on-enable: true
   overwrite-ui-files: false
 
 keybinds:
-  category: "ArcartX-Suite Map"
+  category: "AXS Map"
   open-menu:
     enabled: true
     display-name: "打开地图"
@@ -75,26 +75,16 @@ storage:
   mysql:
     host: "127.0.0.1"
     port: 3306
-    database: "ArcartX-Suite"
+    database: "arcartxsuite"
     username: "root"
     password: ""
   pool-size: 4
-```
 
-### 货币配置
-
-```yaml
-currencies:
-  money:
-    enabled: true
-    provider: "vault"             # vault 或 playerpoints
-    display-name: "金币"
-    scale: 2                      # 显示小数位数
-  points:
-    enabled: true
-    provider: "playerpoints"
-    display-name: "点券"
-    scale: 0
+navigation:
+  enabled: true
+  waypoint-style-id: "default"       # 路径点导航样式
+  anchor-id-prefix: "AXS-map-anchor-"  # 锚点 ID 前缀
+  waypoint-id-prefix: "AXS-map-track-" # 追踪路径点 ID 前缀
 ```
 
 ### 世界配置
@@ -141,14 +131,14 @@ worlds:
 
 ```yaml
 default-unlocks:
-  - permission: "arcartxsuite.map.use"
+  - permission: "ArcartXSuite.map.use"
     anchors:              # 持有该权限时默认可见/可用的锚点 ID 列表
       - "spawn"
 ```
 
-### 锚点字段详解
+### 锚点目录
 
-锚点文件位于 `data/map/anchors/*.yml`，同一文件可包含多个锚点，根键即为锚点 ID：
+锚点文件位于 `data/map/anchors/*.yml`，目录路径可通过主配置中的 `anchors-directory` 字段自定义（默认 `anchors`）。同一文件可包含多个锚点，根键即为锚点 ID：
 
 ```yaml
 # data/map/anchors/default.yml
@@ -175,7 +165,7 @@ mine:
   x: 128
   y: 64
   z: -42
-  description: "演示货币 + 物品解锁。"
+  description: "示例锁定锚点，演示货币 + 物品解锁。"
   permission: ""
   sort-order: 10
   unlock-currencies:
@@ -191,6 +181,20 @@ mine:
       matcher:
         material-ids:
           - "ender_pearl"
+
+nether_hub:
+  enabled: true
+  display-name: "下界中枢"
+  world: "world_nether"
+  x: 12
+  y: 64
+  z: 12
+  description: "下界示例锚点。"
+  permission: ""
+  sort-order: 0
+  unlock-currencies: []
+  teleport-currencies: []
+  unlock-items: []
 ```
 
 | 字段 | 类型 | 说明 |
@@ -212,11 +216,11 @@ mine:
 waypoints:
   enabled: true
   default-style-id: "default"   # 路径点导航样式
-  id-prefix: "ArcartX-Suite-map-wp-"     # 路径点 ID 前缀
+  id-prefix: "AXS-map-wp-"     # 路径点 ID 前缀
   auto-name-prefix: "标记点"    # 自动命名前缀
   default-max-count: 5          # 玩家默认最多可创建的路径点数
   limits:                       # 按权限设置更高上限
-    - permission: "arcartxsuite.map.admin"
+    - permission: "ArcartXSuite.map.admin"
       max-count: 20
 ```
 
@@ -240,12 +244,28 @@ waypoints:
 | `/map hud [on\|off\|toggle]` | 控制小地图 HUD 显示，默认 `toggle` 切换 |
 | `/map cleartrack` | 清除地图上正在追踪的目标点 |
 
+## 配置诊断
+
+Map 模块声明了以下配置校验规则：
+
+| 字段 | 类型 | 约束 |
+|------|------|------|
+| `storage.mode` | STRING | 必填，枚举 `sqlite` / `mysql` |
+| `storage.pool-size` | INT | 范围 1–100 |
+| `client.packet-id` | STRING | 必填 |
+| `navigation.enabled` | BOOLEAN | 非必填，仅类型校验 |
+
+动态节（用户可自由增删，不被结构同步覆盖）：
+- `worlds`
+- `anchors`
+- `waypoints`
+
 ## UI / Packet
 
 | 功能 | UI ID | 说明 |
 | --- | --- | --- |
-| 全屏地图 | `ArcartX-Suite:map_menu` | 服务端推送世界数据、锚点列表、玩家路径点和当前位置；客户端点击锚点/路径点回包 |
-| 小地图 HUD | `ArcartX-Suite:map_hud` | 服务端按玩家移动/传送事件推送坐标和追踪目标；`packet-id: "AXS_MAP"` |
+| 全屏地图 | `AXS:map_menu` | 服务端推送世界数据、锚点列表、玩家路径点和当前位置；客户端点击锚点/路径点回包 |
+| 小地图 HUD | `AXS:map_hud` | 服务端按玩家移动/传送事件推送坐标和追踪目标；`packet-id: "AXS_MAP"` |
 
 ### 地图 Packet 主要字段
 

@@ -1,11 +1,11 @@
 ---
-title: 模块总览 - ArcartX-Suite 26个Minecraft服务器插件 | 我的世界插件套件
-description: ArcartX-Suite 提供 26 个 Minecraft 服务器功能模块，涵盖聊天、战斗、播报、经济交易、全球市场、抽奖开箱、钓鱼、称号、战令、仓库等核心玩法，是 Minecraft ArcartX 服务器开发者的首选插件系列。
+title: 模块总览 - ArcartX-Suite 28个Minecraft服务器插件 | 我的世界插件套件
+description: ArcartX-Suite 提供 28 个 Minecraft 服务器功能模块，涵盖聊天、战斗、播报、经济交易、全球市场、抽奖开箱、钓鱼、称号、战令、仓库、额外背包、原版界面替换等核心玩法，是 Minecraft ArcartX 服务器开发者的首选插件系列。
 ---
 
 # 模块
 
-ArcartX-Suite 共 **26 个功能模块**，涵盖聊天、战斗、播报、追踪、登录、基础工具、区域保护、通用菜单、经济交易、QQ群联动、钓鱼、抽奖等核心玩法，所有模块均通过 `config.yml` 的 `modules.<module>.enabled` 开关启用。
+ArcartX-Suite 共 **28 个功能模块**，涵盖聊天、战斗、播报、追踪、登录、基础工具、区域保护、通用菜单、经济交易、QQ群联动、钓鱼、抽奖、额外背包、原版界面替换等核心玩法，所有模块均通过 `config.yml` 的 `modules.<module>.enabled` 开关启用。
 
 ## 依赖总览
 
@@ -35,6 +35,8 @@ ArcartX-Suite 共 **26 个功能模块**，涵盖聊天、战斗、播报、追�
 | **QQBot** | ArcartX、OneBot 11 实现端 | MySQL、PlaceholderAPI、Chat | OneBot 实现端需自行部署（Lagrange/NapCat/LLOneBot） |
 | EntityTracker | ArcartX | MythicMobs/MythicBukkit、PlaceholderAPI、NeigeItems、MythicLib/MMOItems、宿主 CrossServer、Vault | Boss 追踪需要 Mythic；普通攻击目标 HUD 可独立使用；跨服排行需宿主 cross-server；Vault 用于金钱奖励 |
 | Tab | ArcartX、PlaceholderAPI | Title | 跨服快照走宿主 cross-server（建议 Redis） |
+| ExtraBackpack | ArcartX | Warehouse、PlaceholderAPI | 额外背包页 + 二级密码；可与 Warehouse 联动 |
+| VanillaUI | ArcartX | — | 替换原版工作台/熔炉界面，配方书 + 中文搜索 |
 
 ## 功能模块
 
@@ -205,6 +207,18 @@ ArcartX-Suite 共 **26 个功能模块**，涵盖聊天、战斗、播报、追�
     <div class="card-icon">📋</div>
     <div class="card-title">Tab 在线列表</div>
     <div class="card-desc">ArcartX UI 自定义在线列表，支持ArcartX-Suite多模块联动、排序、分组、PAPI 变量、跨服、可模仿CS与LOL的TAB阵容功能，队友血量显示</div>
+    <span class="card-badge badge-stable">🎁 福利</span>
+  </a>
+  <a href="extrabackpack" class="module-card">
+    <div class="card-icon">🎒</div>
+    <div class="card-title">ExtraBackpack 额外背包</div>
+    <div class="card-desc">额外背包槽位、多分类页（装备/材料/杂物）、二级密码保护、跨服同步、可与 Warehouse 联动</div>
+    <span class="card-badge badge-stable">🎁 福利</span>
+  </a>
+  <a href="vanilla" class="module-card">
+    <div class="card-icon">🔨</div>
+    <div class="card-title">VanillaUI 原版界面替换</div>
+    <div class="card-desc">ArcartX UI 替换原版工作台与熔炉界面，配方书、中文搜索、一键填充材料、熔炉状态实时推送</div>
     <span class="card-badge badge-stable">🎁 福利</span>
   </a>
 </div>

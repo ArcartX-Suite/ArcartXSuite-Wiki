@@ -38,7 +38,8 @@ ArcartX UI 驱动的**登录/注册界面**，替代传统聊天框输入密码�
 | 类型 | 依赖 | 作用 | 缺少时表现 |
 | --- | --- | --- | --- |
 | 必需 | ArcartX | 登录、注册、改密 UI 和客户端回包 | 模块无法提供可视化登录面板 |
-| 按模式必需 | AuthMe | `auth.mode: authme` 时接管登录/注册/改密 | 配置为 `authme` 但未安装 AuthMe 时模块不会加载 |
+| 必需 | AuthMe | `authme` 模式下接管登录/注册/改密；`standalone` 模式下作为迁移数据源 | 模块不会加载（`external-depends` 声明） |
+| 必需 | PlaceholderAPI | 账号类型占位符输出 | 模块不会加载（`external-depends` 声明） |
 | 可选 | MySQL 服务 | `standalone` 模式远程账户库，或 AuthMe 迁移源 | 默认 SQLite 可用；远程库功能不可用 |
 | 可选 | EventPacket 模块 | 登录成功、首次注册后的事件联动 | 不影响登录本身 |
 
@@ -66,14 +67,13 @@ auth:
 
 ### 正版/LittleSkin 免登录
 
-启用后，通过 LittleSkin 外置登录或 Mojang 正版认证的玩家，进服后**无需输入密码**，直接点击「进入服务器」按钮即可游玩。离线玩家仍需正常注册/登录。
+当服务端安装了 authlib-injector 后，通过 LittleSkin 外置登录或 Mojang 正版认证的玩家，进服后**无需输入密码**，直接点击「进入服务器」按钮即可游玩。离线玩家仍需正常注册/登录。免登录功能由 authlib-injector 是否加载自动决定，无需在配置中手动开关。
 
 #### 配置项
 
 ```yaml
 auth:
-  premium-bypass:
-    enabled: false                         # 是否启用免登录
+  bypass-welcome:
     message: '&a身份已验证，欢迎回来。'      # 免登录成功后的提示消息
 ```
 
@@ -125,17 +125,18 @@ conditions:
 - 服务器运行在 `online-mode=false`（`server.properties` 中设置）
 - 已安装 ArcartX-Suite 且 LoginView 模块已启用
 
-##### 第一步：启用 premium-bypass
+##### 第一步：配置免登录消息
 
 编辑 `plugins/ArcartX-Suite/data/loginview/ArcartXLoginView.yml`：
 
 ```yaml
 auth:
   mode: "standalone"       # 或 "authme"
-  premium-bypass:
-    enabled: true          # ← 改为 true
+  bypass-welcome:
     message: '&a身份已验证，欢迎回来。'
 ```
+
+免登录功能由 authlib-injector 是否加载自动决定，无需手动开关。
 
 重载配置：
 ```
@@ -233,9 +234,9 @@ LittleSkin/正版玩家的 UUID 由认证服务器分配，改名不会影响 UU
 
 ```yaml
 ui:
-  ui-id: ArcartX-Suite:LoginView
+  ui-id: AXS:LoginView
   packet-id: AXS_loginview
-  # 默认使用第一套紧凑登录 UI；可改为 login_view_menu.yml 使用纯色块主菜单风格 UI。
+  # 默认使用紧凑登录 UI；可改为 login_view_menu.yml 使用纯色块主菜单风格 UI。
   ui-file: login_view.yml
   register-ui-on-enable: true
   overwrite-ui-files: false
@@ -254,8 +255,10 @@ security:
   lock-movement: true          # 未登录时锁定移动
   lock-chat: true              # 未登录时锁定聊天
   lock-commands: true          # 未登录时锁定命令
-  allow-commands-prefix: "login,register,l,reg,ArcartX-Suite"  # 例外命令前缀
-  rehash-migrated-password-on-login: true  # AuthMe 迁移后首次登录时用 ArcartX-Suite hash 重新加密
+  allow-commands-prefix: "login,register,l,reg,AXS"  # 例外命令前缀
+  rehash-migrated-password-on-login: true  # AuthMe 迁移后首次登录时用 AXS hash 重新加密
+  session-ttl-minutes: 30      # 认证 session 有效期（分钟），0 = 禁用 session
+  session-strict-ip: false     # 是否要求 session 绑定 IP
 ```
 
 ### 存储配置
@@ -304,6 +307,7 @@ messages:
 | `/axs loginview open <玩家>` | 为在线玩家打开登录视图界面，一般用于调试 |
 | `/axs loginview migrate-authme [dry-run]` | 从 AuthMe 迁移密码哈希。加 `dry-run` 只预览不执行 |
 | `/axs loginview migration-commands` | 显示停用 AuthMe 后的安全操作步骤 |
+| `/axs loginview set-spawn` | 将当前位置设为登录后传送点（自动写入配置） |
 | `/axs auth setup` | 自动下载 authlib-injector 并生成启动脚本（本体命令） |
 
 ### QQ 绑定面板

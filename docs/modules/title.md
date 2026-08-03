@@ -1,5 +1,5 @@
 ---
-title: Title 称号插件 | ArcartX-Suite Minecraft服务器
+title: Title 称号插件 | ArcartX-Suite Minecraft
 description: ArcartX-Suite Title 分组称号系统，支持有效期/永久、品质等级、属性加成、套装加成、头顶显示、聊天Tab前缀，我的世界服务器称号插件。
 ---
 
@@ -210,6 +210,7 @@ StorageDescriptor currentDescriptor();
 | 占位符 | 说明 |
 | --- | --- |
 | `%axstitle_set_<套装ID>_completion%` | 该套装已拥有的称号数量 |
+| `%axstitle_set_<套装ID>_total%` | 该套装所需称号总数 |
 | `%axstitle_set_<套装ID>_active%` | 该套装是否已激活（`true`/`false`） |
 
 ## 头顶显示
@@ -451,7 +452,7 @@ titles-directory: "titles"
 
 ```yaml
 ui:
-  ui-id: "ArcartX-Suite:title_menu"
+  ui-id: "AXS:title_menu"
   register-ui-on-enable: true
   # 属性列表每行的统一颜色前缀，支持 &0~&f、&l 等
   attribute-line-color: "&0"
@@ -570,7 +571,7 @@ storage:
     password: ""
 
 ui:
-  ui-id: "ArcartX-Suite:title_menu"
+  ui-id: "AXS:title_menu"
   register-ui-on-enable: true
   attribute-line-color: "&0"
   empty-attribute-placeholder: "-"
@@ -622,5 +623,5 @@ symphony:
   source-prefix: "AXS_TITLE"
 ```
 
-> **提示**：`groups`、`qualities`、`titles`、`sets` 均为动态节点，用户增删不会被 `ConfigDiagnosticEngine` 判定为废弃。
+> **提示**：`groups`、`qualities`、`titles` 为动态节点，用户增删不会被 `ConfigDiagnosticEngine` 判定为废弃。`sets` 同样由用户自由增删，但未声明为动态节，如遇诊断告警可忽略。
 

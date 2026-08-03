@@ -1378,27 +1378,24 @@ entity-cleanup:
   enabled: false
   # 清理间隔（秒）
   interval-seconds: 300
-  # 清理前警告秒数列表
-  warning-seconds:
-    - 60
-    - 30
-    - 10
-    - 5
-  # 警告消息模板 ({seconds} 替换为剩余秒数)
-  warning-message: "&e[服务器] &f{seconds} 秒后清理地面掉落物..."
-  # 清理完成消息 ({count} 替换为清理数量)
-  cleanup-message: "&a[服务器] 已清理 {count} 个实体。"
-  # 清理目标类型
-  targets:
-    dropped-items: true
-    monsters: false
-    animals: false
-  # 实体类型白名单（不会被清理）
-  whitelist:
+  # 清理前警告倒计时（秒），0 = 不警告
+  warning-seconds: 30
+  warning-message: '&c[清理] 将在 {seconds} 秒后清理掉落物！'
+  cleanup-message: '&a[清理] 已清除 {count} 个实体。'
+  # 清理类型
+  clear-dropped-items: true
+  clear-monsters: false
+  clear-animals: false
+  # 跳过有自定义名称的实体
+  skip-named: true
+  # 额外要清理的实体类型（EntityType 枚举名）
+  clear-entity-types: []
+  # 不清理的实体类型白名单
+  entity-whitelist:
+    - VILLAGER
     - ARMOR_STAND
-    - ITEM_FRAME
-  # 世界白名单（这些世界不执行清理）
-  world-whitelist: []
+  # 限定生效世界，空 = 所有世界
+  worlds: []
 ```
 
 ### 命令
@@ -1416,31 +1413,32 @@ entity-cleanup:
 ```yaml
 # ArcartXEventPacket.yml
 scheduled-commands:
-  - id: "auto-save"
-    enabled: true
-    # 首次延迟（秒）
-    delay-seconds: 60
-    # 执行间隔（秒）
+  # 可定义多个定时任务，键名即任务 ID
+  example-save:
+    enabled: false
     interval-seconds: 600
-    # 命令类型: console / player (玩家命令对所有在线玩家执行)
-    type: console
-    # 命令列表
+    delay-seconds: 600
+    as-console: true
     commands:
-      - "save-all"
-  - id: "tip-broadcast"
-    enabled: true
-    delay-seconds: 120
-    interval-seconds: 300
-    type: console
+      - 'save-all'
+    broadcast-message: ''
+  example-tip:
+    enabled: false
+    interval-seconds: 1800
+    delay-seconds: 60
+    as-console: true
     commands:
-      - "say 小贴士：使用 /axs ess sort 整理背包！"
+      - 'say 欢迎加入服务器！输入 /help 查看帮助。'
+    broadcast-message: ''
 ```
 
 | 字段 | 说明 |
 | --- | --- |
-| `id` | 任务标识 |
+| 键名 | 任务标识（即任务 ID） |
 | `enabled` | 是否启用 |
-| `delay-seconds` | 服务器启动后延迟多久开始 |
-| `interval-seconds` | 执行间隔 |
-| `type` | `console` 以控制台执行；`player` 对每个在线玩家执行 |
-| `commands` | 命令列表，按顺序执行 |
+| `delay-seconds` | 服务器启动后延迟多久开始（秒） |
+| `interval-seconds` | 执行间隔（秒） |
+| `as-console` | `true` 以控制台身份执行；`false` 对每个在线玩家执行 |
+| `permission` | 可选，仅 `as-console: false` 时生效，限定只有该权限的玩家才会执行命令 |
+| `commands` | 命令列表，按顺序执行；支持 `{player}` 占位符（对每个在线玩家替换） |
+| `broadcast-message` | 可选，命令执行后广播的消息（支持 `&` 颜色码） |

@@ -29,17 +29,17 @@ description: ArcartX-Suite QQBot OneBot 11 双向消息同步、QQ-游戏账号�
 | **群管理** | `#公告` 同步游戏内、`#踢`/`#封禁` 远程管理、QQ 禁言同步封禁绑定玩家、**关键词自动撤回+禁言** |
 | **黑名单** | 配置化禁止指定 QQ 号使用机器人（指令/消息同步/欢迎/签到等全部拦截） |
 | **双向@联动** | 群内 @QQ → 游戏内 Title 提示；游戏内 `/qqbot at <QQ> <消息>` → 广播到 QQ 群 |
-| **跨模块** | `QQBotBroadcastable` 推送消息、`QQBotNotifiable` 反向监听群事件、`MailDispatchable` 发放兑换奖励 |
+| **跨模块** | `QQBotBroadcastable` 推送消息、`QQBotNotifiable` 反向监听群事件、`QqBindCapable` 绑定查询、`MailDispatchable` 发放兑换奖励、EventBus 订阅拍卖行事件 |
 
 ## 依赖
 
 | 依赖 | 是否必须 | 用途 |
 |------|----------|------|
-| ArcartX | ✅ 必须 | 模块加载（无 UI 资源） |
+| ArcartX | ✅ 必须 | 模块加载 + UI 面板（绑定中心/通知/管理后台） |
 | OneBot 11 实现端 | ✅ 必须 | SnowLuma（推荐）/ NapCat / LLBot 等 |
+| PlaceholderAPI | ✅ 必须 | 群指令查询玩家数据 + 占位符输出 |
 | SQLite (内置) | 默认 | 绑定数据持久化 |
 | MySQL | 可选 | 跨服共享绑定数据时使用 |
-| PlaceholderAPI | 可选 | 群指令查询玩家数据 |
 | Chat 模块 | 可选 | 推荐共同使用获得更完整的聊天体验 |
 
 ::: warning OneBot 实现端
@@ -58,6 +58,8 @@ description: ArcartX-Suite QQBot OneBot 11 双向消息同步、QQ-游戏账号�
 | `/qqbot bind <验证码>` | `arcartxsuite.qqbot.use` | 确认绑定群内申请生成的验证码 |
 | `/qqbot unbind` | `arcartxsuite.qqbot.use` | 解除当前账号的 QQ 绑定 |
 | `/qqbot info` | `arcartxsuite.qqbot.use` | 查看当前绑定的 QQ 号 |
+| `/qqbot ui` | `arcartxsuite.qqbot.use` | 打开绑定中心 UI 面板（需 ArcartX 客户端） |
+| `/qqbot admin` | `arcartxsuite.qqbot.admin` | 打开管理后台 UI 面板（需 ArcartX 客户端） |
 | `/qqbot at <QQ号> <消息>` | `arcartxsuite.qqbot.use` | 向 QQ 群发送 @ 指定 QQ 的消息 |
 
 ### 管理员命令
@@ -65,7 +67,7 @@ description: ArcartX-Suite QQBot OneBot 11 双向消息同步、QQ-游戏账号�
 | 命令 | 权限 | 说明 |
 |------|------|------|
 | `/axs qqbot status` | `arcartxsuite.qqbot.admin` | 查看连接/群数/绑定/白名单状态 |
-| `/axs qqbot reload` | `arcartxsuite.qqbot.admin` | 重载配置 |
+| `/axs reload qqbot` | `arcartxsuite.admin` | 重载 QQBot 模块（宿主通用重载命令） |
 | `/axs qqbot send all <消息>` | `arcartxsuite.qqbot.admin` | 向所有已配置群发送消息 |
 | `/axs qqbot send <群号> <消息>` | `arcartxsuite.qqbot.admin` | 向指定群发送消息 |
 | `/axs qqbot lookup <玩家名\|QQ号>` | `arcartxsuite.qqbot.admin` | 查询绑定关系（双向） |
@@ -137,6 +139,8 @@ description: ArcartX-Suite QQBot OneBot 11 双向消息同步、QQ-游戏账号�
 ### 主配置 `ArcartXQQBot.yml`
 
 ```yaml
+config-version: 1
+
 settings:
   debug: false
   server-id: "survival"          # 服务器标识（多服时区分来源）
@@ -415,7 +419,20 @@ QQBot 模块声明了以下配置校验规则：
 
 ## 跨模块 Capability
 
-QQBot 注册了 `QQBotBroadcastable` capability，其他模块可推送消息到 QQ 群：
+QQBot 注册了以下 capability，供其他模块调用：
+
+| 能力接口 | 方向 | 说明 |
+|----------|------|------|
+| `QQBotBroadcastable` | 提供 | 向指定群或所有群推送消息 |
+| `QQBotNotifiable` | 提供 | 反向监听 QQ 群事件（其他模块可注册 `QQGroupEventListener`） |
+| `QqBindCapable` | 提供 | 查询玩家 QQ 绑定状态、确认绑定（供 LoginView 等模块调用） |
+| `PlayerDataPurgeable` | 提供 | 支持 `/axs purge` 清理玩家绑定数据 |
+| `DatabaseMigratable` | 提供 | 支持 `/axs migrate` 进行 SQLite ↔ MySQL 数据迁移 |
+| `MailDispatchable` | 查找 | 兑换奖品时通过 Mail 模块发放邮件奖励 |
+| `EssentialsQueryable` | 查找 | 群指令查询玩家基础数据 |
+| `EventBusCapability` | 订阅 | 订阅 `market.*` 等事件，拍卖行购买自动推送到群 |
+
+### QQBotBroadcastable 示例
 
 ```java
 QQBotBroadcastable qqBot = context.getCapability(QQBotBroadcastable.class);

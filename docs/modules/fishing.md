@@ -1,1 +1,713 @@
----\ntitle: Fishing 钓鱼系统插件 | ArcartX-Suite Minecraft\ndescription: ArcartX-Suite Fishing 钓鱼系统，星露谷风格钓鱼小游戏、多水域生态、季节/天气/时间分布、钓鱼图鉴收集，我的世界服务器钓鱼小游戏插件。\n---\n\n# Fishing 钓鱼系统\n\n::: tip 付费模块\n本模块为付费模块。授权由 [云端平台](/guide/cloud-modules) 统一管理：在 [cloud.021209.xyz](https://cloud.021209.xyz) 购买/领取授权后，于「装备模块」页面勾选到对应服务器即可，无需填写 `password` 或 `license.yml`。\n:::\n\n**Fishing** 模块为服务器提供一套完整的 **星露谷风格钓鱼小游戏**，通过 ArcartX UI HUD 实时渲染钓鱼过程。玩家抛竿后进入钓鱼小游戏，操控绿条追逐游动的鱼，填满进度条即可捕获。支持多水域生态、鱼种季节/天气/时间分布、宝藏奖励、饵料加成和钓鱼图鉴收集。\n\n## 功能概览\n\n| 功能 | 说明 |\n|------|------|\n| **星露谷钓鱼小游戏** | 服务端物理引擎驱动，实时同步到客户端 HUD |\n| **多水域系统** | 圆形/矩形指定地点 + 默认兜底，不同水域独立鱼池/难度/宝藏 |\n| **鱼种生态** | 季节、天气、水域类型、时间段四维过滤 |\n| **宝藏系统** | 不同水域拥有独立宝藏池，捕获时概率获得；支持外部物品库物品 |\n| **饵料加成** | PDC 标签识别装载饵料，提升特定鱼种吸引率和宝藏概率，并提供鱼竿耐久加成 |\n| **自定义钓竿** | 通过 `rods/` 配置钓竿属性，影响绿条高度、宝藏概率、经验倍率等 |\n| **钓鱼图鉴** | `/fishing` 打开图鉴 UI，记录捕获数量和最大尺寸 |\n| **等级系统** | 捕获获取经验，升级提升绿条高度 |\n| **售卖系统** | `/fishing sell` 直接出售手中鱼，`/fishing sell all` 批量出售背包中所有鱼 |\n| **跨模块联动** | 捕获成功自动发射 EventBus 事件与 EventPacket Signal，联动 BattlePass / Title / Mail / Market |\n\n## 依赖\n\n| 依赖 | 是否必须 | 用途 |\n|------|----------|------|\n| ArcartX | ✅ 必须 | UI 渲染 + 数据包通信 |\n| PlaceholderAPI | 可选 | 钓鱼统计占位符输出 |\n\n## 命令\n\n### 玩家命令\n\n| 命令 | 权限 | 说明 |\n|------|------|------|\n| `/fishing` | `axs.fishing.use` | 打开钓鱼图鉴界面 |\n| `/fishing sell` | `axs.fishing.use` | 出售主手中的钓鱼产物 |\n| `/fishing sell all` | `axs.fishing.use` | 出售背包中所有钓鱼产物 |\n\n### 管理员命令\n\n| 命令 | 权限 | 说明 |\n|------|------|------|\n| `/axs fishing stats [玩家]` | `axs.fishing.admin` | 查看钓鱼统计 |\n| `/axs fishing givexp <玩家> <经验>` | `axs.fishing.admin` | 给予钓鱼经验 |\n| `/axs fishing reset <玩家>` | `axs.fishing.admin` | 重置钓鱼数据 |\n| `/axs fishing reload` | `axs.fishing.admin` | 重载钓鱼模块配置 |\n\n## 权限\n\n| 权限节点 | 默认 | 说明 |\n|----------|------|------|\n| `axs.fishing.use` | true | 使用钓鱼功能 |\n| `axs.fishing.admin` | op | 管理员命令 |\n\n## PlaceholderAPI 占位符\n\n| 占位符 | 说明 |\n|--------|------|\n| `%axsfishing_level%` | 钓鱼等级 |\n| `%axsfishing_total_xp%` | 当前经验值 |\n| `%axsfishing_xp%` | 当前经验值（`total_xp` 别名） |\n| `%axsfishing_total_caught%` | 总捕获数 |\n| `%axsfishing_perfect_catches%` | 完美捕获数 |\n| `%axsfishing_collection_count%` | 已收集鱼种数 |\n| `%axsfishing_collection_percent%` | 图鉴收集百分比 |\n| `%axsfishing_collection%` | 图鉴收集进度（已收集/鱼种总数） |\n| `%axsfishing_favorite_fish%` | 捕获最多的鱼种显示名称 |\n\n## 配置结构\n\n### ArcartXFishing.yml\n\n```yaml\nconfig-version: 2\n\nstorage:\n  mode: sqlite              # sqlite / mysql\n  sqlite-file-name: fishing.db\n  pool-size: 1\n  mysql-host: localhost\n  mysql-port: 3306\n  mysql-database: axs_fishing\n  mysql-username: root\n  mysql-password: ""\n\nfishing:\n  replace-vanilla: true\n  minigame-tick-interval: 1\n  bar-gravity: 0.3\n  bar-bounce-damping: 0.7\n  bar-click-force: -0.6\n  catch-duration-ticks: 600\n  progress-drain-rate: 0.5\n  progress-gain-rate: 1.0\n  base-green-bar-height: 96\n  height-per-level: 4\n  treasure-chance: 0.15       # 宝藏触发基础概率\n  perfect-bonus-multiplier: 1.5\n  base-xp-per-level: 100\n\nui:\n  register-on-enable: true\n  minigame-id: "fishing_minigame"   # 钓鱼小游戏 UI ID\n  collection-id: "fishing_collection" # 图鉴 UI ID\n\ncommands:\n  enabled: true\n  base-permission: "axs.fishing.use"  # 玩家命令基础权限\n\n# ─── 水域定义 ────────────────────────────────────────\n# waters.specified 为 map：根键为水域 ID，内部字段定义水域\nwaters:\n  specified:\n    dragon_lake:\n      display-name: "&b龙泉湖"\n      type: circle              # circle / rectangle\n      world: "world"\n      center: [100, 64, 200]    # 圆心 [x, y, z]\n      radius: 50                # 半径\n      fish-pool: "lake"         # 引用 fish-pools\n      treasure-pool: "common"   # 引用 treasure-pools\n      difficulty-modifier: 1.2  # 难度倍率\n      bait-multipliers:         # 饵料在此水域加成\n        worm: 1.5\n        corn: 2.0\n      require-permission: ""    # 可选进入权限\n\n    jade_river:\n      display-name: "&a翡翠河"\n      type: rectangle\n      world: "world"\n      min: [500, 60, 300]       # 矩形最小角 [x, y, z]\n      max: [700, 80, 400]       # 矩形最大角 [x, y, z]\n      fish-pool: "river"\n      treasure-pool: "common"\n      difficulty-modifier: 0.9\n      bait-multipliers:\n        worm: 1.0\n        bread: 1.3\n\n  default:\n    display-name: "&7普通水域"\n    fish-pool: "default"\n    treasure-pool: "default"\n    difficulty-modifier: 1.0\n    bait-multipliers:\n      worm: 1.0\n      bread: 1.0\n      corn: 1.0\n\n# ─── 鱼类池 ────────────────────────────────────────\n# 引用 fishes/ 目录下的鱼种 ID\nfish-pools:\n  default: ["sea_bass", "salmon"]\n  lake: ["sea_bass", "catfish", "legendary_carp"]\n  river: ["salmon", "catfish"]\n  ocean: ["tuna", "pufferfish", "sea_bass"]\n\n# ─── 宝藏池 ────────────────────────────────────────\n# 引用 treasures/ 目录下的宝藏 ID\ntreasure-pools:\n  default: ["old_boot", "lost_ring"]\n  common: ["old_boot", "lost_ring", "ancient_coin"]\n  rare: ["ancient_coin", "lost_ring"]\n```\n\n### fishes/ 鱼种文件\n\n每鱼种一个独立 YAML 文件，存放在 `fishes/` 目录下：\n\n```yaml\nid: "sea_bass"\ndisplay-name: "海鲈鱼"\nrarity: common              # common / uncommon / rare / legendary\nmin-size: 10\nmax-size: 50\nbase-price: 80\nbase-xp: 15\nseasons: [spring, summer, fall, winter]\nweathers: [clear, rain]\nwater-types: [ocean, river]  # ocean / river / lake\n\n# time-ranges 为 map：根键任意，内部含 start / end\ntime-ranges:\n  day:\n    start: "06:00"\n    end: "20:00"\n\nitem:\n  source: "minecraft"\n  item-id: "cod"\n  amount: 1\n  # texture: "item"                  # 可选：ArcartX 自定义贴图\n  # texture-url: "fishing/sea_bass.png" # 可选：ArcartX GUI 贴图\n  # json: '{"id":"minecraft:cod"}'  # 可选：完整 JSON 物品定义\n  # mmo-type: "ARMOR"               # MMOItems 类型\n  # mmo-id: "FISH_ARMOR"            # MMOItems ID\ndifficulty: 30              # 1~100，影响鱼 AI 游动速度\n\n# behaviors 为 map：根键任意，内部含 type / weight\nbehaviors:\n  smooth:\n    type: smooth\n    weight: 0.6\n  dart:\n    type: dart\n    weight: 0.4\n\n# 捕获后自动发放的货币奖励（可选）\ncurrency-reward:\n  currency-id: "coin"       # 货币 ID\n  amount: 15                  # 基础数量（完美捕获会自动乘以 perfect-bonus-multiplier）\n```\n\n**`item` 物品引用说明**：\n\n| 字段 | 必填 | 说明 |\n|------|------|------|\n| `source` | 否 | 物品来源：`minecraft` / `mythic` / `neige` / `overture` / `mmo` / `json`，默认 `minecraft` |\n| `item-id` | 否 | 外部物品 ID 或原版 Material 名称 |\n| `amount` | 否 | 数量，默认 `1` |\n| `mmo-type` | 否 | MMOItems 物品类型，仅在 `source: mmo` 时有效 |\n| `mmo-id` | 否 | MMOItems 物品 ID，仅在 `source: mmo` 时有效 |\n| `json` | 否 | 完整 JSON 物品定义，优先级最高 |\n| `texture` | 否 | ArcartX 自定义贴图 `icon` 字段 |\n| `texture-url` | 否 | ArcartX GUI 贴图 `url` 字段 |\n\n**行为类型**：`smooth`（平滑游动）、`dart`（快速冲刺）、`sinker`（下沉型）、`floater`（上浮型）\n\n### treasures/ 宝藏文件\n\n每宝藏一个独立 YAML 文件，存放在 `treasures/` 目录下：\n\n```yaml\nid: "old_boot"\ndisplay-name: "旧靴子"\nitem:\n  source: "minecraft"\n  item-id: "leather_boots"\n  amount: 1\nchance: 0.3        # 在宝藏池中的出现概率\n```\n\n### baits/ 饵料文件\n\n每饵料一个独立 YAML 文件，存放在 `baits/` 目录下：\n\n```yaml\nid: "worm"\ndisplay-name: "蚯蚓"\nitem:\n  source: "minecraft"\n  item-id: "string"\n  amount: 1\ndefault: true               # 是否为默认饵料\nfish-attract-modifiers:     # 针对特定鱼种的吸引倍率\n  catfish: 2.0\n  sea_bass: 1.5\ntreasure-chance-boost: 0.02  # 宝藏概率加成\nmax-durability-bonus: 0     # 鱼竿耐久消耗减免值\n```\n\n## 使用饵料\n\n### 装载机制\n\nFishing 通过 **PersistentDataContainer（PDC）** 标签识别鱼竿上装载的饵料。玩家需要手持鱼竿并拥有饵料物品，通过调用 `FishingService.attachBait()`（通常由其他系统/命令触发）将饵料装载到鱼竿上。\n\n装载成功后：\n\n- 背包中的饵料物品会被消耗 1 个\n- 鱼竿的 PDC 中写入 `axs_fishing_bait_id` 标签\n- 后续抛竿时系统读取该标签并应用对应饵料属性\n\n未装载饵料时，使用 `baits/` 目录中第一个 `default: true` 的饵料作为默认饵料。\n\n### 饵料属性\n\n| 属性 | 说明 |\n|------|------|\n| `fish-attract-modifiers` | 针对特定鱼种的吸引倍率，影响选鱼权重 |\n| `treasure-chance-boost` | 宝藏触发概率加成，与钓竿加成叠加 |\n| `max-durability-bonus` | 鱼竿耐久消耗减免值，通过 `PlayerItemDamageEvent` 生效 |\n\n## 自定义钓竿\n\n### rods/ 钓竿文件\n\n每钓竿一个独立 YAML 文件，存放在 `rods/` 目录下：\n\n```yaml\nid: "wooden_rod"\ndisplay-name: "木制钓竿"\nitem:\n  source: "minecraft"\n  item-id: "fishing_rod"\n  amount: 1\n# 宝藏概率加成（加到基础概率上）\ntreasure-chance-bonus: 0.05\n# 绿条高度加成（像素）\ngreen-bar-height-bonus: 8\n# 小游戏持续时间加成（ticks）\ncatch-duration-bonus: 60\n# 经验倍率\nexp-multiplier: 1.1\n# 所需最低玩家钓鱼等级\nmin-player-level: 0\n```\n\n### 钓竿识别\n\n钓竿通过 PDC 标签 `axs_fishing_rod_id` 识别。普通鱼竿（无标签）使用 `RodDefinition.DEFAULT` 默认属性。\n\n### 钓竿属性效果\n\n| 属性 | 说明 |\n|------|------|\n| `treasure-chance-bonus` | 增加宝藏触发概率 |\n| `green-bar-height-bonus` | 增加小游戏绿条高度（像素） |\n| `catch-duration-bonus` | 增加小游戏最大持续时间（ticks） |\n| `exp-multiplier` | 捕获获得经验的倍率 |\n| `min-player-level` | 使用该钓竿所需的最低钓鱼等级（可由外部系统校验） |\n\n## 快速开始教程\n\n以下是一个从零搭建完整钓鱼系统的步骤，按顺序操作即可让钓鱼功能正常运行。\n\n### 第一步：安装与激活\n\n1. 将 `ArcartXFishing-*.jar` 放入服务器的 `plugins/` 目录\n2. 确保 `ArcartX` 本体已安装并正常启动\n3. 首次启动后，在 `plugins/ArcartXFishing/` 目录下会生成默认配置\n\n### 第二步：创建鱼种（fishes/）\n\n在 `plugins/ArcartXFishing/fishes/` 目录下创建鱼种文件：\n\n```yaml\n# sea_bass.yml\nid: "sea_bass"\ndisplay-name: "海鲈鱼"\nrarity: common\nmin-size: 20\nmax-size: 60\nbase-price: 50\nbase-xp: 10\nseasons: [spring, summer, fall]\nweathers: [clear, rain]\nwater-types: [ocean, river]\ntime-ranges:\n  day:\n    start: "06:00"\n    end: "22:00"\nitem:\n  source: "minecraft"\n  item-id: "cod"\ndifficulty: 25\nbehaviors:\n  smooth:\n    type: smooth\n    weight: 0.8\n  dart:\n    type: dart\n    weight: 0.2\n\ncurrency-reward:\n  currency-id: "coin"\n  amount: 8\n```\n\n```yaml\n# legendary_carp.yml\nid: "legendary_carp"\ndisplay-name: "传说锦鲤"\nrarity: legendary\nmin-size: 80\nmax-size: 150\nbase-price: 5000\nbase-xp: 500\nseasons: [spring]\nweathers: [clear]\nwater-types: [lake]\ntime-ranges:\n  dawn:\n    start: "05:00"\n    end: "07:00"\nitem:\n  source: "minecraft"\n  item-id: "tropical_fish"\ndifficulty: 85\nbehaviors:\n  dart:\n    type: dart\n    weight: 0.5\n  sinker:\n    type: sinker\n    weight: 0.5\n```\n\n**稀有度说明**：`common`（普通）→ `uncommon`（稀有）→ `rare`（罕见）→ `legendary`（传说）。稀有度越高，基础被选中的权重越低，但可通过饵料倍率提升。\n\n### 第三步：创建宝藏（treasures/）\n\n在 `plugins/ArcartXFishing/treasures/` 目录下创建：\n\n```yaml\n# old_boot.yml\nid: "old_boot"\ndisplay-name: "旧靴子"\nitem:\n  source: "minecraft"\n  item-id: "leather_boots"\nchance: 0.5\n```\n\n### 第四步：创建饵料（baits/）\n\n在 `plugins/ArcartXFishing/baits/` 目录下创建：\n\n```yaml\n# worm.yml\nid: "worm"\ndisplay-name: "蚯蚓"\nitem:\n  source: "minecraft"\n  item-id: "string"\ndefault: true\nfish-attract-modifiers:\n  catfish: 2.0\n  sea_bass: 1.5\ntreasure-chance-boost: 0.05\nmax-durability-bonus: 0\n```\n\n### 第五步：创建钓竿（rods/）（可选）\n\n在 `plugins/ArcartXFishing/rods/` 目录下创建：\n\n```yaml\n# wooden_rod.yml\nid: "wooden_rod"\ndisplay-name: "木制钓竿"\nitem:\n  source: "minecraft"\n  item-id: "fishing_rod"\ntreasure-chance-bonus: 0.05\ngreen-bar-height-bonus: 8\ncatch-duration-bonus: 60\nexp-multiplier: 1.1\nmin-player-level: 0\n```\n\n钓竿需要通过外部系统或命令将 `axs_fishing_rod_id` PDC 标签写入鱼竿物品。\n\n### 第六步：配置水域与池（ArcartXFishing.yml）\n\n编辑主配置，将鱼种和宝藏绑定到水域：\n\n```yaml\nwaters:\n  specified:\n    dragon_lake:\n      display-name: "&b龙泉湖"\n      type: circle\n      world: "world"\n      center: [100, 64, 200]\n      radius: 50\n      fish-pool: "lake"\n      treasure-pool: "common"\n      difficulty-modifier: 1.2\n      bait-multipliers:\n        worm: 1.5\n\n  default:\n    display-name: "&7普通水域"\n    fish-pool: "default"\n    treasure-pool: "default"\n    difficulty-modifier: 1.0\n    bait-multipliers:\n      worm: 1.0\n\nfish-pools:\n  default: ["sea_bass"]\n  lake: ["sea_bass", "legendary_carp"]\n\ntreasure-pools:\n  default: ["old_boot"]\n  common: ["old_boot"]\n```\n\n### 第六步：配置 Market 回收（与 Market 模块联动）\n\n如果使用 Market 模块，在 `plugins/ArcartXMarket/recycle/` 目录下添加：\n\n```yaml\nfishing_recycle:\n  display-name: "&a鱼市回收"\n  entries:\n    sea_bass:\n      source: "fishing"\n      item-id: "sea_bass"\n      price: 50\n      currency: "coin"\n    legendary_carp:\n      source: "fishing"\n      item-id: "legendary_carp"\n      price: 5000\n      currency: "coin"\n```\n\n### 第七步：装载饵料（可选）\n\n通过支持 PDC 写入的系统或命令调用 `FishingService.attachBait()`，将背包中的饵料装载到鱼竿上。装载后鱼竿会写入 `axs_fishing_bait_id` 标签。\n\n### 第八步：使用\n\n1. 玩家手持钓鱼竿，抛竿到指定水域或任意水面\n2. 鱼上钩后进入 HUD 小游戏，按住 **空格** 控制绿条\n3. 捕获成功后鱼物品自动进入背包\n4. 使用 `/fishing sell` 出售手中鱼，或 `/fishing sell all` 批量出售\n5. 使用 `/fishing` 打开图鉴查看收集进度\n\n---\n\n## 水域匹配规则\n\n1. 玩家抛竿时，按 `waters.specified` 列表顺序匹配\n2. 圆形水域检测玩家是否在圆心 `radius` 范围内\n3. 矩形水域检测玩家是否在 `min` ~ `max` 坐标范围内\n4. 未匹配任何指定地点时回退到 `waters.default`\n5. 匹配成功后使用该水域的 `fish-pool` 和 `treasure-pool`\n\n## 小游戏玩法\n\n1. 玩家使用钓鱼竿抛竿（触发 `PlayerFishEvent`）\n2. 模块拦截事件，取消原版钓鱼，打开钓鱼 HUD\n3. 玩家按住 **空格** 或 **鼠标左键** 控制绿条上升\n4. 松开按键绿条受重力下落\n5. 鱼在轨道内游动，绿条覆盖鱼时进度条上涨\n6. 进度条满则捕获成功，超时或进度归零则失败\n7. 全程鱼未离开绿条可获得 **完美捕获** 加成\n\n## 售卖系统\n\n钓鱼产物在生成时会通过 **PersistentDataContainer** 标记鱼种 ID、尺寸和完美捕获状态，物品 lore 也会自动显示售价信息。\n\n- **`/fishing sell`** — 出售主手中的鱼，自动根据尺寸计算价格并发放货币\n- **`/fishing sell all`** — 扫描背包中所有钓鱼产物，按鱼种尺寸统一出售并发放货币\n\n### Market 回收联动\n\nMarket 模块的回收系统已兼容 Fishing 产物。在 `recycle/*.yml` 中配置 `source: "fishing"` 即可：\n\n```yaml\nsea_bass:\n  source: "fishing"\n  item-id: "sea_bass"        # 对应 fishes/*.yml 中的 id\n  price: 80\n  currency: "coin"\n```\n\nMarket 回收界面会自动识别带 PDC 标记的鱼物品，按回收表价格结算。\n\n## 跨模块联动\n\n### EventBus 事件主题\n\nFishing 在捕获成功时自动向 EventBus 发布以下事件，其他模块可订阅：\n\n| 事件主题 | 触发条件 | Payload 字段 |\n|----------|----------|--------------|\n| `axs.fishing.success` | 每次捕获成功 | `fish_id`, `fish_rarity`, `fish_size`, `water_area`, `bait_id`, `is_perfect`, `player_level` |\n| `axs.fishing.perfect` | 完美捕获 | 同上 |\n| `axs.fishing.collection_unlock` | 首次捕获某鱼种 | 同上 + `total_collection_count` |\n| `axs.fishing.treasure` | 获得宝藏 | `water_area` |\n\n### EventPacket Signal\n\nEventPacket 模块可通过以下 Signal ID 配置规则：\n\n| Signal ID | 变量 |\n|-----------|------|\n| `fishing_success` | `{fish_id}`, `{fish_name}`, `{fish_rarity}`, `{fish_size}`, `{water_area}`, `{is_perfect}` |\n| `fishing_legendary_catch` | 同上 |\n| `fishing_first_catch` | 同上 |\n| `fishing_treasure` | `{water_area}` |\n\n### Title / Mail 里程碑\n\nFishing 内置里程碑检测，达成条件时自动调用 Title 和 Mail 模块（需已安装并启用）：\n\n| 里程碑 | 条件 | 奖励 |\n|--------|------|------|\n| 首次传说鱼 | 首次捕获 `rarity: legendary` 的鱼 | 称号 `legendary_hunter`（7天）+ 邮件 `legendary_first_catch` |\n| 学徒渔夫 | 累计捕获 10 条 | 称号 `fisher_apprentice`（永久） |\n| 大师渔夫 | 累计捕获 100 条 | 称号 `fisher_master`（永久） |\n| 传说渔夫 | 累计捕获 500 条 | 称号 `fisher_legend`（永久） |\n| 完美大师 | 完美捕获 50 次 | 称号 `perfect_master`（永久） |\n\n## 进阶联动配置示例\n\n### EventPacket 联动（发送奖励）\n\n在 `plugins/ArcartXEventPacket/rules/` 下创建规则，当玩家钓起传说鱼时给予额外奖励：\n\n```yaml\nlegendary_catch_reward:\n  enabled: true\n  trigger: "COMMAND_SIGNAL"\n  signal-id: "fishing_legendary_catch"\n  actions:\n    - type: GIVE_CURRENCY\n      currency: "coin"\n      amount: 1000\n    - type: SEND_MESSAGE\n      message: "&6🎉 传说捕获！额外奖励 1000 coin！"\n```\n\n### BattlePass 任务联动\n\n在 `plugins/ArcartXBattlePass/tasks.yml` 中配置钓鱼相关任务：\n\n```yaml\nweekly_fish_master:\n  name: "周常：钓鱼大师"\n  description: "本周捕获 20 条鱼"\n  event-topic: "axs.fishing.success"\n  conditions:\n    - key: "fish_rarity"\n      operator: "ANY"\n  increment: "+1"\n  target: 20\n  reward-xp: 200\n```\n\n```yaml\nlegendary_hunter:\n  name: "传说猎人"\n  description: "钓起一条传说鱼"\n  event-topic: "axs.fishing.success"\n  conditions:\n    - key: "fish_rarity"\n      operator: "EQ"\n      value: "LEGENDARY"\n  increment: "+1"\n  target: 1\n  reward-xp: 500\n```\n\n### 称号与邮件预设配置\n\nFishing 里程碑调用的称号和邮件需要在对应模块中预先配置：\n\n**Title 模块**：在 `plugins/ArcartXTitle/titles.yml` 中添加\n```yaml\nfisher_apprentice:\n  display-name: "&7[学徒渔夫]"\n  # ... 其他称号属性\n\nfisher_master:\n  display-name: "&a[大师渔夫]"\n\nfisher_legend:\n  display-name: "&6[传说渔夫]"\n\nperfect_master:\n  display-name: "&b[完美大师]"\n\nlegendary_hunter:\n  display-name: "&c[传说猎人]"\n```\n\n**Mail 模块**：在 `plugins/ArcartXMail/presets/legendary_first_catch.yml` 中添加\n```yaml\npreset:\n  subject: "传说捕获嘉奖"\n  body: "恭喜你首次捕获传说级鱼类！这是你的奖励。"\n  item-attachments:\n    - material: "DIAMOND"\n      amount: 5\n```\n\n## 常见问题排查\n\n| 问题 | 原因 | 解决方法 |\n|------|------|----------|\n| 抛竿后没有进入小游戏 | `replace-vanilla: false` 或 ArcartX UI 未正常加载 | 检查主配置 `replace-vanilla` 是否为 `true`，确认 ArcartX 客户端正常连接 |\n| 鱼种不刷新 | 季节/天气/时间/水域类型不匹配 | 检查当前服务器季节、天气和时间段是否符合鱼种配置条件 |\n| 饵料不生效 | 鱼竿未装载饵料或 PDC 标签写入失败 | 确认已调用 `FishingService.attachBait()` 消耗饵料并写入 `axs_fishing_bait_id` 标签 |\n| 钓竿属性不生效 | 鱼竿缺少 `axs_fishing_rod_id` PDC 标签 | 通过外部系统或命令写入正确的 PDC 标签 |\n| Market 无法回收鱼 | recycle 表中未配置 `source: "fishing"` 条目 | 参考上方 Market 回收联动配置 |\n| `/fishing sell` 提示"不是钓鱼产物" | 鱼物品缺少 PDC 标记 | 重新钓鱼即可获得带标记的新物品 |\n| EventPacket 收不到 Signal | EventPacket 模块未安装或未启用 fishing 相关规则 | 确认模块已安装，并在规则中配置正确的 `signal-id` |\n\n## 数据库表\n\n| 表名 | 说明 |\n|------|------|\n| `axs_fishing_player` | 玩家等级、经验、总捕获数、完美捕获数 |\n| `axs_fishing_collection` | 图鉴条目：鱼种 ID、捕获次数、最大尺寸、首次捕获时间 |\n\n
+---
+title: Fishing 钓鱼系统插件 | ArcartX-Suite Minecraft
+description: ArcartX-Suite Fishing 钓鱼系统，星露谷风格钓鱼小游戏、多水域生态、季节/天气/时间分布、钓鱼图鉴收集，我的世界服务器钓鱼小游戏插件。
+---
+
+# Fishing 钓鱼系统
+
+::: tip 付费模块
+本模块为付费模块。授权由 [云端平台](/guide/cloud-modules) 统一管理：在 [cloud.021209.xyz](https://cloud.021209.xyz) 购买/领取授权后，于「装备模块」页面勾选到对应服务器即可，无需填写 `password` 或 `license.yml`。
+:::
+
+**Fishing** 模块为服务器提供一套完整的 **星露谷风格钓鱼小游戏**，通过 ArcartX UI HUD 实时渲染钓鱼过程。玩家抛竿后进入钓鱼小游戏，操控绿条追逐游动的鱼，填满进度条即可捕获。支持多水域生态、鱼种季节/天气/时间分布、宝藏奖励、饵料加成和钓鱼图鉴收集。
+
+## 功能概览
+
+| 功能 | 说明 |
+|------|------|
+| **星露谷钓鱼小游戏** | 服务端物理引擎驱动，实时同步到客户端 HUD |
+| **多水域系统** | 圆形/矩形指定地点 + 默认兜底，不同水域独立鱼池/难度/宝藏 |
+| **鱼种生态** | 季节、天气、水域类型、时间段四维过滤 |
+| **宝藏系统** | 不同水域拥有独立宝藏池，捕获时概率获得；支持外部物品库物品 |
+| **饵料加成** | PDC 标签识别装载饵料，提升特定鱼种吸引率和宝藏概率，并提供鱼竿耐久加成 |
+| **自定义钓竿** | 通过 `rods/` 配置钓竿属性，影响绿条高度、宝藏概率、经验倍率等 |
+| **钓鱼图鉴** | `/fishing` 打开图鉴 UI，记录捕获数量和最大尺寸 |
+| **等级系统** | 捕获获取经验，升级提升绿条高度 |
+| **售卖系统** | `/fishing sell` 直接出售手中鱼，`/fishing sell all` 批量出售背包中所有鱼 |
+| **跨模块联动** | 捕获成功自动发射 EventBus 事件与 EventPacket Signal，联动 BattlePass / Title / Mail / Market |
+
+## 依赖
+
+| 依赖 | 是否必须 | 用途 |
+|------|----------|------|
+| ArcartX | ✅ 必须 | UI 渲染 + 数据包通信 |
+| PlaceholderAPI | ✅ 必须 | 钓鱼统计占位符输出 |
+
+## 命令
+
+### 玩家命令
+
+| 命令 | 权限 | 说明 |
+|------|------|------|
+| `/fishing` | `axs.fishing.use` | 打开钓鱼图鉴界面 |
+| `/fishing sell` | `axs.fishing.use` | 出售主手中的钓鱼产物 |
+| `/fishing sell all` | `axs.fishing.use` | 出售背包中所有钓鱼产物 |
+
+### 管理员命令
+
+| 命令 | 权限 | 说明 |
+|------|------|------|
+| `/axs fishing stats [玩家]` | `axs.fishing.admin` | 查看钓鱼统计 |
+| `/axs fishing givexp <玩家> <经验>` | `axs.fishing.admin` | 给予钓鱼经验 |
+| `/axs fishing reset <玩家>` | `axs.fishing.admin` | 重置钓鱼数据 |
+| `/axs fishing reload` | `axs.fishing.admin` | 重载钓鱼模块配置 |
+
+## 权限
+
+| 权限节点 | 默认 | 说明 |
+|----------|------|------|
+| `axs.fishing.use` | true | 使用钓鱼功能 |
+| `axs.fishing.admin` | op | 管理员命令 |
+
+## PlaceholderAPI 占位符
+
+| 占位符 | 说明 |
+|--------|------|
+| `%axsfishing_level%` | 钓鱼等级 |
+| `%axsfishing_total_xp%` | 当前经验值 |
+| `%axsfishing_xp%` | 当前经验值（`total_xp` 别名） |
+| `%axsfishing_total_caught%` | 总捕获数 |
+| `%axsfishing_perfect_catches%` | 完美捕获数 |
+| `%axsfishing_collection_count%` | 已收集鱼种数 |
+| `%axsfishing_collection_percent%` | 图鉴收集百分比 |
+| `%axsfishing_collection%` | 图鉴收集进度（已收集/鱼种总数） |
+| `%axsfishing_favorite_fish%` | 捕获最多的鱼种显示名称 |
+
+## 配置结构
+
+### ArcartXFishing.yml
+
+```yaml
+config-version: 2
+
+storage:
+  mode: sqlite              # sqlite / mysql
+  sqlite-file-name: fishing.db
+  pool-size: 1
+  mysql-host: localhost
+  mysql-port: 3306
+  mysql-database: axs_fishing
+  mysql-username: root
+  mysql-password: ""
+
+fishing:
+  replace-vanilla: true
+  minigame-tick-interval: 1
+  bar-gravity: 0.3
+  bar-bounce-damping: 0.7
+  bar-click-force: -0.6
+  catch-duration-ticks: 600
+  progress-drain-rate: 0.5
+  progress-gain-rate: 1.0
+  base-green-bar-height: 96
+  height-per-level: 4
+  treasure-chance: 0.15       # 宝藏触发基础概率
+  perfect-bonus-multiplier: 1.5
+  base-xp-per-level: 100
+
+ui:
+  register-on-enable: true
+  minigame-id: "fishing_minigame"   # 钓鱼小游戏 UI ID
+  collection-id: "fishing_collection" # 图鉴 UI ID
+
+commands:
+  enabled: true
+  base-permission: "axs.fishing.use"  # 玩家命令基础权限
+
+# ─── 水域定义 ────────────────────────────────────────
+# waters.specified 为列表：每个元素含 name 字段作为水域 ID
+waters:
+  specified:
+    - name: "dragon_lake"
+      display-name: "&b龙泉湖"
+      type: circle              # circle / rectangle
+      world: "world"
+      center: [100, 64, 200]    # 圆心 [x, y, z]
+      radius: 50                # 半径
+      fish-pool: "lake"         # 引用 fish-pools
+      treasure-pool: "common"   # 引用 treasure-pools
+      difficulty-modifier: 1.2  # 难度倍率
+      bait-multipliers:         # 饵料在此水域加成
+        worm: 1.5
+        corn: 2.0
+      require-permission: ""    # 可选进入权限
+
+    - name: "jade_river"
+      display-name: "&a翡翠河"
+      type: rectangle
+      world: "world"
+      min: [500, 60, 300]       # 矩形最小角 [x, y, z]
+      max: [700, 80, 400]       # 矩形最大角 [x, y, z]
+      fish-pool: "river"
+      treasure-pool: "common"
+      difficulty-modifier: 0.9
+      bait-multipliers:
+        worm: 1.0
+        bread: 1.3
+      require-permission: ""
+
+  default:
+    name: "default"
+    display-name: "&7普通水域"
+    fish-pool: "default"
+    treasure-pool: "default"
+    difficulty-modifier: 1.0
+    bait-multipliers:
+      worm: 1.0
+      bread: 1.0
+      corn: 1.0
+
+# ─── 鱼类池 ────────────────────────────────────────
+# 引用 fishes/ 目录下的鱼种 ID
+fish-pools:
+  default: ["sea_bass", "salmon"]
+  lake: ["sea_bass", "catfish", "legendary_carp"]
+  river: ["salmon", "catfish"]
+  ocean: ["tuna", "pufferfish", "sea_bass"]
+
+# ─── 宝藏池 ────────────────────────────────────────
+# 引用 treasures/ 目录下的宝藏 ID
+treasure-pools:
+  default: ["old_boot", "lost_ring"]
+  common: ["old_boot", "lost_ring", "ancient_coin"]
+  rare: ["ancient_coin", "lost_ring"]
+```
+
+### fishes/ 鱼种文件
+
+每鱼种一个独立 YAML 文件，存放在 `fishes/` 目录下：
+
+```yaml
+id: "sea_bass"
+display-name: "海鲈鱼"
+rarity: common              # common / uncommon / rare / legendary
+min-size: 10
+max-size: 50
+base-price: 80
+base-xp: 15
+seasons: [spring, summer, fall, winter]
+weathers: [clear, rain]
+water-types: [ocean, river]  # ocean / river / lake
+
+# time-ranges 为 map：根键任意，内部含 start / end
+time-ranges:
+  day:
+    start: "06:00"
+    end: "20:00"
+
+item:
+  source: "minecraft"
+  item-id: "cod"
+  amount: 1
+  # texture: "item"                  # 可选：ArcartX 自定义贴图
+  # texture-url: "fishing/sea_bass.png" # 可选：ArcartX GUI 贴图
+  # json: '{"id":"minecraft:cod"}'  # 可选：完整 JSON 物品定义
+  # mmo-type: "ARMOR"               # MMOItems 类型
+  # mmo-id: "FISH_ARMOR"            # MMOItems ID
+difficulty: 30              # 1~100，影响鱼 AI 游动速度
+
+# behaviors 为 map：根键任意，内部含 type / weight
+behaviors:
+  smooth:
+    type: smooth
+    weight: 0.6
+  dart:
+    type: dart
+    weight: 0.4
+
+# 捕获后自动发放的货币奖励（可选）
+currency-reward:
+  currency-id: "coin"       # 货币 ID
+  amount: 15                  # 基础数量（完美捕获会自动乘以 perfect-bonus-multiplier）
+```
+
+**`item` 物品引用说明**：
+
+| 字段 | 必填 | 说明 |
+|------|------|------|
+| `source` | 否 | 物品来源：`minecraft` / `mythic` / `neige` / `overture` / `mmo` / `json`，默认 `minecraft` |
+| `item-id` | 否 | 外部物品 ID 或原版 Material 名称 |
+| `amount` | 否 | 数量，默认 `1` |
+| `mmo-type` | 否 | MMOItems 物品类型，仅在 `source: mmo` 时有效 |
+| `mmo-id` | 否 | MMOItems 物品 ID，仅在 `source: mmo` 时有效 |
+| `json` | 否 | 完整 JSON 物品定义，优先级最高 |
+| `texture` | 否 | ArcartX 自定义贴图 `icon` 字段 |
+| `texture-url` | 否 | ArcartX GUI 贴图 `url` 字段 |
+
+**行为类型**：`smooth`（平滑游动）、`dart`（快速冲刺）、`sinker`（下沉型）、`floater`（上浮型）
+
+### treasures/ 宝藏文件
+
+每宝藏一个独立 YAML 文件，存放在 `treasures/` 目录下：
+
+```yaml
+id: "old_boot"
+display-name: "旧靴子"
+item:
+  source: "minecraft"
+  item-id: "leather_boots"
+  amount: 1
+chance: 0.3        # 在宝藏池中的出现概率
+```
+
+### baits/ 饵料文件
+
+每饵料一个独立 YAML 文件，存放在 `baits/` 目录下：
+
+```yaml
+id: "worm"
+display-name: "蚯蚓"
+item:
+  source: "minecraft"
+  item-id: "string"
+  amount: 1
+default: true               # 是否为默认饵料
+fish-attract-modifiers:     # 针对特定鱼种的吸引倍率
+  catfish: 2.0
+  sea_bass: 1.5
+treasure-chance-boost: 0.02  # 宝藏概率加成
+max-durability-bonus: 0     # 鱼竿耐久消耗减免值
+```
+
+## 使用饵料
+
+### 装载机制
+
+Fishing 通过 **PersistentDataContainer（PDC）** 标签识别鱼竿上装载的饵料。玩家需要手持鱼竿并拥有饵料物品，通过调用 `FishingService.attachBait()`（通常由其他系统/命令触发）将饵料装载到鱼竿上。
+
+装载成功后：
+
+- 背包中的饵料物品会被消耗 1 个
+- 鱼竿的 PDC 中写入 `axs_fishing_bait_id` 标签
+- 后续抛竿时系统读取该标签并应用对应饵料属性
+
+未装载饵料时，使用 `baits/` 目录中第一个 `default: true` 的饵料作为默认饵料。
+
+### 饵料属性
+
+| 属性 | 说明 |
+|------|------|
+| `fish-attract-modifiers` | 针对特定鱼种的吸引倍率，影响选鱼权重 |
+| `treasure-chance-boost` | 宝藏触发概率加成，与钓竿加成叠加 |
+| `max-durability-bonus` | 鱼竿耐久消耗减免值，通过 `PlayerItemDamageEvent` 生效 |
+
+## 自定义钓竿
+
+### rods/ 钓竿文件
+
+每钓竿一个独立 YAML 文件，存放在 `rods/` 目录下：
+
+```yaml
+id: "wooden_rod"
+display-name: "木制钓竿"
+item:
+  source: "minecraft"
+  item-id: "fishing_rod"
+  amount: 1
+# 宝藏概率加成（加到基础概率上）
+treasure-chance-bonus: 0.05
+# 绿条高度加成（像素）
+green-bar-height-bonus: 8
+# 小游戏持续时间加成（ticks）
+catch-duration-bonus: 60
+# 经验倍率
+exp-multiplier: 1.1
+# 所需最低玩家钓鱼等级
+min-player-level: 0
+```
+
+### 钓竿识别
+
+钓竿通过 PDC 标签 `axs_fishing_rod_id` 识别。普通鱼竿（无标签）使用 `RodDefinition.DEFAULT` 默认属性。
+
+### 钓竿属性效果
+
+| 属性 | 说明 |
+|------|------|
+| `treasure-chance-bonus` | 增加宝藏触发概率 |
+| `green-bar-height-bonus` | 增加小游戏绿条高度（像素） |
+| `catch-duration-bonus` | 增加小游戏最大持续时间（ticks） |
+| `exp-multiplier` | 捕获获得经验的倍率 |
+| `min-player-level` | 使用该钓竿所需的最低钓鱼等级（可由外部系统校验） |
+
+## 快速开始教程
+
+以下是一个从零搭建完整钓鱼系统的步骤，按顺序操作即可让钓鱼功能正常运行。
+
+### 第一步：安装与激活
+
+1. 将 `ArcartXSuite-Fishing-*.jar` 放入服务器的 `plugins/ArcartX-Suite/modules/` 目录
+2. 确保 `ArcartX` 本体已安装并正常启动
+3. 首次启动后，在 `plugins/ArcartX-Suite/data/fishing/` 目录下会生成默认配置
+
+### 第二步：创建鱼种（fishes/）
+
+在 `plugins/ArcartX-Suite/data/fishing/fishes/` 目录下创建鱼种文件：
+
+```yaml
+# sea_bass.yml
+id: "sea_bass"
+display-name: "海鲈鱼"
+rarity: common
+min-size: 20
+max-size: 60
+base-price: 50
+base-xp: 10
+seasons: [spring, summer, fall]
+weathers: [clear, rain]
+water-types: [ocean, river]
+time-ranges:
+  day:
+    start: "06:00"
+    end: "22:00"
+item:
+  source: "minecraft"
+  item-id: "cod"
+difficulty: 25
+behaviors:
+  smooth:
+    type: smooth
+    weight: 0.8
+  dart:
+    type: dart
+    weight: 0.2
+
+currency-reward:
+  currency-id: "coin"
+  amount: 8
+```
+
+```yaml
+# legendary_carp.yml
+id: "legendary_carp"
+display-name: "传说锦鲤"
+rarity: legendary
+min-size: 80
+max-size: 150
+base-price: 5000
+base-xp: 500
+seasons: [spring]
+weathers: [clear]
+water-types: [lake]
+time-ranges:
+  dawn:
+    start: "05:00"
+    end: "07:00"
+item:
+  source: "minecraft"
+  item-id: "tropical_fish"
+difficulty: 85
+behaviors:
+  dart:
+    type: dart
+    weight: 0.5
+  sinker:
+    type: sinker
+    weight: 0.5
+```
+
+**稀有度说明**：`common`（普通）→ `uncommon`（稀有）→ `rare`（罕见）→ `legendary`（传说）。稀有度越高，基础被选中的权重越低，但可通过饵料倍率提升。
+
+### 第三步：创建宝藏（treasures/）
+
+在 `plugins/ArcartX-Suite/data/fishing/treasures/` 目录下创建：
+
+```yaml
+# old_boot.yml
+id: "old_boot"
+display-name: "旧靴子"
+item:
+  source: "minecraft"
+  item-id: "leather_boots"
+chance: 0.5
+```
+
+### 第四步：创建饵料（baits/）
+
+在 `plugins/ArcartX-Suite/data/fishing/baits/` 目录下创建：
+
+```yaml
+# worm.yml
+id: "worm"
+display-name: "蚯蚓"
+item:
+  source: "minecraft"
+  item-id: "string"
+default: true
+fish-attract-modifiers:
+  catfish: 2.0
+  sea_bass: 1.5
+treasure-chance-boost: 0.05
+max-durability-bonus: 0
+```
+
+### 第五步：创建钓竿（rods/）（可选）
+
+在 `plugins/ArcartX-Suite/data/fishing/rods/` 目录下创建：
+
+```yaml
+# wooden_rod.yml
+id: "wooden_rod"
+display-name: "木制钓竿"
+item:
+  source: "minecraft"
+  item-id: "fishing_rod"
+treasure-chance-bonus: 0.05
+green-bar-height-bonus: 8
+catch-duration-bonus: 60
+exp-multiplier: 1.1
+min-player-level: 0
+```
+
+钓竿需要通过外部系统或命令将 `axs_fishing_rod_id` PDC 标签写入鱼竿物品。
+
+### 第六步：配置水域与池（ArcartXFishing.yml）
+
+编辑主配置，将鱼种和宝藏绑定到水域：
+
+```yaml
+waters:
+  specified:
+    - name: "dragon_lake"
+      display-name: "&b龙泉湖"
+      type: circle
+      world: "world"
+      center: [100, 64, 200]
+      radius: 50
+      fish-pool: "lake"
+      treasure-pool: "common"
+      difficulty-modifier: 1.2
+      bait-multipliers:
+        worm: 1.5
+
+  default:
+    name: "default"
+    display-name: "&7普通水域"
+    fish-pool: "default"
+    treasure-pool: "default"
+    difficulty-modifier: 1.0
+    bait-multipliers:
+      worm: 1.0
+
+fish-pools:
+  default: ["sea_bass"]
+  lake: ["sea_bass", "legendary_carp"]
+
+treasure-pools:
+  default: ["old_boot"]
+  common: ["old_boot"]
+```
+
+### 第七步：配置 Market 回收（与 Market 模块联动）
+
+如果使用 Market 模块，在 `plugins/ArcartX-Suite/data/market/recycle/` 目录下添加：
+
+```yaml
+fishing_recycle:
+  display-name: "&a鱼市回收"
+  entries:
+    sea_bass:
+      source: "fishing"
+      item-id: "sea_bass"
+      price: 50
+      currency: "coin"
+    legendary_carp:
+      source: "fishing"
+      item-id: "legendary_carp"
+      price: 5000
+      currency: "coin"
+```
+
+### 第八步：装载饵料（可选）
+
+通过支持 PDC 写入的系统或命令调用 `FishingService.attachBait()`，将背包中的饵料装载到鱼竿上。装载后鱼竿会写入 `axs_fishing_bait_id` 标签。
+
+### 第九步：使用
+
+1. 玩家手持钓鱼竿，抛竿到指定水域或任意水面
+2. 鱼上钩后进入 HUD 小游戏，按住 **空格** 控制绿条
+3. 捕获成功后鱼物品自动进入背包
+4. 使用 `/fishing sell` 出售手中鱼，或 `/fishing sell all` 批量出售
+5. 使用 `/fishing` 打开图鉴查看收集进度
+
+---
+
+## 水域匹配规则
+
+1. 玩家抛竿时，按 `waters.specified` 列表顺序匹配
+2. 圆形水域检测玩家是否在圆心 `radius` 范围内
+3. 矩形水域检测玩家是否在 `min` ~ `max` 坐标范围内
+4. 未匹配任何指定地点时回退到 `waters.default`
+5. 匹配成功后使用该水域的 `fish-pool` 和 `treasure-pool`
+
+## 小游戏玩法
+
+1. 玩家使用钓鱼竿抛竿（触发 `PlayerFishEvent`）
+2. 模块拦截事件，取消原版钓鱼，打开钓鱼 HUD
+3. 玩家按住 **空格** 或 **鼠标左键** 控制绿条上升
+4. 松开按键绿条受重力下落
+5. 鱼在轨道内游动，绿条覆盖鱼时进度条上涨
+6. 进度条满则捕获成功，超时或进度归零则失败
+7. 全程鱼未离开绿条可获得 **完美捕获** 加成
+
+## 售卖系统
+
+钓鱼产物在生成时会通过 **PersistentDataContainer** 标记鱼种 ID、尺寸和完美捕获状态，物品 lore 也会自动显示售价信息。
+
+- **`/fishing sell`** — 出售主手中的鱼，自动根据尺寸计算价格并发放货币
+- **`/fishing sell all`** — 扫描背包中所有钓鱼产物，按鱼种尺寸统一出售并发放货币
+
+### Market 回收联动
+
+Market 模块的回收系统已兼容 Fishing 产物。在 `recycle/*.yml` 中配置 `source: "fishing"` 即可：
+
+```yaml
+sea_bass:
+  source: "fishing"
+  item-id: "sea_bass"        # 对应 fishes/*.yml 中的 id
+  price: 80
+  currency: "coin"
+```
+
+Market 回收界面会自动识别带 PDC 标记的鱼物品，按回收表价格结算。
+
+## 跨模块联动
+
+### EventBus 事件主题
+
+Fishing 在捕获成功时自动向 EventBus 发布以下事件，其他模块可订阅：
+
+| 事件主题 | 触发条件 | Payload 字段 |
+|----------|----------|--------------|
+| `axs.fishing.success` | 每次捕获成功 | `fish_id`, `fish_rarity`, `fish_size`, `water_area`, `bait_id`, `is_perfect`, `player_level` |
+| `axs.fishing.perfect` | 完美捕获 | 同上 |
+| `axs.fishing.collection_unlock` | 首次捕获某鱼种 | 同上 + `total_collection_count` |
+| `axs.fishing.treasure` | 获得宝藏 | `water_area` |
+
+### EventPacket Signal
+
+EventPacket 模块可通过以下 Signal ID 配置规则：
+
+| Signal ID | 变量 |
+|-----------|------|
+| `fishing_success` | `{fish_id}`, `{fish_name}`, `{fish_rarity}`, `{fish_size}`, `{water_area}`, `{is_perfect}` |
+| `fishing_legendary_catch` | 同上 |
+| `fishing_first_catch` | 同上 |
+| `fishing_treasure` | 同上 |
+
+### Title / Mail 里程碑
+
+Fishing 内置里程碑检测，达成条件时自动调用 Title 和 Mail 模块（需已安装并启用）：
+
+| 里程碑 | 条件 | 奖励 |
+|--------|------|------|
+| 首次传说鱼 | 首次捕获 `rarity: legendary` 的鱼 | 称号 `legendary_hunter`（7天）+ 邮件 `legendary_first_catch` |
+| 学徒渔夫 | 累计捕获 10 条 | 称号 `fisher_apprentice`（永久） |
+| 大师渔夫 | 累计捕获 100 条 | 称号 `fisher_master`（永久） |
+| 传说渔夫 | 累计捕获 500 条 | 称号 `fisher_legend`（永久） |
+| 完美大师 | 完美捕获 50 次 | 称号 `perfect_master`（永久） |
+
+## 进阶联动配置示例
+
+### EventPacket 联动（发送奖励）
+
+在 `data/eventpacket/rules/` 下创建规则，当玩家钓起传说鱼时给予额外奖励：
+
+```yaml
+legendary_catch_reward:
+  enabled: true
+  trigger: command-signal
+  signal: "fishing_legendary_catch"
+  repeatable: true
+  cooldown: "5s"
+  actions:
+    - type: command.dispatch
+      executor: console
+      command: "eco give {player_name} 1000"
+    - type: subtitle.play
+      group-id: "legendary_celebrate"
+```
+
+### BattlePass 任务联动
+
+在 `plugins/ArcartX-Suite/data/battlepass/` 中配置钓鱼相关任务：
+
+```yaml
+weekly_fish_master:
+  name: "周常：钓鱼大师"
+  description: "本周捕获 20 条鱼"
+  event-topic: "axs.fishing.success"
+  conditions:
+    - key: "fish_rarity"
+      operator: "ANY"
+  increment: "+1"
+  target: 20
+  reward-xp: 200
+```
+
+```yaml
+legendary_hunter:
+  name: "传说猎人"
+  description: "钓起一条传说鱼"
+  event-topic: "axs.fishing.success"
+  conditions:
+    - key: "fish_rarity"
+      operator: "EQ"
+      value: "LEGENDARY"
+  increment: "+1"
+  target: 1
+  reward-xp: 500
+```
+
+### 称号与邮件预设配置
+
+Fishing 里程碑调用的称号和邮件需要在对应模块中预先配置：
+
+**Title 模块**：在 `plugins/ArcartX-Suite/data/title/` 中添加
+```yaml
+fisher_apprentice:
+  display-name: "&7[学徒渔夫]"
+  # ... 其他称号属性
+
+fisher_master:
+  display-name: "&a[大师渔夫]"
+
+fisher_legend:
+  display-name: "&6[传说渔夫]"
+
+perfect_master:
+  display-name: "&b[完美大师]"
+
+legendary_hunter:
+  display-name: "&c[传说猎人]"
+```
+
+**Mail 模块**：在 `plugins/ArcartX-Suite/data/mail/presets/` 中添加 `legendary_first_catch.yml`
+```yaml
+preset:
+  subject: "传说捕获嘉奖"
+  body: "恭喜你首次捕获传说级鱼类！这是你的奖励。"
+  item-attachments:
+    - material: "DIAMOND"
+      amount: 5
+```
+
+## 常见问题排查
+
+| 问题 | 原因 | 解决方法 |
+|------|------|----------|
+| 抛竿后没有进入小游戏 | `replace-vanilla: false` 或 ArcartX UI 未正常加载 | 检查主配置 `replace-vanilla` 是否为 `true`，确认 ArcartX 客户端正常连接 |
+| 鱼种不刷新 | 季节/天气/时间/水域类型不匹配 | 检查当前服务器季节、天气和时间段是否符合鱼种配置条件 |
+| 饵料不生效 | 鱼竿未装载饵料或 PDC 标签写入失败 | 确认已调用 `FishingService.attachBait()` 消耗饵料并写入 `axs_fishing_bait_id` 标签 |
+| 钓竿属性不生效 | 鱼竿缺少 `axs_fishing_rod_id` PDC 标签 | 通过外部系统或命令写入正确的 PDC 标签 |
+| Market 无法回收鱼 | recycle 表中未配置 `source: "fishing"` 条目 | 参考上方 Market 回收联动配置 |
+| `/fishing sell` 提示"不是钓鱼产物" | 鱼物品缺少 PDC 标记 | 重新钓鱼即可获得带标记的新物品 |
+| EventPacket 收不到 Signal | EventPacket 模块未安装或未启用 fishing 相关规则 | 确认模块已安装，并在规则中配置正确的 `signal` |
+
+## 数据库表
+
+| 表名 | 说明 |
+|------|------|
+| `axs_fishing_player` | 玩家等级、经验、总捕获数、完美捕获数 |
+| `axs_fishing_collection` | 图鉴条目：鱼种 ID、捕获次数、最大尺寸、首次捕获时间 |
+

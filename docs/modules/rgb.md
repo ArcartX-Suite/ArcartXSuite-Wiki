@@ -1,5 +1,5 @@
 ---
-title: RGB 渐变文本插件 | ArcartX-Suite Minecraft服务器
+title: RGB 渐变文本插件 | ArcartX-Suite Minecraft
 description: ArcartX-Suite RGB 渐变文本，通过 PAPI 输出渐变/扫光效果文本，支持嵌套其他占位符，我的世界服务器美化插件。
 ---
 
@@ -38,6 +38,8 @@ modules:
 ### 主配置（`ArcartXRGB.yml`）
 
 ```yaml
+config-version: 1
+
 settings:
   debug: false
 
@@ -75,16 +77,16 @@ momo:
   switch-interval-ticks: 3
 ```
 
-| 字段 | 类型 | 必填 | 说明 |
-| --- | --- | --- | --- |
-| `enabled` | boolean | ✅ | `false` 时不注册该条目的 PAPI |
-| `text` | string | ✅ | 要渐变的文本，支持颜色代码和 PAPI 变量 |
-| `gradient-colors` | list | ✅ | 至少两个十六进制颜色，按字符分配 |
-| `shine` | boolean | ❌ | 是否启用扫光，默认 `false` |
-| `switch-interval-ticks` | int | ❌ | 帧切换速度，不填则用 `settings.shimmer-switch-interval-ticks` |
-| `shine-width` | int | ❌ | 扫光宽度（字符数），不填则用全局值 |
-| `shine-color` | string | ❌ | 扫光颜色，不填则用全局值 |
-| `shine-strength` | double | ❌ | 扫光强度 0.0~1.0，不填则用全局值 |
+| 字段 | 类型 | 必填 | 默认值 | 说明 |
+| --- | --- | --- | --- | --- |
+| `enabled` | boolean | ✅ | — | `false` 时不注册该条目的 PAPI |
+| `text` | string | ✅ | — | 要渐变的文本，支持颜色代码和 PAPI 变量 |
+| `gradient-colors` | list | ✅ | — | 至少两个十六进制颜色，按字符分配（须加引号，否则 `#` 会被 YAML 当作注释） |
+| `shine` | boolean | ❌ | `false` | 是否启用扫光 |
+| `switch-interval-ticks` | int | ❌ | `2` | 帧切换速度（tick），值越小动画越快 |
+| `shine-width` | int | ❌ | `2` | 扫光宽度（字符数） |
+| `shine-color` | string | ❌ | `#FFFFFF` | 扫光颜色 |
+| `shine-strength` | double | ❌ | `0.55` | 扫光强度 0.0~1.0，越大越亮 |
 
 ## PAPI
 
@@ -106,12 +108,13 @@ momo:
 
 ## 命令
 
-> 权限：`arcartxsuite.admin`
+> 权限：`arcartxsuite.admin`（由宿主 `/axs` 主命令统一校验）
 
 | 命令 | 说明 |
 | --- | --- |
-| `/axs rgb status` | 查看 RGB 模块状态和已加载条目数 |
-| `/axs rgb reload` | 重载全部渐变条目 |
+| `/axs rgb status` | 查看 RGB 模块运行状态 |
+| `/axs rgb reload` | 提示使用 `/axs reload rgb` 重载模块 |
+| `/axs reload rgb` | 重载 RGB 模块（宿主通用重载命令） |
 
 ## UI / Packet
 

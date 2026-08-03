@@ -1,12 +1,12 @@
 ---
-title: EntityTracker 实体追踪插件 | ArcartX-Suite
+title: EntityTracker 实体追踪插件 | ArcartX-Suite Minecraft
 description: ArcartX-Suite EntityTracker Boss血条HUD、实时伤害排行、自动结算奖励、攻击目标信息显示、跨服排行，我的世界服务器 Boss 追踪插件。
 ---
 
 # EntityTracker 实体追踪
 
 ::: tip 福利模块
-本模块为福利模块（**累计消费满 ¥200** 可在 [云端平台](https://cloud.021209.xyz) 领取 **5 个** EntityTracker 授权份额）。领取后于「装备模块」勾选即可，无需 `license.yml`。每份授权可装备到一台服务器。
+本模块为福利模块（**累计消费满 ¥150** 可在 [云端平台](https://cloud.021209.xyz) 领取 **5 个** EntityTracker 授权份额）。领取后于「装备模块」勾选即可，无需 `license.yml`。每份授权可装备到一台服务器。
 :::
 
 ## 功能定位
@@ -52,8 +52,8 @@ description: ArcartX-Suite EntityTracker Boss血条HUD、实时伤害排行、�
 | 类型 | 依赖 | 作用 | 缺少时表现 |
 | --- | --- | --- | --- |
 | 必需 | ArcartX | Boss HUD、攻击目标 HUD、聊天卡片和客户端数据包 | 模块 UI 不可用 |
+| 必需 | PlaceholderAPI | 输出 EntityTracker PAPI，奖励模板渲染时解析外部变量 | 模块不会加载 |
 | 按功能必需 | MythicMobs / MythicBukkit | Boss 追踪依赖 MythicMob ID、生成/死亡事件和 MythicItems 奖励 | Boss 追踪会跳过；攻击目标 HUD 仍可使用 |
-| 可选 | PlaceholderAPI | 输出 EntityTracker PAPI，奖励模板渲染时解析外部变量 | PAPI 输出和变量解析不可用 |
 | 可选 | NeigeItems | `neigeitems` 奖励动作发放 NeigeItems 物品 | 只影响对应奖励动作 |
 | 可选 | MythicLib / MMOItems | `mythicitems` 奖励动作发放 MythicMobs 物品 | 只影响对应奖励动作 |
 | 可选 | 宿主 CrossServer SDK | 跨服 Boss 最高伤害同步（需宿主 `config.yml` 启用 Redis/Proxy） | 跨服排行不可用，仅限本服 SQLite 数据 |
@@ -111,7 +111,7 @@ boss:
     # 排序模式（见下方说明）
     sort-mode: "spawn-order"
     # ArcartX UI 注册 ID（支持列表格式，详见 [多 UI 同时发包](/guide/multi-ui)）
-    ui-id: "ArcartX-Suite:boss_tracker"
+    ui-id: "AXS:boss_tracker"
     # 模块启用时是否自动向 ArcartX 注册 UI
     register-ui-on-enable: true
     # 是否每次启动覆盖 UI yml 文件
@@ -152,7 +152,7 @@ attack-target:
     # 最大视距
     max-view-distance: 48.0
     # 支持列表格式，详见 [多 UI 同时发包](/guide/multi-ui)
-    ui-id: "ArcartX-Suite:attack_target_hud"
+    ui-id: "AXS:attack_target_hud"
     register-ui-on-enable: true
     overwrite-ui-file: false
 
@@ -534,7 +534,7 @@ database:
   mysql:
     host: "localhost"
     port: 3306
-    database: "ArcartX-Suite"
+    database: "arcartxsuite"
     username: "root"
     password: ""
     pool-size: 5                # HikariCP 连接池大小
@@ -615,6 +615,17 @@ database:
 | `%axsentitytracker_ui_id%` | 配置的 UI ID |
 | `%axsentitytracker_runtime_ui_id%` | 运行时实际使用的 UI ID |
 | `%axsentitytracker_bridge_ready%` | ArcartX 桥接是否就绪（`true`/`false`） |
+| `%axsentitytracker_target_active_count%` | 当前活跃的攻击目标 HUD 数量 |
+| `%axsentitytracker_target_viewer_count%` | 当前正在观察攻击目标的玩家总数 |
+| `%axsentitytracker_has_target%` | 玩家当前是否有攻击目标（`true`/`false`，同 `target_present`） |
+
+### 攻击目标
+
+| 占位符 | 说明 |
+| --- | --- |
+| `%axsentitytracker_target_<字段>%` | 玩家当前攻击目标的信息 |
+
+**常用 `<字段>`**：`display_name`（显示名）、`entity_type_name`（实体类型）、`health`（当前血量）、`max_health`（最大血量）、`health_percent`（血量百分比）、`distance`（距离数值）、`distance_text`（距离格式化）、`world`（世界）、`x`/`y`/`z`（坐标）。
 
 ### 当前 Boss / 槽位
 

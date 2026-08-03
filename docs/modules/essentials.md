@@ -25,6 +25,16 @@ Essentials 模块集合了服务器最常用的玩家工具、传送系统、安
 
 ---
 
+## 依赖
+
+| 类型 | 依赖 | 作用 | 缺少时表现 |
+| --- | --- | --- | --- |
+| 必需 | ArcartX | UI 面板注册与客户端数据包通信 | UI 面板不可用 |
+| 必需 | PlaceholderAPI | 输出 Essentials PAPI 占位符 | 模块不会加载 |
+| 可选 | Chat 模块 | 禁言命令委托 Chat 模块执行（通过 `ChatMutable` capability） | 禁言命令不可用 |
+
+---
+
 ## UI 面板
 
 Essentials 模块提供两个 ArcartX UI 面板，需要服务端安装 ArcartX 客户端 mod 才可使用。
@@ -46,7 +56,7 @@ Essentials 模块提供两个 ArcartX UI 面板，需要服务端安装 ArcartX 
 ### 管理员面板
 
 命令：`/axs essentials admin`  
-权限：`ArcartX-Suite.essentials.admin`
+权限：`axs.essentials.admin`
 
 | 页面 | 功能 |
 | --- | --- |
@@ -71,80 +81,94 @@ UI 面板需要玩家安装 ArcartX 客户端 mod。未安装时命令会提示"
 
 | 命令 | 说明 | 权限 |
 | --- | --- | --- |
-| `/ess menu` | 打开玩家功能菜单 | `ArcartX-Suite.essentials.menu` |
-| `/ess admin` | 打开管理员面板 | `ArcartX-Suite.essentials.admin` |
+| `/ess menu` | 打开玩家功能菜单 | — |
+| `/ess admin` | 打开管理员面板 | `axs.essentials.admin` |
 
 ### 玩家管理
 
 | 命令 | 说明 | 权限 |
 | --- | --- | --- |
-| `/ess fly [玩家]` | 切换飞行模式 | `ArcartX-Suite.essentials.fly` |
-| `/ess god [玩家]` | 切换无敌模式 | `ArcartX-Suite.essentials.god` |
-| `/ess heal [玩家]` | 恢复生命值 | `ArcartX-Suite.essentials.heal` |
-| `/ess feed [玩家]` | 恢复饥饿值 | `ArcartX-Suite.essentials.feed` |
-| `/ess gamemode <模式> [玩家]` | 设置游戏模式 | `ArcartX-Suite.essentials.gamemode` |
-| `/ess speed <数值> [玩家]` | 设置移动速度 | `ArcartX-Suite.essentials.speed` |
-| `/ess vanish` | 切换隐身 | `ArcartX-Suite.essentials.vanish` |
-| `/ess afk` | 切换 AFK 状态 | `ArcartX-Suite.essentials.afk` |
-| `/ess repair` | 修复手持物品 | `ArcartX-Suite.essentials.repair` |
-| `/ess hat` | 将手持物品戴在头上 | `ArcartX-Suite.essentials.hat` |
-| `/ess nick <昵称\|off>` | 设置/重置昵称 | `ArcartX-Suite.essentials.nick` |
-| `/ess seen <玩家>` | 查看玩家最后在线信息 | `ArcartX-Suite.essentials.seen` |
+| `/ess fly [玩家]` | 切换飞行模式 | `axs.essentials.fly` |
+| `/ess god [玩家]` | 切换无敌模式 | `axs.essentials.god` |
+| `/ess heal [玩家]` | 恢复生命值 | `axs.essentials.heal` |
+| `/ess feed [玩家]` | 恢复饥饿值 | `axs.essentials.feed` |
+| `/ess gamemode <模式> [玩家]` | 设置游戏模式 | `axs.essentials.gamemode` |
+| `/ess speed <数值> [玩家]` | 设置移动速度 | `axs.essentials.speed` |
+| `/ess vanish` | 切换隐身 | `axs.essentials.vanish` |
+| `/ess afk` | 切换 AFK 状态 | `axs.essentials.afk` |
+| `/ess repair` | 修复手持物品 | `axs.essentials.repair` |
+| `/ess hat` | 将手持物品戴在头上 | `axs.essentials.hat` |
+| `/ess nick <昵称\|off>` | 设置/重置昵称 | `axs.essentials.nick` |
+| `/ess seen <玩家>` | 查看玩家最后在线信息 | `axs.essentials.seen` |
 
 ### 容器
 
 | 命令 | 说明 | 权限 |
 | --- | --- | --- |
-| `/ess enderchest [玩家]` | 打开末影箱 | `ArcartX-Suite.essentials.enderchest` |
-| `/ess workbench` | 打开工作台 | `ArcartX-Suite.essentials.workbench` |
-| `/ess anvil` | 打开铁砧 | `ArcartX-Suite.essentials.anvil` |
-| `/ess trash` | 打开垃圾桶 | `ArcartX-Suite.essentials.trash` |
+| `/ess enderchest [玩家]` | 打开末影箱 | `axs.essentials.enderchest` |
+| `/ess workbench` | 打开工作台 | `axs.essentials.workbench` |
+| `/ess anvil` | 打开铁砧 | `axs.essentials.anvil` |
+| `/ess trash` | 打开垃圾桶 | `axs.essentials.trash` |
 
 ### 传送系统
 
 | 命令 | 说明 | 权限 |
 | --- | --- | --- |
-| `/ess home [名称]` | 传送到家 | `ArcartX-Suite.essentials.home` |
-| `/ess sethome [名称]` | 设置家 | `ArcartX-Suite.essentials.sethome` |
-| `/ess delhome [名称]` | 删除家 | `ArcartX-Suite.essentials.delhome` |
-| `/ess warp <名称>` | 传送到传送点 | `ArcartX-Suite.essentials.warp` |
-| `/ess setwarp <名称>` | 设置传送点 | `ArcartX-Suite.essentials.setwarp` |
-| `/ess delwarp <名称>` | 删除传送点 | `ArcartX-Suite.essentials.delwarp` |
-| `/ess spawn` | 传送到出生点 | `ArcartX-Suite.essentials.spawn` |
-| `/ess setspawn` | 设置出生点 | `ArcartX-Suite.essentials.setspawn` |
-| `/ess tpa <玩家>` | 发送传送请求 | `ArcartX-Suite.essentials.tpa` |
-| `/ess tpahere <玩家>` | 请求对方传送到自己 | `ArcartX-Suite.essentials.tpahere` |
-| `/ess tpaccept` | 接受传送请求 | `ArcartX-Suite.essentials.tpa` |
-| `/ess tpdeny` | 拒绝传送请求 | `ArcartX-Suite.essentials.tpa` |
-| `/ess back` | 返回上次位置 | `ArcartX-Suite.essentials.back` |
-| `/ess tp <玩家>` | 管理员直接传送 | `ArcartX-Suite.essentials.tp` |
-| `/ess top` | 传送到头顶最高方块 | `ArcartX-Suite.essentials.top` |
-| `/ess tppos <x> <y> <z> [世界]` | 传送到坐标 | `ArcartX-Suite.essentials.tppos` |
+| `/ess home [名称]` | 传送到家 | `axs.essentials.home` |
+| `/ess sethome [名称]` | 设置家 | `axs.essentials.sethome` |
+| `/ess delhome [名称]` | 删除家 | `axs.essentials.delhome` |
+| `/ess warp <名称>` | 传送到传送点 | `axs.essentials.warp` |
+| `/ess setwarp <名称>` | 设置传送点 | `axs.essentials.setwarp` |
+| `/ess delwarp <名称>` | 删除传送点 | `axs.essentials.delwarp` |
+| `/ess spawn` | 传送到出生点 | `axs.essentials.spawn` |
+| `/ess setspawn` | 设置出生点 | `axs.essentials.setspawn` |
+| `/ess tpa <玩家>` | 发送传送请求 | `axs.essentials.tpa` |
+| `/ess tpahere <玩家>` | 请求对方传送到自己 | `axs.essentials.tpa` |
+| `/ess tpaccept` | 接受传送请求 | `axs.essentials.tpa` |
+| `/ess tpdeny` | 拒绝传送请求 | `axs.essentials.tpa` |
+| `/ess back` | 返回上次位置 | `axs.essentials.back` |
+| `/ess tp <玩家>` | 管理员直接传送 | `axs.essentials.teleport` |
+| `/ess top` | 传送到头顶最高方块 | `axs.essentials.teleport` |
+| `/ess tppos <x> <y> <z> [世界]` | 传送到坐标 | `axs.essentials.teleport` |
 
 ### 安全管控
 
 | 命令 | 说明 | 权限 |
 | --- | --- | --- |
-| `/ess ban <玩家> [原因]` | 永久封禁 | `ArcartX-Suite.essentials.ban` |
-| `/ess tempban <玩家> <时长> [原因]` | 临时封禁 | `ArcartX-Suite.essentials.ban` |
-| `/ess unban <玩家>` | 解封 | `ArcartX-Suite.essentials.unban` |
-| `/ess mute <玩家> [原因]` | 永久禁言（委托 Chat 模块） | `ArcartX-Suite.essentials.mute` |
-| `/ess tempmute <玩家> <时长> [原因]` | 临时禁言（委托 Chat 模块） | `ArcartX-Suite.essentials.mute` |
-| `/ess unmute <玩家>` | 解除禁言（委托 Chat 模块） | `ArcartX-Suite.essentials.unmute` |
-| `/ess kick <玩家> [原因]` | 踢出服务器 | `ArcartX-Suite.essentials.kick` |
-| `/ess warn <玩家> <原因>` | 警告玩家 | `ArcartX-Suite.essentials.warn` |
-| `/ess sudo <玩家> <命令>` | 强制玩家执行命令 | `ArcartX-Suite.essentials.sudo` |
-| `/ess inv <玩家>` | 查看玩家背包 | `ArcartX-Suite.essentials.inv` |
+| `/ess ban <玩家> [原因]` | 永久封禁 | `axs.essentials.ban` |
+| `/ess tempban <玩家> <时长> [原因]` | 临时封禁 | `axs.essentials.ban` |
+| `/ess unban <玩家>` | 解封 | `axs.essentials.unban` |
+| `/ess mute <玩家> [原因]` | 永久禁言（委托 Chat 模块） | `axs.essentials.mute` |
+| `/ess tempmute <玩家> <时长> [原因]` | 临时禁言（委托 Chat 模块） | `axs.essentials.mute` |
+| `/ess unmute <玩家>` | 解除禁言（委托 Chat 模块） | `axs.essentials.unmute` |
+| `/ess kick <玩家> [原因]` | 踢出服务器 | `axs.essentials.kick` |
+| `/ess warn <玩家> <原因>` | 警告玩家 | `axs.essentials.warn` |
+| `/ess sudo <玩家> <命令>` | 强制玩家执行命令 | `axs.essentials.sudo` |
+| `/ess inv <玩家>` | 查看玩家背包 | `axs.essentials.inv` |
+
+### 世界管理
+
+| 命令 | 说明 | 权限 |
+| --- | --- | --- |
+| `/ess time <day\|night\|noon\|midnight\|set <数值>>` | 设置当前世界时间 | `axs.essentials.time` |
+| `/ess weather <clear\|rain\|thunder>` | 设置当前世界天气 | `axs.essentials.weather` |
+
+### 管理员
+
+| 命令 | 说明 | 权限 |
+| --- | --- | --- |
+| `/ess status` | 查看模块运行状态 | `axs.essentials.reload` |
+| `/ess reload` | 重载 Essentials 模块配置 | `axs.essentials.reload` |
 
 ### 交互 & 工具
 
 | 命令 | 说明 | 权限 |
 | --- | --- | --- |
-| `/ess sit` | 坐下 | `ArcartX-Suite.essentials.sit` |
-| `/ess lay` | 躺下 | `ArcartX-Suite.essentials.lay` |
-| `/ess sort` | 整理背包 | `ArcartX-Suite.essentials.sort` |
-| `/ess replant` | 开关自动补种 | `ArcartX-Suite.essentials.replant` |
-| `/ess autotool` | 开关自动工具切换 | `ArcartX-Suite.essentials.autotool` |
+| `/ess sit` | 坐下 | `axs.essentials.sit` |
+| `/ess lay` | 躺下 | `axs.essentials.lay` |
+| `/ess sort` | 整理背包 | `axs.essentials.sort` |
+| `/ess replant` | 开关自动补种 | `axs.essentials.replant` |
+| `/ess autotool` | 开关自动工具切换 | `axs.essentials.autotool` |
 
 ---
 
@@ -158,7 +182,7 @@ UI 面板需要玩家安装 ArcartX 客户端 mod。未安装时命令会提示"
 tree-capitator:
   enabled: true
   # 需要的权限节点 (留空 = 无需权限)
-  permission: "ArcartX-Suite.essentials.treecap"
+  permission: "axs.essentials.treecap"
   # 最大连锁方块数
   max-blocks: 128
   # 需要手持斧头
@@ -184,7 +208,7 @@ inv-actions:
   # 自动补种作物
   auto-replant:
     enabled: true
-    permission: "ArcartX-Suite.essentials.replant"
+    permission: "axs.essentials.replant"
     crops:
       - WHEAT
       - CARROTS
@@ -194,12 +218,12 @@ inv-actions:
   # 背包整理
   inventory-sort:
     enabled: true
-    permission: "ArcartX-Suite.essentials.sort"
+    permission: "axs.essentials.sort"
     sort-mode: type  # type / name / amount
   # 自动工具切换
   auto-tool:
     enabled: true
-    permission: "ArcartX-Suite.essentials.autotool"
+    permission: "axs.essentials.autotool"
     switch-on-break: true
 ```
 
@@ -222,7 +246,7 @@ storage:
   mysql:
     host: localhost
     port: 3306
-    database: ArcartX-Suite
+    database: arcartxsuite
     username: root
     password: ''
     table-prefix: axs_ess_
@@ -240,15 +264,32 @@ storage:
 
 ---
 
+## PlaceholderAPI 占位符
+
+前缀：`%axsessentials_*%`
+
+| 占位符 | 说明 |
+|--------|------|
+| `%axsessentials_afk%` | 是否 AFK（`true`/`false`） |
+| `%axsessentials_afk_symbol%` | AFK 标记符号（`&7[AFK]`，非 AFK 时为空） |
+| `%axsessentials_vanish%` | 是否隐身（`true`/`false`） |
+| `%axsessentials_vanish_symbol%` | 隐身标记符号（`&b[V]`，非隐身时为空） |
+| `%axsessentials_flying%` | 是否飞行中（`true`/`false`） |
+| `%axsessentials_god%` | 是否无敌（`true`/`false`） |
+| `%axsessentials_nick%` | 昵称（未设置则返回玩家显示名） |
+
+---
+
 ## 权限汇总
 
 | 权限 | 说明 | 默认 |
 | --- | --- | --- |
-| `ArcartX-Suite.essentials.admin` | 管理员面板 UI | OP |
-| `ArcartX-Suite.essentials.treecap` | 一键砍树 | false |
-| `ArcartX-Suite.essentials.replant` | 自动补种 | false |
-| `ArcartX-Suite.essentials.sort` | 背包整理 | false |
-| `ArcartX-Suite.essentials.autotool` | 自动工具切换 | false |
-| `ArcartX-Suite.essentials.fly.bypass` | 绕过世界禁飞 | OP |
-| `ArcartX-Suite.essentials.interact.bypass` | 绕过交互限制 | OP |
+| `axs.essentials.admin` | 管理员面板 UI | OP |
+| `axs.essentials.reload` | 重载模块配置 | OP |
+| `axs.essentials.treecap` | 一键砍树 | false |
+| `axs.essentials.replant` | 自动补种 | false |
+| `axs.essentials.sort` | 背包整理 | false |
+| `axs.essentials.autotool` | 自动工具切换 | false |
+| `axs.essentials.fly.bypass` | 绕过世界禁飞 | OP |
+| `axs.essentials.interact.bypass` | 绕过交互限制 | OP |
 

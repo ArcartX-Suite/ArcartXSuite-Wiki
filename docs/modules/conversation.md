@@ -26,8 +26,7 @@ description: ArcartX-Suite Conversation 对话桥，Chemdah 对话 + Adyeshach N
 | --- | --- | --- | --- |
 | 必需 | ArcartX | 注册对话面板 UI，并接收玩家点击选项回包 | 模块无法显示可视化对话 |
 | 必需 | Chemdah | 提供任务/对话流程、对话帧和选项执行 | 模块不会加载 |
-| 可选 | Adyeshach | 读取附近 NPC、做 NPC 对话入口和选择器展示 | Chemdah 对话桥仍可用，NPC 靠近触发/选择器不可用 |
-| 可选 | EventPacket 模块 | 用事件动作触发对话相关流程 | 不影响 Chemdah 原生对话桥 |
+| 必需 | Adyeshach | 读取附近 NPC、做 NPC 对话入口和选择器展示、NPC 外观配置 | 模块不会加载 |
 
 ## 启用步骤
 
@@ -48,15 +47,17 @@ theme: 'ArcartXConversation'
 ## 关键配置（`ArcartXConversation.yml`）
 
 ```yaml
-debug: false
+debug:
+  enabled: false
 
 theme:
   name: ArcartXConversation
 
 client:
+  packet-id: AXS_CONVERSATION
   # 支持列表格式，详见 [多 UI 同时发包](/guide/multi-ui)
-  dialog-ui-id: ArcartX-Suite:conversation_menu
-  selector-ui-id: ArcartX-Suite:conversation_selector_hud
+  dialog-ui-id: AXS:conversation_menu
+  selector-ui-id: AXS:conversation_selector_hud
   register-ui-on-enable: true
   overwrite-ui-files: false
 
@@ -69,16 +70,8 @@ interaction:
   reply-debounce-ms: 250
   suppress-reopen-ms: 500
 
-keybinds:
-  confirm:
-    name: AXS_CONVERSATION_CONFIRM
-    default-key: F
-  previous:
-    name: AXS_CONVERSATION_PREVIOUS
-    default-key: NUMPAD_8
-  next:
-    name: AXS_CONVERSATION_NEXT
-    default-key: NUMPAD_2
+# 按键已由宿主 config.yml keybinds 节统一注册（AXS_INTERACT / AXS_NAVIGATE_PREV / AXS_NAVIGATE_NEXT）。
+# 本模块不再自行注册按键。
 ```
 
 ## NPC 外观配置（`npc-appearances`）
@@ -129,6 +122,77 @@ npc-appearances:
 | `keep-time` | | `-1` | 模式 B：持续时间（毫秒），`-1` 播放完整动画 |
 
 配置修改后执行 `/axs conversation reload` 即可重新应用。
+
+---
+
+## 电影序列 (Cinematic)
+
+电影序列允许你编排一系列动作（传送、标题、音效、NPC 动画等），按顺序对玩家播放，营造过场动画效果。播放时会自动显示 letterbox 黑边 UI。
+
+### 配置
+
+```yaml
+cinematic:
+  enabled: true
+  letterbox-ui-id: AXS:conversation_letterbox
+
+  # 序列定义（根键为序列 ID）
+  cinematics:
+    intro:
+      name: "开场动画"
+      actions:
+        - type: lock_movement
+          locked: true
+          delay-after-ms: 0
+        - type: title
+          title: "&6第一章"
+          subtitle: "&7新的开始"
+          fade-in: 10
+          stay: 60
+          fade-out: 10
+          delay-after-ms: 2000
+        - type: camera_path
+          world: world
+          duration-ms: 5000
+          ticks-per-frame: 2
+          points:
+            - { x: 100, y: 70, z: 200, yaw: 0, pitch: 30 }
+            - { x: 110, y: 75, z: 210, yaw: 45, pitch: 20 }
+          delay-after-ms: 1000
+        - type: npc_animation
+          npc: "村长老王"
+          animation: wave
+          speed: 1.0
+          transition-time: 5
+          keep-time: -1
+          delay-after-ms: 2000
+        - type: lock_movement
+          locked: false
+          delay-after-ms: 0
+```
+
+### 动作类型
+
+| `type` | 说明 | 关键参数 |
+| --- | --- | --- |
+| `teleport` | 传送玩家到指定坐标 | `world`, `x`, `y`, `z`, `yaw`, `pitch` |
+| `camera_path` | 沿路径平滑插值传送（模拟摄像机移动） | `world`, `duration-ms`, `ticks-per-frame`, `points` |
+| `title` | 显示原版标题/副标题 | `title`, `subtitle`, `fade-in`, `stay`, `fade-out` |
+| `action_bar` | 显示原版 Action Bar 消息 | `text` |
+| `wait` | 纯等待（利用 `delay-after-ms`） | — |
+| `sound` | 播放原版音效 | `sound`, `volume`, `pitch` |
+| `game_mode` | 切换游戏模式 | `mode` |
+| `npc_animation` | 对 Adyeshach NPC 播放动画 | `npc`, `animation`, `speed`, `transition-time`, `keep-time` |
+| `npc_model` | 对 Adyeshach NPC 设置模型 | `npc`, `model`, `scale` |
+| `message` | 发送聊天消息 | `text` |
+| `command` | 执行命令 | `command`, `as-console` |
+| `speed` | 设置行走/飞行速度 | `speed`, `type` |
+| `lock_movement` | 锁定/解锁玩家移动（设置速度为 0） | `locked` |
+| `subtitle` | 播放 Announcer 字幕组（打字机效果，需 Announcer 模块） | `group-id` |
+| `ui_packet` | 发送包到 ArcartX 客户端 UI | `ui-id`, `handler`, `payload` |
+| `arcartx_sound` | 播放 ArcartX 资源包自定义音效 | `resource-path`, `category`, `at-player`, `pitch`, `keep-time-ms` |
+
+每个动作可设 `delay-after-ms`：执行后等待的毫秒数。
 
 ---
 
@@ -191,11 +255,15 @@ __option__:
 | `/axs conversation adyeshach setModel <名称> <modelID> <scale>` | 即时为指定 NPC 设置模型 |
 | `/axs conversation adyeshach setAnimation <名称> <state> <animName>` | 即时为指定 NPC 设置持久默认动画 |
 | `/axs conversation adyeshach playAnimation <名称> <动画名> <速度> [过渡ms] [持续ms]` | 即时为指定 NPC 一次性播放动画（可调速度） |
+| `/axs conversation cinematic play <序列ID> [玩家名]` | 播放指定电影序列 |
+| `/axs conversation cinematic stop` | 停止当前正在播放的电影序列 |
+| `/axs conversation cinematic list` | 列出所有可用的电影序列 |
 
 ## UI / Packet
 
-- 对话 UI ID：`ArcartX-Suite:conversation_menu`
-- NPC 选择 HUD ID：`ArcartX-Suite:conversation_selector_hud`
+- 对话 UI ID：`AXS:conversation_menu`
+- NPC 选择 HUD ID：`AXS:conversation_selector_hud`
+- 电影序列黑边 UI ID：`AXS:conversation_letterbox`
 - 服务端推对话帧（说话人、文本、选项列表），客户端推选项选择回包
 
 ### NPC 选择器 HUD 特性

@@ -1,5 +1,5 @@
 ---
-title: Chat 频道聊天插件 | ArcartX-Suite Minecraft服务器
+title: Chat 频道聊天插件 | ArcartX-Suite Minecraft
 description: ArcartX-Suite Chat 多频道聊天系统，支持私聊回复、@提及通知、物品展示、敏感词过滤、CrossServer 跨服转发，Minecraft 服务器聊天插件。
 ---
 
@@ -35,7 +35,7 @@ description: ArcartX-Suite Chat 多频道聊天系统，支持私聊回复、@�
 | 类型 | 依赖 | 作用 | 缺少时表现 |
 | --- | --- | --- | --- |
 | 必需 | ArcartX | 聊天卡片、物品展示卡片、客户端提示包 | 基础 Bukkit 聊天可拦截，但 ArcartX-Suite 的可视化卡片能力不可用 |
-| 可选 | PlaceholderAPI | 解析频道格式中的 `%...%` 占位符 | 对应变量不会动态替换 |
+| 必需 | PlaceholderAPI | 解析频道格式中的 `%...%` 占位符 | 对应变量不会动态替换 |
 | 可选 | Redis 服务 | 宿主 `cross-server.redis` 跨服转发（推荐） | 单服聊天正常，跨服互通关闭 |
 | 可选 | BungeeCord / Velocity | 宿主 `cross-server.proxy` 跨服转发（备选，有 32KB 限制） | 同上 |
 | 可选 | MySQL 服务 | 多服共享玩家状态和禁言记录 | 默认 SQLite 可用；多服共享建议改 MySQL |
@@ -83,7 +83,7 @@ storage:
   mysql:
     host: "127.0.0.1"
     port: 3306
-    database: "ArcartX-Suite"
+    database: "arcartxsuite"
     username: "root"
     password: ""
   pool-size: 4
@@ -93,14 +93,27 @@ cross-server:
 
 cards:
   # ArcartX 聊天卡片 ID；留空表示不发送卡片。
-  mention-card-id: ""
-  private-card-id: ""
-  system-card-id: ""
+  mention-card-id: "axs_chat_mention"
+  private-card-id: "axs_chat_private"
+  system-card-id: "axs_chat_system"
   item-preview-card-id: "axs_item_preview"
-  # 卡片固定宽度（自适应坐标单位）。
-  card-width: 500
-  # 卡片单行基础高度；多行消息时自动增长。
-  card-height: 100
+
+  # 全角字符（中文等）占位宽度
+  char-width-full: 31
+  # 半角字符（英文/数字等）占位宽度
+  char-width-half: 18
+  # 每行文字高度
+  line-height: 36
+  # 文字区最大宽度（超过此值自动换行）
+  max-line-width: 750
+  # 文字区 X 偏移（图标区宽度）
+  text-offset-x: 170
+  # 右侧内边距
+  pad-right: 40
+  # 卡片单行基础高度
+  base-height: 100
+  # 卡片最小宽度
+  min-width: 500
 
 function:
   mention:
@@ -269,7 +282,7 @@ cross-server:
 | `/chat toggle mentions [on\|off]` | 开启/关闭 @提及通知 |
 | `/chat ignore <玩家>` | 屏蔽指定玩家，不再看到对方消息 |
 | `/chat unignore <玩家>` | 取消屏蔽 |
-| `/chat socialspy [on\|off]` | 开启/关闭社交监听（权限：`arcartxsuite.chat.socialspy`） |
+| `/chat socialspy [on\|off]` | 开启/关闭社交监听 |
 | `/msg <玩家> <消息>` | 向指定玩家发送私聊（权限：`arcartxsuite.chat.msg`，跨服可用） |
 | `/reply <消息>` | 快速回复最近一次私聊你的玩家（权限：`arcartxsuite.chat.msg`） |
 
@@ -280,7 +293,6 @@ cross-server:
 | `arcartxsuite.admin` | 管理命令（mute、unmute、spy、status） |
 | `arcartxsuite.chat.use` | 玩家聊天命令（channel、toggle、ignore 等） |
 | `arcartxsuite.chat.msg` | 私聊和回复（`/msg`、`/reply`） |
-| `arcartxsuite.chat.socialspy` | 社交监听（`/chat socialspy`） |
 | 频道的 `send-permission` | 在该频道发送消息（配置在频道 yml 中） |
 | 频道的 `receive-permission` | 接收该频道消息（配置在频道 yml 中） |
 
@@ -308,14 +320,14 @@ cross-server:
 | `axs_chat_system.yml` | `system-card-id` | 系统提示：红色边框，禁言/过滤等警告 |
 | `axs_item_preview.yml` | `item-preview-card-id` | 物品预览：含物品图标 Slot，悬浮触发 Tooltip |
 
-卡片宽度由 `cards.card-width` 配置（默认 500），字体大小由每个卡片模板 YAML 自行硬编码（默认 49）。服务端根据卡片可用文字区域自动对超长消息进行换行，并根据行数动态计算 `cardHeight`（单行时等于 `cards.card-height`，多行时自动增长）。将配置值设为空字符串可禁用对应卡片。
+卡片宽度由 `cards.min-width` 配置（默认 500），字体大小由每个卡片模板 YAML 自行硬编码（默认 49）。服务端根据卡片可用文字区域（`max-line-width`）自动对超长消息进行换行，并根据行数动态计算 `cardHeight`（单行时等于 `cards.base-height`，多行时按 `line-height` 自动增长）。将配置值设为空字符串可禁用对应卡片。
 
 > **冗余消息抑制**：当卡片成功发送到客户端时，对应的文字消息不再重复输出。例如禁言提示卡片发送后不再发送红色文字提示；@提及卡片发送后不再发送原始聊天消息行到被提及玩家。
 
 #### 物品预览卡片
 
 - 卡片内包含一个 **Slot**（`slotType: ~Icon`），通过 `setItemIcon(itemJson)` 渲染物品图标，悬浮时可触发 ArcartX Tooltip 显示完整物品信息
-- 卡片宽度由配置 `card-width` 决定，高度固定为 `card-height`
+- 卡片宽度由配置 `min-width` 决定，高度固定为 `base-height`
 - **当卡片成功发送时，原始聊天消息行会被完全抑制**，避免物品信息重复出现
 - 禁用后回退到原版 `SHOW_ITEM` 悬浮预览
 
@@ -323,7 +335,7 @@ cross-server:
 
 - 接收方视角：点击卡片背景调用 `Chat.setMessage('/msg 玩家名 ')`，将回复命令预填到聊天框，玩家直接输入消息内容即可发送
 - 卡片图标为铅笔符号（`§d✎`）
-- 宽度由配置 `card-width` 决定，超长消息自动换行，高度随行数动态增长
+- 宽度由配置 `min-width` 决定，超长消息自动换行，高度随行数动态增长
 
 #### 系统提示卡片
 
@@ -346,4 +358,17 @@ cross-server:
 | `%axschat_spy_enabled%` | `true`/`false` | 社交监听是否开启 |
 | `%axschat_ignore_count%` | 数字 | 已屏蔽的玩家数量 |
 | `%axschat_muted%` | `true`/`false` | 是否处于被禁言状态 |
+
+## 跨模块联动
+
+Chat 模块通过 Capability API 与其他模块联动：
+
+| Capability | 方向 | 说明 |
+| --- | --- | --- |
+| `ChatCardSendable` | 提供 | 允许其他模块通过 `packetBridge.sendChatCard()` 向玩家发送聊天卡片 |
+| `ChatMutable` | 提供 | 允许 Essentials 等模块委托禁言/解禁操作，共享同一份禁言状态 |
+| `TabRefreshable` | 消费 | 调用 Tab 模块刷新在线列表快照（频道切换等场景） |
+| `EventBusCapability` | 消费 | 发布聊天事件供其他模块监听 |
+| `PlayerDataPurgeable` | 提供 | 支持宿主统一清理玩家聊天数据 |
+| `DatabaseMigratable` | 提供 | 支持数据库迁移（SQLite → MySQL） |
 

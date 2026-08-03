@@ -64,9 +64,12 @@ modules:
 
 主配置文件：`data/mail/ArcartXMail.yml`（首次启动自动导出）。
 
-### 存储与跨服
+### 调试与存储
 
 ```yaml
+settings:
+  debug: false              # 是否输出 Mail 模块调试日志
+
 storage:
   mode: sqlite          # sqlite | mysql
   sqlite:
@@ -95,14 +98,14 @@ ui:
   overwrite-ui-files: false
   compose-inventory-title: AXS Mail Compose
   notify-card-id: "axs_mail_notify"   # 留空关闭新邮件聊天卡片
-  notify-char-width-full: 26          # 聊天卡片全角字符宽度
-  notify-char-width-half: 14          # 聊天卡片半角字符宽度
-  notify-line-height: 45              # 聊天卡片行高
-  notify-max-line-width: 320          # 聊天卡片最大行宽
-  notify-text-offset-x: 160           # 聊天卡片文本 X 偏移
-  notify-pad-right: 20                # 聊天卡片右侧内边距
+  notify-char-width-full: 31          # 聊天卡片全角字符宽度
+  notify-char-width-half: 18          # 聊天卡片半角字符宽度
+  notify-line-height: 36              # 聊天卡片行高
+  notify-max-line-width: 750          # 聊天卡片最大行宽
+  notify-text-offset-x: 170           # 聊天卡片文本 X 偏移
+  notify-pad-right: 100               # 聊天卡片右侧内边距
   notify-base-height: 100             # 聊天卡片基础高度
-  notify-min-width: 300               # 聊天卡片最小宽度
+  notify-min-width: 550               # 聊天卡片最小宽度
 ```
 
 ### 玩家写信与手续费
@@ -115,50 +118,27 @@ player-send:
   base-fee: 0.0
   item-fee: 0.0
   fee-currency: money
+  vault-tax-rate: 0.05             # 旧版兼容键；等价于 attachment-tax-rates.money
   attachment-tax-rates:
     money: 0.05
     points: 0.0
   allow-self-send: false
   allow-offline-send: true
+  allow-vault-attachment: true     # 是否允许附带 Vault 金币
   max-attachments: 6
   subject-max-length: 48
   body-max-length: 400
 ```
 
-货币定义在 `ArcartXMail.yml` 的 `currencies` 节中配置，模块自带 `money`（Vault 金币）和 `points`（PlayerPoints 点券）两个默认货币。每个货币字段如下：
+货币通过宿主的 `CurrencyBridgeManager` 统一注册和管理，Mail 模块直接引用货币 ID（如 `money`、`points`）。常见货币提供者如下：
 
-| 字段 | 类型 | 默认值 | 说明 |
-| --- | --- | --- | --- |
-| `enabled` | boolean | `true` | 是否启用该货币 |
-| `provider` | string | `vault` / `playerpoints` | 货币提供者：`vault`、`playerpoints`、`placeholder-command` |
-| `display-name` | string | 货币 ID | 显示名称 |
-| `scale` | int | `2` / `0` | 小数位精度 |
-| `balance-placeholder` | string | `""` | `placeholder-command`  provider 的余额 PAPI 占位符 |
-| `withdraw-command` | string | `""` | `placeholder-command` provider 的扣费命令 |
-| `deposit-command` | string | `""` | `placeholder-command` provider 的充值命令 |
+| 提供者 | 说明 | 依赖插件 |
+| --- | --- | --- |
+| `vault` | Vault 金币 | Vault |
+| `playerpoints` | PlayerPoints 点券 | PlayerPoints |
+| `placeholder-command` | 自定义货币（PAPI 余额 + 命令扣费/充值） | PlaceholderAPI |
 
-```yaml
-# ArcartXMail.yml
-currencies:
-  money:
-    enabled: true
-    provider: vault
-    display-name: "金币"
-    scale: 2
-  points:
-    enabled: true
-    provider: playerpoints
-    display-name: "点券"
-    scale: 0
-  custom_coin:
-    enabled: true
-    provider: placeholder-command
-    display-name: "赞助币"
-    scale: 0
-    balance-placeholder: "%mycoin_balance%"
-    withdraw-command: "mycoin take {player} {amount}"
-    deposit-command: "mycoin give {player} {amount}"
-```
+`placeholder-command` 提供者需要配置余额占位符和扣费/充值命令，具体注册方式参见宿主配置。
 
 ### 审核与保留
 
@@ -184,44 +164,46 @@ presets:
   directory: presets    # 相对 data/mail/
 ```
 
-预设文件示例 `data/mail/presets/welcome.yml`：
+预设文件示例 `data/mail/presets/starter.yml`：
 
 ```yaml
 preset:
-  id: "welcome"                    # 可选，默认使用文件名（不含 .yml）
-  enabled: true                    # 是否启用该预设
-  display-name: "欢迎礼包"          # 可选，默认与 ID 相同
-  subject: "欢迎礼包"               # 邮件主题，默认使用 display-name
-  body: "领取附件即可获得新手物资。" # 邮件正文
+  id: "starter"                   # 可选，默认使用文件名（不含 .yml）
+  enabled: true                   # 是否启用该预设
+  display-name: "新手欢迎信"       # 可选，默认与 ID 相同
+  subject: "欢迎来到服务器"        # 邮件主题，默认使用 display-name
+  body: |-
+    这是一封 AXS Mail 模块的示例邮件。
+    你可以通过 /axs mail preset send starter <player> 进行派发。
   expires-after-days: 15           # 邮件过期天数（默认 15）
 
   # 物品附件：material 为 Bukkit 材质名，支持 name/lore
   item-attachments:
-    - material: "DIAMOND"
-      amount: 5
-      name: "&b新手钻石"
+    - material: "APPLE"
+      amount: 8
+      name: "§a欢迎苹果"
       lore:
-        - "&7欢迎加入服务器"
+        - "§7来自 AXS Mail 示例预设"
 
   # 货币附件：currency 对应 currencies 节中的货币 ID
-  currency-attachments:
-    - currency: "money"
-      amount: 1000
-      description: "金币 1000"
+  # currency-attachments:
+  #   - currency: "money"
+  #     amount: 88
+  #     description: "新手金币礼包"
 
   # 兼容旧版的 Vault 货币附件，等效于 currency: money
-  # vault-attachment: 1000
+  vault-attachment: 0.0
 
   claim-commands:
-    - "give {player} bread 16"
+    - "tell <player> 你领取了示例邮件奖励。"
   claim-conditions: []             # 见下文「领取条件」
 
   # 内嵌固定 CDK 定义（也可通过命令 /axs mail cdk create 创建）
   cdks:
-    - code: "WELCOME2024"
+    - code: "STARTER2026"
       enabled: true
-      max-claims: 1                # 最大领取次数
-      expires-after: "7d"          # 有效期，支持 s/m/h/d/w
+      max-claims: 100              # 最大领取次数
+      expires-after: "30d"         # 有效期，支持 s/m/h/d/w
 ```
 
 预设字段一览：
@@ -238,7 +220,6 @@ preset:
 | `currency-attachments` | list | `[]` | 货币附件，每项含 `currency`、`amount`、`description` |
 | `vault-attachment` | double | `0` | 兼容旧版，等效于 `currency: money` 的附件 |
 | `claim-commands` | list | `[]` | 领取时以控制台身份执行的命令；仅替换 `<player>`、`{player}`、`%player%` 三种玩家名 token，不等同于任意 PAPI 展开 |
-| `claim-conditions` | list | `[]` | 领取条件，见下文「领取条件」 |
 | `cdks` | list | `[]` | 内嵌 CDK 列表；也可用 `cdk:` 定义单个 |
 
 重载：`/axs mail reload`（同步预设与 CDK 到数据库）。
@@ -249,10 +230,15 @@ preset:
 
 | 命令 | 说明 |
 | --- | --- |
-| `/axs mail status` | 查看邮箱模块、存储、预设和 CDK 状态 |
+| `/axs mail status` | 查看邮箱模块、存储、预设和跨服状态 |
 | `/axs mail reload` | 重载邮箱配置、预设和 UI |
 | `/axs mail open <玩家>` | 为在线玩家打开邮箱收件箱 |
+| `/axs mail admin` | 打开管理 UI 界面（管理员查看全服邮件） |
+| `/axs mail preset list` | 列出所有已加载的预设邮件 |
 | `/axs mail preset send <预设ID> <目标>` | 按预设派发邮件。目标可填玩家名、`all-online` 或 `all-registered` |
+| `/axs mail preset info <预设ID>` | 查看指定预设的详细信息 |
+| `/axs mail preset delete <预设ID>` | 删除指定预设 |
+| `/axs mail preset reload` | 重新加载预设文件并同步到数据库 |
 | `/axs mail cdk create <预设ID> <兑换码\|auto> <最大领取数> <有效期>` | 创建 CDK 兑换码。`auto` 自动生成，有效期如 `1d`、`7d`、`permanent` |
 | `/axs mail cdk info <兑换码>` | 查看 CDK 绑定预设、已领取次数、过期时间 |
 | `/axs mail cdk list [页码]` | 分页查看所有已创建的 CDK |
@@ -344,6 +330,20 @@ preset:
 - JS 需要 classpath 提供 JavaScript 引擎（Java 15+ 默认无 Nashorn）；JS 不做脚本级 `%...%` / `{player}` 预展开，取 PAPI 请使用 `player.papi()` 或 `player.papiNumber()`。两侧的 `player` 都是 `AriaPlayer` 门面，门面未覆盖的原生 API 使用 `player.bukkit()`。
 - 所有 `claim-conditions` 条目为 **AND** 关系。
 :::
+
+## 配置诊断
+
+Mail 模块声明了以下配置校验规则：
+
+| 字段 | 类型 | 约束 |
+|------|------|------|
+| `storage.mode` | STRING | 必填，枚举 `sqlite` / `mysql` |
+| `storage.pool-size` | INT | 范围 1–100 |
+| `player-send.max-attachments` | INT | 范围 1–64 |
+| `retention.completed-days` | INT | ≥ 1 |
+
+动态节（用户可自由增删，不被结构同步覆盖）：
+- `presets`
 
 ## 跨服配置
 

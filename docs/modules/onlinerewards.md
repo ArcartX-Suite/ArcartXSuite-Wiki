@@ -60,6 +60,39 @@ modules:
 
 ```yaml
 # ArcartXOnlineRewards.yml（主配置）
+settings:
+  debug: false
+  # 玩家客户端初始化完成后，延迟多少 tick 再推送在线奖励进度变量
+  client-sync-delay-ticks: 50
+
+messages:
+  # 今日在线阶段全部完成后的客户端标题文案
+  done: "§c所有阶段已领取"
+
+variables:
+  # 推送给 ArcartX 客户端的进度变量名，值为 0.0 ~ 1.0
+  progress: "arcartx_online_time"
+  # 推送给 ArcartX 客户端的标题变量名，值为当前阶段名称或完成文案
+  title: "arcartx_online_time_title"
+
+ui:
+  menu-ui-id: AXS:online_rewards_menu
+  packet-id: AXS_ONLINE_REWARDS
+  register-ui-on-enable: true
+  overwrite-ui-files: false
+
+storage:
+  mode: "sqlite"           # sqlite / mysql
+  sqlite:
+    file: "online-rewards.db"
+  mysql:
+    host: "127.0.0.1"
+    port: 3306
+    database: "arcartxsuite"
+    username: "root"
+    password: ""
+  pool-size: 2
+
 cross-server:
   enabled: false
 
@@ -76,17 +109,26 @@ rewards-file: "rewards.yml"
 
 ```yaml
 rewards:
-  - minutes: 30
+  - minutes: 1
     name: "第一阶段"
-    rewardText: "在线 30 分钟"
+    rewardText: "这里是第一阶段的奖励描述"
+    mail-presets: []
     commands:
-      - "give {player} diamond 1"
+      - "say 你好 {player} 这是第一阶段"
 
-  - minutes: 60
+  - minutes: 5
     name: "第二阶段"
-    rewardText: "在线 1 小时"
-    mail-presets:
-      - "online_reward_1h"
+    rewardText: "这里是第二阶段的奖励描述"
+    mail-presets: []
+    commands:
+      - "say 你好 {player} 这是第二阶段"
+
+  - minutes: 10
+    name: "第三阶段"
+    rewardText: "这里是第三阶段的奖励描述"
+    mail-presets: []
+    commands:
+      - "say 你好 {player} 这是第三阶段"
 ```
 
 ### 签到配置（`data/onlinerewards/sign-in.yml`）
@@ -95,27 +137,45 @@ rewards:
 reminder-on-join: true
 
 messages:
-  sign-in-success: "§a今日签到成功，连续 {streak} 天。"
+  sign-in-success: "§a今日签到成功，连续 {streak} 天，累计 {total} 天。"
   sign-in-repeat: "§e今天已经签到过了。"
+  sign-in-reminder: "§e你今天还没有签到，输入 /signin 即可领取奖励。"
 
 # 每次成功签到执行的命令
+# 可用变量: {player} {streak} {total} {date} {day}
 base-commands:
-  - "give {player} emerald 1"
+  - "say [签到] {player} 完成了今日签到"
 
-# 连续签到里程碑奖励
+base-rewardText: "命令 1"
+base-mail-presets: []
+
+# 连续签到里程碑奖励（恰好等于 days 时触发）
 streak-rewards:
-  - days: 7
+  - days: 3
+    rewardText: "连续签到 3 天的奖励描述"
+    mail-presets: []
     commands:
-      - "give {player} diamond 3"
+      - "say [签到] {player} 达成连续签到 {streak} 天"
+  - days: 7
+    rewardText: "连续签到 7 天的奖励描述"
+    mail-presets: []
+    commands:
+      - "say [签到] {player} 达成连续签到 {streak} 天"
 
 # 累计签到里程碑（恰好等于 days 时触发）
 total-rewards:
+  - days: 10
+    rewardText: "累计签到 10 天的奖励描述"
+    mail-presets: []
+    commands: []
   - days: 30
     mail-presets: ["signin_30d"]
 
 # 每月指定日期奖励（day-of-month-rewards）
 day-of-month-rewards:
   - day: 1
+    rewardText: "每月 1 号的奖励描述"
+    mail-presets: []
     commands: ["give {player} gold_ingot 1"]
 
 # 节日奖励（holiday-rewards，按 month + day）
@@ -123,18 +183,26 @@ holiday-rewards:
   - month: 1
     day: 1
     name: "元旦签到"
+    rewardText: "元旦签到的奖励描述"
+    mail-presets: []
     commands: []
 
 # 权限额外奖励（permission-bonus-groups，取 priority 最高匹配）
 permission-bonus-groups:
   - permission: "ArcartXSuite.onlinerewards.signin.bonus"
     priority: 10
+    rewardText: "权限额外奖励"
+    mail-presets: []
     commands: []
 
 # 补签卡（makeup）
 makeup:
   enabled: true
   card-name: "补签卡"
+  success: "§a已消耗 1 张{card}补签 {date}，当前剩余 {cards} 张。"
+  no-card: "§c你的{card}不足，无法补签。"
+  invalid-date: "§c只能补签本月今天之前未签到的日期。"
+  already-signed: "§e该日期已经签到过了。"
 ```
 
 ### 主配置扩展（`ArcartXOnlineRewards.yml`）
@@ -144,31 +212,75 @@ makeup:
 ```yaml
 time-bonus:
   permission-groups:
+    - permission: "ArcartXSuite.onlinerewards.time.1_5"
+      multiplier: 1.5
+      priority: 10
     - permission: "ArcartXSuite.onlinerewards.time.2"
       multiplier: 2.0
       priority: 20
 
 weekly-rewards:      # 本周累计在线时长里程碑
+  - id: "weekly_2h"
+    minutes: 120
+    name: "本周活跃 2 小时"
+    rewardText: ""
+    commands: []
+    mail-presets: []
+    repeat: false    # 是否每周期可重复领取
   - id: "weekly_5h"
     minutes: 300
+    name: "本周活跃 5 小时"
+    rewardText: ""
     commands: []
+    mail-presets: []
+    repeat: false
 
 monthly-rewards:     # 本月累计在线时长里程碑
   - id: "monthly_10h"
     minutes: 600
+    name: "本月活跃 10 小时"
+    rewardText: ""
+    commands: []
     mail-presets: []
+    repeat: false
+  - id: "monthly_30h"
+    minutes: 1800
+    name: "本月活跃 30 小时"
+    rewardText: ""
+    commands: []
+    mail-presets: []
+    repeat: false
 
 offline-savings:     # 离线时长储蓄（次日登录加成）
   enabled: true
   max-minutes: 120
   storage-rate: 1.0
+  expire-days: 1     # 保留用于未来扩展（当前跨天自动清零）
 
 server-sign-in-goal: # 全服签到人数目标，达成后给在线玩家发奖
   enabled: true
+  broadcast: true
   targets:
+    - id: "goal_10"
+      required: 10
+      name: "今日 10 人签到"
+      rewardText: ""
+      commands: []
+      mail-presets: []
+      chat-cards: []
+      subtitle-groups: []
+      title-ids: []
+      broadcast: "§e[全服签到] §f今日 10 人签到 §7已达成！"
     - id: "goal_50"
       required: 50
-      broadcast: "§e今日 50 人签到已达成！"
+      name: "今日 50 人签到"
+      rewardText: ""
+      commands: []
+      mail-presets: []
+      chat-cards: []
+      subtitle-groups: []
+      title-ids: []
+      broadcast: "§e[全服签到] §f今日 50 人签到 §7已达成！"
 ```
 
 ### UI 菜单
@@ -178,6 +290,7 @@ ui:
   menu-ui-id: AXS:online_rewards_menu
   packet-id: AXS_ONLINE_REWARDS
   register-ui-on-enable: true
+  overwrite-ui-files: false
 ```
 
 玩家通过 `/onlinerewards open` 打开菜单，可查看在线进度、签到日历、补签与排行榜。`menu-ui-id` 支持列表格式，详见 [多 UI 同时发包](/guide/multi-ui)。
@@ -192,6 +305,7 @@ ui:
 | `/axs onlinerewards reload` | 重载在线奖励配置和 UI |
 | `/axs onlinerewards add\|remove\|set <时长> <玩家>` | 修改玩家在线时长。`add` 增加、`remove` 减少、`set` 设为指定值。时长如 `30m`、`2h`、`1d` |
 | `/axs onlinerewards card add\|remove\|set <数量> <玩家>` | 修改玩家的补签卡数量 |
+| `/axs onlinerewards savings add\|set\|reset <时长> <玩家>` | 修改玩家的离线储蓄分钟数。`add` 增加、`set` 设为指定值、`reset` 清零。时长如 `30m`、`2h` |
 
 ### 玩家命令（权限：`arcartxsuite.onlinerewards.use`，别名 `/signin`）
 
@@ -201,6 +315,7 @@ ui:
 | `/onlinerewards status` | 查看自己的在线时长统计和签到状态 |
 | `/onlinerewards signin` 或 `/signin` | 进行今日签到 |
 | `/onlinerewards top <范围> [页码]` | 查看排行榜。范围：`daily`（日）、`weekly`（周）、`monthly`（月）、`total`（总） |
+| `/onlinerewards history [月数]` | 查看最近 N 个月的签到历史（默认 6，最大 24），显示每月签到天数 |
 
 ## PAPI
 
@@ -222,7 +337,9 @@ ui:
 | `%axsonlinerewards_signin_streak%` | 连续签到天数 |
 | `%axsonlinerewards_signin_total%` | 累计签到天数 |
 | `%axsonlinerewards_offline_savings_minutes%` | 离线储蓄分钟数 |
+| `%axsonlinerewards_offline_savings_time%` | 离线储蓄格式化时长 |
 | `%axsonlinerewards_server_signin_count%` | 今日全服已签到人数 |
+| `%axsonlinerewards_server_signin_next_goal%` | 下一个全服签到目标所需人数（0 表示无目标） |
 | `%axsonlinerewards_signin_history_yyyy-MM_count%` | 指定月份签到天数（替换日期） |
 
 ### 排行榜

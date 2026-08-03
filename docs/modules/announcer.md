@@ -22,6 +22,7 @@ description: ArcartX-Suite Announcer 播报系统，提供常驻/轮播 HUD 公�
 - **点击命令**：每条公告可绑定控制台命令，玩家点击 HUD 后自动执行（`<player>` 变量替换为点击玩家名）
 - **手动广播**：通过命令加入队列或立即广播自定义文本，适合紧急通知
 - **跨服广播**：启用 CrossServer SDK 后，手动广播（`broadcast` / `broadcastnow`）可通过 `gbroadcast` 同步到其他子服
+- **QQ 群转发**：开启 `forward-to-qq` 后，自动轮播公告可同步转发到 QQ 群（需 QQBot 模块）
 - **热重载**：`/axs reload announcer` 即时生效，HUD 不中断
 
 **字幕：**
@@ -38,6 +39,7 @@ description: ArcartX-Suite Announcer 播报系统，提供常驻/轮播 HUD 公�
 | 必需 | ArcartX | 注册 HUD 公告和字幕 UI，向客户端发送公告/字幕包 | 模块无法正常展示 UI |
 | 可选 | PlaceholderAPI | 解析公告、字幕文本中的 `%...%` 变量 | 文本照常发送，但 PAPI 变量保持原样 |
 | 可选 | EventPacket 模块 | 通过 `subtitle.play` 动作触发字幕组 | 不影响 Announcer 自身轮播 |
+| 可选 | QQBot 模块 | 将公告自动转发到 QQ 群（`forward-to-qq: true` 时） | 公告不转发到 QQ，本服正常轮播 |
 | 可选 | Redis / BungeeCord 后端 | 宿主 `config.yml` → `cross-server` | 跨服广播不可用，本服广播正常 |
 
 ## 启用步骤
@@ -55,7 +57,7 @@ modules:
 ```yaml
 settings:
   debug: false                         # true 时打印发包与点击回包日志
-  ui-id: "ArcartX-Suite:announcer_hud"          # 公告 HUD 的 UI ID（支持列表格式，详见 [多 UI 同时发包](/guide/multi-ui)）
+  ui-id: "AXS:announcer_hud"           # 公告 HUD 的 UI ID（支持列表格式，详见 [多 UI 同时发包](/guide/multi-ui)）
   register-ui-on-enable: true          # 启动/重载时自动注册 HUD
   overwrite-ui-file: false             # 是否强制覆盖已导出的 UI 文件
   auto-play: true                      # false 时 HUD 仍同步配置但不滚动
@@ -63,6 +65,7 @@ settings:
   cooldown-ms: 30000                   # 一整轮播完后的冷却时间（毫秒）
   between-entry-interval-ms: 30000     # 同一轮中两条公告之间的间隔（毫秒）
   text-width-font-size: 60             # 滚动文字宽度估算字体大小（自适应坐标），调大背景停留更久
+  forward-to-qq: false                 # 是否将公告自动转发到 QQ 群（需要 QQBot 模块启用）
 
 entries-directory: "announcer"         # 公告条目目录，相对模块数据目录
 ```
@@ -72,7 +75,7 @@ entries-directory: "announcer"         # 公告条目目录，相对模块数据
 | 字段 | 类型 | 默认值 | 说明 |
 | --- | --- | --- | --- |
 | `debug` | boolean | `false` | 开启后在控制台打印每次 `display` 发包内容和玩家点击回包信息 |
-| `ui-id` | string / list | `"ArcartX-Suite:announcer_hud"` | 公告 HUD 的 UI ID，支持列表格式同时向多个 UI 发包 |
+| `ui-id` | string / list | `"AXS:announcer_hud"` | 公告 HUD 的 UI ID，支持列表格式同时向多个 UI 发包 |
 | `register-ui-on-enable` | boolean | `true` | 模块启动/重载时是否自动向 ArcartX 注册 HUD |
 | `overwrite-ui-file` | boolean | `false` | 是否在每次启动时强制覆盖 `plugins/ArcartX-Suite/ui/announcer_hud.yml` |
 | `auto-play` | boolean | `true` | 是否自动轮播公告；`false` 时 HUD 仍注册但不主动滚动 |
@@ -80,6 +83,7 @@ entries-directory: "announcer"         # 公告条目目录，相对模块数据
 | `cooldown-ms` | long | `30000` | 全部公告播完一整轮后的冷却等待时间（毫秒） |
 | `between-entry-interval-ms` | long | `30000` | 同一轮中，上一条公告显示结束后切到下一条公告的等待时间（毫秒） |
 | `text-width-font-size` | int | `60` | 服务端估算滚动文字宽度的字体大小参数（自适应坐标单位）。CJK 字符宽度 ≈ 此值，Latin 字符宽度 ≈ 此值 × 0.55。调大此值会让背景条显示更久，调小则更快隐藏 |
+| `forward-to-qq` | boolean | `false` | 是否将公告自动转发到 QQ 群（需要 QQBot 模块启用） |
 | `entries-directory` | string | `"announcer"` | 公告条目所在目录，路径相对模块数据目录 `data/announcer/` |
 
 ### 公告条目
@@ -170,7 +174,7 @@ CrossServer SDK 外层为 JSON 信封；Announcer 业务 payload 为 YAML 编码
 subtitle:
   settings:
     debug: false
-    ui-id: "ArcartX-Suite:subtitle_hud"            # 支持列表格式，详见 [多 UI 同时发包](/guide/multi-ui)
+    ui-id: "AXS:subtitle_hud"            # 支持列表格式，详见 [多 UI 同时发包](/guide/multi-ui)
     register-ui-on-enable: true
     overwrite-ui-file: false
     groups-directory: "subtitle/groups"    # 字幕组目录，相对模块数据目录
@@ -180,7 +184,7 @@ subtitle:
 | 字段 | 类型 | 默认值 | 说明 |
 | --- | --- | --- | --- |
 | `debug` | boolean | `false` | 开启后打印每帧 `play` 和 `close` 包内容 |
-| `ui-id` | string / list | `"ArcartX-Suite:subtitle_hud"` | 字幕 HUD 的 UI ID，支持列表格式 |
+| `ui-id` | string / list | `"AXS:subtitle_hud"` | 字幕 HUD 的 UI ID，支持列表格式 |
 | `register-ui-on-enable` | boolean | `true` | 模块启动时是否自动注册字幕 HUD |
 | `overwrite-ui-file` | boolean | `false` | 是否强制覆盖 `ui/subtitle_hud.yml` |
 | `groups-directory` | string | `"subtitle/groups"` | 字幕组文件所在目录，相对模块数据目录 |
@@ -286,8 +290,8 @@ Announcer 模块的重载命令是 `/axs reload announcer`（全局统一格式�
 
 | 功能 | UI ID | 默认打开方式 | Packet 说明 |
 | --- | --- | --- | --- |
-| 公告 HUD | `ArcartX-Suite:announcer_hud` | `defaultOpen: true`（自动打开） | 服务端推 `display` 包控制滚动文字显示；客户端点击时推 `AXS_announcer_click` 回包 |
-| 字幕 HUD | `ArcartX-Suite:subtitle_hud` | `defaultOpen: false`（按需打开） | 服务端按帧推 `play` 包驱动打字机动画；字幕组播完推 `close` 包关闭 HUD |
+| 公告 HUD | `AXS:announcer_hud` | `defaultOpen: true`（自动打开） | 服务端推 `display` 包控制滚动文字显示；客户端点击时推 `AXS_announcer_click` 回包 |
+| 字幕 HUD | `AXS:subtitle_hud` | `defaultOpen: false`（按需打开） | 服务端按帧推 `play` 包驱动打字机动画；字幕组播完推 `close` 包关闭 HUD |
 
 ### 公告 HUD `display` 包字段
 
@@ -336,6 +340,12 @@ join_welcome_subtitle:
     - type: subtitle.play
       group-id: "welcome"
 ```
+
+### QQBot 转发
+
+- **触发时机**：当 `settings.forward-to-qq` 为 `true` 且 QQBot 模块已启用时，每条自动轮播公告会同步转发到 QQ 群。
+- **前置要求**：QQBot 模块已启用并配置了 QQ 群连接。
+- **配置**：在主配置 `settings.forward-to-qq` 中开启。
 
 ## 完整运行流程
 

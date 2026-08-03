@@ -1,5 +1,5 @@
 ---
-title: CombatEffect 战斗特效插件 | ArcartX-Suite
+title: CombatEffect 战斗特效插件 | ArcartX-Suite Minecraft
 description: ArcartX-Suite CombatEffect 战斗特效，击杀特效、连击追踪、死亡缓冲、伤害飘字，四插件属性来源自动检测，Minecraft 服务器战斗增强插件。
 ---
 
@@ -86,6 +86,7 @@ modules:
 1. 导出默认配置到 `data/combateffect/config.yml`
 2. 导出包定义到 `data/combateffect/packets/default.yml`
 3. 导出 3 个 UI 文件到 `plugins/ArcartX-Suite/ui/` 目录（`combat_kill_effect.yml`、`combo_effect.yml`、`death_buffer.yml`）
+4. 导出 damage_display 资源到 ArcartX `damage_display/` 目录（`ArcartXSuite-damage.yml`、`ArcartXSuite-heal.yml`）
 
 ---
 
@@ -327,7 +328,7 @@ digis-display:
     # 支持: 玩家近战攻击、Projectile（弓箭/三叉戟/投掷药水等原版远程攻击）
     original:
       enabled: true                  # 是否启用原始伤害飘字
-      config-id: "damage"            # ArcartX 客户端 digis 配置 ID，决定飘字颜色/字体/动画等样式
+      config-id: "ArcartXSuite-damage"  # ArcartX 客户端 damage_display 配置 ID，决定飘字颜色/字体/动画等样式
       min-amount: 1.0                # 最小显示阈值，低于此值的伤害不显示飘字（避免微量数字刷屏）
       ap-compatible: true            # 当伤害来源为 AttributePlus 时，是否允许显示
 
@@ -335,15 +336,15 @@ digis-display:
     # 支持: 玩家近战攻击、Projectile（弓箭/三叉戟等）对玩家造成的伤害
     player:
       enabled: true                  # 是否启用 PVP 伤害飘字
-      config-id: "player-damage"     # ArcartX 客户端 digis 配置 ID（可与原始伤害使用不同样式）
+      config-id: "ArcartXSuite-player-damage"     # ArcartX 客户端 damage_display 配置 ID（可与原始伤害使用不同样式）
       min-amount: 1.0                # 最小显示阈值
 
     # MythicLib / MMOItems 属性伤害（需安装 MythicLib 插件）
     # 支持: MythicLib 结算后的玩家对实体伤害（含 Projectile 的 shooter 解析）
     mythiclib:
       enabled: false                 # 是否启用 MythicLib 属性伤害飘字
-      config-id: "damage"            # 普通目标伤害的 ArcartX digis 配置 ID
-      player-config-id: "player-damage" # 目标为玩家时使用的 digis 配置 ID（PVP 伤害样式）
+      config-id: "ArcartXSuite-damage"            # 普通目标伤害的 ArcartX damage_display 配置 ID
+      player-config-id: "ArcartXSuite-player-damage" # 目标为玩家时使用的 damage_display 配置 ID（PVP 伤害样式）
       min-amount: 1.0                # 最小显示阈值
       player-min-amount: 1.0         # PVP 伤害最小显示阈值
 
@@ -351,8 +352,8 @@ digis-display:
     # 支持: CraneAttribute 结算后的玩家对实体伤害
     craneattribute:
       enabled: false                 # 是否启用 CraneAttribute 属性伤害飘字
-      config-id: "damage"            # 普通目标伤害的 ArcartX digis 配置 ID
-      player-config-id: "player-damage" # 目标为玩家时使用的 digis 配置 ID
+      config-id: "ArcartXSuite-damage"            # 普通目标伤害的 ArcartX damage_display 配置 ID
+      player-config-id: "ArcartXSuite-player-damage" # 目标为玩家时使用的 damage_display 配置 ID
       min-amount: 1.0                # 最小显示阈值
       player-min-amount: 1.0         # PVP 伤害最小显示阈值
 
@@ -360,8 +361,8 @@ digis-display:
     # 支持: Symphony 结算后的玩家对实体伤害（含元素伤害、暴击伤害）
     symphony:
       enabled: false                 # 是否启用 Symphony 属性伤害飘字
-      config-id: "damage"            # 普通目标伤害的 ArcartX digis 配置 ID
-      player-config-id: "player-damage" # 目标为玩家时使用的 digis 配置 ID
+      config-id: "ArcartXSuite-damage"            # 普通目标伤害的 ArcartX damage_display 配置 ID
+      player-config-id: "ArcartXSuite-player-damage" # 目标为玩家时使用的 damage_display 配置 ID
       min-amount: 1.0                # 最小显示阈值
       player-min-amount: 1.0         # PVP 伤害最小显示阈值
 
@@ -377,13 +378,13 @@ digis-display:
     # 原版治疗事件（药水、生命恢复等）
     original:
       enabled: true                  # 是否启用原版治疗飘字
-      config-id: "heal"             # ArcartX 客户端 digis 配置 ID（治疗样式）
+      config-id: "ArcartXSuite-heal" # ArcartX 客户端 damage_display 配置 ID（治疗样式）
       min-amount: 1.0                # 最小显示阈值
 
     # MythicMobs 技能治疗（需安装 MythicMobs / MythicBukkit 插件）
     mythic:
       enabled: true                  # 是否启用 MythicMobs 技能治疗飘字
-      config-id: "heal"             # ArcartX 客户端 digis 配置 ID（治疗样式）
+      config-id: "ArcartXSuite-heal" # ArcartX 客户端 damage_display 配置 ID（治疗样式）
       min-amount: 1.0                # 最小显示阈值
       exact-mode: true               # true: 显示实际生效的治疗量；false: 显示技能理论治疗量
 
@@ -403,7 +404,7 @@ digis-display:
 | `fallback` | boolean | 指定来源不可用时是否自动回退到下一个来源 |
 | `show-others-damage` | boolean | 是否允许其他能看到目标的玩家也看到伤害飘字 |
 | `enabled` | boolean | 是否启用该类别的飘字 |
-| `config-id` | string | ArcartX 客户端 `digis` 配置中的样式 ID，控制飘字外观 |
+| `config-id` | string | ArcartX 客户端 `damage_display` 配置中的样式 ID，控制飘字外观 |
 | `player-config-id` | string | PVP 场景单独使用的 digis 样式 ID |
 | `min-amount` | double | 最小显示阈值，低于此值不显示飘字 |
 | `player-min-amount` | double | PVP 场景的最小显示阈值 |
@@ -1173,7 +1174,7 @@ skill-any:
 ### 场景 6：伤害飘字
 
 1. 在 `config.yml` 中配置 `digis-display` 节
-2. 在 ArcartX 客户端的 `digis` 配置中创建对应的 `config-id` 样式（`damage`、`player-damage`、`heal`）
+2. 在 ArcartX 客户端的 `damage_display` 配置中创建对应的 `config-id` 样式（`ArcartXSuite-damage`、`ArcartXSuite-player-damage`、`ArcartXSuite-heal`）
 3. 进入游戏即可看到伤害/治疗数字飘出
 
 ---
@@ -1197,7 +1198,7 @@ skill-any:
 | `combo_effect.yml` | combo_effect | `combo` / `combo_milestone` | combo |
 | `death_buffer.yml` | death_buffer | `death` | death(victim) |
 
-> **提示**：`config-id`（伤害飘字样式）在 ArcartX 客户端侧的 `digis` 配置文件中定义，与服务端包定义解耦。
+> **提示**：`config-id`（伤害飘字样式）在 ArcartX 客户端侧的 `damage_display` 配置文件中定义，与服务端包定义解耦。模块会自动导出 `ArcartXSuite-damage.yml` 和 `ArcartXSuite-heal.yml` 到 `damage_display/` 目录。
 
 ---
 
@@ -1213,6 +1214,10 @@ plugins/ArcartX-Suite/ui/
 ├── combat_kill_effect.yml      # HUD — 击杀/命中
 ├── combo_effect.yml            # HUD — 连击
 └── death_buffer.yml            # 全屏 — 死亡缓冲
+
+plugins/ArcartX-Suite/damage_display/
+├── ArcartXSuite-damage.yml     # 伤害飘字样式
+└── ArcartXSuite-heal.yml       # 治疗飘字样式
 
 # 客户端资源包（需自行制作）
 assets/

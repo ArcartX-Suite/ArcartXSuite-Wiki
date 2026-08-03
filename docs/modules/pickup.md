@@ -80,7 +80,7 @@ settings:
 ```yaml
 notification:
   # 目标 HUD 的 UI ID
-  ui-id: "ArcartX-Suite:pickup_hud"
+  ui-id: "AXS:pickup_hud"
   # 启动时自动注册 HUD
   register-ui-on-enable: true
   # 是否强制覆盖 UI 文件
@@ -96,9 +96,9 @@ notification:
 ```yaml
 scanner:
   # 目标 HUD 的 UI ID
-  ui-id: "ArcartX-Suite:loot_panel"
+  ui-id: "AXS:loot_panel"
   # 交互菜单的 UI ID（按 F 键打开的透明菜单，捕获鼠标光标）
-  interact-ui-id: "ArcartX-Suite:loot_interact"
+  interact-ui-id: "AXS:loot_interact"
   # 启动时自动注册 HUD
   register-ui-on-enable: true
   # 是否强制覆盖 UI 文件
@@ -119,10 +119,8 @@ scanner:
   merge-same-items: true
   # 自定义拾取按键
   keybind:
-    # ArcartX 客户端按键注册名
-    name: AXS_INTERACT
-    # 默认键位（GLFW 键名）
-    default-key: F
+    # ArcartX 客户端按键注册名（由宿主 config.yml 的 keybinds 节统一注册）
+    name: AXS_PICKUP_PICK
 ```
 
 ### 过滤系统配置
@@ -203,7 +201,7 @@ filter:
 | **ESC** | 交互菜单已打开时 | 关闭交互菜单 |
 
 ::: tip 按键说明
-扫描模式使用 ArcartX 客户端的自定义按键系统（`AXS_INTERACT`），默认绑定为 F 键。玩家可在客户端按键设置中修改绑定。UI 脚本通过 `Keyboard.getKeyBindingKeyName("AXS_INTERACT")` 动态解析实际键位。
+扫描模式使用 ArcartX 客户端的自定义按键系统（`AXS_PICKUP_PICK`），由宿主 `config.yml` 的 `keybinds` 节统一注册到客户端。玩家可在客户端按键设置中修改绑定。服务端通过此 name 订阅按键回调，按键触发后由服务端发包通知客户端打开交互菜单。
 :::
 
 ## UI 面板（扫描模式）
@@ -260,14 +258,9 @@ filter:
 - **扫描模式**：关闭后不再扫描掉落物，同时恢复原版自动拾取行为
 :::
 
-### 管理命令
-
-> 权限：`arcartxsuite.admin`
-
-| 命令 | 说明 |
-| --- | --- |
-| `/axs pickup status` | 查看拾取模块状态（当前模式、配置信息） |
-| `/axs pickup reload` | 重载拾取配置和 HUD |
+::: tip 重载配置
+Pickup 模块没有独立的管理命令。重载配置请使用宿主命令 `/axs reload pickup`。
+:::
 
 ## 技术架构
 
@@ -292,7 +285,7 @@ PickupModule
   3. 滚轮切换时发送 select 包（仅 selectedIndex）
 
 客户端 → 服务端（loot_panel HUD）:
-  1. F 键 → Screen.open('ArcartX-Suite:loot_interact') + Packet.send('pickup', 'open_menu')
+  1. F 键 → Screen.open('AXS:loot_interact') + Packet.send('pickup', 'open_menu')
   2. 滚轮 → 本地更新 var.selectedIndex + Packet.send('pickup', 'scroll_up/scroll_down')
   3. 点击条目 → Packet.send('pickup', 'pick_N')  （N = 0~7，指定索引拾取）
   4. 点击空白 → Packet.send('pickup', 'pick')     （拾取当前选中）

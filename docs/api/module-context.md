@@ -328,7 +328,7 @@ UiBinding binding = context.prepareUiBinding("MyModule", "my_ui", true, uiFile);
 context.unregisterUi(registeredUiId);
 ```
 
-### 受保护资源
+### 资源读取
 
 ```java
 // 读取模块 Jar 内的资源流

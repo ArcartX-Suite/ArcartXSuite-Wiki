@@ -40,9 +40,8 @@ Menu 模块提供 **配置驱动的 ArcartX 全屏菜单**，可替代 TrMenu �
 
 | 类型 | 依赖 | 作用 | 缺少时表现 |
 | --- | --- | --- | --- |
-| 必需 | ArcartX | UI 注册、发包、打开/关闭界面 | 模块无法启动 |
+| 必需 | ArcartX | UI 注册、发包、打开/关闭界面；Aria 脚本条件随 ArcartX 内置提供 | 模块无法启动 |
 | 可选 | PlaceholderAPI | PAPI 行内条件、文本变量 | PAPI 条件不通过、变量不展开 |
-| 必需 | ArcartX | Aria 脚本条件（ArcartX 内置，随 `depend: [ArcartX]` 提供） | Aria 随 ArcartX 提供，始终可用 |
 | 可选 | MythicMobs / NeigeItems / MMOItems / Overture | 按钮 `icon.source` 外部物品生成 | 外部图标解析失败，回退为默认材质或隐藏 |
 
 ## 启用步骤
@@ -92,20 +91,25 @@ modules:
 | `notify-open-failed` | boolean | `true` | — | 打开失败时是否提示玩家 |
 | `item-binds` | list | `[]` | — | 全局物品绑定，见下方「物品绑定」 |
 
-#### `messages`
+#### `messages`（`messages.yml`）
 
-| 字段 | 类型 | 默认值 | 说明 |
-| --- | --- | --- | --- |
-| `prefix` | string | `&3◆ &6ArcartXSuite &7| &r` | 消息前缀 |
-| `no-permission` | string | `&c你没有权限执行此操作。` | 无权限提示 |
-| `player-only` | string | `&c该命令只能由玩家执行。` | 非玩家执行提示 |
-| `menu-not-found` | string | `&c未找到菜单: &f{menu}` | 菜单不存在提示 |
-| `menu-open-failed` | string | `&c无法打开菜单 &f{menu}&c: &7{reason}` | 打开失败提示 |
-| `menu-open-success` | string | `&a已打开菜单 &f{menu}` | 打开成功提示 |
-| `button-unavailable` | string | `&c该按钮当前不可用。` | 按钮不可用提示 |
-| `page-empty` | string | `&7当前页没有可用按钮。` | 当前页无可见按钮提示 |
-| `reload-success` | string | `&aMenu 模块配置已重载。` | 重载成功提示 |
-| `reload-failed` | string | `&cMenu 模块重载失败: &7{error}` | 重载失败提示 |
+消息文案独立存放在 `messages.yml` 中，修改后执行 `/axs reload menu` 生效。
+
+| 键路径 | 默认值 | 说明 |
+| --- | --- | --- |
+| `prefix` | `&3◆ &6ArcartXSuite &7| &r` | 消息前缀 |
+| `common.no-permission` | `&c你没有权限执行此操作。` | 无权限提示 |
+| `common.player-only` | `&c该命令只能由玩家执行。` | 非玩家执行提示 |
+| `common.ui-unavailable` | `&cArcartX UI 当前不可用。` | UI 不可用提示 |
+| `common.module-disabled` | `&cMenu 模块当前不可用。` | 模块未启用提示 |
+| `menu-not-found` | `&c未找到菜单: &f{menu}` | 菜单不存在提示 |
+| `menu-open-failed` | `&c无法打开菜单 &f{menu}&c: &7{reason}` | 打开失败提示 |
+| `menu-open-success` | `&a已打开菜单 &f{menu}` | 打开成功提示 |
+| `button-unavailable` | `&c该按钮当前不可用。` | 按钮不可用提示 |
+| `button-condition-denied` | `&c条件未满足，无法使用该按钮。` | 按钮使用条件未通过提示 |
+| `page-empty` | `&7当前页没有可用按钮。` | 当前页无可见按钮提示 |
+| `reload-success` | `&aMenu 模块配置已重载。` | 重载成功提示 |
+| `reload-failed` | `&cMenu 模块重载失败: &7{error}` | 重载失败提示 |
 
 ### 配置示例（精简）
 
@@ -136,18 +140,6 @@ settings:
       material: NETHER_STAR
       name-contains: "服务器菜单"
       action: RIGHT_CLICK
-
-messages:
-  prefix: "&3◆ &6ArcartXSuite &7| &r"
-  no-permission: "&c你没有权限执行该操作"
-  player-only: "&c只有玩家可以执行该命令"
-  menu-not-found: "&c菜单未找到: &f{menu}"
-  menu-open-failed: "&c无法打开菜单 &f{menu}&c: &7{reason}"
-  menu-open-success: "&a已打开菜单 &f{menu}"
-  button-unavailable: "&c该按钮当前不可用"
-  page-empty: "&7当前页没有可见按钮"
-  reload-success: "&aMenu 模块配置已重新加载"
-  reload-failed: "&cMenu 模块重载失败: &7{error}"
 ```
 
 ### `menus/*.yml` 菜单定义配置项一览
@@ -724,7 +716,9 @@ pages:
 
 | 命令 | 说明 |
 | --- | --- |
+| `/axs menu status` | 查看模块状态（菜单数量、UI ID、绑定计数） |
 | `/axs menu reload` | 重载 Menu 模块配置与所有菜单定义 |
+| `/axs menu list` | 列出所有已注册菜单（ID、布局、标题） |
 | `/axs menu open <菜单ID> [玩家]` | 为指定玩家打开菜单（或自己） |
 
 ### 玩家命令（权限：`arcartxsuite.menu.use`）

@@ -47,20 +47,24 @@ description: ArcartX-Suite BattlePass 战令系统，三层通行证、日/周/�
 | 命令 | 权限 | 说明 |
 |------|------|------|
 | `/bp` | 无 | 打开战令主界面（等同于 `/bp open`） |
+| `/bp open` | 无 | 打开战令主界面 |
 | `/bp tasks` | 无 | 打开任务列表界面 |
+| `/bp rewards` | 无 | 打开奖励界面 |
+| `/bp claim <等级>` | 无 | 领取指定等级的奖励 |
 | `/bp help` | 无 | 显示帮助 |
 
-> 也可以通过 Menu 模块按钮调用 `Packet.send('AXS_BATTLEPASS', 'open_main')` 打开。
+> 命令同时注册为 `/bp` 和 `/battlepass`。也可以通过 Menu 模块按钮调用 `Packet.send('AXS_BATTLEPASS', 'open_main')` 打开。
 
 ### 管理员命令
 
 | 命令 | 权限 | 说明 |
 |------|------|------|
-| `/axs battlepass help` | `arcartxsuite.battlepass.admin` | 查看帮助 |
-| `/axs battlepass status` | `arcartxsuite.battlepass.admin` | 查看当前赛季状态与活跃玩家数 |
-| `/axs battlepass reload` | `arcartxsuite.battlepass.admin` | 重载提示（实际走宿主热重载机制） |
-| `/axs battlepass reset <玩家>` | `arcartxsuite.battlepass.admin` | 重置指定玩家的战令全部进度（含任务、已领取奖励） |
-| `/axs battlepass unlock <玩家> <premium\|deluxe>` | `arcartxsuite.battlepass.admin` | 为玩家解锁高级或典藏通行证 |
+| `/axs battlepass help` | `arcartxsuite.admin` | 查看帮助 |
+| `/axs battlepass status` | `arcartxsuite.admin` | 查看当前赛季状态与活跃玩家数 |
+| `/axs battlepass reload` | `arcartxsuite.admin` | 重载提示（实际走宿主热重载机制） |
+| `/axs battlepass reset <玩家>` | `arcartxsuite.admin` | 重置指定玩家的战令全部进度（含任务、已领取奖励） |
+| `/axs battlepass unlock <玩家> <premium\|deluxe>` | `arcartxsuite.admin` | 为玩家解锁高级或典藏通行证 |
+| `/axs battlepass season` | `arcartxsuite.admin` | 赛季管理（尚未实现，执行时提示未开放） |
 
 ---
 
@@ -68,7 +72,7 @@ description: ArcartX-Suite BattlePass 战令系统，三层通行证、日/周/�
 
 | 权限节点 | 默认 | 说明 |
 |----------|------|------|
-| `arcartxsuite.battlepass.admin` | op | 管理员命令权限 |
+| `arcartxsuite.admin` | op | 管理员命令权限（`/axs battlepass` 子命令） |
 
 ---
 
@@ -532,6 +536,44 @@ action:
 | `bp_task_progress` | 赛季任务进度表 |
 | `bp_claimed_rewards` | 已领取奖励记录 |
 | `bp_player_tasks` | 玩家任务实例（每日/每周分配的任务，含进度和完成状态） |
+
+---
+
+## 跨模块联动
+
+BattlePass 通过 ArcartX-Suite Capability 系统与以下模块联动：
+
+### EventBus 事件订阅
+
+- BattlePass 通过 `EventBusCapability` 订阅任务模板中 `event-topic` 指定的事件主题。
+- 当其他模块（如 CombatEffect、OnlineRewards、QuestGPS）发布对应事件时，BattlePass 自动检查任务条件并增加进度。
+- **常用事件主题**：
+  - `ArcartX-Suite.combateffect.kill_entity` — 击杀实体事件（含 `entity_type` 等 payload 字段）
+  - `ArcartX-Suite.onlinerewards.signin_success` — 签到成功事件
+  - `ArcartX-Suite.questgps.quest_completed` — 悬赏任务完成事件
+
+### DatabaseMigratable Capability
+
+BattlePass 注册了 `DatabaseMigratable` capability，供全局数据库迁移工具调用：
+
+| 方法 | 说明 |
+| --- | --- |
+| `migrateDatabase(StorageDescriptor, boolean)` | 将战令数据迁移到目标存储 |
+| `currentDescriptor()` | 获取当前存储描述符 |
+
+### PlayerDataPurgeable Capability
+
+BattlePass 注册了 `PlayerDataPurgeable` capability，供全局数据清理工具调用：
+
+| 方法 | 说明 |
+| --- | --- |
+| `purgePlayerData(UUID)` | 删除指定玩家的所有战令数据 |
+| `purgeAllPlayerData()` | 删除所有玩家的战令数据 |
+
+### PlaceholderAPI（供外部读取）
+
+- 其他插件可通过 PAPI 读取 BattlePass 提供的赛季、等级、XP、通行证层级等数据。
+- 详细占位符列表见上表。
 
 ---
 

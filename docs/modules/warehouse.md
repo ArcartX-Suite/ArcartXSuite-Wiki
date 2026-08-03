@@ -34,7 +34,7 @@ description: ArcartX-Suite Warehouse 仓库银行，个人仓库NBT分类、共�
 | 命令别名 | `/wh open` |
 | 管理员代开 | `/axs warehouse open <玩家名>` |
 
-打开后默认进入**仓库存取主界面**（`warehouse_menu.yml`）。界面右上角有导航按钮可在「仓库 / 管理 / 银行」三个子界面间切换。
+打开后默认进入**仓库存取主界面**（`warehouse_storage.yml`）。界面右上角有导航按钮可在「仓库 / 管理 / 银行」三个子界面间切换。
 
 ---
 
@@ -101,7 +101,7 @@ description: ArcartX-Suite Warehouse 仓库银行，个人仓库NBT分类、共�
 2. 仓库网格会只显示该分类下的物品
 3. 再次点击同一分类或「全部」可取消筛选
 
-分类由服务端配置文件的 `categories` 节定义，默认按物品 NBT 标签（`pdc:ArcartX-Suite:item_type`）自动归类，未匹配到的归入「其它」。
+分类由服务端配置文件的 `categories` 节定义，默认按物品 NBT 标签（`pdc:arcartx:item_category`）自动归类，未匹配到的归入「其它」。
 
 #### 2.4 分页切换
 
@@ -141,7 +141,7 @@ description: ArcartX-Suite Warehouse 仓库银行，个人仓库NBT分类、共�
 
 在「自动拾取」卡片中有三个开关：
 - **自动入库**：拾取地面物品时自动存入个人仓库（默认开启）
-- **怪物战利品**：击杀 MythicMobs 等怪物时掉落物品自动存入（默认开启）
+- **怪物战利品**：击杀 MythicMobs 等怪物时掉落物品自动存入（默认关闭）
 - **入库通知**：自动存入后在屏幕左下角显示提示（默认开启）
 
 点击对应按钮即可切换开关状态；绿色 = 开，灰色 = 关。
@@ -263,7 +263,7 @@ description: ArcartX-Suite Warehouse 仓库银行，个人仓库NBT分类、共�
 在管理界面的「清除密码」卡片中输入当前密码并确认，即可移除二级密码（之后无需解锁即可操作）。
 
 ::: danger 密码存储安全
-二级密码使用 PBKDF2WithHmacSHA256 + 120000 次迭代 + 随机 salt 存储，服务端不保存明文。管理员可通过 `/axs warehouse password <玩家> clear` 重置玩家密码。
+二级密码使用 PBKDF2WithHmacSHA256 + 120000 次迭代 + 随机 salt 存储，服务端不保存明文。管理员可通过 `allow-admin-password-reveal` + `admin-reveal-secret` 配置解密密码（用于密码找回场景）。
 :::
 
 ---
@@ -303,8 +303,8 @@ description: ArcartX-Suite Warehouse 仓库银行，个人仓库NBT分类、共�
 | 依赖 | 是否必须 | 用途 |
 |------|----------|------|
 | ArcartX | ✅ 必须 | UI 渲染 + 数据包通信 |
+| PlaceholderAPI | ✅ 必须 | `%axswarehouse_*%` 占位符输出 |
 | Vault / PlayerPoints | 可选 | 金币/点券货币支持 |
-| PlaceholderAPI | 可选 | 自定义货币桥接 + PAPI 占位符 |
 | MythicMobs / MythicBukkit | 可选 | 自动存入 Mythic 掉落、物品识别、黑名单 |
 | NeigeItems / MMOItems | 可选 | 物品分类、黑名单、展示识别 |
 | MySQL | 可选 | 多服共享仓库/银行数据（默认 SQLite） |
@@ -315,20 +315,23 @@ description: ArcartX-Suite Warehouse 仓库银行，个人仓库NBT分类、共�
 
 | 命令 | 权限 | 说明 |
 |------|------|------|
-| `/warehouse` | `arcartxsuite.warehouse.use` | 打开仓库主界面 |
+| `/warehouse` 或 `/wh` | `arcartxsuite.warehouse.use` | 打开仓库主界面 |
 | `/wh open` | `arcartxsuite.warehouse.use` | 同上 |
 | `/wh showcase` | `arcartxsuite.warehouse.showcase` | 向公屏展示自己的仓库 |
-| `/wh preview <UUID> [仓库ID]` | `arcartxsuite.warehouse.use` | 以只读模式预览指定玩家的仓库 |
+| `/wh preview <UUID\|玩家名> [仓库ID]` | `arcartxsuite.warehouse.admin` | 以只读模式预览指定玩家的仓库（管理员） |
+| `/wh spreview <UUID\|玩家名> [仓库ID]` | `arcartxsuite.warehouse.use` | 以只读模式预览指定玩家的仓库（通过展示链接） |
+| `/wh transfer <confirm\|reject> <sharedId>` | `arcartxsuite.warehouse.use` | 确认或拒绝共享仓库转让 |
 
 ### 管理员命令
 
 | 命令 | 权限 | 说明 |
 |------|------|------|
-| `/axs warehouse status` | `arcartxsuite.admin` | 查看模块状态（缓存玩家数、货币列表等） |
+| `/axs warehouse status` | `arcartxsuite.admin` | 查看模块状态（缓存玩家数、货币列表、跨服锁等） |
 | `/axs warehouse reload` | `arcartxsuite.admin` | 提示重载（实际通过 `/axs config apply warehouse` 生效） |
 | `/axs warehouse open <玩家>` | `arcartxsuite.admin` | 为在线玩家打开仓库界面 |
 | `/axs warehouse info <玩家>` | `arcartxsuite.admin` | 查看玩家仓库概览（使用量、共享数、定期数） |
-| `/axs warehouse password <玩家> clear` | `arcartxsuite.admin` | 清除玩家的二级密码 |
+| `/axs warehouse view <玩家> <仓库ID>` | `arcartxsuite.admin` | 查看指定玩家指定个人仓库的槽位物品清单 |
+| `/axs warehouse delete <玩家> <仓库ID> confirm` | `arcartxsuite.admin` | 删除指定玩家的指定个人仓库（需带 `confirm`） |
 | `/axs warehouse bank <玩家> <货币ID> <set\|add\|take> <金额>` | `arcartxsuite.admin` | 管理玩家银行余额 |
 
 ## 权限
@@ -364,19 +367,22 @@ description: ArcartX-Suite Warehouse 仓库银行，个人仓库NBT分类、共�
 settings:
   debug: false                      # 调试日志开关
   flush-interval-ticks: 100         # 数据刷新间隔（tick）
+  # 共享仓库转让确认等待时长（小时），<=0 表示永不过期。
+  transfer-confirm-expire-hours: 24
+
+# 跨服共享仓库编辑锁；MySQL 共享库 + 多子服时建议开启。连接参数见宿主 config.yml cross-server 节。
+cross-server:
+  enabled: false
 
 # UI 设置
 ui:
   id: "AXS:warehouse_storage"         # 仓库 UI ID
-  file: "arcartx/ui/warehouse_menu.yml"
   manage-id: "AXS:warehouse_manage" # 共享管理 UI ID
-  manage-file: "arcartx/ui/warehouse_manage.yml"
   bank-id: "AXS:warehouse_bank"     # 银行 UI ID
-  bank-file: "arcartx/ui/warehouse_bank.yml"
   packet-id: "AXS_WAREHOUSE"        # 客户端包 ID
   register-ui-on-enable: true         # 启动时自动注册 UI
   overwrite-ui-files: false         # 是否覆盖已存在的 UI 文件
-  page-size: 18                     # UI 分页大小（默认 18 格）
+  page-size: 54                     # 仓库网格每页显示的槽位数量
 
 # 存储设置
 storage:
@@ -402,12 +408,12 @@ security:
 # 自动拾取设置
 pickup:
   auto-store-on-pickup: true        # 拾取时自动存入仓库
-  auto-store-mythic-loot: true      # 自动存入 MythicMobs 掉落
+  auto-store-mythic-loot: false     # 自动存入 MythicMobs 掉落
   notify-on-auto-store: true        # 自动存入后发送通知
 
 # 搜索设置
 search:
-  page-size: 54                     # 搜索结果显示分页大小
+  page-size: 18                     # 搜索结果显示分页大小
   default-sort: "time"              # 默认排序方案 ID
 
 # 仓库定义
@@ -415,24 +421,20 @@ warehouses:
   personal:
     display-name: "&6个人仓库"
     default-owned: true             # 新玩家是否默认拥有
-    permission: ""                 # 查看/使用该仓库所需权限（空=无限制）
     default-level: 1
     levels:
-      1:
+      "1":
         capacity: 1000              # 格子容量
-        upgrade:                    # 升级消耗（null 或空=免费）
-          currency: "money"
-          amount: 0
-      2:
+        upgrade:                    # 升级消耗
+          currency: "points"
+          amount: 500
+      "2":
         capacity: 2500
         upgrade:
-          currency: "money"
-          amount: 5000
-      3:
+          currency: "points"
+          amount: 1200
+      "3":
         capacity: 6000
-        upgrade:
-          currency: "money"
-          amount: 15000
 
 # 物品分类定义
 categories:
@@ -440,82 +442,118 @@ categories:
     display-name: "装备"
     priority: 10                    # 优先级越小越靠前
     nbt:
-      path: "pdc:ArcartX-Suite:item_type"    # NBT 路径：material / display-name / custom-model-data / pdc:namespace:key
-      values: ["weapon", "armor", "accessory"]
-  consumable:
-    display-name: "消耗品"
-    priority: 20
-    nbt:
-      path: "pdc:ArcartX-Suite:item_type"
-      values: ["consumable", "potion"]
+      path: "pdc:arcartx:item_category"    # NBT 路径
+      values: ["equipment", "weapon", "armor"]
   material:
     display-name: "材料"
+    priority: 20
+    nbt:
+      path: "pdc:arcartx:item_category"
+      values: ["material"]
+  consumable:
+    display-name: "消耗品"
     priority: 30
     nbt:
-      path: "pdc:ArcartX-Suite:item_type"
-      values: ["material"]
+      path: "pdc:arcartx:item_category"
+      values: ["consumable", "food", "potion"]
   other:
     display-name: "其它"
     priority: 9999
-    default: true                   #  fallback 分类（未匹配到的物品归入此类）
+    default: true                   # fallback 分类（未匹配到的物品归入此类）
 
 # 银行货币定义
+# currencies 为全局货币 ID 子集列表，定义必须存在于宿主 config.yml 的 currencies 中。
+# 未在全局池定义的 ID 会在加载时告警并跳过。
 bank:
   currencies:
-    money:
-      enabled: true
-      provider: "vault"             # vault / playerpoints / placeholder / command
-      display-name: "金币"
-      scale: 2                      # 小数精度
-      balance-placeholder: ""       # provider=placeholder 时读取的 PAPI 变量
-      withdraw-command: ""          # provider=command 时执行的扣款命令
-      deposit-command: ""           # provider=command 时执行的放款命令
-    points:
-      enabled: true
-      provider: "playerpoints"
-      display-name: "点券"
-      scale: 0
+    - money
+    - points
 
   # 定期存款产品
   deposit-products:
-    seven_day:
+    money_stable_1d:
       enabled: true
-      display-name: "七日定期"
-      description: "低风险稳健收益"
+      display-name: "稳健 1 日"
+      description: "低门槛短期定存。"
       currency: "money"
-      duration-seconds: 604800      # 7 天
+      duration-seconds: 86400       # 1 天
       min-amount: 100
       max-amount: 0                  # 0 = 无上限
       permission: ""                # 空 = 无权限限制
       interest-tiers:
-        low:
+        tier_1:
           min: 100
           max: 9999
           rate: 0.01                # 1%
-        high:
+        tier_2:
           min: 10000
+          max: 99999
+          rate: 0.015               # 1.5%
+        tier_3:
+          min: 100000
           max: 0
           rate: 0.02                # 2%
+    money_vip_7d:
+      enabled: true
+      display-name: "贵宾 7 日"
+      description: "权限专属较高收益定存。"
+      currency: "money"
+      duration-seconds: 604800      # 7 天
+      min-amount: 1000
+      max-amount: 0
+      permission: "ArcartXSuite.warehouse.bank.vip"
+      interest-tiers:
+        tier_1:
+          min: 1000
+          max: 49999
+          rate: 0.04                # 4%
+        tier_2:
+          min: 50000
+          max: 0
+          rate: 0.06                # 6%
+    points_3d:
+      enabled: true
+      display-name: "点券 3 日"
+      description: "点券定期产品。"
+      currency: "points"
+      duration-seconds: 259200      # 3 天
+      min-amount: 50
+      max-amount: 0
+      permission: ""
+      interest-tiers:
+        tier_1:
+          min: 50
+          max: 999
+          rate: 0.02
+        tier_2:
+          min: 1000
+          max: 0
+          rate: 0.03
 
 # 共享仓库设置
 shared:
   enabled: true
-  create-cost:                      # 创建消耗（null = 免费）
-    currency: "money"
-    amount: 10000
+  create-cost:                      # 创建消耗
+    currency: "points"
+    amount: 1000
   default-level: 1
+  levels:                           # 共享仓库等级
+    "1":
+      capacity: 2000
+      upgrade:
+        currency: "points"
+        amount: 800
+    "2":
+      capacity: 5000
+      upgrade:
+        currency: "points"
+        amount: 1800
+    "3":
+      capacity: 10000
   role-names:                       # 角色显示名称
     owner: "所有者"
     member: "成员"
     viewer: "观众"
-  levels:                           # 共享仓库等级（语法与个人仓库相同）
-    1:
-      capacity: 1000
-    2:
-      capacity: 3000
-      upgrade:
-        currency: "money"
-        amount: 20000
   permission-tiers:                 # 按权限节点分层限制
     default:
       permission: ""
@@ -523,10 +561,48 @@ shared:
       max-owned: 1                  # 可创建的共享仓库数量上限
       max-members: 6                # 每个共享仓库的成员上限
     vip:
-      permission: "arcartxsuite.vip"
+      permission: "ArcartXSuite.warehouse.shared.vip"
       priority: 10
       max-owned: 3
-      max-members: 10
+      max-members: 12
+
+# 排序方案定义
+sort-profiles:
+  time:
+    fields:
+      - "updated:desc"             # 按更新时间降序
+      - "name:asc"
+  name:
+    fields:
+      - "name:asc"                 # 按名称升序
+  amount:
+    fields:
+      - "amount:desc"              # 按数量降序
+      - "updated:desc"
+
+# 展示设置
+showcase:
+  enabled: true
+  cooldown-seconds: 60              # 展示冷却（秒），最短 5 秒
+  max-items: 9                      # 展示列表最大物品数，最少 1 个
+  card-id: ""                      # 留空使用可点击聊天消息；填写则使用 ArcartX 聊天卡片 ID
+  permission: "arcartxsuite.warehouse.showcase"
+
+# 物品黑名单（禁止存入仓库的物品匹配规则）
+blacklist:
+  material-ids: []                  # 原版 Material ID 列表，如 ["BEDROCK", "COMMAND_BLOCK"]
+  mythic-item-ids: []               # MythicMobs Internal Name 列表
+  neige-item-ids: []                # NeigeItems ID 列表
+  overture-item-ids: []             # Overture 物品 ID 列表
+  kinds: []                         # 物品种类（kind）列表
+  name-contains:                    # 物品显示名包含任意关键词即拦截
+    - "绑定不可存"
+  lore-contains:                    # 物品 Lore 包含任意关键词即拦截
+    - "不可存入仓库"
+  name-regex: []                    # 物品显示名匹配任意正则即拦截
+  lore-regex: []                    # 物品 Lore 匹配任意正则即拦截
+  nbt-keys: []                      # PDC 或原始 NMS NBT 中存在任意 key 即禁止存入
+```
 
 ### 跨服共享仓库与编辑锁
 
@@ -551,41 +627,6 @@ Warehouse **支持多子服共用同一 MySQL 库**实现共享仓库数据同�
 - `/axs warehouse status` 可查看跨服通道与当前活跃锁数量
 
 详见 [跨服架构](/architecture/cross-server) 与 [跨服部署速查](/guide/cross-server-setup)。**完整多子服 MySQL + 跨服锁部署清单**见 [Warehouse 多服 MySQL 部署](/guide/warehouse-cross-server)。
-
-# 排序方案定义
-sort-profiles:
-  time:
-    fields:
-      - "updated:desc"             # 按更新时间降序
-      - "name"
-  name:
-    fields:
-      - "name"                     # 按名称升序
-  amount:
-    fields:
-      - "amount:desc"              # 按数量降序
-      - "updated:desc"
-
-# 物品黑名单（禁止存入仓库的物品匹配规则）
-blacklist:
-  material-ids: []                  # 原版 Material ID 列表，如 ["BEDROCK", "COMMAND_BLOCK"]
-  mythic-item-ids: []               # MythicMobs Internal Name 列表
-  neige-item-ids: []                # NeigeItems ID 列表
-  overture-item-ids: []             # Overture 物品 ID 列表
-  kinds: []                         # 物品种类（kind）列表
-  name-contains: []                 # 物品显示名包含任意关键词即拦截
-  lore-contains: []                 # 物品 Lore 包含任意关键词即拦截
-  name-regex: []                    # 物品显示名匹配任意正则即拦截
-  lore-regex: []                    # 物品 Lore 匹配任意正则即拦截
-
-# 展示设置
-showcase:
-  enabled: true
-  cooldown-seconds: 60              # 展示冷却（秒），最短 5 秒
-  max-items: 9                      # 展示列表最大物品数，最少 1 个
-  card-id: ""                      # 留空使用可点击聊天消息；填写则使用 ArcartX 聊天卡片 ID
-  permission: "arcartxsuite.warehouse.showcase"
-```
 
 ### 配置字段详解
 
@@ -615,15 +656,11 @@ showcase:
 
 #### 货币字段
 
-| 字段 | 类型 | 必填 | 默认值 | 说明 |
-|------|------|------|--------|------|
-| `enabled` | Boolean | ❌ | `true` | 是否启用该货币 |
-| `provider` | String | ✅ | — | 货币提供者标识，如 `vault`、`playerpoints`、`placeholder-command` 等，由货币桥识别 |
-| `display-name` | String | ❌ | 货币 ID | UI 显示名称 |
-| `scale` | Int | ❌ | `0` | 小数位数 |
-| `balance-placeholder` | String | ❌ | `""` | `provider=placeholder-command` 时使用的 `%xxx%` 变量（不含百分号） |
-| `withdraw-command` | String | ❌ | `""` | `provider=placeholder-command` 时执行的扣款命令，`{player}` `{amount}` 占位 |
-| `deposit-command` | String | ❌ | `""` | `provider=placeholder-command` 时执行的放款命令 |
+银行货币在 `bank.currencies` 中以**字符串列表**形式声明，引用宿主 `config.yml` → `currencies` 中已定义的货币 ID。货币的 `provider`、`display-name`、`scale` 等字段在宿主配置中定义，不在本模块配置中重复。
+
+| 字段 | 类型 | 必填 | 说明 |
+|------|------|------|------|
+| `bank.currencies` | `List<String>` | ❌ | 银行展示的货币 ID 子集，必须已在宿主 `config.yml` 的 `currencies` 中定义 |
 
 #### 定期产品字段
 
@@ -654,11 +691,16 @@ showcase:
 
 | 字段 | 类型 | 说明 |
 |------|------|------|
-| `materials` | `` `List<String>` `` | Bukkit Material 枚举名，匹配即禁止存入 |
-| `mythic-items` | `` `List<String>` `` | MythicMobs Internal Name |
-| `neige-items` | `` `List<String>` `` | NeigeItems ID |
-| `name-patterns` | `` `List<String>` `` | 物品显示名正则表达式 |
-| `lore-patterns` | `` `List<String>` `` | 物品 Lore 正则表达式 |
+| `material-ids` | `List<String>` | Bukkit Material 枚举名，匹配即禁止存入 |
+| `mythic-item-ids` | `List<String>` | MythicMobs Internal Name |
+| `neige-item-ids` | `List<String>` | NeigeItems ID |
+| `overture-item-ids` | `List<String>` | Overture 物品 ID |
+| `kinds` | `List<String>` | 物品种类（kind）列表 |
+| `name-contains` | `List<String>` | 物品显示名包含任意关键词即拦截 |
+| `lore-contains` | `List<String>` | 物品 Lore 包含任意关键词即拦截 |
+| `name-regex` | `List<String>` | 物品显示名匹配任意正则即拦截 |
+| `lore-regex` | `List<String>` | 物品 Lore 匹配任意正则即拦截 |
+| `nbt-keys` | `List<String>` | PDC 或原始 NMS NBT 中存在任意 key 即禁止存入 |
 
 ::: tip 黑名单优先级
 自动存入时若物品命中任一黑名单规则，则跳过存入并向玩家提示。存入单件和存入全部均会检查黑名单。
@@ -670,11 +712,11 @@ showcase:
 
 | 资源文件 | 导出路径 | 用途 |
 |----------|----------|------|
-| `arcartx/ui/warehouse_menu.yml` | `ui/warehouse_menu.yml` | 仓库存取主界面 |
+| `arcartx/ui/warehouse_storage.yml` | `ui/warehouse_storage.yml` | 仓库存取主界面 |
 | `arcartx/ui/warehouse_manage.yml` | `ui/warehouse_manage.yml` | 共享管理 + 设置界面 |
 | `arcartx/ui/warehouse_bank.yml` | `ui/warehouse_bank.yml` | 银行活期/定期界面 |
 
-可通过 `ui.file` / `ui.manage-file` / `ui.bank-file` 配置项指向自定义文件。
+UI 文件路径由模块内部硬编码，通过 `ui.overwrite-ui-files` 控制是否覆盖用户修改。
 
 ## 存储结构
 

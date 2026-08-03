@@ -52,6 +52,31 @@ modules:
     enabled: true
 ```
 
+## 命令
+
+### 玩家命令
+
+| 命令 | 权限 | 说明 |
+|------|------|------|
+| `/questgps` | `arcartxsuite.questgps.use` | 打开任务菜单（等同 `/questgps open`） |
+| `/questgps open` | `arcartxsuite.questgps.use` | 打开任务菜单 |
+| `/questgps cleartrack` | `arcartxsuite.questgps.use` | 清除当前导航追踪 |
+
+### 管理员命令
+
+| 命令 | 权限 | 说明 |
+|------|------|------|
+| `/axs questgps status` | `arcartxsuite.admin` | 查看模块状态（已配置任务数、追踪玩家数、导航就绪） |
+| `/axs questgps open <玩家>` | `arcartxsuite.admin` | 为指定在线玩家打开任务菜单 |
+| `/axs questgps reload` | `arcartxsuite.admin` | 提示使用 `/axs reload questgps` 重载模块 |
+
+## 权限
+
+| 权限节点 | 默认 | 说明 |
+|----------|------|------|
+| `arcartxsuite.questgps.use` | true | 玩家命令 |
+| `arcartxsuite.admin` | op | 管理员命令（宿主 `/axs` 统一校验） |
+
 ## Chemdah 整合
 
 QuestGPS 以 **Chemdah 为单一事实来源**，overlay 只负责「哪些任务进菜单」以及可选覆盖项。
@@ -106,7 +131,18 @@ QuestGPS 以 **Chemdah 为单一事实来源**，overlay 只负责「哪些任�
 | `chemdah` / `meta-type` / `meta_type` | Chemdah `meta.type`，须在 `categories` 注册 |
 | `overlay` | 每条 overlay 的 `category` 字段 |
 
-未注册分类的任务**不进菜单**。删除 `categories` 段可关闭分类 Tab。
+##### `category.fallback`（兜底分类）
+
+未匹配任何已注册分类的任务，按下列配置归入兜底分类（而非静默丢弃）：
+
+| 字段 | 类型 | 默认值 | 说明 |
+| --- | --- | --- | --- |
+| `enabled` | boolean | `false`（代码默认）/ `true`（随附配置文件） | `true` 时未匹配分类的任务归入兜底分类；`false` 恢复旧的静默丢弃行为 |
+| `id` | string | `uncategorized` | 兜底分类 ID |
+| `display-name` | string | `未分类` | 兜底分类显示名 |
+| `sort-order` | int | `1000` | 兜底分类排序 |
+
+删除 `categories` 段可关闭分类 Tab。
 
 #### `discovery`
 
@@ -206,7 +242,7 @@ Chemdah `config.yml` 使用 `database.use=LOCAL`（本地）时保持 `enabled: 
 | `blocked-event-rule-ids` | list | `[]` | 未过关时不触发的 EventPacket 规则 ID，与 `data/eventpacket/rules/*.yml` **根键**一致 | `first_join_offer_mainline`、`kill_zombie_trigger_encounter` |
 | `deny-message` | string | 见配置 | 拦截时聊天提示（支持 `&` 颜色码） | `&c请先完成主线` |
 | `deny-chat-card` | string | `""` | 可选，ArcartX 聊天卡片 ID | `quest_gate_deny` |
-| `deny-subtitle` | string | `""` | 可选，ArcartX 字幕组 ID | `mainline_gate` |
+| `deny-subtitle` | string | `""` | 可选，announcer 模块字幕组 ID | `mainline_gate` |
 
 ```yaml
 gate:
@@ -282,11 +318,11 @@ navigation:
   mode: hybrid
   marker:
     enabled: true
-    model-id: "nav_beacon"
+    model-id: "waypoint"
     scale: 1.0
     default-state: "idle"
     animation: "rotate"
-    y-offset: 2.0
+    y-offset: 0.0
     path-interval: 3.0
     path-max-markers: 20
     path-update-ticks: 10

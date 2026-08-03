@@ -1,5 +1,5 @@
 ---
-title: Tab 在线列表插件 | ArcartX-Suite Minecraft服务器
+title: Tab 在线列表插件 | ArcartX-Suite Minecraft
 description: ArcartX-Suite Tab 在线列表，ArcartX TAB UI 渲染，支持排序、分组、PAPI 变量、跨服快照，我的世界服务器 Tab 列表插件。
 ---
 
@@ -74,6 +74,7 @@ Tab 模块内置占位符解析器，**无需安装 PlaceholderAPI** 即可使�
 | 类型 | 依赖 | 作用 | 缺少时表现 |
 | --- | --- | --- | --- |
 | 必需 | ArcartX | 自定义 TAB UI、玩家条目包和客户端刷新 | 模块无法替换 TAB 界面 |
+| 必需 | PlaceholderAPI | `axstab_*` 占位符输出、pack 中外部 PAPI 变量解析 | 内置变量仍可用，但 `axstab_*` 占位符和外部 PAPI（如 `%vault_primary_group%`）不可用 |
 | 可选 | 宿主 cross-server + Redis | 多服 Tab 快照同步（大快照建议 Redis） | 单服 TAB 正常，跨服玩家列表关闭 |
 
 ## 启用步骤
@@ -90,10 +91,23 @@ modules:
 
 ```yaml
 settings:
+  refresh-interval-ticks: 20
+  # 跨服快照广播节流：相邻两次广播最小间隔（ticks）。0 表示禁用节流。
+  batch:
+    window-ticks: 0
+  # 退服宽限：玩家退服后保留其在跨服快照中的虚拟条目（毫秒）。0 表示禁用。
+  leave-grace-ms: 0
   debug: false
   register-ui-on-enable: true
   overwrite-ui-file: false
-  refresh-interval-ticks: 20
+  # 当前服务端节点标识；跨服同步时用于区分不同服务端。
+  server-id: "default"
+  # 跨服玩家列表全局默认开关；每个 tab definition 可用 cross-server: true/false 覆盖。
+  cross-server: false
+  # 远程服务端快照过期时间（毫秒）。
+  stale-snapshot-ms: 30000
+  # 视觉风格与隐私脱敏配置见下文「视觉风格」节
+  # debug-tools.dry-run 配置见下文「dry-run 模式」节
 
 cross-server:
   enabled: false
@@ -403,6 +417,18 @@ Tab 模块内置 PVP 检测窗口，通过 `TabPvpListener` 监听玩家攻击/�
 | `%axstab_uuid%` | 玩家 UUID；`settings.privacy.hide-uuid: true` 时只显示前 8 位 + `...` |
 | `%axstab_ip%` | 玩家 IP；`settings.privacy.hide-ip: true` 时隐藏最后一段 |
 
+### 定义级统计占位符
+
+除上述视觉风格占位符外，`axstab` 扩展还支持按 Tab 定义 ID 输出统计信息，格式为 `%axstab_<定义ID>_<指标>%`：
+
+| 占位符 | 说明 |
+| --- | --- |
+| `%axstab_<定义ID>_count%` | 本服可见玩家数（该定义下） |
+| `%axstab_<定义ID>_total%` | 全服可见玩家数（含跨服，该定义下） |
+| `%axstab_<定义ID>_rank%` | 当前玩家在该定义中的排名 |
+| `%axstab_<定义ID>_view%` | 当前玩家正在使用的视图名 |
+| `%axstab_<定义ID>_page%` | 当前玩家在该定义中的当前页码 |
+
 `settings.style` 示例：
 
 ```yaml
@@ -426,6 +452,23 @@ settings:
     hide-uuid: false
     hide-ip: false
 ```
+
+## 跨模块能力（Capability）
+
+Tab 模块在启动时向 `ModuleContext` 注册以下能力接口，供其他模块调用：
+
+### TabRefreshable
+
+由 Tab 模块注册，供 Title 等模块在称号装备/卸下变更后通知 Tab 刷新。
+
+```java
+void refreshViewer(Player viewer, String reason);
+```
+
+- `reason` 用于日志追踪（如 `"title-change"`）
+- 调用后服务端会立即对该 viewer 重发所有 Tab 定义的 payload
+
+**使用场景**：Title 模块在玩家装备/卸下称号时调用此接口，使 Tab 中的前后缀实时更新。
 
 ## 调试
 

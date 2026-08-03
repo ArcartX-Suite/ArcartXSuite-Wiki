@@ -52,7 +52,7 @@ plugins/
 
 启动 / 重启服务端。ArcartX-Suite 会：
 
-- 把 jar 内 `.axb` 解密、解压成默认 YAML 释放到 `plugins/ArcartX-Suite/`
+- 把 jar 内默认 YAML 释放到 `plugins/ArcartX-Suite/`
 - 生成 `config.yml`（总开关 + 各模块启用状态）和各模块配置
 - 生成 `arcartx/ui/*.yml` UI 模板
 - 全部模块**默认 `enabled: false`**

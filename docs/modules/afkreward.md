@@ -31,6 +31,18 @@ AfkReward 模块为服务器提供**双模式挂机奖励**系统：
 
 ---
 
+## 依赖
+
+| 依赖 | 是否必须 | 用途 |
+|------|----------|------|
+| ArcartX | ✅ 必须 | UI 渲染 + 数据包通信 + 模块框架 |
+| PlaceholderAPI | 可选 | 挂机统计占位符输出 |
+| Mail | 可选 | 奖励溢出邮件、结束挂机邮件 |
+| EventPacket | 可选 | 信号派发与字幕播放 |
+| Essentials | 可选 | AFK 状态互斥检测 |
+
+---
+
 ## 启用步骤
 
 ```yaml
@@ -171,12 +183,12 @@ reward:
 
 ### 3. 设置权限
 
-- 进入区域挂机需要 `ArcartX-Suite.afkreward.area.<区域名>` 权限
-- 获得对应 tier 奖励需要 `ArcartX-Suite.afkreward.start.<区域id>.<tier>` 权限
-  - 例：`ArcartX-Suite.afkreward.start.default.vip3`
-  - 也支持简写：`ArcartX-Suite.afkreward.start.vip3`
-- 绕过每日次数上限：`ArcartX-Suite.afkreward.not.reward.limit`
-- 绕过区域人数上限：`ArcartX-Suite.afkreward.not.player.limit`
+- 进入区域挂机需要 `axs.afkreward.area.<区域名>` 权限
+- 获得对应 tier 奖励需要 `axs.afkreward.start.<区域id>.<tier>` 权限
+  - 例：`axs.afkreward.start.default.vip3`
+  - 也支持简写：`axs.afkreward.start.vip3`
+- 绕过每日次数上限：`axs.afkreward.not.reward.limit`
+- 绕过区域人数上限：`axs.afkreward.not.player.limit`
 
 ### 4. 周期、上限与倍率
 
@@ -421,6 +433,7 @@ MANUAL 原地挂机的每项保护都可独立开关，默认值全部为 `true`
 
 | 命令 | 说明 | 权限 |
 | --- | --- | --- |
+| `/axs afkreward help` | 查看管理命令帮助 | `arcartxsuite.admin` |
 | `/axs afkreward status` | 查看模块状态（区域数/类型数/当前挂机人数） | `arcartxsuite.admin` |
 | `/axs afkreward reload` | 重载模块配置 | `arcartxsuite.admin` |
 
@@ -532,11 +545,13 @@ AfkReward 通过 ArcartX-Suite Capability 系统与以下模块联动：
 ### EventPacket 信号与字幕
 
 - **触发信号**：
-  - `afk_start` — 原地挂机开始时触发。
-  - `afk_reward` — 奖励发放时触发（含变量 `area`、`mode`、`seconds`、`rewards`）。
-  - `afk_end` — 原地挂机结束时触发。
-  - `afk_enter_area` — 玩家进入区域时触发。
-  - `afk_leave_area` — 玩家离开区域时触发。
+  - `afk_start` — 原地挂机开始时触发（变量：`area`、`mode`）。
+  - `afk_reward` — 奖励发放时触发（变量：`area`、`mode`、`seconds`、`rewards`）。
+  - `afk_end` — 原地挂机结束时触发（变量：`area`、`mode`、`seconds`、`rewards`）。
+  - `afk_enter_area` — 玩家进入区域时触发（变量：`area`、`mode`）。
+  - `afk_leave_area` — 玩家离开区域时触发（变量：`area`、`mode`、`seconds`）。
+- **EventBus 事件**：
+  - `axs.afkreward.reward_claimed` — 区域挂机奖励发放时通过 EventBus 发布（payload：`area`、`mode`）。
 - **字幕播放**：
   - 奖励发放时播放 `manual.subtitle-on-reward` 指定的字幕组。
   - 挂机结束时播放 `manual.subtitle-on-end` 指定的字幕组。
@@ -559,12 +574,20 @@ AfkReward 通过 ArcartX-Suite Capability 系统与以下模块联动：
 
 | 方法 | 说明 |
 | --- | --- |
-| `isAfk(UUID)` | 查询玩家是否处于挂机状态 |
-| `getCurrentArea(UUID)` | 获取玩家当前挂机区域名称 |
-| `getCurrentMode(UUID)` | 获取当前挂机模式：`REGION` / `MANUAL` / `null` |
-| `getCurrentSeconds(UUID)` | 获取本次挂机已持续秒数 |
+| `isAfk(UUID)` | 查询玩家是否处于挂机状态（REGION 或 MANUAL） |
+| `getAreaName(UUID)` | 获取玩家当前挂机区域名称，未挂机时返回 `null` |
+| `getAfkMode(UUID)` | 获取当前挂机模式：`REGION` / `MANUAL` / `null` |
+| `getAfkSeconds(UUID)` | 获取本次挂机已持续秒数，未挂机时返回 `0` |
 | `startManualAfk(Player, String)` | 触发玩家原地挂机到指定区域 |
-| `endManualAfk(Player)` | 强制结束玩家原地挂机 |
+
+### PlayerDataPurgeable Capability
+
+AfkReward 注册了 `PlayerDataPurgeable` capability，供全局数据清理工具调用：
+
+| 方法 | 说明 |
+| --- | --- |
+| `purgePlayerData(UUID)` | 删除指定玩家的所有挂机数据 |
+| `purgeAllPlayerData()` | 删除所有玩家的挂机数据 |
 
 ---
 
@@ -572,16 +595,19 @@ AfkReward 通过 ArcartX-Suite Capability 系统与以下模块联动：
 
 | 权限 | 说明 | 默认 |
 | --- | --- | --- |
-| `ArcartX-Suite.afkreward.area.<区域名>` | 允许进入该区域挂机（区域+原地共用） | OP |
-| `ArcartX-Suite.afkreward.start.<区域id>.<tier>` | 获得该区域的对应 tier 奖励（区域+原地共用） | OP |
-| `ArcartX-Suite.afkreward.start.<tier>` | 简写形式，全局 tier 匹配 | OP |
-| `ArcartX-Suite.afkreward.not.reward.limit` | 绕过每日奖励次数上限 | OP |
-| `ArcartX-Suite.afkreward.not.player.limit` | 绕过区域人数上限 | OP |
+| `axs.afkreward.area.<区域名>` | 允许进入该区域挂机（区域+原地共用） | OP |
+| `axs.afkreward.start.<区域id>.<tier>` | 获得该区域的对应 tier 奖励（区域+原地共用） | OP |
+| `axs.afkreward.start.<tier>` | 简写形式，全局 tier 匹配 | OP |
+| `axs.afkreward.not.reward.limit` | 绕过每日奖励次数上限 | OP |
+| `axs.afkreward.not.player.limit` | 绕过区域人数上限 | OP |
+| `axs.afkreward.bypass.timelimit` | 时长限制豁免 | OP |
+| `axs.afkreward.bypass.botcheck` | 机器人检测豁免 | OP |
+| `axs.afkreward.bypass.iplimit` | 同 IP 限制豁免 | OP |
 | `arcartxsuite.afkreward.use` | 使用 `/afkreward` 玩家命令 | 所有人 |
 | `arcartxsuite.admin` | 管理命令权限 | OP |
 
 ::: tip 原地挂机权限复用
-原地挂机**复用**区域挂机的权限体系，无需额外配置。进入区域需要 `ArcartX-Suite.afkreward.area.<区域名>`，获得 tier 奖励需要 `ArcartX-Suite.afkreward.start.<区域id>.<tier>`。
+原地挂机**复用**区域挂机的权限体系，无需额外配置。进入区域需要 `axs.afkreward.area.<区域名>`，获得 tier 奖励需要 `axs.afkreward.start.<区域id>.<tier>`。
 :::
 
 ---

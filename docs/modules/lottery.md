@@ -24,8 +24,9 @@ description: ArcartX-Suite Lottery 抽奖系统，CS 开箱横向滚动动画 + 
 | 依赖 | 是否必须 | 用途 |
 |------|----------|------|
 | ArcartX | ✅ 必须 | UI 渲染 + 数据包通信（开箱滚动动画 / 祈愿界面） |
+| PlaceholderAPI | 可选 | PAPI 占位符输出（保底计数、命定值等） |
 | MySQL | 可选 | 多服共享抽奖记录与保底计数 |
-| Mail | 可选 | 背包满时自动发放奖品为邮件 |
+| Mail | 可选 | 背包满时自动发放奖品为邮件（通过 MailDispatchable 能力） |
 | MythicMobs / NeigeItems | 可选 | 自定义物品来源（奖池奖品） |
 
 ## 启用步骤
@@ -42,12 +43,11 @@ modules:
 
 | 命令 | 权限 | 说明 |
 |------|------|------|
-| `/lottery` | `arcartxsuite.lottery.use` | 打开默认抽奖界面（Gacha 模式） |
-| `/lottery case <奖池ID>` | `arcartxsuite.lottery.use` | 打开指定 Case 开箱界面 |
-| `/lottery info <奖池ID>` | `arcartxsuite.lottery.use` | 查看奖池详细信息与概率 |
+| `/lottery` | `arcartxsuite.lottery.use` | 显示帮助信息 |
+| `/lottery pull <奖池ID> [single\|ten]` | `arcartxsuite.lottery.use` | 进行抽奖（单抽或十连） |
+| `/lottery claim` | `arcartxsuite.lottery.use` | 领取待发放的奖品（上线时自动触发） |
+| `/lottery info <奖池ID>` | `arcartxsuite.lottery.use` | 查看奖池详细信息和保底计数 |
 | `/lottery history <奖池ID>` | `arcartxsuite.lottery.use` | 查看个人抽奖历史 |
-
-别名：`/lot` 为 `/lottery` 的快捷形式。
 
 ### 管理员命令
 
@@ -70,11 +70,15 @@ modules:
 
 前缀：`%axslottery_xxx%`
 
+占位符格式为 `类型_奖池ID`，例如 `%axslottery_pity5_character_event_1%`。
+
 | 占位符 | 说明 |
 |--------|------|
-| `%axslottery_pools_total%` | 已加载奖池总数 |
-| `%axslottery_pools_active%` | 已启用奖池数 |
-| `%axslottery_history_<奖池ID>%` | 玩家在该奖池的总抽奖次数 |
+| `%axslottery_pity5_<奖池ID>%` | 玩家在该 Gacha 奖池的当前 5 星保底抽数 |
+| `%axslottery_pity4_<奖池ID>%` | 玩家在该 Gacha 奖池的当前 4 星保底抽数 |
+| `%axslottery_opens_<奖池ID>%` | 玩家在该 Case 奖池的总开箱次数 |
+| `%axslottery_guaranteed_<奖池ID>%` | 玩家在该 Gacha 奖池是否处于大保底状态（返回「是」/「否」） |
+| `%axslottery_fatepoints_<奖池ID>%` | 玩家在该 Gacha 奖池的当前命定值 |
 
 ## 配置文件
 
@@ -115,6 +119,11 @@ id: "character_event_1"
 type: GACHA
 enabled: true
 display-name: "角色活动祈愿"
+description: |-
+  角色活动祈愿
+  在本祈愿中，5星角色「星辰」的获取概率将大幅提升！
+  5星保底90抽，4星保底10抽，UP角色概率50%。
+up-item-icon: '{"id":"minecraft:nether_star","Count":1b}'
 
 cost:
   mode: CURRENCY          # 消耗模式：CURRENCY 货币 / ITEM 物品
@@ -131,13 +140,11 @@ gacha:
   base-5star-rate: 0.006      # 基础 5星概率
   base-4star-rate: 0.051      # 基础 4星概率
   up-rate: 0.5            # UP 物品在小保底内被歪时，下一次 5星必为 UP 的概率
-  fate-point-cap: 0       # 命定值上限（0 表示关闭命定值系统）
   shared-pity-group: "character_events"   # 跨池共享组（与主配置中 shared-pity-groups 对应）
 
-  # UP 5星物品（当期概率提升）。注意：items 为 map，根键任意，内部必须含 id
+  # UP 5星物品（当期概率提升）。注意：items 为 list，每项必须含 id
   up-5star-items:
-    character_star:
-      id: "character_star"
+    - id: "character_star"
       name: "星辰"
       plugin-type: MYTHIC
       plugin-id: "StarCharacter"
@@ -146,8 +153,7 @@ gacha:
 
   # 标准 5星物品（小保底可能歪到的常驻）
   standard-5star-items:
-    character_moon:
-      id: "character_moon"
+    - id: "character_moon"
       name: "月影"
       plugin-type: MYTHIC
       plugin-id: "MoonCharacter"
@@ -156,8 +162,7 @@ gacha:
 
   # UP 4星物品
   up-4star-items:
-    weapon_sword:
-      id: "weapon_sword"
+    - id: "weapon_sword"
       name: "星光剑"
       plugin-type: NEIGE
       plugin-id: "StarSword"
@@ -166,8 +171,7 @@ gacha:
 
   # 标准 4星物品
   standard-4star-items:
-    weapon_bow:
-      id: "weapon_bow"
+    - id: "weapon_bow"
       name: "风之弓"
       plugin-type: NEIGE
       plugin-id: "WindBow"
@@ -176,8 +180,7 @@ gacha:
 
   # 3星基础物品（填充概率用）
   star3-items:
-    material_common:
-      id: "material_common"
+    - id: "material_common"
       name: "普通材料"
       plugin-type: PLAIN
       plugin-id: "minecraft:stone"
@@ -192,6 +195,11 @@ id: "default_weapon_case"
 type: CASE
 enabled: true
 display-name: "常规武器箱"
+description: |-
+  常规武器箱
+  使用武器箱钥匙开启，可获得各种稀有度的武器皮肤。
+  包含从消费级到隐秘级的多款皮肤，更有罕见特殊级掉落！
+up-item-icon: '{"id":"minecraft:chest","Count":1b}'
 
 cost:
   mode: ITEM              # 消耗模式：ITEM 物品 / CURRENCY 货币
@@ -225,10 +233,9 @@ case:
 
   stattrak-chance: 0.1    # 暗金计数器概率
 
-  # items 为 map：根键任意，内部必须含 id
+  # items 为 list：每项必须含 id
   items:
-    skin_ak47_redline:
-      id: "skin_ak47_redline"
+    - id: "skin_ak47_redline"
       name: "AK-47 | 红线"
       rarity: CLASSIFIED
       plugin-type: NEIGE
@@ -266,6 +273,8 @@ case:
 | `type` | String | ✅ | — | `GACHA` 祈愿 或 `CASE` 开箱 |
 | `enabled` | Boolean | ✅ | — | 是否启用 |
 | `display-name` | String | ✅ | — | UI 中显示的名称 |
+| `description` | String | ❌ | `""` | 奖池描述文本（多行），UI 中展示 |
+| `up-item-icon` | String | ❌ | — | UP 物品图标 JSON，用于 UI 展示 |
 | `cost.mode` | String | ✅ | — | `CURRENCY` 消耗货币 / `ITEM` 消耗物品 |
 | `cost.currency` | String | `CURRENCY` 时 | — | 货币类型（依赖 CurrencyBridgeAPI） |
 | `cost.single` | Int | `GACHA+CURRENCY` | — | 单抽消耗数量 |
@@ -409,11 +418,12 @@ Lottery 模块声明了以下配置校验规则：
 
 | 字段 | 类型 | 约束 |
 |------|------|------|
-| `config-version` | INT | 必填，当前版本为 `1` |
 | `storage.mode` | STRING | 必填，枚举 `sqlite` / `mysql` |
 | `storage.pool-size` | INT | 范围 1–100 |
+| `pools-directory` | STRING | 必填 |
 
 动态节（用户可自由增删，不被结构同步覆盖）：
+- `messages`
 - `shared-pity-groups`
 - 奖池文件（`pools/*.yml`）中的所有内容
 
