@@ -74,7 +74,7 @@ flowchart LR
 
 ## 与官方模块的关系
 
-AXS 自带 26+ 个官方模块（Title、Mail、Chat…），它们与第三方模块 **使用同一套加载机制**：
+AXS 自带 28 个官方模块（Title、Mail、Chat…），它们与第三方模块 **使用同一套加载机制**：
 
 - 同样放在 `modules/`（或云端下发到内存加载）。
 - 同样通过 `ModuleContext` 获取桥接。

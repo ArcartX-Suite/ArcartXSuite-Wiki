@@ -56,14 +56,15 @@ description: commands - ArcartX-Suite Minecraft 服务器插件文档。 ArcartX
 
 > 单端服务器使用 `/axs auth setup` 配置 authlib-injector；Velocity/BungeeCord 群组服在代理端部署 `ArcartXSuite-Proxy-*.jar`，后端子服仍需要 authlib-injector 作为 JVM Agent。
 
-合法的 `<模块名>` 共 26 个：
+合法的 `<模块名>` 共 28 个：
 
 ```
 announcer, entitytracker, combateffect, eventpacket,
 chat, conversation, loginview, mail, onlinerewards,
 pickup, prop, rgb, tab, title,
 map, questgps, warehouse, essentials, regions, market, qqbot,
-battlepass, fishing, lottery, afkreward, menu
+battlepass, fishing, lottery, afkreward, menu,
+extrabackpack, vanilla
 ```
 
 ---

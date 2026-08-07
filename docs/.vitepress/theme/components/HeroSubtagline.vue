@@ -15,7 +15,7 @@ import { ref, onMounted, onUnmounted } from 'vue'
 
 const taglines = [
   'Suite — 组曲，亦是套装',
-  '26+ 个乐章，一部组曲，一个插件',
+  '28 个乐章，一部组曲，一个插件',
   '无需 Java，轻松谱写华丽乐章',
   '模块天然联动，合奏远胜独奏',
   '从登录到击杀，每一帧都由你演奏',

@@ -5,7 +5,7 @@ description: 配置智能体检 - ArcartX-Suite Minecraft 服务器插件文档�
 
 # 配置智能体检
 
-ArcartX-Suite 内置**智能配置自动修正系统**，可在不中断服务的情况下，自动检测并修复 26 个模块的配置文件问题。
+ArcartX-Suite 内置**智能配置自动修正系统**，可在不中断服务的情况下，自动检测并修复 28 个模块的配置文件问题。
 
 ## 功能概览
 
@@ -132,7 +132,7 @@ client-packet-guard:
 升级 ArcartX-Suite 或模块 jar 后，控制台会显示：
 
 ```
-[ArcartX-Suite] 配置诊断: 26 个目标, 0 ERROR / 0 WARN / 26 INFO
+[ArcartX-Suite] 配置诊断: 28 个目标, 0 ERROR / 0 WARN / 28 INFO
 [ArcartX-Suite] 报告: plugins/ArcartX-Suite/diagnosis/2026-05-18_15-30-22
 ```
 

@@ -4,7 +4,7 @@ title: ArcartX-Suite - Minecraft服务器组曲套件 | 我的世界插件
 titleTemplate: false
 hero:
   name: ArcartX-Suite
-  text: 26+ 个乐章 · 一部组曲 · 为 ArcartX 服务器谱写未来
+  text: 28 个乐章 · 一部组曲 · 为 ArcartX 服务器谱写未来
   actions:
     - theme: brand
       text: 五分钟上手
@@ -139,7 +139,7 @@ features:
     每一段风格、节奏各不相同，<strong>分开能单独演奏，合起来是一部统一于同一调性的完整作品</strong>。
   </p>
   <p>
-    <strong>ArcartX-Suite</strong> 正是这样的理念：26+ 个模块如同 26+ 个乐章，
+    <strong>ArcartX-Suite</strong> 正是这样的理念：28 个模块如同 28 个乐章，
     每一个独立运作、各具音色、按需启用，共享 ArcartX 的统一调性与 UI 主题，
     组合成一部属于你自己的<strong>服务器组曲</strong>。
   </p>
@@ -166,7 +166,7 @@ features:
 
 <div class="comparison-section">
   <h2>为什么选择 ArcartX-Suite ？</h2>
-  <p class="comparison-subtitle">26+ 个乐章统一于同一调性，各自独立，按需奏响，消除适配烦恼</p>
+  <p class="comparison-subtitle">28 个乐章统一于同一调性，各自独立，按需奏响，消除适配烦恼</p>
   <div class="comparison-table-wrapper">
     <table class="comparison-table">
       <thead>
@@ -337,5 +337,5 @@ features:
       </tbody>
     </table>
   </div>
-  <p class="comparison-footer"><strong>一部组曲，26+ 个乐章</strong> — 统一调性，各自独立，按需奏响，告别插件兼容性地狱</p>
+  <p class="comparison-footer"><strong>一部组曲，28 个乐章</strong> — 统一调性，各自独立，按需奏响，告别插件兼容性地狱</p>
 </div>
