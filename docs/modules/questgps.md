@@ -198,7 +198,7 @@ categories:
 | 字段 | 类型 | 默认值 | 说明 |
 | --- | --- | --- | --- |
 | `enabled` | boolean | `true` | 是否启用 3D 模型路径标记；关闭后仅 waypoint 罗盘 |
-| `model-id` | string | `nav_beacon` | ArcartX 模型 ID |
+| `model-id` | string | `waypoint` | ArcartX 模型 ID |
 | `scale` | double | `1.0` | 模型缩放 |
 | `default-state` | string | `idle` | 模型默认状态 |
 | `animation` | string | `rotate` | 循环动画名 |

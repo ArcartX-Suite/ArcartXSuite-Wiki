@@ -39,9 +39,13 @@ description: ModuleContext 上下文 - ArcartX-Suite Minecraft 服务器插件�
 | `attributeBridge()` | `AttributeBridgeRegistry` | `@Stable` | 全局属性桥接注册表（统一 AttributePlus / CraneAttribute / MythicLib / Symphony 桥接） |
 | `rondoBridge()` | `RondoBridge` | `@Stable` | Rondo 经济系统桥接（排行榜 / 转账 / 经济快照 / 交易日志） |
 | `ariaBridge()` | `AriaBridge` | `@Stable` | ArcartX 内置 Aria 脚本桥接（不可用时 `available()` 为 false） |
-| `scriptConditionEvaluator()` | `ScriptConditionEvaluator` | `@Stable` | 统一条件评估器（PlaceholderAPI + Aria 脚本 + JS 脚本 + Context 变量） |
+| `scriptConditionEvaluator()` | `ScriptConditionEvaluator` | `@Stable` | 统一条件评估器（PlaceholderAPI + Aria 脚本） |
 | `taczActive()` | `boolean` | `@Stable` | TACZ（创世战术武器）兼容桥接是否已激活 |
 | `worldTextureBridge()` | `WorldTextureBridgeAPI` | `@Internal` | ArcartX WorldTexture 文字贴图桥接（可能为 null） |
+| `createWaypointBridge()` | `WaypointBridgeAPI` | `@Internal` | 创建新的 ArcartX 路标桥接实例（模块独立管理生命周期） |
+| `createAdyeshachNpcBridge()` | `AdyeshachNpcBridgeAPI` | `@Internal` | 创建新的 Adyeshach NPC 桥接实例（模块独立管理生命周期） |
+| `createSoundPlayerBridge()` | `SoundPlayerBridgeAPI` | `@Internal` | 创建新的 ArcartX 音效播放器桥接实例（模块独立管理生命周期） |
+| `propBridge()` | `PropBridgeAPI` | `@Internal` | ArcartX Prop 桥接（可能为 null） |
 
 ```java
 PacketBridgeAPI bridge = context.packetBridge();

@@ -36,7 +36,7 @@ description: ArcartX-Suite OnlineRewards 在线时长阶段奖励、每日签到
 | 类型 | 依赖 | 作用 | 缺少时表现 |
 | --- | --- | --- | --- |
 | 必需 | ArcartX | 在线进度、签到 UI、排行榜 UI 和客户端提示 | 模块无法展示可视化奖励界面 |
-| 可选 | PlaceholderAPI | 输出在线/签到排行榜 PAPI，解析奖励条件 | PAPI 输出和条件解析不可用 |
+| 必需 | PlaceholderAPI | 输出在线/签到排行榜 PAPI，解析奖励条件 | PAPI 输出和条件解析不可用 |
 | 可选 | Mail 模块 | 签到、在线阶段奖励通过预设邮件发放 | 邮件奖励跳过或需要改为命令奖励 |
 | 可选 | Vault | 奖励/补签卡等配置中使用金币时扣发款 | Vault 货币动作不可用 |
 | 可选 | 宿主 cross-server | 多服刷新签到/补签/管理操作后的客户端 UI | 单服正常；跨服同步关闭 |
@@ -301,6 +301,7 @@ ui:
 
 | 命令 | 说明 |
 | --- | --- |
+| `/axs onlinerewards help` | 查看可用子命令 |
 | `/axs onlinerewards status` | 查看在线奖励、签到和排行榜状态 |
 | `/axs onlinerewards add\|remove\|set <时长> <玩家>` | 修改玩家在线时长。`add` 增加、`remove` 减少、`set` 设为指定值。时长如 `30m`、`2h`、`1d` |
 | `/axs onlinerewards card add\|remove\|set <数量> <玩家>` | 修改玩家的补签卡数量 |

@@ -248,6 +248,7 @@ filter:
 
 | 命令 | 说明 |
 | --- | --- |
+| `/axs pickup help` | 查看可用子命令 |
 | `/pickup` | 切换拾取功能开关（toggle） |
 | `/pickup on` | 开启拾取功能 |
 | `/pickup off` | 关闭拾取功能 |

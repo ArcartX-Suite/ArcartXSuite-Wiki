@@ -66,6 +66,7 @@ description: ArcartX-Suite QQBot OneBot 11 双向消息同步、QQ-游戏账号�
 
 | 命令 | 权限 | 说明 |
 |------|------|------|
+| `/axs qqbot help` | `arcartxsuite.qqbot.admin` | 查看可用子命令 |
 | `/axs qqbot status` | `arcartxsuite.qqbot.admin` | 查看连接/群数/绑定/白名单状态 |
 | `/axs reload qqbot` | `arcartxsuite.admin` | 重载 QQBot 模块（宿主通用重载命令） |
 | `/axs qqbot send all <消息>` | `arcartxsuite.qqbot.admin` | 向所有已配置群发送消息 |
@@ -113,6 +114,8 @@ description: ArcartX-Suite QQBot OneBot 11 双向消息同步、QQ-游戏账号�
 | `#黑名单添加 <QQ号>` | 群管/群主 | 将指定 QQ 加入黑名单（禁止其使用机器人） |
 | `#黑名单移除 <QQ号>` | 群管/群主 | 将指定 QQ 移出黑名单 |
 | `#黑名单列表` | 群管/群主 | 查看当前数据库黑名单列表 |
+| `#发邮件 <玩家名> <预设ID>` | 群管/群主 | 向指定玩家发送预设邮件（需 Mail 模块启用） |
+| `#cmd <命令>` | 群管/群主 | 在控制台执行任意命令（管理员远程控制，前缀可在 `admin.command-prefix` 配置） |
 
 ## 权限
 
@@ -194,6 +197,15 @@ whitelist:
   add-prefix: "#白名单添加"
   remove-prefix: "#白名单移除"
   list-prefix: "#白名单列表"
+
+# 管理员远程控制
+# 配置的QQ号可在群内直接执行服务器控制台命令
+# 安全警告: 请仅添加完全信任的QQ号，该功能等同于控制台权限
+admin:
+  enabled: false
+  qq-list:                          # 管理员QQ号列表
+    - 123456789
+  command-prefix: "#cmd"            # 管理员指令前缀（如 "#cmd say hello" 执行 "say hello"）
 
 # 白名单登录门控
 # 实际的绑定控制由 LoginView 的 qq-binding 节接管，以下配置仅供日志审计参考

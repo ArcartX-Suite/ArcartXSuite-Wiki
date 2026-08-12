@@ -326,6 +326,7 @@ description: ArcartX-Suite Warehouse 仓库银行，个人仓库NBT分类、共�
 
 | 命令 | 权限 | 说明 |
 |------|------|------|
+| `/axs warehouse help` | `arcartxsuite.admin` | 查看可用子命令 |
 | `/axs warehouse status` | `arcartxsuite.admin` | 查看模块状态（缓存玩家数、货币列表、跨服锁等） |
 | `/axs warehouse open <玩家>` | `arcartxsuite.admin` | 为在线玩家打开仓库界面 |
 | `/axs warehouse info <玩家>` | `arcartxsuite.admin` | 查看玩家仓库概览（使用量、共享数、定期数） |

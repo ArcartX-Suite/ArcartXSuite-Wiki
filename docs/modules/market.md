@@ -53,6 +53,7 @@ description: ArcartX-Suite Market 全球市场插件，系统商店 + 玩家拍�
 
 | 命令 | 权限 | 说明 |
 |------|------|------|
+| `/axs market help` | `arcartxsuite.market.admin` | 查看可用子命令 |
 | `/axs market status` | `arcartxsuite.market.admin` | 查看模块状态 |
 | `/axs market clear-expired` | `arcartxsuite.market.admin` | 手动处理到期物品 |
 | `/axs market remove <ID>` | `arcartxsuite.market.admin` | 强制移除上架 |

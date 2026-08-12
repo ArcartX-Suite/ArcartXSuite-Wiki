@@ -306,13 +306,17 @@ item.ifPresent(stack -> player.getInventory().addItem(stack));
 
 ```java
 VanillaItemNameBridge nameBridge = context.vanillaItemNameBridge();
-String displayName = nameBridge.displayName(itemStack);
+String displayName = nameBridge.resolveDisplayName(itemStack);
 // 返回如 "钻石剑"、"附魔书：锋利 I"、"药水：治疗"
+String materialName = nameBridge.translate(Material.DIAMOND_SWORD);
+// 返回 "钻石剑"（仅按 Material 粒度翻译，不考虑 NBT 子类型）
 ```
 
 | 方法 | 返回类型 | 说明 |
 |------|---------|------|
-| `displayName(ItemStack)` | `String` | 获取物品的中文显示名。优先使用自定义显示名，其次按附魔书/药水子类型解析，最后回退到 Material 静态映射表 |
+| `isAvailable()` | `boolean` | 桥接是否可用（宿主未初始化时返回 false） |
+| `translate(Material)` | `String` | 按 Material 粒度翻译原版物品名。未命中映射表时返回材质名的小写空格形式（如 `diamond_sword` → `diamond sword`） |
+| `resolveDisplayName(ItemStack)` | `String` | 解析物品的中文显示名。优先返回物品自定义显示名；无自定义名时按 Material + NBT 子类型翻译。返回值可能包含颜色代码 |
 
 ---
 
@@ -326,6 +330,136 @@ String displayName = nameBridge.displayName(itemStack);
 ItemMatcherAPI matcher = context.itemMatcher();
 boolean same = matcher.matches(handItem, "mythicmobs:Dark_Sword");
 ```
+
+---
+
+## WaypointBridgeAPI
+
+ArcartX 路标（Waypoint）桥接，为玩家添加/删除/清理客户端路标，支持样式解析。
+
+**获取方式：** `context.createWaypointBridge()`（`@Internal`，模块独立管理生命周期，since 1.2.0）
+
+```java
+WaypointBridgeAPI wp = context.createWaypointBridge();
+if (wp != null && wp.initialize("mymodule")) {
+    String style = wp.resolveStyleId("default", "default", "mymodule");
+    wp.addWaypoint(player, "wp_1", "任务目标", style, x, y, z);
+    // 清理时
+    wp.clearWaypoints(player);
+    wp.shutdown();
+}
+```
+
+| 方法 | 返回类型 | 说明 |
+|------|---------|------|
+| `initialize(String ownerLabel)` | `boolean` | 初始化桥接（模块调用一次） |
+| `shutdown()` | `void` | 关闭桥接 |
+| `available()` | `boolean` | 桥接是否可用 |
+| `availableStyleIds()` | `Set<String>` | 可用的路标样式 id 集合 |
+| `resolveStyleId(String, String, String)` | `String` | 解析最终使用的样式 id |
+| `addWaypoint(Player, String, String, String, double, double, double)` | `boolean` | 为玩家添加路标 |
+| `removeWaypoint(Player, String, boolean)` | `boolean` | 移除玩家指定路标 |
+| `clearWaypoints(Player)` | `boolean` | 清理玩家所有路标 |
+
+---
+
+## AdyeshachNpcBridgeAPI
+
+Adyeshach NPC 桥接，查询附近 NPC、应用模型/动画、生成私有导航标记等。
+
+**获取方式：** `context.createAdyeshachNpcBridge()`（`@Internal`，模块独立管理生命周期，since 1.2.0）
+
+```java
+AdyeshachNpcBridgeAPI npc = context.createAdyeshachNpcBridge();
+if (npc != null && npc.initialize()) {
+    List<AdyeshachNearbyNpc> nearby = npc.findNearby(player, 32.0);
+    // 为玩家生成私有导航标记
+    npc.spawnPrivateMarker(player, "marker_1", location);
+    // 清理时
+    npc.clearAllPrivateMarkers();
+    npc.shutdown();
+}
+```
+
+| 方法 | 返回类型 | 说明 |
+|------|---------|------|
+| `initialize()` / `shutdown()` | `boolean` / `void` | 桥接生命周期管理 |
+| `isAvailable()` | `boolean` | 桥接是否可用 |
+| `findNearby(Player, double)` | `List<AdyeshachNearbyNpc>` | 查找玩家附近的 NPC |
+| `findByName(String)` | `Optional<Object>` | 按显示名/ID 查找 NPC |
+| `getEntityNames(Object)` | `List<String>` | 获取指定实体的所有可识别名称 |
+| `registerVisibleHandler(BiConsumer)` / `unregisterVisibleHandler()` | `boolean` / `void` | 注册/注销可见事件处理器 |
+| `spawnPrivateMarker(Player, String, Location)` | `Object` | 为玩家生成私有导航标记实体 |
+| `teleportMarker(Player, String, Location)` | `boolean` | 传送玩家私有标记实体 |
+| `removePrivateMarker(Player, String)` | `boolean` | 移除玩家私有标记实体 |
+| `clearAllPrivateMarkers()` | `void` | 清理所有私有标记实体 |
+| `applyModel(Object, String, double)` | `boolean` | 为 NPC 广播应用模型 |
+| `applyModelForPlayer(Player, Object, String, double)` | `boolean` | 为指定玩家对 NPC 应用模型 |
+| `applyAnimation(Object, String, double, int, long)` | `boolean` | 为 NPC 广播播放动画 |
+| `applyAnimationForPlayer(Player, Object, String, double, int, long)` | `boolean` | 为指定玩家对 NPC 播放动画 |
+| `applyDefaultState(Object, String, String)` | `boolean` | 为 NPC 广播设置默认状态 |
+| `applyDefaultStateForPlayer(Player, Object, String, String)` | `boolean` | 为指定玩家对 NPC 设置默认状态 |
+
+---
+
+## SoundPlayerBridgeAPI
+
+ArcartX 音效播放器桥接，通过资源包播放自定义音效，支持仅对指定玩家播放或世界广播。
+
+**获取方式：** `context.createSoundPlayerBridge()`（`@Internal`，模块独立管理生命周期，since 1.3.0）
+
+```java
+SoundPlayerBridgeAPI sound = context.createSoundPlayerBridge();
+if (sound != null && sound.initialize()) {
+    // 为玩家在指定位置播放自定义音效
+    sound.playSoundForPlayer(player, location, "sounds/bell.ogg", "master", 16, 1.0, 3000);
+    // 为玩家自身播放（无位置）
+    sound.playSoundForSelf(player, "sounds/ui_click.ogg", "master", 1.0f, 1000);
+    sound.shutdown();
+}
+```
+
+| 方法 | 返回类型 | 说明 |
+|------|---------|------|
+| `initialize()` / `shutdown()` | `boolean` / `void` | 桥接生命周期管理 |
+| `isAvailable()` | `boolean` | 桥接是否可用 |
+| `playSoundForPlayer(Player, Location, String, String, int, double, int)` | `boolean` | 为指定玩家在指定位置播放自定义音效（仅该玩家可听到） |
+| `playSoundForSelf(Player, String, String, float, int)` | `boolean` | 为玩家自身播放自定义音效（无位置，直接播放） |
+
+---
+
+## PropBridgeAPI
+
+ArcartX Prop 桥接，提供客户端按键绑定、额外槽位、冷却标签与物品持久化 prop id 等能力。
+
+**获取方式：** `context.propBridge()`（`@Internal`，可能为 null，since 1.2.0）
+
+```java
+PropBridgeAPI prop = context.propBridge();
+if (prop != null && prop.isAvailable()) {
+    // 注册客户端按键绑定
+    prop.registerClientKeyBind("mymodule:action", "mymodule", "R", player -> {
+        // 按键按下回调
+    });
+    // 将 prop id 写入物品 PDC
+    ItemStack tagged = prop.writePropId(itemStack, "my_prop_id");
+    // 清理时
+    prop.unregisterClientKeyBind("mymodule:action");
+}
+```
+
+| 方法 | 返回类型 | 说明 |
+|------|---------|------|
+| `isAvailable()` | `boolean` | 桥接是否可用 |
+| `initialize()` / `shutdown()` | `boolean` / `void` | 桥接生命周期管理（由宿主调用） |
+| `propIdWriterBackendKey()` | `String` | 写入 prop id 的 PDC backend key 标识 |
+| `registerClientKeyBind(String, String, String, Consumer<Player>)` | `boolean` | 注册客户端按键绑定 |
+| `unregisterClientKeyBind(String)` | `void` | 注销客户端按键绑定 |
+| `resolvePlayerHandle(Player)` | `Optional<PropPlayerHandle>` | 解析玩家句柄 |
+| `getItemTag(ItemStack, String)` | `String` | 读取物品标签 |
+| `setCooldownTag(ItemStack, String)` / `getCooldownTag(ItemStack)` | `void` / `String` | 设置/读取冷却标签 |
+| `writePropId(ItemStack, String)` | `ItemStack` | 将 prop id 写入物品 PDC |
+| `getPersistentPropId(ItemStack)` | `String` | 从物品 PDC 读取持久化 prop id |
 
 ---
 

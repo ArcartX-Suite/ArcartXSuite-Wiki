@@ -716,6 +716,7 @@ pages:
 
 | 命令 | 说明 |
 | --- | --- |
+| `/axs menu help` | 查看可用子命令 |
 | `/axs menu status` | 查看模块状态（菜单数量、UI ID、绑定计数） |
 | `/axs menu list` | 列出所有已注册菜单（ID、布局、标题） |
 | `/axs menu open <菜单ID> [玩家]` | 为指定玩家打开菜单（或自己） |

@@ -187,11 +187,15 @@ public interface QuestGpsNavigable {
 
 ```java
 public interface MapNavigable {
-    void setExternalNavigation(Player player, String label, Location target);
-    void clearExternalNavigation(Player player);
-    void openMenuFor(Player player);
+    void upsertExternalTarget(@NotNull Player player, @NotNull String targetId, @NotNull String source,
+                              @NotNull String worldId, double x, double y, double z,
+                              @NotNull String displayName, @Nullable String iconId, boolean select);
+    void clearExternalTargets(@NotNull Player player, @NotNull String source, boolean syncView);
+    void openMenuFor(@NotNull Player player, @NotNull String waypointId);
 }
 ```
+
+**使用场景：** QuestGps 模块在任务导航时调用 `upsertExternalTarget` 设置外部导航点，任务完成或放弃时调用 `clearExternalTargets` 清理。`source` 参数用于区分来源（如 `"questgps"`），避免不同模块的导航点互相覆盖。
 
 ### TabRefreshable
 
@@ -231,10 +235,12 @@ public interface TitleConfigQueryable {
 
 ```java
 public interface CombatEffectTriggerable {
-    void triggerPacket(Player player, String packetId, Map<String, Object> extraVars);
-    void triggerDirect(Player player, String uiId, String handler, Map<String, Object> payload);
+    boolean triggerPacket(@NotNull String packetId, @NotNull Player recipient, @Nullable Map<String, String> variables);
+    boolean triggerDirect(@NotNull String uiId, @NotNull String packetHandler, @NotNull Player recipient, @Nullable Object payload);
 }
 ```
+
+**使用场景：** EventPacket、OnlineRewards 等模块在特定事件时跨模块触发战斗特效包定义或直接发包。`triggerPacket` 通过包定义 ID 触发已注册的特效包，`triggerDirect` 绕过包定义系统直接向客户端发包。两个方法均返回 `boolean` 表示是否发送成功。
 
 ### QQBotBroadcastable
 
@@ -242,12 +248,12 @@ public interface CombatEffectTriggerable {
 
 ```java
 public interface QQBotBroadcastable {
-    void broadcastToGroups(String message);
-    void sendToGroup(long groupId, String message);
+    void sendToGroup(long groupId, @NotNull String message);
+    void sendToAllGroups(@NotNull String message);
 }
 ```
 
-**使用场景：** EventPacket、Mail 等模块在特定事件时向 QQ 群推送通知。
+**使用场景：** EventPacket、Mail 等模块在特定事件时向 QQ 群推送通知。`sendToGroup` 向指定群发送，`sendToAllGroups` 向所有已配置的群广播。
 
 ### SignalDispatchable
 
@@ -345,10 +351,11 @@ public interface DatabaseMigratable {
 ```java
 public interface PickupNotifiable {
     boolean isNotificationActive(UUID playerId);
+    default boolean notifyPickup(@NotNull Player player, @NotNull ItemStack itemStack, int amount) { return false; }
 }
 ```
 
-**使用场景：** Warehouse 自动入库前判断是否需要额外发送聊天栏提示。
+**使用场景：** Warehouse 自动入库前调用 `isNotificationActive` 判断是否需要额外发送聊天栏提示；当 Warehouse 取消 `EntityPickupItemEvent` 导致 Pickup 模块的事件监听器无法收到通知时，Warehouse 显式调用 `notifyPickup` 补发 HUD 拾取提示。
 
 ### QQBotNotifiable
 

@@ -230,6 +230,7 @@ preset:
 
 | 命令 | 说明 |
 | --- | --- |
+| `/axs mail help` | 查看可用子命令 |
 | `/axs mail status` | 查看邮箱模块、存储、预设和跨服状态 |
 | `/axs mail open <玩家>` | 为在线玩家打开邮箱收件箱 |
 | `/axs mail admin` | 打开管理 UI 界面（管理员查看全服邮件） |

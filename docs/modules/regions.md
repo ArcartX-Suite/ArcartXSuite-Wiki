@@ -69,6 +69,7 @@ UI 面板需要玩家安装 ArcartX 客户端 mod。未安装时命令会提示"
 
 | 命令 | 说明 | 权限 |
 | --- | --- | --- |
+| `/axs regions help` | 查看可用子命令 | `axs.regions.admin` |
 | `/rg menu` | 打开区域查看菜单 | 无 |
 | `/rg admin` | 打开区域管理面板 | `axs.regions.admin` |
 

@@ -4,7 +4,7 @@ title: ArcartX-Suite - Minecraft服务器组曲套件 | 我的世界插件
 titleTemplate: false
 hero:
   name: ArcartX-Suite
-  text: 28 个乐章 · 一部组曲 · 为 ArcartX 服务器谱写未来
+  text: 29 个乐章 · 一部组曲 · 为 ArcartX 服务器谱写未来
   actions:
     - theme: brand
       text: 五分钟上手
@@ -129,6 +129,18 @@ features:
     title: QQBot QQ群服互联
     details: OneBot 11 双向消息同步、QQ-游戏账号绑定、白名单联动、群指令查玩家数据
     link: /modules/qqbot
+  - icon: 🎒
+    title: ExtraBackpack 扩展背包
+    details: 多分类额外槽位、自动分类、拾取自动存入、付费扩容、二级密码销毁
+    link: /modules/extrabackpack
+  - icon: 💡
+    title: Tooltip 物品提示桥接
+    details: 客户端 mod 采集 TACZ/Apotheosis 动态 tooltip，服务端缓存供聊天预览使用
+    link: /modules/tooltip
+  - icon: 📦
+    title: VanillaUI 原版界面替换
+    details: 工作台/熔炉 ArcartX UI 化、中文物品搜索、自定义界面布局
+    link: /modules/vanilla
 ---
 
 <div class="brand-meaning">
@@ -139,7 +151,7 @@ features:
     每一段风格、节奏各不相同，<strong>分开能单独演奏，合起来是一部统一于同一调性的完整作品</strong>。
   </p>
   <p>
-    <strong>ArcartX-Suite</strong> 正是这样的理念：28 个模块如同 28 个乐章，
+    <strong>ArcartX-Suite</strong> 正是这样的理念：29 个模块如同 29 个乐章，
     每一个独立运作、各具音色、按需启用，共享 ArcartX 的统一调性与 UI 主题，
     组合成一部属于你自己的<strong>服务器组曲</strong>。
   </p>
@@ -147,7 +159,7 @@ features:
 
 <div class="stats-bar">
   <div class="stat-item">
-    <div class="stat-number">26</div>
+    <div class="stat-number">29</div>
     <div class="stat-label">乐章</div>
   </div>
   <div class="stat-item">
@@ -166,7 +178,7 @@ features:
 
 <div class="comparison-section">
   <h2>为什么选择 ArcartX-Suite ？</h2>
-  <p class="comparison-subtitle">28 个乐章统一于同一调性，各自独立，按需奏响，消除适配烦恼</p>
+  <p class="comparison-subtitle">29 个乐章统一于同一调性，各自独立，按需奏响，消除适配烦恼</p>
   <div class="comparison-table-wrapper">
     <table class="comparison-table">
       <thead>
@@ -337,5 +349,5 @@ features:
       </tbody>
     </table>
   </div>
-  <p class="comparison-footer"><strong>一部组曲，28 个乐章</strong> — 统一调性，各自独立，按需奏响，告别插件兼容性地狱</p>
+  <p class="comparison-footer"><strong>一部组曲，29 个乐章</strong> — 统一调性，各自独立，按需奏响，告别插件兼容性地狱</p>
 </div>

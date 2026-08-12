@@ -385,6 +385,7 @@ packetHandler:
 
 | 命令 | 说明 |
 | --- | --- |
+| `/axs tab help` | 查看可用子命令 |
 | `/axs tab status` | 查看 Tab 模块状态 |
 
 玩家命令（无需 `arcartxsuite.admin`）：

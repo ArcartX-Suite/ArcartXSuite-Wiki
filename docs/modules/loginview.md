@@ -326,6 +326,7 @@ messages:
 
 | 命令 | 说明 |
 | --- | --- |
+| `/axs loginview help` | 查看可用子命令 |
 | `/axs loginview status` | 查看登录模块、模式、UI 和账户库状态 |
 | `/axs loginview open <玩家>` | 为在线玩家打开登录视图界面，一般用于调试 |
 | `/axs loginview migrate-authme [dry-run]` | 从 AuthMe 迁移密码哈希。加 `dry-run` 只预览不执行 |

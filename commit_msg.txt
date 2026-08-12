@@ -1,0 +1,22 @@
+docs: 全量审查修复 — 首页/API/模块文档同步代码
+
+首页 index.md：
+- 补充 3 个缺失模块卡片（ExtraBackpack/Tooltip/VanillaUI）
+- 修正模块数量 28→29（hero 文案、stats-bar、comparison-section）
+
+API 文档修复：
+- module-context.md: 补充 4 个缺失方法（createWaypointBridge/createAdyeshachNpcBridge/createSoundPlayerBridge/propBridge），修正 scriptConditionEvaluator 描述
+- capability.md: 修正 4 个 Capability 方法签名（MapNavigable/CombatEffectTriggerable/QQBotBroadcastable/PickupNotifiable）
+- bridge-api.md: 修正 VanillaItemNameBridge 方法名（displayName→resolveDisplayName），补充 translate 方法，新增 4 个 Bridge API 文档（WaypointBridgeAPI/AdyeshachNpcBridgeAPI/SoundPlayerBridgeAPI/PropBridgeAPI）
+- events.md: 新增 TaczGunDamageEvent 文档
+
+模块文档修复：
+- 20 个模块: 补充 /axs <模块名> help 命令到管理员命令表格
+- qqbot.md: 补充 #发邮件 和 #cmd 群指令，补充 admin 配置节文档
+- lottery.md: 修正 PlaceholderAPI 依赖类型（可选→必须）
+- onlinerewards.md: 修正 PlaceholderAPI 依赖类型（可选→必须）
+- questgps.md: 修正 navigation.marker.model-id 默认值（nav_beacon→waypoint）
+
+Generated with [Devin](https://devin.ai)
+
+Co-Authored-By: Devin <158243242+devin-ai-integration[bot]@users.noreply.github.com>

@@ -159,3 +159,40 @@ context.attributeBridge().registerDamageListener(event -> {
 | `amount` | `double` | 治疗量 |
 | `source` | `Source` | 治疗来源 |
 
+---
+
+## TaczGunDamageEvent
+
+TACZ（创世战术武器）枪械伤害事件。当 TACZ Mod 的 `EntityHurtByGunEvent.Pre` 触发时，由 `TaczCombatBridge` 转换为标准 Bukkit 事件并广播。标记为 `@ApiStability.Stable`，since 1.1.0。
+
+AXS 各模块可通过标准 Bukkit 事件机制监听此事件，以获取 TACZ 枪械伤害信息，而无需关心 Forge/NeoForge 事件总线的反射细节。
+
+此事件与 `EntityDamageByEntityEvent` 完全解耦：TACZ 伤害不再被伪装为 Bukkit 原版事件，模块可明确区分枪械伤害与近战/弓箭等原版伤害。
+
+**注册方式：** 标准 Bukkit `@EventHandler` 监听
+
+### 事件字段
+
+| 字段 | 类型 | 说明 |
+|------|------|------|
+| `attacker` | `@NotNull Player` | 攻击者（开枪的玩家） |
+| `target` | `@NotNull LivingEntity` | 被击中的实体 |
+| `damage` | `double` | 伤害值（对应 TACZ `getBaseAmount()`，尚未经过护甲/抗性等减免） |
+| `headShot` | `boolean` | 是否为爆头 |
+| `gunId` | `@NotNull String` | 枪械 ID（如 `tacz:modern_kinetic_gun`） |
+
+### 使用示例
+
+```java
+@EventHandler
+public void onTaczDamage(TaczGunDamageEvent event) {
+    Player attacker = event.getAttacker();
+    LivingEntity target = event.getTarget();
+    double damage = event.getDamage();
+    boolean headshot = event.isHeadShot();
+    String gunId = event.getGunId();
+    // CombatEffect 模块可据此显示枪械伤害飘字
+    // EntityTracker 模块可据此统计 Boss 枪械伤害排行
+}
+```
+

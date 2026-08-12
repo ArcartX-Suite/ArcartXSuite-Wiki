@@ -25,7 +25,7 @@ description: ArcartX-Suite Lottery 抽奖系统，CS 开箱横向滚动动画 + 
 | 依赖 | 是否必须 | 用途 |
 |------|----------|------|
 | ArcartX | ✅ 必须 | UI 渲染 + 数据包通信（开箱滚动动画 / 祈愿界面） |
-| PlaceholderAPI | 可选 | PAPI 占位符输出（保底计数、命定值等） |
+| PlaceholderAPI | ✅ 必须 | PAPI 占位符输出（保底计数、命定值等） |
 | MySQL | 可选 | 多服共享抽奖记录与保底计数 |
 | Mail | 可选 | 背包满时自动发放奖品为邮件（通过 MailDispatchable 能力） |
 | MythicMobs / NeigeItems | 可选 | 自定义物品来源（奖池奖品） |
@@ -54,6 +54,7 @@ modules:
 
 | 命令 | 权限 | 说明 |
 |------|------|------|
+| `/axs lottery help` | `arcartxsuite.lottery.admin` | 查看可用子命令 |
 | `/axs lottery status` | `arcartxsuite.lottery.admin` | 查看所有奖池状态与统计数据 |
 | `/axs lottery reset <玩家> <奖池ID>` | `arcartxsuite.lottery.admin` | 重置指定玩家在某奖池的保底计数 |
 | `/axs lottery give-ticket <玩家> <奖池ID> <数量>` | `arcartxsuite.lottery.admin` | 向玩家发放 Case 开箱钥匙 |

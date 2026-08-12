@@ -250,6 +250,7 @@ __option__:
 
 | 命令 | 说明 |
 | --- | --- |
+| `/axs conversation help` | 查看可用子命令 |
 | `/axs conversation status` | 查看对话桥模块状态（交互增强、NPC 桥接等就绪情况） |
 | `/axs conversation adyeshach setModel <名称> <modelID> <scale>` | 即时为指定 NPC 设置模型 |
 | `/axs conversation adyeshach setAnimation <名称> <state> <animName>` | 即时为指定 NPC 设置持久默认动画 |

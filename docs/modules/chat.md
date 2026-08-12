@@ -266,6 +266,7 @@ cross-server:
 
 | 命令 | 说明 |
 | --- | --- |
+| `/axs chat help` | 查看可用子命令 |
 | `/axs chat status` | 查看聊天模块状态（频道数、缓存、传输层信息） |
 | `/axs reload chat` | 重载聊天模块配置（频道、过滤、跨服等） |
 | `/axs chat mute <玩家> <时长> [原因]` | 禁言玩家。时长如 `30m`、`12h`、`7d`、`permanent`（永久） |
