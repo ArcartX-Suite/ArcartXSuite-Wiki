@@ -13,11 +13,11 @@ description: PlaceholderAPI 占位符速查 - ArcartX-Suite Minecraft 服务器�
 
 ## 占位符总览
 
-ArcartX-Suite 共有 **14 个模块** 对外输出 PAPI 占位符：
+ArcartX-Suite 共有 **16 个模块** 对外输出 PAPI 占位符：
 
 | 模块 | 前缀 | 必装 PAPI? | 说明 |
 | --- | --- | --- | --- |
-| [AfkReward](/modules/afkreward) | `%axsafk_*%` | 可选 | 区域挂机状态、时长、奖励次数、区域人数 |
+| [AfkReward](/modules/afkreward) | `%axsafkreward_*%` | 可选 | 区域挂机状态、时长、奖励次数、区域人数、倍率 |
 | [BattlePass](/modules/battlepass) | `%axsbattlepass_*%` | 可选 | 战令等级、XP、通行证层级、活跃任务数 |
 | [EntityTracker](/modules/entitytracker) | `%axsentitytracker_*%` | 可选 | Boss 追踪、伤害排行、结算数据 |
 | [Essentials](/modules/essentials) | `%axsess_*%` | 可选 | AFK、隐身、飞行、昵称等玩家状态 |
@@ -31,33 +31,71 @@ ArcartX-Suite 共有 **14 个模块** 对外输出 PAPI 占位符：
 | [Market](/modules/market) | `%axsmarket_*%` | 可选 | 拍卖数量、商店数、回收数、Redis 状态 |
 | [QQBot](/modules/qqbot) | `%axsqqbot_*%` | 可选 | OneBot 连接状态、玩家 QQ 绑定信息、群数量 |
 | [Tab](/modules/tab) | `%axstab_*%` | 可选 | Tab 在线列表变量、玩家状态 |
+| [Fishing](/modules/fishing) | `%axsfishing_*%` | 可选 | 钓鱼等级、经验、捕获数、图鉴收集 |
+| [Lottery](/modules/lottery) | `%axslottery_*%` | 可选 | 保底计数、开箱次数、大保底状态、命运点、抽奖点数 |
 
 ---
 
 ## AfkReward 占位符
 
-前缀：`%axsafk_<字段>%`
+前缀：`%axsafkreward_<字段>%`
+
+### 基础状态
 
 | 占位符 | 返回值 | 说明 |
 | --- | --- | --- |
-| `%axsafk_type%` | 文本 | 挂机类型：`区域挂机` / `原地挂机` / `未挂机` |
-| `%axsafk_area%` | 文本 | 当前所在区域名称，未挂机时返回空 |
-| `%axsafk_time%` | 文本 | 当前挂机时长，格式化（如 `15分32秒`） |
-| `%axsafk_total_time%` | 文本 | 累计总挂机时长（格式化） |
-| `%axsafk_today%` | 数字 | 今日已获得奖励次数 |
-| `%axsafk_total%` | 数字 | 累计获得奖励总次数 |
-| `%axsafk_players%` | 数字 | 当前区域同时挂机人数 |
-| `%axsafk_next%` | 数字 | 距离下次奖励的剩余秒数 |
-| `%axsafk_top_1_name%` | 文本 | 排行榜第 1 名玩家名称 |
-| `%axsafk_top_1_time%` | 文本 | 排行榜第 1 名总时长（格式化） |
-| `%axsafk_top_1_rewards%` | 数字 | 排行榜第 1 名总奖励次数 |
+| `%axsafkreward_type%` | 文本 | 挂机类型：`区域挂机` / `原地挂机` / `未挂机` |
+| `%axsafkreward_status%` | 文本 | 挂机状态：`挂机中` / `未挂机` |
+| `%axsafkreward_mode%` | 文本 | 挂机模式名称（`MANUAL` / `REGION`），未挂机时返回空 |
+| `%axsafkreward_area%` | 文本 | 当前所在区域名称，未挂机时返回空 |
+| `%axsafkreward_time%` | 文本 | 当前挂机时长，格式化（如 `15分32秒`） |
+| `%axsafkreward_multiplier%` | 数字 | 当前倍率（如 `1.50`），未挂机时返回 `1.00` |
+
+### 会话与每日数据
+
+| 占位符 | 返回值 | 说明 |
+| --- | --- | --- |
+| `%axsafkreward_session_rewards%` | 数字 | 本次会话已获得奖励数 |
+| `%axsafkreward_session_time%` | 文本 | 本次会话挂机时长（格式化） |
+| `%axsafkreward_daily_seconds%` | 数字 | 今日已挂机总秒数 |
+| `%axsafkreward_remaining_daily%` | 数字 | 今日剩余可挂机秒数（无限制时返回空） |
+
+### 累计统计
+
+| 占位符 | 返回值 | 说明 |
+| --- | --- | --- |
+| `%axsafkreward_total_time%` | 文本 | 累计总挂机时长（格式化） |
+| `%axsafkreward_today%` | 数字 | 今日已获得奖励次数 |
+| `%axsafkreward_total%` | 数字 | 累计获得奖励总次数 |
+| `%axsafkreward_total_all%` | 文本 | 所有区域累计总时长（格式化） |
+
+### 区域与人数
+
+| 占位符 | 返回值 | 说明 |
+| --- | --- | --- |
+| `%axsafkreward_players%` | 数字 | 当前区域同时挂机人数 |
+| `%axsafkreward_next%` | 数字 | 距离下次奖励的剩余秒数 |
+| `%axsafkreward_area_<名称>%` | 文本 | 指定区域的累计总时长（格式化） |
+| `%axsafkreward_area_<名称>_today%` | 文本 | 指定区域今日时长（格式化） |
+| `%axsafkreward_area_<名称>_status%` | 文本 | 是否在指定区域（`是` / `否`） |
+
+### 排行榜
+
+| 占位符 | 返回值 | 说明 |
+| --- | --- | --- |
+| `%axsafkreward_top_<名次>_name%` | 文本 | 排行榜指定名次玩家名称 |
+| `%axsafkreward_top_<名次>_time%` | 文本 | 排行榜指定名次总时长（格式化） |
+| `%axsafkreward_top_<名次>_rewards%` | 数字 | 排行榜指定名次总奖励次数 |
 
 **使用示例**：
 ```
-%axsafk_area%          → 返回 "温泉"
-%axsafk_time%          → 返回 "15分32秒"
-%axsafk_players%       → 返回 "12"
-%axsafk_next%          → 返回 "742"
+%axsafkreward_area%          → 返回 "温泉"
+%axsafkreward_time%          → 返回 "15分32秒"
+%axsafkreward_players%       → 返回 "12"
+%axsafkreward_next%          → 返回 "742"
+%axsafkreward_multiplier%    → 返回 "1.50"
+%axsafkreward_status%        → 返回 "挂机中"
+%axsafkreward_area_温泉%      → 返回 "02时15分30秒"
 ```
 
 ---
@@ -481,6 +519,57 @@ ArcartX-Suite 共有 **14 个模块** 对外输出 PAPI 占位符：
 %axsbattlepass_level%                         → 返回 "12"
 %axsbattlepass_tier%                          → 返回 "高级"
 %axsbattlepass_active_tasks%                  → 返回 "5"
+```
+
+---
+
+## Fishing 占位符
+
+前缀：`%axsfishing_<字段>%`
+
+| 占位符 | 返回值 | 说明 |
+| --- | --- | --- |
+| `%axsfishing_level%` | 数字 | 当前钓鱼等级 |
+| `%axsfishing_total_xp%` | 数字 | 累计钓鱼经验 |
+| `%axsfishing_xp%` | 数字 | `total_xp` 的别名 |
+| `%axsfishing_total_caught%` | 数字 | 累计捕获鱼数 |
+| `%axsfishing_perfect_catches%` | 数字 | 完美捕获次数 |
+| `%axsfishing_collection_count%` | 数字 | 图鉴已收集鱼种数 |
+| `%axsfishing_collection%` | 文本 | 图鉴进度（`已收集/总数`，如 `12/30`） |
+| `%axsfishing_collection_percent%` | 数字 | 图鉴完成百分比 |
+| `%axsfishing_favorite_fish%` | 文本 | 最喜欢的鱼的显示名 |
+
+**使用示例**：
+```
+%axsfishing_level%               → 返回 "15"
+%axsfishing_total_caught%        → 返回 "247"
+%axsfishing_collection%          → 返回 "12/30"
+%axsfishing_collection_percent%  → 返回 "40"
+```
+
+---
+
+## Lottery 占位符
+
+前缀：`%axslottery_<类型>_<奖池ID>%`
+
+占位符格式为 `类型_奖池ID`，例如 `%axslottery_pity5_character_event_1%`。
+
+| 占位符 | 返回值 | 说明 |
+| --- | --- | --- |
+| `%axslottery_pity5_<奖池ID>%` | 数字 | 玩家在该 Gacha 奖池的当前 5 星保底抽数 |
+| `%axslottery_pity4_<奖池ID>%` | 数字 | 玩家在该 Gacha 奖池的当前 4 星保底抽数 |
+| `%axslottery_opens_<奖池ID>%` | 数字 | 玩家在该 Case 奖池的总开箱次数 |
+| `%axslottery_guaranteed_<奖池ID>%` | 文本 | 玩家在该 Gacha 奖池是否处于大保底状态（返回「是」/「否」） |
+| `%axslottery_fatepoints_<奖池ID>%` | 数字 | 玩家在该 Gacha 奖池的当前命定值 |
+| `%axslottery_point_<奖池ID>%` | 数字 | 玩家在该奖池的抽奖点数 |
+| `%axslottery_points_<奖池ID>%` | 数字 | `point` 的别名 |
+
+**使用示例**：
+```
+%axslottery_pity5_character_event_1%       → 返回 "45"（5星保底已抽45发）
+%axslottery_guaranteed_character_event_1%  → 返回 "否"（未触发大保底）
+%axslottery_point_default_weapon_case%     → 返回 "320"（抽奖点数320）
 ```
 
 ---

@@ -72,3 +72,90 @@ public class MyListener implements Listener {
 | 重载后刷新缓存 | `RELOADED` |
 | 记录模块失败日志 | `ENABLE_FAILED` |
 
+---
+
+## AttributeDamageEvent
+
+统一属性伤害事件，由宿主从各属性插件（AttributePlus / CraneAttribute / MythicLib / Symphony）归一化后分发给注册了 `AttributeDamageListener` 的模块。标记为 `@ApiStability.Stable`。
+
+**注册方式：** `context.attributeBridge().registerDamageListener(listener)`
+
+### 事件字段
+
+| 字段 | 类型 | 说明 |
+|------|------|------|
+| `attacker` | `@Nullable Player` | 攻击者（非玩家攻击时为 null） |
+| `target` | `@NotNull Entity` | 受击实体 |
+| `damage` | `double` | 伤害数值 |
+| `source` | `Source` | 伤害来源 |
+| `critical` | `boolean` | 是否暴击 |
+| `dodged` | `boolean` | 是否被闪避（dodged=true 时 damage=0） |
+| `relation` | `@Nullable DamageRelation` | 元素克制关系（无克制系统时为 null） |
+
+### Source 枚举
+
+| 值 | 说明 |
+|----|------|
+| `ATTRIBUTE_PLUS` | AttributePlus 属性伤害 |
+| `CRANE_ATTRIBUTE` | CraneAttribute 属性伤害 |
+| `MYTHIC_LIB` | MythicLib / MMOItems 属性伤害 |
+| `SYMPHONY` | Symphony 属性伤害 |
+| `BUKKIT` | Bukkit 原版伤害 |
+| `OTHER` | 其他来源 |
+
+### DamageRelation 枚举
+
+| 值 | 说明 |
+|----|------|
+| `ADVANTAGED` | 优势（克制对方） |
+| `NEUTRAL` | 中性 |
+| `DISADVANTAGED` | 劣势（被克制） |
+
+### 暴击/闪避/克制的来源支持
+
+| 功能 | Symphony | AttributePlus | CraneAttribute | MythicLib |
+|------|----------|--------------|---------------|-----------|
+| 暴击标记 | ✅ 伤害事件内置 | ❌ 独立事件，伤害事件不暴露 | ❌ | ❌ |
+| 闪避标记 | ✅ HitCheckEvent | ❌ 无事件暴露 | ❌ | ❌ |
+| 元素克制 | ✅ 优势/中性/劣势伤害占比 | ❌ 无此系统 | ❌ | ❌ |
+
+> AttributePlus 的暴击判定在内部 `Crit.runAttack()` 中完成，不通过事件 API 暴露。闪避同理。未来版本可能支持。
+
+### 使用示例
+
+```java
+context.attributeBridge().registerDamageListener(event -> {
+    if (event.dodged()) {
+        // 闪避飘字
+        showDodgeText(event.attacker(), event.target());
+        return;
+    }
+    if (event.critical()) {
+        // 暴击飘字
+        showCriticalText(event.attacker(), event.target(), event.damage());
+        return;
+    }
+    if (event.relation() == AttributeDamageEvent.DamageRelation.ADVANTAGED) {
+        // 克制飘字
+        showAdvantagedText(event.attacker(), event.target(), event.damage());
+    }
+});
+```
+
+---
+
+## AttributeHealEvent
+
+统一属性治疗事件，由宿主从各属性插件归一化后分发。标记为 `@ApiStability.Stable`。
+
+**注册方式：** `context.attributeBridge().registerHealListener(listener)`
+
+### 事件字段
+
+| 字段 | 类型 | 说明 |
+|------|------|------|
+| `healer` | `@Nullable Player` | 治疗者 |
+| `target` | `@NotNull LivingEntity` | 治疗目标 |
+| `amount` | `double` | 治疗量 |
+| `source` | `Source` | 治疗来源 |
+

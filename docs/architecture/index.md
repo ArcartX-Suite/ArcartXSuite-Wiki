@@ -20,7 +20,7 @@ ArcartX-Suite 共享**同一组反射桥、同一套客户端包守卫、同一�
 │  └────┬─────┘   └────┬─────┘   └────┬─────┘   └─────┬──────┘   │
 │       │              │              │               │          │
 │  ┌────▼──────────────▼──────────────▼───────────────▼─────┐    │
-│  │            28 个 Module (config / service /            │    │
+│  │            29 个 Module (config / service /            │    │
 │  │            listener / placeholder / command)           │    │
 │  └────┬───────────────────────────────────────────────┬───┘    │
 │       │  sendPacket(player, uiId, handler, payload)   │        │

@@ -121,7 +121,7 @@ npc-appearances:
 | `transition-time` | | `5` | 模式 B：过渡时间（毫秒） |
 | `keep-time` | | `-1` | 模式 B：持续时间（毫秒），`-1` 播放完整动画 |
 
-配置修改后执行 `/axs conversation reload` 即可重新应用。
+配置修改后执行 `/axs reload conversation` 即可重新应用。
 
 ---
 
@@ -231,7 +231,7 @@ __option__:
 修改后执行：
 
 ```txt
-/axs conversation reload
+/axs reload conversation
 ```
 
 如果 Chemdah 本身不会热重载对话配置，还需要按你的 Chemdah 管理方式重载 Chemdah 或重启服务器。
@@ -251,7 +251,6 @@ __option__:
 | 命令 | 说明 |
 | --- | --- |
 | `/axs conversation status` | 查看对话桥模块状态（交互增强、NPC 桥接等就绪情况） |
-| `/axs conversation reload` | 重载对话配置、UI，并重新应用 `npc-appearances` |
 | `/axs conversation adyeshach setModel <名称> <modelID> <scale>` | 即时为指定 NPC 设置模型 |
 | `/axs conversation adyeshach setAnimation <名称> <state> <animName>` | 即时为指定 NPC 设置持久默认动画 |
 | `/axs conversation adyeshach playAnimation <名称> <动画名> <速度> [过渡ms] [持续ms]` | 即时为指定 NPC 一次性播放动画（可调速度） |

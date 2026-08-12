@@ -140,7 +140,7 @@ extrabackpack, vanilla
 
 ### 模块管理命令
 
-以下命令均以 `/axs <模块名>` 为前缀，仅管理员可用。每个模块都自带 `status` 和 `reload` 子命令，下面只列出各模块的**特有动作**。
+以下命令均以 `/axs <模块名>` 为前缀，仅管理员可用。每个模块都自带 `status` 子命令，重载请使用 `/axs reload <模块名>`，下面只列出各模块的**特有动作**。
 
 #### EntityTracker（Boss 追踪 / 伤害排行）
 
@@ -231,7 +231,6 @@ extrabackpack, vanilla
 | 命令 | 说明 | 使用示例 |
 | --- | --- | --- |
 | `/axs afkreward status` | 查看模块状态：区域数、类型数、当前挂机人数 | `/axs afkreward status` |
-| `/axs afkreward reload` | 重载 AfkReward 配置文件 | `/axs afkreward reload` |
 
 #### Warehouse（仓库系统）
 
@@ -292,7 +291,6 @@ extrabackpack, vanilla
 | 命令 | 说明 | 使用示例 |
 | --- | --- | --- |
 | `/axs market status` | 查看市场模块状态：拍卖行数量、商店数、Redis 状态 | `/axs market status` |
-| `/axs market reload` | 重载商店/回收配置文件 | `/axs market reload` |
 | `/axs market clear-expired` | 手动处理所有过期拍卖物品（退回卖家） | `/axs market clear-expired` |
 | `/axs market remove <ID>` | 强制移除指定拍卖上架 | `/axs market remove 12345` |
 
@@ -301,7 +299,6 @@ extrabackpack, vanilla
 | 命令 | 说明 | 使用示例 |
 | --- | --- | --- |
 | `/axs qqbot status` | 查看 QQBot 模块状态：OneBot 连接/群数/存储模式/绑定白名单开关 | `/axs qqbot status` |
-| `/axs qqbot reload` | 重载 ArcartXQQBot.yml 配置 | `/axs qqbot reload` |
 | `/axs qqbot send <消息>` | 向所有已配置的 QQ 群发送消息 | `/axs qqbot send 服务器即将重启` |
 | `/axs qqbot lookup <玩家名\|QQ号>` | 双向查询绑定关系 | `/axs qqbot lookup Steve`<br>`/axs qqbot lookup 12345678` |
 | `/axs qqbot snowluma install` | 从 GitHub 自动下载安装最新版 SnowLuma | `/axs qqbot snowluma install` |

@@ -68,7 +68,6 @@ modules:
 |------|------|------|
 | `/axs questgps status` | `arcartxsuite.admin` | 查看模块状态（已配置任务数、追踪玩家数、导航就绪） |
 | `/axs questgps open <玩家>` | `arcartxsuite.admin` | 为指定在线玩家打开任务菜单 |
-| `/axs questgps reload` | `arcartxsuite.admin` | 提示使用 `/axs reload questgps` 重载模块 |
 
 ## 权限
 
@@ -583,7 +582,6 @@ example_encounter_quest:
 | --- | --- |
 | `/axs questgps help` | 查看子命令帮助（无参数时默认执行） |
 | `/axs questgps status` | 查看任务导航模块状态和已加载任务数 |
-| `/axs questgps reload` | 重载任务导航配置和 UI |
 | `/axs questgps open <玩家>` | 为在线玩家打开任务导航界面 |
 
 ### 玩家命令（权限：`arcartxsuite.questgps.use`）

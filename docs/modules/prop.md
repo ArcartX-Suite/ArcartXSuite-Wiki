@@ -193,7 +193,6 @@ Prop 模块通过 ArcartX 的 NBT 系统将道具 ID 写入物品：
 | 命令 | 说明 |
 | --- | --- |
 | `/axs prop status` | 查看 Prop 模块状态和已加载道具列表 |
-| `/axs prop reload` | 重载 Prop 配置 |
 | `/axs prop set <道具ID>` | 把指定道具 ID 写入执行者手持物品的 NBT，用于调试 |
 
 ## 使用流程

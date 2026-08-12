@@ -325,5 +325,5 @@ PickupModule
 
 ### 如何从通知模式切换到扫描模式？
 
-修改 `ArcartXPickup.yml` 中 `settings.mode` 为 `scanner`，然后执行 `/axs pickup reload`。
+修改 `ArcartXPickup.yml` 中 `settings.mode` 为 `scanner`，然后执行 `/axs reload pickup`。
 

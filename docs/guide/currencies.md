@@ -337,6 +337,52 @@ currencies:
 
 ---
 
+## 货币变动事件
+
+`CurrencyBridgeManager` 在每次 `withdraw` / `deposit` 成功后，自动通过 `EventBusCapability` 分发货币变动事件。模块（如 BattlePass）可通过 `event-topic` 订阅这些事件来追踪消费/收入。
+
+### 事件主题
+
+| 事件主题 | 触发时机 |
+|---------|---------|
+| `axs.currency.spent` | 扣款（withdraw）成功时 |
+| `axs.currency.earned` | 入账（deposit）成功时 |
+
+### Payload 字段
+
+| 字段 | 说明 |
+|------|------|
+| `currency_id` | 货币 ID（如 `money`、`points`） |
+| `amount` | 变动金额（字符串形式） |
+| `action` | `"withdraw"` 或 `"deposit"` |
+| `balance_after` | 变动后余额（字符串形式） |
+
+### 通用性
+
+该机制对所有货币提供者（Vault / PlayerPoints / XConomy / Rondo / Command）自动生效，无需各提供者单独实现。模块开发者只需订阅事件主题即可追踪任意货币的消费/收入。
+
+### BattlePass 累计消费任务示例
+
+```yaml
+weekly-spend-1000:
+  display-name: "消费达人"
+  description: "本周累计消费1000金币"
+  event-topic: "axs.currency.spent"
+  required-count: 1000
+  conditions:
+    - type: event_payload
+      key: currency_id
+      operator: equals
+      value: money          # 可改为其他货币ID，或删除条件追踪所有货币
+  increment-strategy:
+    type: payload_value
+    payload-key: amount     # 从 payload 提取消费金额作为进度增量
+    max-per-event: 500
+    scale: 1.0
+```
+
+---
+
 ## 状态检查
 
 使用 `/axs status` 命令可以查看当前已注册的货币数量：

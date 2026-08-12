@@ -24,7 +24,7 @@ description: ArcartX-Suite Market 全球市场插件，系统商店 + 玩家拍�
 | 依赖 | 是否必须 | 用途 |
 |------|----------|------|
 | ArcartX | ✅ 必须 | UI 渲染 + 数据包通信 |
-| PlaceholderAPI | 可选 | PAPI 占位符输出 |
+| PlaceholderAPI | ✅ 必须 | PAPI 占位符输出（`external-depends` 声明） |
 | MySQL | 可选 | 拍卖/交易/限购数据持久化（单服可用 SQLite） |
 | Redis | 可选 | 拍卖列表**缓存**（非跨服总线） |
 | CrossServer | 可选 | 拍卖上架/成交/竞价/取消事件跨服广播 |
@@ -54,7 +54,6 @@ description: ArcartX-Suite Market 全球市场插件，系统商店 + 玩家拍�
 | 命令 | 权限 | 说明 |
 |------|------|------|
 | `/axs market status` | `arcartxsuite.market.admin` | 查看模块状态 |
-| `/axs market reload` | `arcartxsuite.market.admin` | 重载商店/回收配置 |
 | `/axs market clear-expired` | `arcartxsuite.market.admin` | 手动处理到期物品 |
 | `/axs market remove <ID>` | `arcartxsuite.market.admin` | 强制移除上架 |
 
@@ -170,6 +169,24 @@ auction:
       nbt:
         path: "pdc:arcartx:item_category"
         values: ["weapon"]
+    armor:
+      display-name: "&b防具"
+      priority: 20
+      nbt:
+        path: "pdc:arcartx:item_category"
+        values: ["armor"]
+    consumable:
+      display-name: "&a消耗品"
+      priority: 30
+      nbt:
+        path: "pdc:arcartx:item_category"
+        values: ["consumable"]
+    material:
+      display-name: "&e材料"
+      priority: 40
+      nbt:
+        path: "pdc:arcartx:item_category"
+        values: ["material"]
     other:
       display-name: "&7其他"
       priority: 9999
@@ -582,6 +599,15 @@ overture_treasure_box:
   display-name: "&d神秘宝藏"
   buy-price: 5000
 ```
+
+::: tip Overture 原生序列化
+拍卖行物品序列化采用**智能检测 + 前缀标识**策略，自动保留 Overture 物品实例数据：
+
+- **上架时**：检测到 Overture 物品时使用 Overture 原生 JSON 序列化，存储数据以 `OVERTURE:` 前缀标识；非 Overture 物品降级到 Bukkit Base64 序列化。
+- **购买/领取时**：根据 `OVERTURE:` 前缀选择 Overture 原生反序列化；无前缀的旧数据自动走 Bukkit Base64 路径，**完全向后兼容**。
+
+这解决了 Bukkit 原生序列化可能丢失 Overture 物品实例数据（如动态属性、绑定信息）的问题。无需手动配置，系统自动选择最优序列化方式。
+:::
 
 ## 存储结构
 

@@ -82,6 +82,12 @@ client-packet-guard:
 | `map` | `unlock_anchor` / `teleport_anchor` / `create_waypoint` | 2–3s 内 1 次 |
 | `announcer` | `click` | 3s 内 2 次 |
 | `eventpacket` | `client-packet` | 3s 内 2 次 |
+| `pickup` | `pick` / `scroll_up` / `scroll_down` / `open_menu` | 0.5–1s 内 4–8 次 |
+| `loginview` | `login` / `register` / `change_password` | 3–5s 内 2–3 次 |
+| `tab` | `refresh` | 1.5s 内 1 次 |
+| `essentials` | `menu` / `admin` | 1s 内 4–6 次 |
+| `regions` | `menu` / `admin` | 1s 内 4–6 次 |
+| `menu` | `click` / `footer` / `esc_open` | 0.3–1s 内 2–6 次 |
 | `market` | `sell` / `buy` / `bid` / `cancel` / `recycle` | 各动作独立窗口 |
 
 完整列表见仓库 `src/main/resources/config.yml` 中 `client-packet-guard.modules` 段。

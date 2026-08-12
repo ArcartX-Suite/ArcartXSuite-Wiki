@@ -249,7 +249,7 @@ cross-server:
 ```bash
 /axs reload all
 # 或
-/axs warehouse reload
+/axs reload warehouse
 ```
 
 ---

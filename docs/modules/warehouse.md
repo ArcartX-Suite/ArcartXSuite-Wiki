@@ -327,7 +327,6 @@ description: ArcartX-Suite Warehouse 仓库银行，个人仓库NBT分类、共�
 | 命令 | 权限 | 说明 |
 |------|------|------|
 | `/axs warehouse status` | `arcartxsuite.admin` | 查看模块状态（缓存玩家数、货币列表、跨服锁等） |
-| `/axs warehouse reload` | `arcartxsuite.admin` | 提示重载（实际通过 `/axs config apply warehouse` 生效） |
 | `/axs warehouse open <玩家>` | `arcartxsuite.admin` | 为在线玩家打开仓库界面 |
 | `/axs warehouse info <玩家>` | `arcartxsuite.admin` | 查看玩家仓库概览（使用量、共享数、定期数） |
 | `/axs warehouse view <玩家> <仓库ID>` | `arcartxsuite.admin` | 查看指定玩家指定个人仓库的槽位物品清单 |
@@ -705,6 +704,26 @@ Warehouse **支持多子服共用同一 MySQL 库**实现共享仓库数据同�
 ::: tip 黑名单优先级
 自动存入时若物品命中任一黑名单规则，则跳过存入并向玩家提示。存入单件和存入全部均会检查黑名单。
 :::
+
+### 额外槽位背包（Extra Backpack）
+
+Warehouse 模块内置可选的**额外槽位背包**功能，默认关闭。启用后由本模块接管玩家原版背包的 27 个存储格（快捷栏 9 格不受影响），将其替换为多分类的扩展背包系统。
+
+#### 核心特性
+
+- **多分类页**：背包由多个分类页组成（装备/材料/杂物等），每个分类页独立设置容量、上限与付费扩容价格
+- **自动分类**：物品分类由 Warehouse 模块按 NBT/lore 自动判断，无需服主在 ArcartX 中配置槽位
+- **付费扩容**：每个分类页支持独立货币付费扩容
+- **二级密码销毁**：支持通过二级密码验证后销毁背包内容
+- **拾取自动存入**：与 Pickup 模块联动，拾取物品时自动存入匹配分类
+- **与原版背包共存**：快捷栏 9 格保持原版行为，仅接管 27 个存储格
+
+#### 跨模块联动
+
+- **Pickup 模块**：拾取物品时优先尝试存入扩展背包的匹配分类
+- **ExtraBackpack 模块**：独立的扩展背包模块（`extrabackpack`），提供更完整的扩展背包功能。若同时启用两者，Warehouse 的额外槽位背包功能与 ExtraBackpack 模块独立运行
+
+> 额外槽位背包功能由 Warehouse 模块配置文件中的 `extra-backpack` 节控制。如需使用独立的扩展背包模块，请参考 [ExtraBackpack 模块文档](/modules/extrabackpack)。
 
 ## UI 文件
 

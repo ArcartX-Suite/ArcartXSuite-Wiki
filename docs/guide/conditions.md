@@ -11,13 +11,14 @@ ArcartX-Suite 在 **Menu、Prop、EventPacket、Mail** 等模块中统一使用�
 
 ---
 
-## 前置知识：三种条件类型
+## 前置知识：四种条件类型
 
 | 类型　　　　　| 配置识别方式　　　　　　　　　　　　　　　　　　　　| 运行时依赖　　　　　　　　　　　　　　　　　　　　　　　　　　　　　　　　　　　　　　| 典型用途　　　　　　　　　　　　　　　　　　　　　　　　　　　　　　　　　　　　　　　　　　　　　　　　　　 |
 | ---------------| -----------------------------------------------------| ---------------------------------------------------------------------------------------| --------------------------------------------------------------------------------------------------------------|
 | **PAPI 条件** | `%变量% 运算符 期望值`　　　　　　　　　　　　　　　| [PlaceholderAPI](https://www.spigotmc.org/resources/placeholderapi.6245/)（推荐安装） | 等级、余额、权限组、世界名　　　　　　　　　　　　　　　　　　　　　　　　　　　　　　　　　　　　　　　　　 |
 | **Aria 条件** | `aria:` 前缀、`type: aria`、或 `conditions` 键 | **ArcartX 内置**（ArcartX-Suite 硬依赖 ArcartX，Aria 随之提供，无需额外插件）　　　　 | 调用 `AriaPlayer` 门面（等级/权限/血量/世界名等）+ PAPI 值算术/逻辑组合；需要原生 API 时用 `player.bukkit()` |
 | **JS 条件**　 | `js:` 前缀、`type: js`、或 `conditions` 键　　　 | classpath 上的 **JS `ScriptEngine`**（Nashorn / GraalJS）；Java 15+ 默认已无内置引擎　| 复杂逻辑、通过 `player.bukkit()` 或 `Bukkit` 进行 Bukkit API 互操作　　　　　　　　　　　　　　　　　　　　　|
+| **CONTEXT 条件** | `type: context` 或 `kind: context` | 无（纯上下文变量替换） | EventPacket 事件载荷变量判断（`{variable}` 语法） |
 
 ::: info 逻辑关系
 同一列表内的**多条条件为 AND（且）关系**——必须全部通过才算满足。暂不支持 OR / NOT 组合；复杂逻辑请写进一条 Aria 或 JS 脚本。
@@ -556,7 +557,55 @@ conditions:
 
 ---
 
-## 四、模块对照表
+## 四、CONTEXT 条件（上下文变量）
+
+CONTEXT 条件用于 EventPacket 等需要根据**事件载荷变量**判断是否执行动作的场景。左右操作数均支持 `{variable}` 语法从上下文变量映射中取值，也支持字面量。
+
+### 4.1 写法
+
+```yaml
+conditions:
+  - type: context                    # 或 kind: context
+    placeholder: "{event_type}"
+    operator: "=="
+    value: "kill"
+  - type: context
+    placeholder: "{damage}"
+    operator: ">="
+    value: "100"
+```
+
+### 4.2 变量解析规则
+
+- 操作数以 `{` 开头、`}` 结尾时，从上下文变量映射（`Map<String, String>`）中查找对应键的值
+- 变量不存在时返回空字符串 `""`
+- 不符合 `{...}` 格式的操作数按字面量处理
+- 支持所有 PAPI 条件的运算符（`==`、`!=`、`>=`、`<=`、`>`、`<`、`contains`、`regex`）
+
+### 4.3 使用场景
+
+EventPacket 规则引擎在触发动作链时，会将事件载荷（如击杀实体类型、伤害值、任务 ID 等）作为上下文变量传入条件评估器。CONTEXT 条件允许规则根据这些变量值决定是否执行：
+
+```yaml
+# 仅当击杀的是 Boss 类型实体时触发奖励规则
+conditions:
+  - type: context
+    placeholder: "{entity_type}"
+    operator: "contains"
+    value: "boss"
+  - type: context
+    placeholder: "{damage}"
+    operator: ">="
+    value: "1000"
+```
+
+::: tip CONTEXT 条件不需要玩家上下文
+与 PAPI/Aria/JS 条件不同，CONTEXT 条件纯基于变量映射求值，不依赖玩家对象，适合在事件触发时无玩家上下文的场景使用。
+:::
+
+---
+
+## 五、模块对照表
 
 各模块**字段名**不同，但**语法引擎相同**。
 

@@ -52,7 +52,7 @@ modules:
     enabled: true
 ```
 
-部署 `plugins/ArcartX-Suite/modules/ArcartX-Suite-Menu-*.jar` 后执行 `/axs menu reload`，首次启用会自动导出默认 UI 文件与示例菜单。
+部署 `plugins/ArcartX-Suite/modules/ArcartX-Suite-Menu-*.jar` 后执行 `/axs reload menu`，首次启用会自动导出默认 UI 文件与示例菜单。
 
 ## 配置
 
@@ -717,7 +717,6 @@ pages:
 | 命令 | 说明 |
 | --- | --- |
 | `/axs menu status` | 查看模块状态（菜单数量、UI ID、绑定计数） |
-| `/axs menu reload` | 重载 Menu 模块配置与所有菜单定义 |
 | `/axs menu list` | 列出所有已注册菜单（ID、布局、标题） |
 | `/axs menu open <菜单ID> [玩家]` | 为指定玩家打开菜单（或自己） |
 
@@ -752,7 +751,7 @@ pages:
 | `footerButtons` | 底部固定按钮 |
 | `layout` | 当前布局类型 |
 
-修改 UI 后设置 `overwrite-ui-files: true` 或使用 `/axs menu reload` 重新导出。
+修改 UI 后设置 `overwrite-ui-files: true` 或使用 `/axs reload menu` 重新导出。
 
 ## EventPacket 联动
 

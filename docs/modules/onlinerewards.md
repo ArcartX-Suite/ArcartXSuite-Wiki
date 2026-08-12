@@ -302,7 +302,6 @@ ui:
 | 命令 | 说明 |
 | --- | --- |
 | `/axs onlinerewards status` | 查看在线奖励、签到和排行榜状态 |
-| `/axs onlinerewards reload` | 重载在线奖励配置和 UI |
 | `/axs onlinerewards add\|remove\|set <时长> <玩家>` | 修改玩家在线时长。`add` 增加、`remove` 减少、`set` 设为指定值。时长如 `30m`、`2h`、`1d` |
 | `/axs onlinerewards card add\|remove\|set <数量> <玩家>` | 修改玩家的补签卡数量 |
 | `/axs onlinerewards savings add\|set\|reset <时长> <玩家>` | 修改玩家的离线储蓄分钟数。`add` 增加、`set` 设为指定值、`reset` 清零。时长如 `30m`、`2h` |

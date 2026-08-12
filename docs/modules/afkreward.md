@@ -435,7 +435,6 @@ MANUAL 原地挂机的每项保护都可独立开关，默认值全部为 `true`
 | --- | --- | --- |
 | `/axs afkreward help` | 查看管理命令帮助 | `arcartxsuite.admin` |
 | `/axs afkreward status` | 查看模块状态（区域数/类型数/当前挂机人数） | `arcartxsuite.admin` |
-| `/axs afkreward reload` | 重载模块配置 | `arcartxsuite.admin` |
 
 ---
 

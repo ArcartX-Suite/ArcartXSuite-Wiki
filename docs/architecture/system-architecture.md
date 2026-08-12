@@ -68,8 +68,9 @@ graph TB
 
 ### 2. 服务端核心
 - **ArcartX-Suite 服务端 jar**: 服务端插件主程序，包含核心业务逻辑
+- **SuiteCoreImpl**: 宿主核心实现类（约 30KB），与 Bukkit 插件主类 `ArcartXSuitePlugin` 分离。插件主类仅作为薄壳入口，所有业务逻辑（配置诊断、桥接初始化、模块加载、货币管理、跨服通信、安全层等）均由 `SuiteCoreImpl` 统一协调
 - **业务逻辑层**: 处理模块管理、配置解析、UI渲染等核心功能
-- **模块系统**: 管理 28 个功能模块的加载、卸载和交互
+- **模块系统**: 管理 29 个功能模块的加载、卸载和交互
 - **配置管理**: 统一管理所有配置文件和热重载
 - **UI渲染**: 生成ArcartX UI界面并发送给客户端
 
@@ -118,7 +119,7 @@ graph TB
             CoreJar[ArcartX-Suite-core]
         end
         
-        subgraph "功能模块 (28个)"
+        subgraph "功能模块 (29个)"
             Modules[功能模块]
         end
     end

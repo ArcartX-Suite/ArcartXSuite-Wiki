@@ -283,7 +283,7 @@ subtitle:
 ```
 
 ::: tip 重载命令
-Announcer 模块的重载命令是 `/axs reload announcer`（全局统一格式），而非 `/axs announcer reload`。在模块子命令中输入 `reload` 会提示正确用法。
+Announcer 模块的重载命令是 `/axs reload announcer`（全局统一格式）。
 :::
 
 ## UI / Packet

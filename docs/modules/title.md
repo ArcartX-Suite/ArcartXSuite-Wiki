@@ -58,7 +58,6 @@ modules:
 | 命令 | 说明 |
 | --- | --- |
 | `/axs title status` | 查看称号模块、数据库和缓存状态 |
-| `/axs title reload` | 重载称号配置、UI 和玩家状态 |
 | `/axs title give <玩家> <称号ID> <时长>` | 向玩家发放称号。时长如 `permanent`（永久）、`7d`、`12h`、`30m`、`2025-01-01~2025-12-31` |
 | `/axs title revoke <玩家> <称号ID>` | 收回玩家的指定称号 |
 | `/axs title open <玩家>` | 为在线玩家打开称号管理界面 |

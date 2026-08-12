@@ -573,7 +573,6 @@ database:
 | --- | --- |
 | `/axs entitytracker help` | 查看 EntityTracker 管理命令帮助 |
 | `/axs entitytracker status` | 查看模块状态：活跃会话数、查看者人数、历史结算数 |
-| `/axs entitytracker reload` | 重载 EntityTracker 配置、UI 和追踪服务 |
 | `/axs entitytracker sessions [mobId]` | 列出当前活跃 Boss 会话，显示 HP、参与人数、实体 UUID。可选 `mobId` 过滤 |
 | `/axs entitytracker rank <entityUuid> [page]` | 查看指定 Boss 实体的实时伤害排行（UUID 从 `sessions` 获取） |
 | `/axs entitytracker settlements [page]` | 分页查看历史结算记录：Boss 名称、击杀时间、参与人数 |

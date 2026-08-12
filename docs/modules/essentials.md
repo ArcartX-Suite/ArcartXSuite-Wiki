@@ -158,7 +158,6 @@ UI 面板需要玩家安装 ArcartX 客户端 mod。未安装时命令会提示"
 | 命令 | 说明 | 权限 |
 | --- | --- | --- |
 | `/ess status` | 查看模块运行状态 | `axs.essentials.reload` |
-| `/ess reload` | 重载 Essentials 模块配置 | `axs.essentials.reload` |
 
 ### 交互 & 工具
 

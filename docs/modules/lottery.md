@@ -17,6 +17,7 @@ description: ArcartX-Suite Lottery 抽奖系统，CS 开箱横向滚动动画 + 
 |------|----------|
 | **Case 开箱** | 横向滚动开箱动画、CS 式品质层级（Consumer → Special）、磨损度系统、暗金计数器 |
 | **Gacha 祈愿** | 原神式卡池系统、5星/4星保底机制、软保底递增、跨池共享保底计数、命定值系统 |
+| **积分兑换商店** | 使用抽奖点数兑换指定商品，支持多货币/物品消耗、限购次数、独立兑换目录 |
 | **通用** | 多物品来源（MythicMobs/NeigeItems/原版）、多货币/物品消耗、SQLite/MySQL 持久化、背包满时自动发邮件 |
 
 ## 依赖
@@ -54,7 +55,6 @@ modules:
 | 命令 | 权限 | 说明 |
 |------|------|------|
 | `/axs lottery status` | `arcartxsuite.lottery.admin` | 查看所有奖池状态与统计数据 |
-| `/axs lottery reload` | `arcartxsuite.lottery.admin` | 重载奖池配置 |
 | `/axs lottery reset <玩家> <奖池ID>` | `arcartxsuite.lottery.admin` | 重置指定玩家在某奖池的保底计数 |
 | `/axs lottery give-ticket <玩家> <奖池ID> <数量>` | `arcartxsuite.lottery.admin` | 向玩家发放 Case 开箱钥匙 |
 | `/axs lottery simulate <奖池ID> <次数>` | `arcartxsuite.lottery.admin` | 概率模拟，验证奖池实际出率 |
@@ -79,6 +79,8 @@ modules:
 | `%axslottery_opens_<奖池ID>%` | 玩家在该 Case 奖池的总开箱次数 |
 | `%axslottery_guaranteed_<奖池ID>%` | 玩家在该 Gacha 奖池是否处于大保底状态（返回「是」/「否」） |
 | `%axslottery_fatepoints_<奖池ID>%` | 玩家在该 Gacha 奖池的当前命定值 |
+| `%axslottery_point_<奖池ID>%` | 玩家在该奖池的抽奖点数（用于积分兑换商店） |
+| `%axslottery_points_<奖池ID>%` | `point` 的别名 |
 
 ## 配置文件
 
@@ -89,6 +91,9 @@ config-version: 1
 
 # 奖池文件目录（相对于模块数据目录）
 pools-directory: "lottery/pools"
+
+# 积分兑换商店文件目录（相对于模块数据目录）
+exchange-directory: "lottery/exchange"
 
 storage:
   mode: sqlite          # sqlite 或 mysql
@@ -265,7 +270,52 @@ case:
           weight: 0.10
 ```
 
-#### 奖池字段详解
+### 积分兑换商店
+
+兑换商店文件存放于 `data/lottery/exchange/*.yml`，每个文件定义一个独立兑换商品。玩家在 Gacha 祈愿界面中点击「尘辉兑换」按钮进入兑换面板，使用抽奖点数（`%axslottery_point_<奖池ID>%`）或其他货币/物品兑换指定奖励。
+
+```yaml
+id: "weapon_sword_exchange"
+display-name: "星光剑兑换"
+# icon: 可选，商品在 UI 中展示的图标（IconDefinition 格式）
+# icon:
+#   material: "minecraft:nether_star"
+pool-id: "character_event_1"    # 可选，关联的奖池 ID（用于点数消耗）
+limit: 5                         # 限购次数，0 表示不限购
+
+# 消耗配置（支持多消耗项）
+cost:
+  currency:
+    - id: "point"
+      amount: 100
+  # 也可组合物品消耗：
+  # item:
+  #   - id: "CaseKey"
+  #     amount: 3
+
+# 奖励物品（与奖池中的 PoolItem 结构一致）
+reward:
+  id: "weapon_sword"
+  name: "星光剑"
+  plugin-type: NEIGE
+  plugin-id: "StarSword"
+  delivery: DIRECT
+  weight: 1
+```
+
+#### 兑换商品字段
+
+| 字段 | 类型 | 必填 | 默认值 | 说明 |
+|------|------|------|--------|------|
+| `id` | String | ❌ | 文件名 | 商品唯一标识 |
+| `display-name` | String | ❌ | `id` | UI 中显示的名称 |
+| `icon` | Section | ❌ | — | 商品图标（IconDefinition 格式） |
+| `pool-id` | String | ❌ | — | 关联奖池 ID（用于点数消耗） |
+| `cost` | Section/List | ✅ | — | 消耗配置，支持 `currency` 和 `item` 两种类型 |
+| `reward` | Section | ✅ | — | 奖励物品（与奖池 `PoolItem` 结构一致） |
+| `limit` | Int | ❌ | `0` | 限购次数，`0` 表示不限购 |
+
+#### 兑换商店字段详解
 
 | 字段 | 类型 | 必填 | 默认值 | 说明 |
 |------|------|------|--------|------|
@@ -391,7 +441,8 @@ action:
 |--------|------|------|
 | `pull` | `count` (1/10) | 请求祈愿 |
 | `switch_pool` | `index` | 切换卡池 |
-| `exchange` | — | 打开尘辉兑换 |
+| `exchange` | — | 打开尘辉兑换面板 |
+| `exchange_buy` | `itemId`、`actionToken` | 兑换指定商品 |
 | `details` | — | 查看卡池详情 |
 | `history` | — | 查看历史记录 |
 
@@ -434,11 +485,12 @@ LotteryModule (AbstractAXSModule)
 ├── LotteryService (门面，协调引擎与分发)
 │   ├── GachaEngine (祈愿概率计算)
 │   ├── CaseOpeningEngine (开箱滚动 + 磨损度计算)
+│   ├── ExchangeShop (积分兑换商店)
 │   └── PrizeDistributor (奖品分发：背包 / 邮件)
 ├── JdbcLotteryRepository (SQLite / MySQL 持久化)
 ├── LotteryPlayerCommand (/lottery /lottery case)
 ├── LotteryAdminCommand (/axs lottery)
 ├── LotteryPlaceholderExpansion (PAPI)
-└── GachaPoolConfig / CasePoolConfig (奖池加载)
+└── GachaPoolConfig / CasePoolConfig / ExchangeShopItem (配置加载)
 ```
 

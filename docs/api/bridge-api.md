@@ -215,7 +215,7 @@ if (itemBridge != null && itemBridge.isAvailable()) {
 
 ## CurrencyBridgeAPI
 
-统一货币桥接，支持 Vault / PlayerPoints / Rondo / Command 等多种经济提供者。所有模块共享同一组货币定义。
+统一货币桥接，支持 Vault / PlayerPoints / XConomy / Rondo / Command 等多种经济提供者。所有模块共享同一组货币定义。
 
 **获取方式：** `context.currencyManager()`
 
@@ -258,6 +258,17 @@ Collection<CurrencyDefinition> defs = currencies.definitions();
 String formatted = currencies.format("money", BigDecimal.valueOf(99.5)); // "99.5"
 ```
 
+### 货币变动事件分发
+
+`CurrencyBridgeManager` 在每次 `withdraw` / `deposit` 成功后，自动通过 `EventBusCapability` 分发货币变动事件，模块可通过 `event-topic` 订阅。
+
+| 事件主题 | 触发时机 | Payload 字段 |
+|---------|---------|-------------|
+| `axs.currency.spent` | 扣款成功 | `currency_id`、`amount`、`action="withdraw"`、`balance_after` |
+| `axs.currency.earned` | 入账成功 | `currency_id`、`amount`、`action="deposit"`、`balance_after` |
+
+> 该机制对所有货币提供者（Vault / PlayerPoints / XConomy / Rondo / Command）自动生效，无需各提供者单独实现。
+
 ---
 
 ## ItemSourceRegistry
@@ -276,6 +287,32 @@ item.ifPresent(stack -> player.getInventory().addItem(stack));
 |------|------|
 | `createItem(String id)` | 按 `provider:itemId` 格式创建物品。如 `mythicmobs:Dark_Sword`、`neigeitems:Legendary_Bow` |
 | `isAvailable(String provider)` | 判断指定物品来源提供者是否已加载 |
+| `overtureItemId(ItemStack)` | 获取 Overture 物品 ID，非 Overture 物品返回空串 |
+| `isOvertureItem(ItemStack)` | 判断是否为 Overture 物品 |
+| `overtureItemDisplayName(String itemId)` | 获取 Overture 物品模板显示名 |
+| `overtureItemDisplayLore(String itemId)` | 获取 Overture 物品模板描述行 |
+| `overtureTemplateItem(String itemId)` | 获取 Overture 物品模板副本（仅展示用，不含实例数据） |
+| `overtureItemIds()` | 获取所有已注册的 Overture 物品 ID |
+| `overtureSerialize(ItemStack)` | 使用 Overture 原生序列化将 ItemStack 序列化为 JSON 字符串 |
+| `overtureDeserialize(String json)` | 使用 Overture 原生反序列化从 JSON 字符串恢复 ItemStack |
+
+---
+
+## VanillaItemNameBridge
+
+原版物品中文名称解析桥接，提供 Minecraft 原版物品的中文显示名查询。用于显示原版物品名、入库搜索文本、聊天物品预览等场景，避免各模块直接显示英文材质名。
+
+**获取方式：** `context.vanillaItemNameBridge()`（永不为 null，since 1.3.3）
+
+```java
+VanillaItemNameBridge nameBridge = context.vanillaItemNameBridge();
+String displayName = nameBridge.displayName(itemStack);
+// 返回如 "钻石剑"、"附魔书：锋利 I"、"药水：治疗"
+```
+
+| 方法 | 返回类型 | 说明 |
+|------|---------|------|
+| `displayName(ItemStack)` | `String` | 获取物品的中文显示名。优先使用自定义显示名，其次按附魔书/药水子类型解析，最后回退到 Material 静态映射表 |
 
 ---
 
@@ -308,4 +345,111 @@ bridge.ifPresent(b -> b.apply(player, "strength", 10.0, 30000L));
 |------|------|
 | `bridge(String provider)` | 按提供者 ID 获取桥接实例 |
 | `isAvailable(String provider)` | 判断指定属性系统是否已加载 |
+
+---
+
+## SymphonyBridge
+
+Symphony 属性系统桥接，提供属性设置/查询、战力、等级、护盾、战斗状态、光环、套装等能力。
+
+**获取方式：** `context.attributeBridge().symphony()`
+
+> Symphony 未安装时 `available()` 返回 `false`，所有查询方法返回 `null` / 默认值。
+
+### 属性写操作
+
+```java
+SymphonyBridge symphony = context.attributeBridge().symphony();
+// 设置属性修饰符（百分比或固定值）
+symphony.setAttribute(player, "physical_damage", false, 50.0, "my_module:buff");
+// 移除指定来源的属性
+symphony.removeAttribute(player, "my_module:buff");
+// 重新计算玩家全部属性
+symphony.recalculate(player);
+```
+
+### 属性查询
+
+| 方法 | 返回类型 | 说明 |
+|------|---------|------|
+| `attributeValue(LivingEntity, String)` | `double` | 查询实体指定属性的当前值 |
+| `combatPower(LivingEntity)` | `SymphonyCombatPower` | 查询战力快照 |
+| `level(LivingEntity)` | `SymphonyLevelSnapshot` | 查询等级快照 |
+| `shield(LivingEntity)` | `double` | 查询护盾值 |
+| `setShield(LivingEntity, double)` | `double` | 设置护盾值，返回实际值 |
+| `combatState(LivingEntity)` | `SymphonyCombatState` | 查询战斗状态 |
+| `statuses(LivingEntity)` | `List<SymphonyStatusEffect>` | 查询状态效果列表 |
+| `auras(LivingEntity)` | `List<SymphonyAura>` | 查询光环列表 |
+| `activeSets(LivingEntity)` | `Map<String, Integer>` | 查询激活的套装（key → 件数） |
+
+### 包装类型
+
+| 类型 | 字段 | 说明 |
+|------|------|------|
+| `SymphonyCombatPower` | `value`、`formattedValue` | 战力数值与格式化字符串 |
+| `SymphonyLevelSnapshot` | `level`、`exp`、`expToNext`、`characterId` | 等级与经验信息 |
+| `SymphonyCombatState` | `active`、`remainingMillis` | 战斗状态与剩余时间 |
+| `SymphonyStatusEffect` | `id`、`stacks`、`remainingMillis` | 状态效果 |
+| `SymphonyAura` | `channel`、`gauge`、`remainingMillis` | 光环信息 |
+
+---
+
+## RondoBridge
+
+Rondo 经济系统桥接，提供排行榜、转账、经济快照、交易日志等 Rondo 原生高级功能。
+
+**获取方式：** `context.rondoBridge()`
+
+> Rondo 未安装时 `available()` 返回 `false`，所有查询返回空列表 / `null`。
+
+### 排行榜
+
+```java
+RondoBridge rondo = context.rondoBridge();
+// 获取金币排行榜前 10 名
+List<RondoRankingEntry> ranking = rondo.ranking("money", 1, 10);
+// 查询玩家排名
+Integer rank = rondo.playerRank(player.getUniqueId(), "money");
+```
+
+### 转账
+
+```java
+RondoTransferResult result = rondo.transfer(fromUuid, toUuid, "money", BigDecimal.valueOf(100));
+if (result.success()) {
+    // 转账成功，result.taxAmount() 为扣除的税费
+}
+```
+
+### 经济快照
+
+```java
+// 非阻塞探测余额（纯缓存读取，不访问数据库）
+BigDecimal cached = rondo.peekBalance(uuid, "money");
+
+// 异步获取完整经济快照（所有货币）
+CompletableFuture<RondoCurrencySnapshot.Full> future = rondo.economySnapshot(uuid);
+future.thenAccept(snapshot -> {
+    // snapshot.balances() → Map<String, BigDecimal>
+    // snapshot.totalEarned() → Map<String, BigDecimal>
+    // snapshot.totalSpent() → Map<String, BigDecimal>
+});
+```
+
+### 交易日志
+
+```java
+// 查询玩家交易流水（分页）
+List<RondoTransactionLog> logs = rondo.log(uuid, "money", 1, 20);
+```
+
+### 相关类型
+
+| 类型 | 字段 | 说明 |
+|------|------|------|
+| `RondoRankingEntry` | `rank`、`playerUuid`、`playerName`、`balance` | 排行榜条目 |
+| `RondoTransactionLog` | `action`、`currencyId`、`amount`、`oldBalance`、`newBalance`、`source`、`timestamp` | 交易流水 |
+| `RondoTransferResult` | `success`、`taxAmount`、`message` | 转账结果 |
+| `RondoCurrencySnapshot` | `currencyId`、`balance`、`totalEarned`、`totalSpent` | 货币快照 |
+| `RondoCurrencySnapshot.Full` | `balances`、`totalEarned`、`totalSpent` | 完整经济快照（所有货币） |
 

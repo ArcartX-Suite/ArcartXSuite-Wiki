@@ -113,7 +113,6 @@ momo:
 | 命令 | 说明 |
 | --- | --- |
 | `/axs rgb status` | 查看 RGB 模块运行状态 |
-| `/axs rgb reload` | 提示使用 `/axs reload rgb` 重载模块 |
 | `/axs reload rgb` | 重载 RGB 模块（宿主通用重载命令） |
 
 ## UI / Packet

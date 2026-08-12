@@ -61,7 +61,6 @@ description: ArcartX-Suite BattlePass 战令系统，三层通行证、日/周/�
 |------|------|------|
 | `/axs battlepass help` | `arcartxsuite.admin` | 查看帮助 |
 | `/axs battlepass status` | `arcartxsuite.admin` | 查看当前赛季状态与活跃玩家数 |
-| `/axs battlepass reload` | `arcartxsuite.admin` | 重载提示（实际走宿主热重载机制） |
 | `/axs battlepass reset <玩家>` | `arcartxsuite.admin` | 重置指定玩家的战令全部进度（含任务、已领取奖励） |
 | `/axs battlepass unlock <玩家> <premium\|deluxe>` | `arcartxsuite.admin` | 为玩家解锁高级或典藏通行证 |
 | `/axs battlepass season` | `arcartxsuite.admin` | 赛季管理（尚未实现，执行时提示未开放） |
@@ -234,7 +233,7 @@ cross-server:
 | `display-name` | String | 否 | `task-id` | 显示在 UI 上的任务名称 |
 | `description` | String | 否 | `""` | 任务描述，展示在 UI 上 |
 | `difficulty` | String | 否 | `easy` | 难度：`easy` / `normal` / `hard` |
-| `event-topic` | String | 是 | — | 监听的事件主题（如 `ArcartX-Suite.combateffect.kill_entity`） |
+| `event-topic` | String | 是 | — | 监听的事件主题（如 `axs.combateffect.kill_entity`） |
 | `required-count` | int | 否 | `1` | 完成任务所需累计值 |
 | `base-xp-reward` | int | 否 | `0` | 基础 XP 奖励（最终 = baseXpReward × difficultyMultiplier） |
 | `difficulty-multiplier` | float | 否 | 按难度自动 | 可覆盖难度默认倍率 |
@@ -344,7 +343,7 @@ daily-login:
   display-name: "每日登录"
   description: "每天登录游戏即可获得奖励"
   difficulty: easy
-  event-topic: "ArcartX-Suite.onlinerewards.signin_success"
+  event-topic: "axs.onlinerewards.signin_success"
   required-count: 1
   base-xp-reward: 100
   conditions: []
@@ -357,7 +356,7 @@ daily-kill-zombie:
   display-name: "击杀僵尸"
   description: "在主世界击杀20个僵尸"
   difficulty: normal
-  event-topic: "ArcartX-Suite.combateffect.kill_entity"
+  event-topic: "axs.combateffect.kill_entity"
   required-count: 20
   base-xp-reward: 150
   conditions:
@@ -379,7 +378,7 @@ weekly-quest-5:
   display-name: "完成悬赏任务"
   description: "本周累计完成5个悬赏任务"
   difficulty: normal
-  event-topic: "ArcartX-Suite.questgps.quest_completed"
+  event-topic: "axs.questgps.quest_completed"
   required-count: 5
   base-xp-reward: 500
   conditions: []
@@ -387,6 +386,29 @@ weekly-quest-5:
     type: fixed
     value: 1
   weight: 3
+
+# 累计消费任务 — 通用货币消费追踪
+# CurrencyBridgeManager 在每次 withdraw 成功后自动分发 axs.currency.spent 事件
+# payload 包含: currency_id、amount、action、balance_after
+# 可通过 conditions 限制特定货币，或不加条件追踪所有货币消费
+weekly-spend-1000:
+  display-name: "消费达人"
+  description: "本周累计消费1000金币"
+  difficulty: normal
+  event-topic: "axs.currency.spent"
+  required-count: 1000
+  base-xp-reward: 400
+  conditions:
+    - type: event_payload
+      key: currency_id
+      operator: equals
+      value: money          # 可改为其他货币ID，或删除条件追踪所有货币
+  increment-strategy:
+    type: payload_value
+    payload-key: amount     # 从 payload 提取消费金额作为进度增量
+    max-per-event: 500
+    scale: 1.0
+  weight: 2
 ```
 
 ### `tasks/season.yml`（赛季任务池）
@@ -397,7 +419,7 @@ season-kill-1000:
   display-name: "千人斩"
   description: "本赛季累计击杀1000个生物"
   difficulty: hard
-  event-topic: "ArcartX-Suite.combateffect.kill_entity"
+  event-topic: "axs.combateffect.kill_entity"
   required-count: 1000
   base-xp-reward: 2000
   conditions: []
@@ -463,7 +485,7 @@ season:
 
 在 `tasks.daily`、`tasks.weekly`、`tasks.season` 下定义任务模板。关键点：
 
-- **事件主题** 必须与实际发出的 EventBus 事件主题一致。例如 CombatEffect 击杀事件主题为 `ArcartX-Suite.combateffect.kill_entity`。
+- **事件主题** 必须与实际发出的 EventBus 事件主题一致。例如 CombatEffect 击杀事件主题为 `axs.combateffect.kill_entity`。货币消费事件主题为 `axs.currency.spent`。
 - **条件** 用于过滤任务匹配范围。比如限定只统计僵尸击杀、只统计 Boss 伤害。
 - **增量策略** 决定每次事件增加多少进度。普通计数用 `fixed:1`，伤害累计用 `payload_value`。
 - **weight** 控制随机分配概率。如果想让某任务出现频率更高，调高 weight。
@@ -548,9 +570,14 @@ BattlePass 通过 ArcartX-Suite Capability 系统与以下模块联动：
 - BattlePass 通过 `EventBusCapability` 订阅任务模板中 `event-topic` 指定的事件主题。
 - 当其他模块（如 CombatEffect、OnlineRewards、QuestGPS）发布对应事件时，BattlePass 自动检查任务条件并增加进度。
 - **常用事件主题**：
-  - `ArcartX-Suite.combateffect.kill_entity` — 击杀实体事件（含 `entity_type` 等 payload 字段）
-  - `ArcartX-Suite.onlinerewards.signin_success` — 签到成功事件
-  - `ArcartX-Suite.questgps.quest_completed` — 悬赏任务完成事件
+  - `axs.combateffect.kill_entity` — 击杀实体事件（含 `entity_type` 等 payload 字段）
+  - `axs.combateffect.damage_dealt` — 造成伤害事件（含 `damage` 等 payload 字段）
+  - `axs.onlinerewards.signin_success` — 签到成功事件
+  - `axs.questgps.quest_completed` — 悬赏任务完成事件
+  - `axs.currency.spent` — 货币消费事件（含 `currency_id`、`amount`、`balance_after` 等 payload 字段）
+  - `axs.currency.earned` — 货币入账事件
+  - `market.listing_created` — 市场上架事件
+  - `market.auction_purchased` — 拍卖购买事件
 
 ### DatabaseMigratable Capability
 

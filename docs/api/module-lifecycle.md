@@ -54,6 +54,8 @@ public interface AXSModule {
 | `createPlaceholderExpansion()` | `null` | PlaceholderAPI 扩展实例 |
 | `createPacketHandler()` | `null` | 客户端包处理器 |
 | `packetHandlerPriority()` | `0` | 包处理器优先级（越小越优先） |
+| `packetOwnershipPacketId()` | `null` | 模块拥有的 Packet ID，用于路由层集中防护 |
+| `packetGuardModuleKey()` | `null` | PacketGuard 模块键，与 `packetOwnershipPacketId()` 配合使用 |
 | `createInitializedHandler()` | `null` | 客户端初始化回调 |
 
 ### 必须实现的抽象方法

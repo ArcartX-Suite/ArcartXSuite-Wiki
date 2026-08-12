@@ -19,6 +19,10 @@ description: ModuleContext 上下文 - ArcartX-Suite Minecraft 服务器插件�
 | `uiFolder()` | `File` | UI 文件输出目录（`plugins/ArcartX-Suite/ui/`） |
 | `pluginDataFolder()` | `File` | 宿主插件数据目录（`plugins/ArcartX-Suite/`） |
 | `hasPlugin(String)` | `boolean` | 检查外部 Bukkit 插件是否已安装 |
+| `vanillaItemNameBridge()` | `VanillaItemNameBridge` | 原版物品中文名称解析桥接（`@Stable`，永不为 null，since 1.3.3） |
+| `storageManager()` | `StorageManager` | 统一数据源管理器（`@Stable`，永不为 null，since 1.4.0） |
+| `placeholderResolver()` | `PlaceholderResolverAPI` | PlaceholderAPI 解析器（`@Stable`，永不为 null） |
+| `expansionRegistry()` | `PlaceholderExpansionRegistry` | PlaceholderAPI 扩展注册表（`@Stable`，永不为 null） |
 
 ## 桥接 API
 
@@ -31,8 +35,13 @@ description: ModuleContext 上下文 - ArcartX-Suite Minecraft 服务器插件�
 | `itemStackBridge()` | `ItemBridgeAPI` | `@Stable` | ItemStack → JSON 序列化 |
 | `itemSourceRegistry()` | `ItemSourceRegistry` | `@Stable` | 全局物品来源注册表（统一 MythicMobs / NeigeItems / Overture / MMOItems 桥接） |
 | `itemMatcher()` | `ItemMatcherAPI` | `@Stable` | 全局物品匹配器 |
-| `currencyManager()` | `CurrencyBridgeAPI` | `@Stable` | 全局货币管理器（统一 Vault / PlayerPoints / Rondo / Command 等多 provider） |
+| `currencyManager()` | `CurrencyBridgeAPI` | `@Stable` | 全局货币管理器（统一 Vault / PlayerPoints / XConomy / Rondo / Command 等多 provider） |
 | `attributeBridge()` | `AttributeBridgeRegistry` | `@Stable` | 全局属性桥接注册表（统一 AttributePlus / CraneAttribute / MythicLib / Symphony 桥接） |
+| `rondoBridge()` | `RondoBridge` | `@Stable` | Rondo 经济系统桥接（排行榜 / 转账 / 经济快照 / 交易日志） |
+| `ariaBridge()` | `AriaBridge` | `@Stable` | ArcartX 内置 Aria 脚本桥接（不可用时 `available()` 为 false） |
+| `scriptConditionEvaluator()` | `ScriptConditionEvaluator` | `@Stable` | 统一条件评估器（PlaceholderAPI + Aria 脚本 + JS 脚本 + Context 变量） |
+| `taczActive()` | `boolean` | `@Stable` | TACZ（创世战术武器）兼容桥接是否已激活 |
+| `worldTextureBridge()` | `WorldTextureBridgeAPI` | `@Internal` | ArcartX WorldTexture 文字贴图桥接（可能为 null） |
 
 ```java
 PacketBridgeAPI bridge = context.packetBridge();
@@ -240,7 +249,14 @@ context.registerClientPacketHandler((player, packetId, data) -> {
 
 // 注册（指定优先级，数值越小越优先）
 context.registerClientPacketHandler(handler, 100);
+
+// 注册（指定优先级 + 路由层防护元数据，用于声明模块拥有的 Packet ID 及 PacketGuard 模块键）
+context.registerClientPacketHandler(handler, 100, "AXS_MY_PACKET", "mymodule");
 ```
+
+::: tip 带防护元数据的重载
+`registerClientPacketHandler(handler, priority, packetOwnershipPacketId, packetGuardModuleKey)` 重载允许模块在注册处理器时同时声明自己拥有的 Packet ID 和 PacketGuard 模块键，宿主会据此在路由层对该模块的包进行集中防护。通常使用 `AbstractAXSModule` 的 `packetOwnershipPacketId()` 和 `packetGuardModuleKey()` 钩子由基类自动传入，无需手动调用此重载。
+:::
 
 ### ClientInitializedHandler {#clientinitializedhandler}
 

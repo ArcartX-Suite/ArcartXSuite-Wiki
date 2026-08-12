@@ -43,7 +43,9 @@ ArcartX-Suite/
 │   ├── fishing/          # Fishing 钓鱼系统
 │   ├── lottery/          # Lottery 抽奖系统
 │   ├── afkreward/        # AfkReward 挂机奖励
-│   └── menu/             # Menu 通用菜单系统
+│   ├── menu/             # Menu 通用菜单系统
+│   ├── extrabackpack/    # ExtraBackpack 扩展背包
+│   └── vanilla/          # VanillaUI 原版界面替换
 ```
 
 ## 核心组件

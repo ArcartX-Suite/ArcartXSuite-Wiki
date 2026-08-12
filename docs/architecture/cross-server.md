@@ -32,7 +32,7 @@ ArcartX-Suite 将跨服能力收敛为**宿主侧统一 SDK**，各模块不再�
 │  · 入站：验签 → message-id 去重 → 跳过本 node → 按 module 分发    │
 └──────────────┬──────────────────────────────┬───────────────────┘
                │                              │
-        Redis  │ ArcartX-Suite:CROSS                    │ BungeeCord Forward
+        Redis  │ AXS:CROSS                    │ BungeeCord Forward
                │                              │ AXS_CROSS
                ▼                              ▼
          其他子服 CrossServerService
@@ -55,7 +55,7 @@ cross-server:
     port: 6379
     password: ""
     database: 0
-    channel: "ArcartX-Suite:CROSS"      # 全模块共用频道
+    channel: "AXS:CROSS"      # 全模块共用频道
     connect-timeout-ms: 5000
   proxy:
     enabled: false            # 可与 Redis 同时 true
@@ -72,7 +72,7 @@ cross-server:
 | `node-id` | 当前子服节点 ID。留空时回退为 Bukkit 服务器名 |
 | `dedupe-ttl-ms` | 同一 `messageId` 在此窗口内只处理一次（Redis + Proxy 双通道防重复） |
 | `max-payload-chars` | 超过上限的 payload 会被拒绝；Tab 大快照建议依赖 Redis |
-| `redis.channel` | 默认 `ArcartX-Suite:CROSS`，**所有子服、所有模块**共用 |
+| `redis.channel` | 默认 `AXS:CROSS`，**所有子服、所有模块**共用 |
 | `proxy.messenger-channel` | 默认 `AXS_CROSS` |
 | `signature` | 启用后出站 HMAC-SHA256；`verify: true` 时入站必须验签通过 |
 
@@ -114,7 +114,7 @@ cross-server:
 | `payload` | string | 模块业务载荷（UTF-8 文本） |
 | `signature` | string | HMAC-SHA256（`signature.enabled` 时） |
 
-- **Redis**：`PUBLISH ArcartX-Suite:CROSS <整段 JSON>`
+- **Redis**：`PUBLISH AXS:CROSS <整段 JSON>`
 - **Proxy**：`BungeeCord` → `Forward` → `AXS_CROSS`，body = 整段 JSON
 
 ### 内层 payload（模块自定义）

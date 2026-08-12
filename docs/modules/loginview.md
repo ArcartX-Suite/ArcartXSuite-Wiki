@@ -38,8 +38,8 @@ ArcartX UI 驱动的**登录/注册界面**，替代传统聊天框输入密码�
 | 类型 | 依赖 | 作用 | 缺少时表现 |
 | --- | --- | --- | --- |
 | 必需 | ArcartX | 登录、注册、改密 UI 和客户端回包 | 模块无法提供可视化登录面板 |
-| 必需 | AuthMe | `authme` 模式下接管登录/注册/改密；`standalone` 模式下作为迁移数据源 | 模块不会加载（`external-depends` 声明） |
-| 必需 | PlaceholderAPI | 账号类型占位符输出 | 模块不会加载（`external-depends` 声明） |
+| 可选 | AuthMe | `authme` 模式下接管登录/注册/改密；`standalone` 模式下作为迁移数据源 | `standalone` 模式可独立运行；`authme` 模式不可用 |
+| 可选 | PlaceholderAPI | 账号类型占位符输出 | 占位符扩展自动跳过注册，不影响登录功能 |
 | 可选 | MySQL 服务 | `standalone` 模式远程账户库，或 AuthMe 迁移源 | 默认 SQLite 可用；远程库功能不可用 |
 | 可选 | EventPacket 模块 | 登录成功、首次注册后的事件联动 | 不影响登录本身 |
 
@@ -75,6 +75,30 @@ auth:
 auth:
   bypass-welcome:
     message: '&a身份已验证，欢迎回来。'      # 免登录成功后的提示消息
+```
+
+### 服务条款
+
+登录前强制玩家查阅服务器服规。启用后，玩家首次登录时需在 UI 中确认服务条款才能继续。
+
+```yaml
+terms-of-service:
+  enabled: true    # 是否强制玩家在登录前查阅服务器服规
+```
+
+### 登录后传送
+
+登录成功后将玩家传送到指定出生点（主城），适用于将登录区与主城分离的服务器。
+
+```yaml
+spawn-on-login:
+  enabled: false   # 是否启用登录后传送
+  world: world     # 目标世界
+  x: 0.0
+  y: 64.0
+  z: 0.0
+  yaw: 0.0
+  pitch: 0.0
 ```
 
 #### 工作原理
@@ -140,7 +164,7 @@ auth:
 
 重载配置：
 ```
-/axs loginview reload
+/axs reload loginview
 ```
 
 ##### 第二步：安装 authlib-injector（一键命令）
@@ -224,7 +248,7 @@ LittleSkin/正版玩家的 UUID 由认证服务器分配，改名不会影响 UU
 
 **Q: 如何回退/关闭免登录？**
 
-将配置改回 `enabled: false` 并 `/axs loginview reload` 即可。无需卸载 authlib-injector。
+将配置改回 `enabled: false` 并 `/axs reload loginview` 即可。无需卸载 authlib-injector。
 
 **Q: `/axs auth setup` 修改了我的启动脚本，如何恢复？**
 
@@ -303,7 +327,6 @@ messages:
 | 命令 | 说明 |
 | --- | --- |
 | `/axs loginview status` | 查看登录模块、模式、UI 和账户库状态 |
-| `/axs loginview reload` | 重载登录视图配置、UI 和账户服务 |
 | `/axs loginview open <玩家>` | 为在线玩家打开登录视图界面，一般用于调试 |
 | `/axs loginview migrate-authme [dry-run]` | 从 AuthMe 迁移密码哈希。加 `dry-run` 只预览不执行 |
 | `/axs loginview migration-commands` | 显示停用 AuthMe 后的安全操作步骤 |

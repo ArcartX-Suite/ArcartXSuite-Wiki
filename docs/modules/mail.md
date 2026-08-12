@@ -45,7 +45,7 @@ description: ArcartX-Suite Mail 邮件系统，玩家写信、管理员预设派
 | 类型 | 依赖 | 作用 | 缺少时表现 |
 | --- | --- | --- | --- |
 | 必需 | ArcartX | 收件箱、写信、日志、管理 UI 和附件槽交互 | 模块无法提供可视化邮箱 |
-| 可选 | PlaceholderAPI | `placeholder-command` 货币、条件判断和邮件文本变量 | 相关变量/条件不可用 |
+| 必需 | PlaceholderAPI | `placeholder-command` 货币、条件判断和邮件文本变量 | 模块不会加载（`external-depends` 声明） |
 | 可选 | Vault | 金币附件、手续费或 Vault 货币扣费 | Vault 货币功能关闭，物品邮件仍可用 |
 | 可选 | PlayerPoints | 点券附件或点券扣费 | PlayerPoints 货币功能关闭 |
 | 可选 | NeigeItems / MythicMobs / MMOItems | 物品附件来自对应物品库时保留识别信息 | 原版 ItemStack 附件正常；物品库专属识别不可用 |
@@ -222,7 +222,7 @@ preset:
 | `claim-commands` | list | `[]` | 领取时以控制台身份执行的命令；仅替换 `<player>`、`{player}`、`%player%` 三种玩家名 token，不等同于任意 PAPI 展开 |
 | `cdks` | list | `[]` | 内嵌 CDK 列表；也可用 `cdk:` 定义单个 |
 
-重载：`/axs mail reload`（同步预设与 CDK 到数据库）。
+重载：`/axs reload mail`（同步预设与 CDK 到数据库）。
 
 ## 命令
 
@@ -231,7 +231,6 @@ preset:
 | 命令 | 说明 |
 | --- | --- |
 | `/axs mail status` | 查看邮箱模块、存储、预设和跨服状态 |
-| `/axs mail reload` | 重载邮箱配置、预设和 UI |
 | `/axs mail open <玩家>` | 为在线玩家打开邮箱收件箱 |
 | `/axs mail admin` | 打开管理 UI 界面（管理员查看全服邮件） |
 | `/axs mail preset list` | 列出所有已加载的预设邮件 |

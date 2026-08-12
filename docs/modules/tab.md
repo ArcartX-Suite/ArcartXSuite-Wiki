@@ -386,7 +386,6 @@ packetHandler:
 | 命令 | 说明 |
 | --- | --- |
 | `/axs tab status` | 查看 Tab 模块状态 |
-| `/axs tab reload` | 重载 Tab 配置并刷新在线玩家显示 |
 
 玩家命令（无需 `arcartxsuite.admin`）：
 

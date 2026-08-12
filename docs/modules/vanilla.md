@@ -35,7 +35,6 @@ description: ArcartX-Suite VanillaUI 原版界面替换，工作台/熔炉 Arcar
 | 命令 | 权限 | 说明 |
 |------|------|------|
 | `/axs vanilla status` | `arcartxsuite.admin` | 查看模块状态 |
-| `/axs vanilla reload` | `arcartxsuite.admin` | 提示重载（实际通过 `/axs config apply vanilla` 生效） |
 
 ## 权限
 

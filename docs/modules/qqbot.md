@@ -601,7 +601,7 @@ onebot:
 
 重载模块或重启服务器：
 ```
-/axs qqbot reload
+/axs reload qqbot
 ```
 
 ---

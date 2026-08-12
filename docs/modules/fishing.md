@@ -50,7 +50,6 @@ description: ArcartX-Suite Fishing 钓鱼系统，星露谷风格钓鱼小游戏
 | `/axs fishing stats [玩家]` | `axs.fishing.admin` | 查看钓鱼统计 |
 | `/axs fishing givexp <玩家> <经验>` | `axs.fishing.admin` | 给予钓鱼经验 |
 | `/axs fishing reset <玩家>` | `axs.fishing.admin` | 重置钓鱼数据 |
-| `/axs fishing reload` | `axs.fishing.admin` | 重载钓鱼模块配置 |
 
 ## 权限
 

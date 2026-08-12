@@ -1358,7 +1358,6 @@ low_health_alert:
 | 命令 | 说明 | 示例 |
 | --- | --- | --- |
 | `/axs eventpacket status` | 查看规则数量和模块状态 | |
-| `/axs eventpacket reload` | 重载配置和预设文件 | |
 | `/axs eventpacket fire <信号名> <玩家> [key=value...]` | 手动触发信号，用于调试 | `/axs eventpacket fire boss_settlement Steve boss_id=dragon rank=1` |
 | `/axs eventpacket list` | 列出已加载的客户端回包预设 | `/axs eventpacket list` |
 | `/axs eventpacket run <玩家> <预设名> [arg...]` | 手动执行某个回包预设（绕过权限与冷却） | `/axs eventpacket run Steve give_item DIAMOND_SWORD 1` |

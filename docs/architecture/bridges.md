@@ -45,13 +45,19 @@ ArcartX-Suite 在 `plugin.yml` 里只硬依赖 `ArcartX`，其他全是软依赖
 | `attributeplus` | AttributePlus | Title、CombatEffect、Prop |
 | `craneattribute` | CraneAttribute | Title、CombatEffect |
 | `mythiclib` | MythicLib / MMOItems | Title、CombatEffect、Prop |
-| `symphony` | Symphony | Menu 条件、部分战斗逻辑 |
+| `symphony` | Symphony | Menu 条件、CombatEffect 暴击/闪避/克制飘字、EntityTracker Boss 面板 |
+
+> **SymphonyBridge 增强**：除基础属性设置外，还提供战力查询（`combatPower`）、等级快照（`level`）、护盾读写（`shield`/`setShield`）、战斗状态（`combatState`）、状态效果（`statuses`）、光环（`auras`）、激活套装（`activeSets`）等查询能力。详见 [桥接 API → SymphonyBridge](/api/bridge-api#symphonybridge)。
 
 物品库反射桥（NeigeItems、MythicMobs、MMOItems、Overture 等）由全局 `ItemSourceRegistry` 统一注册，Mail / Warehouse / Market 发奖与附件时自动识别物品来源。
 
+> **Overture 序列化增强**：`ItemSourceRegistry` 新增 Overture 原生序列化（`overtureSerialize`/`overtureDeserialize`）和模板查询（`overtureItemDisplayName`/`overtureItemDisplayLore`/`overtureTemplateItem`/`overtureItemIds`）方法，Market 模块的拍卖物品序列化已自动使用 Overture 原生格式。
+
 Aria 脚本条件通过 `DefaultAriaBridge` 对接 ArcartX 内置 Aria；Aria 不可用时条件求值为 false，可改用 JS 条件，见 [条件系统](/guide/conditions)。
 
-> **货币桥接**：所有经济相关读写统一通过全局 `CurrencyBridgeAPI`（`context.currencyManager()`）完成，支持 Vault / PlayerPoints / Rondo / Command / PlaceholderCommand / Custom 多 provider。详见 [桥接 API → 货币](/api/bridge-api)。
+> **货币桥接**：所有经济相关读写统一通过全局 `CurrencyBridgeAPI`（`context.currencyManager()`）完成，支持 Vault / PlayerPoints / XConomy / Rondo / Command / PlaceholderCommand / Custom 多 provider。每次扣款/入账成功后自动分发 `axs.currency.spent` / `axs.currency.earned` 事件。详见 [桥接 API → 货币](/api/bridge-api#currencybridgeapi)。
+
+> **Rondo 高级经济桥接**：Rondo 提供的排行榜、转账、经济快照、交易日志等原生高级功能通过独立的 `RondoBridge`（`context.rondoBridge()`）暴露，与基础货币读写分离。详见 [桥接 API → RondoBridge](/api/bridge-api#rondobridge)。
 
 ## 使用示例
 

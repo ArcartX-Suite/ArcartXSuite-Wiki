@@ -86,7 +86,7 @@ modules:
 1. 导出默认配置到 `data/combateffect/config.yml`
 2. 导出包定义到 `data/combateffect/packets/default.yml`
 3. 导出 3 个 UI 文件到 `plugins/ArcartX-Suite/ui/` 目录（`combat_kill_effect.yml`、`combo_effect.yml`、`death_buffer.yml`）
-4. 导出 damage_display 资源到 ArcartX `damage_display/` 目录（`ArcartXSuite-damage.yml`、`ArcartXSuite-heal.yml`）
+4. 导出 damage_display 资源到 ArcartX `damage_display/` 目录（`ArcartXSuite-damage.yml`、`ArcartXSuite-heal.yml`、`ArcartXSuite-critical.yml`、`ArcartXSuite-dodged.yml`、`ArcartXSuite-advantaged.yml`、`ArcartXSuite-disadvantaged.yml`）
 
 ---
 
@@ -365,6 +365,36 @@ digis-display:
       player-config-id: "ArcartXSuite-player-damage" # 目标为玩家时使用的 damage_display 配置 ID
       min-amount: 1.0                # 最小显示阈值
       player-min-amount: 1.0         # PVP 伤害最小显示阈值
+
+    # ─── 暴击/闪避/克制飘字（全局配置，跨所有属性插件） ───
+    # 这些配置对所有属性来源（Symphony/AttributePlus/CraneAttribute/MythicLib）生效。
+    # 当前仅 Symphony 能在伤害事件中提供暴击/闪避/克制标记，
+    # 其他属性插件触发时 critical=false / dodged=false / relation=null，自动降级为普通伤害飘字。
+    # 优先级: 闪避 > 暴击 > 克制 > 普通伤害
+
+    # 暴击伤害飘字（当 AttributeDamageEvent.critical=true 时触发）
+    critical:
+      enabled: false                 # 是否启用暴击飘字
+      config-id: "ArcartXSuite-critical"       # 暴击伤害的 damage_display 配置 ID
+      player-config-id: "ArcartXSuite-critical" # PVP 暴击伤害的 damage_display 配置 ID
+      min-amount: 1.0                # 最小显示阈值
+
+    # 闪避飘字（当 AttributeDamageEvent.dodged=true 时触发，damage=0）
+    dodged:
+      enabled: false                 # 是否启用闪避飘字
+      config-id: "ArcartXSuite-dodged"          # 闪避提示的 damage_display 配置 ID
+
+    # 元素克制 — 优势（当 AttributeDamageEvent.relation=ADVANTAGED 时触发）
+    advantaged:
+      enabled: false                 # 是否启用优势克制飘字
+      config-id: "ArcartXSuite-advantaged"      # 优势克制伤害的 damage_display 配置 ID
+      player-config-id: "ArcartXSuite-advantaged" # PVP 优势克制的 damage_display 配置 ID
+
+    # 元素克制 — 劣势（当 AttributeDamageEvent.relation=DISADVANTAGED 时触发）
+    disadvantaged:
+      enabled: false                 # 是否启用劣势克制飘字
+      config-id: "ArcartXSuite-disadvantaged"   # 劣势克制伤害的 damage_display 配置 ID
+      player-config-id: "ArcartXSuite-disadvantaged" # PVP 劣势克制的 damage_display 配置 ID
 
     # 伤害合并配置（将短时间内的多段伤害合并为一次飘字）
     damage-merge:
@@ -923,7 +953,6 @@ visible: "server.combo_count > 0 || var.combo_show"
 | --- | --- |
 | `/axs combateffect help` | 查看可用子命令 |
 | `/axs combateffect status` | 查看所有子系统启用状态（含按键触发、状态触发）、已加载包定义数 |
-| `/axs combateffect reload` | 重载全部配置和包定义 |
 | `/axs combateffect send <包ID> <玩家> [k=v ...]` | 按包定义 ID 手动触发特效（绕过事件匹配） |
 | `/axs combateffect direct <uiId> <handler> <玩家> [k=v ...]` | 直接向客户端发包（绕过包定义系统） |
 
@@ -1122,7 +1151,7 @@ death-buffer:
        skill: "闪避翻滚"
        player: "{player}"
    ```
-4. 重载配置 `/axs combateffect reload`
+4. 重载配置 `/axs reload combateffect`
 5. 进入游戏按下并释放闪避键 → 屏幕显示命中特效
 
 ### 场景 5：Chronos 状态触发特效
@@ -1150,7 +1179,7 @@ death-buffer:
        player: "{player}"
        state: "{state_id}"
    ```
-4. 重载配置 `/axs combateffect reload`
+4. 重载配置 `/axs reload combateffect`
 5. 进入游戏切换到 warrior 控制器并进入 `skill_fire` 状态 → 屏幕显示击杀特效
 
 **进阶：使用通配符批量匹配**
@@ -1174,7 +1203,7 @@ skill-any:
 ### 场景 6：伤害飘字
 
 1. 在 `config.yml` 中配置 `digis-display` 节
-2. 在 ArcartX 客户端的 `damage_display` 配置中创建对应的 `config-id` 样式（`ArcartXSuite-damage`、`ArcartXSuite-player-damage`、`ArcartXSuite-heal`）
+2. 在 ArcartX 客户端的 `damage_display` 配置中创建对应的 `config-id` 样式（`ArcartXSuite-damage`、`ArcartXSuite-player-damage`、`ArcartXSuite-heal`、`ArcartXSuite-critical`、`ArcartXSuite-dodged`、`ArcartXSuite-advantaged`、`ArcartXSuite-disadvantaged`）
 3. 进入游戏即可看到伤害/治疗数字飘出
 
 ---
@@ -1198,7 +1227,7 @@ skill-any:
 | `combo_effect.yml` | combo_effect | `combo` / `combo_milestone` | combo |
 | `death_buffer.yml` | death_buffer | `death` | death(victim) |
 
-> **提示**：`config-id`（伤害飘字样式）在 ArcartX 客户端侧的 `damage_display` 配置文件中定义，与服务端包定义解耦。模块会自动导出 `ArcartXSuite-damage.yml` 和 `ArcartXSuite-heal.yml` 到 `damage_display/` 目录。
+> **提示**：`config-id`（伤害飘字样式）在 ArcartX 客户端侧的 `damage_display` 配置文件中定义，与服务端包定义解耦。模块会自动导出 `ArcartXSuite-damage.yml`、`ArcartXSuite-heal.yml`、`ArcartXSuite-critical.yml`、`ArcartXSuite-dodged.yml`、`ArcartXSuite-advantaged.yml`、`ArcartXSuite-disadvantaged.yml` 到 `damage_display/` 目录。
 
 ---
 
@@ -1216,8 +1245,12 @@ plugins/ArcartX-Suite/ui/
 └── death_buffer.yml            # 全屏 — 死亡缓冲
 
 plugins/ArcartX-Suite/damage_display/
-├── ArcartXSuite-damage.yml     # 伤害飘字样式
-└── ArcartXSuite-heal.yml       # 治疗飘字样式
+├── ArcartXSuite-damage.yml          # 伤害飘字样式
+├── ArcartXSuite-heal.yml            # 治疗飘字样式
+├── ArcartXSuite-critical.yml        # 暴击伤害飘字样式
+├── ArcartXSuite-dodged.yml          # 闪避飘字样式
+├── ArcartXSuite-advantaged.yml      # 优势克制飘字样式
+└── ArcartXSuite-disadvantaged.yml   # 劣势克制飘字样式
 
 # 客户端资源包（需自行制作）
 assets/

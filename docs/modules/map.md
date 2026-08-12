@@ -231,7 +231,6 @@ waypoints:
 | 命令 | 说明 |
 | --- | --- |
 | `/axs map status` | 查看地图模块、世界、锚点和路径点状态 |
-| `/axs map reload` | 重载地图配置和 UI |
 | `/axs map open <玩家> [世界名]` | 为在线玩家打开地图界面，可选指定世界 |
 | `/axs map list` | 列出所有已配置的地图世界 |
 | `/axs map anchors [世界名]` | 列出全部或指定世界的锚点 |
