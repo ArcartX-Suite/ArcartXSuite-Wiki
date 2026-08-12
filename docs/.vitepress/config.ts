@@ -48,6 +48,7 @@ const moduleSidebar = [
       { text: 'EntityTracker 实体追踪', link: '/modules/entitytracker' },
       { text: 'ExtraBackpack 额外背包', link: '/modules/extrabackpack' },
       { text: 'VanillaUI 原版界面替换', link: '/modules/vanilla' },
+      { text: 'Tooltip 动态提示桥接', link: '/modules/tooltip' },
     ],
   },
 ]

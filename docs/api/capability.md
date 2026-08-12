@@ -445,6 +445,85 @@ public interface InteractionState {
 
 **使用场景：** Conversation 模块注册后，Pickup 模块在处理 `AXS_INTERACT`（默认 F 键）时先查询 `isPlayerInteracting`，若玩家正在对话则不抢占按键。
 
+### `ExtraBackpackAccess`
+
+由 ExtraBackpack 模块注册，供 Pickup、Warehouse 等模块在不打开 UI 的情况下操作玩家的扩展背包。
+
+```java
+public interface ExtraBackpackAccess {
+    boolean isAvailable(@NotNull Player player);
+    @NotNull Snapshot snapshot(@NotNull Player player);
+    @NotNull DepositResult deposit(@NotNull Player player, @NotNull ItemStack itemStack);
+    @NotNull WithdrawResult withdraw(@NotNull Player player, @NotNull String categoryId, int slot, int amount);
+
+    record Snapshot(boolean available, @NotNull List<CategorySnapshot> categories) {}
+    record CategorySnapshot(@NotNull String categoryId, long capacity, long used, @NotNull List<SlotSnapshot> slots) {}
+    record SlotSnapshot(int slot, @NotNull ItemStack itemStack) {}
+    record DepositResult(boolean success, long storedAmount, int remainingAmount, @NotNull String message) {}
+    record WithdrawResult(boolean success, int takenAmount, @Nullable ItemStack itemStack, @NotNull String message) {}
+}
+```
+
+**使用场景：** Pickup 模块拾取物品时优先尝试存入扩展背包的匹配分类；Warehouse 模块在自动整理时查询扩展背包容量。
+
+### `PickupInterceptor`
+
+由 Pickup 模块（扫描模式）注册，通知其他模块原版自动拾取已被接管。
+
+```java
+public interface PickupInterceptor {
+    boolean isAutoPickupIntercepted(@NotNull UUID playerId);
+}
+```
+
+**使用场景：** Warehouse 模块的自动入库功能在扫描模式激活时必须放弃对 `EntityPickupItemEvent` 的处理，否则会在扫描面板展示掉落物之前把物品提前收走，导致扫描模式失效。
+
+### `SecondaryPasswordAccess`
+
+由宿主统一服务注册（非模块），提供二级密码的查询与验证能力。
+
+```java
+public interface SecondaryPasswordAccess {
+    boolean isPasswordSet(@NotNull Player player);
+    boolean isUnlocked(@NotNull Player player);
+    boolean verify(@NotNull Player player, @NotNull String password);
+    boolean set(@NotNull Player player, @NotNull String oldPassword, @NotNull String newPassword);
+    boolean clear(@NotNull Player player, @NotNull String currentPassword);
+    default void lock(@NotNull Player player) {}
+}
+```
+
+**使用场景：** Warehouse、ExtraBackpack 等模块在执行敏感操作（如销毁物品、清空分类）前通过此 Capability 验证二级密码；LoginView 模块在登录流程中检查二级密码解锁状态。
+
+### `TooltipDataCapable`
+
+由 Tooltip 模块注册，供 Chat 等模块查询客户端采集的动态 tooltip 数据（TACZ 枪属性、Apotheosis affix 等）。
+
+```java
+public interface TooltipDataCapable {
+    /** 获取玩家当前手持物品的 tooltip 文本行 */
+    List<String> getTooltipLines(Player player);
+
+    /** 获取玩家指定物品的 tooltip 文本行 */
+    List<String> getTooltipLines(Player player, ItemStack itemStack);
+
+    /** 获取玩家当前手持物品的结构化数据（JSON 字符串） */
+    String getStructuredData(Player player);
+
+    /** 将 tooltip 文本行注入物品 NBT Lore，用于物品预览序列化 */
+    ItemStack injectLore(ItemStack itemStack, List<String> lines);
+
+    /** 判断指定物品是否有缓存的 tooltip 数据 */
+    boolean hasTooltipData(Player player, ItemStack itemStack);
+}
+```
+
+**使用场景：** Chat 模块在构建聊天物品预览时调用 `getTooltipLines` 获取动态 tooltip 文本行，再调用 `injectLore` 注入物品 NBT Lore，使 ArcartX 客户端 UI 能显示 TACZ 枪属性和 Apotheosis affix 等内容。其他业务模块可通过 `getStructuredData` 获取 TACZ 枪属性的数值字段（damage、armorIgnore、headshotMultiplier 等）用于业务逻辑。
+
+::: tip 客户端 mod 必需
+Tooltip 数据由客户端 Forge mod（[ArcartX-Suite-Mod](https://github.com/xuanmomo233/ArcartX-Suite-Mod)）在 `ItemTooltipEvent` 中采集并通过 `AXS_TOOLTIP_DATA` 网络包发送给服务端。未安装客户端 mod 的玩家不会发送数据，`getTooltipLines` 返回空列表。
+:::
+
 ## 自定义 Capability
 
 第三方模块可以定义自己的 Capability 接口并注册：

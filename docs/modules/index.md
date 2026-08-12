@@ -5,7 +5,7 @@ description: ArcartX-Suite 提供 28 个 Minecraft 服务器功能模块，涵�
 
 # 模块
 
-ArcartX-Suite 共 **28 个功能模块**，涵盖聊天、战斗、播报、追踪、登录、基础工具、区域保护、通用菜单、经济交易、QQ群联动、钓鱼、抽奖、额外背包、原版界面替换等核心玩法，所有模块均通过 `config.yml` 的 `modules.<module>.enabled` 开关启用。
+ArcartX-Suite 共 **29 个功能模块**，涵盖聊天、战斗、播报、追踪、登录、基础工具、区域保护、通用菜单、经济交易、QQ群联动、钓鱼、抽奖、额外背包、原版界面替换、动态 tooltip 桥接等核心玩法，所有模块均通过 `config.yml` 的 `modules.<module>.enabled` 开关启用。
 
 ## 依赖总览
 
@@ -37,6 +37,7 @@ ArcartX-Suite 共 **28 个功能模块**，涵盖聊天、战斗、播报、追�
 | Tab | ArcartX、PlaceholderAPI | Title | 跨服快照走宿主 cross-server（建议 Redis） |
 | ExtraBackpack | ArcartX | Warehouse、PlaceholderAPI | 额外背包页 + 二级密码；可与 Warehouse 联动 |
 | VanillaUI | ArcartX | — | 替换原版工作台/熔炉界面，配方书 + 中文搜索 |
+| Tooltip | ArcartX、ArcartX-Suite-Mod（客户端） | TACZ、Apotheosis | 采集动态 tooltip 数据，注入聊天物品预览 |
 
 ## 功能模块
 
@@ -219,6 +220,12 @@ ArcartX-Suite 共 **28 个功能模块**，涵盖聊天、战斗、播报、追�
     <div class="card-icon">🔨</div>
     <div class="card-title">VanillaUI 原版界面替换</div>
     <div class="card-desc">ArcartX UI 替换原版工作台与熔炉界面，配方书、中文搜索、一键填充材料、熔炉状态实时推送</div>
+    <span class="card-badge badge-stable">🎁 福利</span>
+  </a>
+  <a href="tooltip" class="module-card">
+    <div class="card-icon">💡</div>
+    <div class="card-title">Tooltip 动态提示桥接</div>
+    <div class="card-desc">采集 TACZ 枪属性和 Apotheosis 神化词条 tooltip，注入聊天物品预览，提供跨模块数据查询 API</div>
     <span class="card-badge badge-stable">🎁 福利</span>
   </a>
 </div>
