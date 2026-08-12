@@ -23,7 +23,7 @@ Tooltip 模块通过以下方式解决：
 | 功能 | 说明 |
 |------|------|
 | **接收客户端 tooltip 数据** | 监听 `AXS_TOOLTIP_DATA` 网络包，解析 tooltip 文本行和结构化数据 |
-| **去重缓存** | 按玩家 + 物品指纹（类型 ID + NBT hash）去重，TTL 60 秒 |
+| **去重缓存** | 按玩家 + 物品指纹（物品注册名）去重，TTL 60 秒 |
 | **聊天预览 Lore 注入** | Chat 模块在 `itemToJson` 前调用，将 tooltip 文本行写入物品 `display.Lore` |
 | **跨模块数据查询 API** | 提供 `TooltipDataCapable` Capability，供其他模块查询 tooltip 数据 |
 | **玩家退出自动清理** | 监听 `PlayerQuitEvent`，清理离线玩家的缓存数据 |
@@ -41,7 +41,12 @@ Tooltip 模块通过以下方式解决：
 
 ## 命令
 
-本模块无独立命令。
+### 管理员命令
+
+| 命令 | 说明 |
+|------|------|
+| `/axs tooltip help` | 查看可用子命令 |
+| `/axs tooltip status` | 查看模块缓存状态（缓存玩家数、数据包 ID、TTL） |
 
 ## 权限
 
@@ -71,12 +76,16 @@ modules:
 |-----------|------|
 | `AXS_TOOLTIP_DATA` | 客户端 mod 在 `ItemTooltipEvent` 中采集 tooltip 数据后发送 |
 
+::: tip 客户端发送冷却
+`ItemTooltipEvent` 每帧触发（约 60 次/秒），客户端 mod 内置 **2 秒冷却**：同一物品指纹在 2 秒内不会重复发送，避免网络流量爆炸。服务端缓存 TTL 为 60 秒，即使客户端冷却导致数据延迟，聊天预览仍能命中缓存。
+:::
+
 **数据格式**（`List<String> data`）：
 
 | 索引 | 字段 | 说明 |
 |------|------|------|
-| `data[0]` | 物品指纹 | 类型 ID + NBT hash（如 `tacz:ak47@123456`），用于服务端去重 |
-| `data[1]` | 物品类型 ID | 如 `tacz:ak47` 或 `minecraft:diamond_sword` |
+| `data[0]` | 物品指纹 | 物品注册名（如 `tacz:ak47` 或 `minecraft:diamond_sword`），用于服务端缓存匹配 |
+| `data[1]` | 物品类型 ID | 同 `data[0]`，保留用于扩展 |
 | `data[2]` | tooltip 文本行 | JSON 数组字符串，如 `["伤害: 15","穿甲: 50%"]` |
 | `data[3]` | 结构化数据 | JSON 对象字符串，包含 TACZ 枪属性数值字段 |
 
@@ -163,13 +172,13 @@ Chat 模块已内置 Tooltip 数据注入逻辑，无需额外配置。只要 To
 ## 架构
 
 ```
-TooltipModule (AbstractAXSModule)
+TooltipModule (AbstractAXSModule, ModuleCommandHandler)
 ├── TooltipPacketHandler (ClientPacketHandler)
 │   └── 接收 AXS_TOOLTIP_DATA 网络包
 │       └── 解析 JSON → 存入 TooltipDataCache
 ├── TooltipDataCache (去重缓存)
 │   ├── 按玩家 UUID 分区
-│   ├── 按物品指纹去重
+│   ├── 按物品指纹（物品注册名）去重
 │   └── TTL 60 秒自动过期
 ├── TooltipDataCapability (TooltipDataCapable 实现)
 │   ├── getTooltipLines() — 查询缓存
@@ -178,8 +187,13 @@ TooltipModule (AbstractAXSModule)
 │   └── hasTooltipData() — 判断是否有数据
 ├── TooltipJsonParser (JSON 解析)
 │   └── 解析客户端发来的 JSON 格式 tooltip 数据
+├── TooltipAdminCommand (管理员命令)
+│   ├── help — 查看帮助
+│   └── status — 查看缓存状态
 ├── TooltipPlayerListener (Bukkit 事件监听)
 │   └── PlayerQuitEvent → 清理玩家缓存
+├── PacketGuard (频率限制)
+│   └── moduleKey: "tooltip"
 └── 注册 Capability
     └── TooltipDataCapable.class → TooltipDataCapability
 ```
