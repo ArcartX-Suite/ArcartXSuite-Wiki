@@ -13,15 +13,15 @@ RGB 模块为纯计算型模块，无玩家命令，仅提供管理员重载命�
 
 | 命令 | 说明 | 权限 |
 |---|---|---|
-| `/axs rgb reload` | 热重载主配置和所有条目文件 | `arcartxsuite.rgb.admin` |
+| `/axs reload rgb` | 热重载主配置和所有条目文件 | `arcartxsuite.rgb.admin` |
 | `/axs rgb status` | 查看模块运行状态 | `arcartxsuite.rgb.admin` |
 
 ### reload
 
-热重载主配置 `ArcartXRGB.yml` 和 `entries/` 目录下的所有条目文件。重载后立即生效，无需重启服务器。
+热重载主配置 `config.yml` 和 `entries/` 目录下的所有条目文件。重载后立即生效，无需重启服务器。
 
 ```
-/axs rgb reload
+/axs reload rgb
 ```
 
 重载流程：
@@ -36,7 +36,7 @@ RGB 模块为纯计算型模块，无玩家命令，仅提供管理员重载命�
 ```
 
 :::tip
-修改条目文件后只需执行 `/axs rgb reload` 即可生效。新增、删除、修改条目均支持热重载。
+修改条目文件后只需执行 `/axs reload rgb` 即可生效。新增、删除、修改条目均支持热重载。
 :::
 
 ### status

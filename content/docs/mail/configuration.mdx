@@ -5,7 +5,7 @@ description: Mail 配置文件详解
 
 ## 配置文件概览
 
-Mail 模块的配置文件位于 `data/mail/ArcartXMail.yml`，预设邮件位于 `data/mail/presets/` 目录。执行 `/axs mail reload` 可热重载配置和预设。
+Mail 模块的配置文件位于 `data/mail/config.yml`，预设邮件位于 `data/mail/presets/` 目录。执行 `/axs reload mail` 可热重载配置和预设。
 
 配置版本号 `config-version` 用于迁移系统自动升级配置结构，当前版本为 `3`。
 
@@ -184,7 +184,7 @@ claim-commands:
 ## 完整配置示例
 
 ```yaml
-# data/mail/ArcartXMail.yml
+# data/mail/config.yml
 config-version: 3
 
 settings:

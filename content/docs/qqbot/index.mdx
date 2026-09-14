@@ -14,7 +14,7 @@ QQBot 是 ArcartXSuite 的 QQ 群服互联模块，通过 **OneBot 11 WebSocket 
 | 模块 ID | `qqbot` |
 | 版本 | 1.4.4 |
 | 主类 | `xuanmo.arcartxsuite.qqbot.QQBotModule` |
-| 配置文件 | `ArcartXQQBot.yml` |
+| 配置文件 | `config.yml` |
 | 消息文件 | `messages.yml` |
 | 外部依赖 | PlaceholderAPI |
 | 软依赖模块 | `chat` |
@@ -183,8 +183,8 @@ UI 通讯通过 PacketBridge 实现，绑定中心使用 `AXS_qqbot` 包 ID，�
 ## 快速上手
 
 1. 安装 OneBot 实现端（推荐 SnowLuma，模块内置进程管理）
-2. 在 `ArcartXQQBot.yml` 中配置 `onebot.ws-url` 指向 OneBot WebSocket 地址
+2. 在 `config.yml` 中配置 `onebot.ws-url` 指向 OneBot WebSocket 地址
 3. 在 `groups` 列表中添加要监听的 QQ 群号
-4. 执行 `/axs qqbot reload` 重载模块
+4. 执行 `/axs reload qqbot` 重载模块
 5. 群内发送 `#帮助` 查看可用指令
 6. 群内发送 `#绑定 <游戏名>` 开始绑定流程

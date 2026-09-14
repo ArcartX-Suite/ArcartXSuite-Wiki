@@ -40,8 +40,8 @@ ArcartX-Suite 的硬依赖只有 ArcartX。其他插件按模块或功能降级�
 
 ```
 plugins/
-├── ArcartX-x.x.x.jar
-└── ArcartX-Suite.jar
+├── ArcartX-<version>.jar
+└── ArcartX-Suite-<version>.jar
 ```
 
 ### 3. 启动一次，生成默认资源
@@ -50,7 +50,7 @@ plugins/
 
 - 把 jar 内默认 YAML 释放到 `plugins/ArcartX-Suite/`
 - 生成 `config.yml`（总开关 + 各模块启用状态）和各模块配置
-- 生成 `arcartx/ui/*.yml` UI 模板
+- 生成 `ui/*.yml` UI 模板
 - 全部模块默认 `enabled: true`（云端授权模块需先绑定云端）
 
 ### 4. 验证
@@ -69,17 +69,17 @@ plugins/
   ArcartX-Suite/
     config.yml                   # 主配置：模块开关、货币、跨服、安全等
     modules/                     # 按需放入模块 Jar（可选）
-      AXS-RGB-x.x.x.jar
-      AXS-Tab-x.x.x.jar
+      ArcartXSuite-RGB-<version>.jar
+      ArcartXSuite-Tab-<version>.jar
       ...
     data/                        # 模块数据目录
       <moduleId>/
         config.yml               # 模块独立配置
         *.db                     # SQLite 数据文件（默认）
-    arcartx/ui/                  # UI 模板文件
-    diagnosis/                   # 配置诊断报告
+    ui/                          # UI 模板文件
+    diagnosis/                   # 配置诊断报告（配置体检 / 自动修复建议）
     purge-logs/                  # 数据清除审计日志
-    diagnostics/                 # 运行环境诊断报告
+    diagnostics/                 # 运行环境诊断报告（/axs diagnostic 生成）
 ```
 
 ### 模块配置文件位置
@@ -111,8 +111,8 @@ ArcartX-Suite 支持模块 Jar 独立部署。不放入模块 Jar 时，功能�
 ```
 ArcartXSuite-<ModuleName>-<version>.jar
 # 例如
-ArcartXSuite-RGB.jar
-ArcartXSuite-Tab.jar
+ArcartXSuite-RGB-1.4.4.jar
+ArcartXSuite-Tab-1.4.4.jar
 ```
 
 宿主通过读取 jar 内 `module.yml` 的 `id` 字段来匹配模块身份，与文件名无关。

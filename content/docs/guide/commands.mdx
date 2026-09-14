@@ -9,7 +9,7 @@ description: /axs 主命令、各子命令用法与权限节点速查表
 
 ## 管理命令
 
-主入口：`/axs`（别名 `/ArcartX-Suite`），需要权限 `arcartxsuite.admin`（默认 OP）。
+主入口：`/arcartxsuite`（别名 `/axs`），需要权限 `arcartxsuite.admin`（默认 OP）。
 
 ### 全局管理
 
@@ -152,7 +152,7 @@ description: /axs 主命令、各子命令用法与权限节点速查表
 | `/axs market clear-expired` | 处理过期拍卖 |
 | `/axs market remove &lt;ID>` | 强制移除拍卖上架 |
 | `/axs qqbot status` | 查看 QQBot 状态 |
-| `/axs qqbot send &lt;消息>` | 向 QQ 群发送消息 |
+| `/axs qqbot send &lt;all\|群号> &lt;消息>` | 向指定群或所有群发送消息 |
 | `/axs qqbot lookup &lt;玩家名\|QQ号>` | 查询绑定关系 |
 | `/axs loginview open &lt;玩家>` | 打开登录界面 |
 | `/axs loginview migrate-authme [dry-run]` | 从 AuthMe 迁移密码 |
@@ -161,7 +161,7 @@ description: /axs 主命令、各子命令用法与权限节点速查表
 
 ## 玩家命令
 
-以下命令面向普通玩家，需要对应的 `arcartxsuite.&lt;模块>.use` 权限节点（默认全部玩家可用）。
+以下命令面向普通玩家，需要对应的 `arcartxsuite.&lt;模块>.use` 权限节点（大部分默认所有玩家可用，Essentials 系列命令默认 OP，详见下方权限表）。
 
 ### Title — 称号
 
@@ -231,7 +231,7 @@ description: /axs 主命令、各子命令用法与权限节点速查表
 | 命令 | 说明 |
 | --- | --- |
 | `/ess menu` | 打开玩家功能菜单 |
-| `/ess admin` | 打开管理员面板（权限 `ArcartX-Suite.essentials.admin`） |
+| `/ess admin` | 打开管理员面板（权限 `axs.essentials.admin`） |
 | `/ess fly [玩家]` | 切换飞行 |
 | `/ess god [玩家]` | 切换无敌 |
 | `/ess heal [玩家]` | 恢复生命 |
@@ -286,6 +286,6 @@ description: /axs 主命令、各子命令用法与权限节点速查表
 | `arcartxsuite.&lt;模块>.use` | 所有玩家 | 模块玩家命令 |
 | `arcartxsuite.chat.msg` | 所有玩家 | 私聊命令 |
 | `arcartxsuite.chat.socialspy` | OP | 社交监听 |
-| `ArcartX-Suite.essentials.admin` | OP | Essentials 管理面板 |
-| `ArcartX-Suite.regions.admin` | OP | Regions 管理面板 |
+| `axs.essentials.admin` | OP | Essentials 管理面板 |
+| `axs.regions.admin` | OP | Regions 管理面板 |
 | `arcartxsuite.proxy.admin` | OP | 代理端管理命令 |

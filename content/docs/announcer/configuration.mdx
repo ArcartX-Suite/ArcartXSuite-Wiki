@@ -5,9 +5,9 @@ description: "Announcer 配置文件详解与完整示例"
 
 ## 配置文件结构
 
-Announcer 模块的配置由主配置文件 `ArcartXAnnouncer.yml`、公告条目目录 `announcer/*.yml` 和字幕组目录 `subtitle/groups/*.yml` 三部分组成。主配置文件控制 UI 注册、轮播节奏、跨服通道与字幕子设置；公告条目目录存放可轮播的公告定义；字幕组目录存放打字机字幕帧序列。
+Announcer 模块的配置由主配置文件 `config.yml`、公告条目目录 `announcer/*.yml` 和字幕组目录 `subtitle/groups/*.yml` 三部分组成。主配置文件控制 UI 注册、轮播节奏、跨服通道与字幕子设置；公告条目目录存放可轮播的公告定义；字幕组目录存放打字机字幕帧序列。
 
-## 主配置（`ArcartXAnnouncer.yml`）
+## 主配置（`config.yml`）
 
 ### UI 配置节（`ui`）
 
@@ -18,7 +18,7 @@ Announcer 模块的配置由主配置文件 `ArcartXAnnouncer.yml`、公告条�
 | `ui.ui-id` | `string` / `list` | `AXS:announcer_hud` | 公告 HUD 的 UI ID，支持字符串（单 UI）或列表（多 UI 同时发包） |
 | `ui.subtitle-ui-id` | `string` / `list` | `AXS:subtitle_hud` | 字幕 HUD 的 UI ID，支持字符串或列表 |
 | `ui.register-ui-on-enable` | `boolean` | `true` | 启动/重载时是否自动注册 HUD（公告与字幕共用） |
-| `ui.overwrite-ui-files` | `boolean` | `false` | 是否强制覆盖 `plugins/ArcartXSuite/ui/` 下的 HUD 文件（公告与字幕共用） |
+| `ui.overwrite-ui-files` | `boolean` | `false` | 是否强制覆盖 `plugins/ArcartX-Suite/ui/` 下的 HUD 文件（公告与字幕共用） |
 
 ### 轮播设置节（`settings`）
 

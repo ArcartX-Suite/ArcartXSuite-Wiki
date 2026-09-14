@@ -5,7 +5,7 @@ description: Chat 配置文件详解
 
 # 配置
 
-Chat 模块的配置文件位于 `plugins/ArcartX-Suite/modules/chat/ArcartXChat.yml`。修改后执行 `/axs chat reload` 即可生效。
+Chat 模块的配置文件位于 `plugins/ArcartX-Suite/data/chat/config.yml`。修改后执行 `/axs reload chat` 即可生效。
 
 ## 主配置完整字段表
 
@@ -121,7 +121,7 @@ function:
 ### filter 敏感词过滤（已迁移）
 
 :::warning
-敏感词过滤已统一到宿主 `config.yml` 的 `moderation` 节。请在 `plugins/ArcartXSuite/config.yml` 中配置全局敏感词过滤（支持标点穿透防护、白名单、多 URL 云端词库）。此处配置仅作向后兼容保留，不再生效。
+敏感词过滤已统一到宿主 `config.yml` 的 `moderation` 节。请在 `plugins/ArcartX-Suite/config.yml` 中配置全局敏感词过滤（支持标点穿透防护、白名单、多 URL 云端词库）。此处配置仅作向后兼容保留，不再生效。
 :::
 
 | 字段 | 类型 | 默认值 | 说明 |

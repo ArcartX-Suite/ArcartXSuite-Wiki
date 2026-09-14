@@ -5,7 +5,7 @@ description: RGB 模块配置文件与条目定义详解
 
 # 配置
 
-RGB 模块的配置文件位于 `plugins/ArcartX-Suite/modules/rgb/ArcartXRGB.yml`，条目定义位于 `entries/` 目录。修改后执行 `/axs rgb reload` 即可热重载。
+RGB 模块的配置文件位于 `plugins/ArcartX-Suite/data/rgb/config.yml`，条目定义位于 `entries/` 目录。修改后执行 `/axs reload rgb` 即可热重载。
 
 ## 主配置文件 (ArcartXRGB.yml)
 
@@ -38,7 +38,7 @@ entries-directory: "entries"
 条目目录（默认 `entries/`）下的每个 `.yml` 文件可以包含多个渐变色条目定义。模块按文件名排序依次加载，每个文件的根键即为条目 ID。
 
 ```
-plugins/ArcartX-Suite/modules/rgb/
+plugins/ArcartX-Suite/data/rgb/
 ├── ArcartXRGB.yml          # 主配置
 └── entries/                # 条目目录
     ├── default.yml          # 默认条目（首次启动自动生成）

@@ -9,10 +9,10 @@ Essentials 模块使用两个配置文件：
 
 | 文件 | 说明 | 重载命令 |
 |------|------|----------|
-| `ArcartXEssentials.yml` | 主配置文件，包含全部功能开关与参数 | `/axs reload essentials` |
+| `config.yml` | 主配置文件，包含全部功能开关与参数 | `/axs reload essentials` |
 | `messages.yml` | 消息模板文件，包含命令提示与错误消息 | `/axs reload essentials` |
 
-配置文件位于 `plugins/ArcartX-Suite/modules/essentials/` 目录下。模块启动时自动从 Jar 中导出默认配置，并在升级时通过迁移脚本（`migrations/` 目录）自动升级配置版本号。
+配置文件位于 `plugins/ArcartX-Suite/data/essentials/` 目录下。模块启动时自动从 Jar 中导出默认配置，并在升级时通过迁移脚本（`migrations/` 目录）自动升级配置版本号。
 
 ## 主配置字段
 
@@ -122,7 +122,7 @@ Essentials 模块使用两个配置文件：
 
 ## 消息配置（`messages` 节）
 
-`messages` 节包含全部玩家可见消息模板，支持 `&` 颜色代码与 `{占位符}` 变量替换。所有字段均提供默认中文值，可在 `ArcartXEssentials.yml` 中覆盖。
+`messages` 节包含全部玩家可见消息模板，支持 `&` 颜色代码与 `{占位符}` 变量替换。所有字段均提供默认中文值，可在 `config.yml` 中覆盖。
 
 | 消息键 | 默认值 | 占位符 |
 |--------|--------|--------|

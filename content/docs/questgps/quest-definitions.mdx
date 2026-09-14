@@ -42,7 +42,7 @@ QuestGPS 本身不实现任务逻辑——任务的定义、接取、完成、�
 
 ### 分类注册表
 
-分类 Tab 完全由 `ArcartXQuestGPS.yml` 的 `categories` 段定义，无内置分类。每个分类的配置：
+分类 Tab 完全由 `config.yml` 的 `categories` 段定义，无内置分类。每个分类的配置：
 
 | 字段 | 类型 | 默认值 | 说明 |
 |---|---|---|---|
@@ -373,4 +373,4 @@ example_daily_quest:
         map-label: "日常目标"
 ```
 
-> 自定义分类需先在 `ArcartXQuestGPS.yml` 的 `categories` 段注册，例如 `daily` 分类。导航坐标的样式 ID 须在 ArcartX waypoint 目录下有对应定义，详见 [/docs/guide/icons](/docs/guide/icons)。
+> 自定义分类需先在 `config.yml` 的 `categories` 段注册，例如 `daily` 分类。导航坐标的样式 ID 须在 ArcartX waypoint 目录下有对应定义，详见 [/docs/guide/icons](/docs/guide/icons)。

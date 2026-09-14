@@ -69,7 +69,7 @@ AttributePlus 效果将属性行列表（如 `物理伤害:10`）作为来源添
 
 MythicLib 效果通过 `PropMythicLibEffectParser` 解析为 `PropMythicLibEffect`（`statId` + `value`），再由 `PropMythicLibModifierPlanner` 按属性 ID 聚合（同属性值累加）后生成 `PropMythicLibModifierSpec` 列表。仅处理已注册的属性，未注册的属性会记录一次性警告并跳过。
 
-> `source-prefix` 在 `ArcartXProp.yml` 的 `mythiclib.source-prefix` 中配置，默认 `AXS_PROP`。属性 ID 会通过 `MythicLibStatKeyNormalizer` 归一化。
+> `source-prefix` 在 `config.yml` 的 `mythiclib.source-prefix` 中配置，默认 `AXS_PROP`。属性 ID 会通过 `MythicLibStatKeyNormalizer` 归一化。
 
 ### Symphony
 

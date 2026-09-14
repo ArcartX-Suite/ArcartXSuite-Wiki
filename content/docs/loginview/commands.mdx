@@ -239,7 +239,7 @@ LoginView 内置两套 UI 风格，通过 `ui.ui-file` 配置切换：
 | `login_view.yml` | 紧凑面板 | 居中面板布局，680×360，含登录/注册/改密/免登/绑定/服规全部界面 |
 | `login_view_menu.yml` | 纯色块主菜单 | 左侧功能栏 + 右侧装饰，430px 侧栏，适合大屏服务器 |
 
-两套 UI 的 `packetHandler` 结构一致，均处理 `init`、`result`、`close` 三种服务端包。UI 文件导出到 `plugins/ArcartXSuite/ui/` 目录，可自行修改样式。详见 [Icons 指南](/docs/guide/icons)。
+两套 UI 的 `packetHandler` 结构一致，均处理 `init`、`result`、`close` 三种服务端包。UI 文件导出到 `plugins/ArcartX-Suite/ui/` 目录，可自行修改样式。详见 [Icons 指南](/docs/guide/icons)。
 
 :::tip
 修改 UI 文件后无需重启，执行 `/axs reload loginview` 即可热重载。若需恢复默认 UI，将 `ui.overwrite-ui-files` 设为 `true` 后重载。

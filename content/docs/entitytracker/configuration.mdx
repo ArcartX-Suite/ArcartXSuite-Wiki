@@ -5,7 +5,7 @@ description: EntityTracker 配置文件详解
 
 # 配置
 
-模块主配置文件位于 `plugins/ArcartXSuite/data/entitytracker/ArcartXEntityTracker.yml`，重载命令为 `/axs entitytracker reload`。
+模块主配置文件位于 `plugins/ArcartX-Suite/data/entitytracker/config.yml`，重载命令为 `/axs reload entitytracker`。
 
 配置文件当前版本号为 `4`，模块内置迁移脚本（`migrations/1-2.yml`、`2-3.yml`、`3-4.yml`），升级时自动执行。
 
@@ -155,7 +155,7 @@ ui:
 
 ## Boss 追踪目标配置
 
-每个 Boss 的配置文件位于 `plugins/ArcartXSuite/data/entitytracker/bosses/` 目录下，文件名（去掉 `.yml`）即为 MythicMob ID（大小写不敏感）。模块首次启动时会自动导出 `ExampleBoss.yml` 示例文件。
+每个 Boss 的配置文件位于 `plugins/ArcartX-Suite/data/entitytracker/bosses/` 目录下，文件名（去掉 `.yml`）即为 MythicMob ID（大小写不敏感）。模块首次启动时会自动导出 `ExampleBoss.yml` 示例文件。
 
 ### Boss 配置字段表
 

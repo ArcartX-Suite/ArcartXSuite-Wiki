@@ -25,12 +25,12 @@ plugins/
 ```
 
 ::: warning 不要放进 plugins 根目录
-模块 Jar 必须放在 `plugins/ArcartXSuite/modules/`，不要像普通 Bukkit 插件那样丢进 `plugins/`。AXS 宿主会扫描 `modules/` 并按 `module.yml` 加载。
+模块 Jar 必须放在 `plugins/ArcartX-Suite/modules/`，不要像普通 Bukkit 插件那样丢进 `plugins/`。AXS 宿主会扫描 `modules/` 并按 `module.yml` 加载。
 :::
 
 ## 启用模块
 
-编辑 `plugins/ArcartXSuite/config.yml`：
+编辑 `plugins/ArcartX-Suite/config.yml`：
 
 ```yaml
 modules:
@@ -138,7 +138,7 @@ module-signature-public-keys:
 
 ### 模块 enabled 为 true 但未加载
 
-- 检查 Jar 是否在 `plugins/ArcartXSuite/modules/`
+- 检查 Jar 是否在 `plugins/ArcartX-Suite/modules/`
 - 检查 `module.yml` 的 `id` 与 `config.yml` 键名是否一致（大小写敏感）
 - 查看控制台是否有 `ClassNotFoundException` 或签名失败
 

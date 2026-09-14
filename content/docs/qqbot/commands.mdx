@@ -50,23 +50,22 @@ QQBot 模块提供游戏内命令和 QQ 群内指令两套命令体系，以及 
 
 ## 管理员命令
 
-管理员通过 `/axs qqbot admin <子命令>` 执行管理操作。这些命令通过 `ModuleCommandHandler` 注册到 `/axs` 命令体系中。
+管理员通过 `/axs qqbot <子命令>` 执行管理操作。这些命令通过 `ModuleCommandHandler` 注册到 `/axs` 命令体系中。
 
 ### 管理员子命令
 
 | 命令 | 用法 | 说明 |
 |---|---|---|
-| `/axs qqbot admin` | `/axs qqbot admin` | 显示管理帮助 |
-| `/axs qqbot admin help` | `/axs qqbot admin help` | 显示管理帮助 |
-| `/axs qqbot admin status` | `/axs qqbot admin status` | 查看机器人运行状态 |
-| `/axs qqbot admin send` | `/axs qqbot admin send <all\|群号> <消息>` | 向指定群或所有群发送消息 |
-| `/axs qqbot admin lookup` | `/axs qqbot admin lookup <玩家名\|QQ号>` | 查询绑定记录 |
-| `/axs qqbot admin snowluma` | `/axs qqbot admin snowluma <子命令>` | SnowLuma 进程管理 |
-| `/axs qqbot admin blacklist` | `/axs qqbot admin blacklist <add\|remove\|list> [QQ]` | 黑名单管理 |
+| `/axs qqbot help` | `/axs qqbot help` | 显示管理帮助 |
+| `/axs qqbot status` | `/axs qqbot status` | 查看机器人运行状态 |
+| `/axs qqbot send` | `/axs qqbot send <all\|群号> <消息>` | 向指定群或所有群发送消息 |
+| `/axs qqbot lookup` | `/axs qqbot lookup <玩家名\|QQ号>` | 查询绑定记录 |
+| `/axs qqbot snowluma` | `/axs qqbot snowluma <子命令>` | SnowLuma 进程管理 |
+| `/axs qqbot blacklist` | `/axs qqbot blacklist <add\|remove\|list> [QQ]` | 黑名单管理 |
 
 ### 管理员命令详解
 
-#### `/axs qqbot admin status`
+#### `/axs qqbot status`
 
 查看机器人运行状态，包括：
 
@@ -76,21 +75,21 @@ QQBot 模块提供游戏内命令和 QQ 群内指令两套命令体系，以及 
 - 绑定功能状态（启用/禁用）
 - 白名单状态（启用/禁用）
 
-#### `/axs qqbot admin send <all|群号> <消息>`
+#### `/axs qqbot send <all|群号> <消息>`
 
 向指定群或所有群发送消息。
 
 - `all` — 发送到所有已配置群
 - `<群号>` — 发送到指定群号（必须是已配置的群）
 
-#### `/axs qqbot admin lookup <玩家名|QQ号>`
+#### `/axs qqbot lookup <玩家名|QQ号>`
 
 查询绑定记录，支持按玩家名或 QQ 号查询：
 
 - 输入纯数字时按 QQ 号查询，返回绑定的玩家名
 - 输入非纯数字时按玩家名查询，返回绑定的 QQ 号
 
-#### `/axs qqbot admin snowluma <子命令>`
+#### `/axs qqbot snowluma <子命令>`
 
 SnowLuma 进程/容器管理：
 
@@ -103,7 +102,7 @@ SnowLuma 进程/容器管理：
 | `logs` | 查看最近日志（仅 Docker 模式） |
 | `check-update` | 检查是否有新版本（异步执行） |
 
-#### `/axs qqbot admin blacklist <add|remove|list> [QQ]`
+#### `/axs qqbot blacklist <add|remove|list> [QQ]`
 
 黑名单管理（操作数据库动态黑名单）：
 

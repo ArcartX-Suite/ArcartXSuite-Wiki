@@ -14,7 +14,7 @@ Mail 是 ArcartXSuite 的全功能邮件系统模块，提供 **收件箱**、**
 | 模块 ID | `mail` |
 | 版本 | 1.4.4 |
 | 主类 | `xuanmo.arcartxsuite.mail.MailModule` |
-| 配置文件 | `ArcartXMail.yml` |
+| 配置文件 | `config.yml` |
 | 消息文件 | `messages.yml` |
 | 外部依赖 | PlaceholderAPI（可选） |
 | 模块依赖 | 无（本体内置 API 即可运行） |
@@ -79,7 +79,7 @@ Mail 模块通过 `MailSourceType` 枚举区分四种邮件来源类型：
 
 ### 预设邮件
 
-预设邮件是管理员预先定义的邮件模板（YAML 文件），包含固定的标题、正文、附件、领取命令和领取条件。管理员可通过命令或管理 UI 批量派发给在线玩家（`all-online`）或全部注册玩家（`all-registered`），多人派发需二次确认。预设邮件还可内嵌 CDK 兑换码，执行 `/axs mail reload` 后自动同步到数据库。
+预设邮件是管理员预先定义的邮件模板（YAML 文件），包含固定的标题、正文、附件、领取命令和领取条件。管理员可通过命令或管理 UI 批量派发给在线玩家（`all-online`）或全部注册玩家（`all-registered`），多人派发需二次确认。预设邮件还可内嵌 CDK 兑换码，执行 `/axs reload mail` 后自动同步到数据库。
 
 ### CDK 邮件
 

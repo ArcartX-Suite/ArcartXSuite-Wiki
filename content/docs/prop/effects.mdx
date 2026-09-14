@@ -249,7 +249,7 @@ effects:
 
 > 仅处理已注册的 MythicLib 属性。未注册的属性会通过 `warnUnknownStat()` 记录一次性警告日志并跳过，不会重复警告同一属性。
 
-> `source-prefix` 在 `ArcartXProp.yml` 的 `mythiclib.source-prefix` 中配置，默认 `AXS_PROP`。前缀中的非字母数字字符会被替换为 `_` 并转为大写。
+> `source-prefix` 在 `config.yml` 的 `mythiclib.source-prefix` 中配置，默认 `AXS_PROP`。前缀中的非字母数字字符会被替换为 `_` 并转为大写。
 
 ### Symphony（`sy` / `symphony`）
 
@@ -384,7 +384,7 @@ effects:
 
 ## 调试与排错
 
-启用 `ArcartXProp.yml` 中的 `settings.debug: true` 后，效果执行过程中会输出以下调试日志：
+启用 `config.yml` 中的 `settings.debug: true` 后，效果执行过程中会输出以下调试日志：
 
 | 日志内容 | 触发条件 |
 |----------|----------|

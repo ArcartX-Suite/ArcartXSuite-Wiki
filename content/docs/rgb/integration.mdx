@@ -39,7 +39,7 @@ RGB 模块**不使用数据库**，不创建任何表。所有条目配置存储
 |---|---|
 | 数据库表 | 无 |
 | Redis 缓存 | 无 |
-| 本地文件 | `ArcartXRGB.yml` + `entries/*.yml` |
+| 本地文件 | `config.yml` + `entries/*.yml` |
 | 内存状态 | `ArcartRgbModuleConfiguration`（不可变 Map） |
 
 ## Service API
@@ -210,14 +210,14 @@ RGB 模块的条目配置使用动态节（`dynamicSection`）同步策略，`en
 | `entries`（动态段） | 动态 | 标记为动态节，支持增量同步 |
 
 :::info
-动态节标记主要用于宿主的配置同步框架。实际热重载通过 `/axs rgb reload` 命令触发，重新扫描 `entries/` 目录并替换内存中的条目映射。
+动态节标记主要用于宿主的配置同步框架。实际热重载通过 `/axs reload rgb` 命令触发，重新扫描 `entries/` 目录并替换内存中的条目映射。
 :::
 
 ## 模块生命周期
 
 | 阶段 | 方法 | 说明 |
 |---|---|---|
-| 加载配置 | `loadConfiguration` | 读取 `ArcartXRGB.yml`，扫描 `entries/` 目录加载条目，首次启动自动导出 `default.yml` |
+| 加载配置 | `loadConfiguration` | 读取 `config.yml`，扫描 `entries/` 目录加载条目，首次启动自动导出 `default.yml` |
 | 启动服务 | `startService` | 创建 `ArcartRgbService`，注入 PAPI 解析器，输出条目加载日志 |
 | 注册占位符 | `createPlaceholderExpansion` | 创建 `ArcartRgbPlaceholderExpansion` 并注册到 PlaceholderAPI |
 | 停止服务 | `stopService` | 调用 `service.shutdown()` 清理 ThreadLocal，置空配置和服务实例 |

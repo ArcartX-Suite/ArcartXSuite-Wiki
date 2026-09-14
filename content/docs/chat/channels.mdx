@@ -68,7 +68,7 @@ public static ChatChannelMode parse(String rawValue) {
 
 频道定义文件位于 `channels-directory` 指定的目录下（默认 `chat/channels/`），加载流程如下：
 
-1. 模块启动时读取 `ArcartXChat.yml` 的 `channels-directory` 字段
+1. 模块启动时读取 `config.yml` 的 `channels-directory` 字段
 2. 扫描该目录下所有 `.yml` 文件，按文件名排序后逐个加载
 3. 文件名（去掉 `.yml` 后缀）即为频道 ID，自动转为小写
 4. `enabled: false` 的频道会被跳过，不进入频道映射
@@ -154,7 +154,7 @@ crossServerChannel = crossServer.openChannel(
 | 配置项 | 值 | 说明 |
 |---|---|---|
 | 通道名 | `chat` | 跨服通道标识 |
-| 配置来源 | `ArcartXChat.yml` 的 `cross-server.enabled` | 全局跨服开关 |
+| 配置来源 | `config.yml` 的 `cross-server.enabled` | 全局跨服开关 |
 | 消息格式 | yml 字符串 | `ChatEnvelopeCodec` 编码/解码 |
 
 ### 跨服消息处理流程

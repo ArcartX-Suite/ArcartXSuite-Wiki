@@ -13,7 +13,7 @@ ExtraBackpack 模块不注册独立的玩家命令，背包界面通过替换原
 
 | 命令 | 说明 |
 | --- | --- |
-| `/axs extrabackpack reload` | 重载模块配置文件（`ArcartXExtraBackpack.yml`） |
+| `/axs reload extrabackpack` | 重载模块配置文件（`config.yml`） |
 | `` /axs purge extrabackpack `<玩家名/UUID>` `` | 清除指定玩家的额外背包数据 |
 | `` /axs purge extrabackpack all `` | 清除所有玩家的额外背包数据 |
 | `` /axs migrate extrabackpack `<目标数据源>` `` | 将额外背包数据迁移到目标数据库源 |
@@ -26,7 +26,7 @@ ExtraBackpack 模块不定义独立的权限节点。UI 访问依赖原版物品
 
 | 权限 | 默认 | 说明 |
 | --- | --- | --- |
-| `arcartxsuite.admin` | op | 执行 `/axs extrabackpack reload`、`/axs purge`、`/axs migrate` 等管理命令 |
+| `arcartxsuite.admin` | op | 执行 `/axs reload extrabackpack`、`/axs purge`、`/axs migrate` 等管理命令 |
 
 ## PAPI 占位符
 

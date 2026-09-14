@@ -10,9 +10,6 @@ const heroActions = [
 
 const stats = [
   { number: '29', label: '乐章' },
-  { number: '10', label: 'PAPI 变奏' },
-  { number: '10', label: '数据声部' },
-  { number: '8', label: '反射桥' },
 ];
 
 export default function HomePage() {

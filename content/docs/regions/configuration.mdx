@@ -5,7 +5,7 @@ description: Regions 模块配置文件详解
 
 # 配置
 
-Regions 模块的配置文件位于 `plugins/ArcartX-Suite/data/regions/ArcartXRegions.yml`，消息文件位于 `plugins/ArcartX-Suite/data/regions/messages.yml`。修改后执行 `/axs reload regions` 即可生效。
+Regions 模块的配置文件位于 `plugins/ArcartX-Suite/data/regions/config.yml`，消息文件位于 `plugins/ArcartX-Suite/data/regions/messages.yml`。修改后执行 `/axs reload regions` 即可生效。
 
 ## 主配置完整字段表
 
@@ -75,7 +75,7 @@ world-rules:
 ```
 
 :::tip
-世界规则支持运行时 CRUD——管理员通过 `/rg admin` UI 面板修改后，变更自动持久化回 `ArcartXRegions.yml` 配置文件，无需手动编辑。
+世界规则支持运行时 CRUD——管理员通过 `/rg admin` UI 面板修改后，变更自动持久化回 `config.yml` 配置文件，无需手动编辑。
 :::
 
 ### storage 存储配置

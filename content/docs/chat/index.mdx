@@ -14,7 +14,7 @@ Chat 是 ArcartXSuite 的全频道聊天系统，提供 **频道聊天**、**私
 | 模块 ID | `chat` |
 | 版本 | 1.4.4 |
 | 主类 | `xuanmo.arcartxsuite.chat.ChatModule` |
-| 配置文件 | `ArcartXChat.yml` |
+| 配置文件 | `config.yml` |
 | 消息文件 | `messages.yml` |
 | 配置版本号 | 2 |
 | 外部依赖 | PlaceholderAPI（可选） |
@@ -111,7 +111,7 @@ Chat 模块的核心是 **频道（Channel）** 系统。每个频道是一个�
 
 ### 频道加载机制
 
-1. 模块启动时读取 `ArcartXChat.yml` 的 `channels-directory` 字段（默认 `chat/channels`）
+1. 模块启动时读取 `config.yml` 的 `channels-directory` 字段（默认 `chat/channels`）
 2. 扫描该目录下所有 `.yml` 文件，按文件名排序后逐个加载
 3. 文件名（去掉 `.yml` 后缀）即为频道 ID，自动转为小写
 4. `enabled: false` 的频道会被跳过

@@ -184,7 +184,7 @@ handleRemoteSnapshotPayload(payload, nodeId)
 ### 存储路径
 
 ```
-plugins/ArcartXSuite/data/tab/snapshots/<name>.json
+plugins/ArcartX-Suite/data/tab/snapshots/<name>.json
 ```
 
 ### JSON 文件格式
@@ -264,7 +264,7 @@ EventPacket 模块可通过 `TabRefreshable` Capability 在事件触发时刷新
 | 配置层级 | 说明 |
 |---|---|
 | 宿主 `config.yml` 的 `cross-server` 节 | 配置 Redis 或 Proxy 后端连接参数 |
-| `ArcartXTab.yml` 的 `cross-server.enabled` | 全局开关 |
+| `config.yml` 的 `cross-server.enabled` | 全局开关 |
 | Tab 定义 `cross-server` | 单定义覆盖全局开关（`null` 时使用全局） |
 
 > 跨服同步需要所有节点使用相同的 Tab 定义 ID 和兼容的 `pack` 配置，否则远程条目的 `renderedPack` 可能在本地 UI 中渲染异常。条件系统配置详见 [条件系统](/docs/guide/conditions)。

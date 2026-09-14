@@ -21,7 +21,7 @@ Regions 模块的世界规则服务（`WorldRulesService`）提供独立于区�
 | 继承 | 支持父子继承 | 不支持继承 |
 | 成员豁免 | 支持 | 不支持（仅权限绕过） |
 | 管理方式 | 命令 + UI | UI 面板 + 配置文件 |
-| 持久化 | 数据库 | 主配置文件（`ArcartXRegions.yml`） |
+| 持久化 | 数据库 | 主配置文件（`config.yml`） |
 
 ## 规则类型
 
@@ -206,7 +206,7 @@ public boolean toggleDisabledInteraction(String world, Material material) {
 
 ## 持久化
 
-世界规则修改后通过 `persist()` 方法将内存状态写回主配置文件 `ArcartXRegions.yml`：
+世界规则修改后通过 `persist()` 方法将内存状态写回主配置文件 `config.yml`：
 
 ```java
 public void persist() {

@@ -16,7 +16,7 @@ RGB 是 ArcartXSuite 的渐变文本渲染模块，提供 **逐字渐变** 与 *
 | 模块 ID | `rgb` |
 | 版本 | 1.4.4 |
 | 主类 | `xuanmo.arcartxsuite.rgb.RgbModule` |
-| 配置文件 | `ArcartXRGB.yml` |
+| 配置文件 | `config.yml` |
 | 条目目录 | `entries/`（相对模块数据目录） |
 | 外部依赖 | PlaceholderAPI（必需） |
 | 模块依赖 | 无 |
@@ -35,7 +35,7 @@ RGB 是 ArcartXSuite 的渐变文本渲染模块，提供 **逐字渐变** 与 *
 | 递归引用检测 | 通过 ThreadLocal 跟踪渲染链，自动检测条目间的递归 PAPI 引用并中止渲染，防止死循环 |
 | 文本长度截断 | 渲染文本最大 1024 字符，超长自动截断，防止恶意超长输入拖慢渲染 |
 | 颜色格式兼容 | 支持 `#RRGGBB`、`§#RRGGBB`、`RRGGBB` 三种颜色输入格式 |
-| 条目热重载 | 通过 `/axs rgb reload` 可热重载条目配置，无需重启服务器 |
+| 条目热重载 | 通过 `/axs reload rgb` 可热重载条目配置，无需重启服务器 |
 
 ## 依赖
 
@@ -134,9 +134,9 @@ long animationStep = currentTimeMillis / intervalMillis;
 ## 快速上手
 
 1. 安装 PlaceholderAPI 和 ArcartX 客户端模组
-2. 启动服务器，模块自动生成 `ArcartXRGB.yml` 和 `entries/default.yml`
+2. 启动服务器，模块自动生成 `config.yml` 和 `entries/default.yml`
 3. 编辑 `entries/default.yml` 添加自定义渐变色条目
-4. 执行 `/axs rgb reload` 热重载
+4. 执行 `/axs reload rgb` 热重载
 5. 在聊天/TAB/称号/UI 中使用 `%axsrgb_<entryId>%` 输出渲染文本
 
 ## 相关页面

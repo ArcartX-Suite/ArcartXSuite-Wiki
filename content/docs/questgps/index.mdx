@@ -63,7 +63,7 @@ Chemdah 任务模板 ──→ QuestGPS overlay 配置 ──→ 分类解析 �
 
 ### 分类系统
 
-QuestGPS 的分类 Tab 完全由 `ArcartXQuestGPS.yml` 的 `categories` 段定义，无内置分类。分类的数据来源由 `category.source` 决定：
+QuestGPS 的分类 Tab 完全由 `config.yml` 的 `categories` 段定义，无内置分类。分类的数据来源由 `category.source` 决定：
 
 - **`chemdah`**（默认）：从 Chemdah 任务模板的 `meta.type` 读取分类，映射到 `categories` 注册表
 - **`overlay`**：从 `quests/*.yml` 的 `category` 字段读取分类

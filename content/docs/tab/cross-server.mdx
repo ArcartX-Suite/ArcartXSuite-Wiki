@@ -18,7 +18,7 @@ Tab 模块的跨服同步系统通过宿主 `CrossServerAPI` 在多个子服节�
 | 配置层级 | 文件 | 字段 | 说明 |
 |---|---|---|---|
 | 宿主 | `config.yml` | `cross-server` 节 | Redis 或 Proxy 后端连接参数 |
-| 模块 | `ArcartXTab.yml` | `settings.cross-server` | 全局默认开关 |
+| 模块 | `config.yml` | `settings.cross-server` | 全局默认开关 |
 | 定义 | Tab 定义文件 | `cross-server` | 单定义覆盖全局开关（`null` 时使用全局） |
 
 ```yaml
@@ -398,7 +398,7 @@ Tab 模块提供调试快照功能，用于存档 / 加载 / 复现跨服 Tab �
 ### 快照存储
 
 ```
-plugins/ArcartXSuite/data/tab/snapshots/<name>.json
+plugins/ArcartX-Suite/data/tab/snapshots/<name>.json
 ```
 
 ### JSON 文件格式
