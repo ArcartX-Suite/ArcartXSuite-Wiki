@@ -4,9 +4,8 @@ import { HomeBackground } from '@/components/HomeBackground';
 import { HeroSubtagline } from '@/components/HeroSubtagline';
 
 const heroActions = [
-  { text: '五分钟上手', href: '/docs/guide', variant: 'brand' as const },
+  { text: '快速开始', href: '/docs/guide', variant: 'brand' as const },
   { text: '模块开发', href: '/docs/developer', variant: 'alt' as const },
-  { text: '浏览模块', href: '#module-directory', variant: 'alt' as const },
 ];
 
 const stats = [
