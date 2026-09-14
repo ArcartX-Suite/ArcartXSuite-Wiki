@@ -1,11 +1,11 @@
 ---
 title: 模块化架构
-description: ArcartXSuite 模块加载流程、ClassLoader 隔离、生命周期管理、拓扑排序与 Capability 跨模块通信
+description: Suite 模块加载流程、ClassLoader 隔离、生命周期管理、拓扑排序与 Capability 跨模块通信
 ---
 
 # 模块化架构
 
-ArcartXSuite 已从单体插件重构为 **宿主 + 模块 Jar** 架构。用户可按需放入模块 Jar，实现功能的自由组合。宿主会自动检测外部模块并跳过内置加载，由 `ModuleRegistry` 统一管理生命周期。
+Suite 已从单体插件重构为 **宿主 + 模块 Jar** 架构。用户可按需放入模块 Jar，实现功能的自由组合。宿主会自动检测外部模块并跳过内置加载，由 `ModuleRegistry` 统一管理生命周期。
 
 ## 模块加载流程
 

@@ -31,7 +31,7 @@ QuestGPS 的主线门禁（Gate）机制是一种新手引导式的玩法限制�
 | `gate.blocked-event-rule-ids` | `List<String>` | `[]` | 未过关时不触发的 EventPacket 规则 ID |
 | `gate.deny-message` | `String` | `"&c你需要先完成必要主线任务。"` | 拦截提示消息 |
 | `gate.deny-chat-card` | `String` | `""` | 可选，ArcartX 聊天卡片 ID |
-| `gate.deny-subtitle` | `String` | `""` | 可选，ArcartX-Suite announcer 字幕组 ID |
+| `gate.deny-subtitle` | `String` | `""` | 可选，Suite announcer 字幕组 ID |
 
 > 分类 ID 须与 `categories` 段注册的 ID 一致。命令前缀不含 `/`，如 `"warp"` 会拦截 `/warp`、`/warpall` 等命令。
 
@@ -296,6 +296,6 @@ gate:
 
 ## 条件评估
 
-门禁的过关判定使用 ArcartXSuite 统一条件评估器（`ScriptConditionEvaluator`），支持 PAPI + Aria + JS + EventPacket 上下文。任务完成状态由 Chemdah 的 `PlayerProfile.isQuestCompleted` 直接判定，无需额外条件配置。
+门禁的过关判定使用 Suite 统一条件评估器（`ScriptConditionEvaluator`），支持 PAPI + Aria + JS + EventPacket 上下文。任务完成状态由 Chemdah 的 `PlayerProfile.isQuestCompleted` 直接判定，无需额外条件配置。
 
 > 如需更复杂的门禁条件（如等级要求、经济门槛），可在 Chemdah 任务的 `accept` 条件中配置，QuestGPS 会在接取时由 Chemdah 检查。条件评估器的使用详见 [/docs/guide/conditions](/docs/guide/conditions)。

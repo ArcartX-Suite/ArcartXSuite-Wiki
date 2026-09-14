@@ -1,13 +1,13 @@
 ---
 title: PlaceholderAPI 集成
-description: ArcartXSuite PlaceholderAPI 扩展注册与占位符解析 API
+description: Suite PlaceholderAPI 扩展注册与占位符解析 API
 ---
 
 # PlaceholderAPI 集成
 
 ## 概述
 
-ArcartXSuite 通过 `PlaceholderExpansionRegistry` 管理所有模块的 PAPI 扩展。模块重写 `createPlaceholderExpansion()` 返回 `PlaceholderExpansion` 子类，基类在 `onEnable` 阶段自动注册，`onDisable` 时自动注销。
+Suite 通过 `PlaceholderExpansionRegistry` 管理所有模块的 PAPI 扩展。模块重写 `createPlaceholderExpansion()` 返回 `PlaceholderExpansion` 子类，基类在 `onEnable` 阶段自动注册，`onDisable` 时自动注销。
 
 设计目标：模块不再直接依赖 `me.clip.placeholderapi.PlaceholderAPI` 类，通过 `axs-api` 的抽象接口完成占位符注册与解析，`axs-api` 本身不直接依赖 PlaceholderAPI。
 

@@ -7,7 +7,7 @@ description: Tab 自定义在线列表模块功能概览
 
 ## 模块简介
 
-Tab 是 ArcartXSuite 的自定义 Tab 列表面板模块。它周期性扫描在线玩家，按配置规则排序、过滤、分组、分页后，将渲染结果通过 ArcartX Packet 推送给客户端 Tab UI。模块支持多 Tab 定义、多键复合排序、PVP 高亮、隐身灰化、延迟图标、跨服聚合、退服宽限、快照调试等高级特性，完全替代原版 Tab 列表的显示逻辑。
+Tab 是 Suite 的自定义 Tab 列表面板模块。它周期性扫描在线玩家，按配置规则排序、过滤、分组、分页后，将渲染结果通过 ArcartX Packet 推送给客户端 Tab UI。模块支持多 Tab 定义、多键复合排序、PVP 高亮、隐身灰化、延迟图标、跨服聚合、退服宽限、快照调试等高级特性，完全替代原版 Tab 列表的显示逻辑。
 
 模块采用**服务端周期 diff 同步**机制：每隔 `refresh-interval-ticks` 扫描一次在线玩家，为每个 Tab 定义构建 payload，仅在内容发生变化时发包给客户端，避免无意义的高频推送。客户端也可通过 `Packet.send("TAB", "update")` 主动请求刷新，但受滑动窗口限流保护。
 
@@ -39,7 +39,7 @@ Tab 是 ArcartXSuite 的自定义 Tab 列表面板模块。它周期性扫描在
 | 依赖类型 | 名称 | 说明 |
 |---|---|---|
 | 外部硬依赖 | PlaceholderAPI | 占位符解析（无则占位符不可用，模块仍可运行） |
-| ArcartX 本体 | ArcartX-Suite | 模块运行基础环境，提供 PacketBridge / CrossServer / PlaceholderResolver |
+| ArcartX 本体 | Suite | 模块运行基础环境，提供 PacketBridge / CrossServer / PlaceholderResolver |
 
 > 模块不硬依赖任何 ArcartX 子模块。跨服同步需要宿主 `config.yml` 的 `cross-server` 节配置 Redis 或 Proxy 后端。PVP 高亮需要 `settings.style.pvp-highlight.enabled: true`。
 

@@ -5,11 +5,11 @@ description: 云端平台配置、sync/update 命令、授权管理与 .axb 加�
 
 # 云端授权
 
-ArcartX-Suite 云端平台提供加密模块分发功能。服主在云端平台注册账号、购买/领取模块授权后，服务器启动时会自动下载并加载已装备的模块。
+Suite 云端平台提供加密模块分发功能。服主在云端平台注册账号、购买/领取模块授权后，服务器启动时会自动下载并加载已装备的模块。
 
 ## 前提条件
 
-1. 已注册 ArcartX-Suite 云端账号 — 在 cloud.021209.xyz 用 QQ 注册服主账号
+1. 已注册 Suite 云端账号 — 在 cloud.021209.xyz 用 QQ 注册服主账号
 2. 已获得模块授权 — 免费模块自动发放；付费模块需购买；福利模块按累计消费领取
 3. 服务器已绑定云端 — 首次使用需要把服务器和云端账号绑定
 
@@ -64,7 +64,7 @@ cloud:
 
 ### 4. 下载中心
 
-"下载 ArcartX-Suite"页面提供最新 bootstrap jar 下载、核心本体 .axb 的 manifest 信息和各版本 checksum 校验值。
+"下载 Suite"页面提供最新 bootstrap jar 下载、核心本体 .axb 的 manifest 信息和各版本 checksum 校验值。
 
 ## 福利模块与授权份额
 
@@ -112,11 +112,11 @@ cloud:
 
 1. 服务器向云端申请模块令牌（24 小时有效）
 2. 云端返回已装备模块列表及加密 .axb 数据
-3. ArcartX-Suite 使用 native 安全库解密 .axb，在内存中还原为 jar 字节码
+3. Suite 使用 native 安全库解密 .axb，在内存中还原为 jar 字节码
 4. 通过 `ByteArrayModuleClassLoader` 在内存中直接加载，不落地磁盘
 5. 模块启用时执行正常的 `AXSModule.onEnable()` 生命周期
 
-> 解密 .axb 需要 ArcartX-Suite 内置的 native 库（axs-native.dll / libaxs-native.so）。若出现解密失败，请确认服务器操作系统为 Windows 或 Linux（x86_64），且 jar 内 native/ 目录包含对应平台的库文件。
+> 解密 .axb 需要 Suite 内置的 native 库（axs-native.dll / libaxs-native.so）。若出现解密失败，请确认服务器操作系统为 Windows 或 Linux（x86_64），且 jar 内 native/ 目录包含对应平台的库文件。
 
 ## 模块签名验证（可选安全加固）
 
@@ -146,7 +146,7 @@ module-signature-public-keys:
 
 - 检查服务器 Java 版本（推荐 Java 17+）
 - 检查 cloud.021209.xyz 能否正常访问（海外服务器可能需要代理）
-- 查看日志中解密失败提示：可能是 native 库未正确加载，重新安装 ArcartX-Suite 插件
+- 查看日志中解密失败提示：可能是 native 库未正确加载，重新安装 Suite 插件
 
 ### 服务器码丢失
 

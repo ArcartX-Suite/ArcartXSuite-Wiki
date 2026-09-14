@@ -5,7 +5,7 @@ description: Essentials 基础工具模块 — 玩家管理、传送系统、世
 
 ## 模块简介
 
-Essentials 是 ArcartXSuite 的基础工具模块，提供服务器日常运营所需的全部常用功能：玩家状态管理（飞行、无敌、治疗、饱食、速度、隐身、AFK）、传送系统（家、传送点、出生点、TPA、返回、坐标传送）、世界控制（时间、天气）、安全管理（封禁、禁言、踢出、警告、强制执行）、交互动作（坐下、躺下）以及背包操作（一键砍树、自动补种、背包整理、自动工具切换）。
+Essentials 是 Suite 的基础工具模块，提供服务器日常运营所需的全部常用功能：玩家状态管理（飞行、无敌、治疗、饱食、速度、隐身、AFK）、传送系统（家、传送点、出生点、TPA、返回、坐标传送）、世界控制（时间、天气）、安全管理（封禁、禁言、踢出、警告、强制执行）、交互动作（坐下、躺下）以及背包操作（一键砍树、自动补种、背包整理、自动工具切换）。
 
 模块通过 `EssentialsModule` 主类统一管理生命周期，内部拆分为四个独立服务层（`PlayerManagementService`、`TeleportService`、`TreeCapitatorService`、`InventoryActionsService`），各服务职责清晰、可独立启停。数据持久化由 `EssentialsRepository` 统一处理，支持 SQLite 与 MySQL 双方言，并兼容本体共享存储与模块自建存储两种模式。
 

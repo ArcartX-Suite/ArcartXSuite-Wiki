@@ -1,13 +1,13 @@
 ---
 title: 条件系统
-description: ArcartXSuite 统一条件系统配置指南，支持 PAPI、ARIA、JS、上下文变量四种条件类型
+description: Suite 统一条件系统配置指南，支持 PAPI、ARIA、JS、上下文变量四种条件类型
 ---
 
 # 条件系统
 
 ## 概述
 
-条件系统是 ArcartXSuite 多模块共用的统一条件判断框架。无论是菜单按钮的显示、邮件的领取、事件规则的匹配，还是任务完成判定，都通过同一套条件引擎完成判断，避免各模块各自实现一套互不兼容的语法。
+条件系统是 Suite 多模块共用的统一条件判断框架。无论是菜单按钮的显示、邮件的领取、事件规则的匹配，还是任务完成判定，都通过同一套条件引擎完成判断，避免各模块各自实现一套互不兼容的语法。
 
 系统支持 **4 种条件类型**：
 
@@ -20,7 +20,7 @@ description: ArcartXSuite 统一条件系统配置指南，支持 PAPI、ARIA、
 
 条件可在以下配置节中使用：`use-conditions`、`requirements`、`open-requirements`、`claim-conditions`、`conditions` 等。同一列表内的多条条件为 **AND（且）** 关系——必须全部通过才算满足。如需实现 OR / NOT 等复杂逻辑，请将其写在一条 ARIA 或 JS 脚本条件中。
 
-> ARIA 由 ArcartX 内置提供，ArcartXSuite 硬依赖 ArcartX，正常启动后 Aria 随之可用，无需额外安装插件，推荐优先使用。JS 条件需要 JVM classpath 上有 JS 引擎（Java 15 起已移除 Nashorn），无引擎时 JS 条件恒为 `false`。
+> ARIA 由 ArcartX 内置提供，Suite 硬依赖 ArcartX，正常启动后 Aria 随之可用，无需额外安装插件，推荐优先使用。JS 条件需要 JVM classpath 上有 JS 引擎（Java 15 起已移除 Nashorn），无引擎时 JS 条件恒为 `false`。
 
 ## 条件类型
 
@@ -40,7 +40,7 @@ description: ArcartXSuite 统一条件系统配置指南，支持 PAPI、ARIA、
 
 ### ARIA
 
-通过 Aria 脚本引擎进行判断。Aria 是 ArcartX 内置的轻量脚本语言，ArcartXSuite 会将当前玩家包装成 `AriaPlayer` 门面，以全局变量 `player` 注入脚本。
+通过 Aria 脚本引擎进行判断。Aria 是 ArcartX 内置的轻量脚本语言，Suite 会将当前玩家包装成 `AriaPlayer` 门面，以全局变量 `player` 注入脚本。
 
 语法示例：
 
@@ -52,7 +52,7 @@ description: ArcartXSuite 统一条件系统配置指南，支持 PAPI、ARIA、
 - 脚本中可直接调用 `player`（当前玩家门面）的方法
 - 单个表达式时系统会自动补 `return` 再求值
 
-> 需要 ArcartX/Aria 插件。由于 ArcartXSuite 硬依赖 ArcartX，正常启动后即可使用。
+> 需要 ArcartX/Aria 插件。由于 Suite 硬依赖 ArcartX，正常启动后即可使用。
 
 ### JS
 

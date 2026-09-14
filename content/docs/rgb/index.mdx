@@ -7,7 +7,7 @@ description: RGB 渐变文本模块功能概览
 
 ## 模块简介
 
-RGB 是 ArcartXSuite 的渐变文本渲染模块，提供 **逐字渐变** 与 **动态扫光** 两种文本效果，通过 PlaceholderAPI 对外暴露。模块将 `entries` 目录下定义的渐变色条目渲染为带 ArcartX 颜色码的彩色文本，可直接用于聊天、TAB 列表、称号、UI 文本等任何支持 PlaceholderAPI 的场景。
+RGB 是 Suite 的渐变文本渲染模块，提供 **逐字渐变** 与 **动态扫光** 两种文本效果，通过 PlaceholderAPI 对外暴露。模块将 `entries` 目录下定义的渐变色条目渲染为带 ArcartX 颜色码的彩色文本，可直接用于聊天、TAB 列表、称号、UI 文本等任何支持 PlaceholderAPI 的场景。
 
 模块为纯计算型服务，无数据库、无跨服同步、无 UI 交互，启动时加载条目配置后即可通过占位符输出渲染结果。
 
@@ -42,7 +42,7 @@ RGB 是 ArcartXSuite 的渐变文本渲染模块，提供 **逐字渐变** 与 *
 | 依赖类型 | 名称 | 必需 | 说明 |
 |---|---|---|---|
 | 外部依赖 | PlaceholderAPI | 是 | RGB 模块通过 PAPI 占位符 `%axsrgb_<entryId>%` 输出渲染结果，是硬依赖 |
-| 模块依赖 | 无 | - | RGB 不依赖其他 ArcartXSuite 模块即可运行 |
+| 模块依赖 | 无 | - | RGB 不依赖其他 Suite 模块即可运行 |
 | 宿主能力 | 无 | - | 纯计算型模块，不注册任何 Capability |
 | 宿主配置 | 无 | - | 不需要 Redis、跨服、存储等宿主配置 |
 

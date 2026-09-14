@@ -1,11 +1,11 @@
 ---
 title: API 概览
-description: ArcartXSuite axs-api 模块介绍、接口分层与版本管理。
+description: Suite axs-api 模块介绍、接口分层与版本管理。
 ---
 
 # API 概览
 
-ArcartXSuite 提供 **`axs-api`** 模块作为第三方开发的稳定接口层。所有公开 API 均位于 `xuanmo.arcartxsuite.api` 包下，第三方模块只需 `compileOnly` 依赖 `axs-api` 即可开发自定义模块。
+Suite 提供 **`axs-api`** 模块作为第三方开发的稳定接口层。所有公开 API 均位于 `xuanmo.arcartxsuite.api` 包下，第三方模块只需 `compileOnly` 依赖 `axs-api` 即可开发自定义模块。
 
 ## 架构分层
 
@@ -37,7 +37,7 @@ axs-core/  (宿主实现 — 模块不可见，可安全混淆)
 |------|------|
 | `@ApiStability.Stable` | 稳定 API，向后兼容，不会在小版本中破坏 |
 | `@ApiStability.Experimental` | 实验性 API，可能在未来版本中修改或移除 |
-| `@ApiStability.Internal` | 内部 API，仅供 ArcartXSuite 内部模块使用，第三方不应依赖 |
+| `@ApiStability.Internal` | 内部 API，仅供 Suite 内部模块使用，第三方不应依赖 |
 | `@ApiStability.ScheduledForRemoval` | 已弃用 API，将在下一个大版本中移除 |
 
 ## API 总览

@@ -1,6 +1,6 @@
 ---
 title: 安装指南
-description: ArcartX-Suite 环境要求、下载安装步骤、目录结构与首次启动说明
+description: Suite 环境要求、下载安装步骤、目录结构与首次启动说明
 ---
 
 # 安装指南
@@ -17,11 +17,11 @@ description: ArcartX-Suite 环境要求、下载安装步骤、目录结构与�
 
 ## 依赖说明
 
-ArcartX-Suite 的硬依赖只有 ArcartX。其他插件按模块或功能降级处理：缺少非必要依赖时，主插件不会整体不可用。
+Suite 的硬依赖只有 ArcartX。其他插件按模块或功能降级处理：缺少非必要依赖时，主插件不会整体不可用。
 
 | 依赖 | 类型 | 影响 |
 | --- | --- | --- |
-| ArcartX | 必需 | 缺少时 ArcartX-Suite 无法启动 |
+| ArcartX | 必需 | 缺少时 Suite 无法启动 |
 | PlaceholderAPI | 可选 | 只影响 PAPI 占位符注册和部分文本解析 |
 | MythicMobs / MythicBukkit | 可选 | 缺少时 EntityTracker 的 Boss 追踪跳过 |
 | Chemdah | 指定模块必需 | 缺少时 Conversation、QuestGPS 跳过加载 |
@@ -36,7 +36,7 @@ ArcartX-Suite 的硬依赖只有 ArcartX。其他插件按模块或功能降级�
 
 按 ArcartX 官方文档安装服务端插件，并向玩家分发客户端 MOD。
 
-### 2. 放入 ArcartX-Suite jar
+### 2. 放入 Suite jar
 
 ```
 plugins/
@@ -46,7 +46,7 @@ plugins/
 
 ### 3. 启动一次，生成默认资源
 
-启动服务端。ArcartX-Suite 会：
+启动服务端。Suite 会：
 
 - 把 jar 内默认 YAML 释放到 `plugins/ArcartX-Suite/`
 - 生成 `config.yml`（总开关 + 各模块启用状态）和各模块配置
@@ -88,7 +88,7 @@ plugins/
 
 ## 模块 Jar 部署（可选）
 
-ArcartX-Suite 支持模块 Jar 独立部署。不放入模块 Jar 时，功能由云端授权自动下载加载。
+Suite 支持模块 Jar 独立部署。不放入模块 Jar 时，功能由云端授权自动下载加载。
 
 ### 工作原理
 

@@ -5,7 +5,7 @@ description: BungeeCord / Velocity 代理端安装配置、混合登录与离线
 
 # Proxy 代理端
 
-ArcartXSuite Proxy 是 ArcartX-Suite 在 BungeeCord / Waterfall / Velocity 代理服上使用的伴侣插件，与游戏子服上的 ArcartX-Suite.jar 不是同一个 jar。
+Suite Proxy 是 Suite 在 BungeeCord / Waterfall / Velocity 代理服上使用的伴侣插件，与游戏子服上的 Suite.jar 不是同一个 jar。
 
 ## 功能概览
 
@@ -20,7 +20,7 @@ ArcartXSuite Proxy 是 ArcartX-Suite 在 BungeeCord / Waterfall / Velocity 代�
 
 ## 何时需要 / 不需要
 
-| 场景 | 代理端 Proxy | 子服 ArcartX-Suite |
+| 场景 | 代理端 Proxy | 子服 Suite |
 | --- | --- | --- |
 | 单端 Paper 服 | 不需要 | 需要；混合登录用 `auth` + `/axs auth setup` |
 | Velocity / BungeeCord 群组 | 需要 | 每个子服都要装 |
@@ -155,7 +155,7 @@ sources:
 
 ### 每个子服
 
-1. 安装 ArcartX + ArcartX-Suite.jar
+1. 安装 ArcartX + Suite.jar
 2. `server.properties` 设置 `online-mode=true`
 3. Paper / Spigot 开启 IP 转发
 4. 子服不要启用 `auth.enabled`（群组服用代理端认证）
@@ -185,9 +185,9 @@ sources:
 
 混合登录通常在代理 JVM 配 MultiLogin / authlib-injector；子服只需 `online-mode=true` + IP 转发。子服上的 `/axs auth setup` 是给单端用的，群组服请关闭 `auth.enabled`。
 
-### 能把 Proxy jar 和 ArcartX-Suite jar 都塞子服吗？
+### 能把 Proxy jar 和 Suite jar 都塞子服吗？
 
-不要。Proxy 仅面向 BungeeCord / Velocity API，在 Paper 子服上无法加载。子服只放 ArcartX-Suite.jar。
+不要。Proxy 仅面向 BungeeCord / Velocity API，在 Paper 子服上无法加载。子服只放 Suite.jar。
 
 ### 跨服 Chat 不工作，是 Proxy 没装好吗？
 

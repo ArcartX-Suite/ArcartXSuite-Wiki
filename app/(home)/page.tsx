@@ -21,7 +21,7 @@ export default function HomePage() {
       <section className="relative z-10 px-6 pt-28 pb-12 md:pt-36 md:pb-16 lg:px-12">
         <div className="mx-auto max-w-4xl">
           <h1 className="bg-gradient-to-r from-white via-[#bfc6ff] to-[#22d3ee] bg-clip-text text-4xl font-black leading-[1.15] tracking-tight text-transparent drop-shadow-[0_0_60px_rgba(91,110,251,0.25)] md:text-6xl">
-            ArcartX-Suite
+            Suite
           </h1>
 
           {/* 打字机轮播副标题 */}
@@ -68,7 +68,7 @@ export default function HomePage() {
       <footer className="relative z-10 border-t border-white/[0.06]">
         <div className="mx-auto flex max-w-7xl flex-col items-center gap-4 px-6 py-10 sm:flex-row sm:justify-between lg:px-12">
           <p className="text-sm text-neutral-500">
-            ArcartX-Suite · 面向 ArcartX 客户端的全场景核心套件
+            Suite · 面向 ArcartX 客户端的全场景核心套件
           </p>
           <div className="flex gap-6 text-sm">
             <a href="https://arcartx.com" target="_blank" rel="noopener noreferrer" className="text-neutral-400 transition-colors hover:text-[#9b8cd8]">

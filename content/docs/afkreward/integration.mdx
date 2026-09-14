@@ -5,7 +5,7 @@ description: AfkReward 挂机奖励模块跨模块联动、Capability、数据�
 
 # 联动
 
-AfkReward 模块通过 ArcartXSuite 的 EventBus、Capability 和信号派发机制与其他模块联动。模块本身不硬依赖任何 ArcartX 模块，所有联动均为可选的运行时行为，对应模块不存在时自动降级或跳过。
+AfkReward 模块通过 Suite 的 EventBus、Capability 和信号派发机制与其他模块联动。模块本身不硬依赖任何 ArcartX 模块，所有联动均为可选的运行时行为，对应模块不存在时自动降级或跳过。
 
 ## EventBus 事件发布
 
@@ -248,6 +248,6 @@ Subtitle 模块播放配置的字幕组。通过 `manual.subtitle-on-reward` 和
 - [概览](/docs/afkreward) — 模块功能概览、双模式挂机机制
 - [配置](/docs/afkreward/configuration) — 主配置文件、区域配置文件、倍率调度详解
 - [命令与占位符](/docs/afkreward/commands) — 玩家命令、管理命令、PAPI 占位符、HUD UI 包
-- [条件系统](/docs/guide/conditions) — ArcartXSuite 统一条件系统配置指南
+- [条件系统](/docs/guide/conditions) — Suite 统一条件系统配置指南
 - [物品库匹配](/docs/guide/item-sources) — 统一物品来源系统配置指南
 - [图标配置](/docs/guide/icons) — 统一图标系统配置指南

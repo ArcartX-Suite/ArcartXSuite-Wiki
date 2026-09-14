@@ -6,7 +6,7 @@ description: Map 地图模块功能概览
 
 ## 模块简介
 
-Map 是 ArcartXSuite 的地图模块，通过 ArcartX UI 客户端提供全屏地图菜单和小地图 HUD，支持多世界地图纹理渲染、锚点解锁与传送、玩家自定义路径点、导航追踪与路径标记，以及外部模块（如 QuestGPS）注入的临时导航目标。
+Map 是 Suite 的地图模块，通过 ArcartX UI 客户端提供全屏地图菜单和小地图 HUD，支持多世界地图纹理渲染、锚点解锁与传送、玩家自定义路径点、导航追踪与路径标记，以及外部模块（如 QuestGPS）注入的临时导航目标。
 
 模块本身不实现地图渲染——地图画面的实际绘制由 Arcart-Suite-Map 客户端 mod 负责。Map 模块负责管理世界配置、锚点定义、路径点持久化、导航状态，并通过 Packet 将地图快照数据推送到 ArcartX UI 客户端，客户端 UI 再通过 Aria `use()` 调用 mod 的 `MapRenderer` 完成渲染。
 

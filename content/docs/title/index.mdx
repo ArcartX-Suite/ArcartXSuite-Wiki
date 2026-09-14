@@ -7,7 +7,7 @@ description: Title 称号系统功能概览
 
 ## 模块简介
 
-Title 是 ArcartXSuite 的称号系统模块，为服务器提供完整的分组称号管理能力。玩家通过活动、任务、命令等方式获取称号，称号按分组归类、按品质分级，装备后可在聊天、Tab 列表、头顶展示。模块支持展示属性（装备生效）与收藏属性（拥有即生效）双属性体系，并对接 AttributePlus、MythicLib、CraneAttribute、Symphony 四大属性插件。
+Title 是 Suite 的称号系统模块，为服务器提供完整的分组称号管理能力。玩家通过活动、任务、命令等方式获取称号，称号按分组归类、按品质分级，装备后可在聊天、Tab 列表、头顶展示。模块支持展示属性（装备生效）与收藏属性（拥有即生效）双属性体系，并对接 AttributePlus、MythicLib、CraneAttribute、Symphony 四大属性插件。
 
 模块采用 ArcartX UI 客户端面板展示称号管理界面，玩家可在界面中浏览、筛选、装备、卸下、隐藏称号，所有交互通过 Packet 通讯完成，无需服务端菜单插件。
 
@@ -45,7 +45,7 @@ Title 是 ArcartXSuite 的称号系统模块，为服务器提供完整的分组
 | 外部软依赖 | MythicLib | 展示/收藏属性同步（可选，含 MMOItems 生态） |
 | 外部软依赖 | CraneAttribute | 展示/收藏属性同步（可选） |
 | 外部软依赖 | Symphony | 展示/收藏属性同步（可选） |
-| ArcartX 本体 | ArcartX-Suite | 模块运行基础环境 |
+| ArcartX 本体 | Suite | 模块运行基础环境 |
 
 > 模块本身不硬依赖任何 ArcartX 子模块。属性插件桥接是否生效由本体 `config.yml` 的 `attribute-bridges` 统一管理，模块侧仅配置属性源前缀。
 

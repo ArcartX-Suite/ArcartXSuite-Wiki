@@ -1,13 +1,13 @@
 ---
 title: ARIA 脚本引擎
-description: ArcartXSuite ARIA 脚本桥接 API，支持在配置中使用 Aria 脚本表达式
+description: Suite ARIA 脚本桥接 API，支持在配置中使用 Aria 脚本表达式
 ---
 
 # ARIA 脚本引擎
 
 ## 概述
 
-`AriaBridge` 是 ArcartXSuite 与 ArcartX/Aria 脚本引擎的桥接层。通过反射从 `BlinkAriaHost`、`ArcartX`、`Aria` 插件中探测 Aria 引擎类。若未找到则 `available() == false`，相关条件/动作自动降级。
+`AriaBridge` 是 Suite 与 ArcartX/Aria 脚本引擎的桥接层。通过反射从 `BlinkAriaHost`、`ArcartX`、`Aria` 插件中探测 Aria 引擎类。若未找到则 `available() == false`，相关条件/动作自动降级。
 
 Aria 为可选依赖，运行时从以下候选插件中按顺序探测引擎类：
 
@@ -76,7 +76,7 @@ Java bindings 注入到 Aria `global` 命名空间，脚本中需用 `global.<na
 
 ## AriaPlayer 玩家门面对象
 
-`AriaPlayer` 是 ArcartXSuite 自有的 Aria/JS 玩家门面对象，脚本中以裸名 `player` 访问。所有方法均为"单层调用"，返回原始值或执行副作用，避免 Aria 链式调用返回对象不自动回包的限制。
+`AriaPlayer` 是 Suite 自有的 Aria/JS 玩家门面对象，脚本中以裸名 `player` 访问。所有方法均为"单层调用"，返回原始值或执行副作用，避免 Aria 链式调用返回对象不自动回包的限制。
 
 ### 基本信息
 

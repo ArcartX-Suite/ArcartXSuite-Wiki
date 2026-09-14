@@ -5,10 +5,10 @@ import { I18nProvider } from 'fumadocs-ui/i18n';
 
 export const metadata = {
   title: {
-    default: 'ArcartX-Suite 文档',
-    template: '%s | ArcartX-Suite',
+    default: 'Suite 文档',
+    template: '%s | Suite',
   },
-  description: 'ArcartX-Suite 是面向 ArcartX 客户端的 29 模块 Minecraft 服务器插件套件',
+  description: 'Suite 是面向 ArcartX 客户端的 29 模块 Minecraft 服务器插件套件',
 };
 
 export default function Layout({ children }: { children: ReactNode }) {

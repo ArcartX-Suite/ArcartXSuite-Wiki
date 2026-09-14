@@ -1,13 +1,13 @@
 ---
 title: 物品库匹配
-description: ArcartXSuite 统一物品来源系统配置指南，支持 Minecraft 原版、MythicMobs、NeigeItems、Overture、MMOItems
+description: Suite 统一物品来源系统配置指南，支持 Minecraft 原版、MythicMobs、NeigeItems、Overture、MMOItems
 ---
 
 # 物品库匹配
 
 ## 概述
 
-ItemSourceRegistry 是 ArcartXSuite 的统一物品来源系统。所有模块通过 `source` + `id` 两个字段描述物品来源，无需在各自配置中直接依赖第三方物品库插件。
+ItemSourceRegistry 是 Suite 的统一物品来源系统。所有模块通过 `source` + `id` 两个字段描述物品来源，无需在各自配置中直接依赖第三方物品库插件。
 
 系统在启动时会自动检测服务端已安装的物品库插件，并为每个已安装的插件创建对应的桥接（Bridge）。当某个物品库插件未安装时，对应的物品来源将不可用，但不会影响其他来源和模块的正常运行。
 

@@ -5,7 +5,7 @@ description: 自定义 Capability、注册与查找、跨模块通信的完整�
 
 # Capability 开发教程
 
-Capability 是 ArcartXSuite 各模块之间协作的标准方式。宿主在 `ModuleRegistry` 中维护一张能力注册表：模块启动时注册自己提供的接口，其他模块按 Java 接口类型查找并调用——全程无需 `import` 对方实现类。
+Capability 是 Suite 各模块之间协作的标准方式。宿主在 `ModuleRegistry` 中维护一张能力注册表：模块启动时注册自己提供的接口，其他模块按 Java 接口类型查找并调用——全程无需 `import` 对方实现类。
 
 ## 为什么用 Capability
 
