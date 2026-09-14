@@ -16,7 +16,7 @@ export const baseOptions: BaseLayoutProps = {
     },
     {
       text: '模块',
-      url: '/docs/modules',
+      url: '/',
       active: 'nested-url',
     },
     {

@@ -6,7 +6,7 @@ import { HeroSubtagline } from '@/components/HeroSubtagline';
 const heroActions = [
   { text: '五分钟上手', href: '/docs/guide', variant: 'brand' as const },
   { text: '模块开发', href: '/docs/developer', variant: 'alt' as const },
-  { text: '浏览模块', href: '/docs/modules', variant: 'alt' as const },
+  { text: '浏览模块', href: '#module-directory', variant: 'alt' as const },
   { text: '开源 SDK', href: 'https://github.com/ArcartX-Suite/ArcartXSuite-Core', variant: 'alt' as const, external: true },
   { text: '文档仓库', href: 'https://github.com/ArcartX-Suite/ArcartXSuite-Wiki', variant: 'alt' as const, external: true },
 ];
@@ -46,7 +46,7 @@ export default function HomePage() {
       </section>
 
       {/* ============ 模块目录 ============ */}
-      <section className="relative z-10 mx-auto max-w-7xl px-6 py-16 md:py-20 lg:px-12">
+      <section id="module-directory" className="relative z-10 mx-auto max-w-7xl px-6 py-16 md:py-20 lg:px-12 scroll-mt-20">
         <div className="mb-10">
           <h2 className="text-2xl font-bold text-white md:text-3xl">模块目录</h2>
           <p className="mt-2 text-sm text-neutral-400">
