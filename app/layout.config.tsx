@@ -15,11 +15,6 @@ export const baseOptions: BaseLayoutProps = {
       active: 'nested-url',
     },
     {
-      text: '模块',
-      url: '/',
-      active: 'nested-url',
-    },
-    {
       text: 'GitHub',
       url: 'https://github.com/ArcartX-Suite/ArcartXSuite-Wiki',
       active: 'nested-url',

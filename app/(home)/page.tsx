@@ -7,8 +7,6 @@ const heroActions = [
   { text: '五分钟上手', href: '/docs/guide', variant: 'brand' as const },
   { text: '模块开发', href: '/docs/developer', variant: 'alt' as const },
   { text: '浏览模块', href: '#module-directory', variant: 'alt' as const },
-  { text: '开源 SDK', href: 'https://github.com/ArcartX-Suite/ArcartXSuite-Core', variant: 'alt' as const, external: true },
-  { text: '文档仓库', href: 'https://github.com/ArcartX-Suite/ArcartXSuite-Wiki', variant: 'alt' as const, external: true },
 ];
 
 const stats = [
