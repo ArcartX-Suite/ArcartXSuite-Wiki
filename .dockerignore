@@ -1,7 +1,0 @@
-node_modules
-.next
-.git
-.source
-docs
-*.md
-!README.md

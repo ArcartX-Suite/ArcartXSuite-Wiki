@@ -43,7 +43,7 @@ export function HomeBackground() {
       </div>
 
       {/* Logo 水印 */}
-      <img src="/logo.svg" className="bg-logo" alt="" aria-hidden="true" />
+      <img src={`${process.env.NEXT_PUBLIC_BASE_PATH ?? ''}/logo.svg`} className="bg-logo" alt="" aria-hidden="true" />
     </div>
   );
 }

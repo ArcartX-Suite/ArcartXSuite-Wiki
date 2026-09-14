@@ -1,6 +1,7 @@
 node_modules
 .next
 .source
+out
 *.tsbuildinfo
 .DS_Store
 docs
