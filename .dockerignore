@@ -1,6 +1,7 @@
 node_modules
 .next
+.git
 .source
-*.tsbuildinfo
-.DS_Store
 docs
+*.md
+!README.md
