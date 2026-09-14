@@ -1,0 +1,128 @@
+---
+title: 鱼竿配置
+description: Fishing 鱼竿系统配置
+---
+
+# 鱼竿配置
+
+鱼竿定义文件位于 `plugins/ArcartXSuite/data/fishing/rods/` 目录下，每个 `.yml` 文件定义一种鱼竿。
+
+## 鱼竿工作原理
+
+鱼竿物品由外部物品库（NeigeItems/MythicMobs 等）生成，配置文件仅用于**识别物品**和**设置效果**。识别方式：
+
+1. **优先用 ItemMatcher 匹配**：通过 `match` 块配置的匹配规则识别玩家手持物品
+2. **回退到 PDC 标签**：未配置 `match` 或 `match` 为空时，通过 PDC 标签 `axs_fishing_rod_id` 识别
+
+当玩家手持物品不匹配任何鱼竿定义时，使用默认鱼竿（`RodDefinition.DEFAULT`，无任何加成）。
+
+## 鱼竿定义字段
+
+| 字段 | 类型 | 默认值 | 说明 |
+| --- | --- | --- | --- |
+| `id` | string | 文件名 | 鱼竿唯一标识符 |
+| `match` | map | - | 物品匹配规则（[ItemMatcher](/docs/guide/conditions) 标准格式） |
+| `treasure-chance-bonus` | double | `0.0` | 宝藏概率加成（加到基础概率上） |
+| `green-bar-height-bonus` | int | `0` | 绿条高度加成（像素） |
+| `catch-duration-bonus` | int | `0` | 小游戏持续时间加成（ticks） |
+| `exp-multiplier` | double | `1.0` | 捕获经验倍率 |
+| `min-player-level` | int | `0` | 最低赛季等级（0 = 不限） |
+| `max-player-level` | int | `0` | 最高赛季等级（0 = 不限） |
+
+### 效果说明
+
+| 效果 | 计算方式 |
+| --- | --- |
+| 宝藏概率加成 | `最终概率 = fishing.treasure-chance + 饵料treasure-chance-boost + 鱼竿treasure-chance-bonus` |
+| 绿条高度加成 | `绿条高度 = 基础高度 + 等级×height-per-level + 鱼竿green-bar-height-bonus + 天赋bar_height` |
+| 持续时间加成 | `实际超时 = 基础超时 × 难度系数 × (1 + 天赋catch_duration加成) + 鱼竿catch-duration-bonus` |
+| 经验倍率 | `最终经验 = 鱼baseXp × 尺寸因子 × 鱼竿exp-multiplier × (1 + 天赋xp_multiplier加成) × (完美 ? 1.5 : 1)` |
+
+### match 物品匹配规则
+
+`match` 块使用 ItemMatcher 标准格式，所有列表为"或"关系，命中任一即匹配：
+
+| 字段 | 说明 |
+| --- | --- |
+| `neige-item-ids` | NeigeItems 物品 ID 列表 |
+| `mythic-item-ids` | MythicMobs 物品 ID 列表 |
+| `overture-item-ids` | Overture 物品 ID 列表 |
+| `material-ids` | 原版材质名列表（如 `[fishing_rod]`） |
+| `name-contains` | 显示名需包含的子串列表 |
+| `lore-contains` | Lore 需包含的子串列表 |
+| `nbt-keys` | NBT/PDC 键白名单 |
+| `nbt-values` | NBT 键值对精确匹配 |
+| `name-regex` / `lore-regex` | 正则匹配 |
+
+未配置 `match` 或 `match` 为空时，回退到 PDC 标签 `axs_fishing_rod_id` 识别。
+
+### 鱼竿耐久度
+
+鱼竿耐久度消耗受饵料 `max-durability-bonus` 影响。当玩家使用鱼竿钓鱼时，`PlayerItemDamageEvent` 被拦截：
+
+- 获取鱼竿上挂载的饵料（通过 PDC 标签 `axs_fishing_bait_id`）
+- 计算耐久度加成值
+- `新损耗 = max(0, 原损耗 - 加成值)`
+- 新损耗为 0 时取消事件，否则修改损耗值
+
+## 鱼竿配置示例
+
+### 基础木制钓竿
+
+```yaml
+id: "wooden_rod"
+match:
+  neige-item-ids: [wooden_fishing_rod]
+  # 或用原版材质匹配（所有原版鱼竿都视为木制钓竿）
+  # material-ids: [fishing_rod]
+treasure-chance-bonus: 0.05
+green-bar-height-bonus: 8
+catch-duration-bonus: 60
+exp-multiplier: 1.1
+min-player-level: 0
+max-player-level: 0
+```
+
+### 进阶鱼竿（等级限制）
+
+```yaml
+id: "iron_rod"
+match:
+  neige-item-ids: [iron_fishing_rod]
+treasure-chance-bonus: 0.10
+green-bar-height-bonus: 16
+catch-duration-bonus: 120
+exp-multiplier: 1.3
+min-player-level: 20
+max-player-level: 0
+```
+
+### 传说鱼竿（高等级专属）
+
+```yaml
+id: "legendary_rod"
+match:
+  mythic-item-ids: [legendary_fishing_rod]
+treasure-chance-bonus: 0.20
+green-bar-height-bonus: 32
+catch-duration-bonus: 200
+exp-multiplier: 2.0
+min-player-level: 50
+max-player-level: 0
+```
+
+## 默认鱼竿
+
+当玩家手持物品不匹配任何鱼竿定义时，使用默认鱼竿 `RodDefinition.DEFAULT`：
+
+| 属性 | 值 |
+| --- | --- |
+| id | `default` |
+| treasure-chance-bonus | 0.0 |
+| green-bar-height-bonus | 0 |
+| catch-duration-bonus | 0 |
+| exp-multiplier | 1.0 |
+| min-player-level | 0 |
+| max-player-level | 0 |
+
+> 默认鱼竿不施加任何加成，确保新手玩家也能正常钓鱼。

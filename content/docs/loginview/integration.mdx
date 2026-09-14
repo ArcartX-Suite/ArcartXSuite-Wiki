@@ -1,0 +1,248 @@
+---
+title: 联动
+description: LoginView 跨模块联动、Capability 与数据库表
+---
+
+# 联动
+
+LoginView 模块通过 EventBus、信号派发、Capability 等机制与宿主及其他模块联动。
+
+## EventBus 事件
+
+LoginView 模块通过 `EventBusCapability` 发布登录成功事件，其他模块可通过 EventBus 监听。
+
+### 发布的事件
+
+|| 事件 Topic | 触发时机 | Payload |
+|---|---|---|
+| `axs.loginview.login_success` | 玩家登录成功（密码登录、注册自动登录、免密进入） | `auth_mode`（认证模式）、`account_type`（账号类型 ID） |
+
+### Payload 字段
+
+|| 字段 | 类型 | 说明 |
+|---|---|---|
+| `auth_mode` | string | 认证模式：`standalone` 或 `authme` |
+| `account_type` | string | 账号类型 ID：`microsoft` / `littleskin` / `offline` |
+
+### 事件发布机制
+
+事件通过 `EventBusCapability` 发布，由 LoginView 在 `LoginViewService` 中延迟查找：
+
+```java
+service.setEventBusProvider(() -> getCapability(EventBusCapability.class));
+```
+
+```java
+private void publishLoginEvent(Player player) {
+    if (eventBusProvider == null) return;
+    EventBusCapability eventBus = eventBusProvider.get();
+    if (eventBus == null) return;
+    Map<String, String> payload = new HashMap<>();
+    payload.put("auth_mode", configuration.authMode().configKey());
+    payload.put("account_type", accountType(player).id());
+    eventBus.publish("axs.loginview.login_success", player, payload);
+}
+```
+
+:::info
+EventBus 为延迟查找（`getCapability`），因模块加载顺序不定。若 EventBus 模块未加载，事件发布为空操作，不影响 LoginView 正常运行。
+:::
+
+### publishedTopics 声明
+
+LoginView 在模块入口声明了发布的事件 Topic：
+
+```java
+@Override
+protected List<String> publishedTopics() {
+    return List.of("axs.loginview.login_success");
+}
+```
+
+## 信号派发
+
+LoginView 还通过 `SignalDispatchable` 派发信号，可供 QuestGPS、条件触发器等模块监听。
+
+|| 信号 | 触发时机 | 变量 |
+|---|---|---|
+| `login_success` | 密码登录成功 | `auth_mode`、`account_type`、`account_type_display` |
+| `first_register` | 注册成功并自动登录 | `auth_mode`、`account_type`、`account_type_display` |
+| `premium_bypass` | 正版/LittleSkin 免密进入 | `auth_mode`、`account_type`、`account_type_display` |
+
+### 信号变量
+
+|| 变量 | 说明 |
+|---|---|
+| `auth_mode` | 认证模式：`standalone` 或 `authme` |
+| `account_type` | 账号类型 ID：`microsoft` / `littleskin` / `offline` |
+| `account_type_display` | 账号类型中文展示名：`微软正版` / `LittleSkin` / `离线` |
+
+:::tip
+信号与 EventBus 事件的区别：信号通过 `SignalDispatchable` 派发，可供条件触发器（[Conditions](/docs/guide/conditions)）和任务系统使用；EventBus 事件供模块间直接监听。两者互不冲突，登录成功时同时触发。
+:::
+
+## Capability 注册
+
+LoginView 模块注册了以下 Capability，供宿主及其他模块调用：
+
+### DatabaseMigratable
+
+支持数据库迁移，供本体存储管理模块在切换存储后端时调用。
+
+|| 方法 | 返回值 | 说明 |
+|---|---|---|
+| `moduleId()` | `String` | 返回 `loginview` |
+| `migrateDatabase(target, overwrite)` | `MigrationResult` | 将当前数据迁移到目标存储描述符 |
+| `currentDescriptor()` | `StorageDescriptor` | 返回当前存储描述符 |
+
+```java
+registerCapability(DatabaseMigratable.class, new DatabaseMigratable() {
+    @Override public String moduleId() { return "loginview"; }
+    @Override public MigrationResult migrateDatabase(StorageDescriptor target, boolean overwrite) {
+        return lvRepo.migrateData(target, overwrite);
+    }
+    @Override public StorageDescriptor currentDescriptor() {
+        return lvRepo.getDescriptor();
+    }
+});
+```
+
+### PlayerDataPurgeable
+
+支持玩家数据清理，供宿主管理面板或 GDPR 合规工具调用。
+
+|| 方法 | 返回值 | 说明 |
+|---|---|---|
+| `moduleId()` | `String` | 返回 `loginview` |
+| `purgePlayerData(uuid)` | `int` | 删除指定玩家的数据，返回删除行数；失败返回 -1 |
+| `purgeAllPlayerData()` | `int` | 删除所有玩家数据，返回删除行数；失败返回 -1 |
+
+:::info
+LoginView 使用 `lower_name`（小写用户名）作为账户主键，不支持按 UUID 删除账户数据。`purgePlayerData` 会清理该玩家的 session 记录，但账户记录因无 UUID 字段而保留。`purgeAllPlayerData` 清空 accounts 和 sessions 两张表。
+:::
+
+## 宿主能力依赖
+
+LoginView 运行时通过 `getCapability` 延迟查找以下宿主能力：
+
+|| 能力 | 用途 | 缺失时行为 |
+|---|---|---|
+| `SignalDispatchable` | 登录/注册/免登成功后派发信号 | 信号派发为空操作 |
+| `EventBusCapability` | 发布 `axs.loginview.login_success` 事件 | 事件发布为空操作 |
+| `QqBindCapable` | QQ 绑定状态查询与验证码确认 | QQ 绑定功能不可用，正版玩家无法完成绑定 |
+
+## 宿主服务依赖
+
+LoginView 依赖以下宿主服务，在 `startService` 中注入：
+
+|| 服务 | 用途 |
+|---|---|
+| `AccountTypeService` | 统一账号类型识别（微软/LittleSkin/离线），决定玩家走密码登录还是免密进入 |
+| `PacketBridgeAPI` | ArcartX UI 数据包通信（打开 UI、发送 init/result/close 包） |
+| `PacketGuardAPI` | 客户端数据包安全校验 |
+| `StorageManager` | 存储数据源解析（共享模式或自建模式） |
+
+## 跨服与存储
+
+### 共享存储模式
+
+`storage.shared: true`（推荐）时，LoginView 使用本体统一数据源，各模块共用 `config.yml` 的 `storage` 节配置。数据库连接由宿主 `StorageManager` 统一管控，性能更好。
+
+### 自建存储模式
+
+`storage.shared: false` 时，LoginView 自建独立 HikariCP 连接池，支持 SQLite 或 MySQL。适用于需要独立数据库隔离的场景。
+
+### 跨服 Session
+
+standalone 模式下，登录 session 持久化到数据库 `sessions` 表。多服架构下，若各服共享同一数据库，玩家在 A 服登录后切换到 B 服可直接读取 session 免登录（需 `session-strict-ip: false` 或两服出口 IP 一致）。
+
+:::tip
+跨服场景推荐使用共享存储模式 + 同一 MySQL 数据库，确保 session 表全局共享。详见 [配置管理](/docs/loginview/configuration) 的 `storage` 节。
+:::
+
+## 数据库表结构
+
+LoginView 使用两张表存储账户和会话数据，表名前缀由 `storage.mysql.table-prefix`（默认 `AXS_loginview_`）控制。
+
+### accounts 表
+
+存储玩家登录账户信息。
+
+|| 列名 | 类型 | 说明 |
+|---|---|---|
+| `lower_name` | `VARCHAR(64)` | 小写用户名（主键，用于唯一索引） |
+| `real_name` | `VARCHAR(64)` | 原始用户名（保留大小写） |
+| `password_hash` | `TEXT` | 密码哈希值 |
+| `hash_algorithm` | `VARCHAR(48)` | 哈希算法标识（`AXS_PBKDF2_SHA256` / `AUTHME_BCRYPT` / `AUTHME_BCRYPT2Y` / `AUTHME_SHA256`） |
+| `email` | `VARCHAR(128)` | 邮箱（可为空，默认空字符串） |
+| `registration_ip` | `VARCHAR(64)` | 注册 IP |
+| `last_ip` | `VARCHAR(64)` | 最后登录 IP |
+| `registered_at` | `BIGINT` | 注册时间戳（毫秒） |
+| `last_login_at` | `BIGINT` | 最后登录时间戳（毫秒） |
+| `migrated` | `INTEGER` / `TINYINT` | 是否从 AuthMe 迁移而来（0=否，1=是） |
+| `updated_at` | `BIGINT` | 更新时间戳（毫秒） |
+
+:::info
+`migrated` 字段标记从 AuthMe 导入的账户。当 `security.rehash-migrated-password-on-login: true` 时，迁移账户首次登录成功后密码哈希自动重写为 `AXS_PBKDF2_SHA256`，`migrated` 重置为 0，完全脱离 AuthMe。
+:::
+
+### sessions 表
+
+存储登录会话，用于免密自动登录。
+
+|| 列名 | 类型 | 说明 |
+|---|---|---|
+| `uuid` | `VARCHAR(36)` | 玩家 UUID（主键） |
+| `player_name` | `VARCHAR(64)` | 玩家名 |
+| `ip` | `VARCHAR(64)` | 会话建立时的 IP 地址 |
+| `created_at` | `BIGINT` | 创建时间戳（毫秒） |
+| `expires_at` | `BIGINT` | 过期时间戳（毫秒） |
+
+:::tip
+每小时自动清理过期 session（`deleteExpiredSessions`）。`session-ttl-minutes: 0` 时不会写入 session 记录，每次进服都需重新登录。
+:::
+
+## 模块集成
+
+### qqbot 模块
+
+LoginView 通过 `QqBindCapable` 能力与 qqbot 模块集成，实现正版/LittleSkin 玩家强制绑定 QQ：
+
+- `qq-binding.enabled: true` 启用绑定流程
+- `microsoft-require-bind` / `littleskin-require-bind` 控制各账号类型是否强制绑定
+- 未绑定时登录界面显示 `bind-prompt` 提示与验证码输入框
+- 玩家在 QQ 群发送 `#绑定 {name}` 获取验证码，在 UI 中输入确认
+
+### AuthMe 插件
+
+LoginView 通过 `AuthMeBridge` 桥接 AuthMe 插件：
+
+- `auth.mode: authme` 时，注册/登录/改密委托 AuthMe 的 `AuthMeApi` 处理
+- `auth.mode: standalone` 时，可通过 `migrate-authme` 命令从 AuthMe 数据库导入历史账户
+- AuthMe 缺失时桥接自动降级为不可用，`authme` 模式下模块不加载
+
+### AccountTypeService
+
+LoginView 依赖宿主 `AccountTypeService` 判定玩家账号类型：
+
+|| 账号类型 | ID | 展示名 | 免密 | 说明 |
+|---|---|---|---|---|
+| 微软正版 | `microsoft` | 微软正版 | 是 | 玩家名在 Mojang 正版数据库存在 |
+| LittleSkin | `littleskin` | LittleSkin | 是 | 通过 authlib-injector 认证 |
+| 离线 | `offline` | 离线 | 否 | 未通过任何正版认证 |
+
+玩家进服后，LoginView 异步预热账号类型缓存（`resolveBlocking`），完成后在主线程打开 UI 并发送 `init` 包。正版玩家显示免密进入界面，离线玩家显示密码登录/注册界面。
+
+### 条件触发器
+
+LoginView 派发的信号可被条件触发器监听，实现登录后触发逻辑：
+
+- `login_success` — 密码登录成功后触发
+- `first_register` — 首次注册成功后触发
+- `premium_bypass` — 正版免密进入后触发
+
+信号变量包含 `auth_mode`、`account_type`、`account_type_display`，可用于条件判断。详见 [Conditions 指南](/docs/guide/conditions)。
+
+### 物品来源
+
+LoginView 不直接使用物品来源系统，但其 UI 文件中的服规面板等组件可引用 [Item Sources](/docs/guide/item-sources) 定义的物品作为装饰。

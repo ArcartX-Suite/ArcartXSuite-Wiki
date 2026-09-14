@@ -1,0 +1,460 @@
+---
+title: 配置
+description: AfkReward 挂机奖励模块完整配置指南
+---
+
+# 配置
+
+AfkReward 模块的配置分为主配置文件与区域配置文件两部分。主配置文件 `ArcartXAfkReward.yml` 管理全局开关、反滥用策略、原地挂机行为保护、存储与 HUD 配置；每个区域为独立的 `area-<id>.yml` 文件，独立配置完整的奖励规则、倍率调度与传送点。
+
+## 文件结构
+
+```
+plugins/ArcartX-Suite/data/afkreward/
+├── ArcartXAfkReward.yml       # 主配置
+├── messages.yml               # 消息文件
+├── audit.log                  # 审计日志（自动生成）
+├── ui/
+│   └── afk_reward_hud.yml     # HUD 界面配置
+└── areas/
+    └── area-<id>.yml           # 区域配置文件（每个区域一个）
+```
+
+## 主配置文件
+
+文件路径：`data/afkreward/ArcartXAfkReward.yml`
+
+### 顶层字段
+
+| 字段 | 类型 | 默认值 | 说明 |
+|---|---|---|---|
+| `config-version` | `int` | `9` | 配置版本号，用于触发 migration 迁移流程 |
+| `debug` | `boolean` | `false` | 是否开启调试模式（输出详细日志） |
+| `areas-directory` | `string` | `"areas"` | 区域配置文件所在目录（相对模块 data 目录） |
+
+### 反滥用配置（anti-abuse）
+
+| 字段 | 类型 | 默认值 | 说明 |
+|---|---|---|---|
+| `anti-abuse.time-limit.enable` | `boolean` | `false` | 是否启用挂机时长限制 |
+| `anti-abuse.time-limit.session-seconds` | `int` | `0` | 单次挂机最大时长（秒），`0` 表示不限 |
+| `anti-abuse.time-limit.daily-seconds` | `int` | `0` | 每日挂机最大时长（秒），`0` 表示不限 |
+| `anti-abuse.time-limit.on-exceed` | `string` | `STOP` | 超限时行为：`STOP`（停止挂机）/ `KICK`（踢出）/ `DECAY`（衰减奖励） |
+| `anti-abuse.time-limit.exempt-permission` | `string` | `axs.afkreward.bypass.timelimit` | 豁免时长限制的权限节点 |
+| `anti-abuse.bot-detection.enable` | `boolean` | `false` | 是否启用机器人检测 |
+| `anti-abuse.bot-detection.window-seconds` | `int` | `300` | 检测窗口时长（秒），范围 `1`~`3600` |
+| `anti-abuse.bot-detection.min-view-changes` | `int` | `3` | 窗口内最小视角变化次数，低于此值判定为机器人，范围 `0`~`1000` |
+| `anti-abuse.bot-detection.action` | `string` | `NO_REWARD` | 检测到机器人时的行为：`NO_REWARD`（不发奖励）/ `KICK`（踢出） |
+| `anti-abuse.bot-detection.exempt-permission` | `string` | `axs.afkreward.bypass.botcheck` | 豁免机器人检测的权限节点 |
+| `anti-abuse.ip-limit.enable` | `boolean` | `false` | 是否启用同 IP 挂机人数限制 |
+| `anti-abuse.ip-limit.exempt-permission` | `string` | `axs.afkreward.bypass.iplimit` | 豁免 IP 限制的权限节点 |
+| `anti-abuse.decay.enable` | `boolean` | `false` | 是否启用奖励衰减 |
+| `anti-abuse.decay.start-seconds` | `int` | `3600` | 衰减开始时间（秒），挂机超过此时长后开始衰减 |
+| `anti-abuse.decay.factor-per-hour` | `double` | `0.2` | 每小时衰减因子（倍率每小时减少 0.2） |
+| `anti-abuse.decay.min-multiplier` | `double` | `0.3` | 最低衰减倍率（衰减不会低于此值） |
+
+> 同 IP 限制逻辑：同一区域内同 IP 的多个玩家中，只有最早开始挂机的玩家可正常获得奖励，其余玩家被判定为 IP 限制。
+
+### 审计日志配置（audit）
+
+| 字段 | 类型 | 默认值 | 说明 |
+|---|---|---|---|
+| `audit.enable` | `boolean` | `true` | 是否启用审计日志 |
+| `audit.file` | `string` | `"audit.log"` | 审计日志文件名（相对模块 data 目录） |
+
+审计日志每行格式：`时间 player=玩家名 uuid=UUID area=区域名 mode=模式 tier=档位 count=数量 multiplier=倍率`
+
+### 原地挂机配置（manual）
+
+| 字段 | 类型 | 默认值 | 说明 |
+|---|---|---|---|
+| `manual.restrict-actions` | `boolean` | `true` | 挂机期间是否封锁玩家行为 |
+| `manual.return-on-end` | `boolean` | `false` | 结束挂机后是否传送回原始位置 |
+| `manual.broadcast-rewards` | `boolean` | `true` | 结束挂机时是否全服广播奖励消息 |
+| `manual.combat-cooldown-seconds` | `int` | `10` | 参与战斗后开始原地挂机前的冷却时间（秒） |
+| `manual.permission-recheck-seconds` | `int` | `5` | MANUAL 模式权限及区域复查间隔（秒），范围 `1`~`3600` |
+| `manual.leaderboard-size` | `int` | `10` | 排行榜显示人数，范围 `1`~`100` |
+| `manual.signal-on-reward` | `string` | `"afk_reward"` | 发奖时触发的 EventPacket 信号名（为空则不触发） |
+| `manual.signal-on-end` | `string` | `"afk_end"` | 结束挂机时触发的 EventPacket 信号名 |
+| `manual.subtitle-on-reward` | `string` | `""` | 发奖时播放的字幕组 ID（为空则不播放） |
+| `manual.subtitle-on-end` | `string` | `""` | 结束挂机时播放的字幕组 ID |
+| `manual.end-mail.mail.presets` | `list<string>` | `[]` | 结束挂机时发送的邮件预设 ID 列表（需 Mail 模块） |
+
+### 行为保护开关（manual.protections）
+
+MANUAL 挂机期间的独立行为保护开关，默认全部开启：
+
+| 字段 | 默认值 | 说明 |
+|---|---|---|
+| `manual.protections.movement` | `true` | 禁止移动 |
+| `manual.protections.teleport` | `true` | 禁止传送 |
+| `manual.protections.interact` | `true` | 禁止交互方块或空气 |
+| `manual.protections.block-break` | `true` | 禁止破坏方块 |
+| `manual.protections.inventory` | `true` | 禁止打开容器或背包界面 |
+| `manual.protections.receive-damage` | `true` | 受到伤害时无敌 |
+| `manual.protections.deal-damage` | `true` | 禁止对其他实体造成伤害 |
+| `manual.protections.entity-target` | `true` | 禁止被怪物锁定为目标 |
+| `manual.protections.vehicle-enter` | `true` | 禁止进入载具 |
+| `manual.protections.interact-entity` | `true` | 禁止右键实体 |
+| `manual.protections.drop-item` | `true` | 禁止丢弃物品 |
+| `manual.protections.swap-hand` | `true` | 禁止副手换手 |
+| `manual.protections.pickup-item` | `true` | 禁止拾取掉落物 |
+| `manual.protections.experience` | `true` | 禁止获得经验 |
+| `manual.protections.collidable` | `true` | 禁止碰撞（`setCollidable(false)`） |
+
+### 性能保护配置（performance）
+
+| 字段 | 类型 | 默认值 | 说明 |
+|---|---|---|---|
+| `performance.pause-on-low-tps.enable` | `boolean` | `false` | 是否启用低 TPS 暂停 |
+| `performance.pause-on-low-tps.min-tps` | `double` | `15.0` | 触发暂停的 TPS 阈值，低于此值时跳过本轮结算 |
+
+> TPS 通过反射调用 `Bukkit.getServer().getTPS()` 获取（Paper/Spigot 提供），不支持时按满 TPS（20.0）返回，暂停功能不生效。
+
+### 存储配置（storage）
+
+| 字段 | 类型 | 默认值 | 说明 |
+|---|---|---|---|
+| `storage.shared` | `boolean` | `true` | `true`=共享存储模式（推荐），`false`=自建连接池 |
+| `storage.mode` | `string` | `"sqlite"` | 存储模式（`sqlite` / `mysql`，仅 `shared: false` 时生效） |
+| `storage.sqlite.file` | `string` | `"afkreward.db"` | SQLite 文件名（相对模块数据目录） |
+| `storage.pool-size` | `int` | `3` | JDBC 连接池大小，SQLite 建议保持 1 |
+| `storage.mysql.host` | `string` | `"127.0.0.1"` | MySQL 主机地址 |
+| `storage.mysql.port` | `int` | `3306` | MySQL 端口 |
+| `storage.mysql.database` | `string` | `"arcartxsuite"` | MySQL 数据库名 |
+| `storage.mysql.username` | `string` | `"root"` | MySQL 用户名 |
+| `storage.mysql.password` | `string` | `""` | MySQL 密码 |
+| `storage.mysql.table-prefix` | `string` | `"axs_afk_"` | 表名前缀 |
+
+> `shared: true` 时各模块共用本体 `config.yml` 的 storage 节配置，上方 MySQL 字段不生效。向后兼容：若 `shared` 字段不存在但 `mode=mysql` 存在，自动视为 `shared: false`。
+
+### HUD 配置（ui）
+
+| 字段 | 类型 | 默认值 | 说明 |
+|---|---|---|---|
+| `ui.ui-id` | `string` | `"AXS:afk_reward_hud"` | HUD 界面 ID（对应 `ui/afk_reward_hud.yml`） |
+| `ui.register-ui-on-enable` | `boolean` | `true` | 模块启用时是否自动注册 HUD |
+| `ui.overwrite-ui-files` | `boolean` | `false` | 是否在每次启用时覆盖用户已修改的 UI 文件 |
+
+### 主配置完整示例
+
+```yaml
+config-version: 9
+
+debug: false
+
+areas-directory: "areas"
+
+anti-abuse:
+  time-limit:
+    enable: false
+    session-seconds: 0
+    daily-seconds: 0
+    on-exceed: STOP
+    exempt-permission: "axs.afkreward.bypass.timelimit"
+  bot-detection:
+    enable: false
+    window-seconds: 300
+    min-view-changes: 3
+    action: NO_REWARD
+    exempt-permission: "axs.afkreward.bypass.botcheck"
+  ip-limit:
+    enable: false
+    exempt-permission: "axs.afkreward.bypass.iplimit"
+  decay:
+    enable: false
+    start-seconds: 3600
+    factor-per-hour: 0.2
+    min-multiplier: 0.3
+
+audit:
+  enable: true
+  file: "audit.log"
+
+manual:
+  restrict-actions: true
+  return-on-end: false
+  broadcast-rewards: true
+  combat-cooldown-seconds: 10
+  permission-recheck-seconds: 5
+  leaderboard-size: 10
+  signal-on-reward: "afk_reward"
+  signal-on-end: "afk_end"
+  subtitle-on-reward: ""
+  subtitle-on-end: ""
+  end-mail:
+    mail:
+      presets: []
+  protections:
+    movement: true
+    teleport: true
+    interact: true
+    block-break: true
+    inventory: true
+    receive-damage: true
+    deal-damage: true
+    entity-target: true
+    vehicle-enter: true
+    interact-entity: true
+    drop-item: true
+    swap-hand: true
+    pickup-item: true
+    experience: true
+    collidable: true
+
+performance:
+  pause-on-low-tps:
+    enable: false
+    min-tps: 15.0
+
+storage:
+  shared: true
+
+ui:
+  ui-id: "AXS:afk_reward_hud"
+  register-ui-on-enable: true
+  overwrite-ui-files: false
+```
+
+## 区域配置文件
+
+文件路径：`data/afkreward/areas/area-<id>.yml`
+
+每个区域为独立文件，文件名中的 `<id>` 作为区域内部 ID（同时用于奖励权限 `axs.afkreward.start.<id>.<tier>`）。模块首次启动时自动导出 `area-default.yml` 模板。
+
+### 区域字段
+
+| 字段 | 类型 | 默认值 | 说明 |
+|---|---|---|---|
+| `id` | `string` | 文件名 ID | 区域唯一 ID |
+| `name` | `string` | `id` | 区域显示名称（用于权限 `axs.afkreward.area.<name>`） |
+| `enabled` | `boolean` | `true` | 是否启用区域 |
+| `world` | `string` | — | 区域所在世界名（必填，缺失则跳过） |
+| `type` | `string` | `id` | 兼容旧字段，奖励类型名 |
+| `manual-enabled` | `boolean` | `true` | 是否允许 `/afk start` 原地挂机 |
+| `reward-weight` | `double` | `1.0` | 区域奖励权重，最终倍率会乘以该值 |
+| `pos` | `list<string>` | — | 区域边界点（`x,z` 格式），至少 3 个点 |
+| `teleport` | `section` | — | 原地挂机传送点（缺失则不支持原地挂机） |
+
+### 区域边界（pos）
+
+区域边界为 X-Z 平面上的多边形，使用射线法判断玩家是否在区域内。每个点格式为 `x,z`（不含 Y 坐标），至少需要 3 个点：
+
+```yaml
+pos:
+  - "-11,138"
+  - "17,114"
+  - "40,114"
+  - "48,128"
+  - "51,138"
+  - "42,167"
+  - "20,172"
+  - "10,171"
+  - "-4,159"
+```
+
+### 传送点（teleport）
+
+原地挂机时玩家被传送到的目标位置：
+
+| 字段 | 类型 | 默认值 | 说明 |
+|---|---|---|---|
+| `teleport.world` | `string` | 区域 `world` | 传送目标世界 |
+| `teleport.x` | `double` | `0` | X 坐标 |
+| `teleport.y` | `double` | `64` | Y 坐标 |
+| `teleport.z` | `double` | `0` | Z 坐标 |
+| `teleport.yaw` | `double` | `0` | 视角水平偏转角 |
+| `teleport.pitch` | `double` | `0` | 视角俯仰角 |
+
+> 传送点世界必须已加载（`Bukkit.getWorld()` 非 null），否则区域会被跳过。
+
+### 奖励配置（reward）
+
+| 字段 | 类型 | 默认值 | 说明 |
+|---|---|---|---|
+| `reward.round` | `int` | `15` | 每多少分钟发放一次奖励，最小 1 |
+| `reward.max.enable` | `boolean` | `true` | 是否启用每日奖励次数上限 |
+| `reward.max.limit` | `int` | `32` | 每日最大奖励次数，最小 1 |
+| `reward.player.enable` | `boolean` | `true` | 是否启用区域人数上限 |
+| `reward.player.limit` | `int` | `30` | 最大同时挂机人数，最小 1 |
+| `reward.describe` | `string` | `""` | 奖励说明文本 |
+| `reward.mail.presets` | `list<string>` | `[]` | 发奖后发送的邮件预设 ID 列表（需 Mail 模块） |
+
+### 奖励档位
+
+在 `reward` 节下直接定义档位键（非保留字段），每个档位对应一个命令列表。保留字段名（不可用作档位名）：`round`、`max`、`player`、`describe`、`mail`、`item-rewards`。
+
+系统按配置顺序从高到低匹配玩家权限 `axs.afkreward.start.<areaId>.<tier>` 或 `axs.afkreward.start.<tier>`：
+
+```yaml
+reward:
+  round: 15
+  vip3:
+    - "addbalance %player_name% 铜币 %axsafkreward_multiplier%*35+250"
+    - "cmi give %player_name% cobblestone 54"
+  vip2:
+    - "addbalance %player_name% 铜币 %axsafkreward_multiplier%*30+200"
+  vip1:
+    - "addbalance %player_name% 铜币 %axsafkreward_multiplier%*25+150"
+  common:
+    - "addbalance %player_name% 铜币 %axsafkreward_multiplier%*20+100"
+```
+
+命令中可使用的占位符：
+
+| 占位符 | 说明 |
+|---|---|
+| `%player_name%` | 玩家名（经过命令注入校验） |
+| `%axsafkreward_multiplier%` | 当前结算倍率（保留两位小数） |
+| `%axsafk_multiplier%` | 同上（兼容旧写法） |
+
+> 命令以控制台身份执行（`Bukkit.dispatchCommand(ConsoleSender, cmd)`），注意权限与安全。
+
+### 物品奖励（reward.item-rewards）
+
+在 `reward.item-rewards` 节下按档位定义物品列表，通过 ItemSourceRegistry 生成物品直接发放。物品来源详见 [物品库匹配](/docs/guide/item-sources) 指南。
+
+| 字段 | 类型 | 默认值 | 说明 |
+|---|---|---|---|
+| `source` | `string` | `"minecraft"` | 物品来源（minecraft/mythic/neige/overture/mmoitems） |
+| `id` | `string` | — | 物品 ID（原版材质名或外部物品库 ID；mmoitems 格式为 `类型ID;物品ID`） |
+| `amount` | `int` | `1` | 物品数量 |
+| `nbt` | `string` | — | 自定义 NBT（SNBT 字符串，仅 minecraft 源有效），可省略 |
+
+```yaml
+reward:
+  item-rewards:
+    vip3:
+      - source: "minecraft"
+        id: "DIAMOND"
+        amount: 3
+      - source: "mythic"
+        id: "legendary_gem"
+        amount: 1
+    common:
+      - source: "minecraft"
+        id: "IRON_INGOT"
+        amount: 5
+```
+
+> 物品发放统一通过 ItemRewardDispatcher：放入背包 → 背包满时溢出物品通过 Mail 模块发邮件补发 → Mail 模块不可用时溢出物品掉落地面。
+
+### 倍率配置（multiplier）
+
+| 字段 | 类型 | 默认值 | 说明 |
+|---|---|---|---|
+| `multiplier.enable` | `boolean` | `false` | 是否启用倍率系统 |
+| `multiplier.base` | `double` | `1.0` | 基础倍率 |
+| `multiplier.weekend` | `double` | `1.0` | 周末倍率（周六、周日生效） |
+| `multiplier.combine` | `string` | `MAX` | 多倍率叠加方式：`MAX` / `MULTIPLY` / `LAST` |
+| `multiplier.schedules` | `list<section>` | `[]` | 定时倍率调度列表 |
+
+### 定时倍率调度（multiplier.schedules）
+
+| 字段 | 类型 | 默认值 | 说明 |
+|---|---|---|---|
+| `days` | `string` | `"ALL"` | 生效的星期（英文缩写逗号分隔，如 `SAT,SUN`；`ALL` 表示每天） |
+| `start` | `string` | `"00:00"` | 生效开始时间（`HH:mm` 格式） |
+| `end` | `string` | `"23:59"` | 生效结束时间（`HH:mm` 格式，跨天时 `end` 早于 `start` 表示到次日） |
+| `multiplier` | `double` | `1.0` | 该时段的倍率 |
+
+```yaml
+multiplier:
+  enable: false
+  base: 1.0
+  weekend: 1.0
+  combine: MAX
+  schedules:
+    - days: "SAT,SUN"
+      start: "20:00"
+      end: "22:00"
+      multiplier: 2.0
+```
+
+### 区域配置完整示例
+
+```yaml
+id: default
+name: "泡澡池"
+enabled: true
+world: bskyblock_world
+type: 泡澡池
+manual-enabled: true
+reward-weight: 1.0
+
+pos:
+  - "-11,138"
+  - "17,114"
+  - "40,114"
+  - "48,128"
+  - "51,138"
+  - "42,167"
+  - "20,172"
+  - "10,171"
+  - "-4,159"
+
+reward:
+  round: 15
+  max:
+    enable: true
+    limit: 32
+  player:
+    enable: true
+    limit: 30
+  describe: "泡澡的人越多，获取的铜币和经验越多"
+  mail:
+    presets: []
+  vip3:
+    - "addbalance %player_name% 铜币 %axsafkreward_multiplier%*35+250"
+    - "cmi give %player_name% cobblestone 54"
+  vip2:
+    - "addbalance %player_name% 铜币 %axsafkreward_multiplier%*30+200"
+  vip1:
+    - "addbalance %player_name% 铜币 %axsafkreward_multiplier%*25+150"
+  common:
+    - "addbalance %player_name% 铜币 %axsafkreward_multiplier%*20+100"
+  item-rewards:
+    vip3:
+      - source: "minecraft"
+        id: "DIAMOND"
+        amount: 3
+    common:
+      - source: "minecraft"
+        id: "IRON_INGOT"
+        amount: 5
+
+multiplier:
+  enable: false
+  base: 1.0
+  weekend: 1.0
+  combine: MAX
+  schedules:
+    - days: "SAT,SUN"
+      start: "20:00"
+      end: "22:00"
+      multiplier: 2.0
+
+teleport:
+  world: bskyblock_world
+  x: 20.5
+  y: 64.0
+  z: 140.5
+  yaw: 0
+  pitch: 0
+```
+
+## 配置版本迁移
+
+模块内置 migration 迁移脚本，当 `config-version` 低于当前版本时自动触发迁移。迁移文件位于 `resources/migrations/` 目录，按版本号顺序执行。
+
+| 迁移版本 | 说明 |
+|---|---|
+| `2-3` | 早期配置迁移 |
+| `3-4` | 早期配置迁移 |
+| `4-5` | 早期配置迁移 |
+| `5-6` | 早期配置迁移 |
+| `6-7` | 早期配置迁移 |
+| `7-8` | 早期配置迁移 |
+| `8-9` | `storage.mode` 重命名为 `storage.shared`，值从 `sqlite`/`mysql` 映射为 `true`/`false` |
+
+> 迁移完成后 `config-version` 自动更新为当前版本（9）。如需手动重载配置，执行 `/axs reload afkreward`。

@@ -1,0 +1,39 @@
+---
+title: 命令与占位符
+description: 命令、权限与 PlaceholderAPI 占位符
+---
+
+## 命令与权限
+
+玩家命令（权限 `arcartxsuite.menu.use`）：
+
+| 命令 | 说明 |
+| --- | --- |
+| `/menu help` | 显示帮助 |
+| `/menu open &lt;菜单ID>` | 打开指定菜单 |
+| `/menu list` | 列出所有可用菜单 |
+| `/&lt;自定义命令别名>` | 通过菜单 `commands` 绑定的别名直接打开 |
+
+管理命令（挂载在宿主 `/axs menu`）：
+
+| 命令 | 权限 | 说明 |
+| --- | --- | --- |
+| `/axs menu help` | `arcartxsuite.admin` | 显示管理帮助 |
+| `/axs menu status` | `arcartxsuite.admin` | 查看模块状态（菜单数量、UI、绑定数） |
+| `/axs menu list` | `arcartxsuite.admin` | 列出所有已注册菜单 |
+| `/axs menu open &lt;菜单ID> [玩家]` | `axs.menu.open.other` | 为自己或指定玩家打开菜单 |
+| `/axs menu reload` | `axs.menu.reload` | 热重载菜单配置 |
+
+权限节点：
+
+| 权限 | 说明 |
+| --- | --- |
+| `arcartxsuite.menu.use` | 使用 `/menu` 玩家命令 |
+| `axs.menu.open.other` | 管理命令中为其他玩家打开菜单 |
+| `axs.menu.reload` | 热重载菜单配置 |
+| `arcartxsuite.admin` | 执行管理命令的基础权限 |
+| `&lt;菜单定义中的 permission>` | 各菜单自定义的打开权限 |
+
+## PlaceholderAPI
+
+Menu 模块本身不注册独立的 PlaceholderAPI 占位符。PlaceholderAPI 作为外部软依赖，仅用于菜单条件表达式（`open-requirements`、`use-conditions`、`requirements`）与动作中的变量替换。

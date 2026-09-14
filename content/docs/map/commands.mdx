@@ -1,0 +1,180 @@
+---
+title: 命令与占位符
+description: Map 模块命令、权限、PAPI 占位符与 UI Packet
+---
+
+# 命令与占位符
+
+## 玩家命令
+
+玩家命令通过 `/map` 触发，仅限玩家执行。
+
+| 命令 | 说明 | 权限 |
+|---|---|---|
+| `/map` 或 `/map open [世界ID]` | 打开地图界面，可指定世界 | `arcartxsuite.map.use` |
+| `/map hud [on/off/toggle]` | 切换小地图 HUD 显示状态 | `arcartxsuite.map.use` |
+| `/map cleartrack` | 清除当前导航追踪 | `arcartxsuite.map.use` |
+| `/map help` | 显示玩家命令帮助 | `arcartxsuite.map.use` |
+
+> 非玩家执行时提示「该命令只能由玩家执行」。无权限时提示「你没有权限执行这个命令」。服务未就绪时提示「Map 模块当前未启用」。
+
+### Tab 补全
+
+| 参数位置 | 补全内容 |
+|---|---|
+| 第 1 参数 | `help` / `open` / `hud` / `cleartrack` |
+| 第 2 参数（`open`） | 已配置的世界 ID 列表 |
+| 第 2 参数（`hud`） | `on` / `off` / `toggle` |
+
+## 管理员命令
+
+管理命令通过 `/axs map <action>` 触发，由 `ModuleCommandHandler` 注册。
+
+| 命令 | 说明 |
+|---|---|
+| `/axs map help` | 显示管理命令帮助 |
+| `/axs map status` | 查看模块运行状态 |
+| `/axs map open <玩家> [世界ID]` | 为指定玩家打开地图，可指定世界 |
+| `/axs map list` | 列出已配置的世界 |
+| `/axs map anchors [世界ID]` | 列出已配置的锚点，可按世界过滤 |
+
+### Tab 补全
+
+| 参数位置 | 补全内容 |
+|---|---|
+| 第 2 参数 | `help` / `status` / `open` / `list` / `anchors` |
+| 第 3 参数（`open`） | 在线玩家名 |
+| 第 3 参数（`anchors`） | 已配置的世界 ID 列表 |
+| 第 4 参数（`open`） | 已配置的世界 ID 列表 |
+
+### status 输出
+
+`/axs map status` 输出以下信息：
+
+| 输出项 | 说明 |
+|---|---|
+| 世界数量 | 已配置的世界总数 |
+| 锚点数量 | 已配置的锚点总数 |
+| 追踪中 | 当前正在导航的在线玩家数 |
+| Waypoint | 路径点运行时是否就绪（true/false） |
+
+> 路径点就绪状态：导航未启用时返回 `true`；导航启用时取决于 ArcartX Waypoint 桥接是否可用。
+
+## 权限节点
+
+| 权限节点 | 默认 | 说明 |
+|---|---|---|
+| `arcartxsuite.map.use` | 所有玩家 | 使用 `/map` 玩家命令的权限 |
+| `arcartxsuite.map.admin` | 管理员 | 路径点上限提升权限（配置于 `waypoints.limits`） |
+
+> 管理命令通过 `/axs` 主命令的权限控制，无需额外权限节点。锚点的使用权限通过锚点定义的 `permission` 字段单独控制。
+
+## PlaceholderAPI 占位符
+
+Map 模块**不提供独立的 PlaceholderAPI 占位符**。地图数据来自配置文件、玩家位置、世界坐标、锚点和运行时临时路径点，均通过 Packet 发送给 UI 客户端渲染。
+
+> 如需在聊天/计分板等场景显示地图信息，请使用 ArcartXSuite 本体或其他模块的 PAPI 占位符。
+
+## UI Packet 通讯
+
+Map 模块的 UI 交互通过 ArcartX Packet 通讯完成。客户端向服务端发送的 Packet 使用 `ui.packet-id`（默认 `AXS_MAP`）作为标识符，`data` 列表第一个元素为操作名。
+
+### 客户端 → 服务端操作
+
+| 操作名 | 参数 | 说明 | Token 校验 |
+|---|---|---|---|
+| `refresh` | — | 刷新菜单数据 | 否 |
+| `open_menu` | `data[1]` = 世界ID（可选） | 打开地图菜单 | 否 |
+| `open_world` | `data[1]` = 世界ID | 切换到指定世界 | 否 |
+| `select_anchor` | `data[1]` = 锚点ID | 选中锚点（显示详情） | 否 |
+| `select_waypoint` | `data[1]` = 路径点ID | 选中路径点（显示详情） | 否 |
+| `select_external` | `data[1]` = 目标ID | 选中外部目标（显示详情） | 否 |
+| `unlock_anchor` | `data[1]` = 锚点ID, `data[2]` = action_token | 解锁锚点 | 是 |
+| `teleport_anchor` | `data[1]` = 锚点ID, `data[2]` = action_token | 传送到锚点 | 是 |
+| `track_anchor` | `data[1]` = 锚点ID | 追踪锚点导航 | 否 |
+| `track_waypoint` | `data[1]` = 路径点ID | 追踪路径点导航 | 否 |
+| `track_external` | `data[1]` = 目标ID | 追踪外部目标导航 | 否 |
+| `clear_track` | — | 清除当前导航追踪 | 否 |
+| `create_waypoint` | `data[1]` = action_token | 在当前位置创建路径点 | 是 |
+| `delete_waypoint` | `data[1]` = 路径点ID, `data[2]` = action_token | 删除指定路径点 | 是 |
+
+> Token 校验：`unlock_anchor` / `teleport_anchor` / `create_waypoint` / `delete_waypoint` 四个写操作需要 action token 防重放。服务端在每次 `init`/`update` 包中下发 `action_token`，客户端写操作时需携带匹配的 token。Token 校验失败时操作被静默忽略。
+
+### 服务端 → 客户端 Packet 字段
+
+#### 菜单 Packet（`init` / `update`）
+
+| 字段 | 类型 | 说明 |
+|---|---|---|
+| `packetId` | `String` | Packet 标识符 |
+| `selectedWorldId` | `String` | 当前选中的世界 ID |
+| `selectedWorldName` | `String` | 当前选中的世界名称 |
+| `worldRows` | `Map<String, Map>` | 世界列表，key=索引，value 含 `id`/`displayName`/`texture`/`selected` |
+| `anchorRows` | `Map<String, Map>` | 锚点列表，key=索引，value 含 `id`/`displayName`/`description`/`x`/`y`/`z`/`unlocked`/`unlockCostText`/`teleportCostText`/`selected`/`tracked` |
+| `waypointRows` | `Map<String, Map>` | 路径点列表，key=索引，value 含 `id`/`name`/`x`/`y`/`z`/`selected`/`tracked` |
+| `externalTargetRows` | `Map<String, Map>` | 外部目标列表，key=索引，value 含 `id`/`source`/`name`/`description`/`x`/`y`/`z`/`selected`/`tracked` |
+| `waypointLimit` | `int` | 路径点数量上限 |
+| `waypointCount` | `int` | 当前路径点数量 |
+| `canCreateWaypoint` | `boolean` | 是否可创建新路径点 |
+| `clearTrackVisible` | `boolean` | 是否显示清除导航按钮 |
+| `trackingText` | `String` | 当前追踪状态文本 |
+| `detailSelectedType` | `String` | 详情面板选中类型（`anchor`/`waypoint`/`external`/`none`） |
+| `detailSelectedId` | `String` | 详情面板选中 ID |
+| `detailTitle` | `String` | 详情标题 |
+| `detailDescription` | `String` | 详情描述 |
+| `detailUnlocked` | `boolean` | 是否已解锁 |
+| `detailUnlockCostText` | `String` | 解锁费用文本 |
+| `detailTeleportCostText` | `String` | 传送费用文本 |
+| `detailExternalTarget` | `boolean` | 是否为外部目标 |
+| `detailCanUnlock` | `boolean` | 是否可执行解锁 |
+| `detailCanTeleport` | `boolean` | 是否可执行传送 |
+| `detailCanTrackAnchor` | `boolean` | 是否可追踪锚点 |
+| `detailCanTrackWaypoint` | `boolean` | 是否可追踪路径点 |
+| `detailCanTrackExternal` | `boolean` | 是否可追踪外部目标 |
+| `detailCanDeleteWaypoint` | `boolean` | 是否可删除路径点 |
+| `detailCanCreateWaypoint` | `boolean` | 是否可创建路径点 |
+| `detailClearTrackVisible` | `boolean` | 详情面板是否显示清除导航 |
+| `detailTrackingText` | `String` | 详情面板导航追踪文本 |
+| `maxWorldCount` | `int` | 世界行模板最大复制数 |
+| `maxAnchorCount` | `int` | 锚点行模板最大复制数 |
+| `maxWaypointCount` | `int` | 路径点行模板最大复制数 |
+| `maxExternalCount` | `int` | 外部目标行模板最大复制数 |
+| `action_token` | `String` | 写操作防重放令牌 |
+
+#### HUD Packet（`init` / `update`）
+
+| 字段 | 类型 | 说明 |
+|---|---|---|
+| `packetId` | `String` | Packet 标识符 |
+| `visible` | `boolean` | 小地图是否可见 |
+| `worldId` | `String` | 当前世界 ID |
+| `texture` | `String` | 地图纹理路径 |
+| `imageWidth` | `int` | 地图图片宽度 |
+| `imageHeight` | `int` | 地图图片高度 |
+| `hudZoom` | `double` | HUD 缩放比例 |
+| `hudSize` | `int` | HUD 尺寸（像素） |
+| `clippedPlayerX` | `double` | 裁剪后玩家像素 X 坐标 |
+| `clippedPlayerZ` | `double` | 裁剪后玩家像素 Z 坐标 |
+| `playerYaw` | `float` | 玩家朝向角度 |
+| `trackingText` | `String` | 导航追踪提示文本 |
+
+## UI 客户端 Mod 交互
+
+地图画面渲染由 Arcart-Suite-Map 客户端 mod 负责。UI 通过 Aria `use()` 获取 mod 的 `MapRenderer` 实例并调用以下方法：
+
+| 方法 | 调用时机 | 说明 |
+|---|---|---|
+| `MapRenderer.setRegion(x, y, w, h, scale)` | UI `tick` 触发器每帧 | 传递地图渲染区的屏幕坐标和缩放比例 |
+| `MapRenderer.setWorldId(worldId)` | UI `tick` 触发器每帧 | 设置当前世界 ID（mod 据此判断是否需重新渲染纹理） |
+| `MapRenderer.setPlayerPose(x, z, yaw)` | UI `tick` 触发器每帧 | 设置玩家位置与朝向（mod 据此定位玩家箭头和地图中心） |
+| `MapRenderer.clearMarkers()` | `packetHandler` init/update 后 | 清除所有标点 |
+| `MapRenderer.addMarker(id, type, name, x, z, selected, tracked, unlocked)` | `packetHandler` init/update 后 | 添加锚点/路径点/外部目标标点 |
+| `MapRenderer.deactivate()` | UI `close` 触发器 | 停止渲染 |
+
+> mod 未安装时，`use()` 调用失败，地图渲染区保持空白（显示「地图加载中...」），UI 列表和详情面板功能不受影响。
+
+## 消息文件
+
+消息文件 `messages.yml` 位于模块数据目录，支持 `&` 颜色码和 `{0}` `{1}` 占位符。修改后执行 `/axs reload map` 生效。
+
+详细消息键列表参考 [配置 - 消息文件](./configuration#消息文件)。

@@ -1,0 +1,281 @@
+---
+title: 配置
+description: Mail 配置文件详解
+---
+
+## 配置文件概览
+
+Mail 模块的配置文件位于 `data/mail/ArcartXMail.yml`，预设邮件位于 `data/mail/presets/` 目录。执行 `/axs mail reload` 可热重载配置和预设。
+
+配置版本号 `config-version` 用于迁移系统自动升级配置结构，当前版本为 `3`。
+
+## 主配置完整字段表
+
+### settings 节
+
+| 配置项 | 类型 | 默认值 | 说明 |
+|---|---|---|---|
+| `settings.debug` | boolean | `false` | 是否输出 Mail 模块调试日志 |
+
+### storage 节
+
+| 配置项 | 类型 | 默认值 | 说明 |
+|---|---|---|---|
+| `storage.shared` | boolean | `true` | 是否共享存储模式（推荐，使用本体统一数据源） |
+| `storage.mode` | String | `sqlite` | 存储模式（`sqlite` 或 `mysql`），仅 `shared: false` 时有效 |
+| `storage.sqlite.file` | String | `mail.db` | SQLite 文件名（相对模块数据目录），仅自建模式有效 |
+| `storage.pool-size` | int | `4` | JDBC 连接池大小，SQLite 建议保持 1，仅自建模式有效 |
+| `storage.mysql.host` | String | `127.0.0.1` | MySQL 主机地址，仅自建 MySQL 模式有效 |
+| `storage.mysql.port` | int | `3306` | MySQL 端口 |
+| `storage.mysql.database` | String | `arcartxsuite` | MySQL 数据库名 |
+| `storage.mysql.username` | String | `root` | MySQL 用户名 |
+| `storage.mysql.password` | String | （空） | MySQL 密码 |
+| `storage.mysql.table-prefix` | String | `axs_mail_` | MySQL 表名前缀 |
+
+> **共享模式**（推荐）：`shared: true` 时使用本体 `config.yml` 的 `storage` 节配置，各模块共用连接池，性能较好。
+> **自建模式**（不推荐）：`shared: false` 时模块独立创建 HikariCP 连接池，需配置上方字段。
+
+### cross-server 节
+
+| 配置项 | 类型 | 默认值 | 说明 |
+|---|---|---|---|
+| `cross-server.enabled` | boolean | `false` | 是否启用跨服邮件刷新通知；连接参数见宿主 `config.yml` 的 `cross-server` 节 |
+
+### ui 节
+
+| 配置项 | 类型 | 默认值 | 说明 |
+|---|---|---|---|
+| `ui.inbox-ui-id` | String | `AXS:mail_inbox` | 收件箱 UI ID |
+| `ui.compose-ui-id` | String | `AXS:mail_compose` | 写信 UI ID |
+| `ui.logs-ui-id` | String | `AXS:mail_logs` | 日志 UI ID |
+| `ui.admin-ui-id` | String | `AXS:mail_admin` | 管理 UI ID |
+| `ui.register-ui-on-enable` | boolean | `true` | 模块启用时是否自动注册 UI 配置文件 |
+| `ui.overwrite-ui-files` | boolean | `false` | 是否覆盖已有的同名 UI 文件（false 则保留自定义修改） |
+| `ui.compose-inventory-title` | String | `AXS Mail Compose` | 玩家打开写信背包时显示的标题 |
+| `ui.notify-card-id` | String | `axs_mail_notify` | 新邮件到达时在聊天栏显示的 ArcartX 卡片 ID；留空则不发送通知卡片 |
+| `ui.inbox-preview-max-chars` | int | `40` | 收件箱列表预览文字的最大字符数（超过则截断并追加 `...`） |
+| `ui.notify-char-width-full` | int | `31` | 通知卡片全角字符占位宽度 |
+| `ui.notify-char-width-half` | int | `18` | 通知卡片半角字符占位宽度 |
+| `ui.notify-max-line-width` | int | `750` | 通知卡片文字区最大宽度（超过此值换行） |
+
+### player-send 节
+
+| 配置项 | 类型 | 默认值 | 说明 |
+|---|---|---|---|
+| `player-send.enabled` | boolean | `true` | 玩家写信功能总开关 |
+| `player-send.require-permission` | boolean | `true` | 是否要求 `arcartxsuite.mail.send` 权限 |
+| `player-send.cooldown-seconds` | int | `120` | 发信冷却（秒），0 表示不冷却 |
+| `player-send.base-fee` | double | `0.0` | 每封邮件固定手续费 |
+| `player-send.item-fee` | double | `0.0` | 每个物品附件额外手续费 |
+| `player-send.fee-currency` | String | `money` | 手续费货币 ID（需在 currencies 中存在） |
+| `player-send.attachment-tax-rates` | Map | — | 各货币附件税率映射（key 为货币 ID，value 为税率 0.0~1.0） |
+| `player-send.allow-self-send` | boolean | `false` | 是否允许给自己发信 |
+| `player-send.allow-offline-send` | boolean | `true` | 是否允许向离线玩家发信 |
+| `player-send.allow-vault-attachment` | boolean | `true` | 是否允许附带 Vault 金币 |
+| `player-send.max-attachments` | int | `6` | 玩家写信可放入的物品附件槽数量上限（1~64） |
+| `player-send.subject-max-length` | int | `48` | 邮件标题最大长度 |
+| `player-send.body-max-length` | int | `400` | 邮件正文最大长度 |
+| `player-send.vault-default-icon` | Icon | — | 玩家发送的 Vault 货币附件在收件箱 UI 中展示的默认图标 |
+
+> **`vault-default-icon`** 配置与 menu 模块的 icon 配置一致，支持 `material` / `custom-model-data` / `texture` / `texture-url` / `name` / `lore` / `source` / `id` / `nbt` / `glow` / `skull-texture` / `color` 等字段。留空或不配置时使用默认纸片图标。
+
+> **手续费计算**：总手续费 = `base-fee` + `item-fee` × 物品附件数量。货币附件税费 = 附件金额 × `attachment-tax-rates` 中对应货币的税率。发送时需同时支付手续费和货币附件金额（含税费）。
+
+### moderation 节
+
+| 配置项 | 类型 | 默认值 | 说明 |
+|---|---|---|---|
+| `moderation.blocked-words` | List | 见下方示例 | 命中时禁止发送的敏感词列表（小写匹配） |
+| `moderation.blocked-patterns` | List | 见下方示例 | 屏蔽正则表达式列表（邮件标题/正文命中则禁止发送，大小写不敏感） |
+| `moderation.blocked-materials` | List | `BEDROCK`, `COMMAND_BLOCK`, `BARRIER` | 屏蔽物品材质列表（附件物品命中则禁止发送，大写匹配） |
+| `moderation.blocked-lore-patterns` | List | （空） | 屏蔽 Lore 正则表达式列表（附件物品 Lore 命中则禁止发送） |
+| `moderation.blocked-displayname-patterns` | List | （空） | 屏蔽物品自定义名称正则列表（附件物品 displayName 命中则禁止发送，大小写不敏感） |
+| `moderation.blocked-nbt-keys` | List | （空） | 屏蔽 NBT/PDC 键列表（附件物品存在任一指定键则禁止发送，匹配键名或完整键 namespace:key） |
+| `moderation.blocked-nbt-values` | Map | （空） | 屏蔽 NBT/PDC 键值对（键为 PDC 键名，值为期望的字符串/数值，支持数值比较和字符串比较） |
+
+### retention 节
+
+| 配置项 | 类型 | 默认值 | 说明 |
+|---|---|---|---|
+| `retention.cleanup-interval-ticks` | long | `1200` | 自动清理周期（tick，最小 20） |
+| `retention.default-expire-after-days` | int | `15` | 默认邮件过期天数（最小 1） |
+| `retention.claimed-retention-days` | int | `7` | 已领取邮件保留天数（超过后物理删除） |
+| `retention.deleted-retention-days` | int | `7` | 已删除邮件保留天数（超过后物理删除） |
+| `retention.allow-delete-with-unclaimed-attachments` | boolean | `false` | 是否允许在仍有未领取附件时删除邮件 |
+
+### cdk 节
+
+| 配置项 | 类型 | 默认值 | 说明 |
+|---|---|---|---|
+| `cdk.require-permission` | boolean | `false` | 是否要求 `arcartxsuite.mail.cdk` 权限才能兑换 CDK |
+| `cdk.cooldown-seconds` | int | `10` | CDK 兑换失败后冷却时间（秒），0 表示不冷却 |
+| `cdk.max-fail-attempts` | int | `5` | 连续失败达到此次数后临时锁定，0 表示不锁定 |
+| `cdk.lockout-minutes` | int | `5` | 触发锁定后的锁定时长（分钟） |
+
+> CDK 限流机制：每次兑换失败（CDK 不存在/已领过/已过期/已领完等）都会触发冷却。兑换成功会重置失败计数。锁定期间玩家无法兑换任何 CDK。
+
+### presets 节
+
+| 配置项 | 类型 | 默认值 | 说明 |
+|---|---|---|---|
+| `presets.directory` | String | `presets` | 预设邮件目录名（相对于插件数据目录 `data/mail/`） |
+| `presets.admin-max-attachments` | int | `18` | 管理员 UI 预设编辑的最大物品附件槽位数（1~64） |
+
+## 邮件预设配置
+
+预设邮件位于 `data/mail/presets/` 目录，每个 `.yml` 文件定义一个预设。详见 [邮件预设](/docs/mail/presets) 页面。
+
+## 邮件附件配置
+
+邮件附件分为三种类型（`MailAttachmentType` 枚举）：
+
+| 附件类型 | 枚举值 | 配置字段 | 说明 |
+|---|---|---|---|
+| 物品附件 | `ITEM` | `item-attachments` | 序列化为 Base64 存储完整 NBT/附魔/自定义模型数据 |
+| Vault 货币 | `VAULT` | `currency-attachments`（currency 为 `money`） | 走 Vault 经济桥接 |
+| 自定义货币 | `CURRENCY` | `currency-attachments`（currency 非 `money`） | 走 CurrencyBridgeAPI 统一货币桥接 |
+
+### 物品附件
+
+物品附件支持两种配置方式：
+
+1. **`item-data`**（推荐）：完整 Base64 物品数据，保留 customModelData/附魔/PDC/自定义 NBT 等全部字段。管理员 UI 保存预设时自动生成。
+2. **`source` + `id`**（兼容旧格式）：通过 ItemSourceRegistry 生成物品，支持以下来源：
+
+| source 值 | 物品库 | id 格式 |
+|---|---|---|
+| `minecraft` | 原版物品 | 材质名（如 `APPLE`、`DIAMOND`） |
+| `mythic` | MythicMobs | MythicMobs 内部物品名 |
+| `neige` | NeigeItems | NeigeItems 物品 ID |
+| `overture` | Overture | Overture 物品 ID |
+| `mmoitems` | MMOItems | `类型ID;物品ID`（如 `SWORD;LEGENDARY_SWORD`） |
+
+物品附件还支持 `name`（自定义名称）、`lore`（自定义描述）、`custom-model-data`、`nbt` 等属性，详见 [物品来源](/docs/guide/item-sources)。
+
+### 货币附件
+
+货币附件配置在 `currency-attachments` 列表中，每个条目包含：
+
+| 字段 | 类型 | 说明 |
+|---|---|---|
+| `currency` | String | 货币 ID（`money` 走 Vault，其余走 CurrencyBridge） |
+| `amount` | double | 货币数量（必须 `>` 0） |
+| `description` | String | 附件展示描述（可选，默认为 `货币ID 数量`） |
+| `icon` | Icon | 货币附件展示图标（可选，与 menu 模块 IconDefinition 一致） |
+
+### 领取命令
+
+`claim-commands` 列表定义玩家领取邮件时额外执行的命令，支持 `<player>` 等变量：
+
+```yaml
+claim-commands:
+  - "tell <player> 你领取了奖励。"
+  - "lp user <player> permission set vip.reward true"
+```
+
+## 邮件过期/清理配置
+
+邮件过期和清理由 `retention` 节控制，定时任务按 `cleanup-interval-ticks` 周期执行：
+
+1. **过期标记**：将 `status` 为 `UNREAD`/`READ` 且 `expires_at <= 当前时间` 的邮件标记为 `EXPIRED`
+2. **物理删除**：删除超过保留天数的 `CLAIMED`/`DELETED`/`EXPIRED` 邮件及其附件记录
+3. **CDK 清理**：删除已过期的 CDK 定义及其领取记录
+
+## 完整配置示例
+
+```yaml
+# data/mail/ArcartXMail.yml
+config-version: 3
+
+settings:
+  debug: false
+
+storage:
+  shared: true
+
+cross-server:
+  enabled: false
+
+ui:
+  inbox-ui-id: AXS:mail_inbox
+  compose-ui-id: AXS:mail_compose
+  logs-ui-id: AXS:mail_logs
+  admin-ui-id: AXS:mail_admin
+  register-ui-on-enable: true
+  overwrite-ui-files: false
+  compose-inventory-title: AXS Mail Compose
+  notify-card-id: "axs_mail_notify"
+  inbox-preview-max-chars: 40
+  notify-char-width-full: 31
+  notify-char-width-half: 18
+  notify-max-line-width: 750
+
+player-send:
+  enabled: true
+  require-permission: true
+  cooldown-seconds: 120
+  base-fee: 0.0
+  item-fee: 0.0
+  fee-currency: money
+  attachment-tax-rates:
+    money: 0.05
+    points: 0.0
+  allow-self-send: false
+  allow-offline-send: true
+  allow-vault-attachment: true
+  max-attachments: 6
+  subject-max-length: 48
+  body-max-length: 400
+  vault-default-icon:
+    material: GOLD_INGOT
+    name: "&6金币"
+
+moderation:
+  blocked-words:
+    - sb
+    - 傻逼
+  blocked-patterns:
+    - sb
+    - 傻逼
+  blocked-materials:
+    - BEDROCK
+    - COMMAND_BLOCK
+    - BARRIER
+  blocked-lore-patterns: []
+  blocked-displayname-patterns: []
+  blocked-nbt-keys: []
+  blocked-nbt-values: {}
+
+retention:
+  cleanup-interval-ticks: 1200
+  default-expire-after-days: 15
+  claimed-retention-days: 7
+  deleted-retention-days: 7
+  allow-delete-with-unclaimed-attachments: false
+
+cdk:
+  require-permission: false
+  cooldown-seconds: 10
+  max-fail-attempts: 5
+  lockout-minutes: 5
+
+presets:
+  directory: presets
+  admin-max-attachments: 18
+```
+
+### 自建 MySQL 存储示例
+
+```yaml
+storage:
+  shared: false
+  mode: mysql
+  pool-size: 4
+  mysql:
+    host: "127.0.0.1"
+    port: 3306
+    database: "arcartxsuite"
+    username: "root"
+    password: ""
+    table-prefix: "axs_mail_"
+```

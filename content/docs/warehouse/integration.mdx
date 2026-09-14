@@ -1,0 +1,300 @@
+---
+title: 联动
+description: Warehouse 跨模块联动与 Capability
+---
+
+# 联动
+
+## EventBus 事件
+
+Warehouse 模块通过 EventBus 发布事件，供其他模块订阅。模块在 `publishedTopics()` 中注册了以下主题：
+
+| 事件主题 | 触发时机 | Payload 字段 |
+| --- | --- | --- |
+| `axs.warehouse.item_deposited` | 物品成功存入玩家个人仓库（含自动入库） | `material`（材质 ID）、`amount`（存入数量） |
+
+### 事件发布流程
+
+当物品通过以下方式存入个人仓库时触发事件：
+
+1. **UI 手动存入**：玩家在存取界面通过 `deposit_slot` / `deposit_all_backpack` 操作
+2. **自动入库**：拾取物品时自动存入（需开启 `auto-store-on-pickup`）
+3. **外部模块调用**：通过 `WarehouseAutoDepositable` Capability 调用自动入库
+
+事件通过 `EventBusCapability` 发布，payload 包含物品材质名称与存入数量。其他模块可通过 EventBus 订阅此事件实现联动（如任务系统统计入库量、成就系统触发解锁等）。
+
+```java
+// 示例：其他模块订阅 warehouse 入库事件
+eventBus.subscribe("axs.warehouse.item_deposited", (player, payload) -> {
+    String material = payload.get("material");
+    long amount = Long.parseLong(payload.get("amount"));
+    // 处理入库事件...
+});
+```
+
+## Capability 注册
+
+Warehouse 模块注册以下 Capability，供其他模块通过 `getCapability()` 获取：
+
+### WarehouseAutoDepositable
+
+提供自动入库接口，供 Pickup 等外部模块调用将物品存入玩家个人仓库。
+
+```java
+public interface WarehouseAutoDepositable {
+    DepositResult depositToPersonalWarehouse(Player player, ItemStack itemStack);
+}
+```
+
+| 方法参数 | 说明 |
+| --- | --- |
+| `player` | 目标玩家，必须在线 |
+| `itemStack` | 待存入物品（会被 clone，不会修改原对象） |
+
+| 返回值字段 | 说明 |
+| --- | --- |
+| `success` | 是否存入成功 |
+| `storedAmount` | 已存入数量 |
+| `remainingAmount` | 剩余未存入数量 |
+| `message` | 提示消息 |
+
+存入逻辑：物品经黑名单校验后，存入玩家第一个个人仓库，相同物品自动堆叠。存入成功后发布 `axs.warehouse.item_deposited` 事件。
+
+### PlayerDataPurgeable
+
+支持 `/axs purge` 按玩家清除仓库数据。
+
+| 方法 | 说明 |
+| --- | --- |
+| `purgePlayerData(UUID)` | 删除指定玩家的个人仓库、银行余额、定期存款、共享成员记录，返回删除行数 |
+| `purgeAllPlayerData()` | 删除全部玩家的数据，返回删除行数 |
+
+涉及的表：`warehouse_personal`、`warehouse_bank_balances`、`warehouse_fixed_deposits`、`warehouse_shared_members`。
+
+### DatabaseMigratable
+
+支持 `/axs migrate` 跨数据库源迁移仓库数据。
+
+| 方法 | 说明 |
+| --- | --- |
+| `migrateDatabase(StorageDescriptor, boolean)` | 将数据迁移到目标数据源，`overwrite` 控制是否覆盖已有数据 |
+| `currentDescriptor()` | 返回当前存储描述符 |
+
+### ExtraBackpackAccess（可选）
+
+模块可获取 `ExtraBackpackAccess` Capability（由 ExtraBackpack 模块提供），用于额外槽位背包功能的物品交互。此 Capability 为可选依赖，模块通过 `getExtraBackpackAccess()` 方法获取，返回 `null` 时降级为无额外背包模式。
+
+## 跨服同步
+
+### 共享仓库编辑锁
+
+当 `cross-server.enabled: true` 且共享仓库功能启用时，Warehouse 模块通过 CrossServer API 实现共享仓库编辑锁的跨服同步。
+
+**架构**：
+
+```
+子服 A（玩家获取编辑锁）
+  └─ WarehouseCrossServerLockService.publishLock()
+       └─ CrossServerChannel.publish("LOCK\t<sharedId>\t<playerUuid>\t<playerName>\t<nodeId>")
+            └─ 子服 B 接收 payload
+                 └─ WarehouseCrossServerLockService.handlePayload()
+                      └─ applyRemoteSharedLock(sharedId, lock)
+                           └─ sharedEditLocks.put(sharedId, lock)
+```
+
+**Payload 格式**（Tab 分隔）：
+
+| 类型 | 格式 |
+| --- | --- |
+| `LOCK` | `LOCK\t<sharedId>\t<playerUuid>\t<playerName>\t<nodeId>` |
+| `UNLOCK` | `UNLOCK\t<sharedId>\t<playerUuid>\t<nodeId>` |
+
+**SharedEditLock 记录**：
+
+| 字段 | 说明 |
+| --- | --- |
+| `playerUuid` | 锁持有者 UUID |
+| `playerName` | 锁持有者名称 |
+| `nodeId` | 持有锁的子服节点 ID |
+
+**工作流程**：
+
+1. 玩家在子服 A 打开共享仓库编辑模式时，获取本地编辑锁
+2. 通过 CrossServer 通道广播 `LOCK` 消息至所有子服
+3. 子服 B 收到消息后，在 `sharedEditLocks` 中记录锁状态
+4. 子服 B 上的玩家打开同一共享仓库时，检测到锁被子服 A 的玩家持有，以只读模式打开
+5. 玩家关闭编辑或退出时，广播 `UNLOCK` 消息，所有子服释放锁
+
+**启用条件**：
+
+- `cross-server.enabled: true`
+- `shared.enabled: true`
+- 宿主 `config.yml` 配置了跨服通道（Redis 或 Proxy 后端）
+- MySQL 共享数据库（多子服共用同一数据库）
+
+> 跨服编辑锁仅影响共享仓库的编辑模式。个人仓库不受跨服锁影响。
+
+## 数据库表结构
+
+### warehouse_personal
+
+个人仓库元数据表。
+
+| 列名 | 类型 | 说明 |
+| --- | --- | --- |
+| `player_uuid` | VARCHAR(36) | 玩家 UUID |
+| `warehouse_id` | VARCHAR(64) | 仓库标识 |
+| `level` | INTEGER | 仓库等级 |
+| `custom_name` | VARCHAR(64) | 自定义名称 |
+| `showcase_enabled` | BOOLEAN | 展示柜开关 |
+| `updated_at` | BIGINT | 更新时间戳 |
+
+主键：`(player_uuid, warehouse_id)`
+
+### warehouse_slots
+
+仓库槽位物品表（个人仓库与共享仓库共用）。
+
+| 列名 | 类型 | 说明 |
+| --- | --- | --- |
+| `owner_type` | VARCHAR(16) | 所有者类型：`personal` 或 `shared` |
+| `owner_id` | VARCHAR(64) | 所有者 ID（玩家 UUID 或共享仓库 ID） |
+| `warehouse_id` | VARCHAR(64) | 仓库标识 |
+| `slot` | INTEGER | 槽位序号 |
+| `item_hash` | VARCHAR(64) | 物品 SHA-256 哈希 |
+| `category_id` | VARCHAR(64) | 分类 ID |
+| `display_name` | VARCHAR(255) | 显示名称 |
+| `material_id` | VARCHAR(128) | 原版材质 ID |
+| `search_text` | TEXT | 搜索文本 |
+| `pinyin` | TEXT | 拼音索引 |
+| `initials` | TEXT | 首字母索引 |
+| `item_data` | LONGTEXT | Base64 序列化物品数据 |
+| `item_json` | LONGTEXT | JSON 格式物品展示数据 |
+| `amount` | BIGINT | 聚合数量 |
+| `created_at` | BIGINT | 创建时间戳 |
+| `updated_at` | BIGINT | 更新时间戳 |
+
+主键：`(owner_type, owner_id, warehouse_id, slot)`。索引：`idx_warehouse_slots_hash (owner_type, owner_id, warehouse_id, item_hash)`。
+
+### warehouse_bank_balances
+
+银行活期余额表。
+
+| 列名 | 类型 | 说明 |
+| --- | --- | --- |
+| `player_uuid` | VARCHAR(36) | 玩家 UUID |
+| `currency_id` | VARCHAR(64) | 货币 ID |
+| `balance` | VARCHAR(64) | 余额（BigDecimal 字符串） |
+| `updated_at` | BIGINT | 更新时间戳 |
+
+主键：`(player_uuid, currency_id)`
+
+### warehouse_fixed_deposits
+
+定期存款记录表。
+
+| 列名 | 类型 | 说明 |
+| --- | --- | --- |
+| `id` | VARCHAR(36) | 存款 ID（UUID） |
+| `player_uuid` | VARCHAR(36) | 玩家 UUID |
+| `product_id` | VARCHAR(64) | 产品 ID |
+| `currency_id` | VARCHAR(64) | 货币 ID |
+| `principal` | VARCHAR(64) | 本金 |
+| `interest_rate` | VARCHAR(64) | 利率 |
+| `created_at` | BIGINT | 创建时间戳 |
+| `matures_at` | BIGINT | 到期时间戳 |
+| `claimed` | BOOLEAN | 是否已领取 |
+| `claimed_at` | BIGINT | 领取时间戳 |
+
+主键：`id`
+
+### warehouse_shared
+
+共享仓库元数据表。
+
+| 列名 | 类型 | 说明 |
+| --- | --- | --- |
+| `id` | VARCHAR(36) | 共享仓库 ID（UUID） |
+| `owner_uuid` | VARCHAR(36) | 所有者 UUID |
+| `name` | VARCHAR(64) | 仓库名称 |
+| `level` | INTEGER | 仓库等级 |
+| `capacity` | BIGINT | 容量 |
+| `created_at` | BIGINT | 创建时间戳 |
+| `updated_at` | BIGINT | 更新时间戳 |
+| `showcase_enabled` | BOOLEAN | 展示柜开关 |
+
+主键：`id`
+
+### warehouse_shared_members
+
+共享仓库成员关系表。
+
+| 列名 | 类型 | 说明 |
+| --- | --- | --- |
+| `shared_id` | VARCHAR(36) | 共享仓库 ID |
+| `player_uuid` | VARCHAR(36) | 成员 UUID |
+| `role` | VARCHAR(16) | 角色：`owner` / `member` / `viewer` |
+| `updated_at` | BIGINT | 更新时间戳 |
+
+主键：`(shared_id, player_uuid)`
+
+### warehouse_pending_transfers
+
+待确认的共享仓库转让记录表。
+
+| 列名 | 类型 | 说明 |
+| --- | --- | --- |
+| `shared_id` | VARCHAR(36) | 共享仓库 ID |
+| `from_owner_uuid` | VARCHAR(36) | 原所有者 UUID |
+| `to_uuid` | VARCHAR(36) | 目标玩家 UUID |
+| `created_at` | BIGINT | 发起时间戳 |
+| `expires_at` | BIGINT | 过期时间戳 |
+
+主键：`shared_id`
+
+### warehouse_player_settings
+
+玩家个人设置表。
+
+| 列名 | 类型 | 说明 |
+| --- | --- | --- |
+| `player_uuid` | VARCHAR(36) | 玩家 UUID |
+| `auto_pickup` | BOOLEAN | 自动入库开关 |
+| `auto_mythic` | BOOLEAN | 怪物战利品自动存储开关 |
+| `auto_notify` | BOOLEAN | 入库通知开关 |
+| `updated_at` | BIGINT | 更新时间戳 |
+
+主键：`player_uuid`
+
+## 与其他模块联动
+
+| 联动模块 | 机制 | 说明 |
+| --- | --- | --- |
+| Pickup | `WarehouseAutoDepositable` Capability | Pickup 模块拾取物品时调用 Warehouse 自动入库接口，将物品存入玩家仓库 |
+| Pickup | `PickupNotifiable` Capability | Warehouse 获取 Pickup 的通知能力，在自动入库后向玩家发送提示 |
+| Pickup | `PickupInterceptor` Capability | Warehouse 获取拾取拦截器，在自动入库场景下拦截原版拾取事件 |
+| ExtraBackpack | `ExtraBackpackAccess` Capability | Warehouse 可选获取额外背包访问能力，用于额外槽位背包物品交互 |
+| 核心 | `SecondaryPasswordAccess` Capability | Warehouse 获取核心二级密码服务，统一管理仓库/银行的二级密码验证 |
+| 核心 | `EventBusCapability` | Warehouse 通过 EventBus 发布 `axs.warehouse.item_deposited` 事件 |
+| 核心 | `PlayerDataPurgeable` | 支持 `/axs purge` 清除玩家仓库数据 |
+| 核心 | `DatabaseMigratable` | 支持 `/axs migrate` 跨数据库源迁移 |
+| Currency | `CurrencyBridgeAPI` | 银行系统依赖货币桥接，定期存款产品与仓库升级均使用全局货币 |
+| CrossServer | `CrossServerAPI` | 共享仓库编辑锁跨服同步 |
+
+### 与 Pickup 模块联动
+
+当 Pickup 模块启用且玩家开启自动入库时，拾取流程如下：
+
+1. 玩家拾取物品触发 `EntityPickupItemEvent`
+2. Warehouse 监听事件，检查玩家自动入库设置（`auto_pickup`）
+3. 调用 `depositToPersonalWarehouse` 将物品存入仓库
+4. 存入成功后取消原版拾取事件，并通过 `PickupNotifiable` 通知玩家
+5. 存入失败时物品保留在地面或背包
+
+> MythicMobs 掉落物需额外开启 `auto-store-mythic-loot` 才会自动入库。
+
+### 与核心二级密码联动
+
+Warehouse 的二级密码由核心统一管理（`SecondaryPasswordAccess` Capability），不再由模块自行存储密码。玩家通过 `/axs password set|unlock|clear` 管理密码。Warehouse 在存取物品、银行操作、共享仓库管理等敏感操作前检查二级密码会话状态。
+
+会话有效期由 `security.unlock-session-ms` 配置（默认 10 分钟），超时后需重新解锁。

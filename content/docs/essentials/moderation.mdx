@@ -1,0 +1,179 @@
+---
+title: 安全管理
+description: Essentials 模块安全管理详解 — 封禁、禁言、踢出、警告自动封禁、强制执行与背包查看
+---
+
+## 功能概述
+
+Essentials 模块的安全管理功能由 `EssentialsCommandDelegate` 直接处理命令逻辑，封禁与警告数据通过 `EssentialsRepository` 持久化，禁言功能则完全委托给 Chat 模块的 `ChatMutable` 能力。所有管理命令均要求对应的 `axs.essentials.*` 权限。
+
+| 功能 | 命令 | 权限 | 数据存储 |
+|------|------|------|----------|
+| 永久封禁 | `ban` | `axs.essentials.ban` | `axs_ess_bans` 表 |
+| 临时封禁 | `tempban` | `axs.essentials.ban` | `axs_ess_bans` 表 |
+| 解除封禁 | `unban` | `axs.essentials.unban` | 删除 `axs_ess_bans` 记录 |
+| 永久禁言 | `mute` | `axs.essentials.mute` | Chat 模块（`ChatMutable`） |
+| 临时禁言 | `tempmute` | `axs.essentials.mute` | Chat 模块（`ChatMutable`） |
+| 解除禁言 | `unmute` | `axs.essentials.unmute` | Chat 模块（`ChatMutable`） |
+| 踢出 | `kick` | `axs.essentials.kick` | 不持久化 |
+| 警告 | `warn` | `axs.essentials.warn` | `axs_ess_warnings` 表 |
+| 强制执行 | `sudo` | `axs.essentials.sudo` | 不持久化 |
+| 背包查看 | `inv` | `axs.essentials.inv` | 不持久化 |
+
+## 封禁系统
+
+### 永久封禁（ban）
+
+`handleBan(sender, args, temp=false)` 对在线玩家执行永久封禁：
+
+1. 解析目标玩家（必须在线，否则提示 `player-not-found`）。
+2. 记录玩家 IP 地址（`target.getAddress().getHostString()`，可为 null）。
+3. 调用 `repository.ban(uuid, name, reason, operator, -1, ip)` 写入 `axs_ess_bans` 表，`expires_at = -1` 表示永久。
+4. 踢出目标玩家，踢出消息使用 `moderation.ban-message` 模板（替换 `{reason}` 与 `{expiry}`，永久封禁显示"永久"）。
+5. 全服广播 `ban-broadcast` 消息。
+
+### 临时封禁（tempban）
+
+`handleBan(sender, args, temp=true)` 在永久封禁基础上增加时长参数：
+
+```yaml
+# 命令格式
+/essentials tempban <玩家> <时长> [原因]
+
+# 时长格式（parseDuration 解析）
+1d   # 1 天
+2h   # 2 小时
+30m  # 30 分钟
+45s  # 45 秒
+3600 # 纯数字按秒处理
+```
+
+`parseDuration` 根据后缀计算到期时间戳（毫秒），`expires_at = System.currentTimeMillis() + duration`。解析失败时回退为 1 小时。
+
+### 解除封禁（unban）
+
+`handleUnban` 调用 `repository.unban(uuid)` 删除封禁记录。仅对在线玩家生效（通过 `Bukkit.getPlayer` 解析），离线玩家需通过管理员面板的 `unban` 操作（按 UUID 解除）。
+
+> Essentials 模块的封禁记录存储在自有数据库表中，但**不拦截离线封禁玩家的加入**。如需加入时拦截，需配合宿主或代理层的封禁门扩展开发。
+
+### BanRecord 记录
+
+`EssentialsRepository.getAllBans()` 返回 `BanRecord` 列表，供管理员面板展示：
+
+| 字段 | 类型 | 说明 |
+|------|------|------|
+| `uuid` | `UUID` | 玩家 UUID |
+| `playerName` | `String` | 玩家名称 |
+| `reason` | `String` | 封禁原因 |
+| `operator` | `String` | 操作者 |
+| `createdAt` | `long` | 创建时间戳（毫秒） |
+| `expiresAt` | `long` | 过期时间戳（毫秒，`<=0` 为永久） |
+| `ip` | `String?` | 玩家 IP（可为 null） |
+
+`BanRecord` 提供两个便捷方法：`isPermanent()`（`expiresAt <= 0`）与 `isExpired()`（`expiresAt > 0` 且当前时间已超过）。
+
+## 禁言系统
+
+禁言功能完全委托给 Chat 模块的 `ChatMutable` 能力，Essentials 模块本身不存储禁言数据。命令处理通过 `chatMutableSupplier.get()` 延迟获取能力实例：
+
+| 命令 | 调用方法 | 说明 |
+|------|----------|------|
+| `mute` | `mutePlayer(name, null, reason, operator)` | 永久禁言（`expiresAt = null`） |
+| `tempmute` | `mutePlayer(name, expiresAt, reason, operator)` | 临时禁言（`expiresAt` 为 `Instant`） |
+| `unmute` | `unmutePlayer(name)` | 解除禁言 |
+
+### Chat 模块未加载时的降级
+
+`chatMutableSupplier.get()` 返回 `null` 时（Chat 模块未加载），命令会提示 `admin.mute.offline-warn`（禁言功能需要 Chat 模块启用），管理面板禁言标签页显示"Chat 模块未加载"。
+
+> `EssentialsQueryable.isMuted(uuid)` 同样委托 `ChatMutable.isMuted(uuid)`，Chat 模块未加载时返回 `false`。
+
+## 踢出（kick）
+
+`handleKick` 对在线玩家执行踢出，使用 `moderation.kick-message` 模板（替换 `{reason}`），并全服广播 `kick-broadcast`。原因参数缺省时默认为"无"。
+
+## 警告与自动封禁（warn）
+
+`handleWarn` 是安全管理中逻辑最复杂的功能，包含警告记录与自动封禁两级机制：
+
+1. 调用 `repository.addWarning(uuid, name, reason, operator)` 写入 `axs_ess_warnings` 表。
+2. 全服广播 `warn-broadcast` 消息。
+3. 检查自动封禁阈值 `moderation.max-warnings-before-ban`（默认 5，0 表示不自动封禁）：
+   - 计算有效警告数：仅统计 `warning-expire-days`（默认 30 天，0 表示永不过期）内的警告。
+   - 当有效警告数 `>= max-warnings-before-ban` 时，自动调用 `repository.ban` 封禁玩家（操作者为"系统"，原因为"警告次数达到上限"），踢出玩家并向执行者发送 `admin.warn.ban-tip` 提示。
+
+```yaml
+moderation:
+  # 达到 5 次警告自动永久封禁
+  max-warnings-before-ban: 5
+  # 警告 30 天后过期（不计入自动封禁判定）
+  warning-expire-days: 30
+```
+
+> 警告过期仅影响自动封禁判定，历史警告记录不会被删除，`getWarnings(uuid)` 仍返回全部记录。
+
+### WarnRecord 记录
+
+`EssentialsRepository.getWarnings(uuid)` 返回 `WarnRecord` 列表，`getWarningCount(uuid, since)` 统计指定时间戳之后的警告数（用于自动封禁判定）：
+
+| 字段 | 类型 | 说明 |
+|------|------|------|
+| `id` | `int` | 自增主键 |
+| `uuid` | `UUID` | 玩家 UUID |
+| `playerName` | `String` | 玩家名称 |
+| `reason` | `String` | 警告原因 |
+| `operator` | `String` | 操作者 |
+| `createdAt` | `long` | 创建时间戳（毫秒） |
+
+## 强制执行（sudo）
+
+`handleSudo` 强制目标玩家执行指定命令。命令参数以 `/` 开头时会自动去除前缀，然后调用 `target.performCommand(cmd)`：
+
+```yaml
+# 命令格式
+/essentials sudo <玩家> <命令>
+
+# 示例
+/essentials sudo Steve /spawn
+/essentials sudo Steve say hello
+```
+
+执行后向发送者返回 `admin.sudo.success` 提示。目标玩家不在线时提示 `player-not-found`。
+
+## 背包查看（inv）
+
+`handleInv` 调用 `PlayerManagementService.openPlayerInventory(viewer, target)` 打开目标玩家的背包界面。该功能支持实时双向同步，查看者可在界面中直接修改目标玩家的背包物品，详见 [玩家管理](/docs/essentials/player-management#背包查看inv)。
+
+> 背包查看仅对在线玩家生效，且需要执行者为玩家（控制台无法使用）。
+
+## 时长格式
+
+临时封禁与临时禁言共用 `parseDuration` 解析时长，支持以下后缀：
+
+| 后缀 | 单位 | 示例 |
+|------|------|------|
+| `d` | 天 | `7d` = 7 天 |
+| `h` | 小时 | `2h` = 2 小时 |
+| `m` | 分钟 | `30m` = 30 分钟 |
+| `s` | 秒 | `45s` = 45 秒 |
+| 无后缀 | 秒 | `3600` = 3600 秒 |
+
+> 解析失败时回退为 1 小时（`3600000` 毫秒）。`tempmute` 的时长会转换为 `Instant` 传给 `ChatMutable.mutePlayer`。
+
+## 管理员面板集成
+
+管理员面板（`/essentials admin`）提供安全管理的可视化操作，由 `EssentialsAdminPacketHandler` 处理客户端回包。所有操作均要求 `axs.essentials.admin` 权限，并二次校验对应功能权限：
+
+| 页面 | 客户端 Action | 所需权限 | 说明 |
+|------|---------------|----------|------|
+| 玩家列表 | `kick` | `axs.essentials.kick` | 踢出玩家 |
+| 封禁列表 | `ban` | `axs.essentials.ban` | 永久封禁在线玩家（记录 IP） |
+| 封禁列表 | `unban` | `axs.essentials.unban` | 按 UUID 解除封禁 |
+| 禁言列表 | `mute` | `axs.essentials.mute` | 禁言玩家（依赖 Chat 模块） |
+| 禁言列表 | `unmute` | `axs.essentials.unmute` | 解除禁言 |
+
+封禁列表数据来自 `repository.getAllBans()`，禁言列表数据来自 `ChatMutable.listMutes()`。`chatAvailable` 字段标识 Chat 模块是否可用，前端据此决定禁言标签页是否可操作。
+
+> UI Packet 的频率控制由框架路由层（`ClientPacketRouter` + `PacketGuard`）统一处理，Packet Handler 内部仅做权限校验。
+>
+> 更多关于 UI 配置文件编写与图标显示，请参考 [图标配置](/docs/guide/icons)。

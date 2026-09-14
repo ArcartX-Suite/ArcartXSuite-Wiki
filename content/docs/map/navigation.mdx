@@ -1,0 +1,492 @@
+---
+title: 导航追踪与路径标记
+description: 导航状态管理、路标系统、路径标记模型与外部目标注入
+---
+
+# 导航追踪与路径标记
+
+## 概述
+
+Map 模块的导航功能允许玩家追踪锚点、自定义路径点和外部目标，在客户端显示方向指引路标和路径标记实体。导航功能通过 `WaypointBridgeAPI` 创建客户端路标，可选通过 `AdyeshachNpcBridgeAPI` 渲染路径标记模型。
+
+导航功能涉及以下组件：
+
+| 组件 | 类 | 职责 |
+|---|---|---|
+| 导航状态 | `MapNavigationState` | 记录玩家当前追踪的目标类型、ID 和标签 |
+| 路标桥接 | `WaypointBridgeAPI` | 创建/移除客户端路标导航 |
+| 标记服务 | `NavigationMarkerService` | 沿路径放置 Adyeshach 标记实体 |
+| NPC 桥接 | `AdyeshachNpcBridgeAPI` | 创建私有实体渲染客户端模型 |
+| 外部目标 | `MapExternalTarget` | 其他模块注入的临时导航目标 |
+| 能力接口 | `MapNavigable` | 供外部模块调用的导航能力 |
+
+> 导航功能依赖 ArcartX Waypoint。Waypoint 不可用时导航功能不可用（`waypointRuntimeReady` 返回 `false`），但地图菜单和 HUD 正常使用。
+
+## 导航配置
+
+### 顶层导航配置
+
+```yaml
+navigation:
+  enabled: true
+  waypoint-style-id: "default"
+  anchor-id-prefix: "AXS-map-anchor-"
+  waypoint-id-prefix: "AXS-map-track-"
+  marker:
+    enabled: false
+    model-id: "nav_beacon"
+    scale: 1.0
+    default-state: "idle"
+    animation: "rotate"
+    y-offset: 2.0
+    path-interval: 3.0
+    path-max-markers: 20
+    path-update-ticks: 10
+    path-max-distance: 64.0
+    path-max-iterations: 2000
+```
+
+| 配置项 | 类型 | 默认值 | 说明 |
+|---|---|---|---|
+| `navigation.enabled` | `boolean` | `true` | 是否启用导航追踪功能 |
+| `navigation.waypoint-style-id` | `String` | `default` | 路径点导航样式 ID |
+| `navigation.anchor-id-prefix` | `String` | `AXS-map-anchor-` | 锚点导航在客户端的 ID 前缀 |
+| `navigation.waypoint-id-prefix` | `String` | `AXS-map-track-` | 路径点导航在客户端的 ID 前缀 |
+
+### 路径点样式
+
+路标样式 ID 通过 `WaypointBridgeAPI.resolveStyleId()` 解析，优先级如下：
+
+| 优先级 | 来源 | 配置项 |
+|---|---|---|
+| 1 | 导航专用样式 | `navigation.waypoint-style-id` |
+| 2 | 路径点默认样式 | `waypoints.default-style-id` |
+| 3 | 桥接默认样式 | `WaypointBridgeAPI` 内部默认 |
+
+> 路径点样式参考 /docs/guide/icons 了解图标与样式配置。
+
+## 导航状态
+
+### 状态模型
+
+`MapNavigationState` 记录玩家当前的导航追踪状态：
+
+| 字段 | 类型 | 说明 |
+|---|---|---|
+| `active` | `boolean` | 是否正在导航 |
+| `targetType` | `TargetType` | 目标类型：`NONE` / `ANCHOR` / `WAYPOINT` / `EXTERNAL` |
+| `worldId` | `String` | 目标所在世界 ID |
+| `targetId` | `String` | 目标唯一标识 |
+| `waypointId` | `String` | 关联的客户端路标 ID |
+| `label` | `String` | 导航显示标签 |
+| `source` | `String` | 来源模块标识（外部目标时有效） |
+
+### 状态匹配
+
+`MapNavigationState` 提供三个匹配方法，用于判断当前导航目标是否与指定 ID 一致：
+
+| 方法 | 匹配条件 | 用途 |
+|---|---|---|
+| `matchesAnchor(anchorId)` | `active && targetType == ANCHOR && targetId == anchorId` | 判断是否正在追踪指定锚点 |
+| `matchesWaypoint(waypointId)` | `active && targetType == WAYPOINT && targetId == waypointId` | 判断是否正在追踪指定路径点 |
+| `matchesExternal(targetId)` | `active && targetType == EXTERNAL && targetId == targetId` | 判断是否正在追踪指定外部目标 |
+
+> 匹配方法用于 UI 快照构建时标记列表项的 `tracked` 状态，使客户端显示当前追踪目标的高亮。
+
+### 追踪文本
+
+导航状态生成追踪文本，显示在菜单标题栏和 HUD 底部：
+
+| 目标类型 | 追踪文本格式 | 示例 |
+|---|---|---|
+| 锚点 | `当前导航锚点: {label}` | `当前导航锚点: 新手村` |
+| 路径点 | `当前导航路径点: {label}` | `当前导航路径点: 标记点-1` |
+| 外部目标 | `当前导航任务点: {label}` | `当前导航任务点: 击杀世界Boss` |
+| 无导航 | `当前未导航` | — |
+
+## 导航操作
+
+### 追踪锚点
+
+```
+玩家点击「追踪」按钮
+  └→ UI 发送 track_anchor Packet
+       └→ MapService.trackAnchorInternal()
+            1. 检查导航是否启用
+            2. 检查锚点是否存在
+            3. 检查 Waypoint 桥接是否可用
+            4. 清除当前追踪（clearTrackSilently）
+            5. 生成路标 ID：anchorIdPrefix + sanitize(anchor.id())
+            6. 解析样式 ID
+            7. 创建客户端路标：waypointBridge.addWaypoint()
+            8. 更新导航状态
+            9. 显示路径标记（若启用）
+            10. 刷新 UI
+```
+
+### 追踪路径点
+
+```
+玩家点击「追踪」按钮
+  └→ UI 发送 track_waypoint Packet
+       └→ MapService.trackWaypointInternal()
+            1. 检查导航是否启用
+            2. 查找玩家路径点
+            3. 检查 Waypoint 桥接是否可用
+            4. 清除当前追踪
+            5. 生成路标 ID：waypointIdPrefix + sanitize(waypoint.waypointId())
+            6. 解析样式 ID
+            7. 创建客户端路标
+            8. 更新导航状态
+            9. 显示路径标记
+            10. 刷新 UI
+```
+
+### 追踪外部目标
+
+```
+玩家点击「追踪」按钮
+  └→ UI 发送 track_external Packet
+       └→ MapService.trackExternalTargetInternal()
+            1. 检查导航是否启用
+            2. 查找外部目标
+            3. 检查 Waypoint 桥接是否可用
+            4. 清除当前追踪
+            5. 生成路标 ID：waypointIdPrefix + "external-" + sanitize(target.targetId())
+            6. 解析样式 ID
+            7. 创建客户端路标
+            8. 更新导航状态
+            9. 自动切换到目标所在世界并选中
+            10. 显示路径标记
+            11. 刷新 UI
+```
+
+### 清除追踪
+
+```
+玩家点击「清除追踪」按钮
+  └→ UI 发送 clear_track Packet
+       └→ MapService.clearTrackInternal()
+            1. 检查是否有活动导航
+            2. 移除客户端路标：waypointBridge.removeWaypoint()
+            3. 移除导航状态
+            4. 隐藏路径标记
+            5. 刷新 UI
+```
+
+> `clearTrackSilently()` 为内部方法，清除追踪时不发送反馈消息，用于切换追踪目标前的静默清理。
+
+### 路标 ID 生成规则
+
+路标 ID 通过 `sanitize()` 方法清理特殊字符，仅保留 `a-z0-9_-`：
+
+| 目标类型 | 生成规则 | 示例 |
+|---|---|---|
+| 锚点 | `anchorIdPrefix + sanitize(anchorId)` | `AXS-map-anchor-spawn` |
+| 路径点 | `waypointIdPrefix + sanitize(waypointId)` | `AXS-map-track-abc123def456` |
+| 外部目标 | `waypointIdPrefix + "external-" + sanitize(targetId)` | `AXS-map-track-external-quest_boss_001` |
+
+> `sanitize()` 将 ID 转为小写后把非 `[a-z0-9_-]` 字符替换为 `_`。路标 ID 需在客户端唯一，避免与其他模块的路标冲突。
+
+## 路径标记模型
+
+### 标记配置
+
+路径标记模型通过 `navigation.marker` 配置节控制：
+
+```yaml
+navigation:
+  marker:
+    enabled: false
+    model-id: "nav_beacon"
+    scale: 1.0
+    default-state: "idle"
+    animation: "rotate"
+    y-offset: 2.0
+    path-interval: 3.0
+    path-max-markers: 20
+    path-update-ticks: 10
+    path-max-distance: 64.0
+    path-max-iterations: 2000
+```
+
+| 配置项 | 类型 | 默认值 | 说明 |
+|---|---|---|---|
+| `marker.enabled` | `boolean` | `false` | 是否启用标记模型 |
+| `marker.model-id` | `String` | `nav_beacon` | 模型 ID（资源包中的模型标识） |
+| `marker.scale` | `double` | `1.0` | 缩放比例 |
+| `marker.default-state` | `String` | `idle` | 默认状态 |
+| `marker.animation` | `String` | `rotate` | 动画类型 |
+| `marker.y-offset` | `double` | `2.0` | Y 轴偏移（方块） |
+| `marker.path-interval` | `double` | `3.0` | 路径标记间距（方块） |
+| `marker.path-max-markers` | `int` | `20` | 路径最大标记数 |
+| `marker.path-update-ticks` | `int` | `10` | 路径更新间隔（tick） |
+| `marker.path-max-distance` | `double` | `64.0` | 路径最大距离（方块） |
+| `marker.path-max-iterations` | `int` | `2000` | 路径计算最大迭代次数 |
+
+### 标记服务
+
+`NavigationMarkerService` 负责沿导航路径放置标记实体：
+
+| 操作 | 方法 | 说明 |
+|---|---|---|
+| 显示标记 | `showMarker(player, worldId, x, y, z)` | 在目标坐标显示单个标记，并启动路径标记定时任务 |
+| 隐藏标记 | `hideMarker(player)` | 移除该玩家的所有标记实体 |
+| 启动服务 | `start()` | 初始化标记服务 |
+| 关闭服务 | `shutdown()` | 清理所有标记实体 |
+
+> 标记服务依赖 `AdyeshachNpcBridgeAPI`。Adyeshach 不存在时标记功能自动关闭，路标导航不受影响。
+
+### 标记渲染流程
+
+```
+追踪目标
+  └→ markerService.showMarker(player, worldId, x, y, z)
+       └→ 在目标坐标创建 Adyeshach 私有实体
+       └→ 启动路径标记定时任务（每 path-update-ticks tick 执行）
+            └→ 计算玩家到目标的路径
+            └→ 沿路径每隔 path-interval 方块放置标记
+            └── 最多放置 path-max-markers 个标记
+            └── 路径超过 path-max-distance 时截断
+            └── 计算超过 path-max-iterations 次时停止
+
+清除追踪
+  └→ markerService.hideMarker(player)
+       └→ 移除所有标记实体
+```
+
+### 路径标记参数说明
+
+| 参数 | 作用 | 调优建议 |
+|---|---|---|
+| `path-interval` | 标记间距 | 值越小标记越密集，视觉引导更清晰但实体更多 |
+| `path-max-markers` | 最大标记数 | 限制同时存在的标记实体数量，防止性能问题 |
+| `path-update-ticks` | 更新间隔 | 值越小更新越频繁，路径跟随越平滑但开销越大 |
+| `path-max-distance` | 最大距离 | 超过此距离的路径截断，防止远距离导航生成过多标记 |
+| `path-max-iterations` | 最大迭代 | 路径计算的安全限制，防止死循环 |
+
+> 路径标记仅在追踪状态变更时创建/移除，客户端独立渲染。标记实体为 Adyeshach 私有实体，仅追踪玩家可见。
+
+## 外部目标
+
+### 外部目标模型
+
+`MapExternalTarget` 表示由其他模块（如 QuestGPS）注入的临时导航目标：
+
+| 字段 | 类型 | 说明 |
+|---|---|---|
+| `targetId` | `String` | 目标唯一标识 |
+| `source` | `String` | 来源模块标识（如 `QuestGPS`） |
+| `worldId` | `String` | 所在世界 ID |
+| `title` | `String` | 显示标题 |
+| `description` | `String` | 显示描述 |
+| `x` / `y` / `z` | `double` | 世界坐标 |
+| `sortOrder` | `int` | 排序权重（越小越靠前） |
+
+### MapNavigable 能力
+
+Map 模块通过 `MapNavigable` Capability 向外部模块提供导航目标注入接口：
+
+| 方法 | 参数 | 说明 |
+|---|---|---|
+| `upsertExternalTarget` | `Player`, `targetId`, `source`, `worldId`, `x`, `y`, `z`, `displayName`, `iconId`, `select` | 新增或更新外部导航目标 |
+| `clearExternalTargets` | `Player`, `source`, `syncView` | 按来源清除外部目标（source 为空时清除全部） |
+| `openMenuFor` | `Player`, `waypointId` | 为玩家打开地图菜单 |
+
+### 外部目标管理
+
+`MapService` 为每个玩家维护一个外部目标映射（`ConcurrentMap<UUID, ConcurrentMap<String, MapExternalTarget>>`）：
+
+| 操作 | 方法 | 说明 |
+|---|---|---|
+| 新增/更新 | `upsertExternalTarget()` | 按 `targetId`（小写）存入映射，可选自动选中 |
+| 移除单个 | `removeExternalTarget()` | 按 `targetId` 移除，若正在追踪则清除导航 |
+| 按来源清除 | `clearExternalTargets()` | 按 `source` 批量移除，若正在追踪则清除导航 |
+| 加载列表 | `loadExternalTargets()` | 返回当前玩家的所有外部目标 |
+
+### 外部目标排序
+
+外部目标在菜单中按以下规则排序：
+
+1. 先按 `sortOrder` 升序排列
+2. 相同 `sortOrder` 的按 `title` 字母顺序排列（不区分大小写）
+
+```java
+visibleExternalTargets.stream()
+    .sorted(Comparator
+        .comparingInt(MapExternalTarget::sortOrder)
+        .thenComparing(MapExternalTarget::title, String.CASE_INSENSITIVE_ORDER))
+    .toList()
+```
+
+### 外部目标与导航的联动
+
+| 场景 | 行为 |
+|---|---|
+| 注入目标时 `select=true` | 自动切换到目标所在世界并选中该目标 |
+| 移除正在追踪的外部目标 | 自动清除导航追踪 |
+| 按来源清除时正在追踪该来源目标 | 自动清除导航追踪 |
+| 追踪外部目标 | 自动切换到目标所在世界并选中 |
+
+> 外部目标为运行时内存数据，不持久化。玩家退出服务器后外部目标自动清除。
+
+## 自定义路径点
+
+### 路径点模型
+
+`MapWaypoint` 记录玩家在地图上创建的标记点：
+
+| 字段 | 类型 | 说明 |
+|---|---|---|
+| `waypointId` | `String` | 路径点唯一标识 |
+| `name` | `String` | 路径点名称 |
+| `world` | `String` | 所在世界 ID |
+| `x` / `y` / `z` | `double` | 世界坐标 |
+| `createdAt` | `long` | 创建时间戳（毫秒） |
+| `updatedAt` | `long` | 更新时间戳（毫秒） |
+
+### 创建路径点
+
+```
+玩家点击「创建路径点」按钮
+  └→ UI 发送 create_waypoint Packet（含 action_token）
+       └→ MapUiPacketHandler.beginActionToken() 校验 token
+       └→ MapService.createWaypointInternal()
+            1. 检查自定义路径点是否启用
+            2. 检查当前世界是否已配置地图
+            3. 加载玩家路径点，计算当前世界数量
+            4. 检查是否已达上限
+            5. 生成路径点 ID：idPrefix + UUID（去横线）
+            6. 生成名称：autoNamePrefix + "-" + (countInWorld + 1)
+            7. 原子创建：createWaypointIfUnderWorldLimit()
+            8. 刷新缓存，选中新路径点
+            9. 刷新 UI
+```
+
+### 路径点上限
+
+路径点数量上限通过 `resolveWaypointLimit()` 计算：
+
+| 计算规则 | 说明 |
+|---|---|
+| 基础上限 | `waypoints.default-max-count`（默认 5） |
+| 权限上限 | `waypoints.limits` 中匹配玩家权限的最大 `max-count` |
+| 最终上限 | `max(default-max-count, 所有匹配权限的 limits 最大值)` |
+
+```yaml
+waypoints:
+  default-max-count: 5
+  limits:
+    - permission: "ArcartXSuite.map.admin"
+      max-count: 20
+```
+
+> 上限按世界独立计算。`createWaypointIfUnderWorldLimit()` 在事务中先查询当前世界路径点数量，未达上限时插入新记录。
+
+### 删除路径点
+
+```
+玩家点击「删除」按钮
+  └→ UI 发送 delete_waypoint Packet（含 action_token）
+       └→ MapUiPacketHandler.beginActionToken() 校验 token
+       └→ MapService.deleteWaypointInternal()
+            1. 查找路径点
+            2. 从数据库删除
+            3. 若正在追踪该路径点，清除导航
+            4. 清除选中状态
+            5. 刷新缓存和 UI
+```
+
+### 路径点排序
+
+路径点在菜单中按以下规则排序：
+
+1. 先按 `updatedAt` 降序排列（最近更新的在前）
+2. 相同更新时间的按 `waypointId` 字母顺序排列
+
+```java
+visibleWaypoints.stream()
+    .sorted(Comparator
+        .comparingLong(MapWaypoint::updatedAt).reversed()
+        .thenComparing(MapWaypoint::waypointId, String.CASE_INSENSITIVE_ORDER))
+    .toList()
+```
+
+### 路径点持久化
+
+路径点存储在 `AXS_map_waypoints` 表中：
+
+| 列 | SQLite 类型 | MySQL 类型 | 说明 |
+|---|---|---|---|
+| `uuid` | `TEXT NOT NULL` | `VARCHAR(36) NOT NULL` | 玩家 UUID |
+| `waypoint_id` | `TEXT NOT NULL` | `VARCHAR(128) NOT NULL` | 路径点 ID |
+| `name` | `TEXT NOT NULL` | `VARCHAR(128) NOT NULL` | 路径点名称 |
+| `world` | `TEXT NOT NULL` | `VARCHAR(64) NOT NULL` | 所在世界 ID |
+| `x` | `REAL NOT NULL` | `DOUBLE NOT NULL` | X 坐标 |
+| `y` | `REAL NOT NULL` | `DOUBLE NOT NULL` | Y 坐标 |
+| `z` | `REAL NOT NULL` | `DOUBLE NOT NULL` | Z 坐标 |
+| `created_at` | `INTEGER NOT NULL` | `BIGINT NOT NULL` | 创建时间戳（毫秒） |
+| `updated_at` | `INTEGER NOT NULL` | `BIGINT NOT NULL` | 更新时间戳（毫秒） |
+| **主键** | `(uuid, waypoint_id)` | `(uuid, waypoint_id)` | 联合主键 |
+
+> 路径点数据通过 `CachedPlayerMapData` 缓存，创建/删除后自动刷新缓存。参考 /docs/guide/conditions 了解路径点相关条件配置。
+
+## 服务生命周期
+
+### 启动流程
+
+```
+MapModule.startService()
+  └→ repository.initialize()  // 创建数据库表
+  └→ if navigation.enabled:
+       waypointBridge.initialize("Map 导航")
+  └→ if navigation.marker.enabled && npcBridge != null:
+       npcBridge.initialize()
+       markerService = new NavigationMarkerService(...)
+       markerService.start()
+  └→ Bukkit.getPluginManager().registerEvents(this, plugin)
+```
+
+### 关闭流程
+
+```
+MapModule.stopService()
+  └→ MapService.shutdown()
+       └→ HandlerList.unregisterAll(this)  // 注销事件监听
+       └→ for each online player:
+            clearTrackSilently(player)  // 清除所有追踪
+            bridge.closeUi(player, hudUiId)  // 关闭 HUD
+       └→ if markerService != null:
+            markerService.shutdown()  // 清理标记实体
+       └→ repository.shutdown()  // 关闭数据库连接
+       └→ waypointBridge.shutdown()  // 关闭路标系统
+       └→ 清理所有内存状态
+```
+
+> 服务关闭时为所有在线玩家清除追踪并关闭 HUD，防止客户端残留路标和标记。
+
+## 运行时状态检查
+
+### 路径点就绪状态
+
+`waypointRuntimeReady()` 判断路径点导航是否可用：
+
+| 条件 | 返回值 | 说明 |
+|---|---|---|
+| 导航未启用 | `true` | 无需路标，视为就绪 |
+| 导航启用且 Waypoint 可用 | `true` | 路标系统正常 |
+| 导航启用但 Waypoint 不可用 | `false` | 路标系统未安装 |
+
+> `/axs map status` 的 `Waypoint` 输出项即 `waypointRuntimeReady()` 的返回值。
+
+### 追踪玩家计数
+
+`trackingPlayerCount()` 返回当前正在导航的在线玩家数：
+
+```java
+navigationStates.values().stream()
+    .filter(MapNavigationState::active)
+    .count()
+```
+
+> 玩家退出服务器时自动清除其导航状态（`onPlayerQuit` 事件处理器）。

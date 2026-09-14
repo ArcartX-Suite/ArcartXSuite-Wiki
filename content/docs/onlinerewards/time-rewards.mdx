@@ -1,0 +1,558 @@
+---
+title: "在线时长奖励"
+description: "OnlineRewards 在线时长奖励系统：阶段奖励、周/月累计奖励、离线储蓄、时长倍率与时刻奖励"
+---
+
+> **付费模块** — 本页详细说明 OnlineRewards 模块的在线时长奖励系统，包括每日阶段奖励、周/月累计在线奖励、离线时长储蓄、在线时长倍率与时刻奖励的配置方法与触发逻辑。
+
+在线时长奖励系统以每分钟为粒度统计玩家的在线时长，并在达到配置的分钟阈值时自动发放奖励。系统支持四维时长统计（今日/本周/本月/总在线），配合阶段奖励、周期奖励、离线储蓄和时刻奖励构建完整的在线激励体系。
+
+## 时长统计维度
+
+| 维度 | 数据库字段 | 重置时机 | 说明 |
+|---|---|---|---|
+| 今日在线 | `online_minutes` | 每日跨天时归零 | 当日累计在线分钟数 |
+| 本周在线 | `week_minutes` | 每周跨周时归零 | 本周累计在线分钟数（ISO 周历） |
+| 本月在线 | `month_minutes` | 每月跨月时归零 | 本月累计在线分钟数 |
+| 总在线 | `total_minutes` | 永不重置 | 历史总在线分钟数 |
+
+### 周期判定
+
+| 周期 | 判定方式 | 示例 |
+|---|---|---|
+| 日期 | `LocalDate`（ISO 格式 `yyyy-MM-dd`） | `2025-01-15` |
+| 周键 | ISO 周历 `yyyy-Www` | `2025-W03` |
+| 月键 | `yyyy-MM` | `2025-01` |
+
+> 跨天判定受 `settings.timezone` 配置影响。留空使用服务器默认时区；海外服务器可设为 `Asia/Shanghai` 按北京时间跨天。
+
+### 每分钟 Tick 机制
+
+模块每 1200 tick（60 秒）执行一次 `tickOnlinePlayers`，为每个在线玩家推进 1 分钟在线时长：
+
+```
+tickOnlinePlayers() 每分钟执行
+  │
+  ├→ 遍历所有在线玩家
+  │    ├→ 周期归零检查（跨天/跨周/跨月时重置对应字段）
+  │    ├→ 离线储蓄加成（次日登录时将储蓄转为初始在线时长）
+  │    ├→ 计算时长倍率（按权限组匹配，取 priority 最高）
+  │    ├→ 推进在线分钟数（今日 +1×倍率，周/月/总同步累计）
+  │    ├→ 检查阶段奖励触发（while 循环推进所有已达阈值的阶段）
+  │    ├→ 检查周/月累计奖励触发
+  │    ├→ 触发奖励时立即落盘 + 刷新菜单
+  │    └→ 推送进度快照到客户端
+  │
+  └→ 有脏数据时 flush 全部缓存 + 刷新排行榜
+```
+
+## 每日阶段奖励
+
+每日阶段奖励配置在独立的 `rewards.yml` 文件中。当玩家当日累计在线分钟数达到某个阶段的 `minutes` 阈值时，自动触发该阶段奖励。
+
+| 字段 | 类型 | 说明 |
+|---|---|---|
+| `minutes` | `int` | 达到该阶段所需的今日累计在线分钟数 |
+| `name` | `String` | 阶段名称（用于 UI 展示） |
+| `rewardText` | `String` | 奖励描述文本（显示在 UI 中） |
+| `icon` | `Map` | UI 展示图标（可选，见 [图标](/docs/guide/icons)） |
+| `mail.presets` | `List<String>` | 邮件预设 ID 列表 |
+| `commands` | `List<String>` | 达成后执行的命令（支持 `{player}`） |
+| `item-rewards` | `List<Map>` | 物品奖励列表（见 [物品来源](/docs/guide/item-sources)） |
+
+### 阶段推进机制
+
+阶段按配置顺序推进，每个阶段只能触发一次。状态引擎使用 `rewardStage` 字段记录已领取的阶段序号：
+
+```
+rewardStage = 0, onlineMinutes = 0
+  │
+  ├→ 在线 30 分钟 → onlineMinutes = 30
+  │    └→ rewards[0].minutes = 30, 30 >= 30 → 触发第一阶段, rewardStage = 1
+  │
+  ├→ 在线 60 分钟 → onlineMinutes = 60
+  │    └→ rewards[1].minutes = 60, 60 >= 60 → 触发第二阶段, rewardStage = 2
+  │
+  └→ 跨天 → onlineMinutes 归零, rewardStage 归零, 重新开始
+```
+
+> 如果一次 tick 推进了多分钟（如倍率加成），可能同时触发多个阶段。状态引擎使用 while 循环依次触发所有已达阈值的阶段。
+
+```yaml
+# rewards.yml
+rewards:
+  - minutes: 30
+    name: "第一阶段"
+    rewardText: "在线 30 分钟奖励"
+    icon:
+      material: DIAMOND
+      name: "&b第一阶段奖励"
+      amount: 1
+    mail:
+      presets: []
+    commands:
+      - "say {player} 达成第一阶段"
+    item-rewards:
+      - source: "minecraft"
+        id: "DIAMOND"
+        amount: 1
+
+  - minutes: 60
+    name: "第二阶段"
+    rewardText: "在线 60 分钟奖励"
+    icon:
+      material: GOLD_INGOT
+      name: "&6第二阶段奖励"
+    mail:
+      presets: []
+    commands:
+      - "say {player} 达成第二阶段"
+
+  - minutes: 120
+    name: "第三阶段"
+    rewardText: "在线 120 分钟奖励"
+    icon:
+      material: EMERALD
+      name: "&a第三阶段奖励"
+    mail:
+      presets: ["stage_3_bonus"]
+    commands:
+      - "say {player} 达成第三阶段"
+    item-rewards:
+      - source: "mythic"
+        id: "legendary_gem"
+        amount: 1
+```
+
+### 进度推送
+
+模块通过 `ClientBridgeAPI` 向 ArcartX 客户端推送进度变量：
+
+| 变量名 | 默认值 | 说明 |
+|---|---|---|
+| `arcartx_online_time` | `0.0` ~ `1.0` | 当前进度（可通过 `variables.progress` 配置变量名） |
+| `arcartx_online_time_title` | `String` | 当前阶段标题（可通过 `variables.title` 配置变量名） |
+
+进度计算方式：`当前阶段已在线分钟数 / 当前阶段阈值分钟数`，所有阶段完成后进度为 `1.0`。
+
+### 菜单奖励行数据
+
+阶段奖励在菜单 UI 中以行数据展示：
+
+| 字段 | 类型 | 说明 |
+|---|---|---|
+| `id` | `String` | 行 ID |
+| `index` | `int` | 序号（从 1 开始） |
+| `name` | `String` | 阶段名称 |
+| `thresholdText` | `String` | 阈值文本（如 `30分`） |
+| `statusText` | `String` | 状态文本（已领取/待发放/进行中/未达成） |
+| `current` | `boolean` | 是否为当前阶段 |
+| `claimed` | `boolean` | 是否已领取 |
+| `reached` | `boolean` | 是否已达到阈值 |
+| `rewardText` | `String` | 奖励描述 |
+
+## 周/月累计在线奖励
+
+周/月累计在线奖励配置在主配置文件 `ArcartXOnlineRewards.yml` 中。当玩家本周/本月累计在线分钟数达到 `minutes` 阈值时触发奖励。
+
+| 字段 | 类型 | 说明 |
+|---|---|---|
+| `id` | `String` | 奖励唯一 ID（用于去重与领取记录） |
+| `minutes` | `int` | 所需在线分钟数 |
+| `name` | `String` | 奖励名称 |
+| `rewardText` | `String` | 奖励描述文本 |
+| `icon` | `Map` | UI 展示图标（可选，见 [图标](/docs/guide/icons)） |
+| `commands` | `List<String>` | 达成后执行的命令（支持 `{player}`） |
+| `mail.presets` | `List<String>` | 邮件预设 ID 列表 |
+| `item-rewards` | `List<Map>` | 物品奖励列表（见 [物品来源](/docs/guide/item-sources)） |
+| `repeat` | `boolean` | 是否每周期可重复领取 |
+
+### repeat 字段行为
+
+| `repeat` 值 | 行为 | 说明 |
+|---|---|---|
+| `false` | 仅领取一次 | 跨周期时保留领取记录，不会重复发放 |
+| `true` | 每周期可重复领取 | 跨周期时清除领取记录，新周期可再次领取 |
+
+> 跨周/跨月时，状态引擎会清理 `repeat: true` 的奖励领取记录，保留 `repeat: false` 的领取记录。这样 `repeat: false` 的奖励终身只领一次，`repeat: true` 的奖励每个周期都可领取。
+
+```yaml
+# ArcartXOnlineRewards.yml
+weekly-rewards:
+  - id: "weekly_2h"
+    minutes: 120
+    name: "本周活跃 2 小时"
+    rewardText: "本周在线 2 小时奖励"
+    icon:
+      material: CLOCK
+      name: "&b本周活跃 2 小时"
+    commands:
+      - "say {player} 达成本周活跃 2 小时"
+    mail:
+      presets: []
+    repeat: false
+
+  - id: "weekly_5h"
+    minutes: 300
+    name: "本周活跃 5 小时"
+    rewardText: "本周在线 5 小时奖励"
+    icon:
+      material: COMPASS
+      name: "&6本周活跃 5 小时"
+    commands:
+      - "say {player} 达成本周活跃 5 小时"
+    mail:
+      presets: ["weekly_5h_bonus"]
+    repeat: true
+
+monthly-rewards:
+  - id: "monthly_10h"
+    minutes: 600
+    name: "本月活跃 10 小时"
+    rewardText: "本月在线 10 小时奖励"
+    icon:
+      material: NETHER_STAR
+      name: "&b本月活跃 10 小时"
+    commands: []
+    mail:
+      presets: []
+    repeat: false
+
+  - id: "monthly_30h"
+    minutes: 1800
+    name: "本月活跃 30 小时"
+    rewardText: "本月在线 30 小时奖励"
+    icon:
+      material: DRAGON_EGG
+      name: "&5本月活跃 30 小时"
+    commands:
+      - "give {player} dragon_egg 1"
+    mail:
+      presets: ["monthly_30h_bonus"]
+    repeat: false
+```
+
+### 周期奖励触发机制
+
+```
+每分钟 tick 时：
+  │
+  ├→ checkWeeklyRewards(state)
+  │    └→ 遍历 weekly-rewards 列表
+  │         ├→ weekMinutes >= reward.minutes && 未领取 → 触发 + 记录领取 ID
+  │         └→ 已领取 → 跳过
+  │
+  └→ checkMonthlyRewards(state)
+       └→ 遍历 monthly-rewards 列表
+            ├→ monthMinutes >= reward.minutes && 未领取 → 触发 + 记录领取 ID
+            └→ 已领取 → 跳过
+```
+
+> 领取记录存储在 `claimed_weekly_reward_ids` 和 `claimed_monthly_reward_ids` 字段中（逗号分隔的 ID 列表）。
+
+## 离线时长储蓄
+
+离线时长储蓄功能允许玩家下线时按比例存储当日已在线时长，次日登录时作为初始在线时长加成，使玩家不会因下线而完全丢失前一天的进度。
+
+| 字段 | 类型 | 默认值 | 说明 |
+|---|---|---|---|
+| `offline-savings.enabled` | `boolean` | `true` | 是否启用离线时长储蓄 |
+| `offline-savings.max-minutes` | `int` | `120` | 每日可储蓄的最大分钟数 |
+| `offline-savings.storage-rate` | `double` | `1.0` | 储蓄比例（1.0=全额储蓄，范围 0.0~1.0） |
+| `offline-savings.expire-days` | `int` | `1` | 过期天数（保留用于未来扩展，当前跨天自动清零） |
+
+### 储蓄计算公式
+
+```
+下线时：
+  stored = floor(onlineMinutes × storageRate)
+  capped = min(stored, maxMinutes)
+  offlineSavingsMinutes = min(maxMinutes, offlineSavingsMinutes + capped)
+
+次日登录时：
+  onlineMinutes += offlineSavingsMinutes（作为当日初始在线时长）
+  offlineSavingsMinutes 归零
+```
+
+### 储蓄示例
+
+| 场景 | 在线时长 | storageRate | maxMinutes | 储蓄分钟数 |
+|---|---|---|---|---|
+| 全额储蓄 | 120 分钟 | 1.0 | 120 | 120 分钟 |
+| 半额储蓄 | 120 分钟 | 0.5 | 120 | 60 分钟 |
+| 超额截断 | 200 分钟 | 1.0 | 120 | 120 分钟（截断） |
+| 未启用 | 120 分钟 | — | — | 0 分钟 |
+
+```yaml
+# ArcartXOnlineRewards.yml
+offline-savings:
+  enabled: true
+  max-minutes: 120
+  storage-rate: 1.0
+  expire-days: 1
+```
+
+> 离线储蓄在玩家退出事件（`PlayerQuitEvent`）时计算并存储，在次日首次 tick 时作为初始在线时长加成。
+
+### 离线储蓄管理
+
+管理员可通过命令调整玩家离线储蓄：
+
+```bash
+# 增加玩家离线储蓄 1 小时
+/axs onlinerewards savings add 1h Steve
+
+# 设置玩家离线储蓄为 30 分钟
+/axs onlinerewards savings set 30m Alex
+
+# 重置玩家离线储蓄
+/axs onlinerewards savings reset 0 Steve
+```
+
+### 离线储蓄占位符
+
+| 占位符 | 返回值 | 说明 |
+|---|---|---|
+| `%axsonlinerewards_offline_savings_minutes%` | `int` | 离线储蓄原始分钟数 |
+| `%axsonlinerewards_offline_savings_time%` | `String` | 离线储蓄格式化时长 |
+
+## 在线时长倍率
+
+在线时长倍率允许拥有特定权限的玩家在线计时按倍率加成。配置在 `time-bonus.permission-groups` 中，匹配多个权限时取 `priority` 最高的一组。
+
+| 字段 | 类型 | 说明 |
+|---|---|---|
+| `permission` | `String` | 触发该倍率所需的权限节点 |
+| `multiplier` | `double` | 在线时长倍率（不小于 1.0） |
+| `priority` | `int` | 优先级，数值越大越优先匹配 |
+
+### 倍率计算机制
+
+```
+每分钟 tick 时：
+  gainedMinutes = 1 × multiplier
+  onlineMinutes += gainedMinutes
+  weekMinutes += gainedMinutes
+  monthMinutes += gainedMinutes
+  totalMinutes += gainedMinutes
+```
+
+> 倍率最小为 1.0（配置值小于 1.0 时自动取 1.0）。倍率作用于每分钟 tick 的推进量，不影响阶段阈值的判定标准。
+
+```yaml
+# ArcartXOnlineRewards.yml
+time-bonus:
+  permission-groups:
+    - permission: "ArcartXSuite.onlinerewards.time.1_5"
+      multiplier: 1.5
+      priority: 10
+    - permission: "ArcartXSuite.onlinerewards.time.2"
+      multiplier: 2.0
+      priority: 20
+    - permission: "ArcartXSuite.onlinerewards.time.3"
+      multiplier: 3.0
+      priority: 30
+```
+
+> 上例中，同时拥有三个权限的玩家只会使用 `priority: 30` 的 3.0 倍率，不会叠加。
+
+### 倍率余数处理
+
+由于倍率可能为小数（如 1.5），模块使用 `time_bonus_remainder` 字段存储累计余数，确保时长统计精确：
+
+```
+倍率 1.5 时：
+  第 1 分钟：1.5 → 整数部分 1，余数 0.5 → onlineMinutes += 1, remainder = 0.5
+  第 2 分钟：1.5 + 0.5 = 2.0 → 整数部分 2，余数 0.0 → onlineMinutes += 2, remainder = 0.0
+  第 3 分钟：1.5 → 整数部分 1，余数 0.5 → onlineMinutes += 1, remainder = 0.5
+  ...
+```
+
+## 时刻奖励
+
+时刻奖励在指定时刻给所有在线玩家发放奖励。调度模式支持 4 种：hourly（整点）、daily（每天指定时间）、weekly（每周指定星期几）、interval（固定间隔）。
+
+| 字段 | 类型 | 说明 |
+|---|---|---|
+| `id` | `String` | 奖励唯一 ID |
+| `enabled` | `boolean` | 是否启用 |
+| `schedule` | `Map` | 调度规格（见下表） |
+| `name` | `String` | 奖励名称 |
+| `rewardText` | `String` | 奖励文本 |
+| `commands` | `List<String>` | 控制台命令列表（支持 `{player}`） |
+| `mail.presets` | `List<String>` | 邮件预设 ID 列表 |
+| `item-rewards` | `List<Map>` | 物品奖励列表 |
+| `broadcast` | `String` | 触发时全服广播消息（空则不广播） |
+
+### 调度模式
+
+| 模式 | 配置字段 | 说明 | 示例 |
+|---|---|---|---|
+| `hourly` | — | 每个自然整点触发 | 每天 1:00、2:00、3:00… |
+| `daily` | `time: "HH:mm"` | 每天指定时:分触发 | `time: "20:00"` = 每天 20:00 |
+| `weekly` | `time: "HH:mm"`, `day: monday` | 每周指定星期几的指定时:分触发 | `time: "20:00"`, `day: friday` = 每周五 20:00 |
+| `interval` | `interval-minutes` / `interval-seconds` / `interval-ticks`（三选一） | 固定间隔触发 | `interval-minutes: 30` = 每 30 分钟 |
+
+### 时刻奖励执行流程
+
+```
+调度触发（SchedulerAPI.scheduleCalendar）
+  │
+  ├→ 遍历所有在线玩家
+  │    ├→ 执行 commands（支持 {player} 变量）
+  │    ├→ 发送 mail.presets 邮件预设
+  │    └→ 发放 item-rewards 物品奖励
+  │
+  ├→ 全服广播 broadcast 消息（若非空）
+  └→ 输出调试日志（若 debug 开启）
+```
+
+> 时刻奖励只对触发时在线的玩家发放，离线玩家不会补发。
+
+```yaml
+# ArcartXOnlineRewards.yml
+time-based-rewards:
+  # 每天晚间 20:00 给在线玩家发放奖励
+  - id: "evening_reward"
+    enabled: true
+    schedule:
+      mode: daily
+      time: "20:00"
+    name: "晚间在线奖励"
+    rewardText: "晚间在线专属奖励"
+    commands:
+      - "say {player} 领取了晚间在线奖励"
+    mail:
+      presets: ["evening_bonus"]
+    item-rewards:
+      - source: "minecraft"
+        id: "GOLDEN_APPLE"
+        amount: 1
+    broadcast: "§e[时刻奖励] §f晚间在线奖励已发放！"
+
+  # 每周五 21:00 周末狂欢奖励
+  - id: "weekend_party"
+    enabled: true
+    schedule:
+      mode: weekly
+      time: "21:00"
+      day: friday
+    name: "周末狂欢奖励"
+    rewardText: "周末狂欢专属奖励"
+    commands:
+      - "say {player} 领取了周末狂欢奖励"
+    mail:
+      presets: ["weekend_party"]
+    broadcast: "§e[时刻奖励] §f周末狂欢奖励已发放！"
+
+  # 每 2 小时整点在线奖励
+  - id: "bi_hourly"
+    enabled: true
+    schedule:
+      mode: interval
+      interval-minutes: 120
+    name: "双小时在线奖励"
+    rewardText: "每 2 小时在线奖励"
+    commands:
+      - "give {player} experience_bottle 3"
+    broadcast: ""
+
+  # 每个整点触发
+  - id: "hourly_check"
+    enabled: false
+    schedule:
+      mode: hourly
+    name: "整点在线奖励"
+    commands:
+      - "say {player} 整点在线奖励"
+```
+
+### schedule.day 支持的值
+
+| 值 | 说明 |
+|---|---|
+| `monday` | 周一 |
+| `tuesday` | 周二 |
+| `wednesday` | 周三 |
+| `thursday` | 周四 |
+| `friday` | 周五 |
+| `saturday` | 周六 |
+| `sunday` | 周日 |
+
+> `day` 字段大小写不敏感，但建议使用小写。
+
+## 时长占位符
+
+| 占位符 | 返回值 | 说明 |
+|---|---|---|
+| `%axsonlinerewards_daily_minutes%` | `int` | 今日在线原始分钟数 |
+| `%axsonlinerewards_weekly_minutes%` | `int` | 本周在线原始分钟数 |
+| `%axsonlinerewards_monthly_minutes%` | `int` | 本月在线原始分钟数 |
+| `%axsonlinerewards_total_minutes%` | `int` | 总在线原始分钟数 |
+| `%axsonlinerewards_daily_time%` | `String` | 今日在线格式化时长（如 `1时30分`） |
+| `%axsonlinerewards_weekly_time%` | `String` | 本周在线格式化时长 |
+| `%axsonlinerewards_monthly_time%` | `String` | 本月在线格式化时长 |
+| `%axsonlinerewards_total_time%` | `String` | 总在线格式化时长 |
+
+## 排行榜
+
+模块提供四维排行榜（日榜/周榜/月榜/总榜），每 5 分钟自动刷新缓存。
+
+| 排行榜 | 数据来源 | 排序字段 |
+|---|---|---|
+| 日榜 | `online_rewards_players` | `reward_date, online_minutes` |
+| 周榜 | `online_rewards_players` | `week_key, week_minutes` |
+| 月榜 | `online_rewards_players` | `month_key, month_minutes` |
+| 总榜 | `online_rewards_players` | `total_minutes` |
+
+### 排行榜占位符
+
+格式为 `%axsonlinerewards_top_<scope>_<rank>_<field>%`：
+
+- `<scope>`：`daily` / `weekly` / `monthly` / `total`
+- `<rank>`：1-10
+- `<field>`：`name`（玩家名）/ `minutes`（原始分钟数）/ `time`（格式化时长）
+
+| 占位符 | 返回值 | 说明 |
+|---|---|---|
+| `%axsonlinerewards_top_daily_1_name%` | `String` | 日榜第 1 名玩家名 |
+| `%axsonlinerewards_top_daily_1_minutes%` | `int` | 日榜第 1 名分钟数 |
+| `%axsonlinerewards_top_weekly_3_name%` | `String` | 周榜第 3 名玩家名 |
+| `%axsonlinerewards_top_monthly_5_minutes%` | `int` | 月榜第 5 名分钟数 |
+| `%axsonlinerewards_top_total_10_time%` | `String` | 总榜第 10 名格式化时长 |
+
+> 排行榜数据来自定时刷新的缓存（每 5 分钟刷新一次），非实时查询。
+
+## 管理员时长操作
+
+管理员可通过命令调整玩家在线时长：
+
+```bash
+# 增加 1 小时在线时长
+/axs onlinerewards add 1h Steve
+
+# 扣除 30 分钟在线时长
+/axs onlinerewards remove 30m Alex
+
+# 设置今日在线时长为 2 小时
+/axs onlinerewards set 2h Steve
+```
+
+### 时长格式
+
+| 后缀 | 说明 | 示例 |
+|---|---|---|
+| `m` | 分钟 | `30m` = 30 分钟 |
+| `h` | 小时 | `2h` = 120 分钟 |
+| `d` | 天 | `1d` = 1440 分钟 |
+| 无后缀 | 纯数字按分钟 | `60` = 60 分钟 |
+
+## 配置注意事项
+
+1. **阶段顺序**：`rewards.yml` 中的阶段按配置顺序推进，`minutes` 应递增排列
+2. **周期重置**：跨天/跨周/跨月时对应统计字段自动归零，`repeat: false` 的周期奖励领取记录会保留
+3. **倍率下限**：`multiplier` 最小为 1.0，配置值小于 1.0 时自动取 1.0
+4. **时刻奖励仅在线**：时刻奖励只对触发时在线的玩家发放，离线玩家不会补发
+5. **离线储蓄上限**：`max-minutes` 限制每日最大储蓄量，`storage-rate` 控制储蓄比例
+6. **时区影响**：所有周期判定受 `settings.timezone` 影响，建议海外服务器显式设置
+7. **文件路径**：阶段奖励文件路径可通过 `rewards-file` 配置项自定义（默认 `rewards.yml`）

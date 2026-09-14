@@ -1,0 +1,259 @@
+---
+title: 配置
+description: Tooltip 模块配置文件与消息文件详解
+---
+
+# 配置
+
+Tooltip 模块**无主配置文件**，所有运行参数在代码中固定。模块仅使用一个消息文件 `messages.yml`，用于自定义管理命令的输出文本。
+
+## 模块描述文件（`module.yml`）
+
+`module.yml` 是模块的元数据描述文件，位于模块 jar 内 `src/main/resources/module.yml`，由宿主读取用于模块加载：
+
+```yaml
+id: tooltip
+name: Tooltip
+version: 1.4.4
+main: xuanmo.arcartxsuite.tooltip.TooltipModule
+api-version: 1.0
+
+depends: []
+softdepends: []
+external-depends: []
+external-softdepends: []
+```
+
+| 字段 | 类型 | 值 | 说明 |
+|---|---|---|---|
+| `id` | string | `tooltip` | 模块唯一标识符，用于命令路由与 Capability 注册 |
+| `name` | string | `Tooltip` | 模块显示名称 |
+| `version` | string | `1.4.4` | 模块版本号 |
+| `main` | string | `xuanmo.arcartxsuite.tooltip.TooltipModule` | 模块主类全限定名 |
+| `api-version` | string | `1.0` | 使用的 ArcartXSuite API 版本 |
+| `depends` | list | `[]` | 模块硬依赖（空列表，无依赖） |
+| `softdepends` | list | `[]` | 模块软依赖（空列表，无软依赖） |
+| `external-depends` | list | `[]` | 外部插件硬依赖（空列表） |
+| `external-softdepends` | list | `[]` | 外部插件软依赖（空列表） |
+
+:::info
+Tooltip 模块无任何模块依赖与外部插件依赖。`depends`、`softdepends`、`external-depends`、`external-softdepends` 均为空列表。
+:::
+
+## 运行参数（代码内固定）
+
+Tooltip 模块的部分核心参数在代码中硬编码，不可通过配置文件修改：
+
+| 参数 | 值 | 代码位置 | 说明 |
+|---|---|---|---|
+| 缓存 TTL | `60_000L` 毫秒（60 秒） | `TooltipDataCache.TTL_MILLIS` | 单条缓存数据的过期时间 |
+| 数据包 ID | `AXS_TOOLTIP_DATA` | `TooltipPacketHandler.PACKET_ID` | 客户端 tooltip 数据包标识符 |
+| 包处理优先级 | `50` | `TooltipModule.createPacketHandlerSpec()` | 数值越小越先执行，确保 tooltip 尽快缓存 |
+| 包归属模块 | `tooltip` | `TooltipModule.createPacketHandlerSpec()` | PacketGuard 路由归属 |
+| 物品指纹算法 | `itemStack.getType().getKey().toString()` | `TooltipDataCache.fingerprint()` | 使用物品注册名作为指纹，不含 NBT |
+
+:::tip
+如需修改这些参数，需要修改源码并重新编译模块。详见 [模块开发指南](/docs/developer)。
+:::
+
+## 消息文件（`messages.yml`）
+
+`messages.yml` 位于模块 jar 内 `src/main/resources/messages.yml`，首次启动时自动释放到 `plugins/ArcartX-Suite/modules/messages/tooltip/messages.yml`。该文件定义了管理命令输出的所有文本。
+
+### 消息键一览
+
+| 消息键 | 说明 | 参数 |
+|---|---|---|
+| `prefix` | 所有消息的前缀 | 无 |
+| `common.no-permission` | 无权限提示 | 无 |
+| `common.player-only` | 仅玩家可执行提示 | 无 |
+| `admin.status-title` | 状态命令标题 | 无 |
+| `admin.status-cache-size` | 缓存玩家数 | `{0}` - 玩家数量 |
+| `admin.status-packet-id` | 数据包 ID | `{0}` - 数据包 ID 字符串 |
+| `admin.status-ttl` | 缓存 TTL | `{0}` - TTL 秒数 |
+| `admin.status-no-cache` | 缓存为空提示 | 无 |
+| `help.title` | 帮助命令标题 | 无 |
+| `help.status` | status 子命令帮助 | `{0}` - 根命令标签 |
+
+### 消息键详细说明
+
+#### `prefix`
+
+消息前缀，拼接在所有管理命令输出消息之前。
+
+| 属性 | 值 |
+|---|---|
+| 默认值 | `&3◆ &6ArcartXSuite &7| &r` |
+| 使用位置 | 所有管理命令输出 |
+| 颜色码 | 支持 `&` 颜色码 |
+
+#### `common.no-permission`
+
+无权限时提示文本。
+
+| 属性 | 值 |
+|---|---|
+| 默认值 | `&c你没有权限执行此操作。` |
+| 触发场景 | 玩家无 `arcartxsuite.admin` 权限执行管理命令时 |
+
+#### `common.player-only`
+
+仅玩家可执行提示文本。
+
+| 属性 | 值 |
+|---|---|
+| 默认值 | `&c该命令只能由玩家执行。` |
+| 触发场景 | 控制台执行仅限玩家的命令时 |
+
+#### `admin.status-title`
+
+`/axs tooltip status` 命令的标题行。
+
+| 属性 | 值 |
+|---|---|
+| 默认值 | `&6Tooltip 模块状态` |
+
+#### `admin.status-cache-size`
+
+缓存玩家数显示行。
+
+| 属性 | 值 |
+|---|---|
+| 默认值 | `&7缓存玩家数: &f{0}` |
+| 参数 `{0}` | 当前缓存中的玩家数量（`cache.playerCount()` 返回值） |
+
+#### `admin.status-packet-id`
+
+数据包 ID 显示行。
+
+| 属性 | 值 |
+|---|---|
+| 默认值 | `&7数据包 ID: &f{0}` |
+| 参数 `{0}` | 固定为 `AXS_TOOLTIP_DATA` |
+
+#### `admin.status-ttl`
+
+缓存 TTL 显示行。
+
+| 属性 | 值 |
+|---|---|
+| 默认值 | `&7缓存 TTL: &f{0}秒` |
+| 参数 `{0}` | 固定为 `60`（秒） |
+
+#### `admin.status-no-cache`
+
+缓存为空时的提示行。
+
+| 属性 | 值 |
+|---|---|
+| 默认值 | `&7缓存为空，等待客户端 mod 发送数据` |
+| 触发条件 | `cache.playerCount() == 0` |
+
+#### `help.title`
+
+`/axs tooltip help` 命令的标题行。
+
+| 属性 | 值 |
+|---|---|
+| 默认值 | `&6Tooltip 管理` |
+
+#### `help.status`
+
+status 子命令的帮助说明行。
+
+| 属性 | 值 |
+|---|---|
+| 默认值 | `&7{0} status&f - 查看模块状态` |
+| 参数 `{0}` | 根命令标签（通常为 `/axs tooltip`） |
+
+## 完整配置示例
+
+以下是 `messages.yml` 的完整默认内容，可直接复制使用或按需修改颜色码与文本：
+
+```yaml
+# Tooltip 模块消息文件
+# 所有消息支持 & 颜色码
+# {0} 等为消息参数占位符
+
+# 消息前缀，拼接在所有管理命令输出之前
+prefix: "&3◆ &6ArcartXSuite &7| &r"
+
+# 通用消息
+common:
+  no-permission: "&c你没有权限执行此操作。"
+  player-only: "&c该命令只能由玩家执行。"
+
+# 管理命令消息
+admin:
+  status-title: "&6Tooltip 模块状态"
+  status-cache-size: "&7缓存玩家数: &f{0}"
+  status-packet-id: "&7数据包 ID: &f{0}"
+  status-ttl: "&7缓存 TTL: &f{0}秒"
+  status-no-cache: "&7缓存为空，等待客户端 mod 发送数据"
+
+# 帮助命令消息
+help:
+  title: "&6Tooltip 管理"
+  status: "&7{0} status&f - 查看模块状态"
+```
+
+## 配置管理
+
+### 配置规格声明
+
+Tooltip 模块在 `configSpec()` 中声明仅需消息文件，无主配置文件：
+
+```java
+@Override
+protected @NotNull ModuleConfig configSpec() {
+    return ModuleConfig.builder()
+        .messagesFileName("messages.yml")
+        .build();
+}
+```
+
+| 配置项 | 值 | 说明 |
+|---|---|---|
+| 主配置文件 | 无 | `loadConfiguration` 为空实现 |
+| 消息文件名 | `messages.yml` | 自动释放与加载 |
+| 配置版本号 | 无 | 无需版本迁移 |
+
+### 配置加载流程
+
+| 步骤 | 说明 |
+|---|---|
+| 1. 首次释放 | 模块首次启动时，将 jar 内 `messages.yml` 释放到磁盘 |
+| 2. 读取消息 | 宿主读取 `messages.yml` 并构建 `MessageProvider` |
+| 3. 注入命令 | `TooltipAdminCommand` 接收 `MessageProvider` 实例 |
+| 4. 运行时使用 | 管理命令执行时通过 `messages.get(key, args)` 获取消息文本 |
+
+:::tip
+修改 `messages.yml` 后，使用 `/axs reload tooltip` 重载模块即可生效，无需重启服务器。消息文件支持 `&` 颜色码与 `{0}`、`{1}` 等位置参数。
+:::
+
+## 自定义消息示例
+
+以下示例展示如何自定义消息文本与颜色：
+
+```yaml
+prefix: "&b【Tooltip】&r "
+
+common:
+  no-permission: "&c权限不足，无法执行此操作。"
+  player-only: "&e此命令仅限游戏内玩家使用。"
+
+admin:
+  status-title: "&d&lTooltip 运行状态"
+  status-cache-size: "&a当前缓存玩家数: &e{0}"
+  status-packet-id: "&a监听数据包: &e{0}"
+  status-ttl: "&a缓存有效期: &e{0}秒"
+  status-no-cache: "&7暂无缓存数据，请确保客户端已安装 ArcartX-Suite-Mod"
+
+help:
+  title: "&d&lTooltip 管理命令"
+  status: "&a{0} status &7- 查看模块运行状态"
+```
+
+:::info
+消息文件中的 `&` 颜色码会在发送时自动转换为 `§` 颜色码。`{0}` 等位置参数由命令处理器在运行时填充。
+:::

@@ -1,0 +1,381 @@
+---
+title: 伤害飘字系统
+description: CombatEffect 伤害飘字子系统详解：来源解析、六种飘字类型、治疗显示、合并机制与样式配置
+---
+
+# 伤害飘字系统
+
+> **付费模块**
+
+伤害飘字子系统（`digis-display`）是 CombatEffect 模块中最复杂的部分，负责将伤害与治疗事件桥接到 ArcartX 客户端数字飘字显示系统。子系统支持四种属性插件来源自动检测、六种飘字类型、伤害/治疗合并、TACZ 枪械伤害集成，以及 MythicMobs 技能治疗显示。
+
+## 架构概览
+
+```yaml
+# 伤害飘字子系统架构
+CombatDisplayService（核心服务）
+  ├─ 伤害来源解析
+  │   └─ CombatDisplayDamageSourceResolver → 解析出 activeDamageSource
+  ├─ 伤害事件监听器
+  │   ├─ CombatDisplayDamageListener   → EntityDamageByEntityEvent（Bukkit 原版）
+  │   ├─ CombatDisplayTaczListener      → TaczGunDamageEvent（TACZ 枪械）
+  │   └─ AttributeDamageListener        → AttributeDamageEvent（统一属性伤害）
+  ├─ 治疗事件监听器
+  │   ├─ CombatDisplayHealListener      → EntityRegainHealthEvent（原版治疗）
+  │   ├─ CombatDisplayMythicHealListener → MythicHealMechanicEvent（MythicMobs）
+  │   └─ AttributeHealListener           → AttributeHealEvent（统一属性治疗）
+  ├─ 伤害合并缓冲区
+  │   └─ ConcurrentHashMap<MergeKey, MergeEntry>
+  └─ 治疗合并缓冲区
+      └─ ConcurrentHashMap<HealMergeKey, HealMergeEntry>
+```
+
+| 源码类 | 职责 |
+|---|---|
+| `CombatDisplayService` | 核心服务，注册监听器、解析来源、处理各类伤害/治疗事件 |
+| `CombatDisplayConfiguration` | 配置 record，封装全部伤害/治疗显示参数（50+ 字段） |
+| `CombatDisplayDamageSourceMode` | 伤害来源模式枚举（6 种） |
+| `CombatDisplayDamageSource` | 实际生效的伤害来源枚举（6 种） |
+| `CombatDisplayDamageSourceResolver` | 来源解析器，按优先级与回退策略解析 |
+| `CombatDisplayDamageListener` | Bukkit 原版伤害监听器 |
+| `CombatDisplayTaczListener` | TACZ 枪械伤害监听器 |
+| `CombatDisplayHealListener` | 原版治疗监听器 |
+| `CombatDisplayMythicHealListener` | MythicMobs 治疗监听器 |
+
+## 伤害来源解析
+
+### 来源模式
+
+伤害来源模式通过 `digis-display.damage-display.source.mode` 配置，决定优先采用哪个属性插件的伤害事件：
+
+| 模式 | 配置值 | 说明 |
+|---|---|---|
+| 自动检测 | `auto` | 按优先级自动选择第一个可用的来源 |
+| MythicLib | `mythiclib` | 仅使用 MythicLib/MMOItems 伤害事件 |
+| CraneAttribute | `craneattribute` | 仅使用 CraneAttribute 伤害事件 |
+| AttributePlus | `attributeplus` | 仅使用 AttributePlus 伤害事件 |
+| Symphony | `symphony` | 仅使用 Symphony 伤害事件 |
+| Bukkit 原版 | `bukkit` | 仅使用 Bukkit 原版伤害事件 |
+
+### 自动检测优先级
+
+`auto` 模式下，`CombatDisplayDamageSourceResolver.resolve()` 按以下优先级检测可用来源：
+
+| 优先级 | 来源 | 检测条件 |
+|---|---|---|
+| 1 | MythicLib / MMOItems | 插件可用 + `mythiclib.enabled=true` |
+| 2 | CraneAttribute | 插件可用 + `craneattribute.enabled=true` |
+| 3 | AttributePlus | 插件可用 + `original.ap-compatible=true` |
+| 4 | Symphony | 插件可用 + `symphony.enabled=true` |
+| 5 | Bukkit 原版 | `original.enabled=true` 或 `player.enabled=true` |
+
+> 优先级固定为 MythicLib → CraneAttribute → AttributePlus → Symphony → Bukkit，不可自定义顺序。所有来源均不可用时 `activeDamageSource = NONE`，伤害飘字不启用。
+
+### 回退策略
+
+当指定来源（非 `auto`）不可用时，`fallback` 配置控制是否回退到下一个可用来源：
+
+| `fallback` | 行为 |
+|---|---|
+| `true` | 指定来源不可用时，按优先级回退到下一个可用来源 |
+| `false` | 指定来源不可用时，返回 `NONE`，伤害飘字不启用 |
+
+```yaml
+digis-display:
+  damage-display:
+    source:
+      mode: "craneattribute"  # 指定使用 CraneAttribute
+      fallback: true           # CraneAttribute 不可用时回退到 AttributePlus → Symphony → Bukkit
+      debug: false             # 开启后输出来源选择与回退日志
+```
+
+### 来源解析流程
+
+```yaml
+# resolveActiveSource() 解析流程
+1. 检测各属性插件可用性
+   ├─ attributeBridge.mythicLib().available() + mythiclib.enabled
+   ├─ attributeBridge.craneAttribute().available() + craneattribute.enabled
+   ├─ attributeBridge.attributePlus().available() + original.ap-compatible
+   ├─ attributeBridge.symphony().available() + symphony.enabled
+   └─ original.enabled 或 player.enabled
+2. 调用 CombatDisplayDamageSourceResolver.resolve(mode, fallback, ...)
+3. 返回 activeDamageSource
+   ├─ MYTHICLIB / CRANEATTRIBUTE / ATTRIBUTEPLUS / SYMPHONY → 注册统一属性伤害监听
+   └─ BUKKIT → 使用 Bukkit 原生伤害监听
+```
+
+> 当 `activeDamageSource` 为属性插件来源时，`CombatDisplayService` 会注册 `AttributeDamageListener` 到 `AttributeBridgeRegistry`，仅处理匹配 `activeDamageSource` 的属性伤害事件。Bukkit 原版伤害事件会被跳过（避免重复显示）。
+
+## 伤害飘字类型
+
+子系统支持六种伤害飘字类型，按优先级处理：闪避 > 暴击 > 元素克制 > 普通伤害。
+
+### 飘字优先级
+
+```java
+// handleAttributeDamage() 中的处理优先级
+1. 闪避（dodged=true）       → 使用 dodgedConfigId，damage=0
+2. 暴击（critical=true）      → 使用 criticalConfigId / criticalPlayerConfigId
+3. 元素克制（relation != null）→ 使用 advantagedConfigId / disadvantagedConfigId
+4. 普通伤害                   → 按来源分发到对应 configId
+```
+
+| 优先级 | 飘字类型 | 触发条件 | 配置路径 |
+|---|---|---|---|
+| 1 | 闪避 | `AttributeDamageEvent.dodged=true` | `dodged.enabled` / `dodged.config-id` |
+| 2 | 暴击 | `AttributeDamageEvent.critical=true` | `critical.enabled` / `critical.config-id` / `critical.player-config-id` |
+| 3 | 元素克制（优势） | `AttributeDamageEvent.relation=ADVANTAGED` | `advantaged.enabled` / `advantaged.config-id` |
+| 3 | 元素克制（劣势） | `AttributeDamageEvent.relation=DISADVANTAGED` | `disadvantaged.enabled` / `disadvantaged.config-id` |
+| 4 | 普通伤害 | 以上条件均不满足 | 按来源分发 |
+
+> 暴击/闪避/克制飘字为全局配置，当前**仅 Symphony** 能在伤害事件中提供 `critical` / `dodged` / `relation` 标记。其他属性插件触发时 `critical=false` / `dodged=false` / `relation=null`，自动降级为普通伤害飘字。
+
+### 普通伤害按来源分发
+
+普通伤害根据 `activeDamageSource` 分发到不同的 configId：
+
+| activeDamageSource | 普通目标 configId | PVP 目标 configId | 最小阈值字段 |
+|---|---|---|---|
+| `BUKKIT` | `original.config-id` | `player.config-id` | `original.min-amount` / `player.min-amount` |
+| `MYTHICLIB` | `mythiclib.config-id` | `mythiclib.player-config-id` | `mythiclib.min-amount` / `mythiclib.player-min-amount` |
+| `CRANEATTRIBUTE` | `craneattribute.config-id` | `craneattribute.player-config-id` | `craneattribute.min-amount` / `craneattribute.player-min-amount` |
+| `ATTRIBUTEPLUS` | `original.config-id`（复用） | `player.config-id`（复用） | `original.min-amount` / `player.min-amount` |
+| `SYMPHONY` | `symphony.config-id` | `symphony.player-config-id` | `symphony.min-amount` / `symphony.player-min-amount` |
+
+> AttributePlus 来源复用 `original` 的 configId 和阈值配置，通过 `original.ap-compatible=true` 控制是否允许显示。
+
+### PVP 与非 PVP 区分
+
+每种伤害类型区分普通目标（怪物/动物）与 PVP 目标（玩家），使用不同的飘字样式：
+
+| 目标类型 | 判断条件 | configId 选择 |
+|---|---|---|
+| 玩家（PVP） | `target instanceof Player` | `player-config-id` 或 `playerDamageConfigId` |
+| 非玩家 | 其他 `LivingEntity` | `config-id` 或 `damageConfigId` |
+
+```yaml
+# MythicLib 伤害飘字配置示例
+mythiclib:
+  enabled: true
+  config-id: "ArcartXSuite-damage"           # 普通目标（怪物）使用红色伤害样式
+  player-config-id: "ArcartXSuite-player-damage" # PVP 目标（玩家）使用橙色伤害样式
+  min-amount: 1.0                             # 普通目标最小显示阈值
+  player-min-amount: 1.0                      # PVP 最小显示阈值
+```
+
+### 旁观者可见性
+
+`show-others-damage` 控制是否向能看到目标的其他玩家也显示伤害飘字：
+
+| 配置值 | 行为 | 适用场景 |
+|---|---|---|
+| `false`（默认） | 仅攻击者自己看到伤害飘字 | 避免信息过载，PVE 默认 |
+| `true` | 所有能看到目标的玩家都看到 | PVP 场景，所有人可见伤害数字 |
+
+```java
+// sendDamageToViewer() 的分发逻辑
+if (attacker != null && attacker.isOnline()) {
+    clientBridge.sendDamageDisplay(attacker, configId, amount, target);
+}
+if (configuration.showOthersDamage()) {
+    clientBridge.forEachSeenPlayer(target, viewer -> {
+        if (attacker == null || !viewer.equals(attacker)) {
+            clientBridge.sendDamageDisplay(viewer, configId, amount, target);
+        }
+    });
+}
+```
+
+## 治疗飘字
+
+### 原版治疗
+
+原版治疗飘字监听 `EntityRegainHealthEvent`，覆盖药水、生命恢复等原版治疗机制：
+
+| 字段 | 类型 | 默认值 | 说明 |
+|---|---|---|---|
+| `heal-display.original.enabled` | boolean | `true` | 是否启用原版治疗飘字 |
+| `heal-display.original.config-id` | string | `ArcartXSuite-heal` | 治疗飘字样式 ID |
+| `heal-display.original.min-amount` | double | `1.0` | 最小显示阈值 |
+
+### MythicMobs 技能治疗
+
+MythicMobs 治疗飘字监听 `MythicHealMechanicEvent`，仅当治疗目标为玩家时处理：
+
+| 字段 | 类型 | 默认值 | 说明 |
+|---|---|---|---|
+| `heal-display.mythic.enabled` | boolean | `true` | 是否启用 MythicMobs 治疗飘字 |
+| `heal-display.mythic.config-id` | string | `ArcartXSuite-heal` | 治疗飘字样式 ID |
+| `heal-display.mythic.min-amount` | double | `1.0` | 最小显示阈值 |
+| `heal-display.mythic.exact-mode` | boolean | `true` | 是否显示实际生效治疗量 |
+
+`exact-mode` 的精确模式逻辑：
+
+```java
+// 精确模式：扣除溢出部分，显示实际生效的治疗量
+double currentHealth = player.getHealth();
+double maxHealth = AttributeResolver.getMaxHealth(player);
+displayAmount = Math.min(currentHealth + healAmount, maxHealth) - currentHealth;
+```
+
+| `exact-mode` | 显示内容 | 说明 |
+|---|---|---|
+| `true` | 实际生效治疗量 | 扣除溢出（如满血时治疗 100，显示 0） |
+| `false` | 技能理论治疗量 | 不扣除溢出，显示技能原始治疗量 |
+
+> MythicMobs 治疗监听器仅在 MythicMobs / MythicBukkit 插件安装时注册。通过 `isAnyPluginEnabled("MythicMobs")` 检测，类加载失败时输出警告但不影响其他功能。
+
+### 统一属性治疗
+
+当属性桥接注册表有治疗来源时，`AttributeHealListener` 监听 `AttributeHealEvent`，复用原版治疗的 configId 与阈值配置。
+
+## 伤害/治疗合并
+
+合并机制将短时间内的多段伤害/治疗合并为一次飘字，减少高频发包。
+
+### 伤害合并
+
+| 字段 | 类型 | 默认值 | 说明 |
+|---|---|---|---|
+| `damage-display.damage-merge.enabled` | boolean | `false` | 是否启用伤害合并 |
+| `damage-display.damage-merge.window-ticks` | int | `2` | 合并窗口（tick，1 tick = 50ms） |
+| `damage-display.damage-merge.min-amount` | double | `1.0` | 合并后最小显示阈值 |
+| `damage-display.damage-merge.max-entries` | int | `500` | 最大缓存条目数 |
+
+合并 key 为 `(attackerId, targetId, configId)` 三元组。同一 key 在窗口内的伤害累加，窗口结束后一次性发送合并后的总伤害。
+
+```yaml
+# 伤害合并流程
+1. 收到伤害事件 → 构建 MergeKey(attackerId, targetId, configId)
+2. 查找 damageMergeBuffer
+   ├─ 已存在 → existing.amount += amount（累加，不重置计时器）
+   └─ 不存在 → 创建 MergeEntry，调度 flushMergedDamage 延迟任务
+3. 延迟任务触发 → flushMergedDamage(key)
+   ├─ 检查目标是否有效（isValid && !isDead）
+   ├─ 检查合并后金额 >= min-amount
+   └─ sendDamageToViewer() 发送合并飘字
+```
+
+> 缓冲区达到 `max-entries` 上限时，新伤害不再缓存，直接发送（防止异常场景下内存无限增长）。
+
+### 治疗合并
+
+| 字段 | 类型 | 默认值 | 说明 |
+|---|---|---|---|
+| `heal-display.heal-merge.enabled` | boolean | `false` | 是否启用治疗合并 |
+| `heal-display.heal-merge.window-ticks` | int | `2` | 合并窗口（tick） |
+| `heal-display.heal-merge.min-amount` | double | `1.0` | 合并后最小显示阈值 |
+| `heal-display.heal-merge.max-entries` | int | `500` | 最大缓存条目数 |
+
+治疗合并 key 为 `(targetId, configId)` 二元组（无攻击者）。合并逻辑与伤害合并一致。
+
+## TACZ 枪械伤害集成
+
+TACZ（Timeless and Classics Zero）枪械模组的伤害不触发 `EntityDamageByEntityEvent`，必须通过独立事件监听。
+
+| 监听器 | 监听事件 | 说明 |
+|---|---|---|
+| `CombatDisplayTaczListener` | `TaczGunDamageEvent` | TACZ 枪械伤害飘字 |
+| `CombatEffectPacketService` | `TaczGunDamageEvent` / `TaczGunKillEvent` | TACZ 伤害/击杀事件发布到 EventBus |
+
+TACZ 伤害飘字仅在 `activeDamageSource` 为 `NONE` 或 `BUKKIT` 时处理。当属性插件来源生效时，TACZ 伤害飘字被跳过（由属性插件的伤害事件覆盖）。
+
+> TACZ 集成为内置事件桥接，无需额外安装。`TaczGunDamageEvent` 和 `TaczGunKillEvent` 由 ArcartXSuite API 提供，TACZ 未安装时这些事件不会触发。
+
+## 飘字样式配置
+
+飘字样式文件由模块自动导出到 `plugins/ArcartX/damage_display/` 目录，由 ArcartX 客户端读取渲染。
+
+### 样式文件清单
+
+| 样式文件 | 样式 ID | 用途 | 贴图尺寸 |
+|---|---|---|---|
+| `ArcartXSuite-damage.yml` | `ArcartXSuite-damage` | 普通伤害 | 44×66 |
+| `ArcartXSuite-heal.yml` | `ArcartXSuite-heal` | 治疗 | 22×33 |
+| `ArcartXSuite-critical.yml` | `ArcartXSuite-critical` | 暴击伤害 | 44×66 |
+| `ArcartXSuite-dodged.yml` | `ArcartXSuite-dodged` | 闪避 | 44×66 |
+| `ArcartXSuite-advantaged.yml` | `ArcartXSuite-advantaged` | 元素克制（优势） | 44×66 |
+| `ArcartXSuite-disadvantaged.yml` | `ArcartXSuite-disadvantaged` | 元素克制（劣势） | 44×66 |
+
+### 样式文件格式
+
+```yaml
+# ArcartXSuite-damage.yml
+ArcartXSuite-damage:
+  textureWidth: 44          # 每张贴图宽（像素）
+  textureHeight: 66         # 每张贴图高（像素）
+  randomMin: 0              # 位置随机最小值（世界坐标单位）
+  randomMax: 0.2            # 位置随机最大值
+  decimalPlaces: 1           # 小数位数：0=整数 / 1=1位小数 / 2=2位小数
+  textures:
+    - "damage/damage/0.png"  # 第 1-10 张：数字 0-9
+    - "damage/damage/1.png"
+    - "damage/damage/2.png"
+    - "damage/damage/3.png"
+    - "damage/damage/4.png"
+    - "damage/damage/5.png"
+    - "damage/damage/6.png"
+    - "damage/damage/7.png"
+    - "damage/damage/8.png"
+    - "damage/damage/9.png"
+    - "damage/damage/dot.png" # 第 11 张：小数点（decimalPlaces > 0 时使用）
+```
+
+| 字段 | 说明 |
+|---|---|
+| `textureWidth` / `textureHeight` | 每张贴图的宽高（像素），决定数字大小 |
+| `randomMin` / `randomMax` | 飘字位置随机偏移范围（世界坐标单位） |
+| `decimalPlaces` | 小数位数：`0` = 仅整数，`1` = 1 位小数，`2` = 2 位小数 |
+| `textures` | 贴图列表：第 1-10 张对应数字 0-9，第 11 张为小数点，第 12 张为千位分隔逗号（可选） |
+
+### 闪避飘字特殊处理
+
+闪避飘字固定 `damage=0`，永远不显示小数，因此无需配置 `decimalPlaces` 与小数点贴图：
+
+```yaml
+# ArcartXSuite-dodged.yml — 闪避飘字
+ArcartXSuite-dodged:
+  textureWidth: 44
+  textureHeight: 66
+  randomMin: 0
+  randomMax: 0.2
+  # 无 decimalPlaces，无小数点贴图
+  textures:
+    - "damage/dodged/0.png"
+    - "damage/dodged/1.png"
+    # ... 0-9 贴图（仅显示 "0"）
+```
+
+> 治疗飘字（`ArcartXSuite-heal`）使用较小的贴图尺寸（22×33）和较大的随机偏移（0~0.75），与伤害飘字视觉区分。完整配置参考 [ArcartX 伤害飘字文档](https://wiki.arcartx.com/docs/core/2_simple/9_damage_display)。
+
+## 最小显示阈值
+
+所有飘字类型均支持最小显示阈值，低于阈值的伤害/治疗不显示飘字，避免微量数字刷屏：
+
+| 飘字类型 | 阈值字段 | 默认值 |
+|---|---|---|
+| 原始伤害 | `original.min-amount` | `1.0` |
+| PVP 伤害 | `player.min-amount` | `1.0` |
+| MythicLib 伤害 | `mythiclib.min-amount` / `mythiclib.player-min-amount` | `1.0` |
+| CraneAttribute 伤害 | `craneattribute.min-amount` / `craneattribute.player-min-amount` | `1.0` |
+| Symphony 伤害 | `symphony.min-amount` / `symphony.player-min-amount` | `1.0` |
+| 暴击 | `critical.min-amount` | `1.0` |
+| 原版治疗 | `heal-display.original.min-amount` | `1.0` |
+| MythicMobs 治疗 | `heal-display.mythic.min-amount` | `1.0` |
+| 伤害合并后 | `damage-merge.min-amount` | `1.0` |
+| 治疗合并后 | `heal-merge.min-amount` | `1.0` |
+
+> 闪避飘字（`dodged`）和元素克制飘字（`advantaged` / `disadvantaged`）无最小阈值配置，只要 `enabled=true` 且事件触发即显示。
+
+## 相关文档
+
+- [概览](/docs/combateffect) — 模块功能与战斗特效机制
+- [配置](/docs/combateffect/configuration) — 完整配置字段表与示例
+- [命令与占位符](/docs/combateffect/commands) — 命令、权限、UI 包通讯
+- [联动](/docs/combateffect/integration) — EventBus 事件、Capability、跨模块联动
+- [包定义系统](/docs/combateffect/packet-definitions) — 包定义系统详解
+- [连击追踪与触发器](/docs/combateffect/combo-and-triggers) — 连击、死亡缓冲、按键/状态触发器详解
+- [条件系统](/docs/guide/conditions) — 统一条件系统配置指南
+- [物品库匹配](/docs/guide/item-sources) — 统一物品来源系统
+- [图标配置](/docs/guide/icons) — 统一图标系统配置指南

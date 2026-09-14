@@ -1,0 +1,68 @@
+---
+title: ArcartX-Suite
+description: 面向 ArcartX 客户端的 29 模块 Minecraft 服务器插件套件
+---
+
+# ArcartX-Suite
+
+import Link from 'next/link';
+
+> **Suite — 组曲，亦是套装。**
+
+在音乐中，**Suite（组曲）**是由多首独立小曲串联而成的成套器乐作品。一部组曲有四段——**序曲启程**，**变奏展开**，**华彩交织**，**终章回响**。每一段风格、节奏各不相同，**分开能单独演奏，合起来是一部统一于同一调性的完整作品**。
+
+**ArcartX-Suite** 正是这样的理念：29 个模块如同 29 个乐章，每一个独立运作、各具音色、按需启用，共享 ArcartX 的统一调性与 UI 主题，组合成一部属于你自己的**服务器组曲**。
+
+---
+
+**ArcartX-Suite** 是专为 ArcartX 生态构建的下一代全场景 Minecraft 服务器核心套件与玩法基础设施。一个插件覆盖 **29 个功能领域**，统一 ArcartX UI 体验，模块间深度联动，消除适配烦恼。
+
+---
+
+## 项目定位
+
+ArcartXSuite 是基于 ArcartX 客户端模组生态构建的第三方宿主框架。核心职责包括：
+
+- 统一管理 AttributePlus / CraneAttribute / MythicLib / Symphony 等属性桥接
+- MythicMobs / NeigeItems / MMOItems 等物品来源桥接
+- Vault / PlayerPoints 等经济桥接
+- 提供模块加载、生命周期管理与配置诊断引擎
+- 内置跨服传输（Redis + Proxy）、按键绑定服务、聊天签名绕过、账号类型识别等基础设施
+
+所有业务逻辑均通过 `modules/*.jar` 独立模块加载，宿主本身不持有任何业务服务。
+
+---
+
+## 核心特性
+
+### 模块化
+全部 29 个模块独立 jar，支持热加载 / 热卸载，`config.yml` 一键开关，按需启用。
+
+### API 接口隔离
+模块仅通过 `axs-api` 中的接口（如 `PacketBridgeAPI`、`ModuleContext`）与宿主通信，核心实现类可被 ProGuard 完全混淆。
+
+### 跨模块联动
+原生 Capability 桥接，模块间零配置联动。事件包、称号授予、邮件派发、聊天卡片、QQ 推送等能力可自由组合。
+
+### ArcartX UI 原生
+所有模块统一使用 ArcartX 客户端 UI 渲染，实现游戏级沉浸式交互体验。
+
+### 智能配置体检
+内置 `ConfigDiagnosticEngine`，自动检测配置结构差异、类型错误、字段迁移，一键修复。
+
+### 跨服同步
+支持 CrossServer SDK（Redis + Proxy 双后端），Market 拍卖行、OnlineRewards 签到、Mail 邮件、Tab 列表等模块可跨服务器无缝同步。
+
+---
+
+## 环境要求
+
+- **Java** 17+
+- **Minecraft** 1.20.1+（Spigot / Paper / Mohist / Arclight）
+- **ArcartX** 客户端 MOD
+
+---
+
+## 快速开始
+
+<Link href="/docs/guide/installation">前往安装指南 →</Link>

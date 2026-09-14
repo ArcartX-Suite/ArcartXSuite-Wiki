@@ -1,0 +1,213 @@
+---
+title: 分类与搜索
+description: 物品 NBT 分类、排序方案与拼音搜索详解
+---
+
+# 分类与搜索
+
+Warehouse 模块提供基于 NBT/PDC 路径的物品分类、多字段排序方案和拼音/首字母搜索能力。这三套机制协同工作，帮助玩家在大量存储物品中快速定位目标。
+
+## 物品分类
+
+### 分类匹配原理
+
+物品存入仓库时，系统会自动判断其归属分类。分类匹配基于 `CategoryDefinition` 的 NBT 路径与匹配值列表，按 `priority`（优先级）从小到大依次尝试：
+
+1. 遍历所有非兜底分类（`fallback: false`），按 `priority` 升序排列
+2. 对每个分类，读取物品在 `nbt.path` 指定路径上的值
+3. 如果该值（小写化后）存在于 `nbt.values` 列表中，则归入此分类
+4. 所有分类均不匹配时，归入兜底分类（`default: true`，默认 ID 为 `other`）
+
+### 支持的 NBT 路径类型
+
+分类的 `nbt.path` 字段支持以下路径类型：
+
+| 路径格式 | 说明 | 示例值 |
+| --- | --- | --- |
+| `pdc:<namespace>:<key>` | 读取 PersistentDataContainer 中的 STRING/INTEGER/LONG 值 | `pdc:arcartx:item_category` |
+| `pdc:<key>` | 简写形式，namespace 默认为插件名 | `pdc:item_category` |
+| `material` | 读取原版材质 ID（如 `DIAMOND_SWORD`） | `DIAMOND_SWORD` |
+| `display-name` / `name` | 读取物品显示名称 | `钻石剑` |
+| `custom-model-data` | 读取 CustomModelData 整数值 | `10001` |
+
+> 路径解析逻辑位于 `WarehouseService.resolvePath()`，PDC 读取优先尝试 STRING 类型，其次 INTEGER，最后 LONG。
+
+### 分类配置
+
+分类在 `ArcartXWarehouse.yml` 的 `categories` 节定义：
+
+```yaml
+categories:
+  equipment:
+    display-name: "装备"
+    priority: 10
+    nbt:
+      path: "pdc:arcartx:item_category"
+      values: ["equipment", "weapon", "armor"]
+  material:
+    display-name: "材料"
+    priority: 20
+    nbt:
+      path: "pdc:arcartx:item_category"
+      values: ["material"]
+  consumable:
+    display-name: "消耗品"
+    priority: 30
+    nbt:
+      path: "pdc:arcartx:item_category"
+      values: ["consumable", "food", "potion"]
+  other:
+    display-name: "其它"
+    priority: 9999
+    default: true
+```
+
+### 分类字段说明
+
+| 字段 | 类型 | 说明 |
+| --- | --- | --- |
+| `display-name` | string | 分类在 UI 中显示的名称，支持 `&` 颜色码 |
+| `priority` | int | 排序优先级，数字越小越靠前匹配。兜底分类建议设为最大值（如 `9999`） |
+| `nbt.path` | string | NBT/PDC 读取路径，支持 `pdc:`、`material`、`display-name`、`custom-model-data` |
+| `nbt.values` | `List<string>` | 匹配值列表，物品路径值（小写化）命中任一即归入此分类 |
+| `default` | boolean | 是否为兜底分类。设为 `true` 的分类接收所有未匹配的物品 |
+
+### 兜底分类
+
+系统保证始终存在 ID 为 `other` 的兜底分类。如果配置中未定义 `other`，会自动创建默认兜底分类：
+
+```yaml
+# 自动创建的默认兜底分类（无需手动配置）
+other:
+  display-name: "其它"
+  priority: 9999
+  default: true
+```
+
+### 分类在 UI 中的展示
+
+仓库存取界面的分类列表由 `categoryPacket()` 构建，展示顺序为：
+
+1. **全部**（`all`）— 显示所有分类的物品
+2. 按配置 `priority` 升序排列的各分类
+
+玩家在 UI 中点击分类按钮时，发送 `category` action 切换当前分类筛选，同时重置到第 1 页。
+
+## 排序方案
+
+### 排序方案配置
+
+排序方案在 `sort-profiles` 节定义，每个方案由一组排序字段组成，按字段顺序依次排序：
+
+```yaml
+sort-profiles:
+  time:
+    fields:
+      - "updated:desc"
+      - "name:asc"
+  name:
+    fields:
+      - "name:asc"
+  amount:
+    fields:
+      - "amount:desc"
+      - "updated:desc"
+```
+
+### 排序字段
+
+每个排序字段格式为 `key:direction`，支持的 key 与 direction 如下：
+
+| 排序键 | 说明 | 支持的方向 |
+| --- | --- | --- |
+| `name` | 按物品显示名称排序（不区分大小写） | `asc` / `desc` |
+| `amount` | 按物品聚合数量排序 | `asc` / `desc` |
+| `updated` | 按最后更新时间排序 | `asc` / `desc` |
+| `created` | 按存入时间排序 | `asc` / `desc` |
+| `material` | 按原版材质 ID 排序（不区分大小写） | `asc` / `desc` |
+| `category` | 按分类 ID 排序（不区分大小写） | `asc` / `desc` |
+| `warehouse` | 按仓库 ID 排序（不区分大小写） | `asc` / `desc` |
+
+| 方向 | 说明 |
+| --- | --- |
+| `asc` / `ascending` | 升序（默认） |
+| `desc` / `descending` | 降序 |
+
+### 内置排序方案
+
+系统自动保证以下三个排序方案始终存在（配置中未定义时自动创建）：
+
+| 方案 ID | 排序逻辑 |
+| --- | --- |
+| `time` | 先按更新时间降序，再按名称升序 |
+| `name` | 按名称升序 |
+| `amount` | 先按数量降序，再按更新时间降序 |
+
+### 排序方案选择
+
+玩家在 UI 中点击排序按钮时，发送 `sort` action。如果传入的 sortId 为空，则循环切换到下一个排序方案；如果传入有效 ID 则直接切换。默认排序方案由 `search.default-sort` 配置决定。
+
+### 多字段排序实现
+
+排序逻辑位于 `WarehouseService.sortComparator()`，使用 Java `Comparator` 链式组合：
+
+1. 遍历排序方案的每个 `SortField`
+2. 为每个字段构建对应的 `Comparator<SlotItemRecord>`
+3. 如果字段标记为降序，调用 `.reversed()`
+4. 使用 `thenComparing` 将多个字段串联
+5. 最终追加 `Comparator.comparingInt(SlotItemRecord::slot)` 作为稳定排序兜底
+
+## 搜索
+
+### 搜索索引构建
+
+物品存入仓库时，系统会为该物品构建三组搜索索引，持久化到 `warehouse_slots` 表：
+
+| 字段 | 说明 | 构建方式 |
+| --- | --- | --- |
+| `search_text` | 原始搜索文本 | 物品显示名称（去色码后小写化） |
+| `pinyin` | 拼音索引 | 逐字符转换为拼音，多音字拼接所有读音，字之间空格分隔 |
+| `initials` | 首字母索引 | 逐字符取拼音首字母，字之间空格分隔 |
+
+拼音转换使用 pinyin4j 库，格式为小写无声调。非中文字符（字母/数字）直接保留小写形式。
+
+### 多关键词搜索
+
+搜索词按空格拆分为多个部分，每个部分都必须在 `search_text`、`pinyin`、`initials` 中至少匹配一个，才会命中该物品。
+
+| 搜索词 | 匹配方式 | 示例 |
+| --- | --- | --- |
+| `钻石` | 直接匹配 search_text | 匹配"钻石剑" |
+| `zs` | 匹配 initials（首字母） | 匹配"钻石剑"（z=钻, s=石） |
+| `zuanshi` | 匹配 pinyin（全拼） | 匹配"钻石" |
+| `zs jian` | 多关键词混合匹配 | 匹配"钻石剑"（zs 匹配首字母, jian 匹配拼音） |
+
+### 搜索与分类联动
+
+搜索和分类筛选可以同时生效。`slotMatches()` 方法先检查分类是否匹配，再检查搜索关键词是否匹配。两者任一不满足则该物品不显示。
+
+### 搜索配置
+
+```yaml
+search:
+  page-size: 18
+  default-sort: "time"
+```
+
+| 字段 | 类型 | 默认值 | 说明 |
+| --- | --- | --- | --- |
+| `page-size` | int | `18` | 搜索结果每页显示数量，最小 4。实际取 `max(4, search.page-size)` |
+| `default-sort` | string | `time` | 默认排序方案 ID，对应 `sort-profiles` 中定义的方案 |
+
+> `search.page-size` 的值如果小于 `ui.page-size`，则实际使用 `ui.page-size` 作为每页显示数量。
+
+### 搜索词限制
+
+搜索词最大长度为 32 个字符（`crop(safe(search), 32)`），超出部分被截断。搜索词会经过 `ChatColor.stripColor()` 去除颜色码和小写化处理。
+
+## 相关文档
+
+- [配置](/docs/warehouse/configuration) — 完整配置字段参考
+- [物品来源](/docs/guide/item-sources) — 物品库桥接与 ItemMatcher 匹配规则
+- [条件系统](/docs/guide/conditions) — NBT/PDC 条件匹配语法
+- [图标系统](/docs/guide/icons) — UI 图标配置

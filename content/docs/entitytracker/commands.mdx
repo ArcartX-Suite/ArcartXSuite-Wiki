@@ -1,0 +1,201 @@
+---
+title: 命令与占位符
+description: EntityTracker 命令、权限与 PlaceholderAPI 占位符
+---
+
+# 命令与占位符
+
+所有命令通过宿主统一命令入口 `/axs` 执行，模块命令 ID 为 `entitytracker`。
+
+## 管理员命令
+
+Boss 追踪管理命令（需 MythicMobs 已安装且 BossTrackerService 已启动）：
+
+| 命令 | 说明 |
+|---|---|
+| `/axs entitytracker help` | 显示帮助信息 |
+| `/axs entitytracker status` | 查看模块运行状态（活跃会话数、观察者数、历史结算数） |
+| `/axs entitytracker sessions [mobId]` | 列出当前活跃的 Boss 会话，可按 MythicMob ID 筛选 |
+| `/axs entitytracker rank <entityUuid> [页码]` | 查看指定 Boss 会话的实时伤害排名 |
+| `/axs entitytracker settlements [页码]` | 列出历史结算记录 |
+| `/axs entitytracker settlement <settlementId> [页码]` | 查看指定结算记录的详情（含各名次奖励发放状态） |
+| `/axs entitytracker reissue <settlementId> <rank> [玩家名]` | 补发指定结算中指定名次的奖励 |
+
+排行榜奖励管理命令（需 `new-features.ranking-rewards` 已配置且数据库可用）：
+
+| 命令 | 说明 |
+|---|---|
+| `/axs entitytracker rewards help` | 显示排行榜奖励帮助 |
+| `/axs entitytracker rewards manage` | 打开奖励管理 UI 界面（需玩家执行） |
+| `/axs entitytracker rewards history` | 打开奖励发放历史 UI 界面（需玩家执行） |
+| `/axs entitytracker rewards distribute <weekly\|monthly>` | 手动触发周/月奖励发放 |
+| `/axs entitytracker rewards status` | 查看调度器状态（下次执行时间、任务运行状态） |
+
+## 权限节点
+
+| 权限节点 | 说明 | 默认 |
+|---|---|---|
+| `entitytracker.rewards.admin` | 排行榜奖励管理命令权限（`rewards` 子命令组） | OP |
+
+> Boss 追踪管理命令（`status`、`sessions`、`rank` 等）通过 `/axs entitytracker` 执行，权限由宿主统一管理（通常需要 OP 或宿主管理员权限）。排行榜奖励命令（`/axs entitytracker rewards *`）独立检查 `entitytracker.rewards.admin` 权限。
+
+## PlaceholderAPI 占位符
+
+模块注册的 PAPI 占位符前缀为 `axsentitytracker`，即 `%axsentitytracker_<字段>%`。
+
+### 全局信息占位符
+
+| 占位符 | 说明 |
+|---|---|
+| `%axsentitytracker_sort_mode%` | 当前排序模式 |
+| `%axsentitytracker_max_visible_bars%` | 最大同时显示血条数 |
+| `%axsentitytracker_configured_boss_count%` | 已配置的 Boss 总数 |
+| `%axsentitytracker_damage_ranking_boss_count%` | 启用伤害排名的 Boss 数 |
+| `%axsentitytracker_max_damage_ranking_entries%` | 最大排名条目数 |
+| `%axsentitytracker_ui_id%` | 配置的 UI ID |
+| `%axsentitytracker_runtime_ui_id%` | 运行时 UI ID |
+| `%axsentitytracker_bridge_ready%` | PacketBridge 是否就绪 |
+| `%axsentitytracker_active_viewer_count%` | 当前活跃观察者数 |
+| `%axsentitytracker_active_session_count%` | 当前活跃 Boss 会话数 |
+| `%axsentitytracker_boss_count%` | 玩家当前可见的 Boss 数 |
+| `%axsentitytracker_total_boss_count%` | 玩家可见的 Boss 总数（含未显示的） |
+
+### Boss 槽位占位符
+
+Boss HUD 数据以槽位（slot）方式提供，槽位编号从 1 到 `max-visible-bars`。每个槽位包含完整的 Boss 数据。
+
+**槽位访问方式**：`%axsentitytracker_slot_<N>_<字段>%`
+
+| 占位符 | 说明 |
+|---|---|
+| `%axsentitytracker_slot_1_title%` | 第 1 个槽位的标题 |
+| `%axsentitytracker_slot_1_subtitle%` | 第 1 个槽位的副标题 |
+| `%axsentitytracker_slot_1_display_name%` | Boss 显示名称 |
+| `%axsentitytracker_slot_1_mob_id%` | MythicMob ID |
+| `%axsentitytracker_slot_1_health%` | 当前血量（文本） |
+| `%axsentitytracker_slot_1_max_health%` | 最大血量（文本） |
+| `%axsentitytracker_slot_1_health_percent%` | 血量百分比 |
+| `%axsentitytracker_slot_1_progress%` | 血量进度（0-1） |
+| `%axsentitytracker_slot_1_distance%` | 距离（方块） |
+| `%axsentitytracker_slot_1_distance_text%` | 距离文本 |
+| `%axsentitytracker_slot_1_alive_time%` | 存活时间 |
+| `%axsentitytracker_slot_1_world%` | 世界名称 |
+| `%axsentitytracker_slot_1_x%` `%axsentitytracker_slot_1_y%` `%axsentitytracker_slot_1_z%` | 坐标 |
+| `%axsentitytracker_slot_1_has_target%` | 是否有目标 |
+| `%axsentitytracker_slot_1_target_name%` | 目标名称 |
+| `%axsentitytracker_slot_1_ranking_enabled%` | 是否启用伤害排名 |
+| `%axsentitytracker_slot_1_total_damage%` | 总伤害 |
+| `%axsentitytracker_slot_1_viewer_rank%` | 观察者排名 |
+| `%axsentitytracker_slot_1_viewer_rank_text%` | 观察者排名文本 |
+| `%axsentitytracker_slot_1_viewer_damage%` | 观察者伤害 |
+| `%axsentitytracker_slot_1_viewer_damage_percent%` | 观察者伤害百分比 |
+| `%axsentitytracker_slot_1_viewer_qualified%` | 观察者是否达标 |
+| `%axsentitytracker_slot_1_top_1_name%` | 第 1 槽位伤害第 1 名玩家 |
+| `%axsentitytracker_slot_1_top_1_damage%` | 第 1 槽位伤害第 1 名伤害值 |
+| `%axsentitytracker_slot_1_top_1_damage_percent%` | 第 1 槽位伤害第 1 名伤害百分比 |
+
+> 将 `slot_1` 替换为 `slot_2`、`slot_3` 等可访问其他槽位。`top_N` 中 N 的范围为 1 到 `max-entries`。
+
+### 快捷别名占位符
+
+以下占位符是第一个槽位的快捷别名，等价于 `slot_1_<字段>`：
+
+| 占位符前缀 | 等价于 |
+|---|---|
+| `%axsentitytracker_top_<字段>%` | `%axsentitytracker_slot_1_<字段>%` |
+| `%axsentitytracker_current_<字段>%` | `%axsentitytracker_slot_1_<字段>%` |
+
+### 伤害排行占位符
+
+`top_N` 格式的占位符可解析为第一个 Boss 槽位中第 N 名的伤害数据：
+
+| 占位符 | 说明 |
+|---|---|
+| `%axsentitytracker_top_1_name%` | 伤害第 1 名玩家名 |
+| `%axsentitytracker_top_1_damage%` | 伤害第 1 名伤害值 |
+| `%axsentitytracker_top_1_damage_percent%` | 伤害第 1 名伤害百分比 |
+| `%axsentitytracker_top_1_taken_damage%` | 伤害第 1 名承受伤害 |
+
+### 最近结算占位符
+
+以 `last_` 为前缀的占位符返回玩家最近一次 Boss 死亡结算的数据：
+
+| 占位符 | 说明 |
+|---|---|
+| `%axsentitytracker_last_settlement_id%` | 结算 ID |
+| `%axsentitytracker_last_boss_id%` | Boss MythicMob ID |
+| `%axsentitytracker_last_boss_display_name%` | Boss 显示名称 |
+| `%axsentitytracker_last_participant_count%` | 参与人数 |
+| `%axsentitytracker_last_total_damage%` | 总伤害 |
+| `%axsentitytracker_last_rank%` | 玩家排名 |
+| `%axsentitytracker_last_rank_text%` | 玩家排名文本 |
+| `%axsentitytracker_last_damage%` | 玩家伤害 |
+| `%axsentitytracker_last_damage_percent%` | 玩家伤害百分比 |
+| `%axsentitytracker_last_taken_damage%` | 玩家承受伤害 |
+| `%axsentitytracker_last_rewarded%` | 玩家是否已领奖 |
+| `%axsentitytracker_last_top_1_name%` | 结算第 1 名玩家名 |
+| `%axsentitytracker_last_top_1_damage%` | 结算第 1 名伤害值 |
+
+### 攻击目标 HUD 占位符
+
+以 `target_` 为前缀的占位符返回玩家当前攻击目标的信息：
+
+| 占位符 | 说明 |
+|---|---|
+| `%axsentitytracker_has_target%` | 是否有当前攻击目标（同 `target_present`） |
+| `%axsentitytracker_target_title%` | 目标 HUD 标题 |
+| `%axsentitytracker_target_subtitle%` | 目标 HUD 副标题 |
+| `%axsentitytracker_target_display_name%` | 目标显示名称 |
+| `%axsentitytracker_target_health%` | 目标血量 |
+| `%axsentitytracker_target_max_health%` | 目标最大血量 |
+| `%axsentitytracker_target_health_percent%` | 目标血量百分比 |
+| `%axsentitytracker_target_distance%` | 与目标距离 |
+| `%axsentitytracker_target_entity_type%` | 目标实体类型 |
+| `%axsentitytracker_target_entity_type_name%` | 目标实体类型名称 |
+| `%axsentitytracker_target_mythic_mob_id%` | 目标 MythicMob ID |
+| `%axsentitytracker_target_is_player_target%` | 目标是否为玩家 |
+| `%axsentitytracker_target_world%` | 目标所在世界 |
+| `%axsentitytracker_target_active_count%` | 当前活跃目标追踪数 |
+| `%axsentitytracker_target_viewer_count%` | 当前目标 HUD 观察者数 |
+
+## UI Packet 触发
+
+### Boss 追踪 HUD 数据包
+
+Boss 追踪服务通过 PacketBridge 向客户端发送以下数据包：
+
+| 事件 | Packet Handler | 说明 |
+|---|---|---|
+| 玩家首次进入 Boss 可见范围 | `init` | 打开 UI 并发送完整数据包 |
+| 定时刷新（每 `refresh-interval-ticks`） | `update` | 更新 HUD 数据 |
+| 玩家离开范围 / 无可见 Boss | `close` | 关闭 HUD |
+
+数据包字段以 `slot<N>_<field>` 格式组织，包含 Boss 血量、距离、排名等完整数据。空槽位发送默认空值。
+
+### 攻击目标 HUD 数据包
+
+| 事件 | Packet Handler | 说明 |
+|---|---|---|
+| 玩家首次攻击目标 | `init` | 打开 UI 并发送完整数据包 |
+| 定时刷新（每 `refresh-interval-ticks`） | `update` | 更新目标数据 |
+| 超时 / 玩家退出 / 玩家死亡 | `close` | 关闭目标 HUD |
+
+数据包字段包含 `title`、`subtitle`、`health`、`maxHealth`、`distance`、`displayName`、`entityType`、`mythicMobId`、`isPlayerTarget` 等。
+
+### 排行榜奖励 UI 数据包
+
+排行榜奖励系统通过独立的 Packet ID `AXS_ENTITY_TRACKER_REWARD` 与三个 UI 交互：
+
+| UI 文件 | Packet Handler Action | 说明 |
+|---|---|---|
+| `ranking_rewards.yml` | `list-configs` | 列出奖励配置（按周/月筛选） |
+| `ranking_rewards.yml` | `scheduler-status` | 查询调度器状态 |
+| `ranking_rewards.yml` | `manual-distribute` | 手动触发奖励发放 |
+| `ranking_rewards.yml` | `toggle` | 切换奖励配置启用状态 |
+| `ranking_rewards.yml` | `open-manage` | 打开管理界面 |
+| `reward_editor.yml` | `save-config` | 保存奖励配置 |
+| `reward_history.yml` | `open-history` | 打开历史界面 |
+| `reward_history.yml` | `history-list` | 获取发放历史列表（支持筛选与分页） |
+| `reward_history.yml` | `retry` | 重试失败的奖励发放 |
+
+UI 图标配置详见 [/docs/guide/icons](/docs/guide/icons)。

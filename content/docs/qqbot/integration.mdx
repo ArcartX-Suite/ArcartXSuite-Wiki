@@ -1,0 +1,368 @@
+---
+title: 联动
+description: QQBot 跨模块联动与 Capability
+---
+
+# QQBot 跨模块联动与 Capability
+
+QQBot 模块通过 ArcartXSuite 的 Capability 体系和 EventBus 与其他模块深度联动，同时提供完整的数据存储层支持跨服同步。
+
+## Capability 注册
+
+QQBot 模块在启动时注册以下 Capability，供其他模块查询和调用：
+
+### QQBotBroadcastable
+
+向 QQ 群发送消息的能力，供其他模块推送通知到群。
+
+| 方法 | 说明 |
+|---|---|
+| `sendToGroup(long groupId, String message)` | 向指定群发送消息 |
+| `sendToAllGroups(String message)` | 向所有已配置群发送消息 |
+
+**使用示例**（其他模块通过 `getCapability` 获取）：
+
+```java
+QQBotBroadcastable broadcaster = getCapability(QQBotBroadcastable.class);
+if (broadcaster != null) {
+    broadcaster.sendToAllGroups("[系统] 服务器即将维护，请做好准备");
+}
+```
+
+### QQBotNotifiable
+
+反向通知能力，允许其他模块监听 QQ 群消息事件。
+
+| 方法 | 说明 |
+|---|---|
+| `registerListener(QQGroupEventListener listener)` | 注册群消息事件监听器 |
+| `unregisterListener(QQGroupEventListener listener)` | 注销群消息事件监听器 |
+
+**QQGroupEventListener 接口**：
+
+```java
+@FunctionalInterface
+public interface QQGroupEventListener {
+    void onGroupMessage(long groupId, long userId, String nick, String message);
+}
+```
+
+### QqBindCapable
+
+QQ 绑定状态查询与确认能力，供 loginview 等模块集成登录门控。
+
+| 方法 | 返回值 | 说明 |
+|---|---|---|
+| `isBound(UUID playerUuid)` | boolean | 查询玩家是否已绑定 QQ |
+| `getBoundQqId(UUID playerUuid)` | Long | 获取玩家绑定的 QQ 号（未绑定返回 null） |
+| `confirmBind(Player player, String code)` | BindResult | 确认绑定（含自动加白名单逻辑） |
+
+**BindResult 记录**：
+
+| 字段 | 类型 | 说明 |
+|---|---|---|
+| `success` | boolean | 是否绑定成功 |
+| `qqId` | Long | 绑定的 QQ 号（成功时） |
+| `message` | String | 结果消息 |
+
+> `confirmBind` 成功时会自动执行白名单添加命令（若 `whitelist.auto-add-on-bind` 启用），保持与 `/qqbot bind` 行为一致。
+
+### PlayerDataPurgeable
+
+玩家数据清理能力，供本体统一执行数据清理。
+
+| 方法 | 说明 |
+|---|---|
+| `purgePlayerData(UUID playerUuid)` | 清理指定玩家的绑定数据，返回删除行数 |
+| `purgeAllPlayerData()` | 清理所有玩家绑定数据，返回删除行数 |
+
+> 仅清理 `axs_qqbot_bindings` 表中与玩家关联的数据，积分、签到等数据按 QQ 号关联，不在此清理范围。
+
+### DatabaseMigratable
+
+数据库迁移能力，供本体统一执行存储迁移。
+
+| 方法 | 说明 |
+|---|---|
+| `migrateDatabase(StorageDescriptor target, boolean overwrite)` | 迁移数据到目标存储 |
+| `currentDescriptor()` | 返回当前存储描述符 |
+
+## EventBus 事件订阅
+
+QQBot 模块订阅以下 EventBus 事件：
+
+### market.auction_purchased
+
+订阅 Market 模块的拍卖成交事件，当成交价 >= `market-broadcast.threshold` 时推送到所有群。
+
+| 事件字段 | 说明 |
+|---|---|
+| `price` | 成交价格 |
+| `formatted_price` | 格式化后的价格 |
+| `player` | 购买者 |
+
+**推送格式**：`[交易] <玩家名> 以 <价格> 购买了拍卖行物品`
+
+**配置项**：
+
+| 配置 | 默认值 | 说明 |
+|---|---|---|
+| `market-broadcast.enabled` | `true` | 是否启用大额交易播报 |
+| `market-broadcast.threshold` | `1000.0` | 大额交易阈值 |
+
+### mail.* （预留）
+
+预留邮件相关事件订阅，当前未实现具体逻辑。
+
+## 跨服同步
+
+### 共享存储模式
+
+当 `storage.shared: true` 时，QQBot 使用本体统一数据源（`plugins/ArcartX-Suite/config.yml` 的 `storage` 节）。多服环境下，所有服务器共享同一数据库，实现绑定数据、积分、签到记录的跨服同步。
+
+| 数据 | 跨服同步 | 说明 |
+|---|---|---|
+| QQ-游戏绑定 | ✅ | 所有服共享绑定关系 |
+| 积分余额 | ✅ | 积分跨服通用 |
+| 签到记录 | ✅ | 每日签到全局生效 |
+| 兑换流水 | ✅ | 每日限购跨服计算 |
+| 黑名单 | ✅ | 动态黑名单跨服生效 |
+| 红包 | ✅ | 红包跨服可抢 |
+| 群活跃度 | ✅ | 活跃度跨服统计 |
+
+### 自建存储模式
+
+当 `storage.shared: false` 时，模块自建独立 HikariCP 连接池。此模式下各服数据独立，不跨服同步。
+
+## 数据库表结构
+
+QQBot 模块使用以下 8 张数据表，表名前缀为 `axs_qqbot_`（共享模式）或自定义前缀（自建 MySQL 模式）：
+
+### axs_qqbot_bindings（绑定表）
+
+| 字段 | 类型 | 说明 |
+|---|---|---|
+| `id` | INTEGER | 自增主键 |
+| `qq_id` | BIGINT | QQ 号 |
+| `player_uuid` | VARCHAR(36) | 玩家 UUID |
+| `player_name` | VARCHAR(64) | 玩家名 |
+| `bound_at` | BIGINT | 绑定时间戳（毫秒） |
+
+索引：`idx_qqbot_qq` (qq_id)、`idx_qqbot_uuid` (player_uuid)、`idx_qqbot_name` (player_name)
+
+约束：`UNIQUE(qq_id, player_uuid)`
+
+### axs_qqbot_points（积分账户表）
+
+| 字段 | 类型 | 说明 |
+|---|---|---|
+| `qq_id` | BIGINT | QQ 号（主键） |
+| `balance` | INT | 当前余额 |
+| `total_earned` | INT | 累计获得 |
+| `total_spent` | INT | 累计消费 |
+| `updated_at` | BIGINT | 更新时间戳 |
+
+### axs_qqbot_signin（签到记录表）
+
+| 字段 | 类型 | 说明 |
+|---|---|---|
+| `qq_id` | BIGINT | QQ 号 |
+| `sign_date` | VARCHAR(10) | 签到日期（YYYY-MM-DD） |
+| `streak` | INT | 连续签到天数 |
+| `signed_at` | BIGINT | 签到时间戳 |
+
+主键：`(qq_id, sign_date)`，防止重复签到
+
+### axs_qqbot_redeem_log（兑换流水表）
+
+| 字段 | 类型 | 说明 |
+|---|---|---|
+| `id` | INTEGER | 自增主键 |
+| `qq_id` | BIGINT | QQ 号 |
+| `prize_id` | VARCHAR(64) | 奖品 ID |
+| `cost` | INT | 消耗积分 |
+| `redeem_date` | VARCHAR(10) | 兑换日期 |
+| `created_at` | BIGINT | 创建时间戳 |
+
+索引：`idx_qqbot_redeem_qq` (qq_id, redeem_date)
+
+### axs_qqbot_blacklist（黑名单表）
+
+| 字段 | 类型 | 说明 |
+|---|---|---|
+| `qq_id` | BIGINT | QQ 号（主键） |
+| `added_by` | BIGINT | 操作者 QQ 号 |
+| `added_at` | BIGINT | 添加时间戳 |
+
+### axs_qqbot_red_packets（红包表）
+
+| 字段 | 类型 | 说明 |
+|---|---|---|
+| `id` | INTEGER | 自增主键 |
+| `sender_qq` | BIGINT | 发送者 QQ 号 |
+| `group_id` | BIGINT | 群号 |
+| `total_amount` | INT | 总积分 |
+| `remaining_amount` | INT | 剩余积分 |
+| `count` | INT | 总份数 |
+| `claimed_count` | INT | 已领份数 |
+| `expire_at` | BIGINT | 过期时间戳 |
+| `created_at` | BIGINT | 创建时间戳 |
+
+索引：`idx_qqbot_rp_group` (group_id, expire_at)
+
+### axs_qqbot_red_packet_claims（红包领取记录表）
+
+| 字段 | 类型 | 说明 |
+|---|---|---|
+| `id` | INTEGER | 自增主键 |
+| `red_packet_id` | BIGINT | 红包 ID |
+| `claimer_qq` | BIGINT | 领取者 QQ 号 |
+| `amount` | INT | 领取金额 |
+| `claimed_at` | BIGINT | 领取时间戳 |
+
+索引：`idx_qqbot_rpc_redpacket` (red_packet_id)
+
+### axs_qqbot_activity（群活跃度表）
+
+| 字段 | 类型 | 说明 |
+|---|---|---|
+| `qq_id` | BIGINT | QQ 号 |
+| `group_id` | BIGINT | 群号 |
+| `activity_date` | VARCHAR(10) | 日期 |
+| `message_count` | INT | 发言次数 |
+
+主键：`(qq_id, group_id, activity_date)`
+
+索引：`idx_qqbot_activity_date` (activity_date)
+
+## 与其他模块联动
+
+### Mail 模块（邮件系统）
+
+QQBot 通过 `MailDispatchable` Capability 与 Mail 模块联动：
+
+| 联动场景 | 说明 |
+|---|---|
+| 积分兑换奖品 | 兑换成功后通过邮件预设发放奖品给绑定玩家 |
+| 群内发邮件 | 管理员通过 `#发邮件 <玩家名> <预设ID>` 发送邮件预设 |
+| 失败退款 | 邮件发放失败时自动退还积分 |
+
+**配置要求**：
+
+- 奖品的 `mail.presets` 须对应 Mail 模块中配置的邮件预设 ID
+- Mail 模块需已安装并正常运行
+
+### Market 模块（交易行）
+
+QQBot 通过 EventBus 订阅 Market 模块的拍卖成交事件：
+
+| 联动场景 | 说明 |
+|---|---|
+| 大额交易播报 | 拍卖成交价 ``>`=` 阈值时推送到所有群 |
+
+**配置要求**：
+
+- `market-broadcast.enabled: true`
+- `market-broadcast.threshold` 设置合理阈值
+
+### Essentials 模块（基础功能）
+
+QQBot 通过 `EssentialsQueryable` Capability 获取玩家状态：
+
+| 联动场景 | 说明 |
+|---|---|
+| 查在线指令 | 在线列表中显示 AFK / 隐身 / 无敌状态标签 |
+
+### LoginView 模块（登录面板）
+
+QQBot 通过 `QqBindCapable` Capability 向 LoginView 模块暴露绑定状态：
+
+| 联动场景 | 说明 |
+|---|---|
+| 登录门控 | LoginView 在登录面板中查询 QQ 绑定状态，引导玩家完成绑定 |
+| 绑定确认 | LoginView 可调用 `confirmBind` 完成绑定流程 |
+
+> QQBot 自身的 `QQBotLoginGateListener` 仅做审计日志（记录玩家账号类型与绑定状态），不拦截登录。实际登录门控由 LoginView 模块统一管控。
+
+### Chat 模块（聊天系统）
+
+QQBot 软依赖 `chat` 模块：
+
+| 联动场景 | 说明 |
+|---|---|
+| 消息同步 | 监听 `AsyncPlayerChatEvent` 将游戏内聊天转发到 QQ 群 |
+| 进退服通知 | 监听 `PlayerJoinEvent` / `PlayerQuitEvent` 推送通知到群 |
+
+## Bukkit 事件监听
+
+QQBot 模块注册了以下 Bukkit 事件监听器：
+
+| 事件 | 监听器 | 说明 |
+|---|---|---|
+| `AsyncPlayerChatEvent` | `QQBotService` | 游戏聊天 → QQ 群同步 |
+| `PlayerJoinEvent` | `QQBotService` | 玩家进服 → QQ 群通知 |
+| `PlayerQuitEvent` | `QQBotService` | 玩家退服 → QQ 群通知 |
+| `EntityDeathEvent` | `QQBotService` | 击杀播报（Boss/PvP 过滤） |
+| `PlayerDeathEvent` | `QQBotService` | 死亡播报 |
+| `AsyncPlayerPreLoginEvent` | `QQBotLoginGateListener` | 登录审计日志（不拦截） |
+
+## OneBot 协议交互
+
+QQBot 通过 OneBot 11 WebSocket 协议与实现端交互，支持以下 Action：
+
+| Action | 方法 | 说明 |
+|---|---|---|
+| `send_group_msg` | `OneBotClient.sendGroupMessage()` | 发送群消息 |
+| `send_group_msg`（消息段） | `OneBotClient.sendGroupMessageAt()` | 发送 @ + 文本消息 |
+| `delete_msg` | `OneBotClient.deleteMessage()` | 撤回消息 |
+| `set_group_ban` | `OneBotClient.setGroupBan()` | 群成员禁言 |
+
+### OneBot 事件处理
+
+模块处理以下 OneBot 事件类型：
+
+| 事件类型 | 子类型 | 说明 |
+|---|---|---|
+| `message` | `group` | 群消息（指令处理、消息同步、自动回复） |
+| `notice` | `group_increase` | 入群欢迎 |
+| `notice` | `group_ban` | 禁言同步封禁 |
+| `meta_event` | `heartbeat` | 心跳保活 |
+| `meta_event` | `lifecycle` | 生命周期 |
+
+## SnowLuma 进程管理
+
+QQBot 内置 SnowLuma 进程管理器，支持两种运行模式：
+
+### Native 模式
+
+| 特性 | 说明 |
+|---|---|
+| 运行方式 | 本地 Node.js 子进程 |
+| 环境要求 | Node.js 18+ |
+| 安装方式 | `/axs qqbot admin snowluma install`（从 GitHub 下载） |
+| 进程管理 | 自动启动/停止/清理残留进程 |
+| 端口清理 | 按配置的 WS 端口清理残留进程 |
+| JVM 钩子 | 注册 ShutdownHook 确保异常退出时清理进程 |
+
+### Docker 模式
+
+| 特性 | 说明 |
+|---|---|
+| 运行方式 | Docker 容器 |
+| 环境要求 | Docker 已安装 |
+| 安装方式 | `/axs qqbot admin snowluma install`（docker pull + docker run） |
+| 端口映射 | WebUI / WS / HTTP 端口可配置 |
+| 数据持久化 | 自动挂载 3 个 volume（data / qq-config / qq-data） |
+| 日志查看 | `/axs qqbot admin snowluma logs` |
+
+## 配置版本迁移
+
+模块支持配置文件自动迁移，当前版本为 4。迁移文件位于 `migrations/` 目录：
+
+| 迁移文件 | 说明 |
+|---|---|
+| `1-2.yml` | 初始迁移 |
+| `2-3.yml` | 结构调整 |
+| `3-4.yml` | `storage.mode` → `storage.shared`，值映射 sqlite→true / mysql→false |
+
+模块启动时自动检测 `config-version` 并执行必要的迁移操作。

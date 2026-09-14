@@ -1,0 +1,263 @@
+---
+title: ARIA 脚本引擎
+description: ArcartXSuite ARIA 脚本桥接 API，支持在配置中使用 Aria 脚本表达式
+---
+
+# ARIA 脚本引擎
+
+## 概述
+
+`AriaBridge` 是 ArcartXSuite 与 ArcartX/Aria 脚本引擎的桥接层。通过反射从 `BlinkAriaHost`、`ArcartX`、`Aria` 插件中探测 Aria 引擎类。若未找到则 `available() == false`，相关条件/动作自动降级。
+
+Aria 为可选依赖，运行时从以下候选插件中按顺序探测引擎类：
+
+```
+BlinkAriaHost → ArcartX → Aria
+```
+
+探测逻辑：遍历候选插件，尝试在其 ClassLoader 中加载 `priv.seventeen.artist.aria.Aria` 类及 `eval` 方法，找到则初始化桥接。
+
+## 核心接口
+
+`AriaBridge` 接口定义如下：
+
+```java
+public interface AriaBridge {
+    boolean available();
+    @Nullable String version();
+    @Nullable Object eval(@NotNull String code, @NotNull Map<String, Object> bindings);
+    default boolean evalBoolean(@NotNull String code, @NotNull Map<String, Object> bindings);
+    static boolean toBoolean(@Nullable Object result);
+}
+```
+
+### 方法说明
+
+| 方法 | 说明 |
+|------|------|
+| `available()` | Aria 引擎是否可用（已探测到并初始化成功） |
+| `version()` | Aria 版本号，不可用时返回 null |
+| `eval(code, bindings)` | 执行 Aria 脚本，返回结果；无返回值或失败时返回 null |
+| `evalBoolean(code, bindings)` | 执行脚本并将结果转换为 boolean |
+| `toBoolean(result)` | 静态方法，将脚本返回值转换为 boolean |
+
+### toBoolean 转换规则
+
+| 返回值类型 | 转换规则 |
+|-----------|----------|
+| `null` | `false` |
+| `Boolean` | 原值 |
+| `Number` | `doubleValue() != 0.0` |
+| `String` | 非空且不等于 `"false"`（忽略大小写）和 `"0"` 时为 `true` |
+| 其它 | `true` |
+
+## 绑定变量映射
+
+Java bindings 注入到 Aria `global` 命名空间，脚本中需用 `global.<name>` 访问。`DefaultAriaBridge` 按 Java 类型映射到 ARIA 原生 `IValue`：
+
+| Java 类型 | Aria 类型 | 说明 |
+|-----------|-----------|------|
+| `null` | `NoneValue.NONE` | 空值 |
+| `Number` | `NumberValue(double)` | 数值类型，可参与 ARIA 数值运算 |
+| `String` | `StringValue` | 字符串类型 |
+| `Boolean` | `BooleanValue` | 布尔类型 |
+| 其它 | `ObjectValue(JavaObjectMirror)` | 对象镜像，脚本可通过 `.` / `[]` 访问成员 |
+
+> 旧实现统一用 `ObjectValue(JavaObjectMirror)` 包装所有类型，导致 `Number` 绑定值在 ARIA 数值表达式中被当作不可运算对象（`canMath()` 默认 false），乘法/加法结果归零。新实现按类型映射到原生 `IValue`，确保数值/字符串/布尔能正确参与 ARIA 运算。
+
+### 默认注入的绑定变量
+
+`ScriptBindingsFactory` 为 Aria/JS 脚本构造变量绑定：
+
+| 变量名 | Java 类型 | 说明 |
+|--------|----------|------|
+| `player` | `AriaPlayer` | 玩家门面对象，提供属性查询与动作执行 |
+| `Bukkit` | `Bukkit.class` | Bukkit 服务端 API 类（可选注入） |
+
+## AriaPlayer 玩家门面对象
+
+`AriaPlayer` 是 ArcartXSuite 自有的 Aria/JS 玩家门面对象，脚本中以裸名 `player` 访问。所有方法均为"单层调用"，返回原始值或执行副作用，避免 Aria 链式调用返回对象不自动回包的限制。
+
+### 基本信息
+
+| 方法 | 返回类型 | 说明 |
+|------|----------|------|
+| `getName()` | `String` | 玩家名 |
+| `getUuid()` | `String` | 玩家 UUID |
+| `getDisplayName()` | `String` | 显示名 |
+| `getLevel()` | `int` | 等级 |
+| `getExp()` | `float` | 经验进度 |
+| `getFood()` | `int` | 饥饿值 |
+| `getHealth()` | `double` | 生命值 |
+| `getGameMode()` | `String` | 游戏模式（SURVIVAL/CREATIVE 等） |
+| `getWorld()` | `String` | 所在世界名 |
+| `getX()` / `getY()` / `getZ()` | `double` | 坐标 |
+| `getBlockX()` / `getBlockY()` / `getBlockZ()` | `int` | 方块坐标 |
+| `isSneaking()` | `boolean` | 是否潜行 |
+| `isSprinting()` | `boolean` | 是否冲刺 |
+| `isFlying()` | `boolean` | 是否飞行 |
+| `isOp()` | `boolean` | 是否 OP |
+
+### 权限与变量
+
+| 方法 | 返回类型 | 说明 |
+|------|----------|------|
+| `hasPermission(permission)` | `boolean` | 权限检查 |
+| `papi(input)` | `String` | 用当前玩家上下文解析 PAPI 占位符 |
+| `papiNumber(input)` | `double` | PAPI 解析后转为数字，失败返回 0 |
+
+### 动作（副作用）
+
+| 方法 | 返回类型 | 说明 |
+|------|----------|------|
+| `command(command)` | `boolean` | 以玩家身份执行命令 |
+| `console(command)` | `boolean` | 以控制台身份执行命令 |
+| `op(command)` | `boolean` | 临时给 OP 权限执行命令，执行后恢复 |
+| `msg(message)` | `void` | 发送消息（支持 `&` 颜色码） |
+| `title(title, subtitle)` | `void` | 发送标题 |
+| `title(title, subtitle, fadeIn, stay, fadeOut)` | `void` | 发送标题（自定义时间） |
+| `sound(name)` | `void` | 播放音效 |
+| `sound(name, volume, pitch)` | `void` | 播放音效（自定义音量音调） |
+| `close()` | `void` | 关闭背包 |
+| `bukkit()` | `Player` | 逃生舱：返回原生 Bukkit Player |
+
+## 可用函数
+
+ARIA 脚本中可用的函数分为以下几类：
+
+### 基础语言
+
+| 类别 | 可用语法 |
+|------|----------|
+| 变量 | `var` / `val` 声明变量 |
+| 运算符 | 算术、比较、逻辑运算符 |
+| 控制流 | `if` / `for` / `while` / `when` |
+| 函数 | 函数定义与调用 |
+| 类 | 类定义与实例化 |
+| 模块 | 模块系统 |
+| 异常 | `try` / `catch` 异常处理 |
+| Java 互操作 | 通过 `JavaObjectMirror` 访问 Java 对象成员 |
+
+### UI 控件
+
+在 UI YAML 的 `action` / `packetHandler` 中可用的 `self` 控件方法：
+
+| 方法 | 说明 |
+|------|------|
+| `self.close()` | 关闭当前 UI |
+| `self.getID()` | 获取控件 ID |
+| `self.childrenCount()` | 子控件数量 |
+| `self.get(index)` | 按索引获取子控件 |
+| `self.create()` | 创建控件 |
+| `self.clickSlot()` | 点击槽位 |
+| `self.delayAction()` | 延迟执行动作 |
+| `self.remove()` | 移除控件 |
+| `self.parent` | 父控件引用 |
+| `self.isHovered()` | 是否悬停 |
+
+### Server 端
+
+通过 `player` 绑定变量可用的服务端操作：
+
+| 类别 | 可用方法 |
+|------|----------|
+| 玩家属性 | `player.getHealth()` / `player.getLevel()` / `player.getFood()` / `player.getExp()` 等 |
+| 移动 | 通过 `player.bukkit()` 获取原生 Player 后调用 `teleport` / `jump` / `dash` 等 |
+| 效果 | 通过 `player.bukkit()` 调用 `addPotionEffect` 等 |
+| 战斗 | 通过 `player.bukkit()` 调用 `attack` / `setHealth` 等 |
+| 声音 | `player.sound(name)` 或 `player.sound(name, volume, pitch)` |
+| 命令 | `player.command(cmd)` / `player.console(cmd)` / `player.op(cmd)` |
+| 占位符 | `player.papi('%vault_eco_balance%')` / `player.papiNumber('%vault_eco_balance%')` |
+
+## 配置中使用
+
+在 YAML 配置中写 ARIA 表达式有两种方式：
+
+### 条件中使用
+
+方式一：`aria:` 前缀简写
+
+```yaml
+conditions:
+  - "aria: global.player.getLevel() >= 5"
+```
+
+方式二：`type: aria` + `script` 字段
+
+```yaml
+conditions:
+  - type: aria
+    script: |-
+      global.player.getLevel() >= 5 && global.player.hasPermission('vip')
+```
+
+### 动作中使用
+
+直接写 Aria 代码块：
+
+```yaml
+actions:
+  - type: aria
+    script: |-
+      global.player.msg('&a恭喜获得奖励！')
+      global.player.sound('ENTITY_PLAYER_LEVELUP')
+      global.player.console('give ' + global.player.getName() + ' diamond 1')
+```
+
+> 条件求值时，`AriaScriptExecutor` 会通过 `ensureReturn` 包装脚本确保有返回值；动作执行时直接 `eval` 返回结果。
+
+## 降级处理
+
+Aria 不可用时的降级策略：
+
+| 场景 | 降级行为 |
+|------|----------|
+| 条件求值 | 返回 `false`（条件不通过） |
+| 动作执行 | 跳过（返回 null） |
+| `eval` 调用 | 返回 null |
+| `evalBoolean` 调用 | 返回 false |
+
+降级时会输出 warning 日志：
+
+```
+[Script] ARIA 条件执行失败：Aria 引擎不可用
+[Script] ARIA 动作无法执行：Aria 引擎不可用
+```
+
+### 模块降级处理示例
+
+模块应检查 `ariaBridge.available()` 并做降级处理：
+
+```java
+AriaBridge ariaBridge = context.ariaBridge();
+if (ariaBridge != null && ariaBridge.available()) {
+    // Aria 可用，使用 ARIA 条件
+    String script = "global.player.getLevel() >= 5";
+    boolean result = ariaBridge.evalBoolean(script, bindings);
+} else {
+    // Aria 不可用，降级到 PAPI 条件
+    String placeholder = "%player_level%";
+    String value = placeholderResolver.applyPlaceholders(player, placeholder);
+    boolean result = Integer.parseInt(value) >= 5;
+}
+```
+
+### UnavailableAriaBridge
+
+当 `AriaBridge` 为 null 时，`DefaultScriptConditionEvaluator` 会使用 `UnavailableAriaBridge` 占位：
+
+```java
+private static final class UnavailableAriaBridge implements AriaBridge {
+    @Override public boolean available() { return false; }
+    @Override public String version() { return null; }
+    @Override public Object eval(String code, Map<String, Object> bindings) { return null; }
+}
+```
+
+## 注意事项
+
+- 绑定变量注入到 `global.` 命名空间，脚本中必须用 `global.player` 而非裸名 `player` 访问（UI YAML 的 `action` / `packetHandler` 中除外，UI 引擎有自己的变量作用域）。
+- `AriaPlayer` 所有方法均为单层调用，避免 Aria 链式调用返回对象不自动回包的限制。如需链式调用，使用 `player.bukkit()` 获取原生 Bukkit Player。
+- `eval` 方法通过反射调用 Aria 引擎，每次调用创建新的 `Context`，绑定变量在本次调用内有效。
+- `unwrap` 方法将 Aria `IValue` 结果转回 Java 类型：`NumberValue` → `long`/`double`、`StringValue` → `String`、`BooleanValue` → `boolean`、`NoneValue` → `null`。
+- ARIA 条件求值前会先经过 `applyPlaceholders` 预处理占位符，因此脚本中可嵌入 `%placeholder%` 语法。

@@ -1,0 +1,13 @@
+{
+  "title": "Announcer 播报",
+  "description": "公告 / 字幕轮播系统，可点击执行命令",
+  "color": "#f59e0b",
+  "pages": [
+    "index",
+    "configuration",
+    "entries",
+    "subtitle",
+    "commands",
+    "integration"
+  ]
+}

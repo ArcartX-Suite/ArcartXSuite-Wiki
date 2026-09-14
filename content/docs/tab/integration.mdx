@@ -1,0 +1,280 @@
+---
+title: 联动
+description: Tab 模块 Capability、跨服同步、数据库与模块集成
+---
+
+# 联动
+
+## Capability 注册
+
+Tab 模块在启动时通过 `registerCapability()` 注册以下 Capability，供其他模块跨模块调用。
+
+### TabRefreshable
+
+Tab 列表刷新能力接口，由 Title、Chat 等模块在数据变更时触发 Tab 刷新。
+
+| 方法 | 参数 | 返回值 | 说明 |
+|---|---|---|---|
+| `requestViewerRefresh` | `Player viewer`, `String reason` | `void` | 请求刷新指定玩家可见的 Tab |
+| `requestGlobalRefresh` | `String reason` | `void` | 请求刷新所有在线玩家的 Tab |
+
+```java
+TabRefreshable refreshable = getCapability(TabRefreshable.class);
+if (refreshable != null) {
+    refreshable.requestGlobalRefresh("title-change");
+}
+```
+
+> 实现：`TabSyncService` 同时实现 `TabRefreshable` 接口。`requestViewerRefresh` 将 viewer 加入刷新队列并调度下一 tick flush；`requestGlobalRefresh` 设置全局刷新标志，吸收所有单玩家请求。刷新队列（`TabRefreshQueue`）合并去重同一 tick 内的重复请求，全局刷新时吸收所有单玩家请求。
+
+### TabRefreshRequester
+
+Tab 刷新请求接口，定义发起单玩家刷新与全局刷新的契约。
+
+| 方法 | 参数 | 返回值 | 说明 |
+|---|---|---|---|
+| `requestViewerRefresh` | `Player viewer`, `String reason` | `void` | 请求刷新指定玩家的 Tab 列表 |
+| `requestGlobalRefresh` | `String reason` | `void` | 请求全局刷新所有玩家的 Tab 列表 |
+
+> `TabRefreshRequester` 是 `TabSyncService` 实现的内部接口，与 `TabRefreshable` 方法签名一致。`TabRefreshable` 是公开 API 契约（`axs-api`），`TabRefreshRequester` 是模块内部接口。
+
+## 刷新机制
+
+### 刷新队列
+
+`TabRefreshQueue` 合并并去重单玩家刷新请求与全局刷新请求，避免同一 tick 内重复刷新。
+
+| 操作 | 行为 |
+|---|---|
+| `requestViewer(uuid)` | 将 viewer 加入待刷新集合（已有全局刷新时忽略），返回是否触发新调度 |
+| `requestGlobal()` | 设置全局刷新标志，清空单玩家集合，返回是否触发新调度 |
+| `drain()` | 排空队列，返回 `DrrainResult(global, viewerIds)` |
+
+`DrainResult` 结构：
+
+| 字段 | 类型 | 说明 |
+|---|---|---|
+| `global` | `boolean` | 是否为全局刷新 |
+| `viewerIds` | `Set<UUID>` | 待刷新的玩家集合（全局刷新时为空集） |
+
+### 刷新触发时机
+
+| 触发源 | 刷新范围 | 说明 |
+|---|---|---|
+| 周期任务 | 全局 | 每隔 `refresh-interval-ticks` 自动触发一次全局刷新 |
+| 玩家进服 | 全局 | `PlayerJoinEvent` 触发全局刷新 |
+| 玩家退服 | 全局 | `PlayerQuitEvent` 触发全局刷新，清理 viewer 状态 |
+| 客户端回包 | 单 viewer | `Packet.send("TAB", "update")` 触发 viewer 级强制刷新 |
+| 客户端翻页 | 单 viewer | `Packet.send("TAB_PAGE", ...)` 触发 viewer 级刷新 |
+| 命令 | 单 viewer | `/axstab refresh` 触发 viewer 级刷新 |
+| 视图切换 | 单 viewer | `/axstab view <name>` 触发 viewer 级强制刷新（所有 definition） |
+| 页码切换 | 单 viewer | `/axstab page <def> <N>` 触发 viewer 级强制刷新（单 definition） |
+| 跨服快照 | 全局 | 收到远程节点快照时触发全局刷新 |
+| Capability | 单 viewer / 全局 | 其他模块通过 `TabRefreshable` 触发 |
+
+### 客户端刷新防护
+
+`TabClientRefreshGuard` 基于「滑动窗口 + 最大命中次数」策略，限制单个玩家对单个 Tab 的客户端主动刷新频率。
+
+| 配置项 | 默认值 | 说明 |
+|---|---|---|
+| `enabled` | `true` | 是否启用防护 |
+| `window-ms` | `1500` | 统计窗口时长（毫秒） |
+| `max-hits` | `1` | 窗口内允许的最大刷新次数 |
+| `mode` | `silent` | 防护模式：`silent` 静默丢弃 / `notify` 提示玩家。`punish` 不支持，自动降级为 `notify` |
+| `notify-message` | `&cTAB 刷新过快，请稍后再试。` | 命中防护时向玩家发送的提示消息 |
+| `notify-cooldown-ms` | `3000` | 提示消息冷却时长（毫秒） |
+
+> 防护状态按 `RouteKey(tabId, playerId)` 维度独立计数。`cleanup()` 在每次刷新周期后清理不再有效的防护状态，避免内存泄漏。
+
+## 跨服同步
+
+### 跨服通道
+
+Tab 模块通过宿主 `CrossServerAPI` 打开名为 `tab` 的跨服通道，用于广播和接收 Tab 快照。
+
+```java
+crossServerChannel = crossServer.openChannel(
+    "tab",
+    configuration.crossServer(),
+    delivery -> handleRemoteSnapshotPayload(delivery.payload(), delivery.nodeId())
+);
+```
+
+跨服通道配置继承宿主 `config.yml` 的 `cross-server` 节，支持 Redis 和 Proxy（BungeeCord / Velocity）双后端。
+
+### 快照协议
+
+跨服快照使用 YAML 格式编码，由 `TabSnapshotCodec` 负责序列化和反序列化。
+
+#### TabServerSnapshot 结构
+
+| 字段 | 类型 | 说明 |
+|---|---|---|
+| `nodeId` | `String` | 来源节点标识 |
+| `definitionId` | `String` | 对应的 Tab 定义 ID |
+| `timestamp` | `long` | 快照时间戳（毫秒） |
+| `entries` | `List<TabRemoteEntry>` | Tab 条目列表 |
+
+#### TabRemoteEntry 结构
+
+| 字段 | 类型 | 说明 |
+|---|---|---|
+| `playerUuid` | `String` | 玩家 UUID |
+| `playerName` | `String` | 玩家名称 |
+| `sortValue` | `double` | 首键排序数值（v1 兼容） |
+| `sortStringValue` | `String` | 首键排序字符串（v1 兼容） |
+| `sortValues` | `List<Double>` | 多键排序数值列表（v2 新增） |
+| `sortStringValues` | `List<String>` | 多键排序字符串列表（v2 新增） |
+| `groupKey` | `String` | 分组键（v2 新增） |
+| `renderedPack` | `Object` | 已渲染的 pack（`String` / `List` / `Map`） |
+
+> v2 协议在 v1 基础上新增 `sortValues` / `sortStringValues` / `groupKey` 三个字段。旧节点（v1）发出的快照会把这些字段填充为兼容值（首键复制 + 空 groupKey），由 v2 节点解码时自动按 v1 行为回退。
+
+#### 编解码限制
+
+| 限制项 | 值 | 说明 |
+|---|---|---|
+| `MAX_DECODE_CONTENT_LENGTH` | `524288`（512 KB） | 解码时允许的最大 payload 字符数（UTF-16），防止恶意大包 |
+| `MAX_ENTRIES` | `500` | 单快照最大玩家条目数 |
+
+### 快照广播流程
+
+```
+broadcastLocalSnapshots()
+  ├─ 检查跨服通道是否活跃
+  ├─ 对每个 enabled 且 cross-server 的 definition：
+  │    ├─ 检查 batch.window-ticks 节流（距上次广播是否足够间隔）
+  │    ├─ collectLocalEntriesForBroadcast()
+  │    │    ├─ 在线玩家 → 计算 sortValues / sortStrings / groupKey / renderedPack
+  │    │    └─ 退服宽限缓存 → 保留已退服玩家在 grace 期内的最后渲染结果
+  │    ├─ TabSnapshotCodec.encode() → YAML 字符串
+  │    └─ crossServerChannel.publish()
+  └─ 更新 lastBroadcastTimestamps
+```
+
+### 快照接收流程
+
+```
+handleRemoteSnapshotPayload(payload, nodeId)
+  ├─ TabSnapshotCodec.decode() → TabServerSnapshot
+  ├─ handleRemoteSnapshot()
+  │    ├─ 跳过自身节点（nodeId 相同）
+  │    ├─ 存入 remoteSnapshots[nodeId][definitionId]
+  │    ├─ 更新 remoteSnapshotTimestamps[nodeId]
+  │    └─ requestGlobalRefresh("cross-server")
+  └─ 过期清理（cleanupStaleSnapshots）
+       └─ 超过 stale-snapshot-ms 的远程节点条目被移除
+```
+
+### 退服宽限
+
+退服宽限（`leave-grace-ms`）在玩家退服后保留其在跨服快照中的虚拟条目，避免跨服跳传时的"消失闪烁"。
+
+| 配置项 | 默认值 | 说明 |
+|---|---|---|
+| `leave-grace-ms` | `0` | 退服宽限期（毫秒），0 表示禁用。典型值 1500~3000 |
+
+宽限期内，退服玩家的最后一次渲染快照（含 `renderedPack` / `sortNumeric` / `sortString`）被缓存到 `leaveGraceCache`，并在 `collectLocalEntriesForBroadcast` 中作为额外条目加入快照。宽限期过后自动清理。
+
+## 调试快照存储
+
+`TabSnapshotStore` 提供调试快照的落盘与加载功能，用于复现 BUG 与回归测试。
+
+### 存储路径
+
+```
+plugins/ArcartXSuite/data/tab/snapshots/<name>.json
+```
+
+### JSON 文件格式
+
+```json
+{
+  "version": 2,
+  "savedAt": 1700000000000,
+  "serverId": "default",
+  "localEntries": {
+    "online-tab": [TabRemoteEntry, ...]
+  },
+  "remoteSnapshots": {
+    "node-02": {
+      "online-tab": [TabRemoteEntry, ...]
+    }
+  }
+}
+```
+
+| 字段 | 类型 | 说明 |
+|---|---|---|
+| `version` | `int` | 文件格式版本（当前为 2） |
+| `savedAt` | `long` | 保存时间戳（epoch-ms） |
+| `serverId` | `String` | 保存时的服务端 ID |
+| `localEntries` | `Map<String, List<TabRemoteEntry>>` | 本服每个 definition 的条目快照 |
+| `remoteSnapshots` | `Map<String, Map<String, List<TabRemoteEntry>>>` | 远程节点每个 definition 的条目快照 |
+
+> `snapshot:*` 虚拟节点不会被保存到存档中，避免循环嵌套。加载时本服快照注入为 `snapshot:<name>:local`，远程节点逐个注入为 `snapshot:<name>:<原 nodeId>`。虚拟节点在 `cleanupStaleSnapshots` 中被豁免清理，仅通过命令显式 `unload`。
+
+### 名称校验
+
+快照名称仅允许字母 / 数字 / `_` / `-`，长度 1~64。正则：`^[A-Za-z0-9_\-]{1,64}$`。
+
+## 数据库表
+
+Tab 模块**不使用数据库表**。所有运行时状态（viewer 视图、页码、跨服快照、刷新队列、限流状态、PVP 时间戳、退服宽限缓存）均保存在内存中，服务端重启后重置。
+
+调试快照以 JSON 文件形式存储在 `data/tab/snapshots/` 目录，不依赖数据库。
+
+## 模块集成
+
+### 与 Title 模块联动
+
+Title 模块在称号变更时通过 `TabRefreshable` Capability 触发 Tab 刷新，确保 Tab 列表中的称号前后缀实时更新。
+
+```java
+// Title 模块内部调用
+TabRefreshable refreshable = getCapability(TabRefreshable.class);
+if (refreshable != null) {
+    refreshable.requestGlobalRefresh("title-change");
+}
+```
+
+Tab 的 `pack` 中可直接消费 Title 模块的 PAPI 占位符：
+
+| 占位符 | 说明 |
+|---|---|
+| `%axstitle_tab_<groupId>_prefix%` | 指定分组的 Tab 前缀 |
+| `%axstitle_tab_<groupId>_suffix%` | 指定分组的 Tab 后缀 |
+| `%axstitle_display%` | 主展示称号 |
+| `%axstitle_chat_<groupId>_prefix%` | 聊天前缀（可按分组接入） |
+| `%axstitle_chat_<groupId>_suffix%` | 聊天后缀（可按分组接入） |
+
+### 与 Chat 模块联动
+
+Chat 模块在聊天格式变更时可通过 `TabRefreshable` 触发 Tab 刷新。Tab 的 `pack` 中可消费 Chat 模块的前后缀占位符。
+
+### 与 EventPacket 模块联动
+
+EventPacket 模块可通过 `TabRefreshable` Capability 在事件触发时刷新 Tab，例如玩家完成特定成就后刷新 Tab 以更新排序列表。
+
+### 跨服联动
+
+跨服模式下，每个服务端节点独立运行 Tab 模块，通过 `tab` 跨服通道广播本服快照并接收远程节点快照。
+
+| 配置层级 | 说明 |
+|---|---|
+| 宿主 `config.yml` 的 `cross-server` 节 | 配置 Redis 或 Proxy 后端连接参数 |
+| `ArcartXTab.yml` 的 `cross-server.enabled` | 全局开关 |
+| Tab 定义 `cross-server` | 单定义覆盖全局开关（`null` 时使用全局） |
+
+> 跨服同步需要所有节点使用相同的 Tab 定义 ID 和兼容的 `pack` 配置，否则远程条目的 `renderedPack` 可能在本地 UI 中渲染异常。条件系统配置详见 [条件系统](/docs/guide/conditions)。
+
+### PVP 监听
+
+`TabPvpListener` 监听 `EntityDamageByEntityEvent`（`MONITOR` 优先级，忽略已取消事件），记录玩家间伤害的时间戳，供 `%axstab_pvp%` / `%axstab_pvp_color%` 占位符判定 PVP 高亮窗口。
+
+| 事件 | 监听器行为 |
+|---|---|
+| `EntityDamageByEntityEvent` | 解析攻击者（含投射物）与受害者，调用 `service.recordPvpEvent(attackerId, victimId)` 记录时间戳 |
+
+> 监听器始终注册，是否生效由 `settings.style.pvp-highlight.enabled` 在 `isPvpActive()` 读取时校验，避免反复装拆 Listener。自身伤害（attacker == victim）不记录。

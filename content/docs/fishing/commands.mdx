@@ -1,0 +1,165 @@
+---
+title: 命令与占位符
+description: Fishing 命令、权限与 PlaceholderAPI 占位符
+---
+
+# 命令与占位符
+
+## 玩家命令
+
+玩家命令 `/fishing` 需要基础权限 `axs.fishing.use`（可在 `commands.base-permission` 配置）。
+
+| 命令 | 说明 |
+| --- | --- |
+| `/fishing` | 打开钓鱼主界面（未配置主界面则打开图鉴） |
+| `/fishing help` | 显示帮助 |
+| `/fishing main` | 打开主界面 UI |
+| `/fishing collection` | 打开鱼类图鉴 UI |
+| `/fishing talents` | 打开天赋树 UI |
+| `/fishing rewards` | 打开赛季奖励 UI |
+| `/fishing tasks` | 打开任务列表 UI |
+| `/fishing sell` | 出售手中鱼类物品 |
+| `/fishing sell all` | 出售背包中所有鱼类物品 |
+
+> 出售鱼类时，系统通过 PDC 标签 `axs_fishing_fish_id` 和 `axs_fishing_fish_size` 识别钓鱼产物，按 `base-price × 尺寸因子` 计算售价，存入鱼配置的货币（未配置时回退到默认货币）。
+
+## 管理员命令
+
+管理命令挂载在宿主 `/axs fishing` 下，需要权限 `axs.fishing.admin`。
+
+| 命令 | 说明 |
+| --- | --- |
+| `/axs fishing help` | 显示管理帮助 |
+| `/axs fishing stats [玩家]` | 查看玩家钓鱼统计（等级/经验/捕获数/完美数/图鉴进度） |
+| `/axs fishing givexp <玩家> <数量>` | 给予玩家钓鱼经验 |
+| `/axs fishing reset [玩家]` | 重置玩家钓鱼数据（赛季+永久+图鉴） |
+| `/axs fishing settlement` | 手动触发赛季结算（所有在线玩家） |
+| `/axs fishing resetseason` | 查看赛季重置说明 |
+| `/axs fishing water create <id>` | 开始多边形选区创建水域 |
+| `/axs fishing water save <id>` | 保存当前选区为水域文件 |
+| `/axs fishing water delete <id>` | 删除指定水域 |
+| `/axs fishing water list` | 列出所有水域 |
+| `/axs fishing water reload` | 重载水域配置 |
+| `/axs fishing fatigue set <玩家> <值>` | 设置玩家疲惫值（0-100） |
+| `/axs fishing fatigue reset <玩家>` | 重置玩家疲惫值为 0 |
+| `/axs fishing fatigue view <玩家>` | 查看玩家疲惫值与钓鱼效率 |
+
+## 权限节点
+
+| 权限 | 说明 |
+| --- | --- |
+| `axs.fishing.use` | 使用 `/fishing` 玩家命令（可在配置中修改） |
+| `axs.fishing.admin` | 执行 `/axs fishing` 管理命令 |
+| `axs.fishing.legendary` | 钓到传说鲤鱼所需权限（鱼类定义 `require-permission` 示例） |
+
+> 鱼类定义中的 `require-permission` 字段和水域定义中的 `require-permission` 字段可配置自定义权限节点。
+
+## PlaceholderAPI 占位符
+
+Fishing 注册了 PlaceholderAPI 扩展，标识符为 `axsfishing`。使用格式：`%axsfishing_<placeholder>%`。
+
+### 等级与经验
+
+| 占位符 | 说明 |
+| --- | --- |
+| `%axsfishing_level%` | 当前赛季等级 |
+| `%axsfishing_current_xp%` | 当前级内经验 |
+| `%axsfishing_xp%` | 当前经验（同 current_xp） |
+| `%axsfishing_xp_for_next%` | 升到下一级所需经验 |
+| `%axsfishing_season_id%` | 赛季 ID |
+
+### 天赋
+
+| 占位符 | 说明 |
+| --- | --- |
+| `%axsfishing_talent_points%` | 未消耗天赋点 |
+| `%axsfishing_total_talent_points%` | 总天赋点 |
+
+### 捕获统计
+
+| 占位符 | 说明 |
+| --- | --- |
+| `%axsfishing_total_caught%` | 累计捕获总数（跨赛季） |
+| `%axsfishing_perfect_catches%` | 累计完美捕获次数（跨赛季） |
+| `%axsfishing_treasure_caught%` | 累计宝藏捕获次数（跨赛季） |
+
+### 图鉴
+
+| 占位符 | 说明 |
+| --- | --- |
+| `%axsfishing_collection_count%` | 图鉴已收集数 |
+| `%axsfishing_collection%` | 图鉴进度（已收集/总数） |
+| `%axsfishing_collection_percent%` | 图鉴完成百分比 |
+| `%axsfishing_favorite_fish%` | 最爱鱼类显示名（捕获次数最多的鱼） |
+
+### 任务
+
+| 占位符 | 说明 |
+| --- | --- |
+| `%axsfishing_daily_tasks%` | 每日任务完成度（已完成/总数） |
+| `%axsfishing_weekly_tasks%` | 每周任务完成度 |
+| `%axsfishing_season_tasks%` | 赛季任务完成度 |
+
+### 疲惫值
+
+| 占位符 | 说明 |
+| --- | --- |
+| `%axsfishing_fatigue%` | 当前疲惫值（0-100） |
+| `%axsfishing_fatigue_efficiency%` | 当前钓鱼效率百分比（如 115%） |
+
+## UI Packet 触发
+
+Fishing 模块通过 ArcartX PacketBridge 与客户端 UI 通信。以下为主要的 Packet ID 和 Action：
+
+### 小游戏包（`AXS_FISHING`）
+
+| Action | 方向 | 说明 |
+| --- | --- | --- |
+| `input` | C→S | 玩家按住/松开鼠标（`input true` / `input false`） |
+| `give_up` | C→S | 玩家主动放弃钓鱼 |
+| `open_minigame` | C→S | 请求重新发送小游戏 init 数据 |
+| `open_main` / `refresh_main` | C→S | 打开/刷新主界面 |
+| `open_collection` / `refresh_collection` | C→S | 打开/刷新图鉴 |
+
+### 天赋树包（`AXS_FISHING_TALENTS`）
+
+| Action | 方向 | 说明 |
+| --- | --- | --- |
+| `open_talents` / `refresh_talents` | C→S | 打开/刷新天赋树 |
+| `level_up_talent` | C→S | 升级天赋节点（data: `[level_up_talent, nodeId]`） |
+| `reset_talents` | C→S | 重置天赋树 |
+
+### 奖励包（`AXS_FISHING_REWARDS`）
+
+| Action | 方向 | 说明 |
+| --- | --- | --- |
+| `open_rewards` / `refresh_rewards` | C→S | 打开/刷新赛季奖励 |
+| `claim_reward` | C→S | 领取等级奖励（data: `[claim_reward, rewardId]`） |
+
+### 任务包（`AXS_FISHING_TASKS`）
+
+| Action | 方向 | 说明 |
+| --- | --- | --- |
+| `open_tasks` / `refresh_tasks` | C→S | 打开/刷新任务列表 |
+
+### 饵料包（`AXS_FISHING_BAITS`）
+
+| Action | 方向 | 说明 |
+| --- | --- | --- |
+| `open_baits` / `refresh_baits` | C→S | 打开/刷新饵料管理 |
+| `put_bait` | C→S | 放入饵料（data: `[put_bait, invSlot, queueSlot, amount]`） |
+| `take_bait` | C→S | 取出饵料（data: `[take_bait, queueSlot, amount]`） |
+| `swap_bait` | C→S | 交换槽位（data: `[swap_bait, slotA, slotB]`） |
+
+### 跨 UI 导航
+
+所有页面共享的导航 Action（通过 `AXS_FISHING` packetId 发送）：
+
+| Action | 说明 |
+| --- | --- |
+| `open_main` | 跳转到主界面 |
+| `open_collection` | 跳转到图鉴 |
+| `open_rewards` | 跳转到赛季奖励 |
+| `open_talents` | 跳转到天赋树 |
+| `open_tasks` | 跳转到任务列表 |
+| `open_baits` | 跳转到饵料管理 |

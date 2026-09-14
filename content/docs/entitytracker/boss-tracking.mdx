@@ -1,0 +1,258 @@
+---
+title: Boss 追踪机制
+description: BossTrackerService 会话生命周期、排序模式、Mohist 兼容与聊天卡片
+---
+
+# Boss 追踪机制
+
+> **付费模块**（消费额度满 ¥150 获得授权）
+
+Boss 追踪子系统是 EntityTracker 的核心功能，依赖 MythicMobs / MythicBukkit。它监听 MythicMob 的生成、死亡、消失事件，为每个被追踪的 Boss 创建会话（`BossSession`），定时向范围内的玩家推送 HUD 数据包，并在 Boss 死亡时触发伤害结算。
+
+## 架构概览
+
+```
+BossTrackerService（核心服务）
+  ├── BossSession（单个 Boss 会话）
+  │     ├── BossDamageRankingTracker（伤害排名追踪器）
+  │     ├── BossDefinition（配置定义）
+  │     └── BossRenderState（渲染状态快照）
+  ├── BossDamageSettlementService（死亡结算服务）
+  ├── EntityTrackerCrossServerService（跨服同步）
+  └── BossKillRecordingService（击杀记录）
+```
+
+## 会话生命周期
+
+`BossTrackerService` 管理 Boss 从生成到消失的完整生命周期。每个活跃的 MythicMob 实体对应一个 `BossSession`，存储在 `sessions` 映射中（键为实体 UUID）。
+
+### 生成阶段
+
+```yaml
+# 触发条件：MythicMobSpawnEvent
+# 处理流程：
+#   1. 从事件中提取 MythicMob ID 和显示名称
+#   2. 在 bosses/ 目录查找匹配的 BossDefinition
+#   3. 若定义不存在或 enabled=false，跳过追踪
+#   4. 创建 BossSession，分配递增的 spawnOrder
+#   5. 发送 spawn 聊天卡片（若配置了 spawn-chat-card）
+#   6. 请求 HUD 刷新
+```
+
+| 阶段 | 触发事件 | 处理逻辑 |
+|---|---|---|
+| 生成 | `MythicMobSpawnEvent` | 匹配 `BossDefinition` → 创建 `BossSession` → 发送生成卡片 → 请求刷新 |
+| 伤害 | `EntityDamageByEntityEvent` / 属性插件事件 | `BossSession.recordDamage()` → 请求刷新 |
+| 死亡 | `MythicMobDeathEvent` | 结算服务生成记录 → 发放即时奖励 → 跨服同步 → 发送死亡卡片 → 移除会话 |
+| 消失 | `MythicMobDespawnEvent` | 发送消失卡片 → 移除会话 |
+
+> 只有在 `bosses/` 目录中配置了对应 MythicMob ID 的文件且 `enabled: true` 的 Boss 才会被追踪。未配置的 MythicMob 不会创建会话。
+
+### 启动扫描
+
+模块启动时调用 `restoreTrackedBosses()` 扫描已存在的 MythicMob 实体，将模块启动前已生成的 Boss 纳入追踪。扫描通过 `MythicBukkit.inst().getMobManager().getActiveMobs()` 获取所有活跃的 `ActiveMob`，按生成时间排序后逐个注册。
+
+### 会话清理
+
+定时刷新循环中，`pruneSessions()` 和 `collectActiveSnapshots()` 会检测已死亡或无效的 Boss 实体，自动从 `sessions` 映射中移除，避免内存泄漏。
+
+## HUD 刷新机制
+
+`BossTrackerService` 通过定时任务（`refresh-interval-ticks`）向所有在线玩家推送 Boss HUD 数据。
+
+### 刷新流程
+
+```
+定时刷新循环（每 refresh-interval-ticks）
+  → 收集所有活跃 BossSession 快照（collectActiveSnapshots）
+  → 清理已死亡/无效的会话
+  → 按生成顺序排序快照
+  → 按世界分组（indexSnapshotsByWorld）
+  → 对每个在线玩家：
+    → 筛选同世界的可见 Boss（collectVisibleSessions）
+    → 按配置 sort-mode 排序
+    → 截取前 max-visible-bars 个
+    → 构建 UI 数据包（buildUiPacket）
+    → 首次可见：openUiAll + sendPacketToAll("init")
+    → 后续更新：sendPacketToAll("update")
+    → 无可见 Boss：closeBossHud
+```
+
+### 可见性判断
+
+玩家能否看到某个 Boss 的 HUD 取决于以下条件（`BossSession.canView()`）：
+
+| 条件 | 说明 |
+|---|---|
+| 玩家在线 | `player.isOnline() && !player.isDead()` |
+| 同一世界 | `player.getWorld().equals(entity.getWorld())` |
+| 距离范围内 | 距离平方 ≤ `viewerRange²`（`viewerRange` 取 Boss 定义值或全局默认值） |
+
+### 即时刷新
+
+除了定时刷新，以下事件会触发即时刷新请求（`requestRefresh()`）：
+
+| 事件 | 说明 |
+|---|---|
+| Boss 生成 | `onSpawn()` 后请求刷新 |
+| Boss 死亡 | `onDeath()` 后请求刷新 |
+| Boss 消失 | `onDespawn()` 后请求刷新 |
+| 玩家攻击 Boss | `onEntityDamage()` 中 `recordDamage()` 后请求刷新 |
+| 属性插件伤害 | `attributeDamageListener` 回调后请求刷新 |
+
+即时刷新通过 `AxsScheduler.runTask()` 在下一 tick 执行，避免同一 tick 内重复刷新。
+
+## 排序模式
+
+`BossSortMode` 枚举定义了 HUD 中多个 Boss 条目的排列方式，通过 `boss.settings.sort-mode` 配置：
+
+| 模式 | 配置值 | 排序逻辑 | 适用场景 |
+|---|---|---|---|
+| 生成顺序 | `spawn-order` | 按 `spawnOrder` 递增，再按生成时间、UUID 排序 | 默认模式，先生成的 Boss 排前面 |
+| 距离优先 | `distance` | 按玩家与 Boss 的距离升序排序 | 优先显示最近的 Boss |
+| 血量百分比 | `health-percent` | 按 Boss 血量百分比升序排序 | 残血优先，适合集火提示 |
+| 配置优先级 | `priority` | 按 `BossDefinition.priority` 降序排序 | 手动指定重要 Boss |
+| 混合 | `hybrid` | 综合排序，同时启用 Mohist 补扫机制 | Mohist 混合端推荐 |
+
+> 排序后的快照列表会被截取为前 `max-visible-bars` 个，超出数量的 Boss 不会显示在 HUD 中，但仍可通过 `totalBossCount` 字段获取总数。
+
+## Mohist 混合端兼容
+
+当 `sort-mode` 设为 `hybrid` 且服务端为 Mohist 混合端（`ServerPlatform.hybridServer()` 为 true）时，模块会启动补扫机制，解决 Mohist 上 MythicMobs 事件延迟触发的问题。
+
+### 补扫策略
+
+| 阶段 | 间隔 | 次数 | 说明 |
+|---|---|---|---|
+| 启动预热 | 20 ticks（1 秒） | 6 次 | 高频补扫，捕获启动时遗漏的 Boss |
+| 持续补扫 | 100 ticks（5 秒） | 持续运行 | 稳定后低频补扫 |
+| 降频优化 | 500 ticks（25 秒） | 连续 10 次无遗漏后 | 降低性能消耗 |
+
+```yaml
+# 启用 Mohist 兼容模式
+boss:
+  settings:
+    sort-mode: "hybrid"
+```
+
+补扫通过 `restoreTrackedBosses()` 重新扫描所有 `ActiveMob`，对未注册的 Boss 创建会话。每次发现遗漏的 Boss 会输出日志并请求 HUD 刷新。
+
+## 聊天卡片
+
+Boss 在生成、死亡、消失时可发送 ArcartX 聊天卡片，通过 Boss 配置文件中的以下字段控制：
+
+| 字段 | 触发时机 | 说明 |
+|---|---|---|
+| `spawn-chat-card` | `MythicMobSpawnEvent` | Boss 生成时发送的聊天卡片模板 ID |
+| `death-chat-card` | `MythicMobDeathEvent` | Boss 死亡时发送的聊天卡片模板 ID |
+| `despawn-chat-card` | `MythicMobDespawnEvent` | Boss 消失时发送的聊天卡片模板 ID |
+
+### 卡片数据
+
+聊天卡片触发时，`BossSession.toChatCardData()` 会构建包含以下变量的数据 Map，传入 ArcartX 聊天卡片模板：
+
+| 变量 | 说明 |
+|---|---|
+| `title` / `subtitle` | 渲染后的标题和副标题 |
+| `mob_id` / `display_name` | MythicMob ID 和显示名称 |
+| `health` / `max_health` / `health_percent` | 血量信息 |
+| `distance` / `distance_text` | 距离信息 |
+| `spawn_order` / `priority` | 生成顺序和优先级 |
+| `world` / `x` / `y` / `z` | 位置信息 |
+| `alive_seconds` / `alive_time` | 存活时间 |
+| `has_target` / `target_name` / `target_uuid` / `target_type` | 目标信息 |
+| `ranking_enabled` / `damage_participant_count` / `total_damage` | 排名信息 |
+| `top_N_name` / `top_N_damage` / `top_N_damage_percent` | 各名次数据（N = 1 ~ max-entries） |
+| `state` | 事件状态（`spawn` / `death` / `despawn`） |
+
+> 聊天卡片仅发送给能够看到该 Boss 的玩家（同世界 + 距离范围内）。留空的卡片配置不会发送。
+
+## 伤害记录
+
+`BossSession` 通过 `BossDamageRankingTracker` 追踪伤害数据。当玩家攻击 Boss 时，以下两种伤害会被记录：
+
+| 伤害类型 | 事件来源 | 记录方法 | 说明 |
+|---|---|---|---|
+| 造成伤害 | `EntityDamageByEntityEvent` / 属性插件事件 / TACZ 枪械事件 | `recordDamage()` | 玩家对 Boss 造成的伤害 |
+| 承受伤害 | `EntityDamageByEntityEvent`（Boss 攻击玩家） | `recordTakenDamage()` | Boss 对玩家造成的伤害 |
+
+### 伤害来源支持
+
+| 伤害来源 | 支持方式 | 说明 |
+|---|---|---|
+| 原版近战/投射物 | `EntityDamageByEntityEvent` | 通过 `CombatEventSupport.resolvePlayerAttacker()` 解析实际攻击者 |
+| 属性插件 | `AttributeBridgeRegistry` | AttributePlus / Crane / MythicLib / Symphony 的伤害事件 |
+| TACZ 枪械 | `TaczGunDamageEvent` | 枪械伤害同样计入排名 |
+
+> 属性插件伤害通过 `attributeBridge.registerDamageListener()` 注册监听器，当 `attributeBridge.hasDamageSource()` 为 true 时激活。
+
+## 血量解析
+
+`BossSession` 在捕获渲染状态时需要获取 Boss 的当前血量和最大血量，解析优先级如下：
+
+| 优先级 | 来源 | 说明 |
+|---|---|---|
+| 1 | MythicMobs `ActiveMob` | 通过 `MythicBukkit.inst().getAPIHelper().getMythicMobInstance()` 获取 |
+| 2 | Bukkit 属性 | `AttributeResolver.getMaxHealthAttribute()` 获取最大血量属性 |
+| 3 | 实体基础值 | `entity.getHealth()` / `entity.getMaxHealth()` |
+
+> MythicMobs 重载或暂时不可用时，自动回退到 Bukkit 实体属性，确保 HUD 不中断。
+
+## UI 数据包结构
+
+`BossTrackerService.buildUiPacket()` 构建的 UI 数据包以槽位（slot）方式组织：
+
+```yaml
+# 数据包顶层字段
+bossCount: 2              # 当前显示的 Boss 数量
+totalBossCount: 5         # 可见 Boss 总数（含未显示的）
+maxVisibleBars: 5         # 最大显示血条数
+maxDamageRankingEntries: 10  # 最大排名条目数
+sortMode: "spawn-order"    # 当前排序模式
+
+# 每个槽位字段（slot1_ ~ slotN_）
+slot1_visible: true
+slot1_title: "&cExampleBoss"
+slot1_subtitle: "&7MythicMob: &fSkeletalKnight"
+slot1_health: 500.0
+slot1_maxHealth: 1000.0
+slot1_healthText: "500"
+slot1_maxHealthText: "1000"
+slot1_healthPercent: 50.0
+slot1_healthPercentText: "50"
+slot1_progress: 0.5
+slot1_distance: 32
+slot1_distanceText: "32m"
+slot1_mobId: "SkeletalKnight"
+slot1_displayName: "骷髅骑士"
+slot1_entityUuid: "xxxxxxxx-xxxx-xxxx-xxxx-xxxxxxxxxxxx"
+slot1_hasTarget: true
+slot1_targetDisplayName: "Steve"
+slot1_spawnOrder: 1
+slot1_priority: 100
+slot1_world: "world"
+slot1_x: 100
+slot1_y: 64
+slot1_z: 200
+slot1_aliveSeconds: 120
+slot1_aliveTime: "02:00"
+slot1_rankingEnabled: true
+slot1_damageParticipantCount: 5
+slot1_damageTrackedPlayerCount: 3
+slot1_totalDamage: 15000.0
+slot1_viewerRank: 2
+slot1_viewerRankText: "#2"
+slot1_viewerQualified: true
+slot1_viewerDamage: 5000.0
+slot1_viewerDamagePercent: 33.3
+slot1_viewerTakenDamage: 200.0
+# 排名条目（top1 ~ topN）
+slot1_top1Name: "Alex"
+slot1_top1Damage: 8000.0
+slot1_top1DamagePercent: 53.3
+slot1_top1TakenDamage: 100.0
+```
+
+空槽位（超出实际 Boss 数量的部分）会发送默认空值，确保 UI 面板稳定。
+
+> UI 图标配置详见 [/docs/guide/icons](/docs/guide/icons)。条件判断详见 [/docs/guide/conditions](/docs/guide/conditions)。

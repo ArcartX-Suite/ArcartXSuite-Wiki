@@ -1,0 +1,299 @@
+---
+title: 配置
+description: Fishing 配置文件详解
+---
+
+# 配置文件
+
+Fishing 模块的配置文件位于 `plugins/ArcartXSuite/data/fishing/` 目录下。
+
+| 文件 | 说明 |
+| --- | --- |
+| `ArcartXFishing.yml` | 主配置文件（配置版本 5） |
+| `messages.yml` | 消息文本（外部化） |
+| `fatigue.yml` | 疲惫值系统配置 |
+| `talents.yml` | 天赋树配置 |
+| `rewards.yml` | 赛季等级奖励 |
+| `settlement.yml` | 赛季结算配置 |
+| `fishes/*.yml` | 鱼类定义（每文件一种鱼） |
+| `baits/*.yml` | 饵料定义 |
+| `rods/*.yml` | 鱼竿定义 |
+| `treasures/*.yml` | 宝藏定义 |
+| `waters/water-*.yml` | 水域定义 |
+| `tasks/*.yml` | 任务定义（daily/weekly/season） |
+
+模块首次启动时会自动从 jar 导出默认配置文件。用户已修改的文件不会被覆盖（除非 `ui.overwrite-ui-files` 为 `true`）。
+
+## 主配置完整字段表
+
+### 调试与存储
+
+| 配置项 | 类型 | 默认值 | 说明 |
+| --- | --- | --- | --- |
+| `debug` | boolean | `false` | 开启后输出钓鱼事件、小游戏状态、发包详情等详细日志 |
+| `config-version` | int | `5` | 配置文件版本号（用于迁移） |
+| `storage.shared` | boolean | `true` | 是否共享存储模式（推荐，由本体统一管控数据源） |
+| `storage.mode` | string | `sqlite` | `shared: false` 时的存储模式（`sqlite` / `mysql`） |
+| `storage.sqlite.file` | string | `fishing.db` | SQLite 文件名（相对模块数据目录） |
+| `storage.pool-size` | int | `1` | JDBC 连接池大小（SQLite 建议 1） |
+| `storage.mysql.host` | string | `127.0.0.1` | MySQL 主机地址 |
+| `storage.mysql.port` | int | `3306` | MySQL 端口 |
+| `storage.mysql.database` | string | `arcartxsuite` | MySQL 数据库名 |
+| `storage.mysql.username` | string | `root` | MySQL 用户名 |
+| `storage.mysql.password` | string | - | MySQL 密码 |
+| `storage.mysql.table-prefix` | string | `axs_fishing_` | MySQL 表名前缀 |
+
+> `storage.shared: true` 时使用本体 `config.yml` 的 `storage` 节配置，无需填写 MySQL 信息。`shared: false` 时模块自建独立 HikariCP 连接池（不推荐）。
+
+### 跨服同步
+
+| 配置项 | 类型 | 默认值 | 说明 |
+| --- | --- | --- | --- |
+| `cross-server.enabled` | boolean | `false` | 是否启用跨服同步（需配合宿主 `cross-server` 节使用） |
+
+### 钓鱼小游戏核心参数
+
+| 配置项 | 类型 | 默认值 | 说明 |
+| --- | --- | --- | --- |
+| `fishing.replace-vanilla` | boolean | `true` | 是否接管原版钓鱼事件 |
+| `fishing.minigame-tick-interval` | int | `1` | 小游戏 tick 刷新间隔（ticks，1-20） |
+| `fishing.catch-duration-ticks` | int | `120` | 单次小游戏基础超时（ticks） |
+| `fishing.catch-duration-difficulty-scale` | double | `0.01` | 难度对超时的缩放系数 |
+| `fishing.fishing-cooldown-ticks` | int | `100` | 钓鱼冷却时间（ticks，100 = 5 秒） |
+
+**超时计算公式**：`实际超时 = catch-duration-ticks × (1 + 难度/100 × catch-duration-difficulty-scale) × (1 + 天赋超时加成) + 鱼竿catch-duration-bonus`
+
+低难度鱼超时短（要求快速完成），高难度鱼超时长（给更多尝试机会）。
+
+### 绿条物理
+
+| 配置项 | 类型 | 默认值 | 说明 |
+| --- | --- | --- | --- |
+| `fishing.bar-gravity` | double | `0.3` | 未按鼠标时绿条受到的力（正数上浮） |
+| `fishing.bar-click-force` | double | `-0.3` | 按住鼠标时绿条受到的力（负数下移） |
+| `fishing.bar-force-multiplier` | double | `0.03` | 力缩放系数 |
+| `fishing.bar-damping` | double | `0.8` | 绿条速度阻尼（0-1） |
+| `fishing.bar-bounce-damping` | double | `0.7` | 绿条边界反弹阻尼（0-1） |
+
+### 绿条高度
+
+| 配置项 | 类型 | 默认值 | 说明 |
+| --- | --- | --- | --- |
+| `fishing.base-green-bar-height` | int | `60` | 绿条基础高度（像素，轨道总高 644） |
+| `fishing.height-per-level` | int | `1` | 每级钓鱼等级增加的绿条高度 |
+| `fishing.difficulty-bar-shrink` | double | `0.4` | 难度对绿条高度的缩减比例（0-1） |
+
+### 鱼物理
+
+| 配置项 | 类型 | 默认值 | 说明 |
+| --- | --- | --- | --- |
+| `fishing.fish-edge-bounce` | double | `1.5` | 鱼撞边界反弹力度（0-1） |
+
+### 进度曲线
+
+进度上升和下降使用 ARIA 表达式自定义。表达式可访问以下变量（需用 `global.` 前缀）：
+
+| 变量 | 说明 |
+| --- | --- |
+| `global.progress` | 当前进度值 [0, 1] |
+| `global.base_rate` | 基础速率（即 `base-rate` 配置值） |
+| `global.level` | 玩家钓鱼等级（整数） |
+| `global.difficulty` | 鱼调整后难度（1-100） |
+
+| 配置项 | 类型 | 默认值 | 说明 |
+| --- | --- | --- | --- |
+| `fishing.progress-gain.base-rate` | double | `0.04` | 进度上升基础速率 |
+| `fishing.progress-gain.formula` | string | 见下方 | 进度上升 ARIA 表达式 |
+| `fishing.progress-drain.base-rate` | double | `0.04` | 进度下降基础速率 |
+| `fishing.progress-drain.formula` | string | 见下方 | 进度下降 ARIA 表达式 |
+
+默认 gain 公式（双因子模型，level 和 difficulty 用相同幂次抵消）：
+
+```
+global.base_rate * (0.43 + 0.35 * math.pow(global.level / 100, 2.5) - 0.35 * math.pow(global.difficulty / 100, 2.5)) * (1.5 + 0.4 * (0.5 - 0.5 * math.cos(global.progress * math.PI())))
+```
+
+默认 drain 公式：
+
+```
+global.base_rate * (1.0 - 0.5 * math.pow(global.level / 100, 2.5) + 0.5 * math.pow(global.difficulty / 100, 2.5)) * (1 + 0.5 * global.progress + 0.2 * (1 - global.progress) * (1 - global.progress))
+```
+
+> Aria 不可用时回退为线性（返回 `base_rate`）。幂运算用 `math.pow`（ARIA 中 `^` 是位异或，不是幂）。
+
+### 连续命中加成
+
+| 配置项 | 类型 | 默认值 | 说明 |
+| --- | --- | --- | --- |
+| `fishing.streak-threshold` | int | `20` | 连续命中阈值（ticks） |
+| `fishing.streak-bonus-per-step` | double | `0.1` | 每步增加的 gain 系数（0.1 = +10%） |
+| `fishing.streak-max-bonus` | double | `0.5` | streak 加成上限（0.5 = 最多 +50%） |
+
+### 奖励
+
+| 配置项 | 类型 | 默认值 | 说明 |
+| --- | --- | --- | --- |
+| `fishing.treasure-chance` | double | `0.15` | 钓起宝藏基础概率（最终 = 此值 + 饵料加成 + 鱼竿加成） |
+| `fishing.perfect-bonus-multiplier` | double | `1.5` | 完美捕获货币奖励倍率（经验完美加成固定 1.5x） |
+
+### 等级修正
+
+| 配置项 | 类型 | 默认值 | 说明 |
+| --- | --- | --- | --- |
+| `fishing.max-level` | int | `100` | 钓鱼等级上限（归一化用） |
+| `fishing.level-modifier-scale` | double | `0.05` | 等级修正基础系数（满级时最大值） |
+| `fishing.fish-speed-level-scale` | double | `1.0` | 鱼速度等级修正系数 |
+| `fishing.flee-chance-level-scale` | double | `1.0` | 逃离概率等级修正系数 |
+| `fishing.flee-speed-level-scale` | double | `1.0` | 逃离速度等级修正系数 |
+| `fishing.progress-gain-level-scale` | double | `0.01` | 进度上升等级修正系数 |
+| `fishing.progress-drain-level-scale` | double | `0.01` | 进度下降等级修正系数 |
+
+> `level-modifier-scale` 为满级时等级修正的最大值。各 `*-level-scale` 控制该参数受等级修正影响的程度（1.0 = 完全应用，0 = 不受影响）。
+
+### 驱赶机制
+
+| 配置项 | 类型 | 默认值 | 说明 |
+| --- | --- | --- | --- |
+| `fishing.flee-base-chance` | double | `0.1` | 逃离基础概率 |
+| `fishing.flee-chance-per-difficulty` | double | `0.1` | 每点难度增加的逃离概率 |
+| `fishing.flee-base-speed` | double | `0.04` | 逃离基础速度 |
+| `fishing.flee-speed-per-difficulty` | double | `0.03` | 每点难度增加的逃离速度 |
+| `fishing.flee-min-duration` | int | `15` | 逃离持续最小 ticks |
+| `fishing.flee-max-duration` | int | `35` | 逃离持续最大 ticks |
+| `fishing.flee-check-min-interval` | int | `20` | 逃离检查最小间隔 ticks |
+| `fishing.flee-check-max-interval` | int | `50` | 逃离检查最大间隔 ticks |
+| `fishing.flee-cooldown-min` | int | `30` | 逃离冷却最小 ticks |
+| `fishing.flee-cooldown-max` | int | `70` | 逃离冷却最大 ticks |
+
+### 赛季配置
+
+| 配置项 | 类型 | 默认值 | 说明 |
+| --- | --- | --- | --- |
+| `season.season-id` | string | `fishing-s1` | 赛季唯一标识 |
+| `season.display-name` | string | `第一赛季` | 赛季显示名称 |
+| `season.max-level` | int | `100` | 赛季等级上限 |
+| `season.xp-curve` | list | 见配置 | 经验成长曲线断点（level + ARIA formula） |
+| `season.start-date` | string | `2026-01-01` | 赛季开始日期（yyyy-MM-dd） |
+| `season.end-date` | string | `2030-12-31` | 赛季结束日期（yyyy-MM-dd） |
+
+经验曲线为断点列表，每项指定起始等级与 ARIA 表达式（变量 `global.level`），计算"升到该等级所需经验值"。首个断点 level 必须为 1，断点 level 须严格递增。
+
+### UI 与命令
+
+| 配置项 | 类型 | 默认值 | 说明 |
+| --- | --- | --- | --- |
+| `ui.register-ui-on-enable` | boolean | `true` | 启动时自动注册 UI |
+| `ui.overwrite-ui-files` | boolean | `false` | 是否覆盖用户已修改的 UI 文件 |
+| `ui.main-ui-id` | string | `AXS:fishing_main` | 主界面 UI ID |
+| `ui.minigame-ui-id` | string | `AXS:fishing_minigame` | 小游戏 UI ID |
+| `ui.collection-ui-id` | string | `AXS:fishing_collection` | 图鉴 UI ID |
+| `ui.talents-ui-id` | string | `AXS:fishing_talents` | 天赋树 UI ID |
+| `ui.rewards-ui-id` | string | `AXS:fishing_rewards` | 赛季奖励 UI ID |
+| `ui.tasks-ui-id` | string | `AXS:fishing_tasks` | 任务列表 UI ID |
+| `ui.baits-ui-id` | string | `AXS:fishing_baits` | 饵料管理 UI ID |
+| `commands.enabled` | boolean | `true` | 是否注册 `/fishing` 命令 |
+| `commands.base-permission` | string | `axs.fishing.use` | 使用命令的基础权限 |
+
+## 疲惫值配置（fatigue.yml）
+
+疲惫值范围 [0, 100]，玩家每钓一条鱼 +1，每在线休息一分钟 -1。疲惫值影响钓鱼效率（gain/drain/鱼速度/逃离/绿条高度等全部参数）。
+
+| 配置项 | 类型 | 默认值 | 说明 |
+| --- | --- | --- | --- |
+| `enabled` | boolean | `true` | 是否启用疲惫值系统 |
+| `max-fatigue` | int | `100` | 疲惫值上限 |
+| `fatigue-per-catch` | int | `1` | 每钓一条鱼增加的疲惫值 |
+| `rest-decrease-per-minute` | int | `1` | 每在线休息一分钟减少的疲惫值 |
+| `rest-check-interval-ticks` | int | `1200` | 定时任务检查间隔（1200 = 60 秒） |
+| `efficiency-tiers` | list | 见下方 | 效率分段列表 |
+| `special-fish-chance` | double | `0.15` | 疲惫值 `>` 90 时出现特殊鱼的概率 |
+| `special-fishes` | list | 见下方 | 特殊鱼列表（fish-id + weight） |
+| `first-max-fatigue-reward` | map | 见下方 | 首次疲惫值达到 100 的奖励 |
+
+效率系数 = `efficiencyMultiplier(fatigue)`，分段间使用线性插值平滑过渡：
+- gain 最终值 = gain × 效率系数
+- drain 最终值 = drain / 效率系数
+- 鱼速度最终值 = 鱼速度 / 效率系数
+- 逃离概率最终值 = 逃离概率 / 效率系数
+- 绿条高度最终值 = 绿条高度 × 效率系数
+
+## 完整配置示例
+
+```yaml
+config-version: 5
+debug: false
+
+storage:
+  shared: true
+
+cross-server:
+  enabled: false
+
+fishing:
+  replace-vanilla: true
+  minigame-tick-interval: 1
+  catch-duration-ticks: 120
+  catch-duration-difficulty-scale: 0.01
+  fishing-cooldown-ticks: 100
+  bar-gravity: 0.3
+  bar-click-force: -0.3
+  bar-force-multiplier: 0.03
+  bar-damping: 0.8
+  bar-bounce-damping: 0.7
+  base-green-bar-height: 60
+  height-per-level: 1
+  difficulty-bar-shrink: 0.4
+  fish-edge-bounce: 1.5
+  progress-gain:
+    base-rate: 0.04
+    formula: "global.base_rate * (0.43 + 0.35 * math.pow(global.level / 100, 2.5) - 0.35 * math.pow(global.difficulty / 100, 2.5)) * (1.5 + 0.4 * (0.5 - 0.5 * math.cos(global.progress * math.PI())))"
+  progress-drain:
+    base-rate: 0.04
+    formula: "global.base_rate * (1.0 - 0.5 * math.pow(global.level / 100, 2.5) + 0.5 * math.pow(global.difficulty / 100, 2.5)) * (1 + 0.5 * global.progress + 0.2 * (1 - global.progress) * (1 - global.progress))"
+  streak-threshold: 20
+  streak-bonus-per-step: 0.1
+  streak-max-bonus: 0.5
+  treasure-chance: 0.15
+  perfect-bonus-multiplier: 1.5
+  max-level: 100
+  level-modifier-scale: 0.05
+  fish-speed-level-scale: 1.0
+  flee-chance-level-scale: 1.0
+  flee-speed-level-scale: 1.0
+  progress-gain-level-scale: 0.01
+  progress-drain-level-scale: 0.01
+  flee-base-chance: 0.1
+  flee-chance-per-difficulty: 0.1
+  flee-base-speed: 0.04
+  flee-speed-per-difficulty: 0.03
+  flee-min-duration: 15
+  flee-max-duration: 35
+  flee-check-min-interval: 20
+  flee-check-max-interval: 50
+  flee-cooldown-min: 30
+  flee-cooldown-max: 70
+
+season:
+  season-id: "fishing-s1"
+  display-name: "第一赛季"
+  max-level: 100
+  xp-curve:
+    - level: 1
+      formula: "50 * global.level * (1 + 2.0 * math.pow(math.pow(global.level / 100, 2) * (3 - 2 * global.level / 100), 1.5))"
+  start-date: "2026-01-01"
+  end-date: "2030-12-31"
+
+ui:
+  register-ui-on-enable: true
+  overwrite-ui-files: false
+  main-ui-id: "AXS:fishing_main"
+  minigame-ui-id: "AXS:fishing_minigame"
+  collection-ui-id: "AXS:fishing_collection"
+  talents-ui-id: "AXS:fishing_talents"
+  rewards-ui-id: "AXS:fishing_rewards"
+  tasks-ui-id: "AXS:fishing_tasks"
+
+commands:
+  enabled: true
+  base-permission: "axs.fishing.use"
+```

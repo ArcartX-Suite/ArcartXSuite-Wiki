@@ -1,0 +1,191 @@
+---
+title: 联动
+description: Fishing 跨模块联动与 Capability
+---
+
+# 联动
+
+## 依赖关系
+
+| 依赖 | 类型 | 说明 |
+| --- | --- | --- |
+| ArcartX 客户端 MOD | 硬依赖 | 提供 UI 渲染与 PacketBridge，小游戏通过 ArcartX UI 呈现 |
+| PlaceholderAPI | 外部依赖 | 提供 PlaceholderAPI 占位符（`%axsfishing_*%`） |
+
+物品库为可选功能，鱼类/宝藏/饵料/鱼竿的 `item.source` 按需依赖对应插件：
+
+| 物品来源 | 对应插件 |
+| --- | --- |
+| `mythic` | MythicMobs |
+| `neige` | NeigeItems |
+| `overture` | Overture |
+| `mmoitems` | MMOItems |
+
+## EventBus 事件
+
+Fishing 模块通过 `publishedTopics()` 声明并发布以下 EventBus 事件主题，其他模块（如 BattlePass、QuestGPS、OnlineRewards 等）可通过 `EventBusCapability` 订阅：
+
+| 事件主题 | 触发时机 | Payload 字段 |
+| --- | --- | --- |
+| `axs.fishing.success` | 钓鱼成功 | `fish_id`, `fish_rarity`, `fish_size`, `water_area`, `bait_id`, `is_perfect`, `player_level` |
+| `axs.fishing.perfect` | 完美捕获（成功子事件） | 同 success |
+| `axs.fishing.collection_unlock` | 首次捕获某鱼种 | 同 success + `total_collection_count` |
+| `axs.fishing.treasure` | 钓到宝藏 | `water_area` |
+| `axs.fishing.level_up` | 玩家升级 | `old_level`, `new_level`, `season_id` |
+
+### EventPacket Signal
+
+Fishing 同时通过 `SignalDispatchable` 分发信号，供 EventPacket 规则引擎匹配：
+
+| Signal | 触发时机 | 变量 |
+| --- | --- | --- |
+| `fishing_success` | 钓鱼成功 | `fish_id`, `fish_name`, `fish_rarity`, `fish_size`, `water_area`, `is_perfect` |
+| `fishing_legendary_catch` | 钓到传说级鱼 | 同上 |
+| `fishing_first_catch` | 首次捕获某鱼种 | 同上 |
+| `fishing_treasure` | 钓到宝藏 | 同上 |
+
+## Capability 注册
+
+Fishing 模块注册了以下 Capability，供宿主或其他模块调用：
+
+| Capability | 说明 |
+| --- | --- |
+| `DatabaseMigratable` | 支持数据库迁移，供宿主统一管理存储迁移。`migrateDatabase(target, overwrite)` 迁移数据到目标存储描述符 |
+| `PlayerDataPurgeable` | 支持清除玩家数据，供宿主的玩家数据清理功能调用。`purgePlayerData(uuid)` 删除指定玩家数据，`purgeAllPlayerData()` 删除全部 |
+
+### DatabaseMigratable
+
+```java
+// 其他模块可通过 getCapability 查找
+DatabaseMigratable migratable = getCapability(DatabaseMigratable.class);
+if (migratable != null) {
+    MigrationResult result = migratable.migrateDatabase(targetDescriptor, false);
+}
+```
+
+### PlayerDataPurgeable
+
+```java
+PlayerDataPurgeable purgeable = getCapability(PlayerDataPurgeable.class);
+if (purgeable != null) {
+    int deleted = purgeable.purgePlayerData(playerUuid);
+}
+```
+
+## 跨服同步
+
+Fishing 支持跨服同步捕获记录。启用方式：
+
+1. 宿主 `config.yml` 的 `cross-server` 节配置 Redis 或 Proxy 后端
+2. 模块 `ArcartXFishing.yml` 的 `cross-server.enabled` 设为 `true`
+
+启用后，钓鱼成功时通过跨服通道发布消息，格式为：
+
+```
+CATCH:<uuid>:<fishId>:<fishName>:<rarity>:<size>:<perfect>:<timestamp>
+```
+
+其他服务器收到消息后持久化到本地数据库，清除该玩家的内存缓存。
+
+## 数据库表结构
+
+Fishing 模块使用以下数据库表（表名前缀默认为 `axs_fishing_`，共享模式下无前缀）：
+
+### axs_fishing_season（赛季数据）
+
+| 列名 | 类型 | 说明 |
+| --- | --- | --- |
+| `uuid` | TEXT | 玩家 UUID |
+| `season_id` | TEXT | 赛季 ID |
+| `level` | INTEGER | 当前等级 |
+| `current_xp` | INTEGER | 当前级内经验 |
+| `talent_points` | INTEGER | 总天赋点 |
+| `unspent_talent_points` | INTEGER | 未分配天赋点 |
+| `talents` | TEXT | 已点亮天赋（JSON） |
+| `claimed_rewards` | TEXT | 已领取奖励 ID（JSON） |
+| `fatigue` | INTEGER | 疲惫值 |
+| `claimed_max_fatigue_reward` | INTEGER | 是否已领取首次满疲惫奖励 |
+| `updated_at` | INTEGER | 更新时间戳 |
+
+主键：`(uuid, season_id)`。赛季数据按 `season_id` 隔离，赛季结束时重置。
+
+### axs_fishing_permanent（永久数据）
+
+| 列名 | 类型 | 说明 |
+| --- | --- | --- |
+| `uuid` | TEXT | 玩家 UUID（主键） |
+| `total_caught` | INTEGER | 累计捕获总数 |
+| `perfect_catches` | INTEGER | 累计完美捕获次数 |
+| `treasure_caught` | INTEGER | 累计宝藏捕获次数 |
+| `updated_at` | INTEGER | 更新时间戳 |
+
+永久数据跨赛季保留，不随赛季重置。
+
+### axs_fishing_collection（图鉴条目）
+
+| 列名 | 类型 | 说明 |
+| --- | --- | --- |
+| `uuid` | TEXT | 玩家 UUID |
+| `fish_id` | TEXT | 鱼种 ID |
+| `caught_count` | INTEGER | 累计捕获次数 |
+| `max_size` | INTEGER | 历史最大尺寸 |
+| `first_catch_at` | INTEGER | 首次捕获时间戳 |
+
+主键：`(uuid, fish_id)`。图鉴数据跨赛季保留。
+
+### axs_fishing_bait_queue（饵料队列）
+
+| 列名 | 类型 | 说明 |
+| --- | --- | --- |
+| `uuid` | TEXT | 玩家 UUID |
+| `slot_index` | INTEGER | 槽位序号 |
+| `bait_id` | TEXT | 饵料 ID |
+| `amount` | INTEGER | 数量 |
+
+### axs_fishing_catch_records（捕获记录）
+
+用于主界面最近捕获记录流展示和跨服同步。
+
+### axs_fishing_pending_rewards（旧版待发放奖励）
+
+> 新版本已迁移到宿主统一 `PendingRewardService`。模块启动时会自动迁移旧表数据。
+
+## 与其他模块联动
+
+Fishing 通过 `getCapability` 获取其他模块的能力实现联动：
+
+| Capability | 来源 | 用途 |
+| --- | --- | --- |
+| `MailDispatchable` | Mail 模块 | 赛季奖励、结算奖励、疲惫值奖励、里程碑成就通过邮件预设发放 |
+| `EventBusCapability` | 宿主核心 | 任务引擎通过事件总线监听钓鱼事件；钓鱼成功/完美/首次捕获/宝藏事件发布到 EventBus |
+| `SignalDispatchable` | EventPacket 模块 | 服务端信号分发，供 EventPacket 规则引擎匹配钓鱼事件 |
+| `TitleGrantable` | Title 模块 | 捕获成就触发称号授予（如首次传说鱼、累计 10/100/500 次捕获、50 次完美捕获） |
+| `PolygonSelectionCapability` | 宿主核心 | 管理命令的水域选区创建使用宿主提供的多边形选区工具 |
+
+### 里程碑称号
+
+| 条件 | 称号 ID | 持续时间 |
+| --- | --- | --- |
+| 首次捕获传说鱼 | `legendary_hunter` | 7 天 |
+| 累计捕获 10 次 | `fisher_apprentice` | 永久 |
+| 累计捕获 100 次 | `fisher_master` | 永久 |
+| 累计捕获 500 次 | `fisher_legend` | 永久 |
+| 完美捕获 50 次 | `perfect_master` | 永久 |
+
+> 称号授予依赖 `TitleGrantable` 能力，需 Title 模块已加载。同时首次捕获传说鱼会发送邮件预设 `legendary_first_catch`（依赖 `MailDispatchable`）。
+
+### 物品发放链
+
+钓鱼获得的鱼物品、宝藏、额外掉落通过 `RewardDispatcher` → `ItemRewardDispatcher` 统一发放，支持背包满 → 仓库 → 邮件 → Pending → 掉落兜底链。
+
+### 跨模块物品识别
+
+钓鱼产物物品通过 PDC 标签标记，可供其他模块识别：
+
+| PDC 键 | 类型 | 说明 |
+| --- | --- | --- |
+| `axs_fishing_fish_id` | STRING | 鱼种 ID |
+| `axs_fishing_fish_size` | INTEGER | 捕获尺寸 |
+| `axs_fishing_is_perfect` | BYTE | 是否完美捕获（1/0） |
+| `axs_fishing_bait_id` | STRING | 鱼竿上挂载的饵料 ID |
+| `axs_fishing_rod_id` | STRING | 鱼竿 ID |

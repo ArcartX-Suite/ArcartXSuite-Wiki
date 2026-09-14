@@ -1,0 +1,276 @@
+---
+title: 配置
+description: LoginView 配置文件详解
+---
+
+# 配置
+
+LoginView 模块的配置文件位于 `plugins/ArcartXSuite/data/loginview/config.yml`（由 jar 内 `ArcartXLoginView.yml` 导出）。修改后执行 `/axs reload loginview` 即可生效。
+
+当前配置版本号为 **3**，涉及破坏性改动时由 ConfigDiagnosticEngine 自动迁移。
+
+## 全局设置
+
+|| 字段 | 类型 | 默认值 | 说明 |
+|---|---|---|---|
+| `config-version` | int | `3` | 配置版本号（请勿手动修改） |
+| `debug` | boolean | `false` | 是否输出 LoginView 模块调试日志 |
+
+## auth 认证配置
+
+|| 字段 | 类型 | 默认值 | 说明 |
+|---|---|---|---|
+| `auth.mode` | string | `standalone` | 认证模式：`standalone`（独立账户库）或 `authme`（委托 AuthMe API） |
+| `auth.bypass-welcome.message` | string | `&a身份已验证，欢迎回来。` | 正版/LittleSkin 玩家绕过登录后的欢迎消息 |
+
+:::caution
+`auth.mode=authme` 时必须安装 AuthMe 插件，否则模块不加载。standalone 模式不需要 AuthMe。
+:::
+
+## qq-binding QQ 绑定配置
+
+控制微软/LittleSkin 账号是否强制绑定 QQ 才能进入游戏。需 qqbot 模块同时加载才能生效。
+
+|| 字段 | 类型 | 默认值 | 说明 |
+|---|---|---|---|
+| `qq-binding.enabled` | boolean | `true` | 是否启用 QQ 绑定流程 |
+| `qq-binding.microsoft-require-bind` | boolean | `false` | 微软正版账号是否需要绑定 QQ 才能进入游戏 |
+| `qq-binding.littleskin-require-bind` | boolean | `true` | LittleSkin 账号是否需要绑定 QQ 才能进入游戏 |
+| `qq-binding.bind-prompt` | `List<String>` | 见下方 | 未绑定 QQ 的正版/LittleSkin 玩家在登录面板看到的提示文本列表 |
+
+默认 `bind-prompt`：
+
+```yaml
+qq-binding:
+  bind-prompt:
+    - '&e你尚未绑定 QQ'
+    - '&7请在 QQ 群发送: #绑定 {name}'
+    - '&7获取验证码后在下方输入'
+```
+
+## ui 界面配置
+
+|| 字段 | 类型 | 默认值 | 说明 |
+|---|---|---|---|
+| `ui.ui-id` | string | `AXS:login_view` | 登录 UI 的 ArcartX 注册 ID |
+| `ui.packet-id` | string | `AXS_loginview` | 客户端回包 ID，用于接收输入框内容 |
+| `ui.ui-file` | string | `login_view.yml` | UI 配置文件名（位于 `ui/` 目录下），可改为 `login_view_menu.yml` 使用纯色块主菜单风格 |
+| `ui.register-ui-on-enable` | boolean | `true` | 是否在插件启用时自动注册/重载登录 UI |
+| `ui.overwrite-ui-files` | boolean | `false` | 是否强制覆盖 `ui/` 目录下的登录 UI 文件 |
+| `ui.open-delay-ticks` | int | `20` | 玩家进服后延迟多少 ticks 弹出登录界面（20 ticks = 1 秒），范围 0~600 |
+| `ui.close-on-login` | boolean | `true` | 登录成功后是否自动关闭登录 UI |
+
+:::caution
+`overwrite-ui-files: true` 会覆盖你在服务器上的自定义 UI 修改！仅在需要恢复默认 UI 时设为 `true`。
+:::
+
+:::tip
+`ui-file` 支持两种内置风格：`login_view.yml`（紧凑面板）和 `login_view_menu.yml`（纯色块主菜单）。文件名必须以 `.yml` 结尾且不含路径分隔符，否则回退为 `login_view.yml`。
+:::
+
+## terms-of-service 服务条款配置
+
+|| 字段 | 类型 | 默认值 | 说明 |
+|---|---|---|---|
+| `terms-of-service.enabled` | boolean | `true` | 是否强制玩家在登录前查阅并同意服务器服规 |
+
+## spawn-on-login 登录后传送配置
+
+登录成功后是否将玩家传送到指定出生点（主城）。也可使用 `/axs loginview set-spawn` 命令以当前位置自动设置。
+
+|| 字段 | 类型 | 默认值 | 说明 |
+|---|---|---|---|
+| `spawn-on-login.enabled` | boolean | `false` | 是否启用登录后传送 |
+| `spawn-on-login.world` | string | `world` | 目标世界名 |
+| `spawn-on-login.x` | double | `0.0` | X 坐标 |
+| `spawn-on-login.y` | double | `64.0` | Y 坐标 |
+| `spawn-on-login.z` | double | `0.0` | Z 坐标 |
+| `spawn-on-login.yaw` | double | `0.0` | 偏航角 |
+| `spawn-on-login.pitch` | double | `0.0` | 俯仰角 |
+
+## security 安全策略配置
+
+|| 字段 | 类型 | 默认值 | 说明 |
+|---|---|---|---|
+| `security.min-password-length` | int | `6` | 密码最小长度，范围 1~64 |
+| `security.max-password-length` | int | `64` | 密码最大长度，范围 8~128 |
+| `security.max-attempts` | int | `5` | 允许的最大密码尝试次数，超过后按 `kick-on-max-attempts` 处理，范围 1~20 |
+| `security.kick-on-max-attempts` | boolean | `true` | 密码错误次数达到上限后是否踢出玩家 |
+| `security.lock-movement` | boolean | `true` | 未登录/未注册时是否禁止移动 |
+| `security.lock-chat` | boolean | `true` | 未登录/未注册时是否禁止聊天 |
+| `security.lock-commands` | boolean | `true` | 未登录/未注册时是否禁止执行命令 |
+| `security.allow-commands-prefix` | string | `login,register,l,reg,AXS` | 未登录时仍允许执行的命令前缀列表（逗号分隔） |
+| `security.rehash-migrated-password-on-login` | boolean | `true` | 从 AuthMe 导入的 hash 验证成功后，是否重写为 `AXS_PBKDF2_SHA256`，从而完全脱离 AuthMe |
+| `security.session-ttl-minutes` | int | `30` | 认证 session 有效期（分钟），有效期内重连或重启无需重新登录；设为 0 禁用持久化，范围 0~10080 |
+| `security.session-strict-ip` | boolean | `false` | 是否要求 session 绑定 IP（更严格但可能影响 NAT 切换/移动网络用户） |
+
+:::tip
+`session-ttl-minutes: 0` 表示每次进服都必须重新登录。`session-strict-ip: true` 会校验 session 建立时的 IP 与当前 IP 是否一致，防止 session 被盗用。
+:::
+
+## storage 数据存储配置
+
+|| 字段 | 类型 | 默认值 | 说明 |
+|---|---|---|---|
+| `storage.shared` | boolean | `true` | `true` 共享存储模式（推荐），使用本体统一数据源；`false` 自建独立连接池 |
+| `storage.mode` | string | `sqlite` | 自建模式存储类型：`sqlite` 或 `mysql`（仅 `shared: false` 时生效） |
+| `storage.sqlite.file` | string | `loginview.db` | SQLite 文件名（相对模块数据目录） |
+| `storage.pool-size` | int | `4` | JDBC 连接池大小（SQLite 建议 1） |
+| `storage.mysql.host` | string | `127.0.0.1` | MySQL 主机地址 |
+| `storage.mysql.port` | int | `3306` | MySQL 端口 |
+| `storage.mysql.database` | string | `minecraft` | MySQL 数据库名 |
+| `storage.mysql.username` | string | `root` | MySQL 用户名 |
+| `storage.mysql.password` | string | - | MySQL 密码 |
+| `storage.mysql.table-prefix` | string | `AXS_loginview_` | MySQL 表前缀 |
+
+:::tip
+`shared: true` 时，数据库连接由本体统一管控，各模块共用 `config.yml` 的 `storage` 节配置。性能更好，推荐使用。
+:::
+
+## authme-migration AuthMe 迁移配置
+
+仅当 `auth.mode=standalone` 且需要从 AuthMe 导入历史数据时使用。
+
+|| 字段 | 类型 | 默认值 | 说明 |
+|---|---|---|---|
+| `authme-migration.source.jdbc-url` | string | `jdbc:sqlite:plugins/AuthMe/AuthMe.db` | 源数据库 JDBC 连接地址 |
+| `authme-migration.source.username` | string | - | 源数据库用户名 |
+| `authme-migration.source.password` | string | - | 源数据库密码 |
+| `authme-migration.source.table` | string | `authme` | AuthMe 数据表名 |
+| `authme-migration.columns.name` | string | `username` | 玩家名列 |
+| `authme-migration.columns.real-name` | string | `realname` | 真实名列 |
+| `authme-migration.columns.password` | string | `password` | 密码哈希列 |
+| `authme-migration.columns.salt` | string | `salt` | 盐列 |
+| `authme-migration.columns.last-ip` | string | `ip` | 最后登录 IP 列 |
+| `authme-migration.columns.last-login` | string | `lastlogin` | 最后登录时间列 |
+| `authme-migration.columns.registration-date` | string | `regdate` | 注册时间列 |
+| `authme-migration.columns.registration-ip` | string | `regip` | 注册 IP 列 |
+| `authme-migration.columns.email` | string | `email` | 邮箱列 |
+| `authme-migration.imported-hash-algorithm` | string | `AUTHME_BCRYPT` | 导入后标注的哈希算法 |
+| `authme-migration.batch-size` | int | `200` | 单次批量导入的玩家数量 |
+
+### 支持的导入哈希算法
+
+|| 算法标识 | 说明 |
+|---|---|
+| `AUTHME_BCRYPT` | AuthMe 默认 BCrypt 哈希 |
+| `AUTHME_BCRYPT2Y` | BCrypt 2y 格式哈希 |
+| `AUTHME_SHA256` | AuthMe SHA-256 哈希（`$SHA$salt$hash` 格式） |
+
+:::warning
+不支持的算法不会自动破解，请先在 AuthMe 侧转换或让玩家重置密码。导入后玩家首次用旧密码登录成功，若 `rehash-migrated-password-on-login: true`，密码将自动重写为 `AXS_PBKDF2_SHA256`。
+:::
+
+### JDBC 地址示例
+
+```yaml
+authme-migration:
+  source:
+    # SQLite 示例
+    jdbc-url: jdbc:sqlite:plugins/AuthMe/AuthMe.db
+    # MySQL 示例
+    # jdbc-url: jdbc:mysql://127.0.0.1:3306/authme?useUnicode=true&characterEncoding=utf8&useSSL=false&serverTimezone=Asia/Shanghai
+    username: ''
+    password: ''
+    table: authme
+```
+
+## 完整配置示例
+
+### standalone 共享存储模式（推荐）
+
+```yaml
+config-version: 3
+debug: false
+
+auth:
+  mode: standalone
+  bypass-welcome:
+    message: '&a身份已验证，欢迎回来。'
+
+qq-binding:
+  enabled: true
+  microsoft-require-bind: false
+  littleskin-require-bind: true
+  bind-prompt:
+    - '&e你尚未绑定 QQ'
+    - '&7请在 QQ 群发送: #绑定 {name}'
+    - '&7获取验证码后在下方输入'
+
+ui:
+  ui-id: AXS:login_view
+  packet-id: AXS_loginview
+  ui-file: login_view.yml
+  register-ui-on-enable: true
+  overwrite-ui-files: false
+  open-delay-ticks: 20
+  close-on-login: true
+
+terms-of-service:
+  enabled: true
+
+spawn-on-login:
+  enabled: false
+  world: world
+  x: 0.0
+  y: 64.0
+  z: 0.0
+  yaw: 0.0
+  pitch: 0.0
+
+security:
+  min-password-length: 6
+  max-password-length: 64
+  max-attempts: 5
+  kick-on-max-attempts: true
+  lock-movement: true
+  lock-chat: true
+  lock-commands: true
+  allow-commands-prefix: login,register,l,reg,AXS
+  rehash-migrated-password-on-login: true
+  session-ttl-minutes: 30
+  session-strict-ip: false
+
+storage:
+  shared: true
+```
+
+### authme 兼容模式
+
+```yaml
+config-version: 3
+debug: false
+
+auth:
+  mode: authme
+  bypass-welcome:
+    message: '&a身份已验证，欢迎回来。'
+
+ui:
+  ui-id: AXS:login_view
+  packet-id: AXS_loginview
+  ui-file: login_view_menu.yml
+  open-delay-ticks: 40
+
+security:
+  min-password-length: 6
+  max-password-length: 64
+  max-attempts: 5
+  lock-movement: true
+  lock-chat: true
+  lock-commands: true
+  allow-commands-prefix: login,register,l,reg,AXS
+  session-ttl-minutes: 0
+
+storage:
+  shared: true
+```
+
+## 配置版本迁移历史
+
+|| 版本 | 迁移内容 |
+|---|---|
+| 1 → 2 | `storage.table-prefix` 移入 `storage.mysql.table-prefix`，统一嵌套结构 |
+| 2 → 3 | `storage.mode` 重命名为 `storage.shared`，值从 `sqlite`/`mysql` 映射为 `true`/`false` |
+
+迁移由 ConfigDiagnosticEngine 自动执行，无需手动干预。详见 [配置管理指南](/docs/guide/config-management)。

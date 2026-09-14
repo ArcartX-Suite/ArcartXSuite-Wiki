@@ -1,0 +1,14 @@
+{
+  "title": "Map 地图",
+  "description": "大地图 / 锚点传送 / 玩家路径点 / 小地图 HUD",
+  "color": "#2dd4bf",
+  "pages": [
+    "index",
+    "configuration",
+    "worlds",
+    "anchors",
+    "navigation",
+    "commands",
+    "integration"
+  ]
+}

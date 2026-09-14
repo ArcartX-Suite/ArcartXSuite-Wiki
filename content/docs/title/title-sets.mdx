@@ -1,0 +1,247 @@
+---
+title: 称号套装系统
+description: 套装定义、激活阈值、奖励属性与套装完成度解析机制详解
+---
+
+# 称号套装系统
+
+## 套装概述
+
+称号套装（Title Set）是 Title 模块的进阶玩法机制。多个称号可以组成一个套装，当玩家拥有的套装内称号数量达到指定阈值后，激活额外的套装奖励属性。套装系统鼓励玩家收集同系列称号，为收集玩法提供长期目标。
+
+套装定义由 `TitleSetDefinition` record 描述，在主配置 `ArcartXTitle.yml` 的 `sets` 节中配置。
+
+## 套装定义字段
+
+| 字段 | 类型 | 默认值 | 说明 |
+|---|---|---|---|
+| `id` | `String` | — | 套装唯一标识（根键） |
+| `display-name` | `String` | 套装 ID | 套装显示名称 |
+| `required-titles` | `List<String>` | — | 套装所需的称号 ID 列表 |
+| `completion-threshold` | `int` | `-1` | 激活阈值，`<= 0` 时使用所需称号总数 |
+| `bonus-attributes` | `Map<String, Double>` | `{}` | 套装激活后的奖励属性键值对 |
+| `bonus-attribute-lines` | `List<String>` | `[]` | 奖励属性文本行 |
+
+> `required-titles` 中引用不存在的称号 ID 会被忽略并记录警告。若清理后 `required-titles` 为空，该套装会被整体跳过。
+
+## 激活阈值机制
+
+### effectiveThreshold() 计算逻辑
+
+`TitleSetDefinition.effectiveThreshold()` 方法决定套装激活所需的最少称号数量：
+
+```java
+public int effectiveThreshold() {
+    return completionThreshold <= 0
+        ? requiredTitleIds.size()
+        : Math.min(completionThreshold, requiredTitleIds.size());
+}
+```
+
+| `completion-threshold` 配置值 | `required-titles` 数量 | 有效阈值 | 说明 |
+|---|---|---|---|
+| `-1`（默认） | 3 | 3 | 未配置阈值时，需集齐全部所需称号 |
+| `0` | 3 | 3 | `<= 0` 时使用所需称号总数 |
+| `2` | 3 | 2 | 达到 2 个即激活，无需集齐全部 |
+| `5` | 3 | 3 | 阈值超过所需数量时，取较小值（所需称号总数） |
+
+### 阈值配置示例
+
+```yaml
+sets:
+  # 需集齐全部 3 个称号才激活
+  adventure_full:
+    display-name: "&f冒险套装（完整版）"
+    required-titles:
+      - adventurer
+      - explorer
+      - starwalker
+    completion-threshold: -1
+    bonus-attributes:
+      attack: 15
+      defense: 10
+    bonus-attribute-lines:
+      - "&c套装攻击力: +15"
+      - "&a套装防御力: +10"
+
+  # 只需 2 个即激活（降低门槛）
+  adventure_easy:
+    display-name: "&f冒险套装（简易版）"
+    required-titles:
+      - adventurer
+      - explorer
+      - starwalker
+    completion-threshold: 2
+    bonus-attributes:
+      attack: 8
+    bonus-attribute-lines:
+      - "&c套装攻击力: +8"
+```
+
+## 套装完成度解析
+
+### TitleStateResolver 中的套装计算
+
+`TitleStateResolver.resolve()` 在解析玩家状态时，遍历所有套装定义计算完成度：
+
+1. 对每个套装，遍历 `requiredTitleIds` 中的称号 ID
+2. 检查玩家是否拥有该称号（`ownedTitles.containsKey`）
+3. 检查该称号的分组是否在玩家可访问范围内（`isAccessible`）
+4. 同时满足拥有且可访问的称号计入 `ownedInSet` 计数
+5. `ownedInSet >= effectiveThreshold()` 时套装标记为激活
+
+> 无分组权限的称号不计入套装完成度。套装完成度仅统计「拥有」状态，不要求「装备」。
+
+### ResolvedTitleState 中的套装字段
+
+`ResolvedTitleState` record 包含以下套装相关字段：
+
+| 字段 | 类型 | 说明 |
+|---|---|---|
+| `setCompletionCounts` | `Map<String, Integer>` | 套装 ID → 已拥有称号数量 |
+| `setActiveMap` | `Map<String, Boolean>` | 套装 ID → 是否已激活 |
+| `setBonusAttributes` | `Map<String, Double>` | 所有已激活套装的奖励属性汇总 |
+| `setBonusAttributeSourceLines` | `List<String>` | 奖励属性源文本行 |
+
+### 总属性汇总
+
+`ResolvedTitleState` 的总属性（`totalAttributes`）由三部分叠加：
+
+```java
+LinkedHashMap<String, Double> totalAttributes = new LinkedHashMap<>(collectionAttributes);
+mergeAttributes(totalAttributes, displayAttributes);
+mergeAttributes(totalAttributes, setBonusAttributes);
+```
+
+| 属性来源 | 合并顺序 | 说明 |
+|---|---|---|
+| 收集属性 | 第一步 | 所有拥有称号的收集属性汇总 |
+| 展示属性 | 第二步 | 所有已装备称号的展示属性汇总 |
+| 套装奖励属性 | 第三步 | 所有已激活套装的奖励属性汇总 |
+
+> 同名属性值按 `Double::sum` 累加。例如收集属性 `attack: 5` + 展示属性 `attack: 3` + 套装奖励 `attack: 10` = 总属性 `attack: 18`。
+
+## 套装在 UI 中的展示
+
+### TitleMenuPacketFactory 套装数据包
+
+`TitleMenuPacketFactory.buildSetPacket()` 为每个套装构建以下 UI 数据：
+
+| 字段 | 类型 | 说明 |
+|---|---|---|
+| `id` | `String` | 套装 ID |
+| `display_name` | `String` | 套装显示名称 |
+| `owned_count` | `int` | 已拥有称号数量 |
+| `total_count` | `int` | 有效激活阈值（`effectiveThreshold()`） |
+| `active` | `boolean` | 套装是否已激活 |
+| `progress` | `String` | 进度文本，格式 `已拥有/阈值`，如 `2/3` |
+| `bonus_text` | `String` | 奖励属性格式化文本 |
+| `required_titles_text` | `String` | 所需称号列表文本 |
+
+### 套装奖励属性文本
+
+套装奖励属性通过 `TitleTextFormats.formatAttributes()` 格式化，与称号属性使用相同的合并规则：
+
+- `bonus-attributes` 键值对生成 `属性名: +数值` 行
+- `bonus-attribute-lines` 文本行中可解析的行与键值对合并
+- 不可解析的复杂行按原样保留
+
+```yaml
+sets:
+  warrior_set:
+    display-name: "&c战士套装"
+    required-titles:
+      - adventurer
+      - myth_hunter
+    completion-threshold: 2
+    bonus-attributes:
+      attack: 10
+      critical_damage: 5
+    bonus-attribute-lines:
+      - "&c套装攻击力: +10"
+      - "&4套装暴击伤害: 5(%)"
+```
+
+> `bonus-attribute-lines` 中 `套装暴击伤害: 5(%)` 因后缀 `(%)` 不参与合并，按原样保留。`套装攻击力: +10` 可解析但属性名与键值对的 `attack` 不同，因此两行独立显示。
+
+## 套装占位符
+
+### 套装完成度占位符
+
+`<setId>` 替换为实际套装 ID：
+
+| 占位符 | 返回值 | 说明 |
+|---|---|---|
+| `%axstitle_set_<setId>_completion%` | `int` | 套装已拥有称号数量 |
+| `%axstitle_set_<setId>_total%` | `int` | 套装所需称号总数 |
+| `%axstitle_set_<setId>_active%` | `true` / `false` | 套装是否已激活 |
+
+### 套装奖励属性占位符
+
+`<key>` 替换为属性名：
+
+| 占位符 | 返回值 | 说明 |
+|---|---|---|
+| `%axstitle_set_bonus_attr_<key>%` | `double` | 已激活套装的加成属性值 |
+
+> 未激活的套装奖励属性值为 `0`。套装占位符基于 `ResolvedTitleState` 中的 `setCompletionCounts`、`setActiveMap` 和 `setBonusAttributes` 字段。
+
+## 套装与属性插件同步
+
+套装奖励属性通过 `TitleStateResolver` 合并到 `totalAttributes` 后，随展示属性和收集属性一起同步到各属性插件：
+
+| 属性插件 | 同步方式 | 套装奖励属性处理 |
+|---|---|---|
+| AttributePlus | 属性源写入 | 套装奖励属性包含在 `displayAttributeSourceLines` 和 `collectionAttributeSourceLines` 的合并结果中 |
+| MythicLib | Stat Modifier 注册 | 套装奖励属性值合并到展示或收集属性的 Stat Modifier 中 |
+| CraneAttribute | 属性源写入 | 同 AttributePlus |
+| Symphony | flat 属性设置 | 套装奖励属性值合并到对应属性的 flat 值中 |
+
+> 套装奖励属性不单独同步到属性插件，而是与展示属性、收集属性合并后统一同步。属性插件同步的详细机制参见 [联动](/docs/title/integration) 文档。
+
+## 完整套装配置示例
+
+```yaml
+sets:
+  # 冒险套装：集齐 2 个即激活
+  adventure_set:
+    display-name: "&f冒险套装"
+    required-titles:
+      - adventurer
+      - explorer
+    completion-threshold: 2
+    bonus-attributes:
+      attack: 10
+      defense: 5
+    bonus-attribute-lines:
+      - "&c套装攻击力: +10"
+      - "&a套装防御力: +5"
+
+  # 探索套装：需集齐全部 3 个
+  exploration_set:
+    display-name: "&6探索套装"
+    required-titles:
+      - starwalker
+      - adventurer
+      - explorer
+    completion-threshold: -1
+    bonus-attributes:
+      luck: 10
+      prestige: 5
+    bonus-attribute-lines:
+      - "&e套装幸运值: +10"
+      - "&6套装声望: +5"
+
+  # 活动套装：只需 1 个即激活（低门槛）
+  activity_set:
+    display-name: "&c活动套装"
+    required-titles:
+      - myth_hunter
+    completion-threshold: 1
+    bonus-attributes:
+      critical_damage: 5
+    bonus-attribute-lines:
+      - "&4套装暴击伤害: 5(%)"
+```
+
+> 套装配置中的 `required-titles` 引用的称号 ID 必须已在 `titles/` 目录或主配置内联定义中存在，否则该条目会被忽略并记录警告。

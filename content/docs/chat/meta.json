@@ -1,0 +1,14 @@
+{
+  "title": "Chat 频道聊天",
+  "description": "全频道聊天系统，支持频道切换、私聊、回复、禁言、社交监听、提及、物品展示与跨服转发。",
+  "color": "#22d3ee",
+  "pages": [
+    "index",
+    "configuration",
+    "channels",
+    "formatting",
+    "moderation",
+    "commands",
+    "integration"
+  ]
+}

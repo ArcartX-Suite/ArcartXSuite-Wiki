@@ -1,0 +1,184 @@
+---
+title: 命令与占位符
+description: Pickup 命令、权限、PAPI 占位符与 UI 包
+---
+
+# 命令与占位符
+
+## 玩家命令
+
+玩家命令绑定到 `/pickup`，需持有 `arcartxsuite.pickup.use` 权限。命令根据当前工作模式自动路由到对应服务（通知模式 → `PickupService`，扫描模式 → `LootScannerService`）。
+
+| 命令 | 说明 | 权限 |
+| --- | --- | --- |
+| `/pickup` | 切换拾取功能开关（toggle） | `arcartxsuite.pickup.use` |
+| `/pickup on` | 开启拾取功能 | `arcartxsuite.pickup.use` |
+| `/pickup off` | 关闭拾取功能 | `arcartxsuite.pickup.use` |
+| `/pickup toggle` | 切换拾取功能开关（同 `/pickup`） | `arcartxsuite.pickup.use` |
+| `/pickup status` | 查看当前拾取状态（模式 + 开关） | `arcartxsuite.pickup.use` |
+| `/pickup help` | 查看可用子命令 | `arcartxsuite.pickup.use` |
+
+### 命令详解
+
+**`/pickup`（无参数）**
+
+切换拾取功能开关。若当前已开启则关闭，已关闭则开启。切换后立即生效：
+- 通知模式：关闭时立即关闭 HUD 并清理待发队列；开启时立即重新打开 HUD
+- 扫描模式：关闭时立即关闭 `loot_panel` HUD 与 `loot_interact` 菜单并清理状态；开启时立即重新打开 HUD
+
+**`/pickup on` / `/pickup off`**
+
+显式开启或关闭拾取功能，不切换当前状态。
+
+**`/pickup status`**
+
+查看当前拾取状态，显示工作模式（通知模式 / 扫描模式）与功能开关状态（已开启 / 已关闭）。
+
+> 命令仅限玩家执行，控制台执行时返回 `player-only` 提示。模块未启用时返回 `module-disabled` 提示。
+
+## 管理员命令
+
+管理员命令通过宿主 `/axs` 命令执行：
+
+| 命令 | 说明 | 权限 |
+| --- | --- | --- |
+| `/axs reload pickup` | 重载 Pickup 模块（配置 + 消息 + UI） | `arcartxsuite.admin` |
+| `/axs enable pickup` | 启用 Pickup 模块 | `arcartxsuite.admin` |
+| `/axs disable pickup` | 禁用 Pickup 模块 | `arcartxsuite.admin` |
+
+> 重载时模块会先停止当前服务（关闭所有玩家 HUD/菜单），再重新加载配置并启动服务。扫描模式下重载会为所有在线玩家重新打开常驻 HUD。
+
+## 权限节点表
+
+| 权限节点 | 默认 | 说明 |
+| --- | --- | --- |
+| `arcartxsuite.pickup.use` | op | 使用 `/pickup` 命令与切换拾取功能 |
+| `arcartxsuite.admin` | op | 使用 `/axs reload|enable|disable pickup` 管理命令 |
+
+## PlaceholderAPI
+
+本模块无独立 PlaceholderAPI 占位符输出。提示内容来自拾取事件和 ItemStack 序列化，不注册 PAPI 扩展。
+
+## UI Packet 通信
+
+Pickup 模块通过 PacketBridge 与客户端通信，包 ID 为 `pickup`。服务端 `createPacketHandlerSpec()` 注册客户端包处理器，`data[0]` 为 action 名称。
+
+### 通知模式包
+
+通知模式仅使用 `AXS:pickup_hud` 一套 UI，服务端向客户端发送 `pick` 包推送拾取通知。
+
+| 方向 | Action | 字段 | 说明 |
+| --- | --- | --- | --- |
+| 服务端 → 客户端 | `pick` | `itemJson`（物品 JSON）、`amount`（数量） | 推送一条拾取通知，客户端将新条目插入队列首位，旧条目下移 |
+
+客户端 `pickup_hud.yml` 的 `packetHandler.pick` 处理逻辑：
+
+```yaml
+packetHandler:
+  pick: |-
+    var.now = Time.currentTime()
+    # 旧条目依次下移（entry4 <- entry3 <- entry2 <- entry1）
+    var.entry4Visible = var.entry3Visible
+    var.entry4CreatedAt = var.entry3CreatedAt
+    var.entry4Amount = var.entry3Amount
+    var.entry4ItemJson = var.entry3ItemJson
+    var.entry4IconDirty = true
+    # 新条目写入 entry1
+    var.entry1Visible = true
+    var.entry1CreatedAt = var.now
+    var.entry1Amount = packet['amount']
+    var.entry1ItemJson = packet['itemJson']
+    var.entry1IconDirty = true
+```
+
+> `pickup_hud.yml` 由 `PickupHudTemplateWriter` 根据 `max-visible` 与 `entry-ttl-ms` 动态生成。上述示例为 `max-visible=4` 的情况，条目数随配置变化。
+
+### 扫描模式包
+
+扫描模式使用 `AXS:loot_panel`（HUD）与 `AXS:loot_interact`（交互菜单）两套 UI，服务端与客户端双向通信。
+
+#### 服务端 → 客户端包
+
+| Action | 字段 | 说明 |
+| --- | --- | --- |
+| `update` | `count`、`selectedIndex`、`item0Visible`~`item7Visible`、`item0Amount`~`item7Amount`、`item0ItemJson`~`item7ItemJson`、`item0Uuid`~`item7Uuid` | 完整物品列表更新，包含所有槽位的可见状态、数量、物品 JSON 与实体 UUID |
+| `select` | `selectedIndex` | 选中索引变更（轻量更新，仅发送索引） |
+| `open_interact` | 无 | 通知客户端打开 `loot_interact` 交互菜单 |
+| `menu_closed` | 无 | 通知客户端交互菜单已关闭，恢复 HUD 交互 |
+
+#### 客户端 → 服务端包
+
+| Action | 参数 | 说明 |
+| --- | --- | --- |
+| `pick` | 无 | 拾取当前选中项 |
+| `pick_0` ~ `pick_7` | 无 | 点击指定槽位拾取对应物品 |
+| `scroll_up` | 无 | 选中索引上移（循环环绕） |
+| `scroll_down` | 无 | 选中索引下移（循环环绕） |
+| `open_menu` | 无 | 通知服务端菜单已打开 |
+| `close_menu` | 无 | 通知服务端菜单已关闭（ESC 关闭时触发） |
+
+### 客户端包处理流程
+
+服务端 `LootScannerService.handleClientPacket` 方法处理所有客户端包：
+
+```java
+switch (action) {
+    case "pick" -> handlePick(player, -1);           // 拾取当前选中
+    case "open_menu" -> menuOpenPlayers.add(playerId);
+    case "scroll_up" -> handleScroll(player, -1);    // 上移选中
+    case "scroll_down" -> handleScroll(player, 1);   // 下移选中
+    case "close_menu" -> {
+        menuOpenPlayers.remove(playerId);
+        packetBridge.sendPacket(player, uiId, "menu_closed", Map.of());
+    }
+    default -> {
+        // pick_0 ~ pick_7：点击指定条目拾取
+        if (action.startsWith("pick_")) {
+            int index = Integer.parseInt(action.substring(5));
+            handlePick(player, index);
+        }
+    }
+}
+```
+
+> PacketGuard 由 `ClientPacketRouter` 在路由层统一调用，模块内不重复检查。客户端包 ID `pickup` 在 `createPacketHandlerSpec()` 中注册，优先级为 0。
+
+## UI 界面详解
+
+### pickup_hud.yml（通知模式 HUD）
+
+| 属性 | 值 | 说明 |
+| --- | --- | --- |
+| `isHud` | `true` | HUD 模式，覆盖在游戏画面上 |
+| `defaultOpen` | `false` | 不随启动自动打开，由服务端 `openUi` 控制 |
+| `through` | `false` | 鼠标不穿透 |
+| `background` | `false` | 无背景遮罩 |
+| `closeDied` | `false` | 玩家死亡时不关闭 |
+| `show` | `true` | 可见 |
+| `level` | `10` | 渲染层级 |
+
+HUD 布局：右下角 `VStack` 纵向排列 `max-visible` 个条目，每个条目为 `Canvas`，包含背景（`Frosted` 毛玻璃 + 圆角描边）、图标（`Slot` 组件）与文字（物品名 + 数量）。`tick` 动作每帧检查条目是否超过 `entryTtlMs`，超时则隐藏；`IconDirty` 标记触发图标刷新。
+
+### loot_panel.yml（扫描模式 HUD）
+
+| 属性 | 值 | 说明 |
+| --- | --- | --- |
+| `isHud` | `true` | HUD 模式 |
+| `defaultOpen` | `false` | 由服务端控制打开 |
+| `through` | `false` | 鼠标不穿透（需捕获点击与滚轮） |
+
+HUD 布局：屏幕中偏右的 `Canvas` 面板，包含按键提示文本与 `VStack` 纵向排列 `max-display` 个物品条目。每个条目包含背景（选中时蓝色高亮）、图标（`Slot` 组件）与名称（含数量）。`wheel` 动作捕获滚轮事件，`click` 动作捕获点击事件，均通过 `Packet.send` 回包通知服务端。
+
+### loot_interact.yml（交互菜单）
+
+| 属性 | 值 | 说明 |
+| --- | --- | --- |
+| `isHud` | `false` | 非 HUD，独立打开的 Menu 界面 |
+| `defaultOpen` | `false` | 由 `loot_panel` 的 `open_interact` 包触发打开 |
+| `background` | `false` | 无背景遮罩（透明菜单） |
+| `escClose` | `true` | 按 ESC 关闭 |
+| `through` | `true` | 鼠标穿透（仅捕获交互，不阻挡游戏画面） |
+
+菜单 `close` 动作在关闭时发送 `close_menu` 包通知服务端。滚轮切换由 `loot_panel` HUD 的 `wheel` 触发器统一处理，依赖 `var.menuOpen` 守卫避免菜单打开时双发。
+
+> UI 图标渲染使用 `Slot` 组件（`slotType: ~Icon`），通过 `setItemIcon(itemJson)` 设置物品图标。详见 [UI 图标](/docs/guide/icons)。

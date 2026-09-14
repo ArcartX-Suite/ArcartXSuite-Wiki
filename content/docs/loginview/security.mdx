@@ -1,0 +1,454 @@
+---
+title: 安全策略与会话管理
+description: 密码哈希算法、Session 持久化、密码重置、登录尝试锁定与未登录行为限制
+---
+
+# 安全策略与会话管理
+
+LoginView 模块内置完整的安全策略体系，涵盖密码哈希、登录尝试限制、未登录行为锁定、Session 持久化与密码重置。本章详细说明各安全机制的工作原理与配置方式。
+
+## 密码哈希
+
+### 哈希算法
+
+LoginView 使用 `LoginViewPasswordHasher` 统一管理密码哈希，支持三种算法的验证，新注册统一使用 PBKDF2-SHA256：
+
+|| 算法标识 | 迭代次数 | 盐长度 | 密钥长度 | 用途 |
+|---|---|---|---|---|
+| `AXS_PBKDF2_SHA256` | 180000 | 16 字节 | 256 位 | 新注册 / 改密 / 重哈希 |
+| `AUTHME_BCRYPT` | - | - | - | AuthMe 迁移账户验证 |
+| `AUTHME_BCRYPT2Y` | - | - | - | AuthMe 迁移账户验证 |
+| `AUTHME_SHA256` | - | - | - | AuthMe 迁移账户验证 |
+
+### PBKDF2-SHA256 哈希流程
+
+新注册账号的密码哈希过程：
+
+```java
+public String hash(String password) {
+    byte[] salt = new byte[16];
+    RANDOM.nextBytes(salt);                          // 16 字节随机盐
+    byte[] derived = derive(password, salt, 180000); // PBKDF2 派生
+    return 180000 + "$" + Base64.encode(salt) + "$" + Base64.encode(derived);
+}
+```
+
+|| 参数 | 值 | 说明 |
+|---|---|---|
+| 迭代次数 | `180000` | PBKDF2 迭代轮次，越高越安全但越慢 |
+| 盐长度 | `16 字节` | `SecureRandom` 生成，每个账户独立 |
+| 密钥长度 | `256 位` | PBKDF2WithHmacSHA256 派生密钥 |
+| 哈希格式 | `迭代次数$Base64盐$Base64密钥` | 存储到 `password_hash` 列 |
+
+### 密码验证
+
+验证密码时根据账户的 `hash_algorithm` 字段选择对应算法：
+
+```java
+public boolean verify(String password, String storedHash, String algorithm) {
+    return switch (algorithm.trim().toUpperCase()) {
+        case AXS_ALGORITHM -> verifyAXS(password, storedHash);
+        case "AUTHME_BCRYPT", "AUTHME_BCRYPT2Y" -> verifyBcrypt(password, storedHash);
+        case "AUTHME_SHA256", "SHA256" -> verifyAuthMeSha256(password, storedHash);
+        default -> false;
+    };
+}
+```
+
+:::info
+所有验证方法均使用 `MessageDigest.isEqual` 进行常量时间比对，防止时序攻击。未知算法返回 `false`，拒绝登录。
+:::
+
+### 密码长度限制
+
+密码长度由 `security` 节配置控制，注册和改密时统一校验：
+
+|| 配置字段 | 默认值 | 范围 | 说明 |
+|---|---|---|---|
+| `security.min-password-length` | `6` | 1~64 | 密码最小长度 |
+| `security.max-password-length` | `64` | 8~128 | 密码最大长度 |
+
+```java
+private boolean validatePasswordShape(Player player, String password, boolean registering) {
+    int length = password == null ? 0 : password.length();
+    if (length < configuration.security().minPasswordLength()) {
+        sendResult(player, color(configuration.messages().passwordTooShort()), false);
+        return false;
+    }
+    if (length > configuration.security().maxPasswordLength()) {
+        sendResult(player, color(configuration.messages().passwordTooLong()), false);
+        return false;
+    }
+    return true;
+}
+```
+
+## 登录尝试限制
+
+### 尝试次数追踪
+
+LoginView 在内存中追踪每个玩家的密码错误次数：
+
+```java
+private final Map<UUID, Integer> failedAttempts = new HashMap<>();
+
+private void recordFailure(Player player) {
+    int attempts = failedAttempts.merge(player.getUniqueId(), 1, Integer::sum);
+    sendResult(player, color(configuration.messages().wrongPassword())
+        + " (" + attempts + "/" + configuration.security().maxAttempts() + ")", false);
+    if (attempts >= configuration.security().maxAttempts()
+            && configuration.security().kickOnMaxAttempts()) {
+        AxsScheduler.runTask(plugin, () -> player.kickPlayer(color(configuration.messages().kicked())));
+    }
+}
+```
+
+|| 配置字段 | 默认值 | 范围 | 说明 |
+|---|---|---|---|
+| `security.max-attempts` | `5` | 1~20 | 最大密码错误尝试次数 |
+| `security.kick-on-max-attempts` | `true` | - | 达到上限后是否踢出玩家 |
+
+:::warning
+失败次数记录在内存中，玩家退出后自动清除（`onQuit` 事件）。服务器重启后所有失败计数归零。
+:::
+
+### 失败计数清除
+
+以下情况会清除玩家的失败计数：
+
+|| 时机 | 清除方式 | 说明 |
+|---|---|---|
+| 登录成功 | `completeLogin` 中 `failedAttempts.remove(uuid)` | 认证通过后重置 |
+| 玩家退出 | `onQuit` 中 `failedAttempts.remove(uuid)` | 离线后清除内存记录 |
+| 密码重置 | `adminResetPassword` 中 `failedAttempts.remove(uuid)` | 管理员重置后清除 |
+| 服务关闭 | `shutdown` 中 `failedAttempts.clear()` | 模块卸载时全部清除 |
+
+## 未登录行为锁定
+
+### 锁定项
+
+未通过认证的玩家会受到以下行为限制，每项均可独立配置开关：
+
+|| 锁定项 | 配置字段 | 默认值 | 拦截事件 | 说明 |
+|---|---|---|---|---|
+| 移动 | `security.lock-movement` | `true` | `PlayerMoveEvent` | 阻止跨方块移动（同方块内移动允许） |
+| 聊天 | `security.lock-chat` | `true` | `AsyncPlayerChatEvent` | 取消所有聊天消息 |
+| 命令 | `security.lock-commands` | `true` | `PlayerCommandPreprocessEvent` | 取消命令，白名单前缀除外 |
+| 背包点击 | - | `true` | `InventoryClickEvent` | 取消所有背包点击 |
+| 物品丢弃 | - | `true` | `PlayerDropItemEvent` | 取消物品丢弃 |
+| 方块交互 | - | `true` | `PlayerInteractEvent` | 取消左右键方块/空气交互 |
+
+### 命令白名单
+
+未登录时仍允许执行的命令通过 `security.allow-commands-prefix` 配置（逗号分隔）：
+
+```yaml
+security:
+  allow-commands-prefix: login,register,l,reg,AXS
+```
+
+服务端启动时将白名单解析为 `Set<String>` 并转小写，命令前缀匹配时忽略大小写：
+
+```java
+for (String command : configuration.security().allowCommandsPrefix().split(",")) {
+    String normalized = command.trim().toLowerCase(Locale.ROOT);
+    if (!normalized.isBlank()) {
+        allowedCommandPrefixes.add(normalized);
+    }
+}
+```
+
+:::tip
+`allow-commands-prefix` 是前缀匹配，如配置 `login` 则 `/login`、`/loginview` 均允许。建议只放行登录相关命令，避免未登录玩家执行其他操作。
+:::
+
+### 移动锁定细节
+
+移动锁定允许同方块内的视角转动，只阻止跨方块移动：
+
+```java
+@EventHandler(ignoreCancelled = true)
+public void onMove(PlayerMoveEvent event) {
+    if (!configuration.security().lockMovement() || isAuthenticated(event.getPlayer())) {
+        return;
+    }
+    if (event.getTo() != null && event.getFrom().getBlock().equals(event.getTo().getBlock())) {
+        return;  // 同方块内移动允许（视角转动）
+    }
+    event.setCancelled(true);
+}
+```
+
+## 无敌保护
+
+未登录玩家自动获得无敌状态，防止登录期间被怪物攻击或环境伤害：
+
+```java
+if (!isAuthenticated(player)) {
+    player.setInvulnerable(true);
+    loginViewInvulnerablePlayers.add(player.getUniqueId());
+}
+```
+
+登录成功或退出时自动恢复：
+
+|| 时机 | 操作 | 说明 |
+|---|---|---|
+| 打开 UI 时 | `setInvulnerable(true)` | 未登录玩家获得无敌 |
+| 登录成功 | `setInvulnerable(false)` | 认证通过后取消无敌 |
+| 玩家退出 | `setInvulnerable(false)` | 离线时取消无敌 |
+| 服务关闭 | `setInvulnerable(false)` | 模块卸载时恢复所有在线玩家 |
+
+:::info
+无敌状态仅在未认证期间生效。正版免密玩家（bypass）打开 UI 时也会获得无敌，点击「进入服务器」后立即取消。
+:::
+
+## Session 持久化
+
+### Session 机制
+
+standalone 模式下，登录成功后可将认证状态持久化到数据库 `sessions` 表，支持掉线重连或服务器重启后免重新登录：
+
+```java
+int ttl = configuration.security().sessionTtlMinutes();
+if (ttl > 0) {
+    long expiresAt = System.currentTimeMillis() + ttl * 60L * 1000L;
+    repository.createOrUpdateSession(player.getUniqueId(), player.getName(),
+        playerAddress(player), expiresAt);
+}
+```
+
+### Session 配置
+
+|| 配置字段 | 默认值 | 范围 | 说明 |
+|---|---|---|---|
+| `security.session-ttl-minutes` | `30` | 0~10080 | Session 有效期（分钟），0 禁用持久化 |
+| `security.session-strict-ip` | `false` | - | 是否要求 session 绑定 IP |
+
+### Session 验证流程
+
+玩家进服时检查认证状态的优先级：
+
+```
+1. 内存检查：authenticatedPlayers.contains(uuid) → 直接通过
+2. 数据库查询：repository.findSession(uuid)
+   → session 存在且未过期（expiresAt > now）
+     → 若 session-strict-ip=true：校验当前 IP 与 session IP 一致
+       → 一致：加入 authenticatedPlayers，免登录
+       → 不一致：返回 false，需重新登录
+     → 若 session-strict-ip=false：直接免登录
+   → session 已过期：静默删除（deleteSession）
+3. 均未命中：需要重新登录
+```
+
+```java
+private boolean isAuthenticated(Player player) {
+    UUID uuid = player.getUniqueId();
+    if (authenticatedPlayers.contains(uuid)) {
+        return true;
+    }
+    var sessionOpt = repository.findSession(uuid);
+    if (sessionOpt.isPresent()) {
+        var session = sessionOpt.get();
+        if (session.expiresAt() > System.currentTimeMillis()) {
+            if (configuration.security().sessionStrictIp()) {
+                if (!playerAddress(player).equals(session.ip())) {
+                    return false;
+                }
+            }
+            authenticatedPlayers.add(uuid);
+            return true;
+        }
+        repository.deleteSession(uuid);  // 过期 session 静默清理
+    }
+    return false;
+}
+```
+
+### Session 自动清理
+
+服务端每小时异步清理过期 session 记录：
+
+```java
+long cleanupInterval = 20L * 60 * 60;  // 1 小时（72000 ticks）
+cleanupTask = AxsScheduler.runAsyncTimer(plugin, () -> {
+    repository.deleteExpiredSessions();
+}, cleanupInterval, cleanupInterval);
+```
+
+```sql
+DELETE FROM AXS_loginview_sessions WHERE expires_at <= ?
+```
+
+:::tip
+`session-ttl-minutes: 0` 禁用 Session 持久化，每次进服都必须重新登录。适合高安全要求的服务器。
+:::
+
+### Session 数据结构
+
+`sessions` 表存储登录会话记录：
+
+|| 列名 | 类型 | 说明 |
+|---|---|---|
+| `uuid` | `VARCHAR(36)` | 玩家 UUID（主键） |
+| `player_name` | `VARCHAR(64)` | 玩家名 |
+| `ip` | `VARCHAR(64)` | 会话建立时的 IP 地址 |
+| `created_at` | `BIGINT` | 创建时间戳（毫秒） |
+| `expires_at` | `BIGINT` | 过期时间戳（毫秒） |
+
+### 跨服 Session
+
+多服架构下，若各服共享同一数据库，玩家在 A 服登录后切换到 B 服可直接读取 session 免登录：
+
+|| 场景 | `session-strict-ip` | 效果 |
+|---|---|---|
+| 单服 / 同 IP 跨服 | `false`（推荐） | 跨服免登录正常工作 |
+| 同 IP 跨服 | `true` | 跨服免登录正常工作（出口 IP 一致） |
+| 不同 IP 跨服 | `true` | 跨服免登录失效（IP 不匹配） |
+| 不同 IP 跨服 | `false` | 跨服免登录正常工作（不校验 IP） |
+
+:::warning
+`session-strict-ip: true` 会校验 session 建立时的 IP 与当前 IP 是否一致。若玩家使用移动网络或 NAT 环境导致出口 IP 变化，需重新登录。跨服场景推荐设为 `false`。
+:::
+
+## 密码重置
+
+### 管理员重置
+
+`standalone` 模式下，管理员可通过命令重置玩家密码：
+
+```bash
+/axs loginview reset-password <玩家> [新密码]
+```
+
+|| 参数 | 必填 | 说明 |
+|---|---|---|
+| 玩家 | 是 | 目标玩家名 |
+| 新密码 | 否 | 新密码；省略则随机生成 |
+
+### 随机密码生成
+
+未指定新密码时，自动生成随机密码（排除易混淆字符 `0`、`O`、`1`、`l`）：
+
+```java
+private static final String RANDOM_PASSWORD_ALPHABET =
+    "ABCDEFGHJKLMNPQRSTUVWXYZabcdefghijkmnpqrstuvwxyz23456789";
+
+private String generateRandomPassword() {
+    int length = Math.min(
+        Math.max(configuration.security().minPasswordLength(), 10),
+        configuration.security().maxPasswordLength());
+    StringBuilder builder = new StringBuilder(length);
+    for (int i = 0; i < length; i++) {
+        builder.append(RANDOM_PASSWORD_ALPHABET.charAt(RANDOM.nextInt(RANDOM_PASSWORD_ALPHABET.length())));
+    }
+    return builder.toString();
+}
+```
+
+|| 随机密码属性 | 值 |
+|---|---|
+| 最小长度 | `max(min-password-length, 10)` |
+| 最大长度 | `max-password-length` |
+| 字符集 | 大小写字母 + 数字（排除 `0O1lI`） |
+| 随机源 | `SecureRandom` |
+
+### 重置结果状态
+
+|| 状态 | 说明 | 处理方式 |
+|---|---|---|
+| `SUCCESS` | 重置成功 | 返回新密码，清除 session 和认证状态 |
+| `AUTHME_MODE` | authme 模式不可用 | 提示使用 AuthMe 自带命令 |
+| `NOT_REGISTERED` | 玩家未注册 | 提示玩家名未注册 |
+| `PASSWORD_TOO_SHORT` | 密码过短 | 提示密码长度不足 |
+| `PASSWORD_TOO_LONG` | 密码过长 | 提示密码超出限制 |
+| `ERROR` | 数据库错误 | 返回错误详情 |
+
+### 重置后处理
+
+重置成功后执行以下操作：
+
+```java
+repository.updatePassword(account.realName(),
+    passwordHasher.hash(effective), LoginViewPasswordHasher.AXS_ALGORITHM);
+repository.deleteSession(uuid);           // 删除持久化 session
+authenticatedPlayers.remove(uuid);         // 清除内存认证状态
+failedAttempts.remove(uuid);               // 清除失败计数
+online.sendMessage(color(messages.get("reset-notify-player")));  // 通知在线玩家
+AxsScheduler.runTask(plugin, () -> openFor(online, true));  // 重新弹出登录界面
+```
+
+:::info
+重置后新哈希始终使用 `AXS_PBKDF2_SHA256`，`migrated` 标记重置为 `0`。若玩家在线，会收到通知并自动弹出登录界面。
+:::
+
+## 信号与事件
+
+登录成功后 LoginView 派发信号并发布 EventBus 事件，可供其他模块监听：
+
+|| 信号 | 触发时机 | 变量 |
+|---|---|---|
+| `login_success` | 密码登录成功 | `auth_mode`、`account_type`、`account_type_display` |
+| `first_register` | 注册成功并自动登录 | `auth_mode`、`account_type`、`account_type_display` |
+| `premium_bypass` | 正版/LittleSkin 免密进入 | `auth_mode`、`account_type`、`account_type_display` |
+
+信号可被 [Conditions](/docs/guide/conditions) 条件触发器监听，实现登录后触发任务、奖励等逻辑。EventBus 事件 `axs.loginview.login_success` 供模块间直接监听，详见 [联动](/docs/loginview/integration)。
+
+## 安全配置示例
+
+### 高安全配置
+
+适用于对安全性要求较高的服务器：
+
+```yaml
+security:
+  min-password-length: 8
+  max-password-length: 128
+  max-attempts: 3
+  kick-on-max-attempts: true
+  lock-movement: true
+  lock-chat: true
+  lock-commands: true
+  allow-commands-prefix: login,register,l,reg,AXS
+  rehash-migrated-password-on-login: true
+  session-ttl-minutes: 0
+  session-strict-ip: true
+```
+
+|| 配置项 | 高安全值 | 说明 |
+|---|---|---|
+| `min-password-length` | `8` | 更长的最小密码要求 |
+| `max-attempts` | `3` | 更严格的尝试限制 |
+| `session-ttl-minutes` | `0` | 禁用 Session，每次进服都需登录 |
+| `session-strict-ip` | `true` | Session 绑定 IP，防止盗用 |
+
+### 便捷配置
+
+适用于社区服务器，注重玩家体验：
+
+```yaml
+security:
+  min-password-length: 6
+  max-password-length: 64
+  max-attempts: 5
+  kick-on-max-attempts: true
+  lock-movement: true
+  lock-chat: true
+  lock-commands: true
+  allow-commands-prefix: login,register,l,reg,AXS
+  rehash-migrated-password-on-login: true
+  session-ttl-minutes: 1440
+  session-strict-ip: false
+```
+
+|| 配置项 | 便捷值 | 说明 |
+|---|---|---|
+| `session-ttl-minutes` | `1440` | 24 小时内免登录 |
+| `session-strict-ip` | `false` | 不校验 IP，适应移动网络 |
+
+## 相关页面
+
+- [配置](/docs/loginview/configuration) — `security` 节完整配置字段表
+- [认证模式与 AuthMe 迁移](/docs/loginview/auth-modes) — 哈希算法兼容性、迁移后重哈希机制
+- [命令与占位符](/docs/loginview/commands) — `reset-password` 命令详解
+- [联动](/docs/loginview/integration) — EventBus 事件、信号派发、数据库表结构

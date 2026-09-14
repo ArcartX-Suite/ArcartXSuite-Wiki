@@ -1,0 +1,128 @@
+---
+title: 概览
+description: Mail 邮件系统功能概览
+---
+
+# Mail 邮件系统
+
+## 模块简介
+
+Mail 是 ArcartXSuite 的全功能邮件系统模块，提供 **收件箱**、**玩家写信**、**预设邮件**、**CDK 兑换** 四合一邮件服务。模块通过 ArcartX UI 实现全图形化交互，支持物品附件、多货币附件、领取条件、内容审核、跨服同步等高级功能，并可被其他模块通过 `MailDispatchable` Capability 调用发送奖励邮件。
+
+| 属性 | 值 |
+|---|---|
+| 模块 ID | `mail` |
+| 版本 | 1.4.4 |
+| 主类 | `xuanmo.arcartxsuite.mail.MailModule` |
+| 配置文件 | `ArcartXMail.yml` |
+| 消息文件 | `messages.yml` |
+| 外部依赖 | PlaceholderAPI（可选） |
+| 模块依赖 | 无（本体内置 API 即可运行） |
+| 配置版本 | 3 |
+| 数据库表前缀 | `mail_`（共享模式无前缀） |
+
+## 功能特性
+
+| 特性 | 说明 |
+|---|---|
+| 收件箱系统 | ArcartX UI 驱动的收件箱界面，支持分页浏览、来源筛选、预览、领取和删除 |
+| 玩家写信 | 玩家可向其他玩家发送邮件，支持物品附件和 Vault 货币附件，含手续费与税率 |
+| 预设邮件 | 管理员预设邮件模板，支持批量派发给在线玩家或全部注册玩家，含二次确认机制 |
+| CDK 兑换 | CDK 兑换码系统，支持预设内嵌固定 CDK 和命令动态创建，含冷却和锁定防刷机制 |
+| 物品附件 | 支持原版、MythicMobs、NeigeItems、Overture、MMOItems 物品库产物，含 Base64 完整序列化 |
+| 货币附件 | 支持 Vault 金币和多货币系统附件，货币附件可自定义展示图标 |
+| 领取条件 | 预设邮件支持 `claim-conditions` 领取条件，使用 ScriptCondition 引擎（PAPI/Aria/JS） |
+| 领取命令 | 预设邮件支持 `claim-commands` 领取时执行命令，支持 `<player>` 等变量 |
+| 内容审核 | 敏感词、正则、物品材质、Lore 正则、物品名称正则、NBT/PDC 键值屏蔽 |
+| 跨服广播 | 多服邮件刷新通知（Redis + Proxy 双后端），收件人上线自动刷新收件箱 |
+| 邮件日志 | 记录所有邮件操作日志（寄件/领取/删除/预设/CDK），可通过 UI 查看 |
+| 管理 UI | 管理员可通过 UI 管理预设邮件（创建/编辑/删除/派发）和查看 CDK |
+| 自动清理 | 按保留天数自动清理过期、已领取和已删除邮件，定时任务周期可配置 |
+| 通知卡片 | 新邮件到达时在聊天栏显示 ArcartX 卡片通知，支持自动换行 |
+| 二级密码 | 写信时消费宿主二级密码能力，已设置密码的玩家需先解锁才能寄信 |
+| 公开 API | 通过 `AxsMailApi` 和 ServicesManager 对外提供邮件发送/查询/领取/删除接口 |
+| 数据迁移 | 支持 `DatabaseMigratable` 能力，可通过 `/axs migrate` 跨源数据库迁移 |
+| 数据清理 | 支持 `PlayerDataPurgeable` 能力，可通过 `/axs purge` 统一清理玩家数据 |
+
+## 依赖
+
+| 依赖类型 | 名称 | 必需 | 说明 |
+|---|---|---|---|
+| 模块依赖 | ArcartXSuite 本体 | 是 | 提供核心 API、存储管理、货币桥接、跨服通道、物品来源注册表等基础设施 |
+| 外部依赖 | PlaceholderAPI | 否 | 输出 `%axsmail_*%` 占位符；不安装时 PAPI 占位符不可用 |
+| 外部可选 | Vault | 否 | 玩家写信货币附件和手续费；不安装时 Vault 货币附件不可用 |
+| 外部可选 | PlayerPoints | 否 | Points 货币附件；不安装时 Points 附件不可用 |
+| 外部可选 | Redis | 否 | 跨服邮件刷新通知；不安装时仅单服可用 |
+| 外部可选 | MythicMobs | 否 | 预设邮件物品附件来源（`source: mythic`） |
+| 外部可选 | NeigeItems | 否 | 预设邮件物品附件来源（`source: neige`） |
+| 外部可选 | Overture | 否 | 预设邮件物品附件来源（`source: overture`） |
+| 外部可选 | MMOItems | 否 | 预设邮件物品附件来源（`source: mmoitems`） |
+
+## 邮件类型详解
+
+Mail 模块通过 `MailSourceType` 枚举区分四种邮件来源类型：
+
+| 来源类型 | 枚举值 | 发件人 | 说明 |
+|---|---|---|---|
+| 系统邮件 | `SYSTEM` | 系统名称（默认"系统"） | 由 `MailDispatchable.sendMail()` 或 `AxsMailService.send()` 发送，其他模块调用产生 |
+| 玩家邮件 | `PLAYER` | 玩家名称 | 玩家通过写信界面发送，含真实物品附件和货币附件 |
+| 预设邮件 | `PRESET` | 操作者名称 | 管理员通过命令或 UI 派发预设模板，附件来自预设定义 |
+| CDK 邮件 | `CDK` | "CDK" | 玩家兑换 CDK 后自动投递，附件来自 CDK 关联的预设 |
+
+### 系统邮件
+
+系统邮件由其他模块通过 Capability 或公开 API 发送。例如 BattlePass 发放赛季奖励、Market 退回到期物品、OnlineRewards 发放在线奖励等。系统邮件支持物品附件和货币附件混合，可自定义发件人名称和过期时间。
+
+### 玩家邮件
+
+玩家通过 `/mail compose` 打开写信界面，填写收件人、标题、正文，并可从背包拖入物品附件和填写 Vault 货币金额。发送时根据配置收取手续费（`base-fee` + `item-fee`）和货币附件税率（`attachment-tax-rates`）。玩家邮件受内容审核约束，命中敏感词/正则/物品屏蔽规则时禁止发送。
+
+### 预设邮件
+
+预设邮件是管理员预先定义的邮件模板（YAML 文件），包含固定的标题、正文、附件、领取命令和领取条件。管理员可通过命令或管理 UI 批量派发给在线玩家（`all-online`）或全部注册玩家（`all-registered`），多人派发需二次确认。预设邮件还可内嵌 CDK 兑换码，执行 `/axs mail reload` 后自动同步到数据库。
+
+### CDK 邮件
+
+CDK 邮件是玩家通过 `/mail cdk <code>` 兑换兑换码后自动投递的邮件。CDK 关联一个预设邮件，兑换成功后预设邮件的内容（标题、正文、附件、领取命令、领取条件）会作为新邮件投递到玩家收件箱。CDK 支持全局共享领取次数（所有玩家共用，领完即止）和每玩家仅可领一次的限制。
+
+## 邮件生命周期
+
+邮件从发送到最终清理，经历以下状态流转（由 `MailStatus` 枚举管理）：
+
+```
+发送 ──→ UNREAD ──→ READ ──→ CLAIMED ──→ 自动清理删除
+           │                    │
+           │                    └─→ DELETED ──→ 自动清理删除
+           │
+           └─→ EXPIRED ──→ 自动清理删除
+```
+
+| 状态 | 枚举值 | 说明 |
+|---|---|---|
+| 未读 | `UNREAD` | 邮件刚投递，玩家尚未查看 |
+| 已读 | `READ` | 玩家在收件箱中选中了该邮件 |
+| 已领取 | `CLAIMED` | 玩家领取了邮件附件和领取命令 |
+| 已删除 | `DELETED` | 玩家手动删除或管理员删除 |
+| 已过期 | `EXPIRED` | 邮件超过过期时间，由定时清理任务标记 |
+
+### 完整生命周期
+
+1. **发送**：系统/玩家/预设/CDK 触发邮件发送，邮件以 `UNREAD` 状态写入 `mail_entries` 表，附件写入 `mail_attachments` 表
+2. **投递通知**：若收件人在线，发送 ArcartX 聊天卡片通知（`axs_mail_notify`），并刷新收件箱 UI；若跨服启用，通过 Redis/Proxy 广播 `refresh:<uuid>` 消息
+3. **查看**：玩家打开收件箱（`/mail`），选中邮件时自动标记为 `READ`
+4. **领取**：玩家点击领取，系统检查领取条件（`claim-conditions`）、背包空间，原子标记为 `CLAIMED`，发放物品到背包、执行领取命令、存入货币
+5. **删除**：玩家手动删除（受 `allow-delete-with-unclaimed-attachments` 配置约束），标记为 `DELETED`
+6. **过期**：定时清理任务将超过 `expires_at` 的邮件标记为 `EXPIRED`
+7. **清理**：定时清理任务删除超过保留天数的 `CLAIMED`/`DELETED`/`EXPIRED` 邮件及其附件记录
+
+### 过期与清理
+
+| 配置项 | 默认值 | 说明 |
+|---|---|---|
+| `retention.cleanup-interval-ticks` | 1200 | 定时清理任务执行间隔（tick，1200 = 60 秒） |
+| `retention.default-expire-after-days` | 15 | 玩家邮件默认过期天数（从发送时间算起） |
+| `retention.claimed-retention-days` | 7 | 已领取邮件保留天数（超过后物理删除） |
+| `retention.deleted-retention-days` | 7 | 已删除邮件保留天数（超过后物理删除） |
+| `retention.allow-delete-with-unclaimed-attachments` | false | 是否允许删除含未领取附件的邮件 |
+
+预设邮件的过期时间由预设的 `expires-after-days` 字段控制，覆盖默认值。

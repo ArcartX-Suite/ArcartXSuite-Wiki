@@ -1,0 +1,470 @@
+---
+title: "签到系统"
+description: "OnlineRewards 签到子系统详解：基础签到、里程碑、日期/节日奖励、补签卡与权限组加成"
+---
+
+> **付费模块** — 本页详细说明 OnlineRewards 模块的签到子系统，包括基础签到、连续/累计签到里程碑、每月指定日期奖励、节日奖励、补签卡与权限组加成的配置方法与触发逻辑。
+
+签到系统是 OnlineRewards 模块的核心功能之一，配置文件为独立的 `sign-in.yml`。玩家每日可通过 `/signin` 命令或菜单 UI 执行签到，签到时系统按固定顺序收集并合并发放多层奖励。补签卡机制允许玩家对本月历史未签到日期进行补签，补签时同样触发完整的多层奖励链。
+
+## 签到奖励链
+
+每次签到（含补签）时，系统按以下顺序收集奖励并合并发放：
+
+| 顺序 | 奖励层 | 配置字段 | 触发条件 |
+|---|---|---|---|
+| 1 | 基础签到奖励 | `base-commands` / `base.mail.presets` / `base.item-rewards` | 每次签到固定发放 |
+| 2 | 每月指定日期奖励 | `day-of-month-rewards` | 当月 `day` 日签到时触发 |
+| 3 | 节日奖励 | `holiday-rewards` | 指定 `month` + `day` 签到时触发 |
+| 4 | 连续签到里程碑 | `streak-rewards` | 连续签到天数恰好等于 `days` 时触发 |
+| 5 | 累计签到里程碑 | `total-rewards` | 累计签到天数恰好等于 `days` 时触发 |
+| 6 | 权限组加成 | `permission-bonus-groups` | 拥有对应权限时额外触发，多组取 `priority` 最高 |
+
+> 所有奖励层的命令、邮件预设、物品奖励会被合并到一次发放中，不会分多次发送。
+
+### 签到执行流程
+
+```
+玩家执行 /signin 或点击菜单签到按钮
+  │
+  ├→ 检查今日是否已签到（DB 记录 + 缓存状态双重校验）
+  │    └→ 已签到 → 返回重复签到消息，流程终止
+  │
+  ├→ 写入签到记录到 online_rewards_sign_ins 表
+  │    └→ 写入失败（如重复键冲突）→ 返回失败消息，流程终止
+  │
+  ├→ 重新计算连续签到天数与累计签到天数
+  │    ├→ 连续天数：从签到日期向前连续回溯，断签则归零
+  │    └→ 累计天数：历史所有签到记录总天数
+  │
+  ├→ 收集奖励链（基础 + 日期 + 节日 + 连续里程碑 + 累计里程碑 + 权限加成）
+  │    ├→ 合并 commands 列表 → 逐条以控制台身份执行
+  │    ├→ 合并 mail.presets 列表 → 通过 Mail 模块发送邮件
+  │    └→ 合并 item-rewards 列表 → 通过 ItemSourceRegistry 统一发放
+  │
+  ├→ 刷新排行榜缓存
+  ├→ 刷新菜单 UI
+  ├→ 发布跨服刷新通知（若启用）
+  ├→ 发送签到成功信号（SignalDispatchable）
+  └→ 检查全服签到目标（见 [全服签到目标](/docs/onlinerewards/server-goals)）
+```
+
+## 基础签到
+
+基础签到奖励是每次签到固定发放的奖励，不依赖任何额外条件。
+
+| 字段 | 类型 | 默认值 | 说明 |
+|---|---|---|---|
+| `reminder-on-join` | `boolean` | `true` | 玩家进服时是否提醒未签到 |
+| `messages.sign-in-success` | `String` | — | 签到成功消息（支持 `{streak}` `{total}` `{date}` `{day}`） |
+| `messages.sign-in-repeat` | `String` | — | 重复签到消息 |
+| `messages.sign-in-reminder` | `String` | — | 进服提醒消息 |
+| `base-commands` | `List<String>` | — | 每次签到执行的命令（支持 `{player}` `{streak}` `{total}` `{date}` `{day}`） |
+| `base-rewardText` | `String` | — | 基础签到奖励描述 |
+| `base.icon` | `Map` | — | 基础签到 UI 图标（可选，见 [图标](/docs/guide/icons)） |
+| `base.mail.presets` | `List<String>` | — | 基础签到邮件预设列表 |
+| `base.item-rewards` | `List<Map>` | — | 基础签到物品奖励列表（见 [物品来源](/docs/guide/item-sources)） |
+
+### 消息变量
+
+签到消息支持以下变量替换：
+
+| 变量 | 说明 | 示例 |
+|---|---|---|
+| `{player}` | 玩家名称 | `Steve` |
+| `{streak}` | 连续签到天数 | `7` |
+| `{total}` | 累计签到天数 | `30` |
+| `{date}` | 签到日期（ISO 格式） | `2025-01-15` |
+| `{day}` | 当月第几天 | `15` |
+
+```yaml
+# sign-in.yml
+reminder-on-join: true
+
+messages:
+  sign-in-success: "§a今日签到成功，连续 {streak} 天，累计 {total} 天。"
+  sign-in-repeat: "§e今天已经签到过了。"
+  sign-in-reminder: "§e你今天还没有签到，输入 /signin 即可领取奖励。"
+
+base-commands:
+  - "say [签到] {player} 完成了今日签到"
+
+base-rewardText: "每日基础奖励"
+base:
+  icon:
+    material: WRITABLE_BOOK
+    name: "&f每日签到"
+  mail:
+    presets: []
+  item-rewards:
+    - source: "minecraft"
+      id: "DIAMOND"
+      amount: 1
+```
+
+## 连续签到里程碑
+
+连续签到里程碑奖励在玩家连续签到天数**恰好等于** `days` 时触发一次。
+
+- **连续天数计算**：从签到日期向前连续回溯。如果中间某天未签到，连续天数归零后重新计算。
+- **恰好等于**：连续签到 7 天的奖励只在第 7 天签到时触发一次，第 8 天不会重复触发。
+
+| 字段 | 类型 | 说明 |
+|---|---|---|
+| `days` | `int` | 触发该奖励所需的天数阈值（恰好等于时触发） |
+| `rewardText` | `String` | 奖励描述 |
+| `icon` | `Map` | UI 图标（可选，见 [图标](/docs/guide/icons)） |
+| `mail.presets` | `List<String>` | 邮件预设列表 |
+| `commands` | `List<String>` | 执行的命令（支持 `{player}` `{streak}` `{total}` `{date}` `{day}`） |
+| `item-rewards` | `List<Map>` | 物品奖励列表（见 [物品来源](/docs/guide/item-sources)） |
+
+```yaml
+# sign-in.yml
+streak-rewards:
+  - days: 3
+    rewardText: "连续签到 3 天奖励"
+    icon:
+      material: IRON_INGOT
+      name: "&f连续签到 3 天"
+    mail:
+      presets: []
+    commands:
+      - "say [签到] {player} 达成连续签到 {streak} 天"
+  - days: 7
+    rewardText: "连续签到 7 天奖励"
+    icon:
+      material: GOLD_INGOT
+      name: "&6连续签到 7 天"
+    mail:
+      presets: ["weekly_bonus"]
+    commands:
+      - "say [签到] {player} 达成连续签到 {streak} 天"
+  - days: 30
+    rewardText: "连续签到 30 天奖励"
+    icon:
+      material: NETHER_STAR
+      name: "&d连续签到 30 天"
+    mail:
+      presets: ["monthly_bonus"]
+    commands:
+      - "give {player} nether_star 1"
+```
+
+### 连续天数计算示例
+
+| 签到日期 | 前一天是否签到 | 连续天数 | 触发的里程碑 |
+|---|---|---|---|
+| 1月1日 | — | 1 | 无 |
+| 1月2日 | 是 | 2 | 无 |
+| 1月3日 | 是 | 3 | `days: 3` 触发 |
+| 1月4日 | 否（断签） | 1 | 无 |
+| 1月5日 | 是 | 2 | 无 |
+| 1月6日 | 是 | 3 | `days: 3` 再次触发 |
+
+> 断签后连续天数归零，重新从 1 开始计算。因此 `days: 3` 的里程碑可以在不同周期内多次触发。
+
+## 累计签到里程碑
+
+累计签到里程碑奖励在玩家历史累计签到天数**恰好等于** `days` 时触发一次。
+
+- **累计天数计算**：统计玩家所有历史签到记录的总天数（含补签）。
+- **恰好等于**：累计签到 30 天的奖励只在累计达到 30 天时触发一次，不会重复。
+
+字段结构与连续签到里程碑完全相同：
+
+```yaml
+# sign-in.yml
+total-rewards:
+  - days: 10
+    rewardText: "累计签到 10 天奖励"
+    icon:
+      material: DIAMOND
+      name: "&b累计签到 10 天"
+    mail:
+      presets: []
+    commands:
+      - "say [签到] {player} 达成累计签到 {total} 天"
+  - days: 30
+    rewardText: "累计签到 30 天奖励"
+    icon:
+      material: NETHER_STAR
+      name: "&d累计签到 30 天"
+    mail:
+      presets: ["total_30_reward"]
+    commands:
+      - "say [签到] {player} 达成累计签到 {total} 天"
+```
+
+### 连续 vs 累计对比
+
+| 特性 | 连续签到（`streak-rewards`） | 累计签到（`total-rewards`） |
+|---|---|---|
+| 计算方式 | 从签到日期向前连续回溯 | 历史所有签到记录总和 |
+| 断签影响 | 连续天数归零重新计算 | 不受影响，持续累加 |
+| 可重复触发 | 是（断签后重新达成可再次触发） | 否（每个阈值仅触发一次） |
+| 适用场景 | 激励玩家保持每日签到 | 奖励长期活跃的忠实玩家 |
+
+## 每月指定日期奖励
+
+每月指定日期奖励在当月 `day` 日签到时额外触发。适合设置每月固定日的特殊奖励（如每月 1 号、15 号）。
+
+| 字段 | 类型 | 说明 |
+|---|---|---|
+| `day` | `int` | 每月几号（1-31） |
+| `rewardText` | `String` | 奖励描述 |
+| `icon` | `Map` | UI 图标（可选） |
+| `mail.presets` | `List<String>` | 邮件预设列表 |
+| `commands` | `List<String>` | 执行的命令 |
+| `item-rewards` | `List<Map>` | 物品奖励列表 |
+
+```yaml
+# sign-in.yml
+day-of-month-rewards:
+  - day: 1
+    rewardText: "每月 1 号奖励"
+    icon:
+      material: SUNFLOWER
+      name: "&e每月 1 号签到"
+    mail:
+      presets: []
+    commands:
+      - "say [签到] {player} 完成每月 1 号签到"
+  - day: 15
+    rewardText: "每月 15 号奖励"
+    icon:
+      material: REDSTONE
+      name: "&c每月 15 号签到"
+    mail:
+      presets: ["mid_month_bonus"]
+    commands:
+      - "say [签到] {player} 完成每月 15 号签到"
+```
+
+## 节日奖励
+
+节日奖励在指定 `month` 月 `day` 日签到时额外触发。与每月指定日期奖励不同，节日奖励只在特定月份的特定日期触发（如 1月1日元旦），且支持节日名称展示。
+
+| 字段 | 类型 | 说明 |
+|---|---|---|
+| `month` | `int` | 节日月份（1-12） |
+| `day` | `int` | 节日日期（1-31） |
+| `name` | `String` | 节日名称（用于 UI 展示） |
+| `rewardText` | `String` | 奖励描述 |
+| `icon` | `Map` | UI 图标（可选） |
+| `mail.presets` | `List<String>` | 邮件预设列表 |
+| `commands` | `List<String>` | 执行的命令 |
+| `item-rewards` | `List<Map>` | 物品奖励列表 |
+
+```yaml
+# sign-in.yml
+holiday-rewards:
+  - month: 1
+    day: 1
+    name: "元旦签到"
+    rewardText: "元旦签到奖励"
+    mail:
+      presets: ["new_year_bonus"]
+    commands:
+      - "say [签到] {player} 完成元旦签到"
+  - month: 10
+    day: 1
+    name: "国庆签到"
+    rewardText: "国庆签到奖励"
+    mail:
+      presets: ["national_day_bonus"]
+    commands:
+      - "say [签到] {player} 完成国庆签到"
+    item-rewards:
+      - source: "minecraft"
+        id: "FIREWORK_ROCKET"
+        amount: 3
+```
+
+## 权限组加成
+
+拥有对应权限的玩家签到时额外发放一组奖励。当玩家匹配多个权限组时，取 `priority` 最高的一组。
+
+| 字段 | 类型 | 说明 |
+|---|---|---|
+| `permission` | `String` | 触发该奖励所需的权限节点 |
+| `priority` | `int` | 优先级，数值越大越优先匹配 |
+| `rewardText` | `String` | 奖励描述 |
+| `icon` | `Map` | UI 图标（可选） |
+| `mail.presets` | `List<String>` | 邮件预设列表 |
+| `commands` | `List<String>` | 执行的命令 |
+| `item-rewards` | `List<Map>` | 物品奖励列表 |
+
+```yaml
+# sign-in.yml
+permission-bonus-groups:
+  - permission: "ArcartXSuite.onlinerewards.signin.bonus"
+    priority: 10
+    rewardText: "VIP 签到额外奖励"
+    mail:
+      presets: ["vip_signin_bonus"]
+    commands:
+      - "say [签到] {player} 领取了 VIP 签到额外奖励"
+    item-rewards:
+      - source: "minecraft"
+        id: "DIAMOND"
+        amount: 2
+  - permission: "ArcartXSuite.onlinerewards.signin.bonus.mvp"
+    priority: 20
+    rewardText: "MVP 签到额外奖励"
+    mail:
+      presets: ["mvp_signin_bonus"]
+    commands:
+      - "say [签到] {player} 领取了 MVP 签到额外奖励"
+    item-rewards:
+      - source: "minecraft"
+        id: "NETHER_STAR"
+        amount: 1
+```
+
+> 上例中，同时拥有两个权限的玩家只会触发 `priority: 20` 的 MVP 组，不会重复发放 VIP 组的奖励。
+
+## 补签卡
+
+补签卡允许玩家对本月今天之前未签到的日期进行补签。补签时消耗 1 张补签卡，补签日期的签到奖励与正常签到一致（完整奖励链：基础 + 日期 + 节日 + 里程碑 + 权限加成）。
+
+### 补签配置
+
+| 字段 | 类型 | 默认值 | 说明 |
+|---|---|---|---|
+| `makeup.enabled` | `boolean` | `true` | 是否启用补签功能 |
+| `makeup.card-name` | `String` | `补签卡` | 补签卡显示名称 |
+| `makeup.success` | `String` | — | 补签成功消息（支持 `{card}` `{cards}` `{date}`） |
+| `makeup.no-card` | `String` | — | 补签卡不足消息 |
+| `makeup.invalid-date` | `String` | — | 日期无效消息 |
+| `makeup.already-signed` | `String` | — | 该日期已签到消息 |
+
+### 补签消息变量
+
+| 变量 | 说明 |
+|---|---|
+| `{card}` | 补签卡名称（来自 `makeup.card-name`） |
+| `{cards}` | 当前剩余补签卡数量 |
+| `{date}` | 补签日期 |
+
+```yaml
+# sign-in.yml
+makeup:
+  enabled: true
+  card-name: "补签卡"
+  success: "§a已消耗 1 张{card}补签 {date}，当前剩余 {cards} 张。"
+  no-card: "§c你的{card}不足，无法补签。"
+  invalid-date: "§c只能补签本月今天之前未签到的日期。"
+  already-signed: "§e该日期已经签到过了。"
+```
+
+### 补签规则
+
+| 规则 | 说明 |
+|---|---|
+| 日期范围 | 仅可补签本月今天之前的日期（不支持跨月补签） |
+| 重复检查 | 目标日期已有签到记录时不允许补签 |
+| 消耗 | 每次补签消耗 1 张补签卡 |
+| 奖励 | 补签触发与正常签到相同的完整奖励链 |
+| 连续天数 | 补签会重新计算连续签到天数和累计签到天数 |
+
+### 补签卡管理
+
+补签卡数量通过管理员命令调整：
+
+```bash
+# 给玩家增加 5 张补签卡
+/axs onlinerewards card add 5 Steve
+
+# 扣除玩家 3 张补签卡
+/axs onlinerewards card remove 3 Alex
+
+# 设置玩家补签卡数量为 10
+/axs onlinerewards card set 10 Steve
+```
+
+## 签到日历 UI
+
+签到日历通过 ArcartX 客户端 UI 实现，玩家可以在日历中查看本月签到历史、预览某日奖励、执行补签操作。
+
+### 日历交互
+
+| 操作 | UI Action | 说明 |
+|---|---|---|
+| 翻到上个月 | `calendar_prev` | 日历月份偏移 -1（最多回退 1 个月） |
+| 翻到下个月 | `calendar_next` | 日历月份偏移 +1（最多前进 1 个月） |
+| 回到今天 | `calendar_today` | 日历回到当月，选中今天 |
+| 预览某日 | `preview_day` | 选中指定日期，展示该日奖励预览 |
+| 执行补签 | `makeup` | 对选中日期执行补签（消耗补签卡） |
+| 执行签到 | `signin` | 执行今日签到 |
+
+### 日历行数据
+
+每行日历数据包含以下字段：
+
+| 字段 | 类型 | 说明 |
+|---|---|---|
+| `date` | `String` | 日期（ISO 格式） |
+| `day` | `int` | 当月第几天 |
+| `label` | `String` | 显示标签 |
+| `signed` | `boolean` | 是否已签到 |
+| `today` | `boolean` | 是否为今天 |
+| `selected` | `boolean` | 是否被选中 |
+| `future` | `boolean` | 是否为未来日期 |
+| `expired` | `boolean` | 是否为已过期未签到日期 |
+| `status` | `String` | 状态（`signed` / `future` / `expired` / `open`） |
+| `statusText` | `String` | 状态文本 |
+| `canMakeup` | `boolean` | 该日期是否可补签 |
+
+> 日历仅支持查看当月前后 1 个月（偏移范围 -1 到 +1），不支持查看更早的历史月份。
+
+## 签到历史查询
+
+玩家可通过命令查看签到历史：
+
+```bash
+# 查看最近 6 个月签到历史
+/onlinerewards history
+
+# 查看最近 12 个月签到历史
+/onlinerewards history 12
+```
+
+输出示例：
+
+```
+◆ ArcartXSuite | 最近 6 个月签到历史：
+2025-01: 25 / 31 天
+2024-12: 30 / 31 天
+2024-11: 20 / 30 天
+```
+
+### PlaceholderAPI 占位符
+
+| 占位符 | 返回值 | 说明 |
+|---|---|---|
+| `%axsonlinerewards_signin_signed_today%` | `boolean` | 今日是否已签到 |
+| `%axsonlinerewards_signin_streak%` | `int` | 当前连续签到天数 |
+| `%axsonlinerewards_signin_total%` | `int` | 累计签到天数 |
+| `%axsonlinerewards_signin_history_yyyy-MM_count%` | `int` | 指定月份签到天数 |
+
+## 签到信号
+
+签到成功后，模块通过 `SignalDispatchable` 发送 `signin_success` 信号，其他模块可监听该信号触发联动逻辑。
+
+| 信号变量 | 说明 |
+|---|---|
+| `streak` | 连续签到天数 |
+| `total` | 累计签到天数 |
+| `date` | 签到日期 |
+| `day_of_month` | 当月第几天 |
+
+> 信号机制详见 [联动](/docs/onlinerewards/integration) 页面的 SignalDispatchable 章节。
+
+## 配置注意事项
+
+1. **`sign-in.yml` 为必需文件**：模块启动时如果找不到该文件会抛出异常并阻止加载
+2. **里程碑"恰好等于"**：连续/累计里程碑只在天数恰好等于阈值时触发，不会在超过后重复触发
+3. **补签不跨月**：补签仅限本月今天之前的日期，不支持跨月补签
+4. **权限组单选**：多组权限匹配时只取 `priority` 最高的一组，不会叠加发放
+5. **时区影响**：跨天判定受 `settings.timezone` 配置影响，海外服务器建议显式设置时区
+6. **跨服同步**：签到/补签后会通知其他子服刷新缓存与 UI（需启用跨服同步）

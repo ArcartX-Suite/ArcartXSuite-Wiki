@@ -1,0 +1,369 @@
+---
+title: 鱼类配置
+description: Fishing 鱼类定义、稀有度与奖励
+---
+
+# 鱼类配置
+
+鱼类定义文件位于 `plugins/ArcartXSuite/data/fishing/fishes/` 目录下，每个 `.yml` 文件定义一种鱼。模块首次启动时会自动导出默认鱼类文件，用户已修改的文件不会被覆盖。
+
+## 鱼类定义字段表
+
+### 基础属性
+
+| 字段 | 类型 | 默认值 | 说明 |
+| --- | --- | --- | --- |
+| `id` | string | 文件名 | 鱼类唯一标识符 |
+| `display-name` | string | id | 显示名称（支持颜色代码 `&`） |
+| `rarity` | string | `COMMON` | 稀有度（`COMMON`/`UNCOMMON`/`RARE`/`LEGENDARY`） |
+| `min-size` | int | `1` | 最小尺寸（厘米） |
+| `max-size` | int | `10` | 最大尺寸（厘米） |
+| `base-price` | int | `10` | 基础售价 |
+| `base-xp` | int | `5` | 基础经验值 |
+| `difficulty` | int | `30` | 钓鱼难度（0-100） |
+| `record-weight` | double | `1.0` | 图鉴排序权重（越大越靠前） |
+| `description` | string | - | 鱼类描述（图鉴展示） |
+
+### 出现条件
+
+| 字段 | 类型 | 默认值 | 说明 |
+| --- | --- | --- | --- |
+| `seasons` | list | 全部 | 可捕季节（`spring`/`summer`/`fall`/`winter`） |
+| `weathers` | list | `["clear", "rain"]` | 可捕天气（`clear`/`rain`） |
+| `time-ranges` | list | `06:00-20:00` | 可捕时段（`start`/`end`，支持跨午夜） |
+| `min-player-level` | int | `0` | 最低钓鱼等级（0 = 不限） |
+| `max-player-level` | int | `0` | 最高钓鱼等级（0 = 不限） |
+| `require-permission` | string | - | 钓到此鱼所需权限 |
+| `biomes` | list | 不限 | 生物群系限制（如 `[river, ocean]`） |
+| `depth-range.min-depth` | int | `0` | 最小水深（方块深度，从水面往下） |
+| `depth-range.max-depth` | int | `256` | 最大水深 |
+
+### 物品与图标
+
+| 字段 | 类型 | 默认值 | 说明 |
+| --- | --- | --- | --- |
+| `item` | map | `minecraft:cod` | 捕获后掉落的物品（[IconDefinition](/docs/guide/icons) 格式） |
+| `icon` | map | 回退到 item | 图鉴/小游戏中的鱼图标 |
+
+`item` 和 `icon` 支持 `source: minecraft/mythic/neige/overture/mmoitems`，详见 [物品来源](/docs/guide/item-sources)。
+
+### 小游戏行为
+
+| 字段 | 类型 | 说明 |
+| --- | --- | --- |
+| `behaviors` | list | 小游戏中鱼的行为模式及权重 |
+| `behavior-stages` | map | 多阶段行为（进度达到 threshold 后切换行为模式） |
+
+**行为类型**（`FishBehaviorType`）：
+
+| 类型 | 说明 |
+| --- | --- |
+| `SMOOTH` | 平滑型：多频率正弦叠加 + 随机噪声 + 偶发突进 + 停留抖动 |
+| `DART` | 突进型：不规则间隔突进 + 游荡 + 偶发停留 |
+| `SINKER` | 下沉型：整体下沉 + 不规则波动 + 偶发上突 |
+| `FLOATER` | 上浮型：整体上浮 + 不规则波动 + 偶发下突 |
+| `MIXED` | 混合型：在 smooth/dart/sinker/floater 之间随机切换 |
+| `ZIGZAG` | 之字型：规律性左右摆动，幅度和频率随难度增加 |
+| `IDLE` | 停滞型：长时间几乎不动，偶尔突然突进 |
+
+### 小游戏机制覆盖（可选）
+
+每条鱼可独立覆盖全局配置的进度参数和逃离参数。未配置的字段使用全局默认值。
+
+| 字段 | 类型 | 说明 |
+| --- | --- | --- |
+| `progress-gain.base-rate` | double | 鱼在绿条内时进度上升速率（覆盖全局 base-rate，formula 沿用全局） |
+| `progress-drain.base-rate` | double | 鱼在绿条外时进度下降速率（覆盖全局 base-rate，formula 沿用全局） |
+| `flee-params.*` | map | 覆盖全局逃离参数（见下表） |
+
+`flee-params` 可覆盖的字段（全部可选，null 表示用全局默认值）：
+
+| 字段 | 说明 |
+| --- | --- |
+| `base-chance` | 逃离基础概率 |
+| `chance-per-difficulty` | 每点难度增加的逃离概率 |
+| `base-speed` | 逃离基础速度 |
+| `speed-per-difficulty` | 每点难度增加的逃离速度 |
+| `min-duration` / `max-duration` | 逃离持续 ticks 范围 |
+| `check-min-interval` / `check-max-interval` | 逃离检查间隔 ticks 范围 |
+| `cooldown-min` / `cooldown-max` | 逃离冷却 ticks 范围 |
+
+### 奖励配置
+
+| 字段 | 类型 | 说明 |
+| --- | --- | --- |
+| `currency-reward` | map | 单个货币奖励（`currency-id` + `amount`） |
+| `currency-rewards` | list | 多货币奖励列表（与 `currency-reward` 叠加生效） |
+| `drops` | map | 额外物品掉落（支持条件掉落） |
+| `command-rewards` | list | 命令奖励（以控制台身份执行） |
+
+**条件掉落**（`drops` 中的 `condition` 字段）：
+
+| 条件 | 说明 |
+| --- | --- |
+| `""` | 无条件 |
+| `perfect` | 完美捕获时掉落 |
+| `size:N` | 尺寸 ≥ N cm 时掉落 |
+| `first_catch` | 首次捕获此鱼时掉落 |
+
+多条件用逗号分隔（全部满足才掉落），如 `"perfect,size:200"`。
+
+**命令奖励**支持占位符：`{player}`（玩家名）、`{fish}`（鱼 ID）、`{size}`（尺寸）。
+
+## 稀有度系统
+
+| 稀有度 | 权重乘数 | 说明 |
+| --- | --- | --- |
+| `COMMON` | 1.0 | 常见，出现概率最高 |
+| `UNCOMMON` | 0.6 | 不常见 |
+| `RARE` | 0.4 | 稀有 |
+| `LEGENDARY` | 0.1 | 传说级，出现概率极低 |
+
+稀有度权重乘数参与鱼池的加权随机选择。最终权重计算：
+
+```
+权重 = rarity.weightMultiplier()
+     × 饵料吸引倍率（bait.fishAttractModifiers[fishId]）
+     × 鱼饵偏好倍率（fish.baitPreferences[baitId].multiplier）
+     × 水域饵料倍率（water.baitMultipliers[baitId]）
+```
+
+## 尺寸与价格计算
+
+捕获尺寸在 `[min-size, max-size]` 范围内随机。尺寸影响经验和售价：
+
+- **尺寸因子** = `(caughtSize - minSize) / (maxSize - minSize)`，clamp 到 [0.5, 1.5]
+- **经验** = `baseXp × 尺寸因子`，完美捕获额外 ×1.5
+- **售价** = `basePrice × 尺寸因子`
+
+## 鱼类配置示例
+
+### 基础鱼类（鲤鱼）
+
+```yaml
+id: "carp"
+display-name: "鲤鱼"
+rarity: common
+min-size: 15
+max-size: 50
+base-price: 60
+base-xp: 20
+seasons: [spring, summer, fall]
+weathers: [clear, rain]
+time-ranges:
+  - start: "00:00"
+    end: "24:00"
+item:
+  source: minecraft
+  id: salmon
+  amount: 1
+difficulty: 20
+behaviors:
+  - type: smooth
+    weight: 0.6
+  - type: floater
+    weight: 0.2
+  - type: sinker
+    weight: 0.2
+progress-drain:
+  base-rate: 0.012
+progress-gain:
+  base-rate: 0.012
+flee-params:
+  base-chance: 0.15
+  base-speed: 0.03
+  min-duration: 12
+  max-duration: 25
+behavior-stages:
+  stage1:
+    threshold: 0.0
+    behaviors:
+      - type: smooth
+        weight: 0.6
+      - type: floater
+        weight: 0.2
+      - type: sinker
+        weight: 0.2
+  stage2:
+    threshold: 0.6
+    behaviors:
+      - type: smooth
+        weight: 0.4
+      - type: dart
+        weight: 0.3
+      - type: sinker
+        weight: 0.2
+      - type: floater
+        weight: 0.1
+currency-reward:
+  currency-id: "money"
+  amount: 20
+drops:
+  big_carp_bonus:
+    item:
+      source: minecraft
+      id: salmon
+      amount: 1
+    weight: 1.0
+    condition: "size:40"
+min-player-level: 10
+description: "常见的淡水鱼，体型中等，活力充沛，后期会稍有挣扎。"
+icon:
+  source: minecraft
+  id: salmon
+record-weight: 0.5
+```
+
+### 传说鱼类（全字段展示）
+
+```yaml
+id: "legendary_carp"
+display-name: "传说鲤鱼"
+rarity: legendary
+min-size: 80
+max-size: 250
+base-price: 2000
+base-xp: 300
+seasons: [spring]
+weathers: [rain]
+time-ranges:
+  - start: "05:00"
+    end: "07:00"
+item:
+  source: minecraft
+  id: enchanted_golden_apple
+  amount: 1
+difficulty: 90
+behaviors:
+  - type: dart
+    weight: 0.5
+  - type: sinker
+    weight: 0.3
+  - type: floater
+    weight: 0.2
+progress-gain:
+  base-rate: 0.008
+progress-drain:
+  base-rate: 0.032
+flee-params:
+  base-chance: 0.35
+  speed-per-difficulty: 0.04
+  min-duration: 20
+behavior-stages:
+  stage1:
+    threshold: 0.0
+    behaviors:
+      - type: smooth
+        weight: 0.7
+      - type: dart
+        weight: 0.3
+  stage2:
+    threshold: 0.5
+    behaviors:
+      - type: dart
+        weight: 0.6
+      - type: zigzag
+        weight: 0.4
+  stage3:
+    threshold: 0.8
+    behaviors:
+      - type: mixed
+        weight: 0.5
+      - type: idle
+        weight: 0.5
+currency-reward:
+  currency-id: "money"
+  amount: 500
+currency-rewards:
+  reward1:
+    currency-id: "gem"
+    amount: 10
+  reward2:
+    currency-id: "reputation"
+    amount: 50
+drops:
+  rare_drop:
+    item:
+      source: minecraft
+      id: nether_star
+      amount: 1
+    weight: 1.0
+    condition: "perfect"
+  big_fish_bonus:
+    item:
+      source: minecraft
+      id: diamond
+      amount: 3
+    weight: 1.0
+    condition: "size:200"
+  first_catch_reward:
+    item:
+      source: minecraft
+      id: golden_apple
+      amount: 5
+    weight: 1.0
+    condition: "first_catch"
+command-rewards:
+  announce:
+    command: "say {player} 钓到了一条 {size}cm 的传说鲤鱼！"
+    condition: ""
+  give_title:
+    command: "title {player} title \"&6传说渔夫！\""
+    condition: "perfect"
+min-player-level: 30
+require-permission: "axs.fishing.legendary"
+bait-preferences:
+  worm_pref:
+    bait-id: "worm"
+    multiplier: 0.5
+  special_bait:
+    bait-id: "golden_bait"
+    multiplier: 3.0
+biomes: [river, ocean]
+depth-range:
+  min-depth: 5
+  max-depth: 50
+description: "传说中的金色鲤鱼，据说只有最虔诚的渔夫才能在黎明的雨中湖畔遇见它。"
+icon:
+  source: minecraft
+  id: enchanted_golden_apple
+record-weight: 2.0
+```
+
+### 疲惫值特殊鱼
+
+疲惫值 > 90 时有概率出现的特殊鱼类，配置方式与普通鱼类一致。在 `fatigue.yml` 的 `special-fishes` 列表中引用其 ID 即可。
+
+```yaml
+id: fatigue_ghost_fish
+display-name: "幽灵鱼"
+rarity: LEGENDARY
+min-size: 1
+max-size: 15
+base-price: 500
+base-xp: 100
+seasons: [spring, summer, fall, winter]
+weathers: [clear, rain]
+time-ranges:
+  default:
+    start: "00:00"
+    end: "24:00"
+item:
+  source: minecraft
+  id: cod
+  amount: 1
+difficulty: 75
+min-player-level: 10
+behaviors:
+  smooth:
+    type: SMOOTH
+    weight: 0.5
+  erratic:
+    type: DART
+    weight: 0.5
+currency-reward:
+  currency-id: "money"
+  amount: 100
+description: "极度疲惫时出现的幽灵之鱼，据说只有在精疲力竭时才能看到它的身影"
+record-weight: 2.0
+```

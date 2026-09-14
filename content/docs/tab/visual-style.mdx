@@ -1,0 +1,349 @@
+---
+title: 视觉风格与占位符
+description: Tab 模块 PVP 高亮、隐身灰化、延迟图标、隐私脱敏与 PlaceholderAPI 占位符系统
+---
+
+# 视觉风格与占位符
+
+> **付费模块**
+
+Tab 模块的视觉风格系统通过 PlaceholderAPI 占位符向 `pack` 模板暴露玩家状态信息，包括 PVP 高亮、隐身灰化、延迟图标与隐私脱敏。这些占位符不修改 pack 渲染逻辑本身，而是在 pack 字符串中作为颜色前缀或状态文本插入，由 UI 端最终渲染。
+
+## 视觉风格配置
+
+视觉风格配置位于 `ArcartXTab.yml` 的 `settings.style` 节，控制三种视觉效果的开关与参数。
+
+### pvp-highlight
+
+PVP 高亮在玩家参与 PVP 后的一定时间窗口内，通过 `%axstab_pvp_color%` 占位符输出指定颜色码，使玩家名称在 Tab 中高亮显示。
+
+| 字段 | 类型 | 默认值 | 说明 |
+|---|---|---|---|
+| `enabled` | `boolean` | `false` | 是否启用 PVP 高亮 |
+| `window-ms` | `long` | `5000` | PVP 高亮有效窗口（毫秒），玩家最近一次参与 PVP 后在此窗口内视为 PVP 状态 |
+| `color` | `String` | `&c` | PVP 高亮颜色，通过 `%axstab_pvp_color%` 输出 |
+
+```yaml
+settings:
+  style:
+    pvp-highlight:
+      enabled: true
+      window-ms: 5000
+      color: "&c"
+```
+
+### PVP 事件监听
+
+`TabPvpListener` 监听 `EntityDamageByEntityEvent`（`MONITOR` 优先级，忽略已取消事件），记录玩家间伤害的时间戳。
+
+| 事件 | 监听器行为 |
+|---|---|
+| `EntityDamageByEntityEvent` | 解析攻击者（含投射物 shooter）与受害者，调用 `recordPvpEvent(attackerId, victimId)` 记录时间戳 |
+
+监听器在模块启动时始终注册，是否生效由 `settings.style.pvp-highlight.enabled` 在 `isPvpActive()` 读取时校验，避免反复装拆 Listener。以下情况不记录 PVP 事件：
+
+- 攻击者与受害者为同一玩家（自身伤害）
+- 事件已被取消（`ignoreCancelled = true`）
+- 攻击者与受害者均为 null
+
+### PVP 高亮判定逻辑
+
+```
+isPvpActive(player):
+  1. 检查 style.pvpEnabled → false 则返回 false
+  2. 读取 lastPvpAtByUuid[player.uuid]
+  3. 当前时间 - 记录时间 <= style.pvpWindowMs → 返回 true
+  4. 否则返回 false
+```
+
+> PVP 时间戳存储在内存中（`lastPvpAtByUuid` Map），服务端重启后重置。攻击者与受害者都会被记录，因此 PVP 中双方都会高亮。
+
+### vanish-grey
+
+隐身灰化在玩家处于隐身状态时，通过 `%axstab_vanish_color%` 占位符输出指定颜色码，使隐身玩家名称在 Tab 中显示为灰色。
+
+| 字段 | 类型 | 默认值 | 说明 |
+|---|---|---|---|
+| `enabled` | `boolean` | `false` | 是否启用隐身灰化 |
+| `color` | `String` | `&7` | 隐身灰色颜色，通过 `%axstab_vanish_color%` 输出 |
+
+```yaml
+settings:
+  style:
+    vanish-grey:
+      enabled: true
+      color: "&7"
+```
+
+### 隐身检测机制
+
+模块通过 Bukkit `vanished` metadata 判定玩家是否隐身，兼容以下插件：
+
+| 插件 | 隐身标记方式 |
+|---|---|
+| Essentials | `/vanish` 设置 `vanished` metadata |
+| SuperVanish | 隐身时设置 `vanished` metadata |
+| PremiumVanish | 隐身时设置 `vanished` metadata |
+| 其他 | 任何设置 `vanished` metadata 为 `true` 的插件 |
+
+> 隐身检测与 `filters.hide-vanished` 是独立功能。`hide-vanished` 会将隐身玩家从 Tab 列表中完全移除，而 `vanish-grey` 仅改变隐身玩家的显示颜色。两者可同时启用：隐身玩家先被 `hide-vanished` 过滤，若未被过滤则由 `vanish-grey` 灰化显示。
+
+### ping-icon
+
+延迟图标根据玩家网络延迟（ping）按档位输出不同的图标文本，通过 `%axstab_ping_icon%` 占位符在 pack 中使用。
+
+| 字段 | 类型 | 默认值 | 说明 |
+|---|---|---|---|
+| `enabled` | `boolean` | `false` | 是否启用延迟图标 |
+| `tiers` | `List<Map>` | 见下 | 延迟档位列表，按 `max-ms` 升序匹配 |
+
+### tiers 元素字段
+
+| 字段 | 类型 | 说明 |
+|---|---|---|
+| `max-ms` | `int` | 延迟上限（毫秒），玩家 ping `<=` 此值时匹配此档位 |
+| `icon` | `String` | 匹配时输出的图标文本 |
+
+### 默认 tiers 配置
+
+```yaml
+settings:
+  style:
+    ping-icon:
+      enabled: true
+      tiers:
+        - { max-ms: 80,   icon: "&a▮▮▮▮" }
+        - { max-ms: 160,  icon: "&e▮▮▮▯" }
+        - { max-ms: 300,  icon: "&6▮▮▯▯" }
+        - { max-ms: 9999, icon: "&c▮▯▯▯" }
+```
+
+### 延迟图标匹配逻辑
+
+模块按 `tiers` 列表顺序逐个比较玩家的 ping 值，找到第一个 `ping <= max-ms` 的档位即返回其 `icon`。如果所有档位都不匹配，返回列表最后一个档位的 `icon`。
+
+| ping 范围 | 匹配档位 | 输出图标 |
+|---|---|---|
+| `0 ~ 80` | 第一档 | `&a▮▮▮▮`（绿色满格） |
+| `81 ~ 160` | 第二档 | `&e▮▮▮▯`（黄色三格） |
+| `161 ~ 300` | 第三档 | `&6▮▮▯▯`（橙色两格） |
+| `301+` | 第四档 | `&c▮▯▯▯`（红色一格） |
+
+> `tiers` 列表应按 `max-ms` 升序排列。如果配置的列表未排序，模块仍按列表顺序匹配，可能导致低延迟匹配到高延迟档位。建议最后一个档位的 `max-ms` 设为 `9999` 作为兜底。
+
+## 隐私脱敏
+
+隐私脱敏配置位于 `settings.privacy` 节，控制 `%axstab_uuid%` 与 `%axstab_ip%` 占位符的脱敏行为。
+
+| 字段 | 类型 | 默认值 | 说明 |
+|---|---|---|---|
+| `hide-uuid` | `boolean` | `false` | 隐藏 UUID（截断为前 8 位 + `...`） |
+| `hide-ip` | `boolean` | `false` | 隐藏 IP（最后一段替换为 `***`） |
+
+```yaml
+settings:
+  privacy:
+    hide-uuid: true
+    hide-ip: true
+```
+
+### 脱敏效果
+
+| 占位符 | 原始值 | 脱敏后 |
+|---|---|---|
+| `%axstab_uuid%` | `550e8400-e29b-41d4-a716-446655440000` | `550e8400...` |
+| `%axstab_ip%` | `192.168.1.100` | `192.168.1.***` |
+
+> 隐私脱敏仅影响 `%axstab_uuid%` 与 `%axstab_ip%`。如果 pack 中使用 `{player_uuid}` 或 `%player_uuid%`（原版 PAPI），则不受脱敏控制。建议在需要保护隐私的场景统一使用 `%axstab_uuid%` / `%axstab_ip%`。
+
+## PlaceholderAPI 占位符
+
+Tab 模块注册 identifier 为 `axstab` 的 PAPI 扩展（`TabPlaceholderExpansion`），提供以下占位符。
+
+### 视觉风格占位符
+
+| 占位符 | 返回值 | 说明 |
+|---|---|---|
+| `%axstab_pvp%` | `true` / `false` | 是否处于 PVP 高亮窗口内 |
+| `%axstab_pvp_color%` | 颜色码或空串 | PVP 高亮颜色，未启用或不在窗口返回空串 |
+| `%axstab_vanished%` | `true` / `false` | 是否隐身 |
+| `%axstab_vanish_color%` | 颜色码或空串 | 隐身灰色颜色，未启用或未隐身返回空串 |
+| `%axstab_ping%` | 数字 | 当前延迟（ms） |
+| `%axstab_ping_icon%` | 图标文本或空串 | 按 `tiers` 匹配的延迟图标，未启用返回空串 |
+| `%axstab_uuid%` | UUID 字符串 | 玩家 UUID，受 `privacy.hide-uuid` 脱敏 |
+| `%axstab_ip%` | IP 地址 | 玩家 IP，受 `privacy.hide-ip` 脱敏 |
+
+### 占位符返回值详解
+
+#### %axstab_pvp%
+
+返回 `true` 或 `false` 字符串。判定条件：`style.pvpEnabled` 为 true **且** 玩家在 `window-ms` 时间窗口内参与过 PVP。
+
+#### %axstab_pvp_color%
+
+- PVP 高亮启用 **且** 玩家处于 PVP 窗口内 → 返回 `style.pvpColor`（如 `&c`）
+- PVP 高亮未启用 **或** 玩家不在窗口内 → 返回空串
+
+#### %axstab_vanished%
+
+返回 `true` 或 `false`。通过 Bukkit `vanished` metadata 判定，不依赖 `style.vanishEnabled`。
+
+#### %axstab_vanish_color%
+
+- 隐身灰化启用 **且** 玩家处于隐身状态 → 返回 `style.vanishColor`（如 `&7`）
+- 隐身灰化未启用 **或** 玩家未隐身 → 返回空串
+
+#### %axstab_ping%
+
+返回玩家当前延迟（毫秒），通过 `Player.getPing()` 获取，最小为 0。
+
+#### %axstab_ping_icon%
+
+- 延迟图标启用 → 按 `tiers` 列表匹配返回对应 `icon`
+- 延迟图标未启用 → 返回空串
+
+### 定义级占位符
+
+格式为 `%axstab_<definitionId>_<metric>%`，其中 `definitionId` 为 Tab 定义 ID（文件名去掉 `.yml`）。
+
+| 占位符 | 返回值 | 说明 |
+|---|---|---|
+| `%axstab_<def>_count%` | 数字 | 本服在指定 definition 下当前可见的玩家数 |
+| `%axstab_<def>_total%` | 数字 | 本服 + 跨服节点合计的玩家数 |
+| `%axstab_<def>_rank%` | 数字 | 玩家在指定 definition 排序中的位次（1 起，不可见返回 0） |
+| `%axstab_<def>_view%` | 字符串 | 玩家当前 view |
+| `%axstab_<def>_page%` | 数字 | 玩家在指定 definition 的当前页码（0 起） |
+
+> 示例：`%axstab_online-tab_count%` 返回 `online-tab` 定义下本服可见玩家数。`%axstab_arena_rank%` 返回玩家在 `arena` 定义中的排名。
+
+### 占位符解析顺序
+
+定义级占位符通过 `lastUnderscore` 拆分 `definitionId` 与 `metric`。例如 `%axstab_online-tab_count%` 拆分为 `definitionId = "online-tab"`、`metric = "count"`。如果 `definitionId` 中包含下划线（如 `my_tab`），拆分点为最后一个下划线。
+
+> 定义级占位符的 `count` / `total` / `rank` 值基于最近一次排序结果（`lastSortedByDef`），在每次周期刷新或强制刷新后更新。在两次刷新之间，这些值可能短暂过期。
+
+## pack 中的占位符组合
+
+视觉风格占位符通常作为颜色前缀组合在 pack 的 `name` 字段中，实现状态驱动的动态着色。
+
+### 基础组合
+
+```yaml
+pack:
+  name: "%axstab_pvp_color%%axstab_vanish_color%%player_name%"
+```
+
+渲染效果：
+
+| 玩家状态 | `%axstab_pvp_color%` | `%axstab_vanish_color%` | 最终 name |
+|---|---|---|---|
+| 正常 | (空) | (空) | `Alice` |
+| PVP 中 | `&c` | (空) | `&cAlice`（红色） |
+| 隐身 | (空) | `&7` | `&7Alice`（灰色） |
+| PVP 中且隐身 | `&c` | `&7` | `&c&7Alice`（后者覆盖，灰色） |
+
+> Minecraft 颜色码遵循"后者覆盖"规则。当 PVP 颜色与隐身颜色同时输出时，UI 端最终显示后一个颜色。如需 PVP 优先于隐身，可在 pack 中调整占位符顺序或使用条件逻辑。
+
+### 富信息组合
+
+```yaml
+pack:
+  uuid: "{player_uuid}"
+  name: "%axstab_pvp_color%%axstab_vanish_color%%player_name%"
+  ping: "%axstab_ping_icon%"
+  health: "%player_health%"
+```
+
+### 竞技场组合
+
+```yaml
+pack:
+  team: "%player_scoreboardteam%"
+  uuid: "{player_uuid}"
+  name: "%axstab_pvp_color%%axstab_vanish_color%%player_name%"
+  status: "%axstab_pvp%"
+  health: "%player_health%/%player_max_health%"
+```
+
+> `status` 字段使用 `%axstab_pvp%` 返回 `true` / `false`，UI 端可据此切换战斗状态图标（如 PVP 中显示 ⚔，正常显示 ·）。图标配置详见 [图标配置](/docs/guide/icons)。
+
+## PAPI 兜底扩展
+
+当服务器未安装 PlaceholderAPI 的 `player` 或 `server` 扩展时，Tab 模块会自动注册内置兜底实现，确保 pack 中的常用占位符始终可用。
+
+### 检测流程
+
+```
+模块启动
+  ├─ 检测 PlaceholderAPI 是否已安装
+  │    ├─ 未安装 → 不注册兜底（占位符不可用）
+  │    └─ 已安装 → 尝试直接检测 player / server 扩展
+  │         ├─ 两者均已加载 → 正常使用，不注册兜底
+  │         └─ 有缺失 → 注册 PapiExpansionListener 等待
+  └─ ExpansionsLoadedEvent 触发 → 终检
+       ├─ player 扩展缺失 → 注册 TabPlayerFallbackExpansion
+       └─ server 扩展缺失 → 注册 TabServerFallbackExpansion
+```
+
+### player 兜底占位符
+
+| 占位符 | 说明 |
+|---|---|
+| `%player_name%` | 玩家名称 |
+| `%player_displayname%` / `%player_display_name%` | 显示名 |
+| `%player_uuid%` | UUID |
+| `%player_world%` | 世界 |
+| `%player_x%` / `%player_y%` / `%player_z%` | 坐标 |
+| `%player_health%` | 血量 |
+| `%player_max_health%` | 最大血量 |
+| `%player_ping%` | 延迟 |
+| `%player_gamemode%` | 游戏模式 |
+| `%player_scoreboardteam%` / `%player_scoreboard_team%` | Scoreboard 队伍 |
+
+### server 兜底占位符
+
+| 占位符 | 说明 |
+|---|---|
+| `%server_online%` | 在线人数 |
+| `%server_max_players%` | 最大玩家数 |
+| `%server_name%` | 服务器名称 |
+| `%server_version%` | 服务器版本 |
+| `%server_motd%` | MOTD |
+| `%server_tps%` / `%server_tps_1%` / `%server_tps_5%` / `%server_tps_15%` | TPS |
+
+> 兜底扩展在模块 `onDisable` 时自动注销。如果服务器后续安装了完整的 `player` / `server` 扩展，兜底实现不会覆盖已有扩展（PAPI 优先使用已注册的扩展）。
+
+## 内置花括号变量
+
+pack 中可直接使用的花括号内置变量（无需 PAPI，由 `buildValues()` 直接替换），与视觉风格占位符配合使用：
+
+| 变量 | 说明 |
+|---|---|
+| `{player_name}` | 玩家名称 |
+| `{player_display_name}` | 玩家显示名 |
+| `{player_uuid}` | 玩家 UUID |
+| `{player_world}` | 玩家所在世界 |
+| `{player_x}` | 玩家 X 坐标（方块） |
+| `{player_y}` | 玩家 Y 坐标（方块） |
+| `{player_z}` | 玩家 Z 坐标（方块） |
+| `{player_health}` | 玩家当前血量 |
+| `{player_max_health}` | 玩家最大血量 |
+| `{player_ping}` | 玩家延迟（ms） |
+| `{player_group}` | 玩家权限组（Vault / LuckPerms / Scoreboard Team 依次尝试） |
+
+> 花括号变量在 PAPI 解析之前替换。如果变量值中包含 `%` 字符，可能被后续 PAPI 解析误处理。ArcartX 图标 token（`%xxx<icon>` 格式）会被临时保护，避免被 PAPI 误解析。
+
+## pack 渲染流程
+
+pack 字符串的完整渲染流程如下：
+
+```
+renderString(template, target):
+  1. 花括号内置变量替换（{player_name} → "Alice"）
+  2. ArcartX 图标 token 保护（%xxx<icon> → 临时占位符）
+  3. PlaceholderAPI 解析（%player_name% / %axstab_pvp_color% 等）
+  4. 图标 token 还原（临时占位符 → 原始 token）
+  5. 换行符转换（\n → 实际换行）
+```
+
+> 条件系统配置详见 [条件系统](/docs/guide/conditions)，图标配置详见 [图标配置](/docs/guide/icons)。

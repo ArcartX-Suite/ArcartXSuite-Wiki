@@ -1,0 +1,142 @@
+---
+title: 命令与占位符
+description: ExtraBackpack 命令、权限、UI Packet 与占位符
+---
+
+# 命令与占位符
+
+ExtraBackpack 模块不注册独立的玩家命令，背包界面通过替换原版物品栏界面（`match: [物品栏界面]`）自动呈现——玩家打开原版背包即进入额外背包 UI。模块也不注册 PlaceholderAPI 占位符，外部模块通过 `ExtraBackpackAccess` Capability 获取背包数据。
+
+## 管理命令
+
+模块通过宿主 `/axs` 命令框架提供管理操作：
+
+| 命令 | 说明 |
+| --- | --- |
+| `/axs extrabackpack reload` | 重载模块配置文件（`ArcartXExtraBackpack.yml`） |
+| `` /axs purge extrabackpack `<玩家名/UUID>` `` | 清除指定玩家的额外背包数据 |
+| `` /axs purge extrabackpack all `` | 清除所有玩家的额外背包数据 |
+| `` /axs migrate extrabackpack `<目标数据源>` `` | 将额外背包数据迁移到目标数据库源 |
+
+> `/axs purge` 与 `/axs migrate` 由宿主统一调度，模块通过 `PlayerDataPurgeable` 与 `DatabaseMigratable` Capability 接入。
+
+## 权限节点
+
+ExtraBackpack 模块不定义独立的权限节点。UI 访问依赖原版物品栏的打开行为，无需额外权限。管理命令的权限由宿主 `/axs` 命令框架统一管控（默认 `op`）。
+
+| 权限 | 默认 | 说明 |
+| --- | --- | --- |
+| `arcartxsuite.admin` | op | 执行 `/axs extrabackpack reload`、`/axs purge`、`/axs migrate` 等管理命令 |
+
+## PAPI 占位符
+
+ExtraBackpack 模块**不注册** PlaceholderAPI 占位符。如需在计分板/Tab 等场景显示额外背包数据，可通过以下方式获取：
+
+1. **Capability 调用**：其他模块通过 `getCapability(ExtraBackpackAccess.class)` 获取访问接口，调用 `snapshot()` 方法读取背包数据
+2. **自定义桥接**：在第三方插件中依赖 `axs-api`，通过 `ExtraBackpackAccess` 读取数据后注册自定义 PAPI 占位符
+
+```java
+// 示例：通过 Capability 读取额外背包数据
+ExtraBackpackAccess access = core.getCapability(ExtraBackpackAccess.class);
+if (access != null && access.isAvailable(player)) {
+    ExtraBackpackAccess.Snapshot snapshot = access.snapshot(player);
+    for (ExtraBackpackAccess.CategorySnapshot category : snapshot.categories()) {
+        // category.categoryId()、category.capacity()、category.used()
+    }
+}
+```
+
+## UI Packet 通信
+
+所有额外背包 UI 操作通过客户端 Packet（包 ID `AXS_BACKPACK`）触发，`data[0]` 为 action 名称。服务端 `ExtraBackpackService.handleClientPacket` 方法处理所有 action。
+
+### 客户端→服务端 Action
+
+| Action | 参数 | 需打开 UI | 需 Token | 说明 |
+| --- | --- | --- | --- | --- |
+| `open` / `refresh` | - | 否 | 否 | 刷新当前界面（重新签发 action token） |
+| `category` | `<分类ID>` | 否 | 否 | 切换分类页。传 `__vanilla__` 切换到原版背包标签页 |
+| `withdraw` | `<槽位号>` | 是 | 否 | 从当前分类页取出指定槽位物品到快捷栏 |
+| `withdraw_all` | `<槽位号>` | 是 | 否 | 取出指定槽位全部物品 |
+| `store` | `<快捷栏槽位>` | 是 | 否 | 将快捷栏指定槽位（0-8）的物品存入额外背包 |
+| `buy_slots` | `<数量>` `<token>` | 是 | 是 | 购买指定数量的槽位，扣费扩容当前分类页 |
+| `vanilla_info` | `<原版槽位号>` | 否 | 否 | 显示原版背包指定槽位的物品信息（`-1` 关闭） |
+| `vanilla_options` | `<原版槽位号>` | 否 | 否 | 显示原版背包指定槽位的操作选项（`-1` 关闭） |
+| `vanilla_store` | `<原版槽位号>` | 是 | 否 | 将原版背包指定槽位的物品存入额外背包 |
+| `vanilla_destroy` | `<原版槽位号>` `true` `<token>` | 是 | 是 | 销毁原版背包指定槽位的物品（需二级密码） |
+| `password_set` | `<旧密码>` `<新密码>` `<token>` | 是 | 是 | 设置二级密码（首次设置旧密码留空） |
+| `password_unlock` | `<密码>` | 是 | 否 | 解锁二级密码会话 |
+| `password_clear` | `<密码>` `<token>` | 是 | 是 | 清除二级密码 |
+| `password_panel_close` | - | 否 | 否 | 关闭二级密码面板 |
+| `close` | - | 否 | 否 | 关闭界面并持久化数据 |
+
+> **需打开 UI**：该 action 要求玩家当前已打开额外背包 UI，否则返回 `请先打开额外背包界面` 提示。
+>
+> **需 Token**：该 action 要求客户端携带有效的 action token，用于防止重放攻击。
+
+### 服务端→客户端 Packet
+
+服务端通过 `update` 包向客户端推送背包数据，包 ID 为 `AXS_BACKPACK`。`packetHandler` 的 `update` 处理器将包字段赋值到 UI 变量，并动态创建/销毁分类标签与槽位控件。
+
+| 包字段 | 类型 | 说明 |
+| --- | --- | --- |
+| `packetId` | string | 固定 `AXS_BACKPACK`，用于客户端 `Packet.send` 回传 |
+| `action_token` | string | 操作令牌，客户端执行敏感操作时回传 |
+| `activeCategory` | string | 当前激活的分类页 ID（`__vanilla__` 表示原版背包） |
+| `categories` | `Map<int, Map>` | 分类页数据（key=分类索引，value=分类详情） |
+| `categoryCount` | int | 分类页总数（含原版背包标签） |
+| `slots` | `Map<int, Map>` | 当前分类页槽位数据（key=槽位索引） |
+| `slotCount` | int | 当前分类页槽位数量 |
+| `used` | int | 已使用槽位数 |
+| `capacityText` | string | 容量显示文本（如 `9/27`） |
+| `maxCapacity` | int | 最大容量 |
+| `canBuySlots` | boolean | 是否可以购买更多槽位 |
+| `remainingSlots` | int | 剩余可购买槽位数 |
+| `buySlotsText` | string | 购买槽位按钮提示文本 |
+| `hotbar` | `Map<int, Map>` | 快捷栏 9 格数据（key=槽位索引 0-8） |
+| `vanillaTab` | boolean | 是否显示原版背包标签页 |
+| `vanillaSlots` | `Map<int, Map>` | 原版背包槽位数据（仅 `vanillaTab=true` 时有值） |
+| `vanillaInfo` | `Map` | 原版物品信息面板状态 |
+| `vanillaOptions` | `Map` | 原版物品操作选项状态 |
+| `passwordPanel` | `Map` | 密码面板状态（锁定/解锁/设置密码） |
+
+### 槽位数据结构
+
+每个槽位（`slots` / `hotbar` / `vanillaSlots` 的 value）包含以下字段：
+
+| 字段 | 类型 | 说明 |
+| --- | --- | --- |
+| `empty` | boolean | 槽位是否为空 |
+| `itemJson` | string | 物品 JSON 数据（用于 `setItemIcon` 渲染） |
+| `amount` | int | 物品数量 |
+
+### 分类数据结构
+
+每个分类（`categories` 的 value）包含以下字段：
+
+| 字段 | 类型 | 说明 |
+| --- | --- | --- |
+| `id` | string | 分类 ID（`__vanilla__` 表示原版背包） |
+| `name` | string | 分类显示名称 |
+| `active` | boolean | 是否为当前激活分类 |
+
+### 面板状态结构
+
+| 面板 | 字段 | 说明 |
+| --- | --- | --- |
+| `vanillaInfo` | `visible`、`slot`、`itemJson`、`amount` | 原版物品信息面板可见性与物品数据 |
+| `vanillaOptions` | `visible`、`slot`、`itemJson`、`amount` | 原版物品操作面板可见性与物品数据 |
+| `passwordPanel` | `visible`、`mode`、`pendingSlot` | 密码面板可见性、模式（`set`/`unlock`/`clear`）、待销毁槽位 |
+
+### Action Token 机制
+
+UI 打开时签发唯一的 action token（UUID 格式），客户端在执行以下操作时需携带 token：
+
+- `buy_slots`（购买槽位）
+- `vanilla_destroy`（销毁物品）
+- `password_set`（设置密码）
+- `password_clear`（清除密码）
+
+操作完成后自动轮换 token，客户端通过 `update` 包接收新 token。token 检查失败时静默丢弃请求（不提示错误），UI 防抖机制（`actionBusy` 标志 + 3 秒超时）阻止重复点击。UI 关闭时清除 token 并持久化数据。
+
+> 关于 UI 图标渲染与 Slot 控件的通用知识，参考 [图标系统](/docs/guide/icons)。

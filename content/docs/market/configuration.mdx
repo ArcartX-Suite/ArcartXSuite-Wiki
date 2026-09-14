@@ -1,0 +1,353 @@
+---
+title: 配置
+description: Market 配置文件详解
+---
+
+# 配置
+
+Market 模块的配置文件位于 `plugins/ArcartX-Suite/modules/market/ArcartXMarket.yml`。修改后执行 `/axs reload market` 即可生效（商店/回收配置热重载，主配置需重启）。
+
+## 主配置完整字段表
+
+### settings 全局设置
+
+| 字段 | 类型 | 默认值 | 说明 |
+|---|---|---|---|
+| `settings.debug` | boolean | `false` | 调试模式，输出详细日志 |
+| `settings.scheduler-interval-ticks` | long | `200` | 定时任务间隔（tick，20 tick = 1 秒），用于检查到期上架、结算竞价、刷新限时商品 |
+
+### ui 界面配置
+
+| 字段 | 类型 | 默认值 | 说明 |
+|---|---|---|---|
+| `ui.shop-ui-id` | string | `AXS:market_shop` | 系统商店 UI ID |
+| `ui.shop-file` | string | `arcartx/ui/market_shop.yml` | 系统商店 UI 文件路径 |
+| `ui.auction-ui-id` | string | `AXS:market_auction` | 拍卖行 UI ID |
+| `ui.auction-file` | string | `arcartx/ui/market_auction.yml` | 拍卖行 UI 文件路径 |
+| `ui.recycle-ui-id` | string | `AXS:market_recycle` | 回收商店 UI ID |
+| `ui.recycle-file` | string | `arcartx/ui/market_recycle.yml` | 回收商店 UI 文件路径 |
+| `ui.history-ui-id` | string | `AXS:market_history` | 交易历史 UI ID |
+| `ui.history-file` | string | `arcartx/ui/market_history.yml` | 交易历史 UI 文件路径 |
+| `ui.sell-ui-id` | string | `AXS:market_sell` | 统一上架 UI ID（拍卖行 + 玩家商店共用） |
+| `ui.sell-file` | string | `arcartx/ui/market_sell.yml` | 统一上架 UI 文件路径 |
+| `ui.player-shop-ui-id` | string | `AXS:market_player_shop` | 玩家商店浏览 UI ID |
+| `ui.player-shop-file` | string | `arcartx/ui/market_player_shop.yml` | 玩家商店 UI 文件路径 |
+| `ui.packet-id` | string | `AXS_MARKET` | 客户端数据包 ID，所有 Market UI 通信均通过此 ID |
+| `ui.register-ui-on-enable` | boolean | `true` | 模块启动时自动注册 UI 到 ArcartX 桥接层 |
+| `ui.overwrite-ui-files` | boolean | `false` | 是否覆盖已导出的 UI 文件（`true` 会覆盖自定义修改） |
+
+:::caution
+`overwrite-ui-files: true` 会覆盖你在服务器上的自定义 UI 修改！仅在需要恢复默认 UI 时设为 `true`。
+:::
+
+### storage 数据存储配置
+
+| 字段 | 类型 | 默认值 | 说明 |
+|---|---|---|---|
+| `storage.shared` | boolean | `true` | `true` 共享存储模式（推荐），使用本体统一数据源；`false` 自建独立连接池 |
+| `storage.mode` | string | `sqlite` | 自建模式存储类型：`sqlite` 或 `mysql` |
+| `storage.sqlite.file` | string | `market.db` | SQLite 文件名（相对模块数据目录） |
+| `storage.pool-size` | int | `8` | JDBC 连接池大小（SQLite 建议 1） |
+| `storage.mysql.host` | string | `127.0.0.1` | MySQL 主机地址 |
+| `storage.mysql.port` | int | `3306` | MySQL 端口 |
+| `storage.mysql.database` | string | `arcartxsuite` | MySQL 数据库名 |
+| `storage.mysql.username` | string | `root` | MySQL 用户名 |
+| `storage.mysql.password` | string | - | MySQL 密码 |
+| `storage.mysql.table-prefix` | string | `axs_market_` | MySQL 表前缀 |
+
+:::tip
+`shared: true` 时，数据库连接由本体统一管控，各模块共用 `config.yml` 的 `storage` 节配置。性能更好，推荐使用。
+:::
+
+### redis 缓存配置
+
+| 字段 | 类型 | 默认值 | 说明 |
+|---|---|---|---|
+| `redis.enabled` | boolean | `false` | 是否启用 Redis 拍卖列表缓存 |
+| `redis.host` | string | `127.0.0.1` | Redis 主机地址 |
+| `redis.port` | int | `6379` | Redis 端口 |
+| `redis.password` | string | - | Redis 密码 |
+| `redis.database` | int | `0` | Redis 数据库编号 |
+| `redis.cache-ttl-seconds` | int | `60` | 拍卖行列表缓存过期时间（秒），范围 10~86400 |
+
+### cross-server 跨服配置
+
+| 字段 | 类型 | 默认值 | 说明 |
+|---|---|---|---|
+| `cross-server.enabled` | boolean | `false` | 是否启用跨服同步 |
+
+:::info
+跨服同步需配合宿主 `config.yml` 的 `cross-server` 节使用。单服无需开启。
+:::
+
+## 拍卖行配置 (auction)
+
+| 字段 | 类型 | 默认值 | 说明 |
+|---|---|---|---|
+| `auction.enabled` | boolean | `true` | 是否启用拍卖行 |
+| `auction.currencies` | list | `[{id: money, name: 金币}]` | 允许的货币列表 |
+| `auction.default-currency` | string | `money` | 默认货币 |
+| `auction.min-price` | double | `1` | 起拍价最低值 |
+| `auction.max-price` | double | `1000000000` | 起拍价最高值 |
+| `auction.message-max-length` | int | `50` | 留言最大字符数 |
+| `auction.min-duration-seconds` | long | `3600` | 最短上架时长（1 小时） |
+| `auction.max-duration-seconds` | long | `604800` | 最长上架时长（7 天） |
+| `auction.default-duration-seconds` | long | `86400` | 默认上架时长（24 小时） |
+| `auction.max-listings-per-player` | int | `10` | 每人最多同时上架数量 |
+| `auction.min-bid-increment-ratio` | double | `0.05` | 竞价加价比例（5%） |
+| `auction.min-bid-increment-absolute` | double | `10` | 竞价加价绝对值 |
+| `auction.listing-fee` | double | `0` | 上架手续费（固定金额） |
+| `auction.listing-fee-currency` | string | `money` | 手续费货币类型 |
+| `auction.transaction-tax-rate` | double | `0.05` | 成交税率（5%） |
+| `auction.transaction-tax-currency` | string | `money` | 税费货币类型 |
+| `auction.tax-discount` | map | - | VIP 税率减免（权限节点 → 减免值） |
+| `auction.expired-return-method` | string | `mail` | 到期退回方式：`mail` / `inventory` |
+| `auction.outbid-notify` | string | `chat` | 被超越通知方式：`chat` / `actionbar` / `title` |
+
+### 竞价加价规则
+
+新出价必须满足：
+
+```
+新出价 ≥ max(当前最高价 × (1 + min-bid-increment-ratio), 当前最高价 + min-bid-increment-absolute)
+```
+
+例如：当前最高价 100，ratio=0.05，absolute=10 → 新出价至少 110（取 max(105, 110)）。
+
+### 物品黑名单 (auction.blacklist)
+
+黑名单使用统一的 ItemMatcher 规则，满足任意一条即拦截。详见 [物品匹配器](/docs/guide/conditions)。
+
+| 字段 | 类型 | 说明 |
+|---|---|---|
+| `material-ids` | list | 禁止的原版材质 ID（Bukkit Material 枚举名） |
+| `mythic-item-ids` | list | 禁止的 MythicMobs 物品 ID |
+| `neige-item-ids` | list | 禁止的 NeigeItems 物品 ID |
+| `overture-item-ids` | list | 禁止的 Overture 物品 ID |
+| `kinds` | list | 禁止的物品类别（`mythic`/`neige`/`vanilla`） |
+| `name-contains` | list | 物品名称包含此字符串则禁止 |
+| `lore-contains` | list | 物品 Lore 包含此字符串则禁止 |
+| `name-regex` | list | 物品名称匹配正则则禁止 |
+| `lore-regex` | list | 物品 Lore 匹配正则则禁止 |
+| `nbt-keys` | list | 物品存在此 NBT/PDC 键则禁止 |
+| `nbt-values` | map | NBT/PDC 键值匹配则禁止 |
+
+### 拍卖行分类 (auction.categories)
+
+分类用于拍卖行界面的筛选功能，通过检查物品的 NBT/PDC 数据判定归属。
+
+| 字段 | 类型 | 说明 |
+|---|---|---|
+| `display-name` | string | 分类在 UI 中显示的名称 |
+| `priority` | int | 排序优先级，数字越小越靠前 |
+| `nbt.path` | string | 检查的 NBT/PDC 路径（格式 `pdc:namespace:key`） |
+| `nbt.values` | list | 值匹配列表，任一匹配即归属此分类 |
+| `default` | boolean | 是否为默认分类（未匹配其他分类时归入） |
+
+## 玩家商店配置 (player-shop)
+
+| 字段 | 类型 | 默认值 | 说明 |
+|---|---|---|---|
+| `player-shop.enabled` | boolean | `true` | 是否启用玩家商店 |
+| `player-shop.currencies` | list | `[{id: money, name: 金币}]` | 允许的货币列表 |
+| `player-shop.default-currency` | string | `money` | 默认货币 |
+| `player-shop.min-price` | double | `1` | 出售价格最低值 |
+| `player-shop.max-price` | double | `1000000000` | 出售价格最高值 |
+| `player-shop.message-max-length` | int | `50` | 留言最大字符数 |
+| `player-shop.min-duration-seconds` | long | `3600` | 最短上架时长（1 小时） |
+| `player-shop.max-duration-seconds` | long | `2592000` | 最长上架时长（30 天） |
+| `player-shop.default-duration-seconds` | long | `604800` | 默认上架时长（7 天） |
+| `player-shop.max-listings-per-player` | int | `20` | 每人最多同时上架数量 |
+| `player-shop.listing-fee` | double | `0` | 上架手续费 |
+| `player-shop.listing-fee-currency` | string | `money` | 手续费货币类型 |
+| `player-shop.transaction-tax-rate` | double | `0.05` | 成交税率 |
+| `player-shop.transaction-tax-currency` | string | `money` | 税费货币类型 |
+| `player-shop.tax-discount` | map | - | VIP 税率减免 |
+| `player-shop.expired-return-method` | string | `mail` | 到期退回方式 |
+| `player-shop.blacklist` | section | - | 物品黑名单（格式同拍卖行） |
+
+## 系统商店配置 (shop)
+
+| 字段 | 类型 | 默认值 | 说明 |
+|---|---|---|---|
+| `shop.enabled` | boolean | `true` | 是否启用系统商店 |
+| `shop.shops-directory` | string | `shops` | 商店定义文件目录（相对模块数据目录） |
+| `shop.refresh-interval-ticks` | long | `6000` | 全局刷新间隔（tick），用于限时商品库存重置 |
+| `shop.default-currency` | string | `money` | 默认货币（商品未指定时 fallback） |
+
+### 动态商品策略 (shop.dynamic)
+
+| 字段 | 类型 | 说明 |
+|---|---|---|
+| `shop.dynamic.enabled` | boolean | 是否启用动态商品策略 |
+| `shop.dynamic.strategies` | section | 策略配置节，每个键为策略唯一键 |
+
+每个策略支持三种类型：
+
+| 类型 | 说明 |
+|---|---|
+| `random-refresh` | 随机刷新（神秘商人）：从候选池按权重随机抽选 N 个商品上架 |
+| `price-float` | 价格浮动：按 random-walk 或 supply-demand 模式动态调价 |
+| `scheduled-swap` | 定时换货：按多个商品集轮换上架 |
+
+详见 [商店系统 - 动态价格策略](/docs/market/shops#动态价格策略)。
+
+## 回收商店配置 (recycle)
+
+| 字段 | 类型 | 默认值 | 说明 |
+|---|---|---|---|
+| `recycle.enabled` | boolean | `true` | 是否启用回收商店 |
+| `recycle.recycle-directory` | string | `recycle` | 回收表文件目录 |
+| `recycle.default-currency` | string | `money` | 默认回收货币 |
+| `recycle.allow-auto-recycle` | boolean | `true` | 是否允许拾取自动回收（需 `axsmarket.autorecycle` 权限） |
+| `recycle.batch-recycle-enabled` | boolean | `true` | 是否允许 UI 一键回收 |
+| `recycle.batch-confirm` | boolean | `true` | 一键回收是否需二次确认 |
+| `recycle.price-multiplier` | map | - | 回收价格倍率（权限节点 → 倍率） |
+
+## 完整配置示例
+
+```yaml
+config-version: 3
+
+settings:
+  debug: false
+  scheduler-interval-ticks: 200
+
+ui:
+  shop-ui-id: "AXS:market_shop"
+  auction-ui-id: "AXS:market_auction"
+  recycle-ui-id: "AXS:market_recycle"
+  history-ui-id: "AXS:market_history"
+  sell-ui-id: "AXS:market_sell"
+  player-shop-ui-id: "AXS:market_player_shop"
+  packet-id: "AXS_MARKET"
+  register-ui-on-enable: true
+  overwrite-ui-files: false
+
+storage:
+  shared: true
+
+redis:
+  enabled: false
+  host: "127.0.0.1"
+  port: 6379
+  password: ""
+  database: 0
+  cache-ttl-seconds: 60
+
+cross-server:
+  enabled: false
+
+auction:
+  enabled: true
+  currencies:
+    - id: "money"
+      name: "金币"
+  default-currency: "money"
+  min-price: 1
+  max-price: 1000000000
+  message-max-length: 50
+  min-duration-seconds: 3600
+  max-duration-seconds: 604800
+  default-duration-seconds: 86400
+  max-listings-per-player: 10
+  min-bid-increment-ratio: 0.05
+  min-bid-increment-absolute: 10
+  listing-fee: 0
+  listing-fee-currency: "money"
+  transaction-tax-rate: 0.05
+  transaction-tax-currency: "money"
+  tax-discount:
+    "axsmarket.vip": 0.02
+    "axsmarket.mvp": 0.01
+  expired-return-method: "mail"
+  outbid-notify: "chat"
+  blacklist:
+    material-ids: []
+    mythic-item-ids: []
+    neige-item-ids: []
+    overture-item-ids: []
+    kinds: []
+    name-contains:
+      - "绑定"
+    lore-contains:
+      - "不可交易"
+    name-regex: []
+    lore-regex: []
+    nbt-keys: []
+    nbt-values: {}
+  categories:
+    weapon:
+      display-name: "&c武器"
+      priority: 10
+      nbt:
+        path: "pdc:arcartx:item_category"
+        values: ["weapon"]
+    armor:
+      display-name: "&9防具"
+      priority: 20
+      nbt:
+        path: "pdc:arcartx:item_category"
+        values: ["armor", "equipment"]
+    material:
+      display-name: "&a材料"
+      priority: 30
+      nbt:
+        path: "pdc:arcartx:item_category"
+        values: ["material"]
+    consumable:
+      display-name: "&e消耗品"
+      priority: 40
+      nbt:
+        path: "pdc:arcartx:item_category"
+        values: ["consumable", "food", "potion"]
+    other:
+      display-name: "&7其他"
+      priority: 9999
+      default: true
+
+player-shop:
+  enabled: true
+  currencies:
+    - id: "money"
+      name: "金币"
+  default-currency: "money"
+  min-price: 1
+  max-price: 1000000000
+  message-max-length: 50
+  min-duration-seconds: 3600
+  max-duration-seconds: 2592000
+  default-duration-seconds: 604800
+  max-listings-per-player: 20
+  listing-fee: 0
+  listing-fee-currency: "money"
+  transaction-tax-rate: 0.05
+  transaction-tax-currency: "money"
+  tax-discount:
+    "axsmarket.vip": 0.02
+    "axsmarket.mvp": 0.01
+  expired-return-method: "mail"
+  blacklist:
+    material-ids: []
+    name-contains:
+      - "绑定"
+    lore-contains:
+      - "不可交易"
+
+shop:
+  enabled: true
+  shops-directory: "shops"
+  refresh-interval-ticks: 6000
+  default-currency: "money"
+
+recycle:
+  enabled: true
+  recycle-directory: "recycle"
+  default-currency: "money"
+  allow-auto-recycle: true
+  batch-recycle-enabled: true
+  batch-confirm: true
+  price-multiplier:
+    "axsmarket.recycle.vip": 1.2
+    "axsmarket.recycle.mvp": 1.5
+```

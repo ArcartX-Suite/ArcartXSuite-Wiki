@@ -1,0 +1,433 @@
+---
+title: 配置
+description: EntityTracker 配置文件详解
+---
+
+# 配置
+
+模块主配置文件位于 `plugins/ArcartXSuite/data/entitytracker/ArcartXEntityTracker.yml`，重载命令为 `/axs entitytracker reload`。
+
+配置文件当前版本号为 `4`，模块内置迁移脚本（`migrations/1-2.yml`、`2-3.yml`、`3-4.yml`），升级时自动执行。
+
+## 主配置完整字段表
+
+### `ui` 节 — UI 统一配置
+
+Boss 追踪与攻击目标 HUD 共用的 UI 配置节。
+
+| 字段 | 类型 | 默认值 | 说明 |
+|---|---|---|---|
+| `boss-ui-id` | String 或 List | `"AXS:boss_tracker"` | Boss 追踪 HUD 的 UI ID。支持字符串（单 UI）或列表（多 UI 同时发包） |
+| `target-ui-id` | String 或 List | `"AXS:attack_target_hud"` | 攻击目标 HUD 的 UI ID。支持字符串或列表 |
+| `register-ui-on-enable` | boolean | `true` | 模块启用时是否自动注册 UI |
+| `overwrite-ui-files` | boolean | `false` | 是否覆盖已有的 UI 文件（`false` = 保留用户修改） |
+
+多 UI 示例：
+
+```yaml
+ui:
+  boss-ui-id:
+    - "AXS:boss_tracker"
+    - "AXS:boss_tracker_alt"
+  target-ui-id: "AXS:attack_target_hud"
+  register-ui-on-enable: true
+  overwrite-ui-files: false
+```
+
+### `boss` 节 — Boss 追踪配置
+
+| 字段 | 类型 | 默认值 | 说明 |
+|---|---|---|---|
+| `boss.settings.refresh-interval-ticks` | int | `5` | 数据刷新间隔（tick，20tick = 1 秒），最小 1 |
+| `boss.settings.default-viewer-range` | double | `48.0` | 默认查看者范围（方块），超出此距离的玩家不显示 Boss HUD |
+| `boss.settings.max-visible-bars` | int | `5` | 最大同时显示的血条数量 |
+| `boss.settings.sort-mode` | String | `"spawn-order"` | 排序模式：`spawn-order` / `distance` / `health-percent` / `priority` / `hybrid` |
+| `boss.bosses-directory` | String | `"bosses"` | Boss 定义目录路径（相对模块数据目录） |
+
+### `attack-target` 节 — 攻击目标 HUD 配置
+
+| 字段 | 类型 | 默认值 | 说明 |
+|---|---|---|---|
+| `attack-target.settings.debug` | boolean | `false` | 是否开启调试模式（输出额外日志） |
+| `attack-target.settings.refresh-interval-ticks` | int | `5` | 数据刷新间隔（tick），最小 1 |
+| `attack-target.settings.target-timeout-ms` | long | `3000` | 目标超时时间（毫秒），超过此时间未攻击则关闭 HUD，最小 250 |
+| `attack-target.settings.max-view-distance` | double | `48.0` | 最大查看距离（方块），超出不显示目标 HUD |
+| `attack-target.settings.blacklist.mythic-mob-ids` | List | `[]` | MythicMob ID 黑名单（大小写不敏感），命中后不显示目标 HUD |
+| `attack-target.settings.blacklist.entity-types` | List | `[]` | Bukkit EntityType 黑名单（如 `ZOMBIE`、`PLAYER`、`ARMOR_STAND`） |
+| `attack-target.settings.entitytracker-link.ignore-configured-bosses` | boolean | `true` | `true` 时，`bosses/` 中 `enabled: true` 的 Boss 默认不触发目标 HUD |
+| `attack-target.settings.title-format` | String | `"&c{display_name}"` | 标题格式模板 |
+| `attack-target.settings.subtitle-format` | String | `"&7{entity_type_name} &8\| &c{health}/{max_health} &8\| &f{distance_text}"` | 副标题格式模板 |
+
+### `cross-server` 节 — 跨服通道
+
+| 字段 | 类型 | 默认值 | 说明 |
+|---|---|---|---|
+| `cross-server.enabled` | boolean | `false` | 是否启用跨服功能（Redis/Proxy 连接配置见宿主 `config.yml` 的 `cross-server` 节） |
+
+### `new-features` 节 — 新功能配置
+
+#### `new-features.drop-recording` — Boss 掉落记录
+
+| 字段 | 类型 | 默认值 | 说明 |
+|---|---|---|---|
+| `enabled` | boolean | `true` | 是否启用掉落记录 |
+| `retention-days` | int | `30` | 数据保留天数，超过此天数的记录自动清理，最小 1 |
+| `enable-statistics` | boolean | `true` | 是否启用掉落统计 |
+| `statistics-update-interval` | int | `300` | 统计更新间隔（秒），最小 30 |
+
+#### `new-features.drop-allocation` — 掉落分配系统
+
+| 字段 | 类型 | 默认值 | 说明 |
+|---|---|---|---|
+| `enabled` | boolean | `true` | 是否启用掉落分配 |
+| `default-mode` | String | `"roll"` | 默认分配模式：`dkp` / `roll` / `priority` / `manual` |
+| `allocation-timeout` | int | `60` | 分配超时时间（秒），最小 10 |
+
+**DKP 子配置** (`drop-allocation.dkp`)：
+
+| 字段 | 类型 | 默认值 | 说明 |
+|---|---|---|---|
+| `enabled` | boolean | `true` | 是否启用 DKP 积分系统 |
+| `base-earn-points` | int | `10` | Boss 击杀基础积分 |
+| `rank-bonus-points` | `Map<int, int>` | `{1: 20, 2: 15, 3: 10, 4: 5, 5: 3}` | 伤害排名额外积分奖励 |
+
+**ROLL 子配置** (`drop-allocation.roll`)：
+
+| 字段 | 类型 | 默认值 | 说明 |
+|---|---|---|---|
+| `enabled` | boolean | `true` | 是否启用 ROLL 系统 |
+| `timeout-seconds` | int | `30` | ROLL 超时时间（秒），最小 5 |
+| `roll-range` | String | `"1-100"` | ROLL 数值范围 |
+| `allow-pass` | boolean | `true` | 是否允许放弃（pass） |
+
+**优先级子配置** (`drop-allocation.priority`)：
+
+| 字段 | 类型 | 默认值 | 说明 |
+|---|---|---|---|
+| `enabled` | boolean | `true` | 是否启用优先级分配 |
+| `class-priority` | `Map<String, int>` | `{tank: 1, healer: 2, dps: 3}` | 职业优先级（数值越小越优先） |
+| `quality-priority` | `Map<String, int>` | `{legendary: 1, epic: 2, rare: 3, common: 4}` | 装备品质优先级 |
+
+#### `new-features.cross-server-ranking` — 跨服 Boss 排行
+
+| 字段 | 类型 | 默认值 | 说明 |
+|---|---|---|---|
+| `enabled` | boolean | `false` | 是否启用跨服排行 |
+| `update-interval` | int | `60` | 排行榜更新间隔（秒），最小 15 |
+| `ranking-types` | List | `["best_damage", "boss_damage", "kills", "participate", "server"]` | 排行榜类型 |
+| `max-entries` | int | `50` | 排行榜最大记录条数，最小 1 |
+
+#### `new-features.ranking-rewards` — 排行榜定时奖励
+
+| 字段 | 类型 | 默认值 | 说明 |
+|---|---|---|---|
+| `schedule.weekly.enabled` | boolean | `true` | 是否启用周奖励调度 |
+| `schedule.weekly.day-of-week` | String | `"MONDAY"` | 周奖励执行日（`MONDAY` ~ `SUNDAY`） |
+| `schedule.weekly.hour` | int | `0` | 执行小时（0-23） |
+| `schedule.weekly.minute` | int | `0` | 执行分钟（0-59） |
+| `schedule.monthly.enabled` | boolean | `true` | 是否启用月奖励调度 |
+| `schedule.monthly.day-of-month` | int | `1` | 月奖励执行日（1-31） |
+| `schedule.monthly.hour` | int | `0` | 执行小时 |
+| `schedule.monthly.minute` | int | `0` | 执行分钟 |
+| `timezone` | String | `"Asia/Shanghai"` | 时区 |
+| `reward-settings.auto-distribute` | boolean | `true` | 是否自动发放奖励 |
+| `reward-settings.max-retry-count` | int | `3` | 发放失败重试次数 |
+| `reward-settings.retry-interval-minutes` | int | `30` | 重试间隔（分钟） |
+| `reward-settings.broadcast-rewards` | boolean | `true` | 是否广播奖励发放结果 |
+| `reward-settings.detailed-logging` | boolean | `true` | 是否记录详细日志 |
+
+### `storage` 节 — 数据库配置
+
+| 字段 | 类型 | 默认值 | 说明 |
+|---|---|---|---|
+| `shared` | boolean | `true` | `true` = 共享存储模式（推荐，复用本体数据源）；`false` = 自建独立连接池 |
+| `mode` | String | `"sqlite"` | 存储模式（`sqlite` 或 `mysql`），仅在 `shared: false` 时生效 |
+| `sqlite.file` | String | `"entitytracker.db"` | SQLite 文件名（相对模块数据目录） |
+| `mysql.host` | String | `"localhost"` | MySQL 主机地址 |
+| `mysql.port` | int | `3306` | MySQL 端口 |
+| `mysql.database` | String | `"arcartxsuite"` | MySQL 数据库名 |
+| `mysql.username` | String | `"root"` | MySQL 用户名 |
+| `mysql.password` | String | `""` | MySQL 密码 |
+| `mysql.table-prefix` | String | `""` | MySQL 表名前缀 |
+| `pool-size` | int | `5` | JDBC 连接池大小（SQLite 建议 1） |
+
+> **推荐使用 `shared: true`**（默认值），数据库连接由本体统一管控，性能更好。仅在需要独立数据库时才设为 `false`。
+
+## Boss 追踪目标配置
+
+每个 Boss 的配置文件位于 `plugins/ArcartXSuite/data/entitytracker/bosses/` 目录下，文件名（去掉 `.yml`）即为 MythicMob ID（大小写不敏感）。模块首次启动时会自动导出 `ExampleBoss.yml` 示例文件。
+
+### Boss 配置字段表
+
+| 字段 | 类型 | 默认值 | 说明 |
+|---|---|---|---|
+| `enabled` | boolean | `true` | 是否启用该 Boss 的追踪 |
+| `priority` | int | `0` | 显示优先级（数值越大越优先，`sort-mode: priority` 时生效） |
+| `viewer-range` | double | 全局默认值 | 观察者有效范围（方块），≤0 时使用全局 `default-viewer-range` |
+| `title-format` | String | `"{display_name}"` | 标题格式模板，支持占位符与颜色代码 |
+| `subtitle-format` | String | `"{mob_id}"` | 副标题格式模板 |
+| `spawn-chat-card` | String | `""` | 生成时聊天卡片模板 ID（留空不发送） |
+| `death-chat-card` | String | `""` | 死亡时聊天卡片模板 ID |
+| `despawn-chat-card` | String | `""` | 消失时聊天卡片模板 ID |
+| `damage-ranking.enabled` | boolean | `true` | 是否启用伤害排名 |
+| `damage-ranking.max-entries` | int | `10` | 排名最大条目数，最小 1 |
+| `damage-ranking.min-damage` | String | `"1%"` | 最低伤害门槛（固定值如 `1000` 或百分比如 `1%`） |
+| `damage-ranking.rewards.enabled` | boolean | `false` | 是否启用即时死亡结算奖励 |
+| `damage-ranking.rewards.ranks` | `Map<int, actions>` | — | 各名次奖励定义 |
+| `damage-ranking.ranking-rewards.weekly` | section | — | 周排行榜定时奖励 |
+| `damage-ranking.ranking-rewards.monthly` | section | — | 月排行榜定时奖励 |
+
+### Boss 标题/副标题占位符
+
+`title-format` 和 `subtitle-format` 支持以下占位符（`{}` 包裹）：
+
+| 占位符 | 说明 |
+|---|---|
+| `{display_name}` | Boss 显示名称 |
+| `{mob_id}` | MythicMob ID |
+| `{mob_id_lower}` | MythicMob ID（小写） |
+| `{entity_uuid}` | Boss 实体 UUID |
+| `{health}` | 当前血量（格式化文本） |
+| `{max_health}` | 最大血量（格式化文本） |
+| `{health_percent}` | 血量百分比 |
+| `{progress}` | 血量进度（0-1） |
+| `{distance}` | 观察者与 Boss 的距离（方块） |
+| `{distance_text}` | 距离文本（如 `48m`） |
+| `{spawn_order}` | 生成顺序序号 |
+| `{priority}` | 配置优先级 |
+| `{world}` | 所在世界名称 |
+| `{x}` `{y}` `{z}` | 坐标 |
+| `{alive_seconds}` | 存活秒数 |
+| `{alive_time}` | 存活时间（格式化，如 `05:30`） |
+| `{has_target}` | 是否有目标实体 |
+| `{target_name}` `{target_display_name}` | 目标显示名称 |
+| `{target_uuid}` | 目标 UUID |
+| `{target_type}` | 目标类型 |
+| `{ranking_enabled}` | 是否启用伤害排名 |
+| `{damage_participant_count}` | 伤害参与人数 |
+| `{damage_tracked_player_count}` | 上榜人数 |
+| `{total_damage}` | 总伤害 |
+| `{viewer_rank}` | 观察者排名 |
+| `{viewer_rank_text}` | 观察者排名文本（如 `#3` 或 `-`） |
+| `{viewer_damage}` | 观察者伤害 |
+| `{viewer_damage_percent}` | 观察者伤害百分比 |
+| `{viewer_taken_damage}` | 观察者承受伤害 |
+| `{top_N_name}` | 第 N 名玩家名（N = 1 ~ max-entries） |
+| `{top_N_damage}` | 第 N 名伤害 |
+| `{top_N_damage_percent}` | 第 N 名伤害百分比 |
+| `{top_N_taken_damage}` | 第 N 名承受伤害 |
+
+### 奖励动作配置
+
+每个名次的奖励通过 `actions` 列表定义，支持五种动作类型：
+
+| 动作类型 | 配置值 | 必填字段 | 说明 |
+|---|---|---|---|
+| 物品 | `item` | `source`、`id`、`amount` | 发放物品，`source` 支持 `minecraft` / `mythic` / `neige` / `overture` / `mmoitems` |
+| 命令 | `command` | `command` | 以控制台身份执行命令 |
+| 消息 | `message` | `target`、`text` | 发送消息，`target` 为 `player` / `broadcast` / `console` |
+| 邮件 | `mail` | `text` 或 `preset-id` | 发送邮件（需 Mail 模块） |
+| 信号 | `signal` | `signal` | 派发信号 |
+
+奖励动作支持以下变量替换（替换后会再走一次 PlaceholderAPI）：
+
+| 变量 | 说明 |
+|---|---|
+| `{player}` `{player_name}` `{player_uuid}` `{player_display_name}` | 获奖玩家信息 |
+| `{boss_id}` `{boss_display_name}` `{entity_uuid}` | Boss 信息 |
+| `{rank}` `{rank_text}` | 排名 |
+| `{damage}` `{damage_percent}` `{taken_damage}` | 伤害数据 |
+| `{total_damage}` `{participant_count}` `{tracked_player_count}` | 统计数据 |
+| `{top_N_name}` 等 | 排行榜字段 |
+
+物品来源说明详见 [/docs/guide/item-sources](/docs/guide/item-sources)。
+
+## 显示配置
+
+### 攻击目标 HUD 模板占位符
+
+`attack-target.settings.title-format` 和 `subtitle-format` 支持以下占位符：
+
+| 占位符 | 说明 |
+|---|---|
+| `{display_name}` | 目标显示名称 |
+| `{health}` `{health_text}` | 当前血量 |
+| `{max_health}` `{max_health_text}` | 最大血量 |
+| `{health_percent}` `{health_percent_text}` | 血量百分比 |
+| `{progress}` | 血量进度（0-1） |
+| `{distance}` `{distance_text}` | 距离 |
+| `{entity_uuid}` | 目标实体 UUID |
+| `{entity_type}` | 实体类型标识 |
+| `{entity_type_name}` | 实体类型显示名称 |
+| `{mythic_mob_id}` | MythicMob ID（非 MythicMob 时为空） |
+| `{is_player_target}` | 目标是否为玩家 |
+| `{world}` `{x}` `{y}` `{z}` | 位置信息 |
+| `{last_hit_ago_ms}` | 距上次攻击的毫秒数 |
+| `{timeout_ms}` | 超时毫秒数 |
+
+## 完整配置示例
+
+```yaml
+config-version: 4
+
+ui:
+  boss-ui-id: "AXS:boss_tracker"
+  target-ui-id: "AXS:attack_target_hud"
+  register-ui-on-enable: true
+  overwrite-ui-files: false
+
+boss:
+  settings:
+    refresh-interval-ticks: 5
+    default-viewer-range: 48.0
+    max-visible-bars: 5
+    sort-mode: "spawn-order"
+  bosses-directory: "bosses"
+
+attack-target:
+  settings:
+    debug: false
+    refresh-interval-ticks: 5
+    target-timeout-ms: 3000
+    max-view-distance: 48.0
+    blacklist:
+      mythic-mob-ids: []
+      entity-types: []
+    entitytracker-link:
+      ignore-configured-bosses: true
+    title-format: "&c{display_name}"
+    subtitle-format: "&7{entity_type_name} &8| &c{health}/{max_health} &8| &f{distance_text}"
+
+cross-server:
+  enabled: false
+
+new-features:
+  drop-recording:
+    enabled: true
+    retention-days: 30
+    enable-statistics: true
+    statistics-update-interval: 300
+
+  drop-allocation:
+    enabled: true
+    default-mode: "roll"
+    allocation-timeout: 60
+    dkp:
+      enabled: true
+      base-earn-points: 10
+      rank-bonus-points:
+        1: 20
+        2: 15
+        3: 10
+        4: 5
+        5: 3
+    roll:
+      enabled: true
+      timeout-seconds: 30
+      roll-range: "1-100"
+      allow-pass: true
+    priority:
+      enabled: true
+      class-priority:
+        tank: 1
+        healer: 2
+        dps: 3
+      quality-priority:
+        legendary: 1
+        epic: 2
+        rare: 3
+        common: 4
+
+  cross-server-ranking:
+    enabled: false
+    update-interval: 60
+    ranking-types:
+      - "best_damage"
+      - "boss_damage"
+      - "kills"
+      - "participate"
+      - "server"
+    max-entries: 50
+
+  ranking-rewards:
+    schedule:
+      weekly:
+        enabled: true
+        day-of-week: "MONDAY"
+        hour: 0
+        minute: 0
+      monthly:
+        enabled: true
+        day-of-month: 1
+        hour: 0
+        minute: 0
+    timezone: "Asia/Shanghai"
+    reward-settings:
+      auto-distribute: true
+      max-retry-count: 3
+      retry-interval-minutes: 30
+      broadcast-rewards: true
+      detailed-logging: true
+
+storage:
+  shared: true
+```
+
+### Boss 配置示例（`bosses/ExampleBoss.yml`）
+
+```yaml
+enabled: true
+priority: 100
+viewer-range: 48.0
+title-format: "&c{display_name}"
+subtitle-format: "&7MythicMob: &f{mob_id}"
+damage-ranking:
+  enabled: true
+  max-entries: 10
+  min-damage: "1%"
+  rewards:
+    enabled: false
+    ranks:
+      1:
+        actions:
+          - type: item
+            source: neige
+            id: "legendary_sword"
+            amount: 1
+          - type: command
+            command: "points give {player} 100"
+          - type: message
+            target: "player"
+            text: "&6你在 {boss_display_name} 伤害排名第 {rank} 名，获得奖励。"
+      2:
+        actions:
+          - type: command
+            command: "points give {player} 50"
+          - type: message
+            target: "player"
+            text: "&e你在 {boss_display_name} 伤害排名第 {rank} 名。"
+  ranking-rewards:
+    weekly:
+      enabled: false
+      ranks:
+        1:
+          actions:
+            - type: command
+              command: "points give {player} 100"
+            - type: message
+              target: "broadcast"
+              text: "&6&l恭喜 {player} 获得本周 {boss_display_name} 伤害冠军！"
+    monthly:
+      enabled: false
+      ranks:
+        1:
+          actions:
+            - type: command
+              command: "points give {player} 500"
+            - type: message
+              target: "broadcast"
+              text: "&6&l&n恭喜 {player} 获得本月 {boss_display_name} 伤害冠军！"
+spawn-chat-card: ""
+death-chat-card: ""
+despawn-chat-card: ""
+```

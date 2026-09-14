@@ -1,0 +1,12 @@
+{
+  "title": "RGB 渐变文本",
+  "description": "通过 PlaceholderAPI 输出渐变/扫光效果文本，支持嵌套其他占位符",
+  "color": "#f472b6",
+  "pages": [
+    "index",
+    "configuration",
+    "rendering",
+    "commands",
+    "integration"
+  ]
+}

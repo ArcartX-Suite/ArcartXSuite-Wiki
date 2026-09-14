@@ -1,0 +1,306 @@
+---
+title: 频道系统
+description: Chat 频道模式、范围聊天、跨服同步与消息分发机制详解
+---
+
+# 频道系统
+
+> **付费模块**
+
+频道（Channel）是 Chat 模块的核心抽象。每个频道是一个独立的聊天空间，拥有自己的模式、权限、格式模板和跨服策略。玩家同一时间只处于一个频道中，通过 `/chat channel <频道ID>` 切换。
+
+## 频道模式
+
+Chat 模块支持四种频道模式，由 `ChatChannelMode` 枚举定义：
+
+| 模式 | 配置值 | 跨服默认 | 典型场景 |
+|---|---|---|---|
+| 普通 | `normal` | `false` | 默认聊天频道，支持 `range` 距离限制实现附近聊天 |
+| 全局 | `global` | `true` | 全服公共频道，跨服广播 |
+| 私聊 | `private` | `true` | 一对一私聊，`/msg` 与 `/reply` 复用此频道格式 |
+| 管理 | `staff` | `true` | 管理员内部频道，仅限有权限的玩家发送与接收 |
+
+:::info
+`cross-server` 字段未显式配置时，`global` 和 `staff` 模式默认开启跨服同步，`normal` 和 `private` 模式默认关闭。私聊频道虽然默认关闭跨服，但示例配置 `Private.yml` 中手动设为 `true`，确保私聊可跨服送达。
+:::
+
+### 模式解析逻辑
+
+频道模式通过 `ChatChannelMode.parse()` 解析，无法识别的值默认回退到 `normal`：
+
+```java
+public static ChatChannelMode parse(String rawValue) {
+    String normalized = rawValue == null ? "" : rawValue.trim().toLowerCase(Locale.ROOT);
+    return switch (normalized) {
+        case "global" -> GLOBAL;
+        case "private" -> PRIVATE;
+        case "staff" -> STAFF;
+        default -> NORMAL;
+    };
+}
+```
+
+## 频道定义字段
+
+每个频道由 `ChatChannelDefinition` record 描述，从 `chat/channels/` 目录下的 yml 文件加载：
+
+| 字段 | 类型 | 默认值 | 说明 |
+|---|---|---|---|
+| `id` | `String` | 文件名（小写规范化） | 频道 ID，用于命令切换与内部引用 |
+| `enabled` | `boolean` | `true` | 是否启用此频道，`false` 的频道加载时被跳过 |
+| `displayName` | `String` | 文件名 | UI / 消息中显示的频道名 |
+| `mode` | `ChatChannelMode` | `NORMAL` | 频道模式 |
+| `sendPermission` | `String` | `""` | 发送所需权限，空串表示无限制 |
+| `receivePermission` | `String` | 继承 `sendPermission` | 接收所需权限 |
+| `crossServer` | `boolean` | `mode` 为 `global`/`staff` 时 `true` | 是否跨服传输 |
+| `range` | `double` | `0` | 本地聊天半径（0 表示全图），仅 `normal` 模式生效 |
+| `format` | `String` | `&7[{channel}] &f{player_name}&7: &r{message}` | 常规消息格式模板 |
+| `consoleFormat` | `String` | `[{channel}] {player_name}: {message}` | 控制台消息格式模板 |
+| `senderFormat` | `String` | `&d[私聊 -> {target_name}] ...` | 私聊发送者视角格式模板 |
+| `recipientFormat` | `String` | `&d[私聊 <- {player_name}] ...` | 私聊接收者视角格式模板 |
+| `spyFormat` | `String` | `&5[监听 {player_name} -> {target_name}] ...` | 监听视角格式模板 |
+
+:::tip
+`receivePermission` 未配置时自动继承 `sendPermission` 的值。如需让更多玩家能接收但仅少数能发送，可分别配置两个字段。
+:::
+
+## 频道加载机制
+
+频道定义文件位于 `channels-directory` 指定的目录下（默认 `chat/channels/`），加载流程如下：
+
+1. 模块启动时读取 `ArcartXChat.yml` 的 `channels-directory` 字段
+2. 扫描该目录下所有 `.yml` 文件，按文件名排序后逐个加载
+3. 文件名（去掉 `.yml` 后缀）即为频道 ID，自动转为小写
+4. `enabled: false` 的频道会被跳过，不进入频道映射
+5. 若默认频道 ID 不存在，自动回退到首个有效频道
+6. 首次启动时自动释放 `Normal.yml`、`Global.yml`、`Private.yml`、`Staff.yml` 四个默认频道
+
+```java
+File[] files = directory.listFiles(file ->
+    file.isFile() && file.getName().toLowerCase(Locale.ROOT).endsWith(".yml"));
+java.util.Arrays.sort(files, (left, right) -> left.getName().compareToIgnoreCase(right.getName()));
+for (File file : files) {
+    String id = normalizeId(fileName.substring(0, fileName.length() - 4));
+    ChatChannelDefinition definition = ChatChannelDefinition.load(id, YamlConfiguration.loadConfiguration(file));
+    if (!definition.enabled()) continue;
+    channels.put(definition.id(), definition);
+}
+```
+
+:::caution
+频道映射使用 `LinkedHashMap` 并在加载完成后冻结为不可变 Map。频道顺序按文件名字典序排列，不影响运行时行为，但决定了 `/chat channel` Tab 补全的候选顺序。
+:::
+
+## 范围聊天
+
+`normal` 模式频道支持 `range` 字段实现附近聊天（局部聊天）。当 `range` 大于 0 时，消息仅发送给发送者周围指定半径内的玩家。
+
+### 接收者过滤逻辑
+
+`canReceivePublic()` 方法在分发频道消息时逐个判断在线玩家是否应收到消息：
+
+```java
+if (localSender != null && channel.mode() == ChatChannelMode.NORMAL && channel.range() > 0.0D) {
+    if (!Objects.equals(localSender.getWorld(), recipient.getWorld())) {
+        return false;
+    }
+    return recipient.getLocation().distanceSquared(localSender.getLocation())
+        <= channel.range() * channel.range();
+}
+```
+
+| 条件 | 判定 | 说明 |
+|---|---|---|
+| 不同世界 | 直接拒绝 | 范围聊天不跨世界 |
+| 同世界 | 距离平方 `<=` range² | 使用 `distanceSquared` 避免开方运算 |
+| `range = 0` | 不限制 | 全图广播（默认行为） |
+
+:::info
+范围聊天仅对 `normal` 模式生效。`global`、`staff` 模式忽略 `range` 字段，始终全服广播。`private` 模式不涉及范围判定。
+:::
+
+### 范围聊天配置示例
+
+```yaml
+# 附近频道示例：仅 50 格内玩家可见
+enabled: true
+display-name: "附近"
+mode: "normal"
+send-permission: ""
+receive-permission: ""
+cross-server: false
+range: 50
+format: "&8[附近] &f{player_name}&7: &r{message}"
+console-format: "[附近] {player_name}: {message}"
+sender-format: "&d[私聊 -> {target_name}] &f{player_name}&7: &r{message}"
+recipient-format: "&d[私聊 <- {player_name}] &f{player_name}&7: &r{message}"
+spy-format: "&5[监听 {player_name} -> {target_name}] &r{message}"
+```
+
+## 跨服同步
+
+频道可通过 `cross-server: true` 开启跨服消息转发。跨服传输通过 `CrossServerAPI` 打开通道，使用 `ChatEnvelopeCodec` 将消息信封编码为 yml 字符串后传输。
+
+### 跨服通道
+
+```java
+crossServerChannel = crossServer.openChannel(
+    "chat",
+    configuration.crossServer(),
+    delivery -> handleRemotePayload(delivery.payload())
+);
+```
+
+| 配置项 | 值 | 说明 |
+|---|---|---|
+| 通道名 | `chat` | 跨服通道标识 |
+| 配置来源 | `ArcartXChat.yml` 的 `cross-server.enabled` | 全局跨服开关 |
+| 消息格式 | yml 字符串 | `ChatEnvelopeCodec` 编码/解码 |
+
+### 跨服消息处理流程
+
+```
+本地消息发送 → 构建 ChatEnvelope → ChatEnvelopeCodec.encode → yml 字符串
+  → crossServerChannel.publish → 其他节点接收
+  → ChatEnvelopeCodec.decode → handleRemoteEnvelope
+  → dedupeKey 去重 → 查找频道 → 分发
+    → 私聊消息 → deliverPrivateEnvelope（本地目标玩家）
+    → 频道消息 → deliverPublicEnvelope（按权限 / 忽略列表过滤）
+```
+
+### 跨服去重
+
+跨服消息通过 `dedupeKey`（`originNodeId:messageId`）去重，避免同一消息被多个节点重复处理：
+
+```java
+private boolean rememberEnvelope(String dedupeKey) {
+    return processedEnvelopeKeys.putIfAbsent(dedupeKey, System.currentTimeMillis()) == null;
+}
+```
+
+去重缓存 TTL 为 15 秒，超时自动清理。清理任务每 1200 tick（60 秒）执行一次。
+
+:::tip
+跨服转发需要宿主 `config.yml` 的 `cross-server` 节配置 Redis 或 Proxy 后端。单服无需开启。详见 [/docs/guide/conditions](/docs/guide/conditions)。
+:::
+
+## 权限模型
+
+频道权限分为发送权限和接收权限，通过 `send-permission` 和 `receive-permission` 配置。
+
+### 发送权限
+
+发送消息时校验 `send-permission`。空串表示无限制：
+
+```java
+if (!channel.sendPermission().isBlank() && !sender.hasPermission(channel.sendPermission())) {
+    return ChatOperationResult.failure(message("result.channel-speak-no-permission"));
+}
+```
+
+切换频道时也校验 `send-permission`：
+
+```java
+if (!channel.sendPermission().isBlank() && !player.hasPermission(channel.sendPermission())) {
+    return ChatOperationResult.failure(message("result.channel-no-permission"));
+}
+```
+
+### 接收权限
+
+接收消息时校验 `receive-permission`。未配置时继承 `send-permission`：
+
+```java
+if (!channel.receivePermission().isBlank() && !recipient.hasPermission(channel.receivePermission())) {
+    return false;
+}
+```
+
+:::info
+发送者始终能看到自己发送的消息（`canReceivePublic` 中 `senderUuid.equals(recipient.getUniqueId())` 直接返回 `true`），不受接收权限限制。
+:::
+
+## 消息分发流程
+
+频道消息分发是 Chat 模块的核心流程，从玩家发送消息到接收者收到消息经过多个阶段：
+
+```
+玩家发送消息 → 拦截 AsyncPlayerChatEvent / Paper AsyncChatEvent
+  → 取消原版事件 → 获取玩家当前频道
+  → 频道模式为 PRIVATE → 复用私聊逻辑（replyTargets）
+  → 频道模式为 NORMAL/GLOBAL/STAFF → 频道消息分发
+    → 校验发送权限 → 校验禁言状态 → 校验冷却 / 重复消息
+    → 应用自定义组件替换 → ContentModerator 敏感词过滤
+    → 解析 @提及 → 处理 [item] 物品展示
+    → 渲染格式模板（PAPI 解析）
+    → 构建 ChatEnvelope 信封
+    → 本地分发（按权限 / 忽略列表 / range 距离过滤接收者）
+    → 跨服转发（channel.cross-server && crossServerActive）
+    → 发布 EventBus 事件
+```
+
+### 频道消息分发
+
+`dispatchChannelMessage()` 处理普通/全局/管理频道的消息分发：
+
+| 步骤 | 方法 | 说明 |
+|---|---|---|
+| 消息清洗 | `sanitizeAndValidateOutgoingMessage` | 去空白、校验最大长度 |
+| 发送前校验 | `validateBeforeSend` | 权限、禁言、冷却、重复检测 |
+| 自定义组件 | `applyCustomComponents` | 正则匹配替换消息文本 |
+| 内容审核 | `contentModerator.filter` | 敏感词过滤 |
+| 提及解析 | `ChatMentionSupport.parseMentions` | 解析 `@玩家名` 和 `@all` |
+| 物品处理 | `processContent` | 处理 `[item]` 物品展示 |
+| 模板渲染 | `ChatFormatSupport.renderTemplate` | 变量替换 + PAPI 解析 + 颜色转义 |
+| 信封构建 | `new ChatEnvelope` | 封装完整消息上下文 |
+| 本地分发 | `deliverPublicEnvelope` | 按条件过滤接收者并发送 |
+| 跨服转发 | `crossServerChannel.publish` | 编码为 yml 并通过跨服通道传输 |
+
+### 私聊消息分发
+
+`dispatchPrivateMessage()` 处理私聊频道的消息分发，与频道消息分发有以下区别：
+
+| 差异点 | 频道消息 | 私聊消息 |
+|---|---|---|
+| 接收者 | 所有在线玩家（按权限/忽略/range 过滤） | 仅目标玩家 |
+| 权限校验 | 频道 `send-permission` | `arcartxsuite.chat.msg` + 频道 `send-permission` |
+| 接收拒绝 | 接收权限不足或忽略发送者 | 目标关闭私聊接收或忽略发送者 |
+| 格式模板 | `format` | `senderFormat` + `recipientFormat` + `spyFormat` |
+| 监听者 | 无 | SocialSpy 开启者可看到 `spyFormat` 渲染的消息 |
+| 回复目标 | 不记录 | 双向记录 `replyTargets` |
+| EventBus | 发布 `axs.chat.chat_message_sent` | 不发布事件 |
+
+:::tip
+私聊消息使用三个格式模板分别渲染：发送者看到 `senderFormat`，接收者看到 `recipientFormat`，SocialSpy 监听者看到 `spyFormat`。控制台输出使用 `consoleFormat`。详见聊天格式化文档。
+:::
+
+## 默认频道
+
+`settings.default-channel` 指定玩家首次加入时的默认频道。若配置的默认频道 ID 不存在，模块自动回退到首个有效频道：
+
+```java
+if (!channels.containsKey(defaultChannelId)) {
+    defaultChannelId = channels.isEmpty() ? "normal" : channels.keySet().iterator().next();
+}
+```
+
+:::caution
+如果频道目录为空（没有任何 `.yml` 文件），模块会输出警告日志 `ArcartXChat 未加载到任何频道定义`，此时所有聊天功能将不可用。
+:::
+
+## 频道切换
+
+玩家通过 `/chat channel <频道ID>` 切换当前频道。切换流程：
+
+1. 查找频道定义，不存在则返回失败
+2. 校验 `send-permission` 权限
+3. 更新玩家状态（`ChatPlayerState.withCurrentChannel`）
+4. 异步保存状态到数据库
+5. 刷新 Tab 显示（`TabRefreshable`，标识 `chat-channel`）
+6. 返回成功消息
+
+频道切换不校验目标频道的 `receive-permission`，仅校验 `send-permission`。这意味着玩家可以切换到一个自己无法接收的频道（但发送时会被 `send-permission` 拦截）。
+
+:::info
+玩家状态持久化到 `chat_player_states` 表，包含当前频道 ID、私聊/提及/监听开关与忽略列表。详见 [/docs/guide/conditions](/docs/guide/conditions)。
+:::

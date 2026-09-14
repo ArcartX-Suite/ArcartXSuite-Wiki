@@ -1,0 +1,18 @@
+{
+    "title":  "API 参考",
+    "pages":  [
+                  "index",
+                  "module-lifecycle",
+                  "module-context",
+                  "bridge-api",
+                  "capability",
+                  "events",
+                  "event-bus",
+                  "aria",
+                  "placeholder-api",
+                  "packet-bridge",
+                  "i18n",
+                  "cross-server-api"
+              ]
+}
+

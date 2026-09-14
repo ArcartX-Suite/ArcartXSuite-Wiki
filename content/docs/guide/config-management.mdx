@@ -1,0 +1,176 @@
+---
+title: 配置智能体检
+description: ConfigDiagnosticEngine 使用、诊断命令、自动修复与配置版本管理
+---
+
+# 配置智能体检
+
+ArcartX-Suite 内置智能配置自动修正系统（`ConfigDiagnosticEngine`），可在不中断服务的情况下，自动检测并修复全部模块的配置文件问题。
+
+## 功能概览
+
+智能体检系统提供四层诊断能力：
+
+| 层级 | 功能 | 说明 |
+|------|------|------|
+| 结构同步 | 键对齐 | 对比 jar 内默认配置，自动补全缺失键、标记废弃键 |
+| 类型修复 | 值校验 | 检查字段类型（STRING/INT/BOOLEAN 等），自动类型转换 |
+| 字段迁移 | 版本升级 | 根据 `migrations/&lt;from>-&lt;to>.yml` 执行重命名、删除、移动 |
+| 值验证 | 范围/枚举 | 验证数值范围、枚举值合法性 |
+
+## 命令使用
+
+### `/axs config` 子命令
+
+| 子命令 | 说明 |
+|--------|------|
+| `config status` | 当前会话诊断概况（ERROR/WARN/INFO 统计） |
+| `config diagnose [ownerId\|all]` | 重新运行诊断 |
+| `config preview &lt;ownerId\|all>` | 控制台输出 issue 详情 |
+| `config apply &lt;ownerId\|all> [--force]` | 应用自动修复提案（会备份原文件） |
+| `config rollback &lt;ownerId\|all> [--to &lt;timestamp>]` | 还原备份 |
+
+`ownerId` 可以是 `axs-core`（宿主配置）、模块 ID 或 `all`（全部）。
+
+### 典型工作流
+
+#### 场景 1：升级后检查
+
+升级 ArcartX-Suite 或模块 jar 后，控制台会显示诊断概况。若看到 ERROR 或 WARN：
+
+```bash
+/axs config preview axs-core       # 查看宿主配置问题
+/axs config preview warehouse      # 查看仓库模块问题
+```
+
+#### 场景 2：安全应用修复
+
+```bash
+/axs config apply warehouse        # 应用仓库模块修复（会自动备份）
+/axs config status warehouse       # 确认修复成功
+```
+
+如需回滚：
+
+```bash
+/axs config rollback warehouse     # 恢复到修复前状态
+```
+
+#### 场景 3：批量操作
+
+```bash
+/axs config diagnose all           # 重新诊断全部
+/axs config apply all              # 批量应用全部修复
+/axs config rollback all           # 批量回滚
+```
+
+## 诊断报告解读
+
+诊断报告存储在 `plugins/ArcartX-Suite/diagnosis/YYYY-MM-DD_HH-mm-ss/summary.md`。
+
+### 问题分级
+
+| 级别 | 含义 |
+|------|------|
+| ERROR | 必须修复，可能导致功能异常。apply 默认拒绝，需 `--force` |
+| WARN | 建议修复，可能影响性能或体验 |
+| INFO | 信息提示，无实质影响。可安全应用 |
+
+### 问题类型
+
+| 类型 | 说明 |
+|------|------|
+| `MISSING_DEFAULT` | 用户 yml 缺失内置默认值的键 |
+| `OBSOLETE_KEY` | 用户 yml 中存在已废弃的键 |
+| `TYPE_MISMATCH` | 字段类型与预期不符（可转换时 WARN，不可转换时 ERROR） |
+| `VALUE_OUT_OF_RANGE` | 数字超出范围 |
+| `VALUE_NOT_IN_ENUM` | 字符串不在允许集合中 |
+| `VERSION_UPGRADE` | 版本号低于当前内置版本，存在待应用 migration |
+| `MIGRATION_FAILED` | 迁移操作执行失败 |
+
+## 配置版本管理
+
+每个配置文件独立维护版本号：
+
+```yaml
+# data/warehouse/config.yml
+config-version: 1
+```
+
+当模块需要破坏性变更时：
+1. 新版本 jar 包含 `migrations/1-2.yml`
+2. 诊断引擎检测到 `config-version: 1` 低于当前版本 `2`
+3. 自动应用迁移规则（重命名、删除、设置默认值）
+
+### 迁移操作类型
+
+| type | 说明 |
+|------|------|
+| `rename` | 同层级重命名键（支持 `*` 通配符） |
+| `remove` | 删除指定路径 |
+| `move` | 跨层级移动键值 |
+| `set-if-missing` | 仅当目标路径不存在时设置默认值 |
+| `value-map` | 把指定字符串值按映射表替换 |
+
+### 迁移文件示例
+
+```yaml
+from-version: 4
+to-version: 5
+description: "storage.mode 重命名为 storage.dialect"
+operations:
+  - type: rename
+    from: storage.mode
+    to: storage.dialect
+  - type: set-if-missing
+    path: storage.table-prefix
+    value: "axs_afk_"
+```
+
+## 自动覆盖与必须更新声明
+
+### 自动覆盖（无需更新声明）
+
+| 改动 | 自动行为 |
+|------|---------|
+| 新增 jar 默认字段 | 报告 `JAR_NEW`，用户配置自动合并 |
+| 删除 jar 默认字段 | 报告 `USER_DEPRECATED` |
+| 修改 jar 默认值 | 标记用户旧值为 `USER_MODIFIED` |
+| 修改注释/排版 | 不影响 |
+
+### 必须更新声明
+
+| 改动 | 必须做的事 |
+|------|-----------|
+| 重命名字段 | 写 migration 的 `rename` 操作 + 递增 `currentVersion` |
+| 移动字段 | 写 migration 的 `move` 操作 + 升版本号 |
+| 改变字段语义 | 写 migration 的 `value-map` 操作 + 升版本号 |
+| 删除字段 | 写 migration 的 `remove` 操作 + 升版本号 |
+| 新增字段类型/范围/枚举约束 | 加 `ValidationRule` |
+| 新增动态节 | 在 `SyncPolicy` 中用 `dynamicSection("path")` 声明 |
+
+## 配置目录拆分
+
+部分模块的大型数据段从主配置文件拆分到独立目录：
+
+| 模块 | 新配置键 | 目录内容 |
+|------|---------|---------|
+| announcer | `entries-directory` | 公告条目 |
+| combateffect | `packets-directory` | 战斗特效包定义 |
+| title | `titles-directory` | 称号定义 |
+| rgb | `entries-directory` | 渐变色条目 |
+| map | `anchors-directory` | 锚点定义 |
+| questgps | `quests-directory` | Chemdah overlay |
+| onlinerewards | `sign-in-file` / `rewards-file` | 签到与奖励 |
+| tab | `tabs-directory` | Tab 面板定义 |
+| entitytracker | `bosses-directory` | Boss 追踪定义 |
+| eventpacket | `rules-directory` | 事件包规则 |
+
+目录下每个 `*.yml` 文件可包含多个定义，根键即为该定义的 ID。文件按文件名字母序加载，同名 ID 后加载的覆盖先加载的。
+
+## 最佳实践
+
+1. 定期检查：每周执行一次 `/axs config diagnose` 检查累积问题
+2. 先 preview 后 apply：重要生产环境务必先查看报告再应用修复
+3. 利用备份：apply 会自动创建备份，rollback 可快速恢复
+4. 关注日志：启动时若看到配置迁移提示，及时检查兼容性

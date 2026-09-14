@@ -1,0 +1,124 @@
+---
+title: "概览"
+description: "Lottery 抽奖系统功能概览"
+---
+
+## 模块简介
+
+Lottery 是 ArcartXSuite 的抽奖模块，提供两种抽奖模式：CS 开箱风格（CASE）与原神祈愿风格（GACHA）。CASE 模式按七档稀有度权重抽取物品，配有滚动动画 UI；GACHA 模式支持 5 星/4 星保底、软保底、UP 概率与跨池共享保底。模块还包含积分系统与积分兑换商店。
+
+## 功能特性
+
+| 特性 | 说明 |
+|---|---|
+| CASE 开箱 | CS:GO 风格开箱，七档稀有度权重抽取（COMMON/UNCOMMON/RARE/EPIC/LEGENDARY/MYTHIC/SPECIAL），滚动动画 UI，支持箱子物品右键开启与钥匙消耗 |
+| GACHA 祈愿 | 原神风格祈愿，5 星/4 星硬保底、软保底递增、UP 概率、大保底/小保底、武器池命运点定轨机制，支持单抽与十连 |
+| 多资源消耗 | 单次抽奖可同时消耗货币（CURRENCY）、物品（ITEM，含物品匹配器）、积分（POINT）三类资源 |
+| 积分系统 | 每次抽奖按稀有度/星级累积积分，积分可在兑换商店兑换奖品 |
+| 积分兑换商店 | 支持积分/物品/货币兑换奖品，支持限购次数（limit） |
+| 跨池共享保底 | 同组 Gacha 池共享保底计数（通配符匹配池 ID 或奖池内显式声明 `shared-pity-group`） |
+| 奖品投递 | 支持直接发放（DIRECT）、命令执行（COMMAND）、邮件发放（MAIL）三种投递方式 |
+| 物品库支持 | 奖品与图标支持原版 / MythicMobs / NeigeItems / Overture / MMOItems |
+| 开箱物品右键开启 | CASE 池可配置 `case-item`，玩家手持匹配物品右键直接打开开箱 UI |
+| 抽奖历史记录 | 记录玩家抽卡/开箱历史，UI 可查看最近 100 条抽卡 / 20 条开箱记录 |
+| 待发放奖励领取 | 投递失败的奖励自动入队，玩家上线或执行 `/lottery claim` 领取 |
+| 概率模拟 | 管理员可模拟指定奖池抽奖统计（不扣费、不发奖、不保存状态） |
+| 数据库迁移 | 支持配置版本迁移（1→2→3），注册 `DatabaseMigratable` 能力 |
+| 玩家数据清除 | 注册 `PlayerDataPurgeable` 能力，支持单玩家/全量数据清除 |
+
+## 依赖
+
+| 依赖类型 | 名称 | 说明 |
+|---|---|---|
+| 依赖（本体） | ArcartX-Suite | 必须运行本体，模块通过 `AbstractAXSModule` 加载 |
+| 外部依赖 | PlaceholderAPI | 占位符扩展依赖（`external-depends`），未安装时不影响核心功能但占位符不可用 |
+| 软依赖 | 无 | `softdepends` 与 `depends` 均为空 |
+
+模块 `module.yml` 声明：
+
+```yaml
+id: lottery
+name: Lottery
+version: 1.4.4
+main: xuanmo.arcartxsuite.lottery.LotteryModule
+api-version: 1.0
+
+depends: []
+softdepends: []
+external-depends:
+  - PlaceholderAPI
+external-softdepends: []
+```
+
+## 抽奖机制详解
+
+### GACHA 抽卡机制
+
+GACHA 模式模拟原神祈愿，核心参数由奖池文件 `gacha` 节配置：
+
+| 参数 | 默认值 | 说明 |
+|---|---|---|
+| `pool-type` | `CHARACTER` | 卡池类型：`CHARACTER`（角色池）/ `WEAPON`（武器池）/ `STANDARD`（常驻池） |
+| `pity-5star` | `90` | 5 星硬保底抽数，达到必出 5 星 |
+| `pity-4star` | `10` | 4 星硬保底抽数，达到必出 4 星 |
+| `soft-pity-start` | `73` | 软保底起始抽数，之后每抽 5 星概率递增 |
+| `soft-pity-increment` | `0.06` | 软保底每抽概率增量 |
+| `base-5star-rate` | `0.006` | 5 星基础概率（0.6%） |
+| `base-4star-rate` | `0.051` | 4 星基础概率（5.1%） |
+| `up-rate` | `0.5` | UP 物品在对应星级中的占比概率（50%） |
+| `fate-point-cap` | `0` | 命运点上限（武器池定轨机制），0 表示不启用 |
+| `shared-pity-group` | 无 | 共享保底组名，同组卡池共享保底计数 |
+
+**抽卡流程**（`GachaEngine.pull`）：
+
+1. 每抽开始，`pity5star` 与 `pity4star` 计数 +1
+2. 计算 5 星概率：若当前 5 星保底计数 ≥ `pity-5star`，或随机数 < `calculate5StarProbability`（软保底区间内递增），则出 5 星
+3. 5 星判定：若 `guaranteedUp` 为 true（上次 5 星未命中 UP），或随机数 < `up-rate`，则出 UP 5 星；否则出常驻 5 星，并置 `guaranteedUp = true`（下次大保底）
+4. 武器池命运点：若 `fate-point-cap > 0` 且命中 UP 5 星但非定轨目标，`fatePoints +1`；若命中定轨目标，`fatePoints` 清零并移除定轨；`fatePoints >= fatePointCap` 时必出定轨目标
+5. 4 星判定：若 `pity4star` 达到硬保底，或随机数 < `base-4star-rate`，则出 4 星；按 `up-rate` 分流 UP 4 星与常驻 4 星
+6. 3 星：未命中 5/4 星时出 3 星
+7. 同星级内多物品按 `weight` 加权随机选取
+
+**共享保底**：通过 `shared-pity-group`（奖池内显式声明）或顶层 `shared-pity-groups` 通配符匹配（如 `character_event_*`）实现跨池共享保底计数。共享组内任一卡池抽卡都会更新同一保底状态记录。
+
+### CASE 开箱机制
+
+CASE 模式模拟 CS:GO 开箱，核心参数由奖池文件 `case` 节配置：
+
+| 参数 | 说明 |
+|---|---|
+| `rarity-settings` | 稀有度名称到权重设定的映射，每个稀有度含 `color`（显示颜色代码）与 `base-weight`（基础权重） |
+| `items` | 奖池中全部可用奖品列表，每个奖品含 `rarity`（稀有度名称）与 `weight`（同稀有度内相对权重） |
+
+**开箱流程**（`CaseOpeningEngine.openCase`）：
+
+1. 按稀有度 `base-weight` 加权随机选择一个稀有度
+2. 从该稀有度的所有物品中按 `weight` 加权随机选取一件
+3. 物品的 `rarity` 必须匹配已配置的稀有度名称，否则该物品无法被抽出（记录警告）
+
+**箱子物品与钥匙**：
+
+- `case-item`：定义玩家手持触发开箱 UI 的物品匹配规则与消耗数量，右键空气或方块时触发
+- `requires-key`：`true` 时开箱消耗 = 箱子 + 钥匙（`cost` 配置）；`false` 时仅消耗箱子
+- 十连开箱按倍数扣除箱子与钥匙数量
+
+### 奖品投递
+
+奖品通过 `PrizeDistributor` 按 `delivery` 类型投递：
+
+| 投递方式 | 说明 |
+|---|---|
+| `DIRECT` | 直接发放物品到玩家背包，背包满时通过 `ItemRewardDispatcher` 转邮件或暂存 |
+| `COMMAND` | 执行 `commands` 列表中的命令（支持 `{player}` / `{uuid}` / `{amount}` / `{item}` 占位符） |
+| `MAIL` | 通过 `MailDispatchable` 能力发送 `mail.presets` 指定的邮件预设 |
+
+投递失败时，物品序列化为 Base64 入队 `pending_claim` 表，玩家上线或 `/lottery claim` 时重新发放。
+
+## 相关文档
+
+- [配置](/docs/lottery/configuration) — 主配置、奖池配置、奖品配置详解
+- [命令与占位符](/docs/lottery/commands) — 玩家/管理员命令、权限、PAPI 占位符
+- [联动](/docs/lottery/integration) — 跨模块联动、Capability、数据库表结构
+- [条件系统](/docs/guide/conditions) — 物品匹配器条件写法
+- [物品来源](/docs/guide/item-sources) — 物品来源（source）支持列表
+- [图标](/docs/guide/icons) — 图标（IconDefinition）配置写法

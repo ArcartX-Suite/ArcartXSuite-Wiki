@@ -1,0 +1,269 @@
+---
+title: 称号定义与属性
+description: 称号定义字段、分组品质体系、双属性系统与头顶显示配置详解
+---
+
+# 称号定义与属性
+
+## 称号定义结构
+
+每个称号由 `TitleDefinition` record 描述，包含基本信息、显示文本、属性加成与头顶显示参数。称号定义放在 `titles/` 目录下的 `.yml` 文件中，每个文件的根键为称号 ID，值为此称号的配置节。
+
+### 称号 ID 规范
+
+- 称号 ID 统一转为小写（`normalizeId` 处理）
+- 建议使用小写英文、数字、下划线
+- `enabled: false` 的称号在加载时直接跳过，不会注册到内存
+- 引用不存在的分组或品质的称号会被跳过并记录警告日志
+
+### 称号类型（TitleKind）
+
+`TitleKind` 枚举区分两种称号类型，影响 UI 渲染与属性处理：
+
+| 类型 | 配置值 | 说明 | chat-prefix / tab-prefix 用途 |
+|---|---|---|---|
+| `TEXT` | `text` | 纯文本称号，使用常规颜色码文本 | 直接显示文本，如 `&7[冒险者]&r ` |
+| `ICON` | `icon` | 图标称号，使用 ArcartX 自定义文字贴图格式 | 使用 `§k!%<id><icon>` 格式渲染贴图 |
+
+> 无法识别的 `kind` 值默认回退为 `TEXT`。图标称号的贴图格式与 [/docs/guide/icons](/docs/guide/icons) 中描述的 ArcartX 文字贴图系统一致。
+
+## 称号定义字段全表
+
+| 字段 | 类型 | 默认值 | 说明 |
+|---|---|---|---|
+| `enabled` | `boolean` | `true` | 是否启用，`false` 时跳过加载 |
+| `group` | `String` | `default` | 所属分组 ID，必须已在 `groups` 中定义 |
+| `quality` | `String` | `default` | 品质 ID，必须已在 `qualities` 中定义 |
+| `kind` | `String` | `text` | 称号类型（`text` / `icon`） |
+| `display-name` | `String` | 称号 ID | 显示名称，支持颜色码 |
+| `chat-prefix` | `String` | `""` | 装备后附加在聊天消息前的文本 |
+| `chat-suffix` | `String` | `""` | 装备后附加在聊天消息后的文本 |
+| `tab-prefix` | `String` | `""` | 装备后附加在玩家列表名字前的文本 |
+| `tab-suffix` | `String` | `""` | 装备后附加在玩家列表名字后的文本 |
+| `description` | `String` | `""` | 称号描述，常用于菜单提示 |
+| `source` | `String` | `""` | 称号来源说明 |
+| `display-attributes` | `Map<String, Double>` | `{}` | 展示属性键值对（装备时生效） |
+| `display-attribute-lines` | `List<String>` | `[]` | 展示属性文本行（用于 UI 展示与属性源写入） |
+| `collection-attributes` | `Map<String, Double>` | `{}` | 收集属性键值对（拥有即生效） |
+| `collection-attribute-lines` | `List<String>` | `[]` | 收集属性文本行 |
+| `sort-order` | `int` | 索引位置 | 同分组/同品质内的排序权重，越小越靠前 |
+| `overhead-mode` | `String` | `none` | 头顶显示模式（`texture` / `text` / `none`） |
+| `overhead-texture` | `String` | `""` | 头顶贴图资源字符串（texture 模式） |
+| `overhead-width` | `int` | `64` | 头顶贴图渲染宽度 |
+| `overhead-height` | `int` | `64` | 头顶贴图渲染高度 |
+| `overhead-offset-y` | `double` | `2.3` | 头顶贴图垂直偏移量 |
+| `overhead-prefix` | `String` | `""` | 头顶文本前缀（text 模式） |
+| `overhead-suffix` | `String` | `""` | 头顶文本后缀（text 模式） |
+
+## 分组体系（TitleGroupDefinition）
+
+分组是称号的顶层分类维度，每个分组相当于一个独立的装备槽位。
+
+| 字段 | 类型 | 默认值 | 说明 |
+|---|---|---|---|
+| `id` | `String` | — | 分组唯一标识（小写英文、数字、下划线） |
+| `name` | `String` | 分组 ID | 分组显示名称，支持颜色码 |
+| `sort-order` | `int` | 索引位置 | 排序权重，越小越靠前 |
+| `permission` | `String` | `""` | 访问权限节点，空表示所有人可用 |
+
+### 分组装备规则
+
+- 同一分组中只能装备一个称号，装备新称号会替换该分组原有的装备
+- 无分组权限的玩家无法装备该分组的称号，也无法在 UI 中看到该分组的称号
+- 未配置 `groups` 节时，自动创建 `default` 分组（显示名「默认」，无权限限制）
+
+### 分组权限示例
+
+```yaml
+groups:
+  vip:
+    name: "&6VIP 专属&7"
+    sort-order: 5
+    permission: "arcartxsuite.title.group.vip"
+  adventure:
+    name: "&f冒险类&7"
+    sort-order: 10
+    permission: ""
+```
+
+> 推荐权限节点约定为 `arcartxsuite.title.group.<groupId>`。权限相关条件可参考 [/docs/guide/conditions](/docs/guide/conditions)。
+
+## 品质体系（TitleQualityDefinition）
+
+品质用于称号的分级展示与排序，不影响属性数值。
+
+| 字段 | 类型 | 默认值 | 说明 |
+|---|---|---|---|
+| `id` | `String` | — | 品质唯一标识 |
+| `name` | `String` | 品质 ID | 品质显示名称，支持颜色码 |
+| `sort-order` | `int` | 索引位置 | 排序权重，越小越靠前 |
+
+> 未配置 `qualities` 节时，自动创建 `default` 品质（显示名「普通」）。
+
+## 称号排序规则
+
+`TitleModuleConfiguration.orderedTitles()` 按以下优先级排序：
+
+1. **分组排序权重**（`group.sort-order`，升序）
+2. **品质排序权重**（`quality.sort-order`，升序）
+3. **称号自身排序权重**（`title.sort-order`，升序）
+4. **称号 ID**（不区分大小写字母序）
+
+> 未找到对应分组或品质定义时，排序权重取 `Integer.MAX_VALUE`，排到最后。
+
+## 双属性系统
+
+### 展示属性（Display Attributes）
+
+展示属性仅在装备该称号时生效，卸下后失效。用于体现「佩戴称号获得的力量」。
+
+```yaml
+# 键值对形式：用于实际属性数值计算和属性插件同步
+display-attributes:
+  attack: 5
+  defense: 3
+
+# 文本行形式：用于 UI 展示和 AttributePlus / CraneAttribute 属性源数据写入
+display-attribute-lines:
+  - "&4暴击率: 5(%)"
+  - "&a生命力: 100"
+```
+
+### 收集属性（Collection Attributes）
+
+收集属性只要拥有该称号（无需装备）即生效，类似「图鉴收集」机制。过期或回收后失效。
+
+```yaml
+collection-attributes:
+  knowledge: 1
+  prestige: 2
+
+collection-attribute-lines:
+  - "&b学识: 1"
+  - "&e声望: 2"
+```
+
+### 属性合并规则
+
+`TitleTextFormats` 在格式化属性时执行以下合并逻辑：
+
+1. 从 `Map<String, Double>` 键值对生成 `属性名: +数值` 行
+2. 从 `List<String>` 文本行中提取非 Map 部分追加
+3. 可解析为「属性名:数值」格式的行按属性名合并累加（同名相加）
+4. 不可解析的复杂行（如百分比 `(%)`、区间范围）按原样保留并去重
+5. 行首颜色码（如 `&4`、`§a`）会被剥离后用于合并键，首次出现的颜色码保留为最终前缀
+
+> 属性文本行中 `属性名:数值` 格式的行会与键值对合并。复杂格式（如 `暴击率: 5(%)`）因后缀 `(%)` 不参与合并，按原样保留。
+
+## 头顶显示配置
+
+### OverheadMode 枚举
+
+`TitleDefinition.OverheadMode` 控制装备后的头顶显示方式：
+
+| 模式 | 配置值 | 实现方式 | 依赖 |
+|---|---|---|---|
+| `TEXTURE` | `texture` | 通过 `WorldTextureBridge.spawnOnEntity()` 挂载贴图实体 | ArcartX 客户端 + WorldTextureBridge |
+| `TEXT` | `text` | 通过 Scoreboard Team 设置前后缀 | 纯服务端，无额外依赖 |
+| `NONE` | `none` | 无头顶效果 | — |
+
+> 无法识别的 `overhead-mode` 值默认回退为 `NONE`。当 `texture` 模式但 `WorldTextureBridge` 不可用时，自动降级为 `text` 模式。
+
+### texture 模式参数
+
+```yaml
+overhead-mode: texture
+overhead-texture: "§k!%000001<icon>"  # ArcartX 自定义文字贴图格式
+overhead-width: 80                     # 贴图渲染宽度（像素）
+overhead-height: 20                    # 贴图渲染高度（像素）
+overhead-offset-y: 2.3                 # 贴图垂直偏移量（方块）
+```
+
+### text 模式参数
+
+```yaml
+overhead-mode: text
+overhead-prefix: "&7[冒险者] "  # Scoreboard Team 前缀
+overhead-suffix: ""             # Scoreboard Team 后缀
+```
+
+> text 模式使用 `AXS_T_<uuid前16位>` 作为 Scoreboard Team 名称，前缀和后缀经颜色码翻译后设置到 Team。
+
+## 称号文件扫描机制
+
+`TitleModuleConfiguration.load()` 支持从 `titles-directory` 指定的目录扫描独立称号文件：
+
+1. 按 `titles-directory` 配置（默认 `titles`）定位目录
+2. 目录下所有 `.yml` 文件按文件名字母序排序后逐个加载
+3. 每个文件的根键为称号 ID，值为此称号的配置节
+4. 单个文件加载失败（如 `StackOverflowError`）时跳过该文件，不影响其他文件
+5. 主配置内联称号与目录文件称号合并到同一 `Map<String, TitleDefinition>`
+
+```yaml
+# ArcartXTitle.yml 中指定称号目录
+titles-directory: "titles"
+```
+
+> 首次启动时，若 `titles/` 目录为空，模块自动从 jar 内导出 `adventure.yml`、`exploration.yml`、`activity.yml` 三个默认示例文件。
+
+## 完整称号定义示例
+
+### 文本称号示例
+
+```yaml
+adventurer:
+  enabled: true
+  group: "adventure"
+  quality: "common"
+  kind: "text"
+  display-name: "&0冒险者"
+  chat-prefix: "&7[冒险者]&r "
+  chat-suffix: ""
+  tab-prefix: "&7[冒险者]&r "
+  tab-suffix: ""
+  description: "完成新手冒险线后获得。"
+  source: "新手任务"
+  display-attributes:
+    attack: 1
+  display-attribute-lines:
+    - "&4暴击率: 5(%)"
+  collection-attributes:
+    knowledge: 1
+  collection-attribute-lines:
+    - "&a生命力: 100"
+  sort-order: 10
+  overhead-mode: text
+  overhead-prefix: "&7[冒险者] "
+  overhead-suffix: ""
+```
+
+### 图标称号示例
+
+```yaml
+starwalker:
+  enabled: true
+  group: "exploration"
+  quality: "legendary"
+  kind: "icon"
+  display-name: "&6星轨行者"
+  chat-prefix: "§k!%000001<icon>"
+  chat-suffix: ""
+  tab-prefix: "§k!%000001<icon>"
+  tab-suffix: ""
+  description: "适用于 ArcartX 文本图标称号的示例条目。"
+  source: "限时探索活动"
+  display-attributes:
+    luck: 3
+  display-attribute-lines:
+    - "幸运值:3"
+  collection-attributes:
+    prestige: 1
+  sort-order: 20
+  overhead-mode: texture
+  overhead-texture: "§k!%000001<icon>"
+  overhead-width: 80
+  overhead-height: 20
+  overhead-offset-y: 2.3
+```
+
+> 图标称号的 `§k!%<id><icon>` 为 ArcartX 自定义文字贴图格式，详见 [/docs/guide/icons](/docs/guide/icons)。物品来源相关配置可参考 [/docs/guide/item-sources](/docs/guide/item-sources)。

@@ -1,0 +1,298 @@
+---
+title: OneBot 连接与 SnowLuma 管理
+description: OneBot 11 WebSocket 连接机制、自动重连、端口探测及 SnowLuma 进程管理
+---
+
+# OneBot 连接与 SnowLuma 管理
+
+QQBot 模块通过 **OneBot 11 正向 WebSocket 协议** 与 QQ 机器人实现端建立长连接，实现双向事件推送与指令调用。模块内置 SnowLuma 进程管理器，支持 native（本地子进程）和 docker（容器）两种模式自动拉起 OneBot 实现端。
+
+## OneBot 11 协议概述
+
+OneBot 11 是 QQ 机器人领域的标准通信协议，QQBot 模块作为 **WebSocket 客户端** 连接到 OneBot 实现端（服务端）。实现端负责对接 QQ 客户端，将 QQ 群事件推送给模块，同时接收模块发出的 Action 请求（如发送群消息、禁言等）。
+
+### 支持的实现端
+
+| 实现端 | 说明 |
+|---|---|
+| SnowLuma | 模块内置进程管理，推荐使用 |
+| NapCat | 第三方 OneBot 实现，需手动启动 |
+| Lagrange | 第三方 OneBot 实现，需手动启动 |
+
+> 模块不限定实现端，只要兼容 OneBot 11 正向 WebSocket 协议即可连接。使用非 SnowLuma 实现端时，将 `onebot.snowluma.auto-start` 设为 `false`，手动启动实现端后模块会自动连接。
+
+## OneBotClient 连接机制
+
+`OneBotClient` 是模块的 WebSocket 客户端封装，负责连接管理、事件接收和 Action 调用。
+
+### 连接流程
+
+```
+模块启动 (startService)
+  │
+  ├─ SnowLumaProcessManager.init()     ← 异步线程
+  │    ├─ 检测 Node.js 环境 (native) / 容器状态 (docker)
+  │    └─ 启动 SnowLuma 进程
+  │
+  ├─ waitForPort(wsUrl, 8000ms)        ← 等待 WS 端口就绪
+  │
+  └─ OneBotClient.start()
+       ├─ probePort()                  ← TCP 端口探测（1秒超时）
+       │    ├─ 端口不通 → 触发 onClose → scheduleReconnect
+       │    └─ 端口可连 → WebSocketClient.connect()
+       │
+       └─ onOpen 回调
+            ├─ 标记 connected = true
+            ├─ 调用 onBotConnected()
+            └─ 心跳由服务端推送，客户端无需主动发送
+```
+
+### 端口探测机制
+
+模块在发起 WebSocket 连接前，先用独立 Socket 做一次 TCP connect（超时 1 秒）探测端口是否监听：
+
+- **端口不通**：直接触发 `onClose` 回调进入重连调度，不调用 `super.run()`，避免 java-websocket 库内部 slf4j 打印 `ConnectException` 堆栈刷屏
+- **端口可连**：正常进入 WebSocket 握手流程
+- **URL 无法解析**：跳过探测，交由后续 connect 正常处理
+
+> 端口探测与 WebSocket 连接在同一线程内执行，竞态窗口极小。
+
+### 自动重连
+
+连接断开后，模块按 `reconnect-interval-seconds`（默认 10 秒）间隔自动重连。重连日志采用分级抑制策略，避免刷屏：
+
+| 阶段 | 日志行为 |
+|---|---|
+| 首次断开 | 打印完整告警（含 wsUrl、重连间隔） |
+| 首次后 | 每隔 6 次重连失败打印一次摘要（含累计失败次数、已耗时秒数） |
+| 连接成功 | 清零失败计数，重置告警标志 |
+
+### 断开原因识别
+
+`OneBotClient` 根据远端标志和最近异常信息推断断开原因：
+
+| 原因常量 | 触发条件 |
+|---|---|
+| `远端关闭连接` | `remote = true`（服务端主动关闭） |
+| `连接被拒绝（OneBot 服务未启动或地址端口错误）` | 异常信息包含 `Connection refused` |
+| `连接超时` | 异常信息包含 `timeout` 或 `timed out` |
+| `连接断开: <详情>` | 其他异常 |
+
+## OneBot 事件处理
+
+收到 WebSocket 消息后，`OneBotClient` 将 JSON 解析为 `OneBotEvent` 对象，回调给 `QQBotService.handleOneBotEvent()` 处理。
+
+### OneBotEvent 支持的事件类型
+
+| 事件类型 | 子类型 | 说明 |
+|---|---|---|
+| `message` | `group` | 群消息（指令处理、消息同步、自动回复） |
+| `notice` | `group_increase` | 群成员增加（入群欢迎） |
+| `notice` | `group_decrease` | 群成员减少 |
+| `notice` | `group_ban` | 群禁言事件（禁言同步封禁） |
+| `meta_event` | `heartbeat` | 心跳保活 |
+| `meta_event` | `lifecycle` | 生命周期事件 |
+
+### 消息段解析
+
+OneBot 群消息可能以消息段数组形式发送，`OneBotEvent` 自动提取纯文本：
+
+| 消息段类型 | 提取结果 |
+|---|---|
+| `text` | 提取 `data.text` 原文 |
+| `at` | 提取为 `@<QQ号>` |
+| `face` | 替换为 `[表情]` |
+| `image` | 替换为 `[图片]` |
+| `reply` | 忽略（回复引用） |
+| 其他 | 替换为 `[<类型>]` |
+
+`atQQs()` 方法可从消息段数组中提取被 @ 的 QQ 号列表，用于 @ 提示功能。
+
+### 发送者信息
+
+| 方法 | 说明 |
+|---|---|
+| `senderNickname()` | 发送者昵称 |
+| `senderCard()` | 群名片（优先于昵称） |
+| `senderRole()` | 群角色（`member` / `admin` / `owner`） |
+| `isSenderAdmin()` | 是否为群管理或群主 |
+
+## OneBot Action 调用
+
+模块通过 WebSocket 发送 JSON 格式的 Action 请求到实现端：
+
+| Action | 方法 | 说明 |
+|---|---|---|
+| `send_group_msg` | `sendGroupMessage(groupId, message)` | 发送纯文本群消息 |
+| `send_group_msg`（消息段） | `sendGroupMessageAt(groupId, qqId, message)` | 发送 @ + 文本消息 |
+| `delete_msg` | `deleteMessage(messageId)` | 撤回消息 |
+| `set_group_ban` | `setGroupBan(groupId, qqId, durationSec)` | 禁言群成员 |
+
+> 所有 Action 在未连接时静默忽略，不抛异常。`sendGroupMessageAt` 使用消息段数组形式发送，包含 `at` 段和可选的 `text` 段。
+
+## SnowLuma 进程管理
+
+`SnowLumaProcessManager` 负责管理 SnowLuma OneBot 实现端的生命周期，支持 native 和 docker 两种模式。
+
+### Native 模式
+
+本地 Node.js 子进程模式，适用于 Windows / Linux / macOS。
+
+| 特性 | 说明 |
+|---|---|
+| 环境要求 | Node.js 18+ |
+| 安装方式 | `/axs qqbot admin snowluma install`（从 GitHub 下载） |
+| 进程管理 | 自动启动 / 停止 / 清理残留进程 |
+| 输出监控 | 独立守护线程读取 stdout，检测端口冲突等致命错误 |
+| JVM 钩子 | 注册 ShutdownHook 确保异常退出时清理进程 |
+
+#### 启动流程
+
+1. 检测 Node.js 环境（`node --version`，5 秒超时）
+2. 检查安装目录是否存在启动脚本
+3. 清理端口残留进程（WebUI 5099 + 配置的 WS 端口）
+4. 构建 `ProcessBuilder` 启动子进程
+5. 守护线程监控输出，检测 `EADDRINUSE` 等致命错误
+6. 等待 3 秒确认进程存活
+7. 标记状态为 `RUNNING`
+
+#### 残留进程清理
+
+启动前和停止时，按端口查找并清理残留的 SnowLuma / Node 进程：
+
+| 端口 | 来源 |
+|---|---|
+| 5099 | WebUI 固定端口 |
+| 配置的 WS 端口 | 从 `onebot.ws-url` 解析得到 |
+
+清理逻辑：
+- Windows：`netstat -ano | findstr LISTENING` 查找 PID → `taskkill /F /T /PID` 终止进程树
+- Linux：`lsof -ti:<port>` 查找 PID → `kill -TERM` → `kill -KILL` 兜底
+- 仅清理命令行包含 `snowluma` / `node` / `index.js` 的进程，避免误伤
+
+### Docker 模式
+
+Docker 容器模式，推荐 Linux VPS 使用。
+
+| 特性 | 说明 |
+|---|---|
+| 环境要求 | Docker 已安装 |
+| 安装方式 | `docker pull` + `docker run`（自动挂载 3 个 volume） |
+| 端口映射 | WebUI / WS / HTTP 端口可配置 |
+| 数据持久化 | 自动挂载 `data` / `qq-config` / `qq-data` 三个 volume |
+| 日志查看 | `/axs qqbot admin snowluma logs`（`docker logs --tail 50`） |
+
+#### Docker 容器创建参数
+
+```yaml
+docker run -d
+  --name <container-name>
+  --restart unless-stopped
+  --shm-size=1g
+  --cap-add=SYS_PTRACE
+  --security-opt seccomp=unconfined
+  -p <webui-port>:5099
+  -p <http-port>:3000
+  -p <ws-port>:3001
+  -v <container-name>-data:/app/data
+  -v <container-name>-qq-config:/app/.config
+  -v <container-name>-qq-data:/app/.local/share
+  <image>
+```
+
+### 进程状态
+
+| 状态 | 说明 |
+|---|---|
+| `STOPPED` | 已停止或未启动 |
+| `STARTING` | 启动中（native 模式） |
+| `RUNNING` | 运行中 |
+| `INSTALLING` | 安装中 |
+
+### SnowLuma 管理命令
+
+通过 `/axs qqbot admin snowluma <子命令>` 管理：
+
+| 子命令 | 说明 |
+|---|---|
+| `start` | 启动 SnowLuma |
+| `stop` | 停止 SnowLuma |
+| `status` | 查看状态报告（容器名 / 镜像 / 版本 / 运行状态 / 端口） |
+| `install` | 下载安装（异步执行） |
+| `logs` | 查看最近日志（仅 Docker 模式） |
+| `check-update` | 检查 GitHub 最新版本（异步执行） |
+
+## 异步启动设计
+
+SnowLuma 启动和 WebSocket 连接在 **异步线程** 中执行，避免阻塞主线程触发 Paper 看门狗：
+
+```
+AxsScheduler.runAsync(plugin, () -> {
+    if (closed) return;                    // 模块已关闭则跳过
+    slm.init();                            // 初始化 SnowLuma
+    if (running) waitForPort(wsUrl, 8000);  // 等待端口就绪
+    if (closed) {                          // 启动期间模块被关闭
+        slm.shutdown();                    // 立即回收，避免孤儿进程
+        obc.shutdown();
+        return;
+    }
+    if (running) obc.start();              // 连接 OneBot
+    else if (autoStart) logger.warning(...); // 启动失败告警
+    else obc.start();                      // 用户手动管理，直接连接
+});
+```
+
+> `closed` 标志位防止异步启动期间模块被关闭导致孤儿进程。若启动期间模块被关闭，立即回收 SnowLuma 进程和 WebSocket 客户端。
+
+## 配置参考
+
+```yaml
+onebot:
+  # OneBot 正向 WebSocket 地址
+  ws-url: "ws://127.0.0.1:3001"
+  # 鉴权 token（留空表示不鉴权）
+  access-token: ""
+  # 断线重连间隔（秒）
+  reconnect-interval-seconds: 10
+  # 心跳间隔（秒，服务端主动推送，此参数保留兼容）
+  heartbeat-interval-seconds: 30
+  snowluma:
+    # 运行模式: native / docker
+    mode: "native"
+    # 安装目录（相对于服务端根目录，仅 native 模式）
+    dir: "snowluma"
+    # 模块启动时自动启动 SnowLuma
+    auto-start: false
+    docker:
+      container-name: "snowluma"
+      image: "motricseven7/snowluma:latest"
+      webui-port: 5099
+      ws-port: 3001
+      http-port: 3000
+      auto-install: false
+```
+
+### 配置字段说明
+
+| 字段 | 类型 | 默认值 | 说明 |
+|---|---|---|---|
+| `ws-url` | string | `"ws://127.0.0.1:3001"` | OneBot WebSocket 地址 |
+| `access-token` | string | `""` | 鉴权 token（通过 `Authorization: Bearer` 头发送） |
+| `reconnect-interval-seconds` | int | `10` | 重连间隔（秒） |
+| `heartbeat-interval-seconds` | int | `30` | 心跳间隔（保留兼容，实际由服务端推送） |
+| `snowluma.mode` | string | `"native"` | `native` 或 `docker` |
+| `snowluma.auto-start` | boolean | `false` | 模块启动时自动拉起 SnowLuma |
+
+> WS 端口从 `ws-url` 自动解析，用于 SnowLuma 残留进程清理。修改端口时清理逻辑会跟随配置，而非写死 3001。
+
+## 故障排查
+
+| 现象 | 可能原因 | 解决方案 |
+|---|---|---|
+| 连接被拒绝 | OneBot 实现端未启动 | 启动实现端后执行 `/axs qqbot reload` |
+| 连接超时 | 防火墙拦截或地址错误 | 检查 `ws-url` 和防火墙规则 |
+| SnowLuma 启动失败 | 未安装 Node.js | 安装 Node.js 18+ 后重载模块 |
+| 端口冲突 | 其他进程占用 5099/3001 | 模块会自动清理残留，或手动终止占用进程 |
+| 频繁断开重连 | 实现端不稳定 | 检查实现端日志，适当增大 `reconnect-interval-seconds` |
+
+> 开启 `settings.debug: true` 可查看 OneBot 事件和 WebSocket 异常详情（堆栈降级为 FINE 调试级）。

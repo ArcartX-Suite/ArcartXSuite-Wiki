@@ -1,0 +1,208 @@
+---
+title: 跨服 API
+description: CrossServerAPI、CrossServerChannel、CrossServerEnvelope、CrossServerDelivery 统一跨服 SDK 参考。
+---
+
+# 跨服 API
+
+ArcartXSuite 提供统一跨服传输 API（Redis + BungeeCord Forward 双后端、统一信封与 HMAC 签名）。模块通过 `ModuleContext.crossServer()` 获取实例，无需自行连接 Redis 或注册 BungeeCord 频道。
+
+## CrossServerAPI
+
+统一跨服传输入口。标记为 `@ApiStability.Stable`，永不为 null。
+
+**获取方式：** `context.crossServer()`
+
+```java
+CrossServerAPI crossServer = context.crossServer();
+```
+
+### 方法
+
+| 方法 | 返回类型 | 说明 |
+|------|----------|------|
+| `nodeId()` | `String` | 当前子服节点 id（来自宿主 `cross-server.node-id`） |
+| `openChannel(moduleId, config, consumer)` | `CrossServerChannel` | 注册模块跨服通道 |
+
+### openChannel
+
+注册模块跨服通道。重复 `openChannel` 同 moduleId 会先关闭旧通道。
+
+```java
+CrossServerChannel channel = crossServer.openChannel(
+    "mymodule",                                    // 模块 id
+    CrossServerChannelConfigs.fromSection(          // 通道配置
+        config.getConfigurationSection("cross-server")
+    ),
+    delivery -> Bukkit.getScheduler().runTask(plugin, () ->  // 入站回调（已在主线程调度）
+        handlePayload(delivery.payload())
+    )
+);
+```
+
+| 参数 | 说明 |
+|------|------|
+| `moduleId` | 模块 id，写入信封 `module` 字段 |
+| `config` | 模块级开关（`CrossServerChannelConfig`） |
+| `consumer` | 入站消息回调（已在主线程调度） |
+
+## CrossServerChannel
+
+模块跨服发布通道句柄。实现 `AutoCloseable`。
+
+```java
+public interface CrossServerChannel extends AutoCloseable {
+    String moduleId();
+    boolean isActive();
+    void publish(String payload);
+    @Override void close();
+}
+```
+
+| 方法 | 说明 |
+|------|------|
+| `moduleId()` | 模块 id |
+| `isActive()` | 至少一种后端（Redis / Proxy）已成功启动 |
+| `publish(payload)` | 发布跨服消息；宿主负责封装信封、签名与双后端发送 |
+| `close()` | 关闭通道 |
+
+### 使用示例
+
+```java
+CrossServerChannel channel = crossServer.openChannel(
+    "mymodule",
+    CrossServerChannelConfig.enabledDefault(),
+    delivery -> {
+        // 处理来自其他子服的消息
+        logger.info("收到来自 " + delivery.nodeId() + " 的消息: " + delivery.payload());
+    }
+);
+
+if (channel.isActive()) {
+    channel.publish("hello-from-" + crossServer.nodeId());
+}
+
+// 模块 onDisable 时关闭
+channel.close();
+```
+
+## CrossServerChannelConfig
+
+模块级跨服通道配置。连接参数与签名密钥由宿主 `config.yml` 统一管理。
+
+```java
+public record CrossServerChannelConfig(
+    boolean enabled,        // 模块是否启用跨服
+    Boolean redisEnabled,   // 是否走 Redis；null 表示继承宿主全局开关
+    Boolean proxyEnabled    // 是否走 Proxy Forward；null 表示继承宿主全局开关
+) {
+    public static CrossServerChannelConfig enabledDefault();
+    public static CrossServerChannelConfig disabled();
+}
+```
+
+### 从 YAML 解析
+
+```java
+CrossServerChannelConfig config =
+    CrossServerChannelConfigs.fromSection(
+        yamlConfig.getConfigurationSection("cross-server")
+    );
+```
+
+模块 YAML 配置示例：
+
+```yaml
+cross-server:
+  enabled: true
+  redis:
+    enabled: true    # 可选，不写则继承全局
+  proxy:
+    enabled: false   # 可选
+```
+
+## CrossServerEnvelope
+
+跨服统一 wire 信封（JSON 序列化）。宿主负责封装，模块无需直接构造。
+
+```java
+public record CrossServerEnvelope(
+    int protocol,       // 协议版本（当前为 1）
+    String module,      // 模块 id
+    String nodeId,      // 来源子服节点 id
+    String messageId,   // 消息唯一 id（UUID）
+    long timestamp,     // 时间戳
+    String payload,     // 模块自定义 payload 字符串
+    String signature    // HMAC 签名
+) {
+    public static final int PROTOCOL_VERSION = 1;
+}
+```
+
+## CrossServerDelivery
+
+经宿主跨服层校验、去重后投递给模块的消息。
+
+```java
+public record CrossServerDelivery(
+    String moduleId,    // 模块 id（如 "tab"、"chat"）
+    String nodeId,      // 来源子服节点 id
+    String messageId,   // 信封 message-id（UUID）
+    String payload      // 模块自定义 payload 字符串
+) {}
+```
+
+模块在 `openChannel` 的回调中接收此对象，通过 `payload()` 获取其他子服发来的数据。
+
+## 完整示例
+
+```java
+public class MyModule extends AbstractAXSModule {
+
+    private CrossServerChannel channel;
+
+    @Override
+    protected void startService() throws Exception {
+        CrossServerAPI crossServer = this.crossServer;
+
+        channel = crossServer.openChannel(
+            "mymodule",
+            CrossServerChannelConfigs.fromSection(
+                config.getSection("cross-server")
+            ),
+            delivery -> {
+                // 处理入站消息
+                handleRemoteMessage(delivery.payload(), delivery.nodeId());
+            }
+        );
+
+        if (channel.isActive()) {
+            logger.info("跨服通道已激活，节点: " + crossServer.nodeId());
+        } else {
+            logger.warning("跨服通道未激活（Redis/Proxy 均不可用）");
+        }
+    }
+
+    @Override
+    protected void stopService() {
+        if (channel != null) {
+            channel.close();
+            channel = null;
+        }
+    }
+
+    // 向其他子服广播消息
+    public void broadcast(String message) {
+        if (channel != null && channel.isActive()) {
+            channel.publish(message);
+        }
+    }
+}
+```
+
+## 注意事项
+
+- 入站回调已在主线程调度，无需自行切换线程
+- payload 为字符串类型，模块可自行约定 JSON / YAML 等格式
+- 宿主负责 HMAC 签名与去重，模块无需关心消息伪造或重复投递
+- `close()` 应在模块 `stopService()` 中调用，避免通道泄漏

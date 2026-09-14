@@ -1,0 +1,33 @@
+---
+title: 联动
+description: 依赖关系与跨模块联动
+---
+
+## 依赖关系
+
+| 依赖 | 类型 | 说明 |
+| --- | --- | --- |
+| ArcartX | 硬依赖 | 提供 UI 渲染与 PacketBridge |
+| PlaceholderAPI | 外部软依赖 | 用于条件表达式与动作中的变量替换 |
+
+物品库图标（`source`）为可选功能，按需依赖对应插件：
+
+| 物品来源 | 对应插件 |
+| --- | --- |
+| `neigeitems` | NeigeItems |
+| `mythicmobs` | MythicMobs |
+| `overture` | Overture |
+| `mmoitems` | MMOItems |
+
+## 跨模块联动 Capability
+
+Menu 模块注册了 `MenuOpenable` Capability，供其他模块以编程方式打开或刷新菜单：
+
+```java
+public interface MenuOpenable extends Capability {
+    boolean openMenu(@NotNull Player player, @NotNull String menuId);
+    void refreshMenu(@NotNull Player player);
+}
+```
+
+其他模块可通过 `getCapability(MenuOpenable.class)` 获取该能力，调用 `openMenu` 为玩家打开指定菜单，或调用 `refreshMenu` 刷新当前打开的菜单内容。

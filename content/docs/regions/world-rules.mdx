@@ -1,0 +1,359 @@
+---
+title: 世界规则
+description: Regions 世界规则服务——按世界级别的禁飞、禁活塞、禁交互限制与运行时管理
+---
+
+# 世界规则
+
+> **付费模块**
+
+Regions 模块的世界规则服务（`WorldRulesService`）提供独立于区域系统的世界级限制。与区域标志不同，世界规则不依赖区域选区，而是按世界名直接生效，覆盖飞行、活塞、物品交互三类限制。世界规则支持运行时 CRUD，修改后自动持久化回主配置文件。
+
+## 概述
+
+世界规则与区域标志是两套独立的保护机制，各有适用场景：
+
+| 特性 | 区域标志 | 世界规则 |
+|---|---|---|
+| 依赖选区 | 是，需要划定区域范围 | 否，按世界名直接生效 |
+| 粒度 | 区域级（精确坐标范围） | 世界级（整个世界） |
+| 三态系统 | `ALLOW` / `DENY` / `NONE` | 开关式（启用/禁用） |
+| 继承 | 支持父子继承 | 不支持继承 |
+| 成员豁免 | 支持 | 不支持（仅权限绕过） |
+| 管理方式 | 命令 + UI | UI 面板 + 配置文件 |
+| 持久化 | 数据库 | 主配置文件（`ArcartXRegions.yml`） |
+
+## 规则类型
+
+### 禁飞世界
+
+在指定世界中禁止玩家飞行。进入禁飞世界时自动取消飞行状态，阻止飞行切换。
+
+| 配置项 | 类型 | 默认值 | 说明 |
+|---|---|---|---|
+| `world-rules.no-fly-worlds` | `list` | `["world_pvp"]` | 禁止飞行的世界名列表 |
+| `world-rules.no-fly-action` | `string` | `cancel` | 进入禁飞世界的处理方式 |
+| `world-rules.no-fly-message` | `string` | `&c此世界禁止飞行。` | 禁飞提示消息（支持 `&` 颜色码） |
+
+### 禁活塞世界
+
+在指定世界中阻止活塞推动事件，包括活塞伸出（`BlockPistonExtendEvent`）和活塞收回（`BlockPistonRetractEvent`）。
+
+| 配置项 | 类型 | 默认值 | 说明 |
+|---|---|---|---|
+| `world-rules.no-piston-worlds` | `list` | `[]` | 禁止活塞推动的世界名列表 |
+
+### 禁交互物品
+
+在指定世界中禁止玩家与特定物品/方块交互。配置为世界名到 MATERIAL 列表的映射。
+
+| 配置项 | 类型 | 默认值 | 说明 |
+|---|---|---|---|
+| `world-rules.disabled-interactions` | `map` | `{}` | 按世界配置禁止交互的物品/方块类型 |
+
+```yaml
+world-rules:
+  disabled-interactions:
+    world_spawn:
+      - ENDER_CHEST
+      - ANVIL
+    world_creative:
+      - CRAFTING_TABLE
+```
+
+## 事件监听
+
+`WorldRulesService` 实现 `Listener` 接口，注册以下事件监听器：
+
+### 飞行限制监听
+
+| 事件 | 优先级 | 说明 |
+|---|---|---|
+| `PlayerToggleFlightEvent` | `HIGH` | 阻止玩家在禁飞世界切换飞行 |
+| `PlayerChangedWorldEvent` | `MONITOR` | 进入禁飞世界时取消飞行状态 |
+| `PlayerJoinEvent` | - | 玩家加入禁飞世界时取消飞行 |
+
+飞行限制监听逻辑：
+
+```java
+@EventHandler(priority = EventPriority.HIGH, ignoreCancelled = true)
+public void onFlight(PlayerToggleFlightEvent event) {
+    if (!event.isFlying()) return;
+    Player player = event.getPlayer();
+    if (player.hasPermission("axs.essentials.fly.bypass")) return;
+    if (noFlyWorlds.contains(player.getWorld().getName())) {
+        event.setCancelled(true);
+        player.setAllowFlight(false);
+        player.sendMessage(ChatColor.translateAlternateColorCodes('&', flyDeniedMessage));
+    }
+}
+```
+
+切换世界时，若目标世界为禁飞世界，立即取消飞行：
+
+```java
+@EventHandler(priority = EventPriority.MONITOR)
+public void onWorldChange(PlayerChangedWorldEvent event) {
+    Player player = event.getPlayer();
+    if (player.hasPermission("axs.essentials.fly.bypass")) return;
+    if (noFlyWorlds.contains(player.getWorld().getName())) {
+        if (player.isFlying() || player.getAllowFlight()) {
+            player.setFlying(false);
+            player.setAllowFlight(false);
+            player.sendMessage(ChatColor.translateAlternateColorCodes('&', flyDeniedMessage));
+        }
+    }
+}
+```
+
+### 活塞限制监听
+
+| 事件 | 优先级 | 说明 |
+|---|---|---|
+| `BlockPistonExtendEvent` | `HIGH` | 阻止活塞伸出 |
+| `BlockPistonRetractEvent` | `HIGH` | 阻止活塞收回 |
+
+```java
+@EventHandler(priority = EventPriority.HIGH, ignoreCancelled = true)
+public void onPistonExtend(BlockPistonExtendEvent event) {
+    if (noPistonWorlds.contains(event.getBlock().getWorld().getName())) {
+        event.setCancelled(true);
+    }
+}
+```
+
+### 交互限制监听
+
+| 事件 | 优先级 | 说明 |
+|---|---|---|
+| `PlayerInteractEvent` | `HIGH` | 阻止玩家与禁交互物品交互 |
+
+```java
+@EventHandler(priority = EventPriority.HIGH, ignoreCancelled = true)
+public void onInteract(PlayerInteractEvent event) {
+    Player player = event.getPlayer();
+    if (player.hasPermission("axs.essentials.interact.bypass")) return;
+
+    Block block = event.getClickedBlock();
+    if (block == null) return;
+
+    Set<Material> blocked = disabledInteractions.get(player.getWorld().getName());
+    if (blocked != null && blocked.contains(block.getType())) {
+        event.setCancelled(true);
+    }
+}
+```
+
+## 绕过权限
+
+世界规则通过权限节点实现绕过，不使用区域标志的成员豁免机制：
+
+| 权限节点 | 默认 | 绕过的规则 | 说明 |
+|---|---|---|---|
+| `axs.essentials.fly.bypass` | op | 禁飞世界 | 在禁飞世界中仍可飞行 |
+| `axs.essentials.interact.bypass` | op | 禁交互物品 | 可与禁交互物品交互 |
+| - | - | 禁活塞世界 | 无绕过权限，活塞限制不可绕过 |
+
+:::info
+世界规则的绕过权限使用 `axs.essentials.*` 前缀，由 Essentials 模块提供。Regions 在 `module.yml` 中将 Essentials 声明为 `softdepends`，确保加载顺序上 Essentials 先于 Regions 启动。
+:::
+
+## 运行时 CRUD
+
+世界规则支持运行时增删改，通过管理员 UI 面板操作。所有修改自动持久化回主配置文件。
+
+### 切换禁飞世界
+
+```java
+public boolean toggleNoFlyWorld(String world) {
+    boolean added;
+    if (!noFlyWorlds.add(world)) { noFlyWorlds.remove(world); added = false; }
+    else added = true;
+    persist();
+    return added;
+}
+```
+
+`toggleNoFlyWorld` 返回 `true` 表示新增禁飞，`false` 表示移除禁飞。
+
+### 切换禁活塞世界
+
+```java
+public boolean toggleNoPistonWorld(String world) {
+    boolean added;
+    if (!noPistonWorlds.add(world)) { noPistonWorlds.remove(world); added = false; }
+    else added = true;
+    persist();
+    return added;
+}
+```
+
+### 切换禁交互物品
+
+```java
+public boolean toggleDisabledInteraction(String world, Material material) {
+    Set<Material> set = disabledInteractions.computeIfAbsent(world, k -> ConcurrentHashMap.newKeySet());
+    boolean added;
+    if (!set.add(material)) { set.remove(material); added = false; }
+    else added = true;
+    if (set.isEmpty()) disabledInteractions.remove(world);
+    persist();
+    return added;
+}
+```
+
+当某世界的禁交互列表为空时，自动从 `disabledInteractions` 中移除该世界条目。
+
+## 持久化
+
+世界规则修改后通过 `persist()` 方法将内存状态写回主配置文件 `ArcartXRegions.yml`：
+
+```java
+public void persist() {
+    if (rootYaml == null || persistCallback == null) return;
+    rootYaml.set(sectionPath + ".no-fly-worlds", List.copyOf(noFlyWorlds));
+    rootYaml.set(sectionPath + ".no-piston-worlds", List.copyOf(noPistonWorlds));
+    Map<String, List<String>> interactions = new LinkedHashMap<>();
+    for (var e : disabledInteractions.entrySet()) {
+        List<String> mats = e.getValue().stream().map(Material::name).toList();
+        interactions.put(e.getKey(), mats);
+    }
+    rootYaml.set(sectionPath + ".disabled-interactions", interactions);
+    persistCallback.accept(this);
+}
+```
+
+持久化回调在模块启动时注入，将 `YamlConfiguration` 保存到磁盘文件：
+
+```java
+worldRulesService = new WorldRulesService(plugin, logger, worldRulesSection,
+    rawYaml, svc -> {
+        try {
+            File configFile = new File(dataFolder, configSpec().configFileName());
+            rawYaml.save(configFile);
+        } catch (Exception ex) {
+            logger.warning("世界规则持久化失败: " + ex.getMessage());
+        }
+    });
+```
+
+:::tip
+世界规则通过管理员 UI 面板修改后自动持久化，无需手动编辑配置文件或执行重载命令。
+:::
+
+## UI 管理
+
+世界规则通过管理员面板（`/rg admin`）的 `world_rules` 页面管理。
+
+### UI 动作
+
+| 动作 | 参数 | 说明 |
+|---|---|---|
+| `select_world_rule` | - | 导航到世界规则页 |
+| `toggle_no_fly` | `worldName` | 切换世界禁飞状态 |
+| `toggle_no_piston` | `worldName` | 切换世界禁活塞状态 |
+| `toggle_interaction` | `worldName`、`materialName` | 切换世界禁交互物品 |
+
+### UI 推送数据
+
+世界规则页推送的数据包含所有已加载世界及其规则状态：
+
+| 字段 | 类型 | 说明 |
+|---|---|---|
+| `page` | `String` | `world_rules` |
+| `worlds` | `List<Map>` | 世界列表（`name`、`noFly`、`noPiston`、`interactions`） |
+| `worldCount` | `String` | 世界数量 |
+
+每个世界条目包含：
+
+| 字段 | 类型 | 说明 |
+|---|---|---|
+| `name` | `String` | 世界名称 |
+| `noFly` | `String` | 是否禁飞（`true`/`false`） |
+| `noPiston` | `String` | 是否禁活塞（`true`/`false`） |
+| `interactions` | `String` | 禁交互物品列表（逗号分隔的 MATERIAL 名） |
+
+## 配置示例
+
+### 最小配置
+
+```yaml
+world-rules:
+  no-fly-worlds: []
+  no-fly-action: cancel
+  no-fly-message: "&c此世界禁止飞行。"
+  no-piston-worlds: []
+  disabled-interactions: {}
+```
+
+### 完整配置
+
+```yaml
+world-rules:
+  no-fly-worlds:
+    - "world_pvp"
+    - "world_nether"
+  no-fly-action: cancel
+  no-fly-message: "&c此世界禁止飞行。"
+  no-piston-worlds:
+    - "world_spawn"
+  disabled-interactions:
+    world_spawn:
+      - ENDER_CHEST
+      - ANVIL
+      - CRAFTING_TABLE
+    world_creative:
+      - ENCHANTING_TABLE
+```
+
+## 线程安全
+
+世界规则服务使用并发集合保证线程安全：
+
+| 数据结构 | 类型 | 说明 |
+|---|---|---|
+| `noFlyWorlds` | `ConcurrentHashMap.newKeySet()` | 禁飞世界集合 |
+| `noPistonWorlds` | `ConcurrentHashMap.newKeySet()` | 禁活塞世界集合 |
+| `disabledInteractions` | `ConcurrentHashMap` | 世界到禁交互物品集合的映射 |
+| 禁交互物品集合 | `ConcurrentHashMap.newKeySet()` | 每个世界的禁交互 MATERIAL 集合 |
+
+## 生命周期
+
+| 阶段 | 方法 | 说明 |
+|---|---|---|
+| 启动 | `start()` | 注册 Bukkit 事件监听器 |
+| 运行 | `toggleNoFlyWorld()` / `toggleNoPistonWorld()` / `toggleDisabledInteraction()` | 运行时 CRUD |
+| 持久化 | `persist()` | 写回主配置文件 |
+| 停止 | `shutdown()` | 注销事件监听器 |
+
+```java
+public void start() {
+    Bukkit.getPluginManager().registerEvents(this, plugin);
+}
+
+public void shutdown() {
+    HandlerList.unregisterAll(this);
+}
+```
+
+## 与区域标志的协作
+
+世界规则与区域标志可以同时生效，互不冲突：
+
+| 场景 | 世界规则 | 区域标志 | 效果 |
+|---|---|---|---|
+| 禁飞世界中的飞行区域 | 禁飞 | `fly` = `allow` | 世界规则优先，禁止飞行 |
+| 禁活塞世界中的活塞区域 | 禁活塞 | `pistons` = `allow` | 世界规则优先，禁止活塞 |
+| 禁交互世界中的交互区域 | 禁交互 | `use` = `allow` | 世界规则优先，禁止交互 |
+
+:::caution
+世界规则在事件优先级上使用 `HIGH`，区域保护监听器也使用 `HIGH`。当两者同时取消事件时，世界规则的限制优先生效。若需要在特定区域内允许被世界规则禁止的操作，需通过绕过权限（`axs.essentials.fly.bypass` 等）实现。
+:::
+
+## 相关页面
+
+- [标志系统](/docs/regions/flags) — 50 个区域标志的完整参考
+- [选区工具](/docs/regions/selection) — 选区工具与粒子可视化
+- [配置](/docs/regions/configuration) — 世界规则配置字段
+- [命令与占位符](/docs/regions/commands) — 管理员 UI 动作与数据包
+- [联动](/docs/regions/integration) — Essentials 模块集成与权限联动

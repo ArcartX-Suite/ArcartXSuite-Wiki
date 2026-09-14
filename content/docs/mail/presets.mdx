@@ -1,0 +1,342 @@
+---
+title: 邮件预设
+description: Mail 预设邮件配置与示例
+---
+
+## 预设邮件结构
+
+预设邮件位于 `data/mail/presets/` 目录，每个 `.yml` 文件定义一个可重复分发的邮件模板。文件名即为预设 ID（建议与 `preset.id` 一致）。
+
+预设文件顶层为 `preset` 节，包含以下字段：
+
+| 字段 | 类型 | 必填 | 默认值 | 说明 |
+|---|---|---|---|---|
+| `id` | String | 是 | 文件名（去掉 `.yml`） | 预设唯一 ID（小写） |
+| `enabled` | boolean | 否 | `true` | 是否启用 |
+| `display-name` | String | 否 | `id` | 显示名称（支持 `&` 颜色码） |
+| `subject` | String | 否 | `display-name` | 邮件主题 |
+| `body` | String | 否 | （空） | 邮件正文（支持多行 `|-` 语法） |
+| `expires-after-days` | long | 否 | `15` | 分发后的过期天数（最小 1） |
+| `currency-attachments` | List | 否 | （空） | 货币附件列表 |
+| `item-attachments` | List | 否 | （空） | 物品附件列表 |
+| `claim-commands` | List | 否 | （空） | 领取时执行的命令列表 |
+| `claim-conditions` | List | 否 | （空） | 领取条件列表 |
+| `cdks` | List | 否 | （空） | 关联的 CDK 兑换码列表 |
+| `cdk` | Map | 否 | （空） | 单个 CDK（与 `cdks` 列表二选一） |
+
+### 附件数量上限
+
+预设邮件的附件总数受 `presets.admin-max-attachments`（默认 18）和 `player-send.max-attachments`（默认 6）的较大值约束。加载时超过上限的附件会被截断。
+
+## 附件类型详解
+
+### 货币附件（currency-attachments）
+
+```yaml
+currency-attachments:
+  - currency: money
+    amount: 88
+    description: 新手金币礼包
+    icon:
+      material: GOLD_INGOT
+      name: "&6金币"
+```
+
+| 字段 | 类型 | 必填 | 说明 |
+|---|---|---|---|
+| `currency` | String | 是 | 货币 ID（`money` 走 Vault，其余走 CurrencyBridge） |
+| `amount` | double | 是 | 货币数量（必须 `>` 0） |
+| `description` | String | 否 | 附件展示描述（默认 `货币ID 数量`） |
+| `icon` | Icon | 否 | 货币附件展示图标 |
+
+`icon` 字段与 menu 模块的 IconDefinition 配置一致，支持 `material` / `custom-model-data` / `texture` / `texture-url` / `name` / `lore` 等字段，详见 [图标配置](/docs/guide/icons)。
+
+### 物品附件（item-attachments）
+
+物品附件支持两种配置方式：
+
+#### 方式一：item-data（完整 Base64，推荐）
+
+```yaml
+item-attachments:
+  - item-data: "rO0ABXQA..."  # Base64 物品数据
+```
+
+`item-data` 保留物品的全部 NBT/附魔/PDC/自定义模型数据等字段。管理员 UI 保存预设时自动生成此字段，同时也会保存 `source`/`id`/`amount`/`name`/`lore` 供管理员阅读。
+
+#### 方式二：source + id（通过 ItemSourceRegistry 生成）
+
+```yaml
+item-attachments:
+  - source: minecraft
+    id: APPLE
+    amount: 8
+    name: "§a欢迎苹果"
+    lore:
+      - "§7来自 AXS Mail 示例预设"
+    custom-model-data: 10001
+```
+
+| 字段 | 类型 | 必填 | 说明 |
+|---|---|---|---|
+| `item-data` | String | 否 | 完整 Base64 物品数据（优先使用） |
+| `source` | String | 否 | 物品来源（`minecraft`/`mythic`/`neige`/`overture`/`mmoitems`，默认 `minecraft`） |
+| `id` | String | 否 | 物品 ID（来源为 `minecraft` 时为材质名） |
+| `material` | String | 否 | 旧格式兼容字段，等同于 `source: minecraft` + `id` |
+| `amount` | int | 否 | 物品数量（默认 1，最小 1） |
+| `name` | String | 否 | 物品自定义名称 |
+| `lore` | List | 否 | 物品自定义描述 |
+| `custom-model-data` | int | 否 | 自定义模型数据 |
+| `nbt` | Map/String | 否 | NBT 键值对（Map）或 SNBT 字符串 |
+| `mmo-type` | String | 否 | MMOItems 类型（与 `mmo-id` 配合使用） |
+| `mmo-id` | String | 否 | MMOItems 物品 ID |
+
+支持的物品来源详见 [物品来源](/docs/guide/item-sources)。物品库未安装时该附件会被跳过并在日志打印警告，其余附件正常发放。
+
+### 领取命令（claim-commands）
+
+```yaml
+claim-commands:
+  - "tell <player> 你领取了奖励。"
+  - "lp user <player> permission set vip.reward true"
+  - "console say <player> 领取了新手礼包"
+```
+
+领取命令在玩家领取邮件时以控制台身份执行，支持 `<player>` 变量替换为玩家名。
+
+## 领取条件（claim-conditions）
+
+领取条件使用 ArcartXSuite 统一的 ScriptCondition 引擎，玩家领取邮件前会检查所有条件是否满足。详见 [条件系统](/docs/guide/conditions)。
+
+支持三种格式：
+
+### 内联格式（推荐）
+
+```yaml
+claim-conditions:
+  - "%player_level% >= 10"
+  - "%player_points_balance% >= 100"
+```
+
+格式为 `%placeholder% <op> <value>`，操作符 `op` 支持：`==` `!=` `>=` `<=` `>` `<` `contains` `regex`
+
+### Aria 脚本格式
+
+```yaml
+claim-conditions:
+  - "aria: global.player.level >= 10 && global.player.points >= 100"
+```
+
+以 `aria:` 前缀开头，使用 Aria 表达式引擎，`global.player.*` 门面可用，Suite 自动补 `return`。
+
+### JS 脚本格式
+
+```yaml
+claim-conditions:
+  - "js: player.getLevel() >= 10"
+```
+
+以 `js:` 前缀开头，使用 JavaScript 引擎执行。
+
+### Map/配置节格式
+
+也可写成 Map 列表或嵌套配置节：
+
+```yaml
+claim-conditions:
+  - type: papi
+    placeholder: "%player_level%"
+    operator: ">="
+    value: "10"
+```
+
+## CDK 配置（cdks）
+
+预设邮件可内嵌 CDK 兑换码，执行 `/axs mail reload` 后自动同步到数据库。已有领取次数不会清零。
+
+```yaml
+cdks:
+  - code: STARTER2026
+    enabled: true
+    max-claims: 100
+    expires-after: 30d
+    # expires-at: 2026-12-31T23:59:59Z  # 可选；绝对过期时刻（UTC ISO），优先级高于 expires-after
+    # ttl: 30d                          # 可选；expires-after 的别名
+```
+
+| 字段 | 类型 | 必填 | 说明 |
+|---|---|---|---|
+| `code` | String | 是 | 兑换码（大写字母+数字+下划线+连字符，不能为空或 `AUTO`） |
+| `enabled` | boolean | 否 | 是否启用（默认 `true`） |
+| `max-claims` | int | 否 | 全局共享最大领取次数（所有玩家共用，领完即止；每玩家仅可领一次，默认 1） |
+| `expires-at` | Instant | 否 | 绝对过期时刻（UTC ISO 时间，如 `2026-12-31T23:59:59Z`），优先级高于 `expires-after` |
+| `expires-after` | Duration | 否 | 相对过期时长（从 CDK 首次创建时间算起，如 `30d`、`12h`、`30m`） |
+| `ttl` | Duration | 否 | `expires-after` 的别名 |
+
+也可使用单个 `cdk` 配置节（与 `cdks` 列表二选一）：
+
+```yaml
+cdk:
+  code: STARTER2026
+  max-claims: 100
+  expires-after: 30d
+```
+
+## 预设邮件示例
+
+### 新手欢迎邮件
+
+```yaml
+preset:
+  id: starter
+  enabled: true
+  display-name: 新手欢迎信
+  subject: 欢迎来到服务器
+  body: |-
+    这是一封 AXS Mail 模块的示例邮件。
+    你可以通过 /axs mail preset send starter <player> 进行派发。
+
+  expires-after-days: 15
+
+  currency-attachments:
+    - currency: money
+      amount: 88
+      description: 新手金币礼包
+      icon:
+        material: GOLD_INGOT
+        name: "&6金币"
+
+  item-attachments:
+    - source: minecraft
+      id: APPLE
+      amount: 8
+      name: "§a欢迎苹果"
+      lore:
+        - "§7来自 AXS Mail 示例预设"
+
+  claim-commands:
+    - "tell <player> 你领取了示例邮件奖励。"
+
+  claim-conditions:
+    - "%player_level% >= 0"
+
+  cdks:
+    - code: STARTER2026
+      enabled: true
+      max-claims: 100
+      expires-after: 30d
+```
+
+### 活动奖励邮件
+
+```yaml
+preset:
+  id: summer-event-reward
+  enabled: true
+  display-name: 夏日活动奖励
+  subject: 夏日活动奖励发放
+  body: |-
+    感谢参与夏日活动！
+    以下是你获得的奖励，请及时领取。
+
+  expires-after-days: 30
+
+  currency-attachments:
+    - currency: money
+      amount: 500
+      description: 活动金币奖励
+      icon:
+        material: SUNFLOWER
+        name: "&e夏日金币"
+    - currency: points
+      amount: 50
+      description: 活动点数奖励
+      icon:
+        material: EMERALD
+        name: "&a活动点数"
+
+  item-attachments:
+    - source: mythic
+      id: SummerSword
+      amount: 1
+    - source: minecraft
+      id: DIAMOND
+      amount: 10
+      name: "§b夏日钻石"
+      custom-model-data: 10001
+
+  claim-commands:
+    - "tell <player> 你领取了夏日活动奖励！"
+    - "lp user <player> permission set summer.reward.claimed true"
+
+  claim-conditions:
+    - "%player_level% >= 20"
+    - "aria: global.player.hasPermission('summer.event.participant')"
+```
+
+### 通知邮件（无附件）
+
+```yaml
+preset:
+  id: maintenance-notice
+  enabled: true
+  display-name: 服务器维护通知
+  subject: 服务器将于今晚维护
+  body: |-
+    服务器将于今晚 22:00 进行维护更新，
+    预计维护时间 2 小时，请提前做好准备。
+
+  expires-after-days: 7
+
+  # 无附件、无领取命令、无领取条件
+  # 仅作为纯文本通知邮件派发
+```
+
+### MMOItems 物品附件示例
+
+```yaml
+preset:
+  id: mmoitems-reward
+  enabled: true
+  display-name: MMOItems 奖励邮件
+  subject: 你获得了 MMOItems 装备
+  body: 恭喜你获得了特殊装备！
+
+  expires-after-days: 15
+
+  item-attachments:
+    - source: mmoitems
+      id: "SWORD;LEGENDARY_SWORD"
+      amount: 1
+    - source: mmoitems
+      mmo-type: "ARMOR"
+      mmo-id: "EPIC_HELMET"
+      amount: 1
+```
+
+## 预设管理
+
+### 命令管理
+
+| 命令 | 说明 |
+|---|---|
+| `/axs mail preset list` | 列出所有已加载的预设 |
+| `/axs mail preset send <预设ID> <目标> [force-bypass]` | 派发预设邮件 |
+| `/axs mail preset send confirm` | 确认多人派发 |
+| `/axs mail preset info <预设ID>` | 查看预设详情 |
+| `/axs mail preset delete <预设ID>` | 删除预设（内存 + 文件） |
+| `/axs mail preset reload` | 重新从磁盘加载全部预设 |
+
+### UI 管理
+
+执行 `/axs mail admin` 打开管理 UI，可在界面中创建、编辑、删除和派发预设。管理 UI 支持可视化编辑货币附件、物品附件、领取命令、领取条件和 CDK。
+
+### 派发目标
+
+| 目标 | 说明 |
+|---|---|
+| `<玩家名>` | 派发给指定玩家（支持离线玩家） |
+| `all-online` | 派发给当前所有在线玩家（需二次确认） |
+| `all-registered` | 派发给所有已注册玩家（需二次确认） |
+
+> 多人派发（`all-online`/`all-registered`）需在 30 秒内执行 `/axs mail preset send confirm` 确认。附加 `force-bypass` 参数可跳过确认直接派发。

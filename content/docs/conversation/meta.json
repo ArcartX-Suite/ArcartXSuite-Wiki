@@ -1,0 +1,14 @@
+{
+  "title": "Conversation 对话桥",
+  "description": "NPC 对话引擎，Chemdah + Adyeshach 联动，ArcartX UI 渲染",
+  "color": "#c084fc",
+  "pages": [
+    "index",
+    "configuration",
+    "commands",
+    "integration",
+    "cinematic",
+    "npc-interaction",
+    "dialog-rendering"
+  ]
+}

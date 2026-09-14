@@ -1,0 +1,345 @@
+---
+title: 共享仓库
+description: 共享仓库创建、角色权限、编辑锁、成员管理与所有权转让
+---
+
+# 共享仓库
+
+共享仓库是 Warehouse 模块的核心协作功能，允许玩家创建多人共享的仓库空间，支持所有者/成员/观众三种角色、编辑互斥锁、跨服锁同步和所有权转让。
+
+## 功能概述
+
+| 功能 | 说明 |
+| --- | --- |
+| 创建共享仓库 | 消耗货币创建，所有者自动获得 owner 角色 |
+| 角色管理 | 邀请/移除成员，设置成员为 member 或 viewer |
+| 编辑锁 | 同一时刻仅一人可编辑，其他人以只读模式打开 |
+| 跨服锁同步 | MySQL 共享库多子服时，编辑锁经 CrossServer 通道广播 |
+| 容量升级 | 所有者可消耗货币升级共享仓库容量 |
+| 所有权转让 | 所有者可将仓库转让给现有 member，需对方确认 |
+| 展示柜 | 所有者可开启/关闭仓库的公开展示 |
+| 删除 | 仅所有者可删除，需二级密码确认 |
+
+## 共享仓库配置
+
+```yaml
+shared:
+  enabled: true
+  create-cost:
+    currency: "points"
+    amount: 1000
+  default-level: 1
+  levels:
+    "1":
+      capacity: 2000
+      upgrade:
+        currency: "points"
+        amount: 800
+    "2":
+      capacity: 5000
+      upgrade:
+        currency: "points"
+        amount: 1800
+    "3":
+      capacity: 10000
+  role-names:
+    owner: "所有者"
+    member: "成员"
+    viewer: "观众"
+  permission-tiers:
+    default:
+      permission: ""
+      priority: 0
+      max-owned: 1
+      max-members: 6
+    vip:
+      permission: "ArcartXSuite.warehouse.shared.vip"
+      priority: 10
+      max-owned: 3
+      max-members: 12
+```
+
+### 配置字段说明
+
+| 字段 | 类型 | 默认值 | 说明 |
+| --- | --- | --- | --- |
+| `enabled` | boolean | `true` | 是否启用共享仓库功能 |
+| `create-cost.currency` | string | `points` | 创建共享仓库所需货币 ID |
+| `create-cost.amount` | `BigDecimal` | `1000` | 创建费用金额 |
+| `default-level` | int | `1` | 新建共享仓库的默认等级 |
+| `levels` | `Map<int, WarehouseLevelDefinition>` | — | 共享仓库等级配置（容量与升级费用） |
+| `role-names.owner` | string | `所有者` | 所有者角色显示名 |
+| `role-names.member` | string | `成员` | 成员角色显示名 |
+| `role-names.viewer` | string | `观众` | 观众角色显示名 |
+| `permission-tiers` | `Map<string, SharedPermissionTier>` | — | 权限分层配置 |
+
+### 等级配置
+
+每个等级定义容量与升级到下一级的费用：
+
+| 字段 | 类型 | 说明 |
+| --- | --- | --- |
+| `capacity` | long | 该等级的容量（最大槽位数），最小 54 |
+| `upgrade.currency` | string | 升级到下一级所需货币 ID |
+| `upgrade.amount` | `BigDecimal` | 升级费用金额 |
+
+> 共享仓库的容量下限为 `SLOT_COUNT`（54 格），即使配置值小于 54 也会被提升到 54。
+
+## 角色与权限
+
+### 三种角色
+
+| 角色 | 数据库存储值 | 存取权限 | 管理权限 | 展示柜 |
+| --- | --- | --- | --- | --- |
+| 所有者 | `owner` | 可存取 | 可邀请/移除成员、转让、删除、升级、改名、开关展示 | 可开关 |
+| 成员 | `member` | 可存取（需获取编辑锁） | 无 | 无 |
+| 观众 | `viewer` | 只读 | 无 | 无 |
+
+角色判断逻辑位于 `WarehouseService.canEditShared()`：
+
+```java
+private boolean canEditShared(String role) {
+    String normalized = normalizeId(role);
+    return "owner".equals(normalized) || "member".equals(normalized);
+}
+```
+
+### 权限分层
+
+权限分层（`permission-tiers`）允许不同权限组的玩家拥有不同的共享仓库数量和成员上限：
+
+| 字段 | 类型 | 说明 |
+| --- | --- | --- |
+| `permission` | string | 所需权限节点，留空表示无限制（默认组） |
+| `priority` | int | 优先级，数字越大优先级越高 |
+| `max-owned` | int | 可拥有的共享仓库上限 |
+| `max-members` | int | 每个仓库的成员上限 |
+
+系统通过 `resolveSharedTier()` 为玩家匹配权限分层：遍历所有 tier，筛选出玩家拥有其 `permission` 的 tier，取 `priority` 最大的一个。如果没有任何 tier 匹配，回退到第一个 tier。
+
+### 权限分层示例
+
+```yaml
+permission-tiers:
+  default:
+    permission: ""
+    priority: 0
+    max-owned: 1
+    max-members: 6
+  vip:
+    permission: "ArcartXSuite.warehouse.shared.vip"
+    priority: 10
+    max-owned: 3
+    max-members: 12
+  svip:
+    permission: "ArcartXSuite.warehouse.shared.svip"
+    priority: 20
+    max-owned: 10
+    max-members: 30
+```
+
+上述配置中：
+- 普通玩家（无特殊权限）最多拥有 1 个共享仓库，每个仓库最多 6 名成员
+- VIP 玩家最多拥有 3 个共享仓库，每个仓库最多 12 名成员
+- SVIP 玩家最多拥有 10 个共享仓库，每个仓库最多 30 名成员
+
+## 编辑互斥锁
+
+### 锁机制
+
+共享仓库采用编辑互斥锁（`SharedEditLock`）确保同一时刻仅一人可编辑：
+
+| 字段 | 类型 | 说明 |
+| --- | --- | --- |
+| `playerUuid` | `UUID` | 锁持有者 UUID |
+| `playerName` | string | 锁持有者名称（用于提示消息） |
+| `nodeId` | string | 持有者所在子服节点 ID（本机为 `local`） |
+
+锁状态存储在 `ConcurrentMap<String, SharedEditLock> sharedEditLocks` 中，key 为共享仓库 ID。
+
+### 锁获取流程
+
+1. 玩家在 UI 中切换到共享仓库并点击"编辑模式"按钮（发送 `shared_mode` action，参数为 `edit`）
+2. 系统检查玩家角色是否为 owner 或 member（`canEditShared`）
+3. 检查当前是否已有锁持有者：
+   - 如果锁已由当前玩家持有，直接返回成功
+   - 如果锁由他人持有，返回锁忙提示，以只读模式打开
+   - 如果无锁，创建新锁并通过 `putIfAbsent` 原子写入
+4. 启用跨服时，通过 `crossServerLockService.publishLock()` 广播锁获取事件
+
+### 锁释放
+
+锁在以下场景释放：
+
+| 场景 | 触发方式 |
+| --- | --- |
+| 玩家切换到只读模式 | `shared_mode` action，参数为非 `edit` 值 |
+| 玩家关闭 UI | `handleUiClosed` → `releaseCurrentSharedLock` |
+| 玩家退出服务器 | `onPlayerQuit` → `releaseSharedLocks` |
+| 共享仓库被删除 | `deleteSharedWarehouse` 中清理锁 |
+| 所有权转让完成 | `confirmPendingTransfer` 中清理锁 |
+
+### 锁忙提示
+
+当其他玩家尝试编辑已被锁定的共享仓库时，系统根据锁持有者位置显示不同提示：
+
+| 锁持有者位置 | 提示消息 |
+| --- | --- |
+| 本机 | `该共享仓库正在被 {playerName} 编辑，当前以只读方式打开。` |
+| 其他子服 | `该共享仓库正在被 {playerName}（{nodeId}）编辑，当前以只读方式打开。` |
+
+## 跨服编辑锁同步
+
+### 配置
+
+跨服编辑锁需要在两个位置启用：
+
+```yaml
+# ArcartXWarehouse.yml
+cross-server:
+  enabled: true
+```
+
+同时需要在宿主 `config.yml` 的 `cross-server` 节配置跨服通道参数。详见 [跨服配置](/docs/guide/cross-server-setup)。
+
+### 工作原理
+
+跨服锁同步通过 `WarehouseCrossServerLockService` 实现：
+
+1. **锁获取广播**：本机获取锁后，通过 CrossServer 通道发送 `LOCK` 类型 payload
+2. **锁释放广播**：本机释放锁后，发送 `UNLOCK` 类型 payload
+3. **远程锁应用**：其他子服收到 `LOCK` payload 后，通过 `applyRemoteSharedLock` 更新本地锁视图
+4. **远程锁释放**：其他子服收到 `UNLOCK` payload 后，通过 `applyRemoteSharedUnlock` 清除本地锁
+
+### Payload 格式
+
+跨服 payload 使用 Tab 分隔的文本格式：
+
+| 类型 | 格式 |
+| --- | --- |
+| `LOCK` | `LOCK\t{sharedId}\t{playerUuid}\t{playerName}\t{nodeId}` |
+| `UNLOCK` | `UNLOCK\t{sharedId}\t{playerUuid}\t{nodeId}` |
+
+Payload 中的 Tab、换行符会被 `sanitize()` 替换为空格，防止格式破坏。
+
+### 远程锁冲突处理
+
+当远程子服获取锁后，本机正在编辑该仓库的玩家会被强制切换到只读模式：
+
+1. `applyRemoteSharedLock` 遍历所有 `ViewState`
+2. 对正在编辑该共享仓库且非锁持有者的玩家，设置 `sharedEditMode = false`
+3. 发送锁忙提示并刷新 UI
+
+## 成员管理
+
+### 邀请成员
+
+所有者通过 UI 发送 `shared_invite` action 邀请成员：
+
+| 参数 | 说明 |
+| --- | --- |
+| `sharedId` | 共享仓库 ID |
+| `memberName` | 目标玩家名称 |
+| `role` | 角色（`member` 或 `viewer`，传入 `owner` 会被降级为 `member`） |
+
+邀请前需校验：
+- 二级密码已解锁
+- 操作者为 owner 角色
+- 目标玩家存在且非自己
+- 成员数量未超过权限分层上限（`max-members`）
+
+### 移除成员
+
+所有者通过 UI 发送 `shared_remove` action 移除成员：
+
+- 需二级密码已解锁
+- 仅 owner 可操作
+- 不可移除自己（owner 角色不可被移除，SQL 中 `WHERE role <> 'owner'`）
+- 移除后释放被移除者持有的所有共享仓库编辑锁
+
+## 所有权转让
+
+### 转让流程
+
+```
+所有者发起转让 → 创建 PendingTransfer → 目标玩家收到通知
+                                           ↓
+                                    目标玩家确认/拒绝
+                                           ↓
+                              确认：所有权转移，原所有者变为 member
+                              拒绝：转让记录删除，所有权不变
+```
+
+### 转让限制
+
+| 限制 | 说明 |
+| --- | --- |
+| 仅 owner 可发起 | 非 owner 角色无权转让 |
+| 需二级密码解锁 | 转让前必须解锁二级密码 |
+| 仅限 member 角色 | 只能转让给当前角色为 member 的成员 |
+| 不可转让给自己 | 目标玩家不能是当前所有者 |
+
+### 转让确认
+
+转让发起后，系统创建 `PendingTransfer` 记录并通知目标玩家。目标玩家通过命令确认或拒绝：
+
+```bash
+# 确认转让
+/warehouse transfer confirm <sharedId>
+
+# 拒绝转让
+/warehouse transfer reject <sharedId>
+```
+
+转让确认的过期时间由 `settings.transfer-confirm-expire-hours`（默认 24 小时）控制。设为 `<=0` 表示永不过期。
+
+### 转让数据库操作
+
+转让确认时，`transferSharedWarehouse()` 在事务中执行：
+
+1. 更新 `warehouse_shared` 表的 `owner_uuid` 为新所有者
+2. 原所有者在 `warehouse_shared_members` 中的角色改为 `member`
+3. 新所有者在 `warehouse_shared_members` 中的角色改为 `owner`
+
+## 数据库表结构
+
+### warehouse_shared
+
+| 列名 | 类型 | 说明 |
+| --- | --- | --- |
+| `id` | `VARCHAR(36)` | 共享仓库 UUID（主键） |
+| `owner_uuid` | `VARCHAR(36)` | 所有者 UUID |
+| `name` | `VARCHAR(64)` | 仓库名称 |
+| `level` | `INTEGER` | 当前等级 |
+| `capacity` | `BIGINT` | 当前容量 |
+| `created_at` | `BIGINT` | 创建时间戳 |
+| `updated_at` | `BIGINT` | 更新时间戳 |
+| `showcase_enabled` | `BOOLEAN` | 是否启用展示柜 |
+
+### warehouse_shared_members
+
+| 列名 | 类型 | 说明 |
+| --- | --- | --- |
+| `shared_id` | `VARCHAR(36)` | 共享仓库 ID |
+| `player_uuid` | `VARCHAR(36)` | 成员 UUID |
+| `role` | `VARCHAR(16)` | 角色（owner / member / viewer） |
+| `updated_at` | `BIGINT` | 更新时间戳 |
+
+主键为 `(shared_id, player_uuid)`。
+
+### warehouse_pending_transfers
+
+| 列名 | 类型 | 说明 |
+| --- | --- | --- |
+| `shared_id` | `VARCHAR(36)` | 共享仓库 ID（主键） |
+| `from_owner_uuid` | `VARCHAR(36)` | 原所有者 UUID |
+| `to_uuid` | `VARCHAR(36)` | 目标玩家 UUID |
+| `created_at` | `BIGINT` | 发起时间戳 |
+| `expires_at` | `BIGINT` | 过期时间戳（0 表示永不过期） |
+
+## 相关文档
+
+- [配置](/docs/warehouse/configuration) — 共享仓库完整配置字段
+- [命令与占位符](/docs/warehouse/commands) — 转让确认/拒绝命令
+- [安全与自动化](/docs/warehouse/security) — 二级密码在共享仓库操作中的作用
+- [跨服配置](/docs/guide/cross-server-setup) — CrossServer 通道配置

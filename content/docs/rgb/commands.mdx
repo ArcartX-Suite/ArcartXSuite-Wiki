@@ -1,0 +1,206 @@
+---
+title: 命令与占位符
+description: RGB 模块命令、权限与 PlaceholderAPI 占位符
+---
+
+# 命令与占位符
+
+RGB 模块为纯计算型模块，无玩家命令，仅提供管理员重载命令和 PlaceholderAPI 占位符输出。
+
+## 管理员命令
+
+管理员命令通过 `/axs rgb` 集成，需要 `arcartxsuite.rgb.admin` 权限。
+
+| 命令 | 说明 | 权限 |
+|---|---|---|
+| `/axs rgb reload` | 热重载主配置和所有条目文件 | `arcartxsuite.rgb.admin` |
+| `/axs rgb status` | 查看模块运行状态 | `arcartxsuite.rgb.admin` |
+
+### reload
+
+热重载主配置 `ArcartXRGB.yml` 和 `entries/` 目录下的所有条目文件。重载后立即生效，无需重启服务器。
+
+```
+/axs rgb reload
+```
+
+重载流程：
+
+```
+读取 ArcartXRGB.yml → 解析 settings 和 entries-directory
+  → 扫描 entries 目录下所有 *.yml 文件
+  → 按文件名排序依次加载
+  → 每个文件的根键作为条目 ID（不区分大小写）
+  → 解析条目字段（text、gradient-colors、shine 等）
+  → 替换内存中的配置和条目映射
+```
+
+:::tip
+修改条目文件后只需执行 `/axs rgb reload` 即可生效。新增、删除、修改条目均支持热重载。
+:::
+
+### status
+
+查看模块当前运行状态，包括已加载条目总数和活跃条目数。
+
+```
+/axs rgb status
+```
+
+输出示例：
+
+```
+AXS RGB 状态
+条目总数: 5
+活跃条目: 4
+```
+
+| 输出字段 | 说明 |
+|---|---|
+| 条目总数 | `entries/` 目录下所有文件中定义的条目总数（含禁用的） |
+| 活跃条目 | 满足 `active` 条件的条目数（enabled + text 非空 + gradient-colors 非空） |
+
+## 权限节点
+
+| 权限节点 | 说明 | 默认 |
+|---|---|---|
+| `arcartxsuite.rgb.admin` | RGB 模块管理员命令权限（reload、status） | OP |
+
+:::info
+RGB 模块无玩家权限节点。所有玩家均可通过 PlaceholderAPI 使用 `%axsrgb_<entryId>%` 占位符，渲染结果取决于条目配置，不涉及权限校验。
+:::
+
+## PlaceholderAPI 占位符
+
+RGB 模块注册了 PlaceholderAPI 扩展，标识符为 `axsrgb`。通过 `%axsrgb_<entryId>%` 渲染对应渐变文本。
+
+### 占位符格式
+
+| 占位符 | 说明 | 返回值 |
+|---|---|---|
+| `%axsrgb_<entryId>%` | 渲染指定条目的渐变文本 | 带颜色码的文本，条目不存在或未激活时返回空串 |
+
+### 条目 ID 规则
+
+- 条目 ID 为 `entries/` 目录下 YAML 文件的根键
+- 条目 ID **不区分大小写**，内部统一转为小写存储
+- 占位符中的 entryId 也会转为小写匹配，`%axsrgb_Welcome%` 和 `%axsrgb_welcome%` 等效
+
+### 渲染返回值
+
+| 场景 | 返回值 |
+|---|---|
+| 条目存在且激活 | 带颜色码的渲染文本（`§#RRGGBB` + 字符 + `§r`） |
+| 条目不存在 | 空串 `""` |
+| 条目未启用（`enabled: false`） | 空串 `""` |
+| 条目 text 为空 | 空串 `""` |
+| 条目 gradient-colors 为空 | 空串 `""` |
+| 递归引用检测命中 | 空串 `""` |
+| 占位符参数为空 | 空串 `""` |
+
+### 使用示例
+
+```
+# 聊天格式中渲染欢迎语
+%axsrgb_welcome%
+
+# TAB 列表中渲染玩家名渐变
+%axsrgb_playername%
+
+# 称号系统中渲染称号渐变
+%axsrgb_title_vip%
+
+# 嵌套其他 PAPI 占位符（在条目 text 中定义）
+# 条目 text: "欢迎 %player_name%"
+# 占位符: %axsrgb_welcome%
+# 渲染结果: 带 RGB 渐变的 "欢迎 <玩家名>"
+```
+
+### 条目间引用
+
+条目的 `text` 字段可以嵌套其他 `%axsrgb_<id>%` 占位符，实现条目组合：
+
+```yaml
+# entries/default.yml
+prefix:
+  enabled: true
+  text: "[ArcartX]"
+  gradient-colors:
+    - "#FF7A18"
+    - "#FFD64D"
+  shine: true
+  switch-interval-ticks: 2
+  shine-width: 2
+  shine-color: "#FFFFFF"
+  shine-strength: 0.55
+
+full:
+  enabled: true
+  text: "%axsrgb_prefix% 欢迎 %player_name%"
+  gradient-colors:
+    - "#7FE7FF"
+    - "#6A5CFF"
+  shine: false
+  switch-interval-ticks: 0
+  shine-width: 2
+  shine-color: "#FFFFFF"
+  shine-strength: 0.55
+```
+
+上述配置中，`%axsrgb_full%` 会先渲染 `prefix` 条目得到 `[ArcartX]` 的渐变文本，再拼接 `欢迎 <玩家名>` 并叠加 `full` 条目自身的渐变色。
+
+:::caution
+条目间引用**不能形成环**。例如 a 的 text 包含 `%axsrgb_b%`，b 的 text 又包含 `%axsrgb_a%`，会触发递归检测，渲染结果为空串。开启 `debug: true` 可查看递归检测日志。
+:::
+
+## UI 文本中使用
+
+RGB 渲染结果可直接用于任何支持 PlaceholderAPI 的 UI 文本场景。在 ArcartX UI（Aria）中，通过 [图标](/docs/guide/icons) 的文本字段引用占位符即可显示渐变文本。
+
+### 在 UI 图标中使用
+
+在 UI 图标的 `display-name` 或 `lore` 字段中使用 `%axsrgb_<entryId>%`：
+
+```yaml
+# UI 图标定义
+icon:
+  display-name: "%axsrgb_shop_title%"
+  lore:
+    - "%axsrgb_shop_description%"
+```
+
+:::tip
+RGB 渲染输出的颜色码为 `§#RRGGBB` 格式，需 ArcartX 客户端模组识别。在 UI 中使用时，确保玩家已安装 ArcartX 客户端，否则颜色码会显示为原始文本。
+:::
+
+### 在条件判定中使用
+
+RGB 占位符返回的是带颜色码的文本，**不建议**直接用于 [条件系统](/docs/guide/conditions) 的数值比较。如需获取条目状态用于条件判定，应使用其他模块的状态占位符。
+
+### 在物品来源中使用
+
+RGB 占位符可用于 [物品来源](/docs/guide/item-sources) 的名称/Lore 渲染，为生成的物品添加渐变色文本：
+
+```yaml
+# 物品来源定义
+item:
+  type: vanilla
+  material: DIAMOND
+  display-name: "%axsrgb_legendary_item%"
+  lore:
+    - "%axsrgb_legendary_lore%"
+```
+
+## PAPI 扩展信息
+
+| 属性 | 值 |
+|---|---|
+| 标识符 (identifier) | `axsrgb` |
+| 作者 (author) | `墨墨墨` |
+| 版本 | 跟随插件版本 |
+| 持久注册 (persist) | `true`（插件重载后保持注册） |
+| 注册类 | `ArcartRgbPlaceholderExpansion` |
+
+:::info
+RGB 模块的 PAPI 扩展设置 `persist() = true`，在 PlaceholderAPI 执行 `/papi reload` 时不会注销，确保占位符始终可用。
+:::

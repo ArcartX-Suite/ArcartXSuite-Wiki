@@ -1,0 +1,146 @@
+---
+title: 概览
+description: RGB 渐变文本模块功能概览
+---
+
+# RGB 渐变文本
+
+## 模块简介
+
+RGB 是 ArcartXSuite 的渐变文本渲染模块，提供 **逐字渐变** 与 **动态扫光** 两种文本效果，通过 PlaceholderAPI 对外暴露。模块将 `entries` 目录下定义的渐变色条目渲染为带 ArcartX 颜色码的彩色文本，可直接用于聊天、TAB 列表、称号、UI 文本等任何支持 PlaceholderAPI 的场景。
+
+模块为纯计算型服务，无数据库、无跨服同步、无 UI 交互，启动时加载条目配置后即可通过占位符输出渲染结果。
+
+| 属性 | 值 |
+|---|---|
+| 模块 ID | `rgb` |
+| 版本 | 1.4.4 |
+| 主类 | `xuanmo.arcartxsuite.rgb.RgbModule` |
+| 配置文件 | `ArcartXRGB.yml` |
+| 条目目录 | `entries/`（相对模块数据目录） |
+| 外部依赖 | PlaceholderAPI（必需） |
+| 模块依赖 | 无 |
+| 数据库 | 无（纯计算型，不持久化） |
+| 跨服同步 | 无 |
+
+## 功能特性
+
+| 特性 | 说明 |
+|---|---|
+| 逐字渐变 | 文本按字符（codePoint）分配颜色梯度，支持两色到任意多色渐变（如红 → 黄 → 蓝） |
+| 动态扫光 | 在渐变基础上叠加移动的高亮光带，可配置扫光颜色、宽度和强度 |
+| 动画帧切换 | 每隔 `switch-interval-ticks` tick 切换到下一帧，形成动态流光效果；设为 `0` 则显示静态渐变 |
+| PAPI 嵌套 | `text` 字段先按目标玩家解析 PlaceholderAPI（如 `%player_name%`），再叠加 RGB 渐变 |
+| 多条目管理 | `entries/` 目录下每个 YAML 文件可包含多个条目，根键即为条目 ID，按文件名排序加载 |
+| 递归引用检测 | 通过 ThreadLocal 跟踪渲染链，自动检测条目间的递归 PAPI 引用并中止渲染，防止死循环 |
+| 文本长度截断 | 渲染文本最大 1024 字符，超长自动截断，防止恶意超长输入拖慢渲染 |
+| 颜色格式兼容 | 支持 `#RRGGBB`、`§#RRGGBB`、`RRGGBB` 三种颜色输入格式 |
+| 条目热重载 | 通过 `/axs rgb reload` 可热重载条目配置，无需重启服务器 |
+
+## 依赖
+
+| 依赖类型 | 名称 | 必需 | 说明 |
+|---|---|---|---|
+| 外部依赖 | PlaceholderAPI | 是 | RGB 模块通过 PAPI 占位符 `%axsrgb_<entryId>%` 输出渲染结果，是硬依赖 |
+| 模块依赖 | 无 | - | RGB 不依赖其他 ArcartXSuite 模块即可运行 |
+| 宿主能力 | 无 | - | 纯计算型模块，不注册任何 Capability |
+| 宿主配置 | 无 | - | 不需要 Redis、跨服、存储等宿主配置 |
+
+:::caution
+PlaceholderAPI 是 RGB 模块的**硬依赖**。若未安装 PlaceholderAPI，模块仍可加载，但无法通过占位符输出任何渲染结果，模块失去实际意义。
+:::
+
+## RGB 文本机制
+
+### 渲染流程
+
+RGB 模块的渲染流程为纯计算，不涉及任何 IO 或异步操作：
+
+```
+PAPI 请求 %axsrgb_<entryId>%
+  → 查找条目（entryId 不区分大小写）
+  → 校验条目状态（enabled、text 非空、gradient-colors 非空）
+  → ThreadLocal 递归检测（防止条目互相引用死循环）
+  → 按目标玩家解析 text 中的 PAPI 占位符
+  → 文本长度截断（最大 1024 字符）
+  → 逐字符（codePoint）分配渐变颜色
+  → 可选叠加扫光高亮
+  → 输出带 ArcartX 颜色码的文本（§#RRGGBB + 字符）
+  → 末尾追加 §r 重置颜色
+```
+
+### 渐变颜色分配
+
+渲染器按文本的 Unicode codePoint 逐字符分配颜色。对于 N 个字符的文本和 M 个颜色的调色板：
+
+1. 每个字符的位置 `position` 计算为 `index / (N - 1)`（单字符时为 `0.0`）
+2. 将 `position` 映射到调色板索引：`scaled = position * (M - 1)`
+3. 取相邻两个颜色 `left` 和 `right`，按小数部分 `progress` 线性插值
+4. 动画模式下，调色板整体偏移 `paletteShift`（由 `switch-interval-ticks` 驱动），形成颜色滚动效果
+
+```java
+// 颜色插值核心逻辑
+ArcartRgbColor left = palette.get(Math.floorMod(leftIndex + paletteShift, palette.size()));
+ArcartRgbColor right = palette.get(Math.floorMod(rightIndex + paletteShift, palette.size()));
+return ArcartRgbColor.lerp(left, right, progress);
+```
+
+### 扫光效果
+
+扫光（Shine）是在渐变基础上叠加的动态高亮效果：
+
+1. 扫光中心位置 `shineCenter` 随动画步数在文本范围内循环移动
+2. 扫光宽度 `shine-width` 决定高亮区域覆盖的字符数
+3. 每个字符与扫光中心的距离 `distance` 越近，高亮强度越高
+4. 高亮强度公式：`falloff = 1.0 - distance / (shineWidth + 1.0)`，再乘以 `shine-strength`
+5. 高亮颜色 `shine-color` 按强度 blend 到该字符的渐变颜色上
+
+```java
+// 扫光强度计算
+double falloff = 1.0 - ((double) distance / (shineWidth + 1.0));
+double shineAmount = Math.max(0.0, Math.min(1.0, falloff * shineStrength));
+color = color.blend(shineColor, shineAmount);
+```
+
+### 动画步数
+
+动画步数由 `switch-interval-ticks` 和当前系统时间共同决定：
+
+```java
+long intervalMillis = switchIntervalTicks * 50L;  // 1 tick = 50ms
+long animationStep = currentTimeMillis / intervalMillis;
+```
+
+- `switch-interval-ticks: 0` → 步数恒为 0，显示静态渐变（扫光停在文本中间）
+- `switch-interval-ticks: 2` → 每 100ms 切换一帧（较快）
+- `switch-interval-ticks: 3` → 每 150ms 切换一帧（适中）
+
+### ArcartX 颜色码
+
+渲染输出的颜色码格式为 `§#RRGGBB`，由 ArcartX 客户端模组识别并渲染为真正的 RGB 颜色。若玩家未安装 ArcartX 客户端，颜色码会显示为原始文本（不影响功能，只是看不到颜色效果）。
+
+### 递归引用保护
+
+条目的 `text` 字段支持 PAPI 占位符，理论上可以嵌套 `%axsrgb_<otherId>%` 引用其他条目。为防止条目互相引用导致死循环，模块通过 ThreadLocal 跟踪当前渲染链：
+
+1. 每次渲染开始时，将当前 entryId 加入 ThreadLocal Set
+2. 若 Set 中已存在该 entryId，判定为递归引用，立即中止渲染返回空串
+3. 渲染结束后移除 entryId，根渲染结束时清理 ThreadLocal
+
+:::tip
+条目可以引用其他条目（如 `%axsrgb_a%` 的 text 中包含 `%axsrgb_b%`），但**不能形成环**（如 a 引用 b、b 又引用 a）。检测到环时渲染结果为空串，调试模式下会输出警告日志。
+:::
+
+## 快速上手
+
+1. 安装 PlaceholderAPI 和 ArcartX 客户端模组
+2. 启动服务器，模块自动生成 `ArcartXRGB.yml` 和 `entries/default.yml`
+3. 编辑 `entries/default.yml` 添加自定义渐变色条目
+4. 执行 `/axs rgb reload` 热重载
+5. 在聊天/TAB/称号/UI 中使用 `%axsrgb_<entryId>%` 输出渲染文本
+
+## 相关页面
+
+- [配置](/docs/rgb/configuration) — 主配置与条目定义详解
+- [命令与占位符](/docs/rgb/commands) — 命令、权限与 PAPI 占位符
+- [联动](/docs/rgb/integration) — 模块集成与 API 调用

@@ -1,0 +1,184 @@
+---
+title: 配置
+description: VanillaUI 配置文件详解与示例
+---
+
+# 配置
+
+## 配置文件位置
+
+VanillaUI 模块的配置文件为 `ArcartXVanilla.yml`，位于模块数据目录下。模块启动时自动从 Jar 中导出默认配置，用户修改后执行 `/axs reload vanilla` 即可热重载。
+
+| 项目 | 说明 |
+| --- | --- |
+| 配置文件名 | `ArcartXVanilla.yml` |
+| 配置版本 | `2`（当前 schema） |
+| 同步策略 | `strict`（严格同步，配置变更需 reload 生效） |
+| 配置校验 | 启用字段类型与范围校验 |
+
+## 配置字段详解
+
+### 顶层字段
+
+| 字段 | 类型 | 默认值 | 说明 |
+| --- | --- | --- | --- |
+| `config-version` | `int` | `2` | 配置版本号，请勿手动修改，由模块自动管理迁移 |
+
+### ui 节
+
+UI 统一配置节，管理所有界面的 ID 与覆盖策略。
+
+| 字段 | 类型 | 默认值 | 校验规则 | 说明 |
+| --- | --- | --- | --- | --- |
+| `ui.crafting-ui-id` | `string` | `AXS:vanilla_crafting` | 非空字符串 | 工作台 UI ID，与 `vanilla_crafting.yml` 文件名对应 |
+| `ui.furnace-ui-id` | `string` | `AXS:vanilla_furnace` | 非空字符串 | 熔炉 UI ID，与 `vanilla_furnace.yml` 文件名对应 |
+| `ui.overwrite-ui-files` | `boolean` | `false` | 布尔值 | 是否覆盖用户已修改的 UI 文件 |
+
+> `ui.overwrite-ui-files` 设为 `true` 时，每次模块启动或 reload 都会用 Jar 内置的默认 UI 文件覆盖用户自定义的 UI 文件。设为 `false` 时保留用户修改，仅在首次导出时写入默认文件。
+
+### crafting 节
+
+工作台界面替换配置节。
+
+| 字段 | 类型 | 默认值 | 校验规则 | 说明 |
+| --- | --- | --- | --- | --- |
+| `crafting.enabled` | `boolean` | `true` | 布尔值 | 是否启用工作台 UI 替换 |
+
+> `crafting.enabled` 设为 `false` 时，模块不会注册工作台 UI，原版工作台界面保持不变。UI 文件也不会被导出到宿主数据目录。
+
+### furnace 节
+
+熔炉界面替换配置节。
+
+| 字段 | 类型 | 默认值 | 校验规则 | 说明 |
+| --- | --- | --- | --- | --- |
+| `furnace.enabled` | `boolean` | `true` | 布尔值 | 是否启用熔炉 UI 替换 |
+| `furnace.push-interval-ticks` | `int` | `2` | 范围 `1`-`100` | 熔炉状态推送间隔（tick） |
+
+> `furnace.push-interval-ticks` 控制服务端轮询熔炉方块状态的频率。每秒 20 tick，默认 `2` tick 即每秒推送 10 次。值越小推送越频繁，UI 进度条越平滑，但服务端开销越大。建议保持默认值 `2`。
+
+## 配置校验规则
+
+模块在 `configSpec()` 中声明了以下校验规则，配置不合法时模块启动失败：
+
+| 字段 | 校验类型 | 约束 |
+| --- | --- | --- |
+| `ui.crafting-ui-id` | `STRING` | 必须为字符串 |
+| `ui.furnace-ui-id` | `STRING` | 必须为字符串 |
+| `ui.overwrite-ui-files` | `BOOLEAN` | 必须为布尔值 |
+| `crafting.enabled` | `BOOLEAN` | 必须为布尔值 |
+| `furnace.enabled` | `BOOLEAN` | 必须为布尔值 |
+| `furnace.push-interval-ticks` | `INT` | 范围 `1`-`100` |
+
+## 完整配置示例
+
+### 默认配置
+
+```yaml
+# ArcartXSuite Vanilla - 原版界面替换模块配置
+# 替换原版工作台和熔炉界面为 ArcartX UI 纯色块风格界面。
+# 重载: /axs reload vanilla
+
+# 配置版本号（请勿手动修改）
+config-version: 2
+
+# UI 配置（统一管理所有界面的 id 与覆盖策略）
+ui:
+  # 工作台 UI id（与 vanilla_crafting.yml 文件名对应）
+  crafting-ui-id: "AXS:vanilla_crafting"
+  # 熔炉 UI id（与 vanilla_furnace.yml 文件名对应）
+  furnace-ui-id: "AXS:vanilla_furnace"
+  # 是否覆盖用户已修改的 UI 文件
+  overwrite-ui-files: false
+
+# 工作台界面替换
+crafting:
+  # 是否启用工作台 UI 替换
+  enabled: true
+
+# 熔炉界面替换
+furnace:
+  # 是否启用熔炉 UI 替换
+  enabled: true
+  # 熔炉状态推送间隔（tick），每秒 20 tick，默认 2 tick（每秒 10 次）
+  push-interval-ticks: 2
+```
+
+### 仅启用工作台
+
+```yaml
+config-version: 2
+
+ui:
+  crafting-ui-id: "AXS:vanilla_crafting"
+  furnace-ui-id: "AXS:vanilla_furnace"
+  overwrite-ui-files: false
+
+crafting:
+  enabled: true
+
+furnace:
+  enabled: false
+  push-interval-ticks: 2
+```
+
+### 仅启用熔炉（降低推送频率）
+
+```yaml
+config-version: 2
+
+ui:
+  crafting-ui-id: "AXS:vanilla_crafting"
+  furnace-ui-id: "AXS:vanilla_furnace"
+  overwrite-ui-files: false
+
+crafting:
+  enabled: false
+
+furnace:
+  enabled: true
+  # 每 5 tick 推送一次（每秒 4 次），降低服务端开销
+  push-interval-ticks: 5
+```
+
+### 强制覆盖 UI 文件
+
+```yaml
+config-version: 2
+
+ui:
+  crafting-ui-id: "AXS:vanilla_crafting"
+  furnace-ui-id: "AXS:vanilla_furnace"
+  # 每次 reload 都用 Jar 内置 UI 文件覆盖用户修改
+  overwrite-ui-files: true
+
+crafting:
+  enabled: true
+
+furnace:
+  enabled: true
+  push-interval-ticks: 2
+```
+
+> `overwrite-ui-files: true` 适用于排查 UI 问题时恢复默认配置。日常使用建议设为 `false`，以保留自定义修改。
+
+## 配置版本迁移
+
+模块支持配置版本自动迁移。当 `config-version` 低于当前版本时，模块自动执行迁移脚本。
+
+| 迁移路径 | 说明 |
+| --- | --- |
+| `1` -> `2` | UI 配置从 `crafting`/`furnace` 嵌套节抽离到统一 `ui` 节 |
+
+### 版本 1 -> 2 迁移详情
+
+```yaml
+# 迁移操作：
+# - crafting.ui-id -> ui.crafting-ui-id（move + 重命名）
+# - furnace.ui-id -> ui.furnace-ui-id（move + 重命名）
+# - crafting.overwrite-ui-file / furnace.overwrite-ui-file -> ui.overwrite-ui-files（合并，单数改复数）
+```
+
+> `overwrite-ui-files` 为合并字段，两节均有值时 `furnace` 节的值覆盖 `crafting` 节（默认值一致，无影响）。
+
+> 关于配置管理与版本迁移的通用知识，参考 [配置管理](/docs/guide/config-management)。

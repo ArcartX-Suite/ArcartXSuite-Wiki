@@ -1,0 +1,462 @@
+---
+title: 配方书与一键填充
+description: VanillaUI 配方收集、中文名翻译、分类规则与一键填充材料算法详解
+---
+
+# 配方书与一键填充
+
+> **福利模块**
+
+## 概述
+
+VanillaUI 模块的配方书系统是工作台与熔炉界面替换的核心业务逻辑，由 `RecipeCollector`（配方收集器）与 `VanillaService`（业务服务）协同实现。配方书从服务端已注册的 Bukkit 配方中收集数据，结合 `VanillaItemNameBridge` 翻译物品中文名，序列化为客户端 UI 可识别的 JSON 结构后推送。一键填充材料功能则在玩家 Shift+左键点击配方图标时，自动从背包取出材料放入合成/烧制槽位，并智能保留已正确放置的材料。
+
+| 组件 | 源码位置 | 职责 |
+| --- | --- | --- |
+| `RecipeCollector` | `recipe/RecipeCollector.java` | 遍历服务端配方、序列化物品 JSON、分类、构建预览网格、检测可合成状态 |
+| `VanillaService` | `service/VanillaService.java` | 处理客户端包、管理配方书开关状态、执行一键填充材料逻辑 |
+| `VanillaItemNameBridge` | 核心桥接 | 将 `Material` 翻译为中文物品名，配方书搜索依赖此桥接 |
+
+## 配方收集机制
+
+### 支持的配方类型
+
+`RecipeCollector` 通过 `Bukkit.recipeIterator()` 遍历服务端已注册的全部配方，按类型筛选处理：
+
+| 配方类型 | Bukkit 类 | 收集方法 | 适用界面 |
+| --- | --- | --- | --- |
+| 有序合成 | `ShapedRecipe` | `collectCraftingRecipes()` | 工作台 |
+| 无序合成 | `ShapelessRecipe` | `collectCraftingRecipes()` | 工作台 |
+| 熔炉烧制 | `FurnaceRecipe` | `collectFurnaceRecipes()` | 熔炉 |
+
+> `SmokingRecipe`（烟熏炉）与 `BlastingRecipe`（高炉）当前不收集，预留给将来烟熏炉/高炉 UI 替换使用。
+
+### 已解锁配方过滤
+
+配方收集时，仅收集玩家**已解锁**的配方。模块通过 `Player.getDiscoveredRecipes()` 获取玩家已解锁的 `NamespacedKey` 集合，对每个配方检查其 key 是否在集合中：
+
+```java
+Set<NamespacedKey> discovered = player.getDiscoveredRecipes();
+Iterator<Recipe> it = Bukkit.recipeIterator();
+while (it.hasNext()) {
+    Recipe recipe = it.next();
+    if (recipe instanceof ShapedRecipe shaped) {
+        if (!discovered.contains(shaped.getKey())) continue;
+        // 收集配方...
+    }
+}
+```
+
+> 原版中玩家通过合成特定物品、达成进度等方式解锁配方。未解锁的配方不会出现在配方书中，与原版配方书行为一致。
+
+### 配方索引分配
+
+收集到的配方按遍历顺序分配整数索引 key（从 `0` 开始递增），作为 `recipes` map 的 key。客户端发送 `place_ingredients` 包时携带此 key，服务端通过 key 从配方列表中定位目标配方。
+
+```yaml
+# 服务端推送的 recipes map 结构示例
+recipes:
+  "0":
+    resultJson: '{"id":"minecraft:diamond_sword","Count":1b}'
+    resultItemId: "minecraft:diamond_sword"
+    resultZhName: "钻石剑"
+    category: "equipment"
+    shaped: true
+    width: 1
+    height: 3
+    shape: ["D", "D", "S"]
+    ingredients:
+      "D": '{"id":"minecraft:diamond","Count":1b}'
+      "S": '{"id":"minecraft:stick","Count":1b}'
+    previewGrid:
+      - '{"id":"minecraft:diamond","Count":1b}'
+      - '{"id":"minecraft:air","Count":1b}'
+      - '{"id":"minecraft:air","Count":1b}'
+      - '{"id":"minecraft:diamond","Count":1b}'
+      - '{"id":"minecraft:air","Count":1b}'
+      - '{"id":"minecraft:air","Count":1b}'
+      - '{"id":"minecraft:stick","Count":1b}'
+      - '{"id":"minecraft:air","Count":1b}'
+      - '{"id":"minecraft:air","Count":1b}'
+    canCraft: 1
+```
+
+## 物品序列化
+
+`RecipeCollector` 提供两种物品序列化方法，生成客户端 UI 可识别的 JSON 字符串：
+
+| 方法 | 用途 | 输出格式 |
+| --- | --- | --- |
+| `serializeItem(ItemStack)` | 基础序列化（仅 id + 数量） | `{"id":"minecraft:diamond","Count":1b}` |
+| `serializeItemWithLore(ItemStack)` | 带显示名的序列化（当前与基础序列化一致，lore 待实现） | `{"id":"minecraft:diamond","Count":1b}` |
+| `serializeIconWithLore(Material, name, lore)` | 分类图标序列化（带 HideFlags + display） | 含 `HideFlags:63` 与 `display.Name`/`display.Lore` |
+
+### 序列化格式示例
+
+```yaml
+# 基础物品（合成材料）
+ingredients:
+  "D": '{"id":"minecraft:diamond","Count":1b}'
+  "S": '{"id":"minecraft:stick","Count":1b}'
+
+# 分类图标（带显示名与 lore）
+catIcons:
+  book: '{"id":"minecraft:book","Count":1b,"tag":{"HideFlags":63,"display":{"Name":"{\"text\":\"§f配方书\"}","Lore":["{\"text\":\"§7点击打开/关闭配方书\"}"]}}}'
+```
+
+> `serializeItemWithLore` 当前未实现 lore 逻辑，直接调用 `serializeItem`，确保图标正常显示。后续版本将补充 lore 支持。
+
+> 物品 JSON 使用 Minecraft 原版 NBT 序列化格式（非 ArcartX 自定义格式），由客户端 UI 的 `setItemIcon()` 方法解析并渲染。关于 UI 图标渲染的通用知识，参考 [图标系统](/docs/guide/icons)。
+
+## 中文名翻译
+
+配方书的中文搜索功能依赖 `VanillaItemNameBridge` 将 `Material` 翻译为中文物品名：
+
+| 方法 | 调用场景 | 降级行为 |
+| --- | --- | --- |
+| `nameBridge.translate(material)` | 翻译配方结果物品中文名（`resultZhName`） | 桥接不可用时返回材质名小写空格形式 |
+| `nameBridge.isAvailable()` | 检查桥接是否可用 | 宿主未初始化时返回 `false` |
+
+```java
+private String translate(Material material) {
+    if (nameBridge != null && nameBridge.isAvailable()) {
+        return nameBridge.translate(material);
+    }
+    // 降级：diamond_sword -> diamond sword
+    return material.name().toLowerCase().replace('_', ' ');
+}
+```
+
+> 配方书搜索框同时匹配 `resultName`（英文名）与 `resultZhName`（中文名），玩家可使用中文或英文模糊搜索。关于物品名称解析的通用知识，参考 [物品来源](/docs/guide/item-sources)。
+
+## 配方分类规则
+
+`RecipeCollector.categorizeItem(ItemStack)` 根据结果物品的 `Material` 名称与属性进行分类。分类结果用于配方书的分类筛选标签。
+
+### 工作台分类
+
+工作台配方书支持以下分类，分类判定按优先级从高到低执行：
+
+| 分类 | 判定规则 | 对应分类标签 |
+| --- | --- | --- |
+| `food` | `Material.isEdible()` 为 `true` | 食品 |
+| `equipment` | 名称匹配头盔/胸甲/护腿/靴子/弓/弩/箭/三叉戟/海龟壳/鞘翅/盾牌 | 工具（合并到 `tools` 筛选） |
+| `tools` | 名称匹配镐/斧/铲/锄/剑/剪刀/打火石/钓鱼竿/指南针/钟/地图/望远镜/刷子/制图台/锻造台/砂轮/切石机/织布机/铁砧 | 工具 |
+| `redstone` | 名称包含红石/中继器/比较器/活塞/观察者/漏斗/投掷器/发射器/拉杆/按钮/压力板/铁轨/绊线钩/阳光探测器/音符盒/唱片机/标靶/粘液块/蜂蜜块/TNT | 红石 |
+| `building` | `Material.isBlock()` 为 `true`（且不匹配以上分类） | 建筑 |
+| `misc` | 以上均不匹配 | 杂项 |
+
+> 工作台分类筛选中，`tools` 标签同时匹配 `tools` 与 `equipment` 分类，`food` 标签同时匹配 `food` 与 `misc` 分类。此合并逻辑在客户端 UI 的 `tick` 过滤脚本中实现。
+
+### 熔炉分类
+
+熔炉配方书支持以下分类：
+
+| 分类 | 判定规则 | 对应分类标签 |
+| --- | --- | --- |
+| `food` | `Material.isEdible()` 为 `true` | 食品 |
+| `building` | `Material.isBlock()` 为 `true` | 建筑 |
+| `misc` | 以上均不匹配 | 杂项 |
+
+> 熔炉分类筛选中，`misc` 标签匹配所有非 `food` 且非 `building` 的分类。熔炉不设 `tools`/`equipment`/`redstone` 分类，因为熔炉烧制产物通常为食品或建筑材料。
+
+## 可合成状态检测
+
+`RecipeCollector` 为每个配方计算 `canCraft` 标记（`1` 可合成，`0` 不可），客户端据此将配方图标标记为蓝色（可合成）或红色（不可合成）。
+
+### 工作台可合成检测
+
+| 配方类型 | 检测方法 | 说明 |
+| --- | --- | --- |
+| 有序合成 `ShapedRecipe` | `canCraftShaped()` | 统计每种 `Material` 所需数量，检查背包是否满足 |
+| 无序合成 `ShapelessRecipe` | `canCraftShapeless()` | 统计材料列表中每种 `Material` 所需数量，检查背包 |
+
+```java
+private boolean hasMaterials(Player player, Map<Material, Integer> needed) {
+    Map<Material, Integer> have = new HashMap<>();
+    for (ItemStack item : player.getInventory().getContents()) {
+        if (item == null || item.getType() == Material.AIR) continue;
+        have.merge(item.getType(), item.getAmount(), Integer::sum);
+    }
+    for (Map.Entry<Material, Integer> e : needed.entrySet()) {
+        int got = have.getOrDefault(e.getKey(), 0);
+        if (got < e.getValue()) return false;
+    }
+    return true;
+}
+```
+
+> 可合成检测仅按 `Material` 粒度统计数量，不检查 NBT 标签或耐久度。例如，受损的铁剑与全新的铁剑视为相同材料。
+
+### 熔炉可合成检测
+
+熔炉配方的可合成检测使用 `player.getInventory().containsAtLeast(input, amount)`，检查背包是否含有足够数量的输入物品：
+
+```java
+entry.put("canCraft",
+    player.getInventory().containsAtLeast(furnace.getInput(), furnace.getInput().getAmount()) ? 1 : 0);
+```
+
+## 预览网格构建
+
+选中配方后，客户端在合成网格上叠加半透明材料预览。预览网格由 `RecipeCollector` 构建为 9 格（工作台）或 1 格（熔炉）的物品 JSON 列表。
+
+### 工作台预览网格
+
+| 配方类型 | 构建方法 | 网格大小 |
+| --- | --- | --- |
+| 有序合成 | `buildShapedPreviewGrid()` | 9 格（3x3），按 `shape` 与 `ingredientMap` 填充 |
+| 无序合成 | `buildShapelessPreviewGrid()` | 9 格（3x3），按材料列表顺序填充 |
+
+有序合成预览网格按 `shape` 字符串的行列位置映射到 3x3 网格，空格字符（`' '`）对应位置保持为 `air`：
+
+```java
+private List<String> buildShapedPreviewGrid(String[] shape, Map<Character, ItemStack> ingredientMap) {
+    String air = serializeItem(null);
+    List<String> grid = new ArrayList<>(Collections.nCopies(9, air));
+    for (int row = 0; row < shape.length; row++) {
+        for (int col = 0; col < shape[row].length(); col++) {
+            char c = shape[row].charAt(col);
+            if (c == ' ') continue;
+            ItemStack item = ingredientMap.get(c);
+            grid.set(row * 3 + col, serializeItemWithLore(item));
+        }
+    }
+    return grid;
+}
+```
+
+### 熔炉预览网格
+
+熔炉预览网格为 1 格，仅包含输入物品的 JSON：
+
+```java
+List<String> previewGrid = new ArrayList<>(Collections.nCopies(1, serializeItemWithLore(input)));
+```
+
+## 一键填充材料算法
+
+一键填充是 VanillaUI 最复杂的业务逻辑，在玩家 Shift+左键点击配方图标时触发。客户端发送 `place_ingredients` 包（携带配方 key），服务端 `VanillaService` 执行填充算法。
+
+### 工作台一键填充
+
+`handlePlaceIngredients(player, recipeKey)` 处理工作台一键填充，算法分为三步：
+
+**第一步：解析配方所需材料**
+
+根据配方是否为有序合成（`shaped` 字段），从 `shape` + `ingredients`（有序）或 `ingredients` 列表（无序）解析每个合成槽位（1-9）所需的 `Material`：
+
+```java
+Material[] needed = new Material[10]; // 1~9 对应合成槽
+if (shaped) {
+    for (int row = 0; row < shapeList.size(); row++) {
+        String rowStr = (String) shapeList.get(row);
+        for (int col = 0; col < rowStr.length(); col++) {
+            char c = rowStr.charAt(col);
+            if (c == ' ') continue;
+            needed[row * 3 + col + 1] = parseMaterialFromJson(ingredientMap.get(String.valueOf(c)).toString());
+        }
+    }
+} else {
+    for (int i = 0; i < Math.min(ingredientList.size(), 9); i++) {
+        needed[i + 1] = parseMaterialFromJson(ingredientList.get(i).toString());
+    }
+}
+```
+
+**第二步：退回不匹配的材料**
+
+遍历合成槽 1-9，检查已有物品是否与所需 `Material` 匹配。匹配的保留，不匹配的退回玩家背包：
+
+```java
+for (int i = 1; i <= 9; i++) {
+    ItemStack existing = topInv.getItem(i);
+    if (existing == null || existing.getType() == Material.AIR) continue;
+    if (needed[i] != null && existing.getType() == needed[i]) continue; // 已正确，保留
+    // 材料不匹配，退回背包
+    player.getInventory().addItem(existing);
+    topInv.setItem(i, null);
+}
+```
+
+**第三步：填充或追加材料**
+
+对每个需要材料的槽位，从玩家背包取出对应 `Material` 放入。若槽位已有正确材料且未满，则追加到最大堆叠数：
+
+```java
+for (int i = 1; i <= 9; i++) {
+    if (needed[i] == null || needed[i] == Material.AIR) continue;
+    ItemStack existing = topInv.getItem(i);
+    if (existing == null || existing.getType() == Material.AIR) {
+        placeFromInventory(player, topInv, i, needed[i]);
+    } else if (existing.getType() == needed[i] && existing.getAmount() < existing.getMaxStackSize()) {
+        addToSlotFromInventory(player, topInv, i, needed[i], existing.getMaxStackSize() - existing.getAmount());
+    }
+}
+```
+
+| 步骤 | 操作 | 说明 |
+| --- | --- | --- |
+| 1 | 解析所需材料 | 从配方数据解析每个槽位的 `Material` |
+| 2 | 退回不匹配材料 | 已放置但 `Material` 不匹配的物品退回背包 |
+| 3 | 保留匹配材料 | `Material` 匹配的已有物品保留不动 |
+| 4 | 填充空槽位 | 从背包取出 1 个对应材料放入空槽位 |
+| 5 | 追加未满槽位 | 已有正确材料且未满时，从背包追加到最大堆叠 |
+
+> 一键填充每次仅填充 1 个材料到空槽位（非整组），追加时补满到最大堆叠。如需填充多组，需多次点击。
+
+### 熔炉一键填充
+
+`handlePlaceFurnaceIngredient(player, recipeKey)` 处理熔炉一键填充，逻辑与工作台类似但有特殊处理：
+
+```java
+ItemStack existing = topInv.getItem(0);
+if (existing != null && existing.getType() == mat) {
+    // 已有正确材料，尝试追加而不中断燃烧
+    if (existing.getAmount() < existing.getMaxStackSize()) {
+        addToSlotFromInventory(player, topInv, 0, mat, existing.getMaxStackSize() - existing.getAmount(), true);
+    }
+    return;
+}
+```
+
+| 场景 | 处理方式 | 说明 |
+| --- | --- | --- |
+| 输入槽已有正确材料 | 静默追加（`silent = true`） | 直接修改 `amount` 不调用 `setItem`，避免重置熔炉燃烧进度 |
+| 输入槽为空 | 直接放入 | 从背包取出 1 个材料放入输入槽 |
+| 输入槽有其他物品 | 退回背包后填充 | 先退回原物品，再从背包取出材料放入 |
+
+> 熔炉追加材料使用 `silent` 模式：直接修改 `ItemStack` 的 `amount` 字段而不调用 `topInv.setItem()`，因为 `setItem()` 会触发 Bukkit 的熔炉状态重置，导致正在进行的烧制进度丢失。
+
+```java
+if (silent) {
+    // 直接修改 amount 不调用 setItem，避免重置熔炉燃烧进度
+    existing.setAmount(existing.getAmount() + toAdd);
+} else {
+    // 复制后修改再 setItem，确保 Bukkit 感知到变化
+    ItemStack copy = existing.clone();
+    copy.setAmount(existing.getAmount() + toAdd);
+    topInv.setItem(slot, copy);
+}
+```
+
+### Material 解析
+
+`parseMaterialFromJson(String json)` 从物品 JSON 中解析 `Material`，用于一键填充时确定所需材料类型：
+
+```java
+private Material parseMaterialFromJson(String json) {
+    if (json == null || json.isEmpty()) return Material.AIR;
+    String id = json.replace("{\"id\":\"", "").replace("\"Count\":1b}", "");
+    id = id.split("\"")[0];
+    if (id.equals("minecraft:air")) return Material.AIR;
+    try {
+        return Material.valueOf(id.replace("minecraft:", "").toUpperCase());
+    } catch (IllegalArgumentException e) {
+        return Material.AIR;
+    }
+}
+```
+
+> 解析失败时返回 `Material.AIR`，对应槽位不会被填充。此方法仅解析 `id` 字段，不处理 NBT 标签，因此一键填充仅按 `Material` 粒度匹配，不支持 NBT 精确匹配。
+
+## 配方书状态管理
+
+`VanillaService` 维护两个 `ConcurrentHashMap` 记录每位玩家的配方书开关状态：
+
+| 状态 | 存储结构 | 说明 |
+| --- | --- | --- |
+| 工作台配方书开关 | `Map<UUID, Boolean> craftingBookState` | 玩家级，模块关闭时清除 |
+| 熔炉配方书开关 | `Map<UUID, Boolean> furnaceBookState` | 玩家级，模块关闭时清除 |
+
+### 状态切换流程
+
+| 步骤 | 操作 | 说明 |
+| --- | --- | --- |
+| 1 | 玩家点击配方书按钮 | 客户端发送 `toggle_recipe_book` 包 |
+| 2 | 服务端读取当前状态 | `craftingBookState.getOrDefault(uuid, false)` |
+| 3 | 翻转状态 | `put(uuid, !open)` |
+| 4 | 推送新状态 | `sendCraftingRecipeBookPacket(player, !open)` |
+| 5 | 客户端更新 UI | `packetHandler.recipe_book_toggle` 处理 |
+
+> 配方书状态不持久化，玩家重新打开 UI 时默认为关闭。UI `open` 触发器自动发送 `request_recipe_book` 包请求当前状态，服务端返回关闭状态并推送分类图标。
+
+### 推送内容差异
+
+| 配方书状态 | 推送内容 | 说明 |
+| --- | --- | --- |
+| 关闭 -> 打开 | `open` + `catIcons` + `recipes` + `recipeCount` | 推送完整配方数据 |
+| 打开 -> 关闭 | `open` + `catIcons` | 仅推送状态与图标，不推送配方数据 |
+| 请求当前状态 | 同上（按当前状态） | UI 打开时自动请求 |
+
+> `catIcons`（分类图标）始终推送，因为配方书按钮（书本图标）在关闭状态下也需要图标显示。
+
+## 分类图标生成
+
+`RecipeCollector` 为工作台与熔炉分别生成分类图标 map，通过 `serializeIconWithLore()` 序列化为带显示名与 lore 的物品 JSON。
+
+### 工作台分类图标
+
+| key | Material | 显示名 | Lore |
+| --- | --- | --- | --- |
+| `book` | `BOOK` | `§f配方书` | `§7点击打开/关闭配方书` |
+| `toggle` | `CRAFTING_TABLE` | `§f显示切换` | `§7点击切换显示模式` |
+| `all` | `COMPASS` | `§f全部` | `§7点击查看所有配方` |
+| `tools` | `IRON_AXE` | `§f工具` | `§7点击查看工具配方` |
+| `building` | `BRICKS` | `§f建筑` | `§7点击查看建筑配方` |
+| `food` | `LAVA_BUCKET` | `§f食品` | `§7点击查看食品配方` |
+| `redstone` | `REDSTONE` | `§f红石` | `§7点击查看红石配方` |
+
+### 熔炉分类图标
+
+| key | Material | 显示名 | Lore |
+| --- | --- | --- | --- |
+| `book` | `BOOK` | `§f配方书` | `§7点击打开/关闭配方书` |
+| `toggle` | `FURNACE` | `§f显示切换` | `§7点击切换显示模式` |
+| `all` | `COMPASS` | `§f全部` | `§7点击查看所有配方` |
+| `food` | `PORKCHOP` | `§f食品` | `§7点击查看食品配方` |
+| `building` | `STONE` | `§f建筑` | `§7点击查看建筑配方` |
+| `misc` | `LAVA_BUCKET` | `§f杂项` | `§7点击查看杂项配方` |
+
+> 分类图标在服务端生成并序列化为 JSON，而非在客户端 UI YAML 中硬编码。这样修改分类图标只需重新生成 JSON，无需修改 UI 文件。关于 UI 图标与物品来源的通用知识，参考 [图标系统](/docs/guide/icons) 与 [物品来源](/docs/guide/item-sources)。
+
+## 客户端过滤逻辑
+
+配方书客户端 UI 在 `tick` 脚本中执行本地过滤，无需向服务端请求。过滤条件包括分类、搜索文本与显示模式：
+
+```yaml
+ui:
+  action:
+    tick: |-
+      if(var.needFilterRefresh){
+        var.needFilterRefresh = false
+        var.recipes = {}
+        idx = 0.0
+        for(key in var.allRecipes.keys()){
+          recipe = var.allRecipes[key]
+          cat = recipe['category']
+          # 分类筛选（tools 合并 equipment，food 合并 misc）
+          if(var.currentCategory == 'all' || (var.currentCategory == 'tools' && (cat == 'tools' || cat == 'equipment')) || (var.currentCategory == 'food' && (cat == 'food' || cat == 'misc')) || cat == var.currentCategory){
+            # 搜索文本匹配（中英文）
+            name = recipe['resultName']
+            zhName = recipe['resultZhName']
+            if(var.searchText == '' || (name != none && name.contains(var.searchText)) || (zhName != none && zhName.contains(var.searchText))){
+              # 显示模式筛选
+              canCraft = recipe['canCraft']
+              if(var.showAll || canCraft == 1){
+                var.recipes[idx.round()] = recipe
+                idx = idx + 1
+              }
+            }
+          }
+        }
+      }
+```
+
+| 过滤条件 | 变量 | 说明 |
+| --- | --- | --- |
+| 分类 | `var.currentCategory` | `all`/`tools`/`building`/`food`/`redstone`（工作台）或 `all`/`food`/`building`/`misc`（熔炉） |
+| 搜索文本 | `var.searchText` | 同时匹配 `resultName`（英文）与 `resultZhName`（中文） |
+| 显示模式 | `var.showAll` | `true` 显示全部配方，`false` 仅显示 `canCraft == 1` 的可合成配方 |
+
+> 过滤在客户端本地执行，不产生服务端请求。分类切换、搜索输入与显示模式切换均设置 `var.needFilterRefresh = true`，在下一 tick 触发重新过滤。关于 UI 条件系统的通用知识，参考 [条件系统](/docs/guide/conditions)。

@@ -1,0 +1,305 @@
+---
+title: Capability API
+description: registerCapability/getCapability 机制及所有内置 Capability 接口（TitleGrantable、MailDispatchable、ChatCardSendable、EventBusCapability 等）的方法签名参考。
+---
+
+# Capability API
+
+Capability 是 ArcartXSuite 推荐的跨模块通信机制。模块通过 `ModuleContext` 注册自己提供的能力接口，其他模块通过类型查找来调用，实现松耦合的模块间协作。
+
+## 工作原理
+
+```
+┌──────────┐  registerCapability   ┌──────────────┐  getCapability   ┌──────────┐
+│ Title    │ ─────────────────────→│  Capability  │←──────────────── │ EventPkt │
+│ Module   │  TitleGrantable.class │  Registry    │  TitleGrantable  │ Module   │
+└──────────┘                       └──────────────┘                  └──────────┘
+```
+
+1. **提供方**在 `startService()` 中注册 Capability
+2. **使用方**通过 `Supplier` 延迟查找，避免加载顺序问题
+3. 模块 `onDisable` 时宿主自动注销其注册的所有 Capability
+
+### registerCapability / getCapability
+
+```java
+// 提供方：注册
+context.registerCapability(TitleGrantable.class, titleService);
+
+// 使用方：查找（务必判空）
+TitleGrantable title = context.getCapability(TitleGrantable.class);
+if (title != null) {
+    title.giveTitle(player.getUniqueId(), "hero", "7d", "MyModule");
+}
+```
+
+## 内置 Capability 接口
+
+### TitleGrantable
+
+称号授予能力。由 Title 模块实现。
+
+```java
+public interface TitleGrantable {
+    boolean giveTitle(UUID playerId, String titleId, String duration, String source);
+}
+```
+
+| 参数 | 说明 |
+|------|------|
+| `playerId` | 玩家 UUID |
+| `titleId` | 称号 id |
+| `duration` | 持续时间（如 `"permanent"`、`"7d"`） |
+| `source` | 来源标识（如 `"EventPacket"`） |
+
+### TitleConfigQueryable
+
+称号配置查询能力。由 Title 模块实现。
+
+```java
+public interface TitleConfigQueryable {
+    TitleInfo queryTitle(String titleId);
+    record TitleInfo(String displayName, String qualityName, String description) {}
+}
+```
+
+### MailDispatchable
+
+邮件发送能力。由 Mail 模块实现。两个方法均可在任意线程调用（同步执行，内部落库阻塞至完成后返回）。
+
+```java
+public interface MailDispatchable {
+    MailSendResult sendMail(MailSendRequest request);
+    MailSendResult dispatchPreset(MailPresetRequest request);
+}
+```
+
+- `sendMail` — 发送带混合附件（物品+货币）的系统邮件，收件人无需在线
+- `dispatchPreset` — 按预设模板发送邮件，收件人用玩家名（支持离线玩家）
+
+Mail 模块未启用时返回 `failure`，调用方应自行降级处理。
+
+### ChatCardSendable
+
+聊天卡片发送能力。由 Chat 模块或宿主桥接实现。
+
+```java
+public interface ChatCardSendable {
+    boolean sendChatCard(Player player, String cardId, Map<String, String> data);
+}
+```
+
+### ChatMutable
+
+聊天禁言能力。由 Chat 模块实现。
+
+```java
+public interface ChatMutable {
+    String mutePlayer(String playerName, Instant expiresAt, String reason, String mutedBy);
+    String unmutePlayer(String playerName);
+    boolean isMuted(UUID playerUuid);
+    List<MuteInfo> listMutes();
+    record MuteInfo(UUID playerUuid, String playerName, String mutedBy,
+                     String reason, Instant createdAt, Instant expiresAt) {}
+}
+```
+
+`expiresAt` 为 null 表示永久禁言。
+
+### SubtitlePlayable
+
+字幕播放能力。由 Announcer 模块实现。
+
+```java
+public interface SubtitlePlayable {
+    boolean playGroup(Player player, String groupId);
+}
+```
+
+### SignalDispatchable
+
+信号派发能力。由 EventPacket 模块实现，供其他模块触发规则引擎信号。
+
+```java
+public interface SignalDispatchable {
+    void dispatchSignal(String signal, Player subject, Map<String, String> variables);
+}
+```
+
+### CombatEffectTriggerable
+
+战斗特效触发能力。由 CombatEffect 模块实现。
+
+```java
+public interface CombatEffectTriggerable {
+    boolean triggerPacket(String packetId, Player recipient, Map<String, String> variables);
+    boolean triggerDirect(String uiId, String packetHandler, Player recipient, Object payload);
+}
+```
+
+### MapNavigable
+
+地图导航能力。由 Map 模块实现。
+
+```java
+public interface MapNavigable {
+    void upsertExternalTarget(Player player, String targetId, String source,
+        String worldId, double x, double y, double z,
+        String displayName, String iconId, boolean select);
+    void clearExternalTargets(Player player, String source, boolean syncView);
+    void openMenuFor(Player player, String waypointId);
+}
+```
+
+### QuestGpsNavigable
+
+任务导航能力。由 QuestGPS 模块实现。
+
+```java
+public interface QuestGpsNavigable {
+    void offerQuest(Player player, String questId, boolean openMenu);
+    void acceptQuest(Player player, String questId);
+    void openMenu(Player player);
+    void trackQuest(Player player, String questId);
+    void trackTask(Player player, String questId, String taskId);
+    boolean eventRuleLocked(Player player, String ruleId);
+    boolean moduleEntryLocked(Player player, String moduleEntryId);
+}
+```
+
+### TabRefreshable
+
+Tab 列表刷新能力。由 Tab 模块实现。
+
+```java
+public interface TabRefreshable {
+    void requestViewerRefresh(Player viewer, String reason);
+    void requestGlobalRefresh(String reason);
+}
+```
+
+### MenuOpenable
+
+通用菜单打开能力。由 Menu 模块实现。
+
+```java
+public interface MenuOpenable {
+    boolean openMenu(Player player, String menuId);
+    void refreshMenu(Player player);
+}
+```
+
+### AfkRewardDispatchable
+
+挂机状态查询与控制能力。由 AfkReward 模块实现。
+
+```java
+public interface AfkRewardDispatchable {
+    boolean isAfk(UUID playerUuid);
+    String getAreaName(UUID playerUuid);
+    int getAfkSeconds(UUID playerUuid);
+    String getAfkMode(UUID playerUuid);  // "REGION" / "MANUAL" / null
+    boolean startManualAfk(Player player, String areaName);
+}
+```
+
+### WarehouseAutoDepositable
+
+仓库自动入库能力。由 Warehouse 模块实现。
+
+```java
+public interface WarehouseAutoDepositable {
+    DepositResult depositToPersonalWarehouse(Player player, ItemStack itemStack);
+    record DepositResult(boolean success, long storedAmount, int remainingAmount, String message) {}
+}
+```
+
+### PickupNotifiable
+
+拾取通知能力。由 Pickup 模块实现。
+
+```java
+public interface PickupNotifiable {
+    boolean isNotificationActive(UUID playerId);
+    boolean notifyPickup(Player player, ItemStack itemStack, int amount);
+}
+```
+
+### ExtraBackpackAccess
+
+扩展背包操作能力。由 ExtraBackpack 模块实现。
+
+```java
+public interface ExtraBackpackAccess {
+    boolean isAvailable(Player player);
+    Snapshot snapshot(Player player);
+    DepositResult deposit(Player player, ItemStack itemStack);
+    WithdrawResult withdraw(Player player, String categoryId, int slot, int amount);
+    // record Snapshot, CategorySnapshot, SlotSnapshot, DepositResult, WithdrawResult
+}
+```
+
+### EventBusCapability
+
+模块间解耦事件总线（pub/sub 模式）。由宿主注册唯一实例，任何模块可发布/订阅主题。
+
+```java
+public interface EventBusCapability {
+    void publish(String topic, Player player, Object payload);
+    void publish(String topic, Player player, Map<String, String> payload); // 向后兼容
+    void registerPublisher(String topic);
+    boolean hasPublisher(String topic);
+    String subscribe(String topic, EventHandler handler);  // 支持通配符 "market.*"
+    void unsubscribe(String subscriptionId);
+    record BusEvent(String topic, Player player, Object typedPayload, long timestamp) {}
+    @FunctionalInterface interface EventHandler { void handle(BusEvent event); }
+}
+```
+
+```java
+EventBusCapability bus = context.getCapability(EventBusCapability.class);
+if (bus != null) {
+    // 发布
+    bus.publish("market.purchase", player, Map.of("price", "1000"));
+    // 订阅
+    String subId = bus.subscribe("market.*", event -> {
+        logger.info(event.player().getName() + " 触发了 " + event.topic());
+    });
+    // 取消订阅
+    bus.unsubscribe(subId);
+}
+```
+
+### 其他 Capability 接口
+
+| 接口 | 提供模块 | 用途 |
+|------|----------|------|
+| `EssentialsQueryable` | essentials | AFK/隐身/禁言/昵称查询 |
+| `QQBotBroadcastable` | qqbot | 推送消息到 QQ 群 |
+| `QQBotNotifiable` | qqbot | 监听群消息/进退群 |
+| `QqBindCapable` | qqbot | QQ 绑定查询 |
+| `InteractionState` | conversation | 对话中让出共享按键 |
+| `PlayerDataPurgeable` | 多模块 | 清除玩家数据（`/axs purge`） |
+| `DatabaseMigratable` | 多模块 | 跨库迁移（`/axs migrate`） |
+| `SecondaryPasswordAccess` | loginview | 二级密码访问 |
+| `TooltipDataCapable` | tooltip | 物品提示数据 |
+| `ModuleAdminCapability` | 宿主 | 模块管理能力 |
+
+## 内置 Capability 能力图
+
+| Capability 接口 | 提供模块 | 典型使用方 | 用途 |
+|-----------------|----------|------------|------|
+| `TitleGrantable` | title | eventpacket, battlepass | 发放称号 |
+| `TitleConfigQueryable` | title | tab, chat | 查询称号元数据 |
+| `MailDispatchable` | mail | eventpacket, onlinerewards | 发送邮件 |
+| `SubtitlePlayable` | announcer | eventpacket | 播放字幕组 |
+| `ChatCardSendable` | chat | eventpacket | 发送聊天卡片 |
+| `ChatMutable` | chat | essentials | 禁言/解禁 |
+| `QuestGpsNavigable` | questgps | eventpacket | 任务导航 |
+| `MapNavigable` | map | questgps | 地图外部导航点 |
+| `TabRefreshable` | tab | title, chat | 刷新 Tab 列表 |
+| `CombatEffectTriggerable` | combateffect | eventpacket, prop | 触发战斗特效 |
+| `SignalDispatchable` | eventpacket | onlinerewards, afkreward | 触发规则引擎信号 |
+| `EventBusCapability` | 宿主 | market, qqbot, 第三方 | 主题 pub/sub |
+| `PlayerDataPurgeable` | 多模块 | 宿主 `/axs purge` | 清除玩家数据 |
+| `DatabaseMigratable` | 多模块 | 宿主 `/axs migrate` | 跨库迁移 |

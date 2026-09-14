@@ -1,0 +1,410 @@
+---
+title: 选区工具
+description: Regions 选区工具、粒子可视化、体积限制与空间索引机制
+---
+
+# 选区工具
+
+> **付费模块**
+
+Regions 模块提供完整的选区工具链，从选区点的设置、粒子可视化反馈到区域创建，覆盖区域划定全流程。选区系统由 `Selection` 模型、`SelectionListener` 事件监听器、`SelectionParticleTask` 粒子任务三个组件协作完成。
+
+## 选区工具
+
+### 选区工具配置
+
+选区工具通过 `selection.wand-item` 配置，默认为木斧（`WOODEN_AXE`）：
+
+```yaml
+selection:
+  wand-item: WOODEN_AXE
+  max-volume: 500000
+  max-regions-per-player: 20
+```
+
+| 配置项 | 类型 | 默认值 | 说明 |
+|---|---|---|---|
+| `selection.wand-item` | `Material` | `WOODEN_AXE` | 选区工具物品类型（MATERIAL 枚举名） |
+| `selection.max-volume` | `long` | `500000` | 单次选区最大方块体积，范围 `1` ~ `100000000` |
+| `selection.max-regions-per-player` | `int` | `20` | 每玩家最大区域数量，`0` 表示无限 |
+
+### 获取选区工具
+
+通过 `/rg wand` 命令获取选区工具，需要 `axs.regions.select` 权限：
+
+```java
+private void handleWand(CommandSender sender) {
+    if (!(sender instanceof Player player)) { sender.sendMessage(fullMsg("common.only-player")); return; }
+    if (!player.hasPermission("axs.regions.select")) {
+        sender.sendMessage(fullMsg("common.no-permission"));
+        return;
+    }
+    org.bukkit.inventory.ItemStack wand = new org.bukkit.inventory.ItemStack(config.selection().wandItem());
+    var meta = wand.getItemMeta();
+    if (meta != null) {
+        meta.setDisplayName(ChatColor.translateAlternateColorCodes('&',
+            "&6区域选区工具 &7(左键设点1 / 右键设点2)"));
+        wand.setItemMeta(meta);
+    }
+    player.getInventory().addItem(wand);
+    player.sendMessage(prefix() + fmtMsg("&a已给予选区工具。手持它左键设点 1、右键设点 2。"));
+}
+```
+
+## 选区点设置
+
+### 左键设点 1 / 右键设点 2
+
+`SelectionListener` 监听 `PlayerInteractEvent`，当玩家手持选区工具时：
+
+| 操作 | 动作 | 效果 |
+|---|---|---|
+| 左键方块 | `LEFT_CLICK_BLOCK` | 设置选区点 1（红色粒子柱） |
+| 右键方块 | `RIGHT_CLICK_BLOCK` | 设置选区点 2（绿色粒子柱） |
+
+```java
+@EventHandler(priority = EventPriority.HIGH)
+public void onInteract(PlayerInteractEvent event) {
+    Player player = event.getPlayer();
+    if (!player.hasPermission("axs.regions.select")) return;
+
+    ItemStack hand = player.getInventory().getItemInMainHand();
+    if (hand.getType() != config.selection().wandItem()) return;
+
+    if (event.getAction() == Action.LEFT_CLICK_BLOCK) {
+        event.setCancelled(true);
+        Location loc = event.getClickedBlock().getLocation();
+        Selection sel = manager.getSelection(player.getUniqueId());
+        sel.setPos1(loc);
+        // ... 发送提示消息 ...
+    } else if (event.getAction() == Action.RIGHT_CLICK_BLOCK) {
+        event.setCancelled(true);
+        Location loc = event.getClickedBlock().getLocation();
+        Selection sel = manager.getSelection(player.getUniqueId());
+        if (!sel.setPos2(loc)) {
+            player.sendMessage(/* 跨世界提示 */);
+            return;
+        }
+        // ... 发送提示消息 ...
+    }
+}
+```
+
+### 命令设点
+
+除选区工具外，玩家也可通过命令设置选区点：
+
+| 命令 | 说明 | 权限 |
+|---|---|---|
+| `/rg pos1` | 设置选区点 1（当前站位） | `axs.regions.select` |
+| `/rg pos2` | 设置选区点 2（当前站位） | `axs.regions.select` |
+
+命令设点使用玩家当前坐标（`player.getLocation()`），与选区工具使用方块坐标（`event.getClickedBlock().getLocation()`）略有不同。
+
+## Selection 模型
+
+`Selection` 类表示玩家的选区会话，存储两个点和所在世界：
+
+```java
+public final class Selection {
+    private String world;
+    private int x1, y1, z1;
+    private int x2, y2, z2;
+    private boolean pos1Set, pos2Set;
+}
+```
+
+### 跨世界限制
+
+选区点 2 必须与点 1 在同一世界。`setPos2` 方法返回 `false` 表示跨世界，调用方应提示玩家并保持原 pos2：
+
+```java
+public boolean setPos2(Location loc) {
+    if (this.world == null) {
+        this.world = loc.getWorld().getName();
+    } else if (!this.world.equals(loc.getWorld().getName())) {
+        return false;  // 跨世界，设置失败
+    }
+    this.x2 = loc.getBlockX();
+    this.y2 = loc.getBlockY();
+    this.z2 = loc.getBlockZ();
+    this.pos2Set = true;
+    return true;
+}
+```
+
+### 体积计算
+
+选区体积通过两点坐标差计算，仅在选区完成时有效：
+
+```java
+public long volume() {
+    if (!isComplete()) return 0;
+    return (long)(Math.abs(x2 - x1) + 1) * (Math.abs(y2 - y1) + 1) * (Math.abs(z2 - z1) + 1);
+}
+```
+
+### 选区会话管理
+
+选区会话存储在 `RegionManager` 的 `ConcurrentHashMap` 中，按玩家 UUID 索引：
+
+```java
+private final Map<UUID, Selection> selections = new ConcurrentHashMap<>();
+
+public Selection getSelection(UUID player) {
+    return selections.computeIfAbsent(player, k -> new Selection());
+}
+
+public void clearSelection(UUID player) {
+    selections.remove(player);
+}
+```
+
+玩家退出游戏时，`SelectionListener.onQuit` 自动清理选区会话：
+
+```java
+@EventHandler
+public void onQuit(PlayerQuitEvent event) {
+    manager.cleanup(event.getPlayer().getUniqueId());
+}
+```
+
+`cleanup` 方法同时清理选区会话和进出追踪记录。
+
+## 粒子可视化
+
+`SelectionParticleTask` 负责选区与区域边框的粒子可视化，提供实时视觉反馈。
+
+### 粒子类型
+
+| 粒子 | 颜色 | 用途 | 刷新周期 |
+|---|---|---|---|
+| 选区点 1 粒子柱 | 红色（`Color.RED`） | 标记 pos1 位置 | 8 tick |
+| 选区点 2 粒子柱 | 绿色（`Color.LIME`） | 标记 pos2 位置 | 8 tick |
+| 选区边框 | 青色（`Color.AQUA`） | 选区完成后沿 12 条棱勾勒 | 8 tick |
+| 区域边框（自己拥有） | 黄色（`Color.YELLOW`） | `/rg show` 开启后显示 | 16 tick |
+| 区域边框（管理员） | 紫色（`Color.FUCHSIA`） | 管理员查看所有区域 | 16 tick |
+
+### 粒子柱
+
+选区点通过粒子柱标记，从方块底部到顶部共 5 个点（间隔 0.5 方块）：
+
+```java
+private void spawnPillar(Player player, World world, double x, int blockY, double z, Color color) {
+    Particle.DustOptions dust = new Particle.DustOptions(color, 1.0f);
+    for (int i = 0; i <= 4; i++) {
+        double y = blockY + i * 0.5;
+        player.spawnParticle(Particle.REDSTONE, new Location(world, x, y, z), 1, 0, 0, 0, 0, dust);
+    }
+}
+```
+
+粒子仅发送给选区所有者，避免对其他玩家造成粒子噪音。
+
+### 选区边框
+
+选区完成后，沿立方体 12 条棱均匀采样粒子勾勒边框。采样步长根据棱总长和最大粒子数动态计算，避免大体积选区卡服：
+
+```java
+private void spawnBoxEdges(Player player, World world,
+                            int x1, int y1, int z1, int x2, int y2, int z2,
+                            Color color, int maxParticles) {
+    int dx = maxX - minX + 1, dy = maxY - minY + 1, dz = maxZ - minZ + 1;
+    long totalLen = 4L * dx + 4L * dy + 4L * dz;
+    double step = Math.max(1.0, (double) totalLen / maxParticles);
+    // 沿 4 条 X 方向棱、4 条 Y 方向棱、4 条 Z 方向棱采样粒子
+}
+```
+
+### 粒子限制
+
+| 参数 | 值 | 说明 |
+|---|---|---|
+| `MAX_SELECTION_EDGE_PARTICLES` | `600` | 选区边框单次最大粒子数 |
+| `MAX_REGION_EDGE_PARTICLES` | `400` | 区域边框单次最大粒子数 |
+| `REGION_VIEW_RADIUS` | `48` | 区域边框显示视距（方块半径，X/Z 平面） |
+| `SELECTION_PERIOD` | `8L` tick | 选区粒子任务刷新周期 |
+| `REGION_PERIOD` | `16L` tick | 区域边框粒子任务刷新周期 |
+
+## 区域边框可视化
+
+### 开关切换
+
+通过 `/rg show` 命令切换区域边框常驻粒子可视化：
+
+```java
+private void handleShow(CommandSender sender) {
+    if (!(sender instanceof Player player)) { sender.sendMessage(fullMsg("common.only-player")); return; }
+    boolean enabled = particleTask.toggleRegionBorder(player);
+    if (enabled) {
+        player.sendMessage(prefix() + fmtMsg("&a已开启区域边框可视化 &7(再次输入 /rg show 关闭)"));
+    } else {
+        player.sendMessage(prefix() + fmtMsg("&c已关闭区域边框可视化。"));
+    }
+}
+```
+
+### 可见性规则
+
+| 玩家类型 | 可见区域 | 粒子颜色 |
+|---|---|---|
+| 普通玩家 | 自己拥有或参与的区域 | 黄色（`Color.YELLOW`） |
+| 管理员（`axs.regions.admin`） | 所有区域 | 紫色（`Color.FUCHSIA`） |
+
+### 视距裁剪
+
+区域边框粒子按视距裁剪，仅显示玩家 48 方块半径内的区域。裁剪使用 AABB（轴对齐包围盒）与视距圆的相交检测：
+
+```java
+private boolean withinView(Region region, int pcx, int pcz, int radius) {
+    int nearestX = Math.max(region.minX(), Math.min(pcx, region.maxX()));
+    int nearestZ = Math.max(region.minZ(), Math.min(pcz, region.maxZ()));
+    int dx = nearestX - pcx, dz = nearestZ - pcz;
+    return dx * dx + dz * dz <= radius * radius;
+}
+```
+
+## 区域创建流程
+
+### 命令创建
+
+通过 `/rg define <名称>` 用当前选区创建区域：
+
+```
+/rg define <名称>
+```
+
+校验流程：
+
+1. 选区是否完成（pos1 和 pos2 均已设置）
+2. 选区体积是否超过 `max-volume` 限制
+3. 区域名称是否在同世界内重复
+4. 玩家区域数量是否超过 `max-regions-per-player` 限制（`axs.regions.bypass.limit` 绕过）
+
+创建成功后，创建者自动成为区域所有者，选区会话自动清除。
+
+### UI 创建
+
+管理员通过 `/rg admin` 面板的 `create_region` 动作创建区域，校验逻辑与命令一致，失败时推送 toast 提示。
+
+## 空间索引
+
+`RegionManager` 维护按世界分桶的空间索引，实现高性能区域查询。
+
+### 网格分桶
+
+区域按 chunk 粒度（16×16×16）注册到网格 cell，查询时仅遍历目标点所在 cell 的候选区域：
+
+```java
+private static final int CELL = 16;
+
+private void indexRegion(Region r) {
+    Map<Long, List<Region>> worldBucket = spatialIndex.computeIfAbsent(r.world(), k -> new ConcurrentHashMap<>());
+    int minCx = r.minX() >> 4, maxCx = r.maxX() >> 4;
+    int minCz = r.minZ() >> 4, maxCz = r.maxZ() >> 4;
+    int minCy = r.minY() >> 4, maxCy = r.maxY() >> 4;
+    for (int cx = minCx; cx <= maxCx; cx++) {
+        for (int cz = minCz; cz <= maxCz; cz++) {
+            for (int cy = minCy; cy <= maxCy; cy++) {
+                long key = cellKey(cx, cy, cz);
+                worldBucket.computeIfAbsent(key, k -> new CopyOnWriteArrayList<>()).add(r);
+            }
+        }
+    }
+}
+```
+
+### Cell Key 打包
+
+三个 16 位坐标打包为一个 `long` key，避免创建对象：
+
+```java
+private static long cellKey(int cx, int cy, int cz) {
+    long x = cx & 0xFFFFL;
+    long y = cy & 0xFFFFL;
+    long z = cz & 0xFFFFL;
+    return (x << 32) | (y << 16) | z;
+}
+```
+
+### 查询流程
+
+```java
+public List<Region> getRegionsAt(String world, int x, int y, int z) {
+    Map<Long, List<Region>> worldBucket = spatialIndex.get(world);
+    if (worldBucket == null || worldBucket.isEmpty()) return List.of();
+    long key = cellKey(x >> 4, y >> 4, z >> 4);
+    List<Region> candidates = worldBucket.get(key);
+    if (candidates == null || candidates.isEmpty()) return List.of();
+    List<Region> result = new ArrayList<>(candidates.size());
+    for (Region region : candidates) {
+        if (region.contains(world, x, y, z)) result.add(region);
+    }
+    result.sort(Comparator.comparingInt(Region::priority).reversed());
+    return result;
+}
+```
+
+### 索引维护
+
+| 操作 | 说明 |
+|---|---|
+| `indexRegion` | 区域创建时注册到覆盖的所有 cell |
+| `unindexRegion` | 区域删除时从所有 cell 移除 |
+| `reindexRegion` | 区域范围变更（redefine）后重建索引 |
+
+## 区域重定义与重命名
+
+### 重定义范围
+
+通过 `/rg redefine <名称>` 或 UI 的 `redefine_region` 动作，用当前选区重新划定区域范围：
+
+```java
+region.redefine(sel.x1(), sel.y1(), sel.z1(), sel.x2(), sel.y2(), sel.z2());
+manager.saveRegion(region);  // 自动重建空间索引
+```
+
+`redefine` 方法重新归一化坐标（min/max），`saveRegion` 调用 `reindexRegion` 重建空间索引。
+
+### 重命名
+
+通过 UI 的 `rename_region` 动作重命名区域。重命名时删除旧记录、创建新记录并拷贝全部状态（范围/优先级/父区域/成员/标志）：
+
+```java
+public Region renameRegion(Region old, String newId) throws SQLException {
+    Region newRegion = new Region(newId, old.world(),
+        old.minX(), old.minY(), old.minZ(),
+        old.maxX(), old.maxY(), old.maxZ());
+    newRegion.setPriority(old.priority());
+    newRegion.setParentId(old.parentId());
+    // 拷贝所有者、成员、权限组、标志、标志数据
+    // 先持久化新记录，再删除旧记录
+    repository.saveRegion(newRegion);
+    repository.deleteRegion(old.id(), old.world());
+    // 更新内存索引
+    regions.remove(old);
+    unindexRegion(old);
+    regions.add(newRegion);
+    indexRegion(newRegion);
+    return newRegion;
+}
+```
+
+## 区域传送
+
+通过 `/rg tp <区域>` 传送到区域中心（X/Z 中心点，Y 为最高方块上方）：
+
+```java
+int cx = (region.minX() + region.maxX()) / 2;
+int cz = (region.minZ() + region.maxZ()) / 2;
+int cy = world.getHighestBlockYAt(cx, cz) + 1;
+player.teleport(new Location(world, cx + 0.5, cy, cz + 0.5));
+```
+
+## 相关页面
+
+- [标志系统](/docs/regions/flags) — 50 个区域标志的完整参考
+- [配置](/docs/regions/configuration) — 选区工具配置字段
+- [命令与占位符](/docs/regions/commands) — 选区相关命令与 UI 数据包
+- [世界规则](/docs/regions/world-rules) — 独立于区域的世界级限制
+- [联动](/docs/regions/integration) — 数据库表结构与存储模式

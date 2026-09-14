@@ -1,0 +1,14 @@
+{
+  "title": "EventPacket 事件引擎",
+  "description": "事件引擎，9种触发器 × 11种动作自由组合",
+  "color": "#a855f7",
+  "pages": [
+    "index",
+    "configuration",
+    "triggers",
+    "actions",
+    "services",
+    "commands",
+    "integration"
+  ]
+}

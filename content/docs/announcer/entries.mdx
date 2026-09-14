@@ -1,0 +1,402 @@
+---
+title: "公告条目与轮播"
+description: "Announcer 公告条目加载、轮播调度、手动广播队列、文本宽度估算与点击事件详解"
+---
+
+> **付费模块** — 公告轮播是 Announcer 模块的核心功能，按配置顺序循环播放公告条目到 ArcartX 客户端 HUD，支持自动轮播、手动广播队列、点击执行命令与文本宽度估算驱动的滚动动画。
+
+## 系统架构
+
+公告轮播由 `AnnouncerService` 统一管理，负责条目加载、轮播调度、手动广播队列、跨服转发与 HUD 通信。
+
+| 组件 | 源文件 | 职责 |
+|---|---|---|
+| `AnnouncerService` | `service/AnnouncerService.java` | 轮播调度、手动广播队列、跨服转发、HUD 通信 |
+| `AnnouncerEntry` | `config/AnnouncerEntry.java` | 公告条目记录（ID、启用状态、文本、点击命令） |
+| `AnnouncerModuleConfiguration` | `config/AnnouncerModuleConfiguration.java` | 模块配置记录，包含条目列表与轮播参数 |
+| `AnnouncerDisplay` | `service/AnnouncerService.java` | 单次展示的显示数据（内部 record） |
+| `announcer_hud.yml` | `arcartx/ui/announcer_hud.yml` | 公告 HUD 的 ArcartX UI 定义，含滚动动画逻辑 |
+
+## 条目加载
+
+### 加载流程
+
+1. 模块启动时读取 `entries-directory`（默认 `announcer`）配置项，确定条目目录路径
+2. 若目录不存在则自动创建，并导出内置默认条目文件 `default.yml`
+3. 扫描目录下所有 `.yml` 文件，按文件名升序排序后逐个加载
+4. 每个文件内根键为条目 ID，解析为 `AnnouncerEntry` 记录
+5. 同一 ID 后定义的会覆盖先定义的（跨文件按加载顺序，同文件按声明顺序）
+
+### 条目字段
+
+| 字段 | 类型 | 默认值 | 说明 |
+|---|---|---|---|
+| `enabled` | `boolean` | `true` | 是否启用该条目参与轮播 |
+| `text` | `string` | — | 公告展示文本，支持 PlaceholderAPI 变量与颜色代码 |
+| `click-command` | `string` | — | 点击公告时执行的命令，留空表示无点击事件；`<player>` 替换为点击者名 |
+
+> `enabled: false` 的条目不会下发到客户端，不参与轮播。`text` 为空的条目也会被过滤。
+
+### 活跃条目过滤
+
+`AnnouncerModuleConfiguration.activeEntries()` 方法返回已启用且文本非空的条目列表：
+
+```yaml
+# 过滤条件
+entry.enabled == true && !entry.text().isBlank()
+```
+
+只有活跃条目参与轮播调度，非活跃条目完全跳过。
+
+### 多文件条目示例
+
+```yaml
+# data/announcer/default.yml
+welcome:
+  enabled: true
+  text: "欢迎来到服务器，祝你游玩愉快。"
+  click-command: ""
+
+player:
+  enabled: true
+  text: "你好，%player_name%。"
+  click-command: "say <player> 点击了公告"
+```
+
+```yaml
+# data/announcer/events.yml
+# 同一目录下可拆分多个文件，按文件名升序加载
+double_exp:
+  enabled: true
+  text: "&e双倍经验活动进行中！"
+  click-command: ""
+
+maintenance:
+  enabled: false
+  text: "&c服务器即将维护，请做好准备。"
+  click-command: ""
+```
+
+## 自动轮播调度
+
+### 轮播循环
+
+后台定时任务按 `check-interval-ticks` 周期检查是否到达广播时间。到达后按顺序取下一条活跃条目进行展示：
+
+```yaml
+# 轮播索引逻辑
+entryIndex = nextEntryIndex(currentEntryIndex, activeEntries.size())
+# 到达末尾后回到 0，形成循环
+```
+
+| 参数 | 配置项 | 默认值 | 说明 |
+|---|---|---|---|
+| 检查周期 | `settings.check-interval-ticks` | `20` tick | 后台任务检查间隔 |
+| 轮播冷却 | `settings.cooldown-ms` | `30000` ms | 一整轮播完后的冷却时间 |
+| 条目间隔 | `settings.between-entry-interval-ms` | `30000` ms | 同一轮中相邻条目切换间隔 |
+| 自动播放 | `settings.auto-play` | `true` | 是否自动开始轮播 |
+
+### 间隔时间计算
+
+| 位置 | 间隔时间 | 最小值 |
+|---|---|---|
+| 同一轮中相邻条目之间 | `between-entry-interval-ms` | `1000` ms |
+| 一整轮播完后（最后一条到下一轮首条） | `cooldown-ms` | `1000` ms |
+
+> 服务端对间隔时间有 `1000` ms 的下限保护（`Math.max(1000L, configuredDelay)`），即使配置为 `0` 也会至少等待 1 秒。
+
+### 轮播时序图
+
+```yaml
+# auto-play: true 时的轮播时序
+条目1 ──(between-entry-interval-ms)──> 条目2 ──(between-entry-interval-ms)──> 条目3
+  │                                                                        │
+  └──────────────────────(cooldown-ms)──────────────────────────────────────┘
+                                    循环回条目1
+```
+
+```yaml
+# auto-play: false 时的行为
+# HUD 仍会同步配置，但不主动滚动显示
+# nextBroadcastAtMs 设为 Long.MAX_VALUE，永不触发自动轮播
+```
+
+## 手动广播队列
+
+### 队列模式
+
+手动广播分为两种模式，均通过 `ConcurrentLinkedQueue` 实现：
+
+| 模式 | 命令 | 行为 |
+|---|---|---|
+| 排队广播 | `broadcast` / `gbroadcast` | 文本加入待播队列，当前展示结束后立即播报 |
+| 立即广播 | `broadcastnow` / `gbroadcastnow` | 强制打断当前展示，立即播报 |
+
+### 队列消费
+
+每个检查周期（`tickBroadcast`）到达广播时间时，优先消费手动广播队列：
+
+```yaml
+# tickBroadcast 逻辑
+if (now >= nextBroadcastAtMs) {
+    manualText = manualBroadcastQueue.poll()  # 优先消费手动队列
+    if (manualText != null) {
+        broadcastManualDisplay(manualText)     # 播报手动广播
+    } else {
+        broadcastNextDisplay(now, "tick")      # 正常轮播下一条
+    }
+}
+```
+
+> 手动广播展示时长为 `between-entry-interval-ms`，不触发轮播冷却逻辑。手动广播队列消费完毕后恢复自动轮播。
+
+### 手动广播展示
+
+手动广播创建一个 `id` 为 `"manual"` 的展示数据，`clickable` 固定为 `false`（手动广播不可点击）：
+
+```yaml
+# 手动广播 display 数据
+isShow: true
+id: "manual"
+text: <广播文本>
+clickable: false
+revision: <时间戳-序列号>
+```
+
+## 展示数据与同步
+
+### AnnouncerDisplay 结构
+
+每次展示由 `AnnouncerDisplay` record 描述，包含以下字段：
+
+| 字段 | 类型 | 说明 |
+|---|---|---|
+| `isShow` | `boolean` | 是否显示公告 |
+| `id` | `String` | 当前公告条目 ID（手动广播为 `"manual"`） |
+| `text` | `String` | 公告文本内容 |
+| `clickable` | `boolean` | 是否可点击 |
+| `revision` | `String` | 数据修订版本号（时间戳 + 自增序列） |
+
+### display 包载荷
+
+展示数据通过 `display` 包发送到客户端，payload 包含额外估算的文本宽度：
+
+| 字段 | 类型 | 说明 |
+|---|---|---|
+| `isShow` | `boolean` | 是否显示公告 |
+| `id` | `String` | 当前公告条目 ID |
+| `text` | `String` | 公告文本内容（已渲染 PAPI） |
+| `clickable` | `boolean` | 是否可点击 |
+| `revision` | `String` | 数据修订版本号 |
+| `textWidth` | `int` | 公告文字估算宽度（用于滚动动画） |
+
+### 修订版本号
+
+每次展示生成唯一的修订版本号，格式为 `<时间戳>-<自增序列>`：
+
+```yaml
+# revision 生成逻辑
+revision = System.currentTimeMillis() + "-" + revisionSequence.incrementAndGet()
+```
+
+修订版本号用于客户端检测数据变更，避免重复渲染相同内容。
+
+### PAPI 渲染
+
+展示数据在发送前会按接收玩家解析 PlaceholderAPI 变量：
+
+```yaml
+# 渲染流程
+if (display.isShow && placeholderResolver.available()) {
+    renderedText = placeholderResolver.applyPlaceholders(player, display.text)
+}
+```
+
+> 若 PlaceholderAPI 未安装，展示原始文本（含 `%variable%` 占位符原文）。
+
+## 文本宽度估算
+
+服务端根据 `text-width-font-size` 配置的字号估算公告文本在 UI 自适应坐标系中的渲染宽度，驱动客户端滚动动画的起止逻辑。
+
+### 估算算法
+
+```yaml
+# estimateTextWidth(text, fontSize) 算法
+for each char c in text:
+    if (c == '§' or c == '&') and next char exists:
+        skip color code (i++)    # 颜色代码不占宽度
+    else if isFullWidth(c):
+        width += fontSize         # CJK 全角字符
+    else:
+        width += fontSize * 0.55  # Latin 半角字符
+```
+
+| 字符类型 | 判定条件 | 宽度 |
+|---|---|---|
+| Minecraft 颜色代码 | `§x` 或 `&x` | `0`（跳过） |
+| CJK 全角字符 | `U+2E80` 及以上 | `fontSize` |
+| Latin 半角字符 | 其他 | `fontSize × 0.55` |
+
+### 字号配置
+
+`text-width-font-size` 对应 HUD 中 `announcement_text` 控件的 `fontSize`：
+
+```yaml
+# 主配置
+settings:
+  text-width-font-size: 60
+
+# HUD 中对应
+公告文字:
+  type: Text
+  attribute:
+    fontSize: 100  # HUD 实际字号
+```
+
+> `text-width-font-size` 是服务端估算用的参考字号，与 HUD 中 Text 控件的实际 `fontSize` 不需要完全一致。估算宽度仅用于判断滚动动画何时结束（文本完全滚出屏幕）。
+
+## 点击事件
+
+### 点击回包处理
+
+当公告条目配置了非空的 `click-command` 时，HUD 显示可点击区域。玩家点击后客户端发送 `AXS_announcer_click` 回包，携带当前公告条目 ID。
+
+```yaml
+# 客户端点击回包
+Packet.send("AXS_announcer_click", var.currentEntryId)
+```
+
+### 服务端处理流程
+
+1. 收到 `AXS_announcer_click` 回包，从 `data[0]` 获取条目 ID
+2. 在活跃条目列表中查找对应条目
+3. 若条目不存在或 `click-command` 为空，直接返回
+4. 将 `<player>` 占位符替换为点击者名称（经 `CommandSanitizer` 校验合法性）
+5. 以控制台身份（`Bukkit.getConsoleSender()`）执行命令
+
+```yaml
+# 命令替换与执行
+command = entry.clickCommand().replace("<player>", CommandSanitizer.validatePlayerName(player.getName()))
+Bukkit.dispatchCommand(Bukkit.getConsoleSender(), command)
+```
+
+### 点击命令示例
+
+```yaml
+# 基本示例
+welcome:
+  enabled: true
+  text: "欢迎来到服务器！点击此处领取新手礼包。"
+  click-command: "kit give <player> starter"
+
+# 多命令示例（通过命令链）
+event:
+  enabled: true
+  text: "&e双倍经验活动进行中！点击参加。"
+  click-command: "say <player> 参加了双倍经验活动 && xp give <player> 100"
+```
+
+> `<player>` 占位符会替换为点击公告的玩家名，并经过 `CommandSanitizer` 校验，防止命令注入。命令以控制台身份执行，拥有最高权限，请谨慎配置。
+
+## HUD 滚动动画
+
+### 客户端滚动逻辑
+
+公告 HUD 通过 `tick` action 每帧将文本 X 坐标递减，实现从右向左的滚动效果：
+
+```yaml
+# HUD tick 逻辑
+if (var.displayVisible && var.currentText != none) {
+    var.textX = var.textX - var.scrollSpeed
+    if (var.textX < 0 - var.textWidth) {
+        var.displayVisible = false      # 文本完全滚出屏幕，隐藏公告
+        var.currentText = none
+    }
+}
+```
+
+| 变量 | 初始值 | 说明 |
+|---|---|---|
+| `textX` | `Display.width()` | 文本滚动 X 坐标（从屏幕右侧开始） |
+| `scrollSpeed` | `1.5` | 滚动速度（每 tick 像素位移） |
+| `textWidth` | `0` | 文本估算宽度（来自 `display` 包） |
+| `displayVisible` | `false` | 是否显示公告 |
+
+### 滚动结束判定
+
+当 `textX < 0 - textWidth` 时（文本左边缘已滚出屏幕左侧），HUD 隐藏公告。`textWidth` 由服务端估算并随 `display` 包下发，确保滚动动画在文本完全展示后自然结束。
+
+## 玩家同步机制
+
+### 客户端初始化
+
+玩家客户端就绪时，`AnnouncerService.markClientInitialized` 被调用：
+
+1. 将玩家 UUID 加入 `initializedPlayers` 集合
+2. 将玩家 UUID 加入 `openedPlayers` 集合（HUD `defaultOpen: true`，客户端初始化时已自动打开）
+3. 立即向该玩家推送当前展示内容
+
+> 不调用 `ensureUiOpen` / `openUiAll`，避免二次触发 `load` action 重置变量。
+
+### 延迟打开补偿
+
+每个检查周期会扫描已初始化但未打开 UI 的玩家，尝试为其打开 HUD 并同步当前内容，覆盖 reload 后 UI 重新注册的延迟场景：
+
+```yaml
+# tickBroadcast 中的延迟打开逻辑
+for player in onlinePlayers:
+    if initializedPlayers.contains(player) && !openedPlayers.contains(player):
+        if ensureUiOpen(player):
+            sendDisplay(player, currentDisplay, "late-open")
+```
+
+### reload 后同步
+
+模块 reload 后，UI 未注销（客户端仍持有已打开的 HUD），因此直接将所有在线玩家标记为已初始化 + 已打开，然后重置轮播并立即广播当前内容：
+
+```yaml
+# syncAfterReload 逻辑
+for player in onlinePlayers:
+    initializedPlayers.add(player.uuid)
+    openedPlayers.add(player.uuid)
+resetPlayback()                           # 重置索引与下次广播时间
+broadcastNextDisplay(now, "reload")       # 立即广播当前条目
+```
+
+## 调试
+
+### 调试日志
+
+开启 `settings.debug: true` 后，展示同步与点击回包都会输出详细日志：
+
+```yaml
+settings:
+  debug: true
+```
+
+| 日志类型 | 内容 |
+|---|---|
+| 展示同步 | 玩家名、触发原因、变量发送状态、包发送状态、payload 内容 |
+| 点击回包 | 玩家名、条目 ID、执行命令、派发结果 |
+
+### 状态查询
+
+通过 `/axs announcer status` 可查看轮播系统运行状态：
+
+| 输出行 | 说明 |
+|---|---|
+| 活跃公告数 | `enabled: true` 且 `text` 非空的条目数量 |
+| 已初始化玩家数 | 客户端已就绪的在线玩家数量 |
+| 待播队列长度 | 手动广播队列中待播报的消息数量 |
+| 跨服通道状态 | `已启用` 或 `未启用` |
+
+## UI 自定义
+
+公告 HUD 支持自定义，修改 `ui/announcer_hud.yml` 即可调整布局与样式。自定义时需注意：
+
+- 保持 `packetHandler.display` 的变量赋值逻辑不变
+- `tick` action 中的滚动逻辑依赖 `textX`、`textWidth`、`scrollSpeed` 变量
+- 点击区域（`公告点击区`）的 `visible` 应绑定到 `var.displayVisible && var.currentClickable`
+- 点击回包使用 `Packet.send("AXS_announcer_click", var.currentEntryId)`
+
+> UI 自定义请参考 [图标指南](/docs/guide/icons)。若需在公告 HUD 中展示物品图标，可参考 [物品来源](/docs/guide/item-sources) 获取物品 JSON。公告显示条件可参考 [条件指南](/docs/guide/conditions)。

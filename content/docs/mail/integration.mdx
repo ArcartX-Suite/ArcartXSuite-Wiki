@@ -1,0 +1,308 @@
+---
+title: 联动
+description: Mail 跨模块联动与 Capability
+---
+
+## 依赖关系
+
+| 类型 | 依赖 | 作用 | 缺少时表现 |
+|---|---|---|---|
+| 必需 | ArcartXSuite 本体 | 核心 API、存储管理、货币桥接、跨服通道、物品来源注册表 | 模块无法运行 |
+| 可选 | PlaceholderAPI | 输出 `%axsmail_*%` 占位符 | PAPI 占位符不可用 |
+| 可选 | Vault | 玩家写信货币附件和手续费 | Vault 货币附件不可用 |
+| 可选 | PlayerPoints | Points 货币附件 | Points 附件不可用 |
+| 可选 | Redis | 跨服邮件刷新通知 | 仅单服可用 |
+| 可选 | MythicMobs | 预设邮件物品附件来源（`source: mythic`） | MythicMobs 物品附件不可用 |
+| 可选 | NeigeItems | 预设邮件物品附件来源（`source: neige`） | NeigeItems 物品附件不可用 |
+| 可选 | Overture | 预设邮件物品附件来源（`source: overture`） | Overture 物品附件不可用 |
+| 可选 | MMOItems | 预设邮件物品附件来源（`source: mmoitems`） | MMOItems 物品附件不可用 |
+
+## MailDispatchable Capability
+
+Mail 模块注册了 `MailDispatchable` Capability，供其他模块跨模块调用发送邮件。接口定义在 `axs-api` 中，标记为 `@Stable`。
+
+### 接口方法
+
+```java
+public interface MailDispatchable {
+    // 发送一封带混合附件（物品+货币）的系统邮件
+    MailSendResult sendMail(MailSendRequest request);
+
+    // 按预设模板发送邮件
+    MailSendResult dispatchPreset(MailPresetRequest request);
+}
+```
+
+### sendMail —— 发送自定义邮件
+
+`sendMail` 发送一封系统邮件（`MailSourceType.SYSTEM`），收件人用 UUID（直接落库，无需在线）。
+
+```java
+MailDispatchable mail = getCapability(MailDispatchable.class);
+if (mail == null) return; // Mail 模块未启用
+
+MailSendRequest request = MailSendRequest.builder(playerUuid, "赛季奖励", "你获得了赛季奖励")
+    .attachment(MailAttachmentSpec.item(itemStack))
+    .attachment(MailAttachmentSpec.currency("money", 500.0))
+    .senderName("BattlePass")
+    .sourceModule("battlepass")
+    .sourceDetail("season-3-tier-10")
+    .expiresAt(Instant.now().plus(Duration.ofDays(30)))
+    .build();
+
+MailSendResult result = mail.sendMail(request);
+if (result.success()) {
+    // 发送成功
+}
+```
+
+#### MailAttachmentSpec 附件类型
+
+| 方法 | 说明 |
+|---|---|
+| `MailAttachmentSpec.item(ItemStack)` | 物品附件，序列化为 Base64 存储 |
+| `MailAttachmentSpec.currency("money", amount)` | Vault 货币附件 |
+| `MailAttachmentSpec.currency("points", amount)` | 自定义货币附件（走 CurrencyBridge） |
+
+### dispatchPreset —— 派发预设邮件
+
+`dispatchPreset` 按预设模板发送邮件，收件人用玩家名（支持离线玩家解析）。
+
+```java
+MailDispatchable mail = getCapability(MailDispatchable.class);
+if (mail == null) return;
+
+MailPresetRequest request = MailPresetRequest.builder("daily-reward", playerName)
+    .sourceModule("onlinerewards")
+    .sourceDetail("daily-login-day-7")
+    .build();
+
+MailSendResult result = mail.dispatchPreset(request);
+```
+
+### 线程安全
+
+两个方法均可在任意线程调用（同步执行，内部落库阻塞至完成后返回）。调用方如需异步发送，请自行包异步任务。
+
+## AxsMailApi 公开服务
+
+Mail 模块还通过 Bukkit ServicesManager 和静态入口 `AxsMailApi` 对外提供更完整的邮件服务，面向外部 Bukkit 插件。所有方法返回 `CompletableFuture`，异步执行，不阻塞调用线程。
+
+### 获取方式
+
+```java
+// 方式一：静态入口
+if (!AxsMailApi.isReady()) return;
+AxsMailService service = AxsMailApi.service();
+
+// 方式二：Bukkit ServicesManager
+RegisteredServiceProvider<AxsMailService> reg =
+    Bukkit.getServicesManager().getRegistration(AxsMailService.class);
+if (reg == null) return;
+AxsMailService service = reg.getProvider();
+```
+
+### 接口方法
+
+| 方法 | 说明 |
+|---|---|
+| `send(AxsMailRequest)` | 发送系统邮件（含物品/货币/命令附件） |
+| `sendDurable(AxsMailRequest)` | 恢复持久化的邮件发送意图（当前与 send 行为一致） |
+| `getMail(UUID, long)` | 查询单封邮件 |
+| `getInbox(UUID, AxsMailQuery)` | 查询收件箱列表 |
+| `getUnreadCount(UUID)` | 查询未读数量 |
+| `markRead(UUID, long)` | 标记邮件为已读 |
+| `claim(UUID, long)` | 领取邮件附件（需玩家在线） |
+| `delete(UUID, long)` | 删除邮件（受附件保护约束） |
+
+### 使用示例
+
+```java
+AxsMailService service = AxsMailApi.service();
+
+// 发送邮件
+AxsMailRequest request = AxsMailRequest.builder()
+    .title("活动奖励")
+    .content("你获得了活动奖励！")
+    .addRecipient(playerUuid)
+    .addItem(itemStack)
+    .addCurrency("money", 100.0, "金币奖励")
+    .addCommand("tell <player> 你领取了活动奖励")
+    .senderName("活动系统")
+    .sourcePlugin("MyPlugin")
+    .idempotencyKey("event-2026-001")
+    .expireAt(Instant.now().plus(Duration.ofDays(30)))
+    .build();
+
+service.send(request).thenAccept(receipt -> {
+    if (receipt.isNoOp()) {
+        // Mail 模块未就绪
+    } else {
+        // 发送成功，receipt.successCount() 为成功数
+    }
+});
+
+// 查询未读数
+service.getUnreadCount(playerUuid).thenAccept(count -> {
+    // count 为未读数
+});
+```
+
+## 跨服同步
+
+Mail 模块通过宿主的 `CrossServerAPI` 实现跨服邮件刷新通知。
+
+### 工作原理
+
+1. **发送邮件时**：邮件落库后，通过跨服通道广播 `refresh:<playerUuid>` 消息
+2. **其他服务器收到消息**：解析玩家 UUID，若该玩家在线则刷新收件箱 UI
+3. **跨服通道**：支持 Redis 和 Proxy（BungeeCord/Velocity）双后端，连接参数见宿主 `config.yml` 的 `cross-server` 节
+
+### 配置
+
+```yaml
+cross-server:
+  enabled: false  # 设为 true 启用跨服邮件刷新
+```
+
+> 跨服通道仅传递刷新通知，邮件数据本身存储在共享数据库中。因此多服架构下必须使用共享 MySQL 数据库，不能各自使用独立 SQLite。
+
+## 数据库表结构
+
+Mail 模块使用 6 张数据库表，表名前缀由存储配置决定（共享模式无前缀，自建模式为 `axs_mail_`）。
+
+### mail_player_profiles
+
+玩家邮件档案表，记录玩家最近已知名称和在线/发送时间。
+
+| 列名 | 类型 | 说明 |
+|---|---|---|
+| `player_uuid` | VARCHAR(36) / TEXT | 玩家 UUID（主键） |
+| `last_known_name` | VARCHAR(64) / TEXT | 最近已知名称 |
+| `last_known_name_lower` | VARCHAR(64) / TEXT | 名称小写（用于按名查询索引） |
+| `last_send_at` | BIGINT / INTEGER | 最后发送邮件时间（epoch 毫秒） |
+| `last_seen_at` | BIGINT / INTEGER | 最后在线时间（epoch 毫秒） |
+| `last_server` | VARCHAR(128) / TEXT | 最后所在服务器标识 |
+
+### mail_entries
+
+邮件主表，存储每封邮件的核心数据。
+
+| 列名 | 类型 | 说明 |
+|---|---|---|
+| `id` | BIGINT / INTEGER | 邮件 ID（自增主键） |
+| `owner_uuid` | VARCHAR(36) / TEXT | 收件玩家 UUID |
+| `sender_uuid` | VARCHAR(36) / TEXT | 发件玩家 UUID（系统邮件为 NULL） |
+| `sender_name` | VARCHAR(64) / TEXT | 发件人显示名 |
+| `source_type` | VARCHAR(32) / TEXT | 来源类型（`SYSTEM`/`PLAYER`/`PRESET`/`CDK`） |
+| `preset_id` | VARCHAR(128) / TEXT | 关联的预设 ID（仅 PRESET/CDK 有效） |
+| `cdk_code` | VARCHAR(128) / TEXT | 关联的 CDK 兑换码（仅 CDK 有效） |
+| `subject` | TEXT | 邮件主题 |
+| `body` | TEXT | 邮件正文 |
+| `status` | VARCHAR(32) / TEXT | 邮件状态（`UNREAD`/`READ`/`CLAIMED`/`DELETED`/`EXPIRED`） |
+| `claim_commands` | TEXT | 领取命令（JSON 数组序列化） |
+| `claim_conditions` | TEXT | 领取条件（序列化） |
+| `created_at` | BIGINT / INTEGER | 创建时间（epoch 毫秒） |
+| `expires_at` | BIGINT / INTEGER | 过期时间（NULL 表示永不过期） |
+| `updated_at` | BIGINT / INTEGER | 最后更新时间 |
+| `claimed_at` | BIGINT / INTEGER | 领取时间（NULL 表示未领取） |
+| `deleted_at` | BIGINT / INTEGER | 删除时间（NULL 表示未删除） |
+
+索引：`idx_mail_entries_owner`（owner_uuid, created_at）、`idx_mail_entries_status`（owner_uuid, status, created_at）
+
+### mail_attachments
+
+邮件附件表，与 `mail_entries` 一对多关联。
+
+| 列名 | 类型 | 说明 |
+|---|---|---|
+| `id` | BIGINT / INTEGER | 附件 ID（自增主键） |
+| `mail_id` | BIGINT / INTEGER | 关联邮件 ID（外键，ON DELETE CASCADE） |
+| `sort_order` | INT / INTEGER | 排序序号 |
+| `attachment_type` | VARCHAR(16) / TEXT | 附件类型（`ITEM`/`VAULT`/`CURRENCY`） |
+| `item_data` | LONGTEXT / TEXT | 物品 Base64 序列化数据（仅 ITEM） |
+| `vault_amount` | DOUBLE | Vault 金额（兼容旧字段） |
+| `currency_id` | VARCHAR(64) / TEXT | 货币 ID（仅货币附件） |
+| `currency_amount` | DOUBLE | 货币数量 |
+| `description` | TEXT | 附件展示描述 |
+| `icon` | VARCHAR(255) / TEXT | 图标 YAML 序列化 |
+
+索引：`idx_mail_attachments_mail_id`（mail_id, sort_order）
+
+### mail_logs
+
+邮件操作日志表，记录玩家发送、领取、删除等操作。
+
+| 列名 | 类型 | 说明 |
+|---|---|---|
+| `id` | BIGINT / INTEGER | 日志 ID（自增主键） |
+| `player_uuid` | VARCHAR(36) / TEXT | 玩家 UUID |
+| `log_type` | VARCHAR(32) / TEXT | 日志类型（`send`/`claim`/`delete`/`preset`/`cdk`/`system`） |
+| `content` | TEXT | 日志内容 |
+| `created_at` | BIGINT / INTEGER | 创建时间 |
+
+索引：`idx_mail_logs_player`（player_uuid, created_at）
+
+### mail_cdk_definitions
+
+CDK 兑换码定义表。
+
+| 列名 | 类型 | 说明 |
+|---|---|---|
+| `code` | VARCHAR(128) / TEXT | 兑换码（主键） |
+| `preset_id` | VARCHAR(128) / TEXT | 关联的预设 ID |
+| `max_claims` | INT / INTEGER | 最大可领取次数 |
+| `claimed_count` | INT / INTEGER | 已领取次数 |
+| `expires_at` | BIGINT / INTEGER | 过期时间（NULL 表示永不过期） |
+| `enabled` | BOOLEAN / INTEGER | 是否启用 |
+| `created_by` | VARCHAR(64) / TEXT | 创建者名称 |
+| `created_at` | BIGINT / INTEGER | 创建时间 |
+| `updated_at` | BIGINT / INTEGER | 最后更新时间 |
+
+### mail_cdk_claims
+
+CDK 领取记录表，记录每个玩家领取了哪些 CDK。
+
+| 列名 | 类型 | 说明 |
+|---|---|---|
+| `code` | VARCHAR(128) / TEXT | 兑换码 |
+| `player_uuid` | VARCHAR(36) / TEXT | 玩家 UUID |
+| `claimed_at` | BIGINT / INTEGER | 领取时间 |
+
+主键：`(code, player_uuid)`，外键：`code` → `mail_cdk_definitions(code)` ON DELETE CASCADE
+
+## 与其他模块联动
+
+### BattlePass 奖励发放
+
+BattlePass 模块在玩家达到赛季等级时，通过 `MailDispatchable.sendMail()` 发放赛季奖励邮件。邮件包含物品附件和货币附件，发件人名称为 "BattlePass"。
+
+### Market 到期退回
+
+Market 模块在拍卖行物品到期未售时，通过 `MailDispatchable.sendMail()` 将物品以邮件附件形式退回给卖家。
+
+### OnlineRewards 奖励发放
+
+OnlineRewards 模块在玩家领取在线/签到奖励时，通过 `MailDispatchable.dispatchPreset()` 派发预设奖励邮件。
+
+### Warehouse 溢出退回
+
+Warehouse 模块在仓库溢出时，可通过 `MailDispatchable.sendMail()` 将溢出物品以邮件附件形式退回给玩家。
+
+### EventPacket 事件触发
+
+EventPacket 模块可配置在特定事件触发时调用 `MailDispatchable.dispatchPreset()` 派发预设邮件。
+
+## 其他 Capability
+
+### PlayerDataPurgeable
+
+Mail 模块注册了 `PlayerDataPurgeable` Capability，支持 `/axs purge` 统一清理玩家数据。清理范围包括 `mail_player_profiles`、`mail_entries`、`mail_logs`、`mail_cdk_claims` 四张表。
+
+### DatabaseMigratable
+
+Mail 模块注册了 `DatabaseMigratable` Capability，支持 `/axs migrate mail sqlite-to-mysql [overwrite]` 跨源数据库迁移。迁移时会复制全部 6 张表的数据到目标数据库。
+
+### SecondaryPasswordAccess
+
+Mail 模块消费宿主的 `SecondaryPasswordAccess` Capability，用于写信时的安全验证。已设置二级密码的玩家在写信时需先解锁密码才能发送。

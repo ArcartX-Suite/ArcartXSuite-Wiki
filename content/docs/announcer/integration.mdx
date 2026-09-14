@@ -1,0 +1,181 @@
+---
+title: "联动"
+description: "Announcer 跨模块联动、Capability 与跨服通道"
+---
+
+Announcer 模块通过 Capability 注册、跨服通道、客户端变量推送等机制与其他模块和子系统联动。模块本身不使用 EventBus 发布事件，但通过 `SubtitlePlayable` 能力为其他模块提供字幕播放服务。
+
+## Capability 注册
+
+模块在启动时注册以下 Capability，供其他模块通过 `getCapability()` 获取并调用：
+
+### SubtitlePlayable
+
+提供字幕播放能力，接口定义位于 `xuanmo.arcartxsuite.api.capability.SubtitlePlayable`。由 Announcer 模块的 `SubtitleService` 实现，供 EventPacket、OnlineRewards、Conversation、QuestGps、AfkReward 等模块跨模块调用。
+
+| 方法签名 | 返回值 | 说明 |
+|---|---|---|
+| `playGroup(Player player, String groupId)` | `boolean` | 为指定玩家播放字幕组，`true` 表示播放成功，`false` 表示字幕组不存在 |
+
+使用示例（其他模块中）：
+
+```java
+SubtitlePlayable subtitle = getCapability(SubtitlePlayable.class);
+if (subtitle != null) {
+    boolean ok = subtitle.playGroup(player, "welcome_subtitle");
+    // true = 播放成功，false = 字幕组不存在
+}
+```
+
+> 每个玩家同一时间只有一个字幕序列在播放。新的播放请求会终止旧序列（不发 close 包，新的 play 直接覆盖客户端状态）。
+
+### QQBotBroadcastable（消费方）
+
+Announcer 模块作为消费方，通过 `getCapability(QQBotBroadcastable.class)` 获取 QQBot 模块提供的广播能力。当 `settings.forward-to-qq` 为 `true` 时，自动轮播与手动广播的公告文本会去除颜色代码后发送到所有已配置的 QQ 群。
+
+| 方法签名 | 返回值 | 说明 |
+|---|---|---|
+| `sendToGroup(long groupId, String message)` | `void` | 向指定 QQ 群发送消息 |
+| `sendToAllGroups(String message)` | `void` | 向所有已配置的 QQ 群发送消息 |
+
+> Announcer 调用的是 `sendToAllGroups`，消息格式为 `[公告] <去除颜色代码的公告文本>`。
+
+## 跨服广播
+
+### 跨服通道
+
+模块通过 `CrossServerAPI.openChannel("announcer", config, handler)` 建立跨服通道。当 `cross-server.enabled` 为 `true` 且宿主已配置跨服连接时，手动广播命令（`broadcast` / `broadcastnow` / `gbroadcast` / `gbroadcastnow`）会转发到其他子服。
+
+| 操作 | 转发方式 | 说明 |
+|---|---|---|
+| `broadcast <文本>` | `gbroadcast` 时转发 | 排队广播，跨服时转发为排队消息 |
+| `broadcastnow <文本>` | `gbroadcastnow` 时转发 | 立即广播，跨服时转发为立即消息 |
+| `gbroadcast <文本>` | 直接转发 | 跨服排队广播 |
+| `gbroadcastnow <文本>` | 直接转发 | 跨服立即广播 |
+
+> 自动轮播条目不会跨服转发，仅手动广播会跨服。
+
+### 跨服消息格式（AnnouncerEnvelope）
+
+跨服消息使用 `AnnouncerEnvelope` 记录封装，通过 `AnnouncerEnvelopeCodec` 编解码为 YAML 字符串传输：
+
+| 字段 | 类型 | 说明 |
+|---|---|---|
+| `messageId` | `String` | 消息唯一 ID（UUID），用于去重 |
+| `originNode` | `String` | 发送节点 ID |
+| `text` | `String` | 公告文本（已渲染，不含 PAPI 变量） |
+| `immediate` | `boolean` | 是否立即广播（`broadcastnow` / `gbroadcastnow`） |
+
+```yaml
+# 跨服消息 YAML 格式
+message-id: "550e8400-e29b-41d4-a716-446655440000"
+origin-node: "survival-1"
+text: "全服双倍经验活动已开启！"
+immediate: true
+```
+
+### 去重与节点过滤
+
+收到跨服消息时，服务端执行以下处理：
+
+1. **节点过滤**：跳过自身节点发送的消息（`originNode` 等于本节点 ID）
+2. **去重检查**：使用 `dedupeKey`（`originNode:messageId`）查重，最近 128 条消息的去重集合中已存在则跳过
+3. **主线程调度**：在主线程中执行本地展示
+   - `immediate: true` → 立即广播（打断当前展示）
+   - `immediate: false` → 加入待播队列
+
+### 跨服前提条件
+
+1. 宿主 `config.yml` 的 `cross-server` 节已正确配置（Redis 或 Proxy Forward）
+2. `cross-server.enabled` 设为 `true`
+3. 可选覆盖后端：`cross-server.redis.enabled` / `cross-server.proxy.enabled`
+
+> 跨服通道连接参数与签名密钥由宿主统一管理，模块仅控制启用开关与后端覆盖。详见 [跨服配置指南](/docs/guide/cross-server-setup)。
+
+## 数据存储
+
+Announcer 模块无数据库表。模块的运行时状态全部保存在内存中：
+
+| 状态 | 存储位置 | 说明 |
+|---|---|---|
+| 公告条目 | `AnnouncerModuleConfiguration.entries` | 启动时从 YAML 文件加载，reload 时重新读取 |
+| 字幕组 | `SubtitleService.groups` | 启动时从 `subtitle/groups/*.yml` 加载 |
+| 已初始化玩家 | `AnnouncerService.initializedPlayers` | 客户端就绪的玩家 UUID 集合 |
+| 已打开 UI 玩家 | `AnnouncerService.openedPlayers` | 已打开公告 HUD 的玩家 UUID 集合 |
+| 手动广播队列 | `AnnouncerService.manualBroadcastQueue` | 待播报的手动广播文本队列 |
+| 字幕播放会话 | `SubtitleService.activePlayers` | 玩家 UUID → 活跃播放任务映射 |
+| 跨服去重集合 | `AnnouncerService.recentDedupeKeys` | 最近 128 条跨服消息去重 |
+
+> 玩家退出时自动清理 `initializedPlayers`、`openedPlayers` 与字幕播放会话。模块停止时关闭跨服通道、取消定时任务并清空所有内存状态。
+
+## 客户端变量推送
+
+模块通过 `ClientBridgeAPI.sendServerVariable` 向 ArcartX 客户端推送以下变量：
+
+| 变量名 | 类型 | 说明 |
+|---|---|---|
+| `AXS_announcer_text` | `String` | 当前公告文本（已渲染 PAPI） |
+| `AXS_announcer_id` | `String` | 当前公告条目 ID |
+| `AXS_announcer_clickable` | `boolean` | 当前公告是否可点击 |
+| `AXS_announcer_revision` | `String` | 数据修订版本号（时间戳 + 自增序列） |
+
+> 这些变量与 `display` 包的字段同步推送，客户端 HUD 可通过任一渠道获取当前公告状态。
+
+## 与其他模块联动
+
+### QQBot 模块
+
+当 `settings.forward-to-qq` 为 `true` 且 QQBot 模块已启用时，Announcer 通过 `QQBotBroadcastable.sendToAllGroups(message)` 将公告转发到所有已配置的 QQ 群。转发前会去除 Minecraft 颜色代码，消息格式为 `[公告] <纯文本>`。
+
+| 触发场景 | 转发条件 | 消息格式 |
+|---|---|---|
+| 自动轮播 | `forward-to-qq: true` | `[公告] <公告文本>` |
+| 手动广播 | `forward-to-qq: true` | `[公告] <广播文本>` |
+
+### SubtitlePlayable 消费方
+
+以下模块通过 `SubtitlePlayable` 能力调用 Announcer 的字幕播放功能：
+
+| 模块 | 调用场景 | 说明 |
+|---|---|---|
+| EventPacket | 事件包触发字幕 | 事件条件满足时播放指定字幕组 |
+| OnlineRewards | 全服签到目标达成 | 目标达成时向在线玩家播放字幕组 |
+| Conversation | 对话剧情字幕 | 剧情动作中触发字幕播放 |
+| QuestGps | 任务引导字幕 | 任务状态变更时播放字幕 |
+| AfkReward | AFK 奖励字幕 | 奖励触发时播放字幕 |
+
+### 跨服传输
+
+Announcer 使用宿主提供的 `CrossServerAPI` 建立跨服通道，支持 Redis 与 Proxy Forward 双后端。后端选择逻辑：
+
+| 配置 | Redis 后端 | Proxy 后端 |
+|---|---|---|
+| `cross-server.redis.enabled: true` | 启用 | 继承全局 |
+| `cross-server.proxy.enabled: true` | 继承全局 | 启用 |
+| 均不填 | 继承宿主全局配置 | 继承宿主全局配置 |
+| `cross-server.enabled: false` | 禁用 | 禁用 |
+
+> 至少一种后端成功启动时 `crossServerChannel.isActive()` 返回 `true`，跨服广播命令才可用。
+
+## 配置版本迁移
+
+模块支持配置版本自动迁移，当前配置版本为 2。
+
+| 迁移 | 说明 |
+|---|---|
+| 1→2 | UI 配置抽离到统一 `ui` 节：`settings.ui-id` → `ui.ui-id`，`settings.register-ui-on-enable` → `ui.register-ui-on-enable`，`settings.overwrite-ui-file` → `ui.overwrite-ui-files`，`subtitle.settings.ui-id` → `ui.subtitle-ui-id`，移除 `subtitle.settings.register-ui-on-enable` 与 `subtitle.settings.overwrite-ui-file` |
+
+迁移规则定义在 `migrations/1-2.yml` 中，模块启动时自动检测 `config-version` 并执行迁移，无需手动干预。
+
+## UI 注册与覆盖
+
+模块启动时通过 `registerModuleUi` 注册公告 HUD 与字幕 HUD：
+
+| UI 文件 | 源路径 | 目标路径 | 说明 |
+|---|---|---|---|
+| 公告 HUD | `arcartx/ui/announcer_hud.yml` | `ui/announcer_hud.yml` | 轮播公告显示与点击回传 |
+| 字幕 HUD | `arcartx/ui/subtitle_hud.yml` | `ui/subtitle_hud.yml` | 打字机字幕显示 |
+
+注册行为由 `ui.register-ui-on-enable` 与 `ui.overwrite-ui-files` 控制。多 UI 支持下，模块会为每个 UI ID 尝试注册，至少一个成功即视为可用。
+
+> UI 自定义请参考 [图标指南](/docs/guide/icons) 与 [多 UI 指南](/docs/guide/multi-ui)。公告显示条件可参考 [条件指南](/docs/guide/conditions)。若需在自定义 HUD 中展示物品图标，可参考 [物品来源](/docs/guide/item-sources) 获取物品 JSON。

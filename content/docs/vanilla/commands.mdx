@@ -1,0 +1,177 @@
+---
+title: 命令与占位符
+description: VanillaUI 命令、权限、PlaceholderAPI 占位符与 UI 通讯包
+---
+
+# 命令与占位符
+
+## 玩家命令
+
+VanillaUI 模块无独立玩家命令。界面替换由 UI YAML 的 `match` 规则自动触发，玩家打开原版工作台或熔炉时自动呈现替换 UI，无需任何命令操作。
+
+| 交互方式 | 触发条件 | 说明 |
+| --- | --- | --- |
+| 打开工作台 | 右键工作台方块 | 自动呈现 ArcartX UI 工作台界面 |
+| 打开熔炉 | 右键熔炉方块 | 自动呈现 ArcartX UI 熔炉界面 |
+| 切换配方书 | 点击配方书按钮 | 切换配方书打开/关闭状态 |
+| 搜索配方 | 在搜索框输入文本 | 实时过滤配方列表（中英文模糊匹配） |
+| 切换分类 | 点击分类标签 | 按分类筛选配方 |
+| 选中配方 | 左键点击配方图标 | 在合成网格上叠加材料预览 |
+| 一键填充 | Shift+左键点击配方图标 | 自动从背包填充材料到槽位 |
+| 切换显示模式 | 点击显示切换按钮 | 切换"显示全部"与"仅显示可合成" |
+
+## 管理命令
+
+VanillaUI 模块无独立管理命令，通过宿主 `/axs` 命令统一管理：
+
+| 命令 | 权限 | 说明 |
+| --- | --- | --- |
+| `/axs reload vanilla` | `arcartxsuite.admin` | 重载 VanillaUI 模块配置与 UI 文件 |
+| `/axs reload all` | `arcartxsuite.admin` | 重载本体配置 + 全部模块（含 VanillaUI） |
+| `/axs status` | `arcartxsuite.admin` | 查看全部模块运行状态（含 VanillaUI） |
+
+> `/axs reload vanilla` 会重新加载 `ArcartXVanilla.yml` 配置文件，并根据 `ui.overwrite-ui-files` 决定是否覆盖 UI 文件。reload 后工作台/熔炉 UI 立即生效，正在使用 UI 的玩家需重新打开界面。
+
+## 权限
+
+| 权限节点 | 默认 | 说明 |
+| --- | --- | --- |
+| `arcartxsuite.admin` | OP | 执行 `/axs reload vanilla` 等管理命令 |
+| `arcartxsuite.module.vanilla` | OP | 模块级管理权限（预留） |
+
+> VanillaUI 模块本身不定义独立权限节点。玩家使用工作台/熔炉界面替换功能无需任何权限，所有在线玩家均可使用。
+
+## PlaceholderAPI 占位符
+
+VanillaUI 模块**不注册** PlaceholderAPI 占位符。模块专注于界面替换与配方书功能，不对外暴露可查询的占位符数据。
+
+> 关于 PlaceholderAPI 占位符的通用知识，参考 [占位符系统](/docs/guide/placeholders)。
+
+## UI 通讯包
+
+VanillaUI 模块通过 `PacketBridgeAPI` 与客户端 UI 进行双向通讯。客户端使用 `Packet.send()` 发送自定义包到服务端，服务端通过 `VanillaService.handleClientPacket()` 处理并响应。
+
+### 客户端 -> 服务端包
+
+客户端通过 `Packet.send(uiId, action, extra)` 发送包，其中 `uiId` 为 UI ID，`action` 为操作类型，`extra` 为附加参数。
+
+| UI ID | Action | extra 参数 | 说明 |
+| --- | --- | --- | --- |
+| `AXS:vanilla_crafting` | `toggle_recipe_book` | 无 | 切换工作台配方书打开/关闭状态 |
+| `AXS:vanilla_crafting` | `request_recipe_book` | 无 | 请求当前工作台配方书状态（UI 打开时自动发送） |
+| `AXS:vanilla_crafting` | `place_ingredients` | 配方 key（字符串） | 一键填充工作台合成材料 |
+| `AXS:vanilla_furnace` | `toggle_recipe_book` | 无 | 切换熔炉配方书打开/关闭状态 |
+| `AXS:vanilla_furnace` | `request_recipe_book` | 无 | 请求当前熔炉配方书状态（UI 打开时自动发送） |
+| `AXS:vanilla_furnace` | `place_ingredients` | 配方 key（字符串） | 一键填充熔炉输入材料 |
+
+> `place_ingredients` 的 `extra` 参数为配方在配方列表中的索引 key（字符串数字，如 `"0"`、`"3"`），由服务端 `RecipeCollector` 分配。
+
+### 服务端 -> 客户端包
+
+服务端通过 `packetBridge.sendPacket(player, uiId, packetId, data)` 推送包到客户端 UI，客户端在 `packetHandler` 中处理。
+
+#### recipe_book_toggle 包
+
+配方书状态推送包，工作台与熔炉共用同一包结构。
+
+| 字段 | 类型 | 说明 |
+| --- | --- | --- |
+| `open` | `boolean` | 配方书是否展开 |
+| `catIcons` | `Map<string, string>` | 分类图标 map（key 为分类标识，value 为物品 JSON） |
+| `recipes` | `Map<string, object>` | 全部配方数据 map（仅 `open` 为 `true` 时推送） |
+| `recipeCount` | `int` | 配方总数（仅 `open` 为 `true` 时推送） |
+
+> `catIcons` 始终推送，因为配方书按钮（书本图标）在关闭状态下也需要图标显示。
+
+#### 配方数据结构
+
+`recipes` map 中每个配方的数据结构：
+
+| 字段 | 类型 | 说明 |
+| --- | --- | --- |
+| `resultJson` | `string` | 结果物品的 JSON 序列化字符串 |
+| `resultItemId` | `string` | 结果物品 ID（如 `minecraft:diamond_sword`） |
+| `resultName` | `string` | 结果物品英文名（小写下划线转空格） |
+| `resultZhName` | `string` | 结果物品中文名（通过 `VanillaItemNameBridge` 翻译） |
+| `category` | `string` | 配方分类（`food`/`equipment`/`tools`/`redstone`/`building`/`misc`） |
+| `shaped` | `boolean` | 是否为有序合成（仅工作台配方） |
+| `width` | `int` | 合成网格宽度 |
+| `height` | `int` | 合成网格高度 |
+| `ingredients` | `Map<string, string>` 或 `List<string>` | 材料物品 JSON（有序合成为 map，无序合成为 list） |
+| `shape` | `List<string>` | 合成形状（仅有序合成） |
+| `previewGrid` | `List<string>` | 9 格预览网格物品 JSON 列表 |
+| `canCraft` | `int` | 玩家是否可合成（`1` 可合成，`0` 不可） |
+| `inputJson` | `string` | 输入物品 JSON（仅熔炉配方） |
+| `type` | `string` | 配方类型（仅熔炉配方，值为 `furnace`） |
+
+#### 分类图标
+
+工作台分类图标（`craftingCategoryIcons`）：
+
+| key | 物品 | 显示名 | Lore |
+| --- | --- | --- | --- |
+| `book` | `BOOK` | `§f配方书` | `§7点击打开/关闭配方书` |
+| `toggle` | `CRAFTING_TABLE` | `§f显示切换` | `§7点击切换显示模式` |
+| `all` | `COMPASS` | `§f全部` | `§7点击查看所有配方` |
+| `tools` | `IRON_AXE` | `§f工具` | `§7点击查看工具配方` |
+| `building` | `BRICKS` | `§f建筑` | `§7点击查看建筑配方` |
+| `food` | `LAVA_BUCKET` | `§f食品` | `§7点击查看食品配方` |
+| `redstone` | `REDSTONE` | `§f红石` | `§7点击查看红石配方` |
+
+熔炉分类图标（`furnaceCategoryIcons`）：
+
+| key | 物品 | 显示名 | Lore |
+| --- | --- | --- | --- |
+| `book` | `BOOK` | `§f配方书` | `§7点击打开/关闭配方书` |
+| `toggle` | `FURNACE` | `§f显示切换` | `§7点击切换显示模式` |
+| `all` | `COMPASS` | `§f全部` | `§7点击查看所有配方` |
+| `food` | `PORKCHOP` | `§f食品` | `§7点击查看食品配方` |
+| `building` | `STONE` | `§f建筑` | `§7点击查看建筑配方` |
+| `misc` | `LAVA_BUCKET` | `§f杂项` | `§7点击查看杂项配方` |
+
+#### furnace_state 包
+
+熔炉状态推送包，由 `FurnaceStateTask` 定时轮询并发送。
+
+| 字段 | 类型 | 说明 |
+| --- | --- | --- |
+| `burnTime` | `int` | 当前燃烧剩余时间（tick） |
+| `burnTimeTotal` | `int` | 最大燃烧时间（tick，至少为 `1`） |
+| `cookTime` | `int` | 当前烧制已进行时间（tick） |
+| `cookTimeTotal` | `int` | 总烧制时间（tick，至少为 `1`） |
+| `burning` | `boolean` | 是否正在燃烧（`burnTime > 0`） |
+
+> `burnTimeTotal` 由模块维护：当 `burnTime` 增大时（新燃料添加）更新最大值。客户端使用 `burnTime / burnTimeTotal` 计算燃料进度条宽度比例。
+
+### UI packetHandler 处理
+
+客户端 UI YAML 中的 `packetHandler` 节定义了包处理脚本：
+
+```yaml
+ui:
+  packetHandler:
+    # 工作台配方书状态包
+    recipe_book_toggle: |-
+      var.recipeBookOpen = packet['open']
+      if(!var.recipeBookOpen){
+        var.selectedRecipe = none
+      }
+      if(packet['recipes'] != none){
+        var.allRecipes = packet['recipes']
+        var.needFilterRefresh = true
+      }
+      if(packet['catIcons'] != none){
+        var.catIcons = packet['catIcons']
+        val.配方书按钮.setItemIcon(var.catIcons['book'])
+        val.显示切换.setItemIcon(var.catIcons['toggle'])
+      }
+    # 熔炉状态包（仅熔炉 UI）
+    furnace_state: |-
+      var.burnTime = packet['burnTime']
+      var.burnTimeTotal = packet['burnTimeTotal']
+      var.cookTime = packet['cookTime']
+      var.cookTimeTotal = packet['cookTimeTotal']
+      var.burning = packet['burning']
+```
+
+> 关于 UI 通讯处理的通用知识，参考 [多 UI 管理](/docs/guide/multi-ui)。

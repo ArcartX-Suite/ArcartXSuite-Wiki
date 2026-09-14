@@ -1,0 +1,14 @@
+{
+  "title": "Title 称号",
+  "description": "分组称号系统，支持有效期/品质/套装属性/头顶显示/聊天Tab前缀",
+  "color": "#fbbf24",
+  "pages": [
+    "index",
+    "title-definitions",
+    "title-sets",
+    "player-state",
+    "configuration",
+    "commands",
+    "integration"
+  ]
+}

@@ -1,0 +1,301 @@
+---
+title: 主线门禁
+description: QuestGPS 主线门禁系统、分类锁定、命令拦截与模块入口锁定
+---
+
+# 主线门禁
+
+QuestGPS 的主线门禁（Gate）机制是一种新手引导式的玩法限制系统。通过配置 `gate` 段，可以要求玩家先完成指定的主线任务，再解锁其他分类 Tab、命令、模块入口和 EventPacket 事件规则。
+
+## 门禁概述
+
+主线门禁的核心逻辑是：玩家须完成 `gate.required-mainline-quest-ids` 中列出的所有 Chemdah 任务，才视为「过关」。未过关时，以下拦截生效：
+
+| 拦截类型 | 说明 |
+|---|---|
+| 分类锁定 | 未过关时，指定分类 Tab 不可查看/接取 |
+| 命令拦截 | 未过关时，以指定前缀开头的命令被拦截 |
+| 模块入口锁定 | 未过关时，其他模块入口被锁定（通过 Capability 查询） |
+| 事件规则锁定 | 未过关时，EventPacket 事件规则不触发（通过 Capability 查询） |
+
+> `gate.required-mainline-quest-ids` 为空列表时，整段门禁关闭，所有拦截均不生效。
+
+## 配置字段
+
+| 字段 | 类型 | 默认值 | 说明 |
+|---|---|---|---|
+| `gate.required-mainline-quest-ids` | `List<String>` | `[]` | 须完成的 Chemdah 任务 ID（全部完成才过关） |
+| `gate.blocked-categories` | `List<String>` | `["side", "encounter"]` | 未过关时锁定的分类 ID |
+| `gate.blocked-command-prefixes` | `List<String>` | `["warp", "rtp", "shop"]` | 未过关时拦截的命令前缀（不含 `/`） |
+| `gate.blocked-module-entries` | `List<String>` | `[]` | 未过关时锁定的模块入口 ID |
+| `gate.blocked-event-rule-ids` | `List<String>` | `[]` | 未过关时不触发的 EventPacket 规则 ID |
+| `gate.deny-message` | `String` | `"&c你需要先完成必要主线任务。"` | 拦截提示消息 |
+| `gate.deny-chat-card` | `String` | `""` | 可选，ArcartX 聊天卡片 ID |
+| `gate.deny-subtitle` | `String` | `""` | 可选，ArcartX-Suite announcer 字幕组 ID |
+
+> 分类 ID 须与 `categories` 段注册的 ID 一致。命令前缀不含 `/`，如 `"warp"` 会拦截 `/warp`、`/warpall` 等命令。
+
+## 过关判定
+
+### 判定逻辑
+
+玩家是否「过关」由 `QuestGpsService.mainlineGateSatisfied` 方法判定：
+
+```
+mainlineGateSatisfied(player)
+    │
+    ├── 加载 Chemdah 玩家档案 (PlayerProfile)
+    │   └── 档案未加载 → 返回 false（未过关）
+    │
+    └── 遍历 required-mainline-quest-ids
+        └── 对每个 questId:
+            ├── ChemdahAPI.getQuestTemplate(questId) → 获取任务模板
+            │   └── 模板不存在 → 返回 false（未过关）
+            └── profile.isQuestCompleted(template) → 检查是否完成
+                └── 未完成 → 返回 false（未过关）
+        └── 全部完成 → 返回 true（已过关）
+```
+
+> `required-mainline-quest-ids` 为空时，`hasCompletedRequiredMainline` 直接返回 `true`，门禁关闭。
+
+### 单任务前置
+
+除全局门禁外，每个任务还可单独配置 `required-mainline` 字段，要求玩家先完成指定主线才能接取：
+
+```yaml
+example_side_quest:
+  enabled: true
+  required-mainline:
+    - "example_mainline_quest"
+```
+
+> 单任务前置仅在接取时检查，不影响任务在菜单中的显示。门禁拦截的分类 Tab 中的任务不会显示。
+
+## 分类锁定
+
+### 拦截行为
+
+未过关时，`blocked-categories` 中的分类 Tab 被锁定：
+
+| 场景 | 行为 |
+|---|---|
+| 切换到锁定分类 | 拦截切换操作，发送 `deny-message` 提示，刷新菜单 |
+| 菜单首次打开 | 自动跳转到第一个未锁定的分类（按 `sort-order`） |
+| 接取锁定分类中的任务 | 拦截接取操作，发送 `deny-message` 提示 |
+
+### 分类锁定判定
+
+```java
+boolean isCategoryLocked(Player player, QuestGpsCategory category) {
+    return player != null
+        && category != null
+        && gate.blockedCategories().contains(category.id())
+        && !mainlineGateSatisfied(player);
+}
+```
+
+> 已过关的玩家不受分类锁定限制。锁定的分类 Tab 中的任务不会出现在任务列表中。
+
+## 命令拦截
+
+### 拦截行为
+
+未过关时，玩家输入以 `blocked-command-prefixes` 中任一前缀开头的命令会被拦截：
+
+| 场景 | 行为 |
+|---|---|
+| 玩家输入 `/warp spawn` | 命令被取消（`PlayerCommandPreprocessEvent.setCancelled`），发送 `deny-message` |
+| 玩家输入 `/help` | 不匹配任何前缀，正常执行 |
+| 已过关玩家 | 所有命令正常执行 |
+
+### 命令前缀匹配
+
+```
+onPlayerCommandPreprocess(event)
+    │
+    ├── 消息标准化: 去除 /，转小写，去空白
+    ├── 已过关 → 直接返回（不拦截）
+    └── 遍历 blocked-command-prefixes
+        └── 前缀标准化: 去除 /，转小写，去空白
+        └── message.startsWith(prefix) → 拦截 + denyGate
+```
+
+> 命令前缀匹配是大小写不敏感的。前缀不含 `/`，如配置 `"warp"` 会拦截 `/warp`、`/warpall`、`/warpxxx` 等所有以 `warp` 开头的命令。
+
+## 模块入口锁定
+
+### 拦截行为
+
+其他模块在打开自身 UI 前，可调用 `QuestGpsNavigable.moduleEntryLocked` 检查入口是否被门禁锁定：
+
+```java
+QuestGpsNavigable questGps = getCapability(QuestGpsNavigable.class);
+if (questGps != null && questGps.moduleEntryLocked(player, "market")) {
+    player.sendMessage("请先完成主线任务");
+    return;
+}
+// 正常打开商店 UI...
+```
+
+### 入口 ID 约定
+
+`blocked-module-entries` 中的 ID 为各模块约定的入口标识符，示例：
+
+| 入口 ID | 对应模块 | 说明 |
+|---|---|---|
+| `market` | 商店/拍卖行 | 商店模块入口 |
+| `regions_warp` | 区域传送 | 区域传送面板入口 |
+
+> 入口 ID 由各模块自行约定，QuestGPS 仅负责存储和查询。模块开发者需与服主协商一致的 ID 命名。
+
+## 事件规则锁定
+
+### 拦截行为
+
+EventPacket 模块在触发规则前，可调用 `QuestGpsNavigable.eventRuleLocked` 检查规则是否被门禁锁定：
+
+```java
+QuestGpsNavigable questGps = getCapability(QuestGpsNavigable.class);
+if (questGps != null && questGps.eventRuleLocked(player, "first_join_offer_mainline")) {
+    return; // 跳过规则触发
+}
+// 正常触发 EventPacket 规则...
+```
+
+### 规则 ID 约定
+
+`blocked-event-rule-ids` 中的 ID 与 `data/eventpacket/rules/*.yml` 的根键一致，示例：
+
+| 规则 ID | 规则文件 | 说明 |
+|---|---|---|
+| `first_join_offer_mainline` | `rules/examples.yml` | 首次进服推送主线任务 |
+| `kill_zombie_trigger_encounter` | `rules/examples.yml` | 击杀僵尸累计触发奇遇 |
+
+> 规则 ID 由 EventPacket 模块定义，QuestGPS 仅负责存储和查询。
+
+## 拦截提示
+
+门禁拦截时，向玩家发送多层提示：
+
+| 提示方式 | 配置字段 | 条件 | Capability |
+|---|---|---|---|
+| 聊天消息 | `gate.deny-message` | 始终发送 | 直接 `player.sendMessage` |
+| 聊天卡片 | `gate.deny-chat-card` | 非空时发送 | `ChatCardSendable` |
+| 字幕 | `gate.deny-subtitle` | 非空时播放 | `SubtitlePlayable` |
+
+### denyGate 流程
+
+```
+denyGate(player)
+    │
+    ├── player.sendMessage(deny-message)           # 始终发送聊天消息
+    ├── ChatCardSendable != null && deny-chat-card 非空
+    │   └── chatCard.sendChatCard(player, deny-chat-card, {reason: "mainline_gate"})
+    └── SubtitlePlayable != null && deny-subtitle 非空
+        └── subtitle.playGroup(player, deny-subtitle)
+```
+
+> 聊天卡片和字幕为可选增强提示。Chat/Announcer 模块不存在时自动跳过，仅发送聊天消息。
+
+## Capability 接口
+
+主线门禁的两个查询方法通过 `QuestGpsNavigable` Capability 暴露：
+
+| 方法 | 参数 | 返回值 | 说明 |
+|---|---|---|---|
+| `eventRuleLocked` | `Player`, `String ruleId` | `boolean` | 检查 EventPacket 事件规则是否被门禁锁定 |
+| `moduleEntryLocked` | `Player`, `String moduleEntryId` | `boolean` | 检查模块入口是否被门禁锁定 |
+
+### 实现逻辑
+
+```java
+public boolean eventRuleLocked(Player player, String ruleId) {
+    return gate.blockedEventRuleIds().contains(ruleId) && !mainlineGateSatisfied(player);
+}
+
+public boolean moduleEntryLocked(Player player, String moduleEntryId) {
+    return gate.blockedModuleEntries().contains(moduleEntryId) && !mainlineGateSatisfied(player);
+}
+```
+
+> 已过关玩家调用这两个方法始终返回 `false`。Capability 的完整接口说明详见 [联动](/docs/questgps/integration)。
+
+## 完整门禁配置示例
+
+```yaml
+gate:
+  # 玩家须完成的 Chemdah 任务 ID（全部完成才过关）
+  required-mainline-quest-ids:
+    - "example_mainline_quest"
+
+  # 未过关时锁定的分类 Tab
+  blocked-categories:
+    - side
+    - encounter
+
+  # 未过关时拦截的命令前缀（不含 /）
+  blocked-command-prefixes:
+    - "warp"
+    - "rtp"
+    - "shop"
+
+  # 未过关时锁定的模块入口
+  blocked-module-entries:
+    - "market"
+    - "regions_warp"
+
+  # 未过关时不触发的 EventPacket 规则
+  blocked-event-rule-ids:
+    - "first_join_offer_mainline"
+    - "kill_zombie_trigger_encounter"
+
+  # 拦截提示
+  deny-message: "&c你需要先完成必要主线任务。"
+  deny-chat-card: "mainline_gate_deny"
+  deny-subtitle: "mainline_gate_subtitle"
+```
+
+## 典型使用场景
+
+### 新手引导
+
+```yaml
+gate:
+  required-mainline-quest-ids:
+    - "tutorial_quest"
+  blocked-categories:
+    - side
+    - encounter
+  blocked-command-prefixes:
+    - "warp"
+    - "rtp"
+    - "shop"
+    - "market"
+  blocked-module-entries:
+    - "market"
+    - "auction"
+  deny-message: "&e请先完成新手引导任务，再探索更多内容！"
+```
+
+> 玩家完成 `tutorial_quest` 后，所有分类 Tab、命令、模块入口自动解锁。
+
+### 分阶段解锁
+
+```yaml
+gate:
+  required-mainline-quest-ids:
+    - "chapter_1_final"
+  blocked-categories:
+    - encounter
+  blocked-event-rule-ids:
+    - "chapter_2_trigger"
+  deny-message: "&c请先完成第一章主线。"
+```
+
+> 玩家完成第一章后，奇遇分类和第二章触发规则自动解锁。
+
+## 条件评估
+
+门禁的过关判定使用 ArcartXSuite 统一条件评估器（`ScriptConditionEvaluator`），支持 PAPI + Aria + JS + EventPacket 上下文。任务完成状态由 Chemdah 的 `PlayerProfile.isQuestCompleted` 直接判定，无需额外条件配置。
+
+> 如需更复杂的门禁条件（如等级要求、经济门槛），可在 Chemdah 任务的 `accept` 条件中配置，QuestGPS 会在接取时由 Chemdah 检查。条件评估器的使用详见 [/docs/guide/conditions](/docs/guide/conditions)。

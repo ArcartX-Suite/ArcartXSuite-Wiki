@@ -1,0 +1,248 @@
+---
+title: 联动
+description: Tooltip 模块跨模块联动、Capability、网络包与集成
+---
+
+# 联动
+
+Tooltip 模块通过 `TooltipDataCapable` Capability 向其他模块提供 tooltip 数据查询服务。模块本身不消费任何 Capability，是纯提供方。
+
+## EventBus 事件
+
+Tooltip 模块**不发布** EventBus 事件，也**不订阅** EventBus 事件。
+
+| EventBus 相关 | 说明 |
+|---|---|
+| `publishedTopics()` | 未声明（返回空列表） |
+| 发布事件 | 无 |
+| 订阅事件 | 无 |
+
+:::info
+Tooltip 模块的数据流是单向的：客户端 → 服务端缓存 → Capability 查询。模块不产生业务事件，不需要 EventBus 通知。其他模块在需要时主动调用 `TooltipDataCapable` 查询数据即可。
+:::
+
+## Capability 注册
+
+### TooltipDataCapable（提供方）
+
+Tooltip 模块在启动时注册 `TooltipDataCapable` Capability，供其他模块查询客户端采集的动态 tooltip 数据：
+
+```java
+@Override
+protected void startService() throws Exception {
+    cache = new TooltipDataCache();
+    parser = new TooltipJsonParser();
+    capability = new TooltipDataCapability(cache);
+    adminCommand = new TooltipAdminCommand(cache, messages());
+    registerCapability(TooltipDataCapable.class, capability);
+    logger.info("Tooltip 模块已启动，等待客户端 mod 发送 tooltip 数据");
+}
+```
+
+### TooltipDataCapable 接口方法
+
+| 方法 | 返回值 | 说明 |
+|---|---|---|
+| `getTooltipLines(Player)` | `List<String>` | 获取玩家当前手持物品的 tooltip 文本行，无数据时返回空列表 |
+| `getTooltipLines(Player, ItemStack)` | `List<String>` | 获取玩家指定物品的 tooltip 文本行，无数据时返回空列表 |
+| `getStructuredData(Player)` | `String` | 获取玩家当前手持物品的结构化数据（JSON 字符串），无数据时返回 `"{}"` |
+| `injectLore(ItemStack, List<String>)` | `ItemStack` | 将 tooltip 文本行注入物品 NBT Lore 标签 |
+| `hasTooltipData(Player, ItemStack)` | `boolean` | 判断指定物品是否有缓存的 tooltip 数据 |
+
+### 方法详细说明
+
+#### `getTooltipLines(Player player)`
+
+获取玩家当前手持物品的 tooltip 文本行。
+
+| 属性 | 说明 |
+|---|---|
+| 参数 | `player` - 玩家 |
+| 返回值 | tooltip 文本行列表，无数据时返回 `List.of()`（空列表） |
+| 实现逻辑 | 内部调用 `getTooltipLines(player, player.getInventory().getItemInMainHand())` |
+
+#### `getTooltipLines(Player player, ItemStack itemStack)`
+
+获取玩家指定物品的 tooltip 文本行。
+
+| 属性 | 说明 |
+|---|---|
+| 参数 | `player` - 玩家（用于确定数据来源），`itemStack` - 物品栈 |
+| 返回值 | tooltip 文本行列表，无数据时返回 `List.of()`（空列表） |
+| 实现逻辑 | 通过 `cache.get(player, itemStack)` 查找缓存条目，返回 `entry.textLines()` |
+| 空值保护 | 物品为 null 或空气时返回空列表 |
+
+#### `getStructuredData(Player player)`
+
+获取玩家当前手持物品的结构化数据。
+
+| 属性 | 说明 |
+|---|---|
+| 参数 | `player` - 玩家 |
+| 返回值 | 结构化数据 JSON 字符串，无数据时返回 `"{}"` |
+| 实现逻辑 | 通过 `cache.get(player, itemStack)` 查找缓存条目，返回 `entry.structuredData()` |
+| 空值保护 | 物品为 null 或空气时返回 `"{}"` |
+
+:::tip
+结构化数据是客户端 mod 采集的 JSON 对象字符串，包含 TACZ 枪属性的 damage、armorIgnore、headshotMultiplier 等数值字段。消费方模块可直接解析此 JSON 用于业务逻辑。
+:::
+
+#### `injectLore(ItemStack itemStack, List<String> lines)`
+
+将 tooltip 文本行注入物品 NBT `display.Lore` 标签。
+
+| 属性 | 说明 |
+|---|---|
+| 参数 | `itemStack` - 物品栈，`lines` - tooltip 文本行 |
+| 返回值 | 注入 Lore 后的物品克隆（可能与入参为同一实例） |
+| 实现逻辑 | 克隆物品 → 获取 ItemMeta → 将文本行 `&` 颜色码转为 `§` → `setLore` → 返回克隆 |
+| 空值保护 | 物品为 null / 空气 / 无 ItemMeta / lines 为空时返回原始物品 |
+| 异常保护 | 注入过程发生异常时返回原始物品 |
+
+#### `hasTooltipData(Player player, ItemStack itemStack)`
+
+判断指定物品是否有缓存的 tooltip 数据。
+
+| 属性 | 说明 |
+|---|---|
+| 参数 | `player` - 玩家，`itemStack` - 物品栈 |
+| 返回值 | `true` 表示有缓存的 tooltip 数据 |
+| 实现逻辑 | 通过 `cache.get(player, itemStack) != null` 判断 |
+| 空值保护 | 物品为 null 或空气时返回 false |
+
+## Capability 消费
+
+Tooltip 模块**不消费**任何其他模块的 Capability 或桥接。
+
+| Capability / 桥接 | 用途 |
+|---|---|
+| 无 | Tooltip 是纯数据提供方，不依赖其他模块的能力 |
+
+:::info
+Tooltip 模块仅依赖宿主基础框架（模块加载、网络包路由、Capability 注册），不使用 EventBus、CrossServer、PacketBridge、ItemBridge 等高级能力。
+:::
+
+## 跨服支持
+
+Tooltip 模块**不支持**跨服数据同步。
+
+| 跨服相关 | 说明 |
+|---|---|
+| CrossServerAPI | 不使用 |
+| 跨服通道 | 不注册 |
+| 数据同步 | tooltip 数据仅存在于玩家当前所在服务器 |
+
+:::info
+Tooltip 数据由客户端直接发送至当前连接的服务端，缓存在本地内存中。玩家切换服务器后，需等待客户端重新发送 tooltip 数据（通常在玩家打开物品栏或悬停物品时自动触发）。
+:::
+
+## 数据库表结构
+
+Tooltip 模块**不使用**数据库。所有数据存储在内存中的 `ConcurrentHashMap`，不持久化。
+
+| 存储相关 | 说明 |
+|---|---|
+| 数据库表 | 无 |
+| 存储方式 | 内存缓存（`ConcurrentHashMap`） |
+| 持久化 | 无 |
+| 数据迁移 | 不支持（未实现 `DatabaseMigratable`） |
+| 玩家数据清理 | 不支持（未实现 `PlayerDataPurgeable`） |
+
+### 缓存结构
+
+| 层级 | 键类型 | 值类型 | 说明 |
+|---|---|---|---|
+| 外层 | `UUID`（玩家 UUID） | `ConcurrentMap<String, CachedEntry>` | 每个玩家一个独立缓存映射 |
+| 内层 | `String`（物品指纹） | `CachedEntry` | 每个物品指纹对应一条缓存 |
+
+### CachedEntry 结构
+
+| 字段 | 类型 | 说明 |
+|---|---|---|
+| `textLines` | `List<String>` | tooltip 文本行列表 |
+| `structuredData` | `String` | 结构化数据 JSON 字符串 |
+| `timestamp` | `long` | 写入时间（毫秒时间戳），用于 TTL 过期判定 |
+
+## 模块集成
+
+### 与 Chat 模块集成
+
+Chat 模块是 Tooltip 模块的主要消费方。在聊天物品展示 `[item]` 时，Chat 模块通过 `TooltipDataCapable` 获取物品动态 tooltip 文本行，注入 NBT Lore 后序列化发送给客户端：
+
+```java
+// ChatModule.java - 注入 Tooltip 数据提供者
+service.setTooltipDataProvider(() -> getCapability(TooltipDataCapable.class));
+```
+
+```java
+// ChatService.java - 物品预览时注入 tooltip Lore
+if (tooltipDataProvider != null) {
+    TooltipDataCapable tooltipCap = tooltipDataProvider.get();
+    if (tooltipCap != null) {
+        List<String> tooltipLines = tooltipCap.getTooltipLines(sender, itemStack);
+        if (tooltipLines != null && !tooltipLines.isEmpty()) {
+            itemForSerialization = tooltipCap.injectLore(itemStack, tooltipLines);
+        }
+    }
+}
+```
+
+| 集成点 | 说明 |
+|---|---|
+| 数据获取 | Chat 通过 `getTooltipLines(player, itemStack)` 获取 tooltip 文本行 |
+| Lore 注入 | Chat 通过 `injectLore(itemStack, lines)` 将文本行注入物品 NBT |
+| 序列化 | 注入后的物品通过 `ItemBridgeAPI.itemToJson` 序列化为 JSON |
+| 客户端展示 | 客户端 UI 渲染物品预览时显示动态 tooltip 内容 |
+| 降级处理 | Tooltip 模块未加载时，`getCapability` 返回 null，Chat 不注入 Lore，物品预览正常显示但不包含动态内容 |
+
+:::tip
+Chat 模块通过延迟查找 `getCapability(TooltipDataCapable.class)` 获取能力，因模块加载顺序不定。若 Tooltip 模块未加载，Chat 的物品预览功能不受影响，仅缺少动态 tooltip 内容。
+:::
+
+### 与其他模块集成
+
+其他模块可通过 `TooltipDataCapable` Capability 获取 tooltip 数据，实现自定义业务逻辑：
+
+```java
+// 示例：其他模块获取 Tooltip 能力
+TooltipDataCapable tooltipCap = getCapability(TooltipDataCapable.class);
+if (tooltipCap != null) {
+    // 获取玩家手持物品的 tooltip 文本行
+    List<String> lines = tooltipCap.getTooltipLines(player);
+    
+    // 获取结构化数据（JSON 字符串）
+    String structuredData = tooltipCap.getStructuredData(player);
+    
+    // 判断物品是否有 tooltip 数据
+    boolean hasData = tooltipCap.hasTooltipData(player, itemStack);
+    
+    // 将 tooltip 文本行注入物品 Lore
+    ItemStack itemWithLore = tooltipCap.injectLore(itemStack, lines);
+}
+```
+
+| 使用场景 | 方法 | 说明 |
+|---|---|---|
+| 物品预览 | `getTooltipLines` + `injectLore` | 获取文本行并注入物品 Lore，用于 UI 展示 |
+| 属性判定 | `getStructuredData` | 解析 JSON 结构化数据，获取枪械属性等数值字段 |
+| 数据存在性检查 | `hasTooltipData` | 判断物品是否有 tooltip 数据，决定是否展示相关 UI |
+| 聊天展示 | `getTooltipLines` + `injectLore` | 聊天物品展示时注入动态内容 |
+
+:::info
+使用 `getStructuredData` 获取的 JSON 字符串需消费方自行解析。常见的结构化数据字段包括 TACZ 枪械的 `damage`、`armorIgnore`、`headshotMultiplier` 等，以及 Apotheosis 词缀的 affix 信息。具体字段结构由客户端 mod 决定。
+:::
+
+### 集成注意事项
+
+| 注意事项 | 说明 |
+|---|---|
+| 延迟查找 | 消费方应通过 `getCapability(TooltipDataCapable.class)` 延迟查找，不要在启动时缓存引用 |
+| 空值处理 | `getCapability` 可能返回 null（Tooltip 模块未加载），消费方需做 null 检查 |
+| 数据时效 | tooltip 数据 TTL 为 60 秒，消费方应及时使用，不要长期持有 |
+| 线程安全 | `TooltipDataCache` 使用 `ConcurrentHashMap`，查询线程安全 |
+| 物品指纹 | 指纹为物品注册名（不含 NBT），同类型物品共享 tooltip 数据 |
+| 客户端依赖 | tooltip 数据由客户端 mod 采集，服务端无法独立生成 |
+
+:::tip
+消费方模块应在每次需要时调用 `getCapability` 获取能力引用，而非在启动时缓存。这样在 Tooltip 模块热加载/卸载时，消费方能正确感知能力可用性变化。
+:::

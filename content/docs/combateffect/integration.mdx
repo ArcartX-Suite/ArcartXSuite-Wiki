@@ -1,0 +1,353 @@
+---
+title: 联动
+description: CombatEffect EventBus 事件、Capability、跨模块联动与 Chronos 集成
+---
+
+# 联动
+
+CombatEffect 模块通过 ArcartXSuite 的 EventBus、Capability 机制与其他模块联动。模块本身不硬依赖任何 ArcartX 模块，所有联动均为可选的运行时行为。模块为纯事件驱动型，不涉及数据库持久化与跨服同步。
+
+## EventBus 事件发布
+
+CombatEffect 模块在启动时自动注册 3 个 EventBus 发布者主题，供其他模块（如 BattlePass、EventPacket）订阅：
+
+```java
+@Override
+protected List<String> publishedTopics() {
+    return List.of(
+        "axs.combateffect.kill_entity",
+        "axs.combateffect.damage_dealt",
+        "axs.combateffect.player_death"
+    );
+}
+```
+
+### 事件主题
+
+| 事件主题 | 触发时机 | payload 字段 | 说明 |
+|---|---|---|---|
+| `axs.combateffect.kill_entity` | 玩家击杀非玩家活体实体 | `entityType`、`entityName` | 击杀怪物/动物等 |
+| `axs.combateffect.player_death` | 玩家击杀其他玩家 | `entityType`、`entityName`、`victim` | PVP 击杀 |
+| `axs.combateffect.damage_dealt` | 玩家对活体实体造成伤害 | `attacker`、`targetType`、`targetName`、`damage` | 含 TACZ 枪械伤害 |
+
+### payload 字段说明
+
+#### kill_entity / player_death
+
+| 字段 | 类型 | 说明 |
+|---|---|---|
+| `entityType` | string | 目标实体 Bukkit EntityType 名称（如 `ZOMBIE`、`PLAYER`） |
+| `entityName` | string | 目标实体名称 |
+| `victim` | string | 仅 `player_death` 主题包含，死亡玩家名称 |
+
+#### damage_dealt
+
+| 字段 | 类型 | 说明 |
+|---|---|---|
+| `attacker` | string | 攻击者玩家名 |
+| `targetType` | string | 目标实体 Bukkit EntityType 名称 |
+| `targetName` | string | 目标实体名称 |
+| `damage` | string | 最终伤害值（`String.valueOf(event.getFinalDamage())`） |
+| `headshot` | string | 仅 TACZ 枪械伤害包含，是否爆头（`true` / `false`） |
+| `source` | string | 仅 TACZ 枪械伤害包含，固定为 `tacz` |
+
+> TACZ 枪械伤害与 Bukkit 原版伤害发布到同一主题（`axs.combateffect.damage_dealt`），payload 结构一致，下游消费者无需区分伤害来源。TACZ 伤害额外包含 `headshot` 与 `source` 字段。
+
+### 事件发布流程
+
+```yaml
+# 击杀事件发布流程
+EntityDeathEvent / TaczGunKillEvent
+  → 解析 killer 与 victim
+  → 判断 isPlayerKill
+  → publishKillEvent(killer, victim, isPlayerKill)
+    → isPlayerKill=true: topic=axs.combateffect.player_death
+    → isPlayerKill=false: topic=axs.combateffect.kill_entity
+    → payload={entityType, entityName, victim?}
+
+# 伤害事件发布流程
+EntityDamageByEntityEvent / TaczGunDamageEvent
+  → 解析 attacker 与 target
+  → publishDamageEvent(attacker, target, event)
+    → topic=axs.combateffect.damage_dealt
+    → payload={attacker, targetType, targetName, damage}
+```
+
+### 在其他模块中订阅
+
+其他模块可通过 `EventBusCapability` 订阅 CombatEffect 发布的事件主题：
+
+```java
+// 在 BattlePass 任务模板中订阅击杀事件
+event-topic: "axs.combateffect.kill_entity"
+```
+
+```java
+// 在 EventPacket 规则中订阅伤害事件
+event-topic: "axs.combateffect.damage_dealt"
+conditions:
+  - type: event_payload
+    key: damage
+    operator: greater_than
+    value: "100"
+```
+
+> 事件主题支持通配符订阅，如 `axs.combateffect.*` 可匹配所有 CombatEffect 事件。通配符仅支持末尾 `.*`。
+
+## Capability 注册
+
+CombatEffect 模块注册了 `CombatEffectTriggerable` 跨模块能力，供其他模块（如 EventPacket、OnlineRewards）主动触发战斗特效。
+
+### CombatEffectTriggerable
+
+| 方法 | 参数 | 返回值 | 说明 |
+|---|---|---|---|
+| `triggerPacket` | `String packetId`, `Player recipient`, `Map<String, String> variables` | `boolean` | 按包 ID 触发已注册的包定义，绕过事件匹配 |
+| `triggerDirect` | `String uiId`, `String packetHandler`, `Player recipient`, `Object payload` | `boolean` | 直接向玩家发送 UI 包，绕过包定义系统 |
+
+#### triggerPacket 使用示例
+
+```java
+// 获取 CombatEffectTriggerable 能力
+CombatEffectTriggerable triggerable = module.getCapability(CombatEffectTriggerable.class);
+
+// 触发 kill-effect 包定义
+Map<String, String> variables = new HashMap<>();
+variables.put("custom_var", "hello");
+triggerable.triggerPacket("kill-effect", player, variables);
+```
+
+#### triggerDirect 使用示例
+
+```java
+// 直接向玩家发送 UI 包（完全自定义）
+Map<String, Object> payload = new HashMap<>();
+payload.put("killer", "Steve");
+payload.put("victim", "Zombie");
+triggerable.triggerDirect("AXS:combat_kill_effect", "kill", player, payload);
+```
+
+> `triggerPacket` 会查找已注册的包定义并渲染 `pack` 模板，附加的 `variables` 会合并到模板渲染中。`triggerDirect` 完全绕过包定义系统，`payload` 直接作为发包内容发送。
+
+### 能力注册时机
+
+```java
+// CombatEffectModule.startService() 中注册
+registerCapability(CombatEffectTriggerable.class, new CombatEffectTriggerable() {
+    @Override
+    public boolean triggerPacket(String packetId, Player recipient, Map<String, String> variables) {
+        return packetService.triggerPacketById(packetId, recipient, variables);
+    }
+
+    @Override
+    public boolean triggerDirect(String uiId, String packetHandler, Player recipient, Object payload) {
+        return packetService.triggerDirect(uiId, packetHandler, recipient, payload);
+    }
+});
+```
+
+## Chronos 集成
+
+CombatEffect 与 ArcartX Chronos 插件深度集成，通过 `ChronosHook` 隔离层实现松耦合。Chronos 未安装时所有 Chronos 相关功能自动降级，不影响模块正常加载。
+
+### 集成场景
+
+| 功能 | Chronos 用途 | 降级行为 |
+|---|---|---|
+| 连击追踪 | 监听 `PlayerEnterStateEvent`，状态组匹配时累加连击 | 回退到 Bukkit `EntityDamageByEntityEvent` |
+| 死亡缓冲 | 缓冲期间强制玩家进入指定 Chronos 状态 | 不进入 Chronos 状态，仅应用 Shader/相机 |
+| 状态触发器 | 监听状态进入/离开与控制器切换事件 | 触发器不启用 |
+| 控制器触发器 | 监听 `PlayerControllerChangeEvent` | 触发器不启用 |
+
+### ChronosHook 隔离层
+
+`ChronosHook` 是模块中唯一直接引用 ChronosAPI 的类。通过 `ChronosHookFactory` 延迟加载，确保 Chronos 未安装时不触发 `NoClassDefFoundError`：
+
+```java
+// ChronosHookFactory 通过 Class.forName 延迟加载
+public static ChronosHook tryCreate(JavaPlugin plugin, Logger logger, boolean debug) {
+    if (Bukkit.getPluginManager().getPlugin("ArcartX_Chronos_Plugin") == null
+        && Bukkit.getPluginManager().getPlugin("Chronos") == null) {
+        return null;
+    }
+    try {
+        Class<?> hookClass = Class.forName(
+            "xuanmo.arcartxsuite.combateffect.chronos.ChronosHook",
+            true, ChronosHookFactory.class.getClassLoader()
+        );
+        Method tryCreate = hookClass.getMethod("tryCreate",
+            JavaPlugin.class, Logger.class, boolean.class);
+        return (ChronosHook) tryCreate.invoke(null, plugin, logger, debug);
+    } catch (Exception | LinkageError e) {
+        return null;
+    }
+}
+```
+
+### Chronos 事件监听
+
+| Chronos 事件 | 用途 | 回调参数 |
+|---|---|---|
+| `PlayerEnterStateEvent` | 连击追踪 / 状态进入触发 | 玩家、状态 ID、控制器 ID |
+| `PlayerLeaveStateEvent` | 状态离开触发 | 玩家、状态 ID、控制器 ID |
+| `PlayerControllerChangeEvent` | 控制器切换触发 | 玩家、控制器 ID |
+
+### ChronosHook API
+
+| 方法 | 参数 | 返回值 | 说明 |
+|---|---|---|---|
+| `getPlayerStateGroupId` | `Player` | `String` | 查询玩家当前状态组 ID |
+| `getPlayerControllerId` | `Player` | `String` | 查询玩家当前控制器 ID |
+| `tryEnterControlledState` | `Player`, `String stateId`, `long durationMs` | `boolean` | 尝试让玩家进入受控状态 |
+| `registerComboListener` | `Set<String> groups`, `Consumer<Player>` | `Listener` | 注册连击监听，状态组匹配时回调 |
+| `registerStateListeners` | `BiConsumer<Player, StateChange>` | `void` | 注册状态进入/离开监听 |
+| `registerControllerListener` | `BiConsumer<Player, String>` | `void` | 注册控制器变更监听 |
+
+## 属性插件集成
+
+伤害飘字子系统通过 `AttributeBridgeRegistry` 与四种属性插件集成，支持自动检测与回退。
+
+### 伤害来源优先级
+
+| 优先级 | 来源 | 配置值 | 检测条件 |
+|---|---|---|---|
+| 1 | MythicLib / MMOItems | `mythiclib` | 插件可用 + `mythiclib.enabled=true` |
+| 2 | CraneAttribute | `craneattribute` | 插件可用 + `craneattribute.enabled=true` |
+| 3 | AttributePlus | `attributeplus` | 插件可用 + `original.ap-compatible=true` |
+| 4 | Symphony | `symphony` | 插件可用 + `symphony.enabled=true` |
+| 5 | Bukkit 原版 | `bukkit` | `original.enabled=true` 或 `player.enabled=true` |
+
+### 伤害事件监听
+
+| 监听器 | 监听事件 | 说明 |
+|---|---|---|
+| `CombatDisplayDamageListener` | `EntityDamageByEntityEvent` | Bukkit 原版伤害（近战/Projectile） |
+| `CombatDisplayTaczListener` | `TaczGunDamageEvent` | TACZ 枪械伤害 |
+| `AttributeDamageListener` | `AttributeDamageEvent` | 统一属性伤害事件（由属性桥接分发） |
+
+### 治疗事件监听
+
+| 监听器 | 监听事件 | 说明 |
+|---|---|---|
+| `CombatDisplayHealListener` | `EntityRegainHealthEvent` | 原版治疗（药水/生命恢复） |
+| `CombatDisplayMythicHealListener` | `MythicHealMechanicEvent` | MythicMobs 技能治疗 |
+| `AttributeHealListener` | `AttributeHealEvent` | 统一属性治疗事件 |
+
+> MythicMobs 治疗监听器仅在 MythicMobs / MythicBukkit 插件安装时注册，通过 `isAnyPluginEnabled` 检测。
+
+## 数据库表结构
+
+CombatEffect 模块为**纯事件驱动型**，不涉及任何数据库持久化。连击追踪、死亡缓冲等状态均保存在内存中（`ConcurrentHashMap`），玩家退出或模块卸载时自动清理。
+
+| 子模块 | 存储方式 | 清理时机 |
+|---|---|---|
+| 包分发冷却 | 内存 `ConcurrentHashMap<String, Long>` | 玩家退出 / 模块卸载 |
+| 连击追踪 | 内存 `ConcurrentHashMap<UUID, ComboState>` | 超时重置 / 玩家退出 / 模块卸载 |
+| 死亡缓冲 | 内存 `ConcurrentHashMap<UUID, BufferState>` | 缓冲结束 / 玩家退出 / 模块卸载 |
+| 伤害合并 | 内存 `ConcurrentHashMap<MergeKey, MergeEntry>` | 合并窗口结束 / 模块卸载 |
+| 治疗合并 | 内存 `ConcurrentHashMap<HealMergeKey, HealMergeEntry>` | 合并窗口结束 / 模块卸载 |
+
+> 模块不注册 `DatabaseMigratable` 或 `PlayerDataPurgeable` 能力，不参与数据库迁移与玩家数据清理。
+
+## 跨服同步
+
+CombatEffect 模块**不涉及跨服数据同步**。所有战斗特效均为单服实时事件，不通过 Redis 或 BungeeCord/Velocity Forward 同步。
+
+| 特性 | 跨服支持 | 说明 |
+|---|---|---|
+| 击杀/攻击特效 | 否 | 单服 UI 包通讯，不跨服 |
+| 连击追踪 | 否 | 单服内存状态，不跨服 |
+| 死亡缓冲 | 否 | 单服内存状态，不跨服 |
+| 伤害飘字 | 否 | 单服客户端通讯，不跨服 |
+| EventBus 事件 | 否 | 单服 EventBus，不跨服发布 |
+
+## 模块集成示例
+
+### BattlePass 任务订阅
+
+BattlePass 模块可订阅 CombatEffect 发布的 EventBus 事件主题，追踪玩家击杀与伤害行为：
+
+```yaml
+# 每日击杀任务
+daily-kill-10:
+  display-name: "日常狩猎"
+  description: "击杀10个任意生物"
+  difficulty: easy
+  event-topic: "axs.combateffect.kill_entity"
+  required-count: 10
+  base-xp-reward: 120
+  increment-strategy:
+    type: fixed
+    value: 1
+  weight: 4
+```
+
+```yaml
+# PVP 击杀任务
+daily-pvp-kill:
+  display-name: "竞技场高手"
+  description: "PVP 击杀3名玩家"
+  difficulty: hard
+  event-topic: "axs.combateffect.player_death"
+  required-count: 3
+  base-xp-reward: 300
+  increment-strategy:
+    type: fixed
+    value: 1
+  weight: 1
+```
+
+### EventPacket 规则订阅
+
+EventPacket 模块可订阅伤害事件，根据伤害值触发自定义规则：
+
+```yaml
+# 高伤害成就
+high-damage-achievement:
+  event-topic: "axs.combateffect.damage_dealt"
+  conditions:
+    - type: event_payload
+      key: damage
+      operator: greater_than
+      value: "500"
+  actions:
+    - type: command
+      command: "say {attacker} 造成了 {damage} 点伤害！"
+```
+
+### 通过 Capability 主动触发
+
+其他模块可通过 `CombatEffectTriggerable` 能力主动触发战斗特效：
+
+```java
+// 在在线奖励模块中，玩家领取奖励时触发庆祝特效
+public void onRewardClaim(Player player) {
+    CombatEffectTriggerable triggerable = combateffectModule.getCapability(CombatEffectTriggerable.class);
+    if (triggerable != null) {
+        Map<String, String> variables = new HashMap<>();
+        variables.put("reward_type", "daily");
+        triggerable.triggerPacket("kill-effect", player, variables);
+    }
+}
+```
+
+```java
+// 在 EventPacket 模块中，根据事件直接发送自定义 UI 包
+public void onCustomEvent(Player player, String eventType) {
+    CombatEffectTriggerable triggerable = combateffectModule.getCapability(CombatEffectTriggerable.class);
+    if (triggerable != null) {
+        Map<String, Object> payload = new HashMap<>();
+        payload.put("event_type", eventType);
+        payload.put("player", player.getName());
+        triggerable.triggerDirect("AXS:combat_kill_effect", "kill", player, payload);
+    }
+}
+```
+
+## 相关文档
+
+- [概览](/docs/combateffect) — 模块功能与战斗特效机制
+- [配置](/docs/combateffect/configuration) — 完整配置字段表与示例
+- [命令与占位符](/docs/combateffect/commands) — 命令、权限、UI 包通讯
+- [条件系统](/docs/guide/conditions) — 统一条件系统配置指南
+- [物品库匹配](/docs/guide/item-sources) — 统一物品来源系统

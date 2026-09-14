@@ -1,0 +1,376 @@
+---
+title: 任务定义
+description: QuestGPS 任务定义文件格式、分类系统、发现模式与展示数据源
+---
+
+# 任务定义
+
+QuestGPS 本身不实现任务逻辑——任务的定义、接取、完成、奖励发放均由 Chemdah 负责。QuestGPS 通过 overlay 配置文件（`quests/*.yml`）对 Chemdah 任务进行「二次封装」，控制哪些任务进入菜单、如何分类、如何展示、如何导航。
+
+## 任务定义文件
+
+任务定义文件位于模块数据目录下的 `quests/` 子目录（路径由 `quests-directory` 配置），每个 `*.yml` 文件可包含多个任务，根键即为任务 ID（对应 Chemdah `Template.getId()` 的裸 ID，不要路径式 `main/xxx`）。
+
+模块首次启动时，若 `quests/` 目录为空，会自动释放三个默认示例文件：
+
+| 文件 | 对应分类 | 说明 |
+|---|---|---|
+| `mainline.yml` | 主线（`mainline`） | 主线任务示例，`allow-abandon: false` |
+| `side.yml` | 支线（`side`） | 支线任务示例，默认 `enabled: false` |
+| `encounter.yml` | 奇遇（`encounter`） | 奇遇任务示例，默认 `enabled: false` |
+
+> 同一个文件中可放多个任务定义，不需要每个任务单独一个文件。文件名仅用于组织管理，不影响任务 ID。
+
+## 任务级字段
+
+| 字段 | 类型 | 默认值 | 说明 |
+|---|---|---|---|
+| `enabled` | `boolean` | `true` | `false` 时不进任务菜单（overlay 白名单模式） |
+| `sort-order` | `int` | `0` | 菜单排序，越小越靠前 |
+| `allow-abandon` | `boolean` | `false` | 是否显示「放弃」按钮（主线建议 `false`） |
+| `category` | `String` | — | 仅 `category.source=overlay` 时必填，须与 `categories` 段 ID 一致 |
+| `display-name-override` | `String` | `""` | 仅 `presentation.source=overlay` 时生效，覆盖任务显示名 |
+| `description` | `String` 或 `List<String>` | `[]` | 任务描述，支持多行 |
+| `required-mainline` | `List<String>` | `[]` | 接取前须完成的主线 Chemdah 任务 ID 列表 |
+| `presentation.source` | `String` | — | 单任务覆盖全局 `presentation.source`：`chemdah` 或 `overlay` |
+| `rewards` | `List<Map>` | `[]` | 奖励预览列表，详见 [奖励预览](#奖励预览) |
+| `navigation` | `Map` | — | 任务级导航配置，详见 [导航配置](/docs/questgps/navigation) |
+| `tasks` | `Map<String, Map>` | `{}` | 子目标配置，key 为 Chemdah 子目标 ID |
+| `hooks` | `Map` | — | 任务生命周期信号桥接，详见下文 |
+
+## 分类系统
+
+### 分类注册表
+
+分类 Tab 完全由 `ArcartXQuestGPS.yml` 的 `categories` 段定义，无内置分类。每个分类的配置：
+
+| 字段 | 类型 | 默认值 | 说明 |
+|---|---|---|---|
+| `categories.<id>.display-name` | `String` | `<id>` | 分类 Tab 显示名 |
+| `categories.<id>.sort-order` | `int` | `300` | 排序值，越小越靠前 |
+
+> 删除 `categories` 段可关闭分类 Tab 功能。分类 ID 统一小写处理。
+
+默认配置注册了三个分类：
+
+```yaml
+categories:
+  mainline:
+    display-name: "主线"
+    sort-order: 0
+  side:
+    display-name: "支线"
+    sort-order: 100
+  encounter:
+    display-name: "奇遇"
+    sort-order: 200
+```
+
+### 分类数据来源
+
+分类的数据来源由 `category.source` 决定，全局二选一，无链式回退：
+
+| 模式 | 说明 |
+|---|---|
+| `chemdah`（默认） | 从 Chemdah 任务模板的 `meta.type` 读取分类，映射到 `categories` 注册表 |
+| `overlay` | 从 `quests/*.yml` 的 `category` 字段读取分类 |
+
+- **`chemdah` 模式**：Chemdah 任务的 `meta.type` 须与 `categories` 段中某个 ID 一致。例如 Chemdah 写 `meta.type: mainline`，则该任务归入「主线」Tab。
+- **`overlay` 模式**：任务的 `quests/*.yml` 中须显式写 `category: mainline`，否则归入兜底分类（若启用）或不进菜单。
+
+> `category.source=chemdah` 时，overlay 中写的 `category` 字段不会生效，启动时会输出警告日志。如需使用 overlay 分类，请将 `category.source` 改为 `overlay`。
+
+### 兜底分类
+
+未匹配任何已注册分类的任务，若 `category.fallback.enabled: true` 则归入兜底分类，否则不进菜单：
+
+| 字段 | 类型 | 默认值 | 说明 |
+|---|---|---|---|
+| `category.fallback.enabled` | `boolean` | `true` | 未匹配分类的任务是否归入兜底分类 |
+| `category.fallback.id` | `String` | `"uncategorized"` | 兜底分类 ID |
+| `category.fallback.display-name` | `String` | `"未分类"` | 兜底分类显示名 |
+| `category.fallback.sort-order` | `int` | `1000` | 兜底分类排序值 |
+
+> 启用兜底分类后，兜底分类会自动加入分类注册表，无需在 `categories` 段手动声明。
+
+## 任务发现模式
+
+任务列表发现由 `discovery.mode` 控制，全局二选一，无链式回退：
+
+| 模式 | 说明 |
+|---|---|
+| `overlay` | 白名单模式，仅 `quests/*.yml` 中 `enabled: true` 的任务进菜单 |
+| `auto`（默认） | 扫描全部 Chemdah 任务模板，overlay 登记的任务使用 overlay 配置，未登记的生成最小定义 |
+
+### overlay 模式
+
+仅 `quests/*.yml` 中 `enabled: true` 且 Chemdah 存在同名模板的任务会进入菜单。适合精确控制哪些任务对玩家可见。
+
+### auto 模式
+
+扫描 Chemdah 全部任务模板，每个模板都会进入菜单：
+
+- 已在 `quests/*.yml` 登记的任务 → 使用 overlay 配置（分类覆盖、导航、奖励预览、hooks 等）
+- 未登记的任务 → 生成最小定义（`QuestGpsModuleConfiguration.syntheticQuest`），仅包含任务 ID，分类由 `category.source` 决定
+
+> `auto` 模式下若 Chemdah 未加载到任何模板，会回退 overlay 白名单并输出警告。
+
+## 展示数据来源
+
+UI 展示字段（任务名称、描述、目标文案、目标说明）的数据来源由 `presentation.source` 决定：
+
+| 模式 | 说明 |
+|---|---|
+| `chemdah`（默认） | 读 Chemdah 模板的 `meta.name` / `meta.description`，奖励预览恒读 QuestGPS 配置 |
+| `overlay` | 读 `quests/*.yml` 的 `display-name-override` / `description` / `tasks` 等字段 |
+
+> 奖励预览始终读 QuestGPS 配置（`quests[].rewards`），不受 `presentation.source` 影响。实际发奖由 Chemdah agent 执行。
+
+单个任务可通过 `presentation.source` 覆盖全局设置：
+
+```yaml
+example_daily_quest:
+  enabled: true
+  display-name-override: "采集药草"
+  description:
+    - "&7在野外采集 10 株药草。"
+  presentation:
+    source: overlay                   # 本任务 UI 全部读 overlay
+```
+
+### 展示字段映射
+
+| UI 字段 | chemdah 来源 | overlay 来源 |
+|---|---|---|
+| 任务名称 | `meta.name` | `display-name-override` |
+| 任务描述 | `meta.description` 或 `meta.lore` | `description` |
+| 目标文案 | Chemdah Task `name` + 进度后缀 | `tasks.<id>.display-text` |
+| 目标描述 | Chemdah Task `description` | `tasks.<id>.description` |
+| 奖励预览 | QuestGPS `rewards` 配置 | QuestGPS `rewards` 配置 |
+
+> `chemdah` 模式下，目标文案会自动追加进度后缀（如 `(3/10)`），由 `ChemdahMetadataReader.progressSuffix` 从 `AddonStats` 读取。
+
+## 子目标配置
+
+`tasks` 段的 key 为 Chemdah 子目标 ID（常为 `"0"`、`"1"`…），每个子目标可独立配置导航点和展示文案：
+
+| 字段 | 类型 | 默认值 | 说明 |
+|---|---|---|---|
+| `tasks.<id>.display-text` | `String` | `""` | 目标显示文案（仅 `presentation.source=overlay` 时生效） |
+| `tasks.<id>.description` | `String` 或 `List<String>` | `[]` | 目标描述 |
+| `tasks.<id>.sort-order` | `int` | `0` | 目标排序 |
+| `tasks.<id>.navigation.world` | `String` | — | 子目标独立导航点世界 |
+| `tasks.<id>.navigation.x` | `double` | — | X 坐标 |
+| `tasks.<id>.navigation.y` | `double` | — | Y 坐标 |
+| `tasks.<id>.navigation.z` | `double` | — | Z 坐标 |
+| `tasks.<id>.navigation.title` | `String` | `""` | 路标标题 |
+| `tasks.<id>.navigation.style-id` | `String` | `""` | 路标样式 ID |
+| `tasks.<id>.navigation.map-label` | `String` | `""` | AXMap 标签 |
+
+> 子目标导航点会覆盖任务级 `navigation.point`。hybrid 模式下 Chemdah tracker 坐标优先。导航配置详见 [导航系统](/docs/questgps/navigation)。
+
+## 任务生命周期与信号桥接
+
+任务在 QuestGPS 中有五个生命周期事件，每个事件可配置向 EventPacket 派发的信号：
+
+| 生命周期 | 触发时机 | 配置字段 |
+|---|---|---|
+| `triggered` | 任务出现在菜单 / 被 offer 推送 | `hooks.triggered` |
+| `accepted` | Chemdah 接取成功（`QuestEvents.Accept.Post`） | `hooks.accepted` |
+| `abandoned` | 任务放弃/失败（`QuestEvents.Fail.Post`） | `hooks.abandoned` |
+| `completed` | 任务完成（`QuestEvents.Complete.Post`） | `hooks.completed` |
+| `track-changed` | 开始/取消导航追踪 | `hooks.track-changed` |
+
+信号通过 `SignalDispatchable` Capability 派发，EventPacket 规则引擎匹配信号后执行动作（发称号/发邮件/派命令等）。所有任务共用同一套信号名，EventPacket 规则中可用 `{quest_id}` 占位符区分具体任务。
+
+```yaml
+hooks:
+  triggered:
+    - "questgps_quest_triggered"
+  accepted:
+    - "questgps_quest_accepted"
+  completed:
+    - "questgps_quest_completed"
+  track-changed:
+    - "questgps_quest_track_changed"
+```
+
+> 如需按任务类型区分信号，可改为 `questgps_main_*` / `questgps_side_*` 等前缀。信号桥接的完整说明详见 [联动](/docs/questgps/integration)。
+
+## 奖励预览
+
+`rewards` 为列表，每个奖励仅用于 UI 展示，不执行发放。实际发奖由 Chemdah agent（kether 脚本）执行。
+
+### 通用字段
+
+| 字段 | 类型 | 默认值 | 说明 |
+|---|---|---|---|
+| `type` | `String` | `"text"` | 奖励类型（见下表） |
+| `amount` | `int` | `1` | 数量 |
+| `display-name` | `String` | `""` | 显示名 |
+| `lore` | `List<String>` | `[]` | Lore 描述 |
+| `text` | `String` | `""` | 文本描述（`type=text` 时显示） |
+| `fallback-material` | `String` | `""` | 物品解析失败时的回退材质 |
+
+### 奖励类型
+
+| 类型 | 特有字段 | 说明 |
+|---|---|---|
+| `neigeitems` | `neige-item-id` | NeigeItems 物品预览 |
+| `mythicmobs` / `mythicitems` | `mythic-item-id` 或 `mythicmobs-item-id` 或 `item-id` | MythicMobs 物品预览 |
+| `overture` | `overture-item-id` 或 `overture-id` | Overture 物品预览 |
+| `mmoitems` | `type-id`（或 `mmo-type`/`mmoitems-type`）+ `id`（或 `mmo-id`/`mmoitems-id`） | MMOItems 物品预览 |
+| `material` / `itemstack` | `material` | 原版材质物品预览 |
+| `title` | `title-id`、`duration`（默认 `permanent`）、`level`、`tier` | 称号奖励预览 |
+| `text` | — | 纯文本奖励（实际由 Chemdah agent 发放） |
+
+> 奖励物品解析使用 ArcartX 的 `IconResolver`，支持原版材质和外部物品库（NeigeItems/MythicMobs/Overture/MMOItems），详见 [/docs/guide/icons](/docs/guide/icons) 和 [/docs/guide/item-sources](/docs/guide/item-sources)。称号奖励预览通过 `TitleConfigQueryable` Capability 查询称号信息（显示名、品质、描述）。
+
+### 奖励预览解析流程
+
+```
+rewards[].type
+    │
+    ├── neigeitems / mythicmobs / overture / mmoitems
+    │       └── IconResolver.resolveItemStack(source, sourceId)
+    │           └── 解析失败 → fallback-material 回退材质
+    │
+    ├── material / itemstack
+    │       └── IconResolver.resolveItemStack(material, displayName, lore)
+    │
+    ├── title
+    │       └── TitleConfigQueryable.queryTitle(title-id)
+    │           └── 返回 displayName / qualityName / description
+    │
+    └── text
+            └── 纯文本展示
+```
+
+## 启动校验
+
+模块启动/重载时，`QuestGpsOverlayValidator` 会校验 overlay 配置的完整性：
+
+| 校验项 | 条件 | 警告内容 |
+|---|---|---|
+| Chemdah 模板缺失 | overlay 任务 ID 在 Chemdah 中找不到模板 | `overlay 任务未找到 Chemdah 模板: <questId>` |
+| overlay 分类缺失 | `category.source=overlay` 但任务未配置 `category` | `category.source=overlay 但任务未配置 category: <questId>` |
+| meta.type 未注册 | `category.source=chemdah` 但 `meta.type` 不在 `categories` 注册表 | `Chemdah meta.type 未在 categories 注册，任务不会进入菜单: <questId>` |
+| 冗余 overlay 分类 | `category.source=chemdah` 但 overlay 写了 `category` | `category.source=chemdah 时 overlay category 不会生效 — <questId>` |
+
+> 校验仅输出警告日志，不会阻止模块启动。请根据警告修正配置。
+
+## 完整任务定义示例
+
+```yaml
+# 主线任务（category.source=chemdah，分类由 meta.type 决定）
+example_mainline_quest:
+  enabled: true
+  sort-order: 0
+  allow-abandon: false
+  required-mainline: []
+  hooks:
+    triggered:
+      - "questgps_quest_triggered"
+    accepted:
+      - "questgps_quest_accepted"
+    completed:
+      - "questgps_quest_completed"
+    track-changed:
+      - "questgps_quest_track_changed"
+  navigation:
+    enabled: true
+    point:
+      world: "world"
+      x: 0
+      y: 80
+      z: 0
+      title: "初入岛屿"
+      style-id: "default"
+      map-label: "主线目标"
+  tasks:
+    "0":
+      sort-order: 10
+      navigation:
+        world: "world"
+        x: 12
+        y: 80
+        z: -8
+        title: "与长老对话"
+        style-id: "default"
+        map-label: "任务目标"
+```
+
+```yaml
+# 自定义分类 + overlay 展示 + 奖励预览
+example_daily_quest:
+  enabled: true
+  sort-order: 10
+  allow-abandon: true
+  required-mainline: []
+  category: daily                     # category.source=overlay 时必填
+  display-name-override: "采集药草"
+  description:
+    - "&7在野外采集 10 株药草。"
+  presentation:
+    source: overlay
+  hooks:
+    triggered:
+      - "questgps_quest_triggered"
+    accepted:
+      - "questgps_quest_accepted"
+    completed:
+      - "questgps_quest_completed"
+  rewards:
+    - type: neigeitems
+      neige-item-id: "herb_bundle"
+      amount: 10
+      display-name: "&a药草捆"
+      fallback-material: "WHEAT"
+    - type: mythicmobs
+      mythic-item-id: "rare_herb"
+      amount: 1
+      fallback-material: "EMERALD"
+    - type: overture
+      overture-item-id: "daily_token"
+      amount: 1
+      fallback-material: "PAPER"
+    - type: mmoitems
+      type-id: "MATERIAL"
+      id: "HERB_ESSENCE"
+      amount: 5
+      fallback-material: "GREEN_DYE"
+    - type: material
+      material: "GOLD_INGOT"
+      amount: 3
+      display-name: "&e金币"
+    - type: title
+      title-id: "herbalist"
+      duration: "permanent"
+      display-name: "&e称号: 采药人"
+    - type: text
+      display-name: "&a经验"
+      text: "&7实际由 Chemdah agent 发放"
+  navigation:
+    enabled: true
+    point:
+      world: "world"
+      x: 100
+      y: 70
+      z: -50
+      title: "药草产地"
+      style-id: "default"
+      map-label: "日常目标"
+  tasks:
+    "0":
+      sort-order: 10
+      navigation:
+        world: "world"
+        x: 105
+        y: 70
+        z: -48
+        title: "药草采集点"
+        style-id: "default"
+        map-label: "日常目标"
+```
+
+> 自定义分类需先在 `ArcartXQuestGPS.yml` 的 `categories` 段注册，例如 `daily` 分类。导航坐标的样式 ID 须在 ArcartX waypoint 目录下有对应定义，详见 [/docs/guide/icons](/docs/guide/icons)。

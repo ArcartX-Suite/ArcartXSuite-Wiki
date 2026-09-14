@@ -1,0 +1,246 @@
+---
+title: 命令与占位符
+description: AfkReward 挂机奖励模块命令、权限、占位符与 HUD UI 包
+---
+
+# 命令与占位符
+
+AfkReward 模块提供玩家命令与管理命令两套命令体系，并通过 PlaceholderAPI 向外暴露挂机状态占位符。HUD 界面通过 ArcartX Packet 通讯实时推送挂机数据到客户端。
+
+## 玩家命令
+
+玩家命令注册为 `/afkreward` 和 `/afk` 两个别名，功能完全相同。
+
+| 命令 | 权限 | 说明 |
+|---|---|---|
+| `/afkreward help` | `arcartxsuite.afkreward.use` | 显示帮助信息 |
+| `/afkreward toggle` | `arcartxsuite.afkreward.use` | 切换 HUD 显示开关 |
+| `/afkreward status` | `arcartxsuite.afkreward.use` | 查看当前挂机状态 |
+| `/afkreward start <区域名>` | `arcartxsuite.afkreward.use` | 开始原地挂机（MANUAL 模式） |
+| `/afkreward end` | `arcartxsuite.afkreward.use` | 结束原地挂机并结算奖励 |
+| `/afkreward list` | `arcartxsuite.afkreward.use` | 查看当前在线挂机玩家列表 |
+| `/afkreward top` | `arcartxsuite.afkreward.use` | 查看挂机时长排行榜 |
+
+> 玩家命令仅限玩家执行（控制台执行时提示"该命令只能由玩家执行"）。`start` 子命令支持 Tab 补全已启用且支持原地挂机的区域名。
+
+### status 命令输出
+
+`/afkreward status` 显示以下信息：
+
+| 输出行 | 说明 |
+|---|---|
+| 模式 | `原地挂机` 或 `区域挂机`（未挂机时显示"当前不在任何挂机区域"） |
+| 区域 | 当前挂机区域名 |
+| 当前挂机 | 本次挂机已持续时长（格式化为 `X时XX分XX秒` 或 `XX分XX秒`） |
+| 总挂机 | 历史总挂机时长 |
+| 今日奖励 | 今日已获得奖励次数 |
+| 总奖励 | 历史总奖励次数 |
+| 下次奖励 | 距离下次发放奖励的剩余秒数 |
+| 当前区域人数 | 当前区域内挂机玩家数 |
+
+### list 命令输出
+
+`/afkreward list` 显示所有在线挂机玩家，每行格式：
+
+```
+玩家名 | 区域: 区域名 | 模式: REGION/MANUAL | 时长: XX分XX秒
+```
+
+### top 命令输出
+
+`/afkreward top` 显示挂机时长排行榜（条目数由 `manual.leaderboard-size` 配置），每行格式：
+
+```
+No.1 玩家名 - 总时长: XX时XX分XX秒 - 总奖励: XX 次
+```
+
+> 排行榜数据合并内存中的在线玩家缓存与 DB 数据，按 `total_seconds` 降序排列。超过 60 秒未刷新时异步重新加载。
+
+## 管理命令
+
+管理命令通过本体统一命令 `/axs afkreward <子命令>` 调用。
+
+| 命令 | 说明 |
+|---|---|
+| `/axs afkreward help` | 显示管理命令帮助 |
+| `/axs afkreward status` | 查看模块运行状态 |
+
+### status 管理命令输出
+
+| 输出行 | 说明 |
+|---|---|
+| 已加载区域 | 当前已加载的区域数量 |
+| 已加载类型 | 当前已加载的奖励类型数量 |
+| 当前挂机玩家 | 所有区域内在线挂机玩家总数 |
+
+## 权限节点
+
+| 权限节点 | 说明 |
+|---|---|
+| `arcartxsuite.afkreward.use` | 玩家命令基础权限（使用 `/afkreward` 命令） |
+| `axs.afkreward.area.<name>` | 在指定区域挂机的权限（`<name>` 为区域显示名） |
+| `axs.afkreward.start.<areaId>.<tier>` | 匹配指定区域指定档位的奖励权限 |
+| `axs.afkreward.start.<tier>` | 匹配任意区域指定档位的奖励权限（通用档位权限） |
+| `axs.afkreward.not.reward.limit` | 豁免每日奖励次数上限 |
+| `axs.afkreward.not.player.limit` | 豁免区域人数上限 |
+| `axs.afkreward.bypass.timelimit` | 豁免挂机时长限制 |
+| `axs.afkreward.bypass.botcheck` | 豁免机器人检测 |
+| `axs.afkreward.bypass.iplimit` | 豁免同 IP 限制 |
+
+> 档位匹配优先级：`axs.afkreward.start.<areaId>.<tier>` 优先于 `axs.afkreward.start.<tier>`。系统按配置顺序从高到低匹配，命中第一个有权限的档位即停止。无任何档位权限时默认取最后一个档位（通常是 `common`）。
+
+## PlaceholderAPI 占位符
+
+模块注册 PlaceholderAPI 扩展，标识符为 `axsafkreward`。所有占位符以 `%axsafkreward_<identifier>%` 格式使用。
+
+### 基础占位符
+
+| 占位符 | 说明 | 示例值 |
+|---|---|---|
+| `%axsafkreward_type%` | 挂机类型描述 | `原地挂机` / `区域挂机` / `未挂机` |
+| `%axsafkreward_area%` | 当前挂机区域名 | `泡澡池` |
+| `%axsafkreward_status%` | 挂机状态 | `挂机中` / `未挂机` |
+| `%axsafkreward_mode%` | 挂机模式 | `MANUAL` / `REGION` |
+| `%axsafkreward_time%` | 当前挂机时长 | `15分30秒` |
+| `%axsafkreward_total_time%` | 历史总挂机时长 | `120时45分30秒` |
+| `%axsafkreward_today%` | 今日奖励次数 | `5` |
+| `%axsafkreward_total%` | 历史总奖励次数 | `320` |
+| `%axsafkreward_session_rewards%` | 本次挂机已获奖励次数 | `3` |
+| `%axsafkreward_session_time%` | 本次挂机累计时长 | `45分00秒` |
+| `%axsafkreward_daily_seconds%` | 今日已挂机秒数 | `3600` |
+| `%axsafkreward_remaining_daily%` | 今日剩余可挂机秒数（无限制时为空） | `7200` |
+| `%axsafkreward_multiplier%` | 当前结算倍率（保留两位小数） | `1.50` |
+| `%axsafkreward_next%` | 距下次奖励剩余秒数 | `120` |
+| `%axsafkreward_players%` | 当前区域挂机人数 | `12` |
+
+### 排行榜占位符
+
+| 占位符 | 说明 | 示例值 |
+|---|---|---|
+| `%axsafkreward_top_1_name%` | 排行榜第 1 名玩家名 | `Steve` |
+| `%axsafkreward_top_1_time%` | 排行榜第 1 名总时长 | `200时30分00秒` |
+| `%axsafkreward_top_1_rewards%` | 排行榜第 1 名总奖励次数 | `800` |
+
+> 格式为 `top_<排名>_<字段>`，`<排名>` 从 1 开始，`<字段>` 可选 `name` / `time` / `rewards`。排名超出排行榜大小时返回空字符串。
+
+### 区域统计占位符
+
+| 占位符 | 说明 | 示例值 |
+|---|---|---|
+| `%axsafkreward_area_<name>%` | 在指定区域的累计挂机时长 | `50时00分00秒` |
+| `%axsafkreward_area_<name>_today%` | 在指定区域的今日挂机时长 | `30分00秒` |
+| `%axsafkreward_area_<name>_status%` | 是否正在该区域挂机 | `是` / `否` |
+
+> `<name>` 为区域显示名。若区域名本身包含下划线，占位符解析会优先匹配 `_today` 和 `_status` 后缀。
+
+### 全局统计占位符
+
+| 占位符 | 说明 |
+|---|---|
+| `%axsafkreward_total_all%` | 玩家在所有区域的累计挂机时长总和 |
+
+## HUD UI 包
+
+模块内置 HUD 界面 `afk_reward_hud.yml`，在玩家进入挂机区域时自动显示。HUD 通过 ArcartX Packet 通讯实时更新数据，无需服务端菜单插件。
+
+### UI 配置
+
+| UI 属性 | 值 | 说明 |
+|---|---|---|
+| `id` | `AXS:afk_reward_hud` | UI 唯一标识符 |
+| `isHud` | `true` | HUD 模式（无交互的纯显示界面） |
+| `defaultOpen` | `true` | 默认开启（玩家进入区域自动显示） |
+| `level` | `20` | 渲染层级（数值越大越靠前） |
+| `through` | `true` | 点击穿透（不拦截鼠标操作） |
+
+### Packet 数据包
+
+服务端每秒（20 tick）通过 `PacketBridgeAPI.sendPacket()` 向客户端推送 `update` 包，HUD 的 `packetHandler` 将包字段映射到 UI 变量：
+
+| 包字段 | 说明 |
+|---|---|
+| `area` | 挂机区域名称（未挂机时为空字符串） |
+| `time` | 当前挂机时长（已格式化的文本，如 `15分30秒`） |
+| `next` | 距离下次发放奖励的剩余秒数 |
+| `players` | 当前区域挂机人数 |
+| `session_rewards` | 本次挂机已获得奖励的次数 |
+| `session_time` | 本次挂机累计时长（已格式化的文本） |
+| `visible` | HUD 是否可见（布尔值，玩家可通过 `/afk toggle` 切换） |
+
+### packetHandler 脚本
+
+HUD 配置了 `init` 和 `update` 两个包处理器，将 packet 字段绑定到 UI 变量：
+
+```yaml
+packetHandler:
+  init: |-
+    var.area = packet['area']
+    var.time = packet['time']
+    var.next = packet['next']
+    var.players = packet['players']
+    var.session_rewards = packet['session_rewards']
+    var.session_time = packet['session_time']
+    var.visible = packet['visible']
+  update: |-
+    var.area = packet['area']
+    var.time = packet['time']
+    var.next = packet['next']
+    var.players = packet['players']
+    var.session_rewards = packet['session_rewards']
+    var.session_time = packet['session_time']
+    var.visible = packet['visible']
+```
+
+### HUD 控件
+
+HUD 面板包含一个背景面板和 6 个文本控件，所有控件可见性绑定到 `var.visible` 变量：
+
+| 控件 | 类型 | 显示内容 |
+|---|---|---|
+| 背景 | `Texture` | 圆角矩形面板（深蓝半透明 + 浅蓝描边） |
+| 标题 | `Text` | `&b挂机区域: &f{var.area}` |
+| 时间 | `Text` | `&7当前挂机: &f{var.time}` |
+| 下次奖励 | `Text` | `&7下次奖励: &f{var.next}秒` |
+| 人数 | `Text` | `&7区域人数: &f{var.players}` |
+| 本次收益 | `Text` | `&7本次收益: &f{var.session_rewards} 次` |
+| 本次时长 | `Text` | `&7累计挂机: &f{var.session_time}` |
+
+> HUD 文件位于 `data/afkreward/ui/afk_reward_hud.yml`，可自由编辑布局与样式。设置 `ui.overwrite-ui-files: false`（默认）后模块不会覆盖你的修改。UI 编辑详见 [图标配置](/docs/guide/icons) 指南。
+
+## 消息文件
+
+消息文件位于 `data/afkreward/messages.yml`，支持 `&` 颜色码和 `{0}` `{1}` 占位符。修改后执行 `/axs reload afkreward` 即可生效。
+
+### 消息分类
+
+| 分类 | 说明 |
+|---|---|
+| `prefix` | 消息前缀 |
+| `common` | 通用消息（仅玩家、无权限、服务未启动） |
+| `player` | 玩家命令消息（帮助、toggle、status、manual 列表/排行榜） |
+| `admin` | 管理命令消息（帮助、status、reload） |
+| `hints` | 提示消息（进入/离开区域、奖励、限制、原地挂机、反滥用） |
+
+### 关键消息键
+
+| 消息键 | 说明 |
+|---|---|
+| `hints.enter-area` | 进入挂机区域提示（参数：区域名） |
+| `hints.leave-area` | 离开挂机区域提示（参数：区域名） |
+| `hints.reward` | 获得奖励提示（参数：区域名、周期分钟数） |
+| `hints.reward-limit` | 达到每日奖励次数上限 |
+| `hints.player-limit` | 区域已满员 |
+| `hints.no-permission-area` | 无权限在此区域挂机 |
+| `hints.manual.start` | 开始原地挂机（参数：区域名） |
+| `hints.manual.end` | 结束原地挂机（参数：时长、奖励次数） |
+| `hints.manual.end-no-reward` | 结束挂机但未达奖励时间 |
+| `hints.manual.broadcast` | 全服广播（参数：玩家名、时长、奖励次数） |
+| `hints.manual.recovered` | 崩溃恢复提示（参数：时长、奖励次数） |
+| `hints.manual.end-reason.combat` | 因战斗强制结束 |
+| `hints.manual.end-reason.area_removed` | 因区域删除强制结束 |
+| `hints.manual.end-reason.no_permission` | 因权限失效强制结束 |
+| `hints.manual.end-reason.time_limit` | 因时长上限强制结束 |
+| `hints.anti-abuse.time-limit-session` | 单次挂机达上限 |
+| `hints.anti-abuse.time-limit-daily` | 每日挂机达上限 |
+| `hints.anti-abuse.bot-suspected` | 机器人检测异常 |
+| `hints.anti-abuse.ip-limit` | 同 IP 限制生效 |

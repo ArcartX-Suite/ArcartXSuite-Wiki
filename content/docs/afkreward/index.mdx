@@ -1,0 +1,114 @@
+---
+title: 概览
+description: AfkReward 挂机奖励模块功能概览
+---
+# AfkReward 挂机奖励
+
+## 模块简介
+
+AfkReward 是 ArcartXSuite 的挂机奖励模块，为服务器提供完整的区域挂机与原地挂机奖励系统。玩家进入指定多边形区域后自动开始累计挂机时间，按配置周期发放命令奖励与物品奖励；也可通过命令手动开始原地挂机，传送至区域传送点并锁定行为，结束时一次性结算全部奖励。
+
+模块支持奖励档位（VIP 分级）、倍率调度（基础 / 周末 / 定时）、反滥用策略（时长限制 / 机器人检测 / IP 限制 / 收益衰减）、低 TPS 暂停、崩溃恢复、审计日志等完整功能链路，并通过 ArcartX UI HUD 实时展示挂机状态。
+
+## 功能特性
+
+| 特性 | 说明 |
+|---|---|
+| 双模式挂机 | 区域挂机（REGION，进入区域自动累计）与原地挂机（MANUAL，`/afk start` 手动开始并传送） |
+| 周期命令奖励 | 按配置的 `round` 分钟周期发放命令奖励，支持 `%player_name%`、`%axsafkreward_multiplier%` 等占位符 |
+| 奖励档位 | 按权限节点 `axs.afkreward.start.<id>.<tier>` 匹配不同档位（如 vip3/vip2/vip1/common），从高到低匹配 |
+| 物品奖励 | 通过 ItemSourceRegistry 直接发放物品（minecraft/mythic/neige/overture/mmoitems），背包满转邮件或掉落 |
+| 倍率系统 | 基础倍率、周末倍率、定时倍率调度，叠加方式可选 `MAX` / `MULTIPLY` / `LAST` |
+| 反滥用 | 时长限制（单次/每日）、机器人检测（视角变化频率）、同 IP 限制、收益衰减 |
+| 原地挂机保护 | 挂机期间封锁移动/交互/破坏/传送/受击/攻击/拾取/换手/经验等 15 种行为 |
+| 低 TPS 暂停 | 服务器 TPS 低于阈值时自动暂停挂机结算 |
+| 崩溃恢复 | 服务器重启后自动结算上次未正常结束的 MANUAL 挂机 session |
+| 排行榜 | 挂机总时长排行榜，内存数据与 DB 数据合并后实时排序 |
+| HUD 显示 | ArcartX HUD 实时显示挂机区域、时长、下次奖励倒计时、区域人数、本次收益 |
+| EventPacket 信号 | 发奖/开始/结束挂机时触发 EventPacket 信号，供其他模块订阅 |
+| 字幕播放 | 发奖/结束挂机时播放字幕组 |
+| 邮件集成 | 发奖与结束挂机时发送预设邮件（需 Mail 模块） |
+| 审计日志 | 每次发奖记录玩家、区域、模式、档位、数量、倍率到审计文件 |
+| PlaceholderAPI | 提供 `%axsafkreward_xxx%` 系列占位符 |
+| 玩家数据清理 | 注册 `PlayerDataPurgeable` 能力，支持按 UUID 或全量清理玩家数据 |
+
+## 依赖
+
+| 依赖类型 | 名称 | 说明 |
+|---|---|---|
+| 外部硬依赖 | PlaceholderAPI | 占位符扩展（无则占位符不可用，模块仍可运行） |
+| ArcartX 模块（可选） | Mail | 邮件预设派发与背包满溢出补发（不可用时物品掉落地面） |
+| ArcartX 模块（可选） | EventPacket | 信号派发（不可用时信号静默跳过） |
+| ArcartX 模块（可选） | Subtitle | 字幕组播放（不可用时字幕静默跳过） |
+| ArcartX 模块（可选） | Essentials | AFK 状态互斥检测（不可用时不检测） |
+| 外部软依赖 | MythicMobs / NeigeItems / Overture / MMOItems | 物品奖励的外部物品来源（可选） |
+
+> 模块本身不硬依赖任何 ArcartX 模块。所有联动能力通过 Capability 接口在运行时动态获取，对应模块不存在时自动降级或跳过。
+
+## 挂机模式
+
+AfkReward 提供两种挂机模式，两种模式可并存于同一区域：
+
+### 区域挂机（REGION）
+
+玩家进入配置的多边形区域后自动开始累计挂机时间，无需手动操作。服务端每秒（20 tick）检测一次在线玩家位置，判断是否在区域内：
+
+1. 玩家进入区域 → 检查权限 `axs.afkreward.area.<name>` → 检查人数上限 → 发送进入提示
+2. 每秒累计挂机时间，达到 `round` 分钟周期时发放一次奖励
+3. 玩家离开区域 → 清零计时，发送离开提示
+
+区域挂机不限制玩家行为，玩家可在区域内自由活动。
+
+### 原地挂机（MANUAL）
+
+玩家通过 `/afk start <区域名>` 手动开始原地挂机，系统将玩家传送至区域的传送点并锁定行为：
+
+1. 检查战斗冷却（`combat-cooldown-seconds`）→ 检查区域权限 → 检查人数上限 → 检查 Essentials AFK 互斥
+2. 传送玩家至区域 `teleport` 点，设置移速为 0.0001，关闭碰撞
+3. 挂机期间按 `protections` 配置封锁 15 种行为
+4. 每秒累计挂机时间，但不实时发奖（MANUAL 模式不发周期奖励）
+5. 玩家执行 `/afk end` 或因区域删除/权限失效/时长上限强制结束
+6. 结算：按 `round` 分钟计算奖励次数，一次性发放全部命令与物品奖励
+7. 恢复移速与碰撞，可选传送回原位置，广播奖励消息
+
+### 奖励档位匹配
+
+两种模式共用同一套奖励档位逻辑。每个区域的 `reward` 节下可定义多个档位（如 `vip3`、`vip2`、`vip1`、`common`），系统按配置顺序从高到低匹配玩家权限：
+
+- 权限 `axs.afkreward.start.<areaId>.<tier>` 或 `axs.afkreward.start.<tier>` 命中则执行该档位命令
+- 无任何档位权限时，默认取最后一个档位（通常是 `common`）
+
+### 倍率计算
+
+最终倍率由区域倍率配置与全局衰减共同决定：
+
+```
+最终倍率 = 区域倍率 × 区域权重(reward-weight) × 衰减系数
+```
+
+区域倍率叠加方式（`combine` 字段）：
+
+| 叠加方式 | 说明 |
+|---|---|
+| `MAX` | 取所有命中倍率的最大值（默认） |
+| `MULTIPLY` | 所有命中倍率连乘 |
+| `LAST` | 取最后一个命中的倍率 |
+
+衰减机制：当 `anti-abuse.decay.enable` 为 true 且挂机时长超过 `start-seconds` 后，每小时按 `factor-per-hour` 衰减，最低不低于 `min-multiplier`。
+
+## 数据存储
+
+模块支持两种存储模式：
+
+| 模式 | 配置 | 说明 |
+|---|---|---|
+| 共享存储（推荐） | `storage.shared: true` | 使用本体 `config.yml` 的 storage 节配置，数据库连接由本体统一管控 |
+| 自建存储（不推荐） | `storage.shared: false` | 模块自建独立 HikariCP 连接池，支持 SQLite / MySQL |
+
+数据库表结构详见 [联动](/docs/afkreward/integration) 页面。
+
+## 相关文档
+
+- [配置](/docs/afkreward/configuration) — 主配置文件、区域配置文件、倍率调度、反滥用策略详解
+- [命令与占位符](/docs/afkreward/commands) — 玩家命令、管理命令、PAPI 占位符、HUD UI 包
+- [联动](/docs/afkreward/integration) — EventBus 事件、Capability 注册、跨服同步、数据库表结构、模块集成

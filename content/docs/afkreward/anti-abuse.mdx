@@ -1,0 +1,358 @@
+---
+title: 反滥用与审计
+description: AfkReward 时长限制、机器人检测、IP 限制、收益衰减、低 TPS 暂停与审计日志
+---
+
+# 反滥用与审计
+
+> **付费模块**
+
+AfkReward 模块内置完整的反滥用体系，防止玩家通过挂机脚本、多开账号、超长挂机等方式获取不当收益。反滥用系统由四个子模块组成：时长限制、机器人检测、同 IP 限制、收益衰减。此外，模块还提供低 TPS 暂停保护与审计日志记录，确保奖励发放过程可追溯、服务器性能有保障。
+
+## 反滥用总览
+
+| 子模块 | 配置节 | 作用 | 默认状态 |
+|---|---|---|---|
+| 时长限制 | `anti-abuse.time-limit` | 限制单次/每日挂机总时长 | 关闭 |
+| 机器人检测 | `anti-abuse.bot-detection` | 检测视角无变化的挂机脚本 | 关闭 |
+| 同 IP 限制 | `anti-abuse.ip-limit` | 限制同 IP 多开挂机 | 关闭 |
+| 收益衰减 | `anti-abuse.decay` | 挂机越久倍率越低 | 关闭 |
+
+> 所有反滥用策略默认关闭，需手动启用。启用后可通过权限节点对特定玩家豁免。
+
+## 反滥用检查流程
+
+`passesAntiAbuse()` 在每次发奖前执行，任一检查失败则跳过本次发奖：
+
+```
+passesAntiAbuse(player, state, area, manual)
+  ↓
+① 时长限制检查
+  ├─ sessionSeconds 超限？→ 按 onExceed 动作处理
+  └─ dailySeconds 超限？→ 按 onExceed 动作处理
+  ↓
+② 机器人检测（仅 REGION 模式）
+  └─ 窗口内视角变化次数 < minViewChanges？→ 按 action 动作处理
+  ↓
+③ 同 IP 限制
+  └─ 同区域同 IP 存在更早开始的玩家？→ 拒绝发奖
+  ↓
+全部通过 → 发放奖励
+```
+
+> MANUAL 模式下机器人检测不生效（`!manual` 条件判断），因为原地挂机期间玩家行为已被封锁。
+
+## 时长限制
+
+### 配置
+
+```yaml
+anti-abuse:
+  time-limit:
+    enable: false
+    session-seconds: 0
+    daily-seconds: 0
+    on-exceed: STOP
+    exempt-permission: "axs.afkreward.bypass.timelimit"
+```
+
+| 字段 | 类型 | 默认值 | 说明 |
+|---|---|---|---|
+| `enable` | `boolean` | `false` | 是否启用时长限制 |
+| `session-seconds` | `int` | `0` | 单次挂机最大时长（秒），`0` 表示不限 |
+| `daily-seconds` | `int` | `0` | 每日挂机最大时长（秒），`0` 表示不限 |
+| `on-exceed` | `string` | `STOP` | 超限时行为：`STOP` / `KICK` / `DECAY` |
+| `exempt-permission` | `string` | `axs.afkreward.bypass.timelimit` | 豁免权限节点 |
+
+### 超限动作
+
+| 动作 | 说明 | REGION 模式行为 | MANUAL 模式行为 |
+|---|---|---|---|
+| `STOP` | 停止发奖，玩家可继续挂机但不获奖励 | 清除 AFK 状态，提示一次 | 提示一次，继续挂机 |
+| `KICK` | 强制结束挂机 | 清除 AFK 状态，提示一次 | 标记 `pendingManualEndReasons`，待 `endManualAfk` 时结束 |
+| `DECAY` | 倍率衰减至 `min-multiplier` | 继续挂机，倍率降至下限 | 继续挂机，倍率降至下限 |
+
+> `KICK` 动作在 MANUAL 模式下不会立即结束挂机，而是通过 `pendingManualEndReasons` 标记原因，在下次 `endManualAfk` 调用时以 `TIME_LIMIT` 原因结束。
+
+### 每日时长统计
+
+每日挂机秒数通过 `dailySeconds` 内存映射统计，日期切换时自动清零：
+
+```
+updateDailySeconds(uuid, deltaSeconds)
+  ↓
+当前日期 != dailySecondsDate？
+  ↓ 是
+清空 dailySeconds，更新 dailySecondsDate
+  ↓
+dailySeconds.merge(uuid, deltaSeconds, Integer::sum)
+```
+
+> 每日时长统计仅在内存中，服务器重启后从 0 开始累计。`getRemainingDailySeconds()` 返回今日剩余可挂机秒数（无限制时返回 `-1`）。
+
+## 机器人检测
+
+### 配置
+
+```yaml
+anti-abuse:
+  bot-detection:
+    enable: false
+    window-seconds: 300
+    min-view-changes: 3
+    action: NO_REWARD
+    exempt-permission: "axs.afkreward.bypass.botcheck"
+```
+
+| 字段 | 类型 | 默认值 | 范围 | 说明 |
+|---|---|---|---|---|
+| `enable` | `boolean` | `false` | — | 是否启用机器人检测 |
+| `window-seconds` | `int` | `300` | `1`~`3600` | 检测窗口时长（秒） |
+| `min-view-changes` | `int` | `3` | `0`~`1000` | 窗口内最小视角变化次数 |
+| `action` | `string` | `NO_REWARD` | — | 检测到机器人时的行为：`NO_REWARD` / `KICK` |
+| `exempt-permission` | `string` | `axs.afkreward.bypass.botcheck` | — | 豁免权限节点 |
+
+### 视角变化追踪
+
+`AfkRewardListener.onPlayerMove()` 监听玩家移动事件，当检测到 `yaw` 或 `pitch` 变化时调用 `markViewChange()` 记录时间戳：
+
+```
+PlayerMoveEvent
+  ↓
+from.yaw != to.yaw || from.pitch != to.pitch？
+  ↓ 是
+markViewChange(uuid)
+  ↓
+添加当前时间戳到 viewChanges 队列
+  ↓
+清理窗口外的旧记录（cutoff = now - windowSeconds * 1000）
+```
+
+> 视角变化检测只关注 `yaw` 和 `pitch` 的变化，坐标变化（移动）由 REGION 模式的位置检测处理。挂机脚本通常不模拟视角转动，因此在窗口内视角变化次数会低于阈值。
+
+### 检测动作
+
+| 动作 | 说明 |
+|---|---|
+| `NO_REWARD` | 不发奖励，玩家继续挂机（REGION 模式下不清除状态） |
+| `KICK` | 清除 AFK 状态（REGION 模式），提示一次 |
+
+> 机器人检测仅对 REGION 模式生效（`!manual` 条件判断）。MANUAL 模式下玩家行为已被封锁，不存在脚本挂机问题。
+
+## 同 IP 限制
+
+### 配置
+
+```yaml
+anti-abuse:
+  ip-limit:
+    enable: false
+    exempt-permission: "axs.afkreward.bypass.iplimit"
+```
+
+| 字段 | 类型 | 默认值 | 说明 |
+|---|---|---|---|
+| `enable` | `boolean` | `false` | 是否启用同 IP 限制 |
+| `exempt-permission` | `string` | `axs.afkreward.bypass.iplimit` | 豁免权限节点 |
+
+### IP 限制逻辑
+
+`isIpLimited()` 判断当前玩家是否应被限制：
+
+```
+isIpLimited(player, areaName)
+  ↓
+获取玩家 IP 地址
+  ↓
+遍历所有 AFK 状态中的玩家
+  ↓
+筛选同区域、同 IP 的玩家
+  ↓
+找到最早开始挂机的玩家（startTimeMillis 最小）
+  ↓
+最早开始的玩家 != 当前玩家？→ 返回 true（限制）
+```
+
+> 同 IP 限制逻辑：同一区域内同 IP 的多个玩家中，只有**最早开始挂机**的玩家可正常获得奖励，其余玩家被判定为 IP 限制。这防止同一玩家多开账号在同一区域挂机。
+
+## 收益衰减
+
+### 配置
+
+```yaml
+anti-abuse:
+  decay:
+    enable: false
+    start-seconds: 3600
+    factor-per-hour: 0.2
+    min-multiplier: 0.3
+```
+
+| 字段 | 类型 | 默认值 | 说明 |
+|---|---|---|---|
+| `enable` | `boolean` | `false` | 是否启用收益衰减 |
+| `start-seconds` | `int` | `3600` | 衰减开始时间（秒） |
+| `factor-per-hour` | `double` | `0.2` | 每小时衰减因子 |
+| `min-multiplier` | `double` | `0.3` | 最低衰减倍率 |
+
+### 衰减计算
+
+衰减系数在 `computeMultiplier()` 中计算，直接影响最终倍率：
+
+```
+若 state.seconds > start-seconds：
+  elapsedHours = (state.seconds - start-seconds) / 3600.0
+  decay = max(minMultiplier, 1.0 - factorPerHour * elapsedHours)
+  最终倍率 *= decay
+```
+
+### 衰减示例
+
+| 挂机时长 | elapsedHours | 衰减系数 | 说明 |
+|---|---|---|---|
+| 1 小时（3600 秒） | 0 | 1.0 | 刚到 `start-seconds`，不衰减 |
+| 2 小时（7200 秒） | 1 | 0.8 | `1.0 - 0.2 * 1 = 0.8` |
+| 3 小时（10800 秒） | 2 | 0.6 | `1.0 - 0.2 * 2 = 0.6` |
+| 4 小时（14400 秒） | 3 | 0.4 | `1.0 - 0.2 * 3 = 0.4` |
+| 5 小时（18000 秒） | 4 | 0.3 | `max(0.3, 0.2) = 0.3`（受 `min-multiplier` 限制） |
+| 6 小时+ | 5+ | 0.3 | 保持在 `min-multiplier` |
+
+> 当 `time-limit.on-exceed` 设为 `DECAY` 且玩家超限时，倍率直接降至 `min-multiplier`，而非完全停止发奖。
+
+## 低 TPS 暂停
+
+### 配置
+
+```yaml
+performance:
+  pause-on-low-tps:
+    enable: false
+    min-tps: 15.0
+```
+
+| 字段 | 类型 | 默认值 | 说明 |
+|---|---|---|---|
+| `enable` | `boolean` | `false` | 是否启用低 TPS 暂停 |
+| `min-tps` | `double` | `15.0` | 触发暂停的 TPS 阈值 |
+
+### TPS 读取
+
+`TpsProvider.currentTps()` 通过反射调用 `Bukkit.getServer().getTPS()` 获取服务器 1 分钟平均 TPS：
+
+| 情况 | 返回值 | 说明 |
+|---|---|---|
+| Paper / Spigot 支持 `getTPS()` | `tps[0]`（1 分钟平均 TPS） | 正常读取 |
+| 服务端不支持 `getTPS()` | `20.0` | 按满 TPS 处理，暂停功能不生效 |
+| 反射调用异常 | `20.0` | 同上 |
+
+> TPS 读取方法在首次调用时通过双重检查锁解析反射 Method，后续调用直接复用，避免重复反射开销。
+
+### 暂停逻辑
+
+每秒执行的 `tick()` 任务在开头检查 TPS：
+
+```
+tick()
+  ↓
+pauseOnLowTps && currentTps() < minTps？
+  ↓ 是
+跳过本轮结算（不处理任何玩家）
+  ↓ 否
+遍历在线玩家 → processPlayer() + pushHud()
+```
+
+> 暂停期间玩家位置仍在检测，但不会累计挂机时间或发放奖励。TPS 恢复后自动继续结算。
+
+## 审计日志
+
+### 配置
+
+```yaml
+audit:
+  enable: true
+  file: "audit.log"
+```
+
+| 字段 | 类型 | 默认值 | 说明 |
+|---|---|---|---|
+| `enable` | `boolean` | `true` | 是否启用审计日志 |
+| `file` | `string` | `"audit.log"` | 审计日志文件名（相对模块 data 目录） |
+
+### 日志记录
+
+`AfkRewardAuditLogger.log()` 在每次发放奖励时追加写入审计文件：
+
+| 字段 | 说明 | 示例值 |
+|---|---|---|
+| 时间 | `OffsetDateTime.now()` | `2026-08-24T12:29:00+08:00` |
+| player | 玩家名 | `Steve` |
+| uuid | 玩家 UUID | `550e8400-e29b-41d4-a716-446655440000` |
+| area | 区域名 | `泡澡池` |
+| mode | 挂机模式 | `REGION` / `MANUAL` |
+| tier | 奖励档位标识 | `vip3` |
+| count | 本次发放数量 | `1`（REGION） / `3`（MANUAL 批量） |
+| multiplier | 本次结算倍率（保留两位小数） | `1.50` |
+
+### 日志格式
+
+每行格式：
+
+```
+<时间> player=<玩家名> uuid=<UUID> area=<区域名> mode=<模式> tier=<档位> count=<数量> multiplier=<倍率>
+```
+
+示例：
+
+```
+2026-08-24T12:29:00+08:00 player=Steve uuid=550e8400-e29b-41d4-a716-446655440000 area=泡澡池 mode=REGION tier=vip3 count=1 multiplier=1.50
+2026-08-24T12:45:00+08:00 player=Alex uuid=660e8400-e29b-41d4-a716-446655440001 area=矿洞 mode=MANUAL tier=common count=3 multiplier=0.80
+```
+
+### 写入安全
+
+审计日志通过内部 `Object` 锁保证多线程写入安全：
+
+```
+log()
+  ↓
+config.enable()？→ 否则直接返回
+  ↓
+synchronized (lock) {
+  Files.writeString(path, line, CREATE, WRITE, APPEND)
+}
+  ↓
+写入失败 → logger.warning("写入审计日志失败")
+```
+
+> 审计文件路径相对模块 data 目录解析，父目录不存在时自动创建（`mkdirs()`）。
+
+## 反滥用权限汇总
+
+| 权限节点 | 说明 |
+|---|---|
+| `axs.afkreward.bypass.timelimit` | 豁免挂机时长限制 |
+| `axs.afkreward.bypass.botcheck` | 豁免机器人检测 |
+| `axs.afkreward.bypass.iplimit` | 豁免同 IP 限制 |
+| `axs.afkreward.not.reward.limit` | 豁免每日奖励次数上限 |
+| `axs.afkreward.not.player.limit` | 豁免区域人数上限（仅 MANUAL 模式） |
+
+> 豁免权限在 `passesAntiAbuse()` 检查时判断，拥有豁免权限的玩家跳过对应检查直接通过。
+
+## 反滥用提示消息
+
+| 消息键 | 说明 | 触发条件 |
+|---|---|---|
+| `hints.anti-abuse.time-limit-session` | 单次挂机达上限 | `sessionSeconds` 超限 |
+| `hints.anti-abuse.time-limit-daily` | 每日挂机达上限 | `dailySeconds` 超限 |
+| `hints.anti-abuse.bot-suspected` | 机器人检测异常 | 视角变化次数低于阈值 |
+| `hints.anti-abuse.ip-limit` | 同 IP 限制生效 | 同区域同 IP 存在更早开始的玩家 |
+
+> 反滥用提示通过 `sendAntiAbuseHint()` 发送，使用 `antiAbuseNotified` 集合确保同一玩家同一轮只提示一次，避免刷屏。
+
+## 相关文档
+
+- [概览](/docs/afkreward) — 模块功能概览
+- [配置](/docs/afkreward/configuration) — 主配置文件与区域配置文件详解
+- [区域与双模式挂机](/docs/afkreward/afk-areas) — 区域定义、REGION 与 MANUAL 模式、行为保护与崩溃恢复
+- [奖励档位与物品奖励](/docs/afkreward/reward-tiers) — 档位匹配、命令占位符、物品奖励与倍率系统
+- [条件系统](/docs/guide/conditions) — ArcartXSuite 统一条件系统配置指南

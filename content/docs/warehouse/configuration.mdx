@@ -1,0 +1,444 @@
+---
+title: 配置
+description: Warehouse 配置文件详解
+---
+
+# Warehouse 配置
+
+配置文件位于 `plugins/ArcartX-Suite/modules/ArcartXWarehouse.yml`，修改后执行 `/axs reload warehouse` 生效。
+
+当前配置版本（`config-version`）为 **3**，模块支持自动迁移（0→1、1→2、2→3）。
+
+## 主配置字段表
+
+### settings 节
+
+| 字段 | 类型 | 默认值 | 说明 |
+| --- | --- | --- | --- |
+| `debug` | boolean | `false` | 是否输出调试日志 |
+| `flush-interval-ticks` | int | `100` | 数据落库间隔（ticks，20 = 1 秒），最小 20 |
+| `transfer-confirm-expire-hours` | long | `24` | 共享仓库转让确认等待时长（小时），`<=0` 表示永不过期 |
+
+### cross-server 节
+
+| 字段 | 类型 | 默认值 | 说明 |
+| --- | --- | --- | --- |
+| `enabled` | boolean | `false` | 是否启用跨服共享仓库编辑锁。MySQL 共享库 + 多子服时建议开启。连接参数见宿主 `config.yml` 的 `cross-server` 节 |
+
+### ui 节
+
+| 字段 | 类型 | 默认值 | 说明 |
+| --- | --- | --- | --- |
+| `ui-id` | string | `AXS:warehouse_storage` | 仓库存取界面 UI ID |
+| `manage-ui-id` | string | `AXS:warehouse_manage` | 仓库管理界面 UI ID |
+| `bank-ui-id` | string | `AXS:warehouse_bank` | 银行界面 UI ID |
+| `packet-id` | string | `AXS_WAREHOUSE` | 客户端通信包标识符 |
+| `register-ui-on-enable` | boolean | `true` | 启动时是否自动注册 UI |
+| `overwrite-ui-files` | boolean | `false` | 是否强制覆盖用户已修改的 UI 文件 |
+| `page-size` | int | `72` | 仓库网格每页显示的槽位数量（控件按此数量动态创建），最小 1 |
+
+### storage 节
+
+| 字段 | 类型 | 默认值 | 说明 |
+| --- | --- | --- | --- |
+| `shared` | boolean | `true` | 是否使用本体共享数据源（推荐）。`true` 时忽略下方所有字段 |
+| `mode` | string | `sqlite` | 自建模式存储引擎：`sqlite` 或 `mysql`（仅 `shared: false` 时生效） |
+| `sqlite.file` | string | `warehouse.db` | SQLite 文件名（相对模块数据目录） |
+| `mysql.host` | string | `127.0.0.1` | MySQL 主机地址 |
+| `mysql.port` | int | `3306` | MySQL 端口 |
+| `mysql.database` | string | `arcartxsuite` | MySQL 数据库名 |
+| `mysql.username` | string | `root` | MySQL 用户名 |
+| `mysql.password` | string | `""` | MySQL 密码 |
+| `mysql.table-prefix` | string | `axs_warehouse_` | MySQL 表名前缀 |
+| `pool-size` | int | `4` | JDBC 连接池大小（SQLite 建议 1），范围 1-100 |
+
+> **向后兼容**：如果 `shared` 字段不存在但 `mode=mysql`，自动视为 `shared: false`。
+
+### security 节
+
+| 字段 | 类型 | 默认值 | 说明 |
+| --- | --- | --- | --- |
+| `min-length` | int | `4` | 二级密码最小长度，范围 3-32 |
+| `max-length` | int | `32` | 二级密码最大长度，范围 4-64 |
+| `unlock-session-ms` | long | `600000` | 解锁后会话有效时长（毫秒，600000 = 10 分钟），最小 10000 |
+| `allow-admin-password-reveal` | boolean | `false` | 是否允许管理员查看玩家二级密码 |
+| `admin-reveal-secret` | string | `""` | 管理员查看密码所需的密钥 |
+
+### pickup 节
+
+| 字段 | 类型 | 默认值 | 说明 |
+| --- | --- | --- | --- |
+| `auto-store-on-pickup` | boolean | `true` | 拾取时是否自动存入仓库 |
+| `auto-store-mythic-loot` | boolean | `false` | 是否自动存入 MythicMobs 掉落物 |
+| `notify-on-auto-store` | boolean | `true` | 自动存入时是否通知玩家 |
+
+> 玩家可在管理 UI 中单独开关自己的自动入库设置，个人设置存储在 `warehouse_player_settings` 表，优先于全局默认值。
+
+### search 节
+
+| 字段 | 类型 | 默认值 | 说明 |
+| --- | --- | --- | --- |
+| `page-size` | int | `18` | 搜索结果每页显示数量，最小 4 |
+| `default-sort` | string | `time` | 默认排序方案 ID（对应 `sort-profiles` 中的 key） |
+
+### showcase 节
+
+| 字段 | 类型 | 默认值 | 说明 |
+| --- | --- | --- | --- |
+| `enabled` | boolean | `true` | 是否启用展示柜功能 |
+| `cooldown-seconds` | int | `60` | 每次展示后的冷却时间（秒），最小 5 |
+| `max-items` | int | `9` | 单次展示卡片最多显示的物品数量，最小 1 |
+| `card-id` | string | `""` | 展示卡片使用的 ArcartX 卡片 ID，留空使用模块内置默认卡片 |
+| `permission` | string | `arcartxsuite.warehouse.showcase` | 使用展示柜功能所需的权限节点 |
+
+## 仓库分类配置
+
+`warehouses` 节定义个人仓库类型，每个仓库可配置多级容量与升级费用：
+
+```yaml
+warehouses:
+  personal:
+    display-name: "&6个人仓库"    # 仓库显示名称
+    default-owned: true           # 玩家首次使用时是否自动创建
+    default-level: 1              # 默认仓库等级
+    permission: ""                 # 拥有此仓库所需的权限（留空 = 无限制）
+    levels:
+      "1":
+        capacity: 1000             # 等级 1 容量（槽位数）
+        upgrade:
+          currency: "points"       # 升级所需货币 ID
+          amount: 500              # 升级所需金额
+      "2":
+        capacity: 2500
+        upgrade:
+          currency: "points"
+          amount: 1200
+      "3":
+        capacity: 6000             # 最高级（无 upgrade 节 = 不可再升级）
+```
+
+| 字段 | 类型 | 说明 |
+| --- | --- | --- |
+| `display-name` | string | 仓库显示名称，支持颜色码 |
+| `default-owned` | boolean | 玩家首次使用时是否自动创建此仓库 |
+| `default-level` | int | 默认仓库等级，必须在 `levels` 中存在 |
+| `permission` | string | 拥有此仓库所需的权限节点，留空表示无限制 |
+| `levels.<level>.capacity` | long | 该等级的容量（槽位数），最小 1 |
+| `levels.<level>.upgrade.currency` | string | 升级到下一级所需货币 ID |
+| `levels.<level>.upgrade.amount` | decimal | 升级到下一级所需金额，`<=0` 或留空表示不可升级 |
+
+## 物品分类配置
+
+`categories` 节定义物品分类规则，按 NBT/PDC 路径匹配物品归属：
+
+```yaml
+categories:
+  equipment:
+    display-name: "装备"
+    priority: 10                   # 分类排序优先级（数字越小越靠前）
+    nbt:
+      path: "pdc:arcartx:item_category"   # NBT 匹配路径
+      values: ["equipment", "weapon", "armor"]  # 匹配值列表
+  material:
+    display-name: "材料"
+    priority: 20
+    nbt:
+      path: "pdc:arcartx:item_category"
+      values: ["material"]
+  other:
+    display-name: "其它"
+    priority: 9999                 # 兜底分类，优先级最低
+    default: true                  # 未匹配任何分类的物品归入此分类
+```
+
+| 字段 | 类型 | 说明 |
+| --- | --- | --- |
+| `display-name` | string | 分类显示名称 |
+| `priority` | int | 排序优先级，数字越小越靠前 |
+| `nbt.path` | string | NBT/PDC 匹配路径（支持 `pdc:` 前缀读取 PersistentDataContainer） |
+| `nbt.values` | list | 匹配值列表，物品 NBT 路径值在此列表中即归入此分类 |
+| `default` | boolean | 是否为兜底分类（未匹配任何分类的物品归入此处） |
+
+> `other` 分类为系统内置兜底分类，始终存在，优先级 9999。
+
+## 权限配置
+
+### 共享仓库权限分层
+
+`shared.permission-tiers` 定义不同权限组可享受的共享仓库上限：
+
+```yaml
+shared:
+  enabled: true
+  create-cost:
+    currency: "points"
+    amount: 1000
+  default-level: 1
+  levels:
+    "1":
+      capacity: 2000
+      upgrade:
+        currency: "points"
+        amount: 800
+    "2":
+      capacity: 5000
+      upgrade:
+        currency: "points"
+        amount: 1800
+    "3":
+      capacity: 10000
+  role-names:
+    owner: "所有者"
+    member: "成员"
+    viewer: "观众"
+  permission-tiers:
+    default:
+      permission: ""                              # 默认权限组（无额外权限要求）
+      priority: 0
+      max-owned: 1                                # 可拥有的共享仓库上限
+      max-members: 6                              # 每个仓库的成员上限
+    vip:
+      permission: "ArcartXSuite.warehouse.shared.vip"
+      priority: 10
+      max-owned: 3
+      max-members: 12
+```
+
+| 字段 | 类型 | 说明 |
+| --- | --- | --- |
+| `enabled` | boolean | 是否启用共享仓库功能 |
+| `create-cost.currency` | string | 创建共享仓库所需货币 ID |
+| `create-cost.amount` | decimal | 创建费用，`<=0` 或留空表示免费 |
+| `default-level` | int | 默认共享仓库等级 |
+| `levels` | map | 共享仓库等级配置（格式同个人仓库） |
+| `role-names.owner` | string | 所有者角色显示名 |
+| `role-names.member` | string | 成员角色显示名 |
+| `role-names.viewer` | string | 观众角色显示名 |
+| `permission-tiers.<id>.permission` | string | 权限节点，留空表示默认组 |
+| `permission-tiers.<id>.priority` | int | 优先级，数字越大优先级越高 |
+| `permission-tiers.<id>.max-owned` | int | 可拥有的共享仓库上限 |
+| `permission-tiers.<id>.max-members` | int | 每个仓库的成员上限 |
+
+### 排序方案配置
+
+`sort-profiles` 定义搜索结果的排序方案：
+
+```yaml
+sort-profiles:
+  time:
+    fields:
+      - "updated:desc"    # 按更新时间降序
+      - "name:asc"        # 再按名称升序
+  name:
+    fields:
+      - "name:asc"
+  amount:
+    fields:
+      - "amount:desc"
+      - "updated:desc"
+```
+
+支持的排序字段：`name`、`amount`、`updated`、`created`、`material`、`category`、`warehouse`。每字段可附加 `:asc`（升序）或 `:desc`（降序）。
+
+系统内置三个排序方案：`time`、`name`、`amount`，可在配置中覆盖。
+
+## 黑名单配置
+
+`blacklist` 节定义物品存入拦截规则，匹配任意一条规则的物品将无法存入仓库。配置格式参考 [物品匹配器](/docs/guide/conditions)。
+
+```yaml
+blacklist:
+  material-ids: []              # 按原版 Material ID 拦截
+  mythic-item-ids: []           # 按 MythicMobs 物品 ID 拦截
+  neige-item-ids: []            # 按 NeigeItems 物品 ID 拦截
+  overture-item-ids: []         # 按 Overture 物品 ID 拦截
+  kinds: []                     # 按物品种类拦截
+  name-contains:                # 物品显示名包含任意关键词即拦截
+    - "绑定不可存"
+  lore-contains:                # 物品 Lore 包含任意关键词即拦截
+    - "不可存入仓库"
+  name-regex: []                # 物品显示名匹配任意正则即拦截
+  lore-regex: []                # 物品 Lore 匹配任意正则即拦截
+  nbt-keys: []                  # PDC 或原始 NBT 中存在任意 key 即禁止存入
+```
+
+## 完整配置示例
+
+```yaml
+config-version: 2
+settings:
+  debug: false
+  flush-interval-ticks: 100
+  transfer-confirm-expire-hours: 24
+
+cross-server:
+  enabled: false
+
+ui:
+  ui-id: "AXS:warehouse_storage"
+  manage-ui-id: "AXS:warehouse_manage"
+  bank-ui-id: "AXS:warehouse_bank"
+  packet-id: "AXS_WAREHOUSE"
+  register-ui-on-enable: true
+  overwrite-ui-files: false
+  page-size: 72
+
+storage:
+  shared: true
+
+security:
+  min-length: 4
+  max-length: 32
+  unlock-session-ms: 600000
+  allow-admin-password-reveal: false
+  admin-reveal-secret: ""
+
+pickup:
+  auto-store-on-pickup: true
+  auto-store-mythic-loot: false
+  notify-on-auto-store: true
+
+search:
+  page-size: 18
+  default-sort: "time"
+
+warehouses:
+  personal:
+    display-name: "&6个人仓库"
+    default-owned: true
+    default-level: 1
+    levels:
+      "1":
+        capacity: 1000
+        upgrade:
+          currency: "points"
+          amount: 500
+      "2":
+        capacity: 2500
+        upgrade:
+          currency: "points"
+          amount: 1200
+      "3":
+        capacity: 6000
+
+categories:
+  equipment:
+    display-name: "装备"
+    priority: 10
+    nbt:
+      path: "pdc:arcartx:item_category"
+      values: ["equipment", "weapon", "armor"]
+  material:
+    display-name: "材料"
+    priority: 20
+    nbt:
+      path: "pdc:arcartx:item_category"
+      values: ["material"]
+  consumable:
+    display-name: "消耗品"
+    priority: 30
+    nbt:
+      path: "pdc:arcartx:item_category"
+      values: ["consumable", "food", "potion"]
+  other:
+    display-name: "其它"
+    priority: 9999
+    default: true
+
+bank:
+  currencies:
+    - money
+    - points
+  deposit-products:
+    money_stable_1d:
+      enabled: true
+      display-name: "稳健 1 日"
+      description: "低门槛短期定存。"
+      currency: "money"
+      duration-seconds: 86400
+      min-amount: 100
+      max-amount: 0
+      permission: ""
+      interest-tiers:
+        tier_1:
+          min: 100
+          max: 9999
+          rate: 0.01
+        tier_2:
+          min: 10000
+          max: 99999
+          rate: 0.015
+        tier_3:
+          min: 100000
+          max: 0
+          rate: 0.02
+
+shared:
+  enabled: true
+  create-cost:
+    currency: "points"
+    amount: 1000
+  default-level: 1
+  levels:
+    "1":
+      capacity: 2000
+      upgrade:
+        currency: "points"
+        amount: 800
+    "2":
+      capacity: 5000
+      upgrade:
+        currency: "points"
+        amount: 1800
+    "3":
+      capacity: 10000
+  role-names:
+    owner: "所有者"
+    member: "成员"
+    viewer: "观众"
+  permission-tiers:
+    default:
+      permission: ""
+      priority: 0
+      max-owned: 1
+      max-members: 6
+    vip:
+      permission: "ArcartXSuite.warehouse.shared.vip"
+      priority: 10
+      max-owned: 3
+      max-members: 12
+
+sort-profiles:
+  time:
+    fields:
+      - "updated:desc"
+      - "name:asc"
+  name:
+    fields:
+      - "name:asc"
+  amount:
+    fields:
+      - "amount:desc"
+      - "updated:desc"
+
+showcase:
+  enabled: true
+  cooldown-seconds: 60
+  max-items: 9
+  card-id: ""
+  permission: "arcartxsuite.warehouse.showcase"
+
+blacklist:
+  material-ids: []
+  mythic-item-ids: []
+  neige-item-ids: []
+  overture-item-ids: []
+  kinds: []
+  name-contains:
+    - "绑定不可存"
+  lore-contains:
+    - "不可存入仓库"
+  name-regex: []
+  lore-regex: []
+  nbt-keys: []
+```

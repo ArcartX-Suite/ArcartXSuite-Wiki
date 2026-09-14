@@ -1,0 +1,246 @@
+---
+title: 命令与占位符
+description: LoginView 命令、权限、PlaceholderAPI 占位符与 UI 数据包
+---
+
+# 命令与占位符
+
+LoginView 模块通过 `/axs loginview` 子命令提供管理功能，并通过 PlaceholderAPI 暴露账号类型查询占位符。所有命令均需 `axs.admin` 权限。
+
+## 管理命令
+
+所有命令通过 `/axs loginview <action>` 调用，需要 `axs.admin` 权限。
+
+|| 命令 | 说明 | 权限 |
+|---|---|---|
+| `/axs loginview help` | 显示 LoginView 模块命令帮助 | `axs.admin` |
+| `/axs loginview status` | 查看登录模块运行状态 | `axs.admin` |
+| `/axs loginview open <玩家>` | 强制为在线玩家打开登录界面 | `axs.admin` |
+| `/axs loginview migrate-authme [dry-run]` | 从 AuthMe 迁移账户哈希 | `axs.admin` |
+| `/axs loginview migration-commands` | 查看迁移后的安全操作提示 | `axs.admin` |
+| `/axs loginview set-spawn` | 将当前位置设为登录后传送点 | `axs.admin` |
+| `/axs loginview reset-password <玩家> [新密码]` | 重置玩家登录密码（仅 standalone 模式） | `axs.admin` |
+
+### 命令详解
+
+#### `/axs loginview status`
+
+查看 LoginView 模块的运行状态，包括服务状态、认证模式、存储模式、UI ID、UI 文件、锁定配置、账户数、AuthMe 可用性。
+
+```
+/axs loginview status
+```
+
+输出示例：
+
+```
+◆ ArcartXSuite | LoginView 状态
+服务: 运行中
+认证模式: standalone
+存储: sqlite
+UI: AXS:login_view
+UI 文件: ui/login_view.yml
+锁定: 移动=true, 聊天=true, 命令=true
+账户数: 128
+AuthMe 可用: false
+```
+
+#### `/axs loginview open`
+
+强制为指定在线玩家打开登录界面，适用于玩家 UI 卡住或需要重新认证的场景。
+
+```
+/axs loginview open <玩家>
+```
+
+| 参数 | 必填 | 说明 |
+|---|---|---|
+| 玩家 | 是 | 目标在线玩家名 |
+
+示例：
+```
+/axs loginview open Steve
+```
+
+#### `/axs loginview migrate-authme`
+
+从 AuthMe 数据库导入历史账户哈希到 AXS 独立账户库。仅 `auth.mode=standalone` 时可用。
+
+```
+/axs loginview migrate-authme [dry-run]
+```
+
+| 参数 | 必填 | 说明 |
+|---|---|---|
+| dry-run | 否 | 预览模式，只扫描不导入 |
+
+示例：
+```
+/axs loginview migrate-authme dry-run    # 预览迁移数量
+/axs loginview migrate-authme            # 执行迁移
+```
+
+输出示例：
+```
+AuthMe 迁移完成: 扫描 256，可导入 240，跳过 16
+```
+
+:::tip
+迁移流程建议：
+1. 先执行 `/axs loginview migrate-authme dry-run` 预览数量
+2. 确认无误后执行 `/axs loginview migrate-authme`
+3. 玩家首次用旧密码登录成功后，可自动重写为 AXS hash
+4. 完成验证后再停用 AuthMe，避免玩家无法登录
+:::
+
+#### `/axs loginview migration-commands`
+
+查看 AuthMe 迁移后的安全操作步骤提示。
+
+```
+/axs loginview migration-commands
+```
+
+#### `/axs loginview set-spawn`
+
+将管理员当前位置设为登录后传送点，自动写入配置文件的 `spawn-on-login` 节并启用传送。
+
+```
+/axs loginview set-spawn
+```
+
+:::info
+执行后 `spawn-on-login.enabled` 自动设为 `true`，并写入当前世界名、坐标、朝向。若需关闭传送，手动编辑配置将 `enabled` 设为 `false`。
+:::
+
+#### `/axs loginview reset-password`
+
+重置指定玩家的登录密码。仅 `standalone` 模式可用，`authme` 模式需使用 AuthMe 自带命令。
+
+```
+/axs loginview reset-password <玩家> [新密码]
+```
+
+| 参数 | 必填 | 说明 |
+|---|---|---|
+| 玩家 | 是 | 目标玩家名 |
+| 新密码 | 否 | 新密码；省略则随机生成（长度 10~64，排除易混淆字符） |
+
+示例：
+```
+/axs loginview reset-password Steve              # 随机生成密码
+/axs loginview reset-password Steve MyNewPass123  # 指定新密码
+```
+
+重置成功后：
+- 立即删除该玩家的持久化 session 与在线认证状态
+- 若玩家在线，会收到提示并被重新弹出登录界面
+- 新密码需符合 `min-password-length` 和 `max-password-length` 限制
+
+:::warning
+`authme` 模式下此命令不可用，请使用 `/authme changepassword <玩家> <新密码>`。
+:::
+
+### Tab 补全
+
+| 参数位置 | 补全内容 |
+|---|---|
+| 第 2 参数（action） | `help`、`status`、`open`、`migrate-authme`、`migration-commands`、`set-spawn`、`reset-password` |
+| 第 3 参数（`open` / `reset-password`） | 在线玩家名 |
+| 第 3 参数（`migrate-authme`） | `dry-run` |
+
+## PlaceholderAPI 占位符
+
+LoginView 注册了标识为 `axsloginview` 的 PlaceholderAPI 扩展，提供账号类型查询。需安装 PlaceholderAPI 插件。
+
+|| 占位符 | 返回值 | 说明 |
+|---|---|---|
+| `%axsloginview_account_type%` | `microsoft` / `littleskin` / `offline` | 玩家账号类型 ID |
+| `%axsloginview_account_type_display%` | `微软正版` / `LittleSkin` / `离线` | 账号类型中文展示名 |
+| `%axsloginview_account_type_name%` | 同上 | `account_type_display` 的别名 |
+| `%axsloginview_is_microsoft%` | `true` / `false` | 是否为微软正版账号 |
+| `%axsloginview_is_littleskin%` | `true` / `false` | 是否为 LittleSkin 账号 |
+| `%axsloginview_is_offline%` | `true` / `false` | 是否为离线账号 |
+| `%axsloginview_is_premium%` | `true` / `false` | 是否为正版账号（微软或 LittleSkin） |
+
+:::info
+账号类型由宿主 `AccountTypeService` 统一判定，基于玩家名在 Mojang 正版数据库和 authlib-injector 认证服务中的查询结果。占位符查询时若服务未就绪，返回 `offline`。
+:::
+
+## UI 数据包
+
+LoginView 通过 ArcartX UI（Aria）的 `packet-id` 通道与客户端通信。服务端发送 `init`、`result`、`close` 三种包，客户端回传 `login`、`register`、`change_password`、`bypass_enter`、`bind_code`、`refresh` 六种操作。
+
+### 服务端 → 客户端
+
+#### init 包
+
+服务端打开 UI 时发送，携带界面初始化数据，客户端据此渲染对应类型的登录界面。
+
+|| 字段 | 类型 | 说明 |
+|---|---|---|
+| `packetId` | string | 客户端回包 ID（`AXS_loginview`），用于 `Packet.send` 回传 |
+| `type` | string | 界面类型：`login` / `register` / `change` / `bypass` / `bypass_unbound` |
+| `title` | string | 界面标题文本 |
+| `mode` | string | 认证模式：`standalone` / `authme` |
+| `registered` | boolean | 玩家是否已注册 |
+| `premiumBypass` | boolean | 是否通过正版验证免登录 |
+| `qqBound` | boolean | 是否已绑定 QQ |
+| `bindPrompt` | `List<String>` | 未绑定 QQ 时的提示消息列表 |
+| `playerName` | string | 玩家名称 |
+| `serverName` | string | 服务器名称 |
+| `online` | int | 当前在线人数 |
+| `maxPlayers` | int | 最大玩家数 |
+| `address` | string | 服务器 IP 地址 |
+| `time` | string | 服务器时间字符串（`yyyy-MM-dd HH:mm:ss`） |
+| `message` | string | 初始结果消息 |
+| `requireTerms` | boolean | 是否要求同意服务条款 |
+
+#### result 包
+
+操作完成后发送，携带成功/失败消息。
+
+|| 字段 | 类型 | 说明 |
+|---|---|---|
+| `success` | boolean | 操作是否成功 |
+| `message` | string | 操作结果消息文本 |
+
+#### close 包
+
+登录成功后关闭 UI 时发送。
+
+|| 字段 | 类型 | 说明 |
+|---|---|---|
+| `message` | string | 关闭时的结果消息 |
+
+### 客户端 → 服务端
+
+客户端通过 `Packet.send(packetId, action, ...args)` 回传数据，服务端在 `handleClientPacket` 中处理。
+
+|| action | 参数 | 说明 |
+|---|---|---|
+| `login` | `password`, `agreed` | 登录：密码 + 是否同意服规 |
+| `register` | `password`, `confirmPassword`, `agreed` | 注册：密码 + 确认密码 + 是否同意服规 |
+| `change_password` | `oldPassword`, `newPassword`, `confirmPassword` | 修改密码：旧密码 + 新密码 + 确认密码 |
+| `bypass_enter` | `agreed` | 免密进入：是否同意服规（正版/LittleSkin 玩家） |
+| `bind_code` | `code` | QQ 绑定：输入验证码确认绑定 |
+| `refresh` | - | 刷新：重新打开登录界面 |
+
+:::caution
+客户端回包由 `PacketGuardAPI` 在路由层统一安全校验，防止伪造数据包。`packet-id` 必须与配置中的 `ui.packet-id` 一致才会被处理。
+:::
+
+## UI 文件
+
+LoginView 内置两套 UI 风格，通过 `ui.ui-file` 配置切换：
+
+|| UI 文件 | 风格 | 说明 |
+|---|---|---|
+| `login_view.yml` | 紧凑面板 | 居中面板布局，680×360，含登录/注册/改密/免登/绑定/服规全部界面 |
+| `login_view_menu.yml` | 纯色块主菜单 | 左侧功能栏 + 右侧装饰，430px 侧栏，适合大屏服务器 |
+
+两套 UI 的 `packetHandler` 结构一致，均处理 `init`、`result`、`close` 三种服务端包。UI 文件导出到 `plugins/ArcartXSuite/ui/` 目录，可自行修改样式。详见 [Icons 指南](/docs/guide/icons)。
+
+:::tip
+修改 UI 文件后无需重启，执行 `/axs reload loginview` 即可热重载。若需恢复默认 UI，将 `ui.overwrite-ui-files` 设为 `true` 后重载。
+:::

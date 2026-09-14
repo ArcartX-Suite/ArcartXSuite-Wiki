@@ -1,0 +1,304 @@
+---
+title: 玩家状态与装备机制
+description: 玩家称号状态模型、装备/卸下/隐藏/展示称号机制与过期清理详解
+---
+
+# 玩家状态与装备机制
+
+## 状态模型概览
+
+Title 模块使用三层不可变 record 描述玩家称号状态：
+
+| 层次 | Record | 说明 |
+|---|---|---|
+| 持久层 | `PlayerTitleState` | 玩家完整运行时状态，含拥有称号、装备分组、展示称号 |
+| 拥有记录 | `PlayerOwnedTitle` | 单个称号的拥有记录，含发放/激活/过期/隐藏信息 |
+| 解析层 | `ResolvedTitleState` | 配置与状态合并后的解析结果，含属性汇总与套装信息 |
+
+> 所有状态 record 均为不可变对象，每次状态转换返回新实例。`TitleStateResolver` 负责将 `PlayerTitleState` 与 `TitleModuleConfiguration` 合并生成 `ResolvedTitleState`。
+
+## PlayerOwnedTitle 拥有记录
+
+`PlayerOwnedTitle` 记录玩家拥有的单个称号的全部信息：
+
+| 字段 | 类型 | 说明 |
+|---|---|---|
+| `titleId` | `String` | 称号 ID |
+| `hidden` | `boolean` | 是否隐藏（不展示但收集属性仍生效） |
+| `grantedAt` | `Instant` | 发放时间 |
+| `activatesAt` | `Instant` | 激活时间，`null` 表示立即激活 |
+| `expiresAt` | `Instant` | 过期时间，`null` 表示永久 |
+| `updatedAt` | `Instant` | 最后更新时间 |
+| `grantedBy` | `String` | 发放者名称 |
+
+### 生效判断
+
+| 方法 | 判断逻辑 | 说明 |
+|---|---|---|
+| `isActive(now)` | `activatesAt == null` 或 `activatesAt <= now` | 是否已到激活时间 |
+| `isExpired(now)` | `expiresAt != null` 且 `expiresAt <= now` | 是否已过期 |
+| `isEffective(now)` | `isActive(now)` 且 `!isExpired(now)` | 是否生效（已激活且未过期） |
+| `remainingMillis(now)` | `expiresAt == null` 返回 `-1`，否则 `max(0, expiresAt - now)` | 剩余毫秒数 |
+
+### 时长格式与解析
+
+`TitleDurationParser` 支持三种时长格式，通过 `TitleDurationSpec` 封装：
+
+| 模式 | 格式示例 | activatesAt | expiresAt | 说明 |
+|---|---|---|---|---|
+| 永久 | `permanent` | `null` | `null` | 永不过期 |
+| 临时时长 | `7d`、`12h`、`30m`、`30s` | `null` | `now + duration` | 从授予时刻开始计时 |
+| 日期区间 | `2025-01-01~2025-12-31` | 开始日 00:00 | 结束日次日 00:00 | 固定日期范围 |
+
+> 日期区间的结束日当天 00:00（即次日零点）过期。时区使用服务器系统默认时区（`ZoneId.systemDefault()`）。
+
+### 重复授予行为
+
+当玩家已拥有某称号时再次授予，`PlayerTitleState.grant()` 的处理逻辑：
+
+- 刷新发放信息（`grantedAt`、`activatesAt`、`expiresAt`、`grantedBy`）
+- **保留原隐藏状态**（`hidden` 字段不变）
+- 重新执行 `sanitize()` 清理
+
+```java
+boolean hidden = updatedTitles.containsKey(titleId) && updatedTitles.get(titleId).hidden();
+updatedTitles.put(titleId, new PlayerOwnedTitle(titleId, hidden, grantedAt, activatesAt, expiresAt, now, grantedBy));
+```
+
+## PlayerTitleState 运行时状态
+
+`PlayerTitleState` 包含玩家全部称号运行时数据：
+
+| 字段 | 类型 | 说明 |
+|---|---|---|
+| `playerUuid` | `UUID` | 玩家 UUID |
+| `equippedTitleIdsByGroup` | `Map<String, String>` | 分组 ID → 已装备称号 ID |
+| `ownedTitles` | `Map<String, PlayerOwnedTitle>` | 称号 ID → 拥有记录 |
+| `displayTitleId` | `String` | 展示称号 ID，空表示无展示称号 |
+| `updatedAt` | `Instant` | 最后更新时间 |
+
+> 所有 Map 字段在构造时转为不可变副本。ID 统一 `trim().toLowerCase()` 规范化。
+
+### 状态转换方法
+
+| 方法 | 操作 | 说明 |
+|---|---|---|
+| `grant(titleId, ...)` | 授予称号 | 新增或刷新拥有记录，保留隐藏状态 |
+| `revoke(titleId, now)` | 回收称号 | 移除拥有记录，同时清除装备与展示记录 |
+| `setHidden(titleId, hidden, now)` | 设置隐藏 | 修改隐藏状态，未拥有或状态未变时返回 `this` |
+| `equip(groupId, titleId, now)` | 装备称号 | 在指定分组装备称号，需先拥有该称号 |
+| `unequipGroup(groupId, now)` | 卸下分组 | 移除指定分组的装备记录，同步清除展示称号 |
+| `unequipAll(now)` | 全部卸下 | 清空所有分组装备，同步清除展示称号 |
+| `withDisplayTitle(titleId, now)` | 设置展示称号 | 需先拥有该称号，空字符串清除展示称号 |
+| `sanitize(now)` | 清理过期 | 移除过期/未激活称号及无效装备记录 |
+
+## 装备/卸下机制
+
+### 装备流程（equipTitle）
+
+`TitleService.equipTitle()` 的完整流程：
+
+1. **校验称号存在**：`requireTitle(titleId)` 查找称号定义
+2. **校验分组权限**：`hasGroupAccess(player, groupId)` 检查分组访问权限
+3. **校验拥有状态**：`state.hasOwnedTitle(titleId)` 检查是否拥有
+4. **状态转换**：`state.equip(groupId, titleId, now).sanitize(now)`
+5. **持久化**：`repository.saveEquippedTitle()` 写入装备记录
+6. **属性同步**：`syncExternalAttributes()` 同步到四大属性插件
+7. **菜单刷新**：`refreshMenu()` 发送 UI 更新包
+8. **Tab 刷新**：`requestGlobalTabRefresh("title-equip")` 请求全局 Tab 刷新
+
+> 装备新称号到已有装备的分组时，直接替换原装备称号（`equip` 方法使用 `Map.put` 覆盖）。
+
+### 卸下流程
+
+| 操作 | 方法 | 持久化 | 说明 |
+|---|---|---|---|
+| 卸下指定分组 | `unequipGroup(player, groupId)` | `deleteEquippedGroup` | 移除该分组装备记录，若该称号为展示称号则同步清除 |
+| 卸下全部分组 | `unequipAll(player)` | `deleteAllEquippedGroups` | 清空所有装备记录，同步清除展示称号 |
+
+### 隐藏/取消隐藏
+
+隐藏称号后，该称号不参与头顶/聊天展示，但收集属性仍然生效：
+
+```java
+// setHidden 流程
+PlayerTitleState updatedState = state.setHidden(titleId, hidden, now).sanitize(now);
+// 持久化拥有记录（含 hidden 字段）
+queueWrite("save-owned:hidden", () -> repository.saveOwnedTitle(playerUuid, ownedTitle));
+// 刷新菜单与 Tab
+refreshMenu(player);
+requestGlobalTabRefresh(hidden ? "title-hide" : "title-unhide");
+```
+
+## 展示称号机制
+
+### 展示称号选择逻辑
+
+`TitleStateResolver.resolveTotalDisplayTitle()` 按以下优先级确定展示称号：
+
+1. **显式指定**：若玩家设置了 `displayTitleId`，且该称号已装备且可访问，使用该称号
+2. **自动选择**：按 `display-title.groups` 配置的分组顺序，取第一个已装备且可访问的称号
+3. **无展示称号**：以上都不满足时返回 `null`
+
+```java
+// 1. 检查显式指定的展示称号
+if (!displayTitleId.isBlank()) {
+    TitleDefinition explicit = configuration.title(displayTitleId);
+    if (explicit != null && isAccessible(...) && state.equippedTitleIdsByGroup().containsValue(displayTitleId)) {
+        return explicit;
+    }
+}
+// 2. 按分组顺序自动选择
+for (String groupId : groupOrder) {
+    String titleId = state.equippedTitleIdsByGroup().get(groupId);
+    TitleDefinition title = configuration.title(titleId);
+    if (title != null && isAccessible(...)) return title;
+}
+return null;
+```
+
+### 设置展示称号条件
+
+`selectDisplayTitle()` 要求称号必须已装备才能设为展示称号：
+
+- 称号必须存在（`requireTitle` 非空）
+- 玩家必须有分组权限（`hasGroupAccess`）
+- 称号必须已装备（`equippedTitleIdsByGroup.containsValue`）
+
+> 若卸下某分组称号时该称号恰好是展示称号，展示称号会被自动清除（`unequipGroup` 中 `updatedDisplayTitleId = removedTitleId.equals(displayTitleId) ? "" : displayTitleId`）。
+
+## 过期清理机制
+
+### sanitize() 清理逻辑
+
+`PlayerTitleState.sanitize(now)` 在每次状态访问时执行清理：
+
+1. **清理拥有记录**：移除 `!isEffective(now)` 的称号（过期或未激活）
+2. **清理装备记录**：移除指向已清理称号的装备记录
+3. **清理展示称号**：展示称号对应的拥有记录被清理或不再装备时，清除展示称号
+4. **无变化优化**：若清理后状态与原状态一致，返回 `this` 避免不必要的对象创建
+
+### 后台定时清理
+
+`TitleService` 启动时注册定时任务 `tickExpirationCleanup()`：
+
+```java
+expirationTask = AxsScheduler.runTaskTimer(
+    plugin,
+    this::tickExpirationCleanup,
+    configuration.expirationCleanupIntervalTicks(),
+    configuration.expirationCleanupIntervalTicks()
+);
+```
+
+| 配置 | 默认值 | 说明 |
+|---|---|---|
+| `settings.expiration-cleanup-interval-ticks` | `1200`（60 秒） | 清理周期，最小值 20 ticks |
+
+### 清理任务执行流程
+
+1. 遍历所有缓存玩家状态（`states.keySet()`）
+2. 对每个状态执行 `sanitize(now)`
+3. 若状态发生变化：更新缓存、持久化装备状态、同步外部属性、刷新菜单
+4. 批量删除数据库中已过期记录：`repository.deleteExpiredTitles(now)`
+
+> 清理任务仅处理缓存在内存中的在线玩家状态。离线玩家的过期记录在下次登录 `preloadPlayer` 时通过 `sanitize` 清理。
+
+## ResolvedTitleState 解析结果
+
+`TitleStateResolver.resolve()` 将玩家状态与模块配置合并，生成完整的解析结果：
+
+| 字段 | 类型 | 说明 |
+|---|---|---|
+| `equippedTitleIdsByGroup` | `Map<String, String>` | 各分组已装备的称号 ID |
+| `equippedTitlesByGroup` | `Map<String, TitleDefinition>` | 各分组已装备的称号定义 |
+| `displayAttributes` | `Map<String, Double>` | 展示属性汇总（仅装备称号） |
+| `collectionAttributes` | `Map<String, Double>` | 收集属性汇总（所有拥有称号） |
+| `totalAttributes` | `Map<String, Double>` | 总属性（收集 + 展示 + 套装奖励） |
+| `displayAttributeSourceLines` | `List<String>` | 展示属性源文本行 |
+| `collectionAttributeSourceLines` | `List<String>` | 收集属性源文本行 |
+| `totalAttributeSourceLines` | `List<String>` | 总属性源文本行 |
+| `ownedCount` | `int` | 可访问的拥有称号数量 |
+| `hiddenCount` | `int` | 可访问的隐藏称号数量 |
+| `setCompletionCounts` | `Map<String, Integer>` | 套装完成度 |
+| `setActiveMap` | `Map<String, Boolean>` | 套装激活状态 |
+| `setBonusAttributes` | `Map<String, Double>` | 套装奖励属性汇总 |
+| `setBonusAttributeSourceLines` | `List<String>` | 套装奖励属性源文本行 |
+| `totalDisplayTitle` | `TitleDefinition` | 展示称号定义，无展示称号时为 `null` |
+
+### 分组权限过滤
+
+解析过程中，所有称号、属性、套装完成度均经过 `isAccessible()` 过滤：
+
+```java
+private static boolean isAccessible(
+    TitleModuleConfiguration configuration,
+    Set<String> accessibleGroupIds,
+    String groupId
+) {
+    return configuration.group(groupId) == null
+        || accessibleGroupIds == null
+        || accessibleGroupIds.contains(groupId);
+}
+```
+
+> 无分组权限的称号不计入拥有数量、不参与属性汇总、不计入套装完成度。
+
+## 玩家上线/下线处理
+
+### 上线预加载（preloadPlayer）
+
+`PlayerTitleListener.onJoin` 触发 `TitleService.preloadPlayer()`：
+
+1. 异步从数据库加载玩家状态（`ensureLoadedAsync`）
+2. 加载完成后回到主线程同步外部属性
+3. 延迟 20 ticks 后再次同步（确保其他插件初始化完成）
+
+### 下线清理（clearPlayer）
+
+`PlayerTitleListener.onQuit` 触发 `TitleService.clearPlayer()`：
+
+1. 清除四大属性插件的属性源/修饰器
+2. 清除头顶显示效果
+3. 从内存缓存中移除玩家状态
+
+> 下线时不清除数据库记录，仅清理内存缓存。下次上线时重新从数据库加载。
+
+## 数据库持久化
+
+### 异步写入
+
+`TitleService` 使用单线程 `ExecutorService` 异步执行数据库写入，避免阻塞主线程：
+
+```java
+private final ExecutorService databaseExecutor = Executors.newSingleThreadExecutor(new TitleThreadFactory());
+
+private void queueWrite(String description, RepositoryAction repositoryAction) {
+    if (!databaseWritesEnabled) return;
+    databaseExecutor.submit(() -> {
+        try {
+            repositoryAction.run();
+        } catch (SQLException exception) {
+            logger.warning("TitleDB 操作失败(" + description + "): " + exception.getMessage());
+        }
+    });
+}
+```
+
+> 关闭服务时（`shutdown`），先设置 `databaseWritesEnabled = false`，再等待线程池最多 10 秒优雅关闭，超时则强制关闭。
+
+### 持久化操作一览
+
+| 操作 | 数据库方法 | 触发场景 |
+|---|---|---|
+| 授予称号 | `saveOwnedTitle` | `giveTitle` |
+| 回收称号 | `deleteOwnedTitle` + `deleteEquippedTitle` | `revokeTitle` |
+| 装备称号 | `saveEquippedTitle` | `equipTitle` |
+| 卸下分组 | `deleteEquippedGroup` | `unequipGroup` |
+| 卸下全部 | `deleteAllEquippedGroups` | `unequipAll` |
+| 设置展示 | `saveDisplayTitle` / `deleteDisplayTitle` | `selectDisplayTitle` |
+| 隐藏称号 | `saveOwnedTitle` | `setHidden` |
+| 过期清理 | `deleteExpiredTitles` | `tickExpirationCleanup` |
+| 状态修正 | `deleteAllEquippedGroups` + `saveEquippedTitle` | `sanitize` 检测到装备变化 |
+
+> 条件评估相关内容可参考 [/docs/guide/conditions](/docs/guide/conditions)。

@@ -1,0 +1,12 @@
+{
+  "title": "VanillaUI 原版界面替换",
+  "description": "替换原版工作台与熔炉界面为 ArcartX UI",
+  "color": "#10b981",
+  "pages": [
+    "index",
+    "configuration",
+    "commands",
+    "recipe-book",
+    "integration"
+  ]
+}

@@ -1,0 +1,281 @@
+---
+title: 命令与占位符
+description: CombatEffect 命令、权限、PlaceholderAPI 占位符与 UI 包通讯
+---
+
+# 命令与占位符
+
+## 管理员命令
+
+CombatEffect 模块的管理命令通过 `/axs combateffect <子命令>` 触发，控制台和玩家均可执行。
+
+| 命令 | 说明 |
+|---|---|
+| `/axs combateffect help` | 显示可用子命令帮助 |
+| `/axs combateffect status` | 查看模块运行状态（包定义、子模块开关） |
+| `/axs combateffect send <包ID> <玩家> [k=v ...]` | 按包定义 ID 发送特效包 |
+| `/axs combateffect direct <uiId> <handler> <玩家> [k=v ...]` | 直接发送 UI 包（绕过包定义） |
+| `/axs reload combateffect` | 重载模块配置 |
+
+> 所有管理命令通过 ArcartXSuite 的 `/axs` 命令权限体系控制，通常需要 OP 或管理员权限。
+
+### Tab 补全
+
+| 参数位置 | 补全内容 |
+|---|---|
+| 第 2 参数 | 子命令名：`help` / `status` / `send` / `direct` |
+| 第 3 参数（`send`） | 已注册的包定义 ID 列表 |
+| 第 4 参数（`send` / `direct`） | 在线玩家名（Bukkit 自动补全） |
+
+### 命令详解
+
+#### help 查看帮助
+
+显示模块版本与所有可用子命令的用法。
+
+#### status 查看模块状态
+
+显示当前模块运行状态，包括：
+
+| 状态项 | 说明 |
+|---|---|
+| 包定义数量 | 已启用 / 总计（如 `3/8`） |
+| 战斗显示 | 已启用 / 未启用 |
+| 死亡缓冲 | 已启用 / 未启用 |
+| 连击追踪 | 已启用 / 未启用 |
+| 按键触发 | 已启用 / 未启用 |
+| 状态触发 | 已启用 / 未启用 |
+
+#### send 按包定义发送
+
+按包定义 ID 触发已注册的包定义，绕过事件匹配，直接发给指定玩家。支持附加 `k=v` 变量，会合并到 `pack` 模板渲染中。
+
+```yaml
+# 发送 kill-effect 包给玩家 Steve
+/axs combateffect send kill-effect Steve
+
+# 发送 combo-5 包并附加自定义变量
+/axs combateffect send combo-5 Steve custom_var=hello count=10
+```
+
+| 结果 | 消息 |
+|---|---|
+| 成功 | `已发送包 '{包ID}' 给 {玩家}` |
+| 玩家不在线 | `玩家 '{玩家}' 不在线。` |
+| 失败 | `发送失败（包不存在或 ArcartX 不可用）` |
+
+#### direct 直接发包
+
+直接向玩家发送 UI 包，完全绕过包定义系统。适用于调试或临时触发场景。
+
+```yaml
+# 直接向 AXS:combat_kill_effect 的 kill handler 发包
+/axs combateffect direct AXS:combat_kill_effect kill Steve
+
+# 附加自定义变量
+/axs combateffect direct AXS:combo_effect combo Steve combo_count=15
+```
+
+| 结果 | 消息 |
+|---|---|
+| 成功 | `已发送 {uiId}.{handler} 给 {玩家}` |
+| 玩家不在线 | `玩家 '{玩家}' 不在线。` |
+| 失败 | `发送失败（ArcartX 不可用）` |
+
+## 权限节点
+
+CombatEffect 模块的命令权限设计：
+
+| 权限节点 | 说明 | 默认 |
+|---|---|---|
+| `/axs combateffect` 系列命令 | 管理命令，通过 `/axs` 总命令权限控制 | 管理员可用 |
+| `/axs reload combateffect` | 重载命令，通过 `/axs` 重载权限控制 | 管理员可用 |
+
+> 本模块无独立玩家命令。所有命令均为管理命令，通过 ArcartXSuite 的 `/axs` 命令权限体系控制，通常需要 OP 或管理员权限。
+
+## PlaceholderAPI
+
+本模块**无独立 PlaceholderAPI 占位符**输出。连击数通过 ArcartX 客户端服务器变量实时同步，供 UI 直接引用。
+
+### 客户端服务器变量
+
+| 变量 | 引用方式 | 说明 |
+|---|---|---|
+| 连击数 | `{server.combo_count}` | 当前玩家连击数，需开启 `combo-tracker.sync-variable` |
+
+> 变量名可通过 `combo-tracker.variable-name` 配置项自定义。修改后 UI 中的引用方式也需同步修改。
+
+### 在 UI 中使用连击变量
+
+连击数同步到客户端后，UI 可直接通过服务器变量引用实时连击数，无需通过 packetHandler 接收：
+
+```yaml
+# combo_effect.yml 中的连击数字控件
+连击数字:
+  type: Text
+  attribute:
+    texts: "~&f{server.combo_count}"
+    visible: "server.combo_count > 0 || var.combo_show"
+```
+
+> 推荐方式：开启 `sync-variable` 后直接用 `{server.combo_count}` 显示实时数字，packetHandler 仅用于里程碑动画（如 5 连击闪光、10 连击特效）。
+
+## UI 包通讯
+
+CombatEffect 通过 ArcartX UI 客户端包与 UI 面板交互。服务端通过 `PacketBridgeAPI.sendPacket` 向客户端推送数据，客户端 UI 通过 `packetHandler` 接收并处理。
+
+### 注册的 UI 面板
+
+模块启动时注册 3 个 UI 面板：
+
+| UI ID | 文件 | 类型 | 说明 |
+|---|---|---|---|
+| `AXS:combat_kill_effect` | `ui/combat_kill_effect.yml` | HUD | 击杀/命中特效，常驻显示 |
+| `AXS:combo_effect` | `ui/combo_effect.yml` | HUD | 连击特效，常驻显示 |
+| `AXS:death_buffer` | `ui/death_buffer.yml` | 全屏 | 死亡缓冲界面，缓冲期间覆盖 |
+
+> HUD 类型 UI（`isHud: true`）默认自动打开，常驻显示。死亡缓冲界面（`closeDied: true`）在玩家真正死亡时自动关闭。
+
+### packetHandler 与触发器映射
+
+每个 UI 面板通过 `packetHandler` 接收服务端包，不同 handler 对应不同的特效行为：
+
+#### AXS:combat_kill_effect
+
+| packetHandler | 触发器 | 包字段 | 说明 |
+|---|---|---|---|
+| `attack` | `attack` | 无 | 命中特效，显示命中贴图 1 秒后自动隐藏 |
+| `kill` | `kill` / `death` | `killer`、`victim` | 击杀特效，显示击杀贴图 1.5 秒并累加击杀计数，5 秒无新击杀自动清零 |
+
+#### AXS:combo_effect
+
+| packetHandler | 触发器 | 包字段 | 说明 |
+|---|---|---|---|
+| `combo` | `combo` | `combo_count` | 普通连击，更新连击数字并显示，3 秒无新连击自动隐藏 |
+| `combo_milestone` | `combo` | `combo_count` | 里程碑连击，更新数字并播放里程碑特效动画（显示 2 秒） |
+
+#### AXS:death_buffer
+
+| packetHandler | 触发器 | 包字段 | 说明 |
+|---|---|---|---|
+| `death` | `death` | `killer`、`victim` | 死亡缓冲，显示全屏遮罩和死亡信息区，记录击杀者名称 |
+
+### 服务端推送数据格式
+
+服务端通过 `PacketBridgeAPI.sendPacket(recipient, uiId, handler, payload)` 向客户端推送数据。`payload` 为 `Map<String, Object>`，由包定义的 `pack` 模板渲染而来。
+
+```yaml
+# kill-effect 包定义
+kill-effect:
+  pack:
+    killer: "{attacker}"
+    victim: "{target}"
+
+# 实际发送的 payload（attacker=Steve, target=Zombie）
+# {"killer": "Steve", "victim": "Zombie"}
+```
+
+### 客户端 UI 处理示例
+
+客户端 UI 通过 ARIA 脚本接收并处理 packetHandler 数据：
+
+```yaml
+# combat_kill_effect.yml 中的 packetHandler
+ui:
+  packetHandler:
+    kill: |-
+      var.击杀数++
+      var.上次击杀时间 = Time.currentTime()
+      val.kill_fx.visible = true
+      async {
+        Thread.sleep(1500)
+        val.kill_fx.visible = false
+      }
+      async {
+        while (true) {
+          Thread.sleep(1000)
+          if (Time.currentTime() - var.上次击杀时间 > 5000) {
+            var.击杀数 = 0
+            break
+          }
+        }
+      }
+```
+
+```yaml
+# combo_effect.yml 中的 packetHandler
+ui:
+  packetHandler:
+    combo: |-
+      var.combo_count = Cast.toInt(packet['combo_count'])
+      var.combo_show = true
+      var.combo_time = Time.currentTime()
+      async {
+        while (true) {
+          Thread.sleep(500)
+          if (Time.currentTime() - var.combo_time > 3000) {
+            var.combo_show = false
+            var.combo_count = 0
+            break
+          }
+        }
+      }
+```
+
+### damage_display 飘字通讯
+
+伤害飘字通过 ArcartX 客户端 `ClientBridgeAPI.sendDamageDisplay` 推送，与 UI 包通讯独立。服务端发送样式 ID 与伤害数值，客户端根据 `damage_display/` 目录下的样式配置渲染数字飘字。
+
+| 方法 | 参数 | 说明 |
+|---|---|---|
+| `sendDamageDisplay` | `Player viewer, String configId, double amount, Entity target` | 向指定玩家发送伤害飘字 |
+
+> 伤害飘字不需要 UI 文件，由 ArcartX 客户端原生渲染。样式配置参考 [ArcartX 伤害飘字文档](https://wiki.arcartx.com/docs/core/2_simple/9_damage_display)。
+
+## 消息本地化
+
+模块消息文件 `messages.yml` 支持颜色码（`&`）和占位符（`{0}`、`{1}`）。修改后执行 `/axs reload combateffect` 即可生效。
+
+```yaml
+# messages.yml
+prefix: "&3◆ &6CombatEffect &7| &r"
+
+common:
+  unknown: "&e未知子命令。使用 {0} help 查看帮助。"
+  enabled: "&a已启用"
+  disabled: "&c未启用"
+
+help:
+  title: "&6CombatEffect v{0}"
+  status: "&7{0} status&f — 查看模块状态"
+  send: "&7{0} send <包ID> <玩家> [k=v ...]&f — 按包定义发送"
+  direct: "&7{0} direct <uiId> <handler> <玩家> [k=v ...]&f — 直接发包"
+
+status:
+  title: "&6CombatEffect v{0}&a 运行中"
+  packets: "&7包定义: &f{0}"
+  display: "&7战斗显示: {0}"
+  death-buffer: "&7死亡缓冲: {0}"
+  combo: "&7连击追踪: {0}"
+  keybind: "&7按键触发: {0}"
+  state: "&7状态触发: {0}"
+
+send:
+  usage: "&e用法: {0} send <包ID> <玩家> [k=v ...]"
+  player-offline: "&c玩家 '{0}' 不在线。"
+  success: "&a已发送包 '{0}' 给 {1}"
+  fail: "&c发送失败（包不存在或 ArcartX 不可用）"
+
+direct:
+  usage: "&e用法: {0} direct <uiId> <handler> <玩家> [k=v ...]"
+  player-offline: "&c玩家 '{0}' 不在线。"
+  success: "&a已发送 {0}.{1} 给 {2}"
+  fail: "&c发送失败（ArcartX 不可用）"
+```
+
+## 相关文档
+
+- [概览](/docs/combateffect) — 模块功能与战斗特效机制
+- [配置](/docs/combateffect/configuration) — 完整配置字段表与示例
+- [联动](/docs/combateffect/integration) — EventBus 事件、Capability、跨模块联动
+- [图标配置](/docs/guide/icons) — 统一图标系统配置指南

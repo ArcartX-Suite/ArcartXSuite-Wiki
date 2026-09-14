@@ -1,0 +1,154 @@
+---
+title: "概览"
+description: "OnlineRewards 在线奖励功能概览"
+---
+
+## 模块简介
+
+OnlineRewards（在线奖励）模块为服务器提供完整的在线时长激励体系。它以每分钟为粒度统计玩家当日、本周、本月和总在线时长，并在达到配置的分钟阈值时自动发放阶段奖励。同时提供每日签到、连续签到里程碑、累计签到里程碑、每月指定日期奖励、节日奖励、补签卡、权限组加成、离线时长储蓄、全服签到目标、时刻奖励等丰富的签到玩法，配合 ArcartX 客户端日历 UI 实现可视化签到体验。
+
+模块支持跨服同步（需共享 MySQL 数据库），签到/补签/管理员操作后自动通知其他子服刷新缓存与 UI。
+
+## 功能特性
+
+| 特性 | 说明 |
+|---|---|
+| 四维在线时长统计 | 今日 / 本周 / 本月 / 总在线分钟数，每分钟 tick 累计 |
+| 在线阶段奖励 | 按当日累计在线分钟数分阶段触发，支持命令、邮件预设、物品奖励 |
+| 每日签到 | 每日签到领取基础奖励，支持进服提醒 |
+| 连续签到里程碑 | 连续签到天数"恰好等于"指定天数时触发额外奖励 |
+| 累计签到里程碑 | 累计签到天数"恰好等于"指定天数时触发额外奖励 |
+| 每月指定日期奖励 | 每月特定日期签到触发额外奖励 |
+| 节日签到奖励 | 指定月日签到触发节日奖励 |
+| 补签卡 | 消耗补签卡补签本月今天之前未签到的日期 |
+| 权限组加成 | 拥有指定权限的玩家签到时额外发放一组奖励 |
+| 在线时长倍率 | 按权限节点配置在线时长倍率（如 VIP 2 倍计时），多组取 priority 最高 |
+| 周/月累计奖励 | 每周/每月累计在线时长达到阈值发放奖励，支持重复领取 |
+| 离线时长储蓄 | 下线时按比例存储当日在线时长，次日登录作为初始加成 |
+| 全服签到目标 | 全服签到人数达到目标后给所有在线玩家发奖励（命令/邮件/聊天卡片/字幕/标题/QQ广播） |
+| 时刻奖励 | 在指定时刻（如每天 20:00）给所有在线玩家发放奖励 |
+| 排行榜 | 日榜 / 周榜 / 月榜 / 总榜 Top10，定时刷新缓存 |
+| 日历 UI | ArcartX 客户端签到日历界面，可视化签到历史与补签操作 |
+| 跨服同步 | 签到/补签/管理员操作后通知其他子服刷新缓存与 UI |
+| PAPI 占位符 | 提供 `%axsonlinerewards_*%` 系列占位符查询时长、签到、排行榜等 |
+
+## 依赖
+
+| 依赖类型 | 名称 | 说明 |
+|---|---|---|
+| 硬依赖 | ArcartX | 需安装 ArcartX 客户端模组并启用客户端桥接 |
+| 外部硬依赖 | PlaceholderAPI | 占位符扩展依赖 |
+| 可选联动 | Mail | 邮件预设发放（`mail.presets` 字段） |
+| 可选联动 | MythicMobs / NeigeItems / Overture / MMOItems | 物品奖励来源 |
+| 可选联动 | QQBot | 全服签到目标达成时 QQ 群广播 |
+
+## 奖励机制详解
+
+### 在线阶段奖励（rewards.yml）
+
+玩家当日在线时长每分钟累计一次。当累计分钟数达到某个阶段的 `minutes` 阈值时，自动触发该阶段奖励：
+
+- 执行 `commands` 列表中的控制台命令（支持 `{player}` 变量）
+- 发送 `mail.presets` 列表中的邮件预设（需 Mail 模块）
+- 通过 ItemSourceRegistry 发放 `item-rewards` 物品奖励（背包满转邮件兜底）
+
+阶段按配置顺序推进，每个阶段只能触发一次。跨天时 `onlineMinutes` 和 `rewardStage` 自动归零。
+
+```yaml
+# rewards.yml
+rewards:
+  - minutes: 30
+    name: "第一阶段"
+    rewardText: "在线 30 分钟奖励"
+    commands:
+      - "say {player} 达成第一阶段"
+    mail:
+      presets: []
+    item-rewards:
+      - source: "minecraft"
+        id: "DIAMOND"
+        amount: 1
+```
+
+### 签到奖励（sign-in.yml）
+
+签到系统支持多层奖励叠加，每次签到时按以下顺序收集并合并发放：
+
+1. **基础奖励**（`base-commands` / `base.mail.presets` / `base.item-rewards`）— 每次签到固定发放
+2. **每月指定日期奖励**（`day-of-month-rewards`）— 当月 `day` 日签到时额外触发
+3. **节日奖励**（`holiday-rewards`）— 指定 `month` + `day` 签到时额外触发
+4. **连续签到里程碑**（`streak-rewards`）— 连续签到天数恰好等于 `days` 时触发
+5. **累计签到里程碑**（`total-rewards`）— 累计签到天数恰好等于 `days` 时触发
+6. **权限组加成**（`permission-bonus-groups`）— 拥有对应权限时额外触发，多组取 priority 最高
+
+> 里程碑奖励的触发条件是"恰好等于"，即连续签到 7 天的奖励只在第 7 天签到时触发一次，不会在第 8 天重复触发。
+
+### 里程碑奖励
+
+里程碑奖励分为连续签到和累计签到两类：
+
+- **连续签到**（`streak-rewards`）：从最近一次签到日期向前连续回溯计算连续天数。如果中间断签，连续天数归零后重新计算。
+- **累计签到**（`total-rewards`）：统计玩家历史所有签到记录的总天数。
+
+```yaml
+# sign-in.yml
+streak-rewards:
+  - days: 7
+    rewardText: "连续签到 7 天奖励"
+    commands:
+      - "say {player} 连续签到 7 天"
+    mail:
+      presets: ["weekly_bonus"]
+
+total-rewards:
+  - days: 30
+    rewardText: "累计签到 30 天奖励"
+    commands:
+      - "give {player} nether_star 1"
+```
+
+### 补签卡
+
+补签卡允许玩家对本月今天之前未签到的日期进行补签。补签时消耗 1 张补签卡，补签日期的签到奖励与正常签到一致（基础 + 日期 + 节日 + 里程碑 + 权限加成）。补签卡数量可通过管理员命令调整。
+
+### 周/月累计在线奖励
+
+`weekly-rewards` 和 `monthly-rewards` 分别按本周/本月累计在线分钟数发放奖励。`repeat: true` 的奖励每个周期可重复领取一次；`repeat: false` 的奖励仅领取一次，跨周期时保留领取记录。
+
+### 离线时长储蓄
+
+启用后，玩家下线时按 `storage-rate` 比例存储当日已在线时长（上限 `max-minutes` 分钟）。次日登录时，储蓄的时长作为当日初始在线时长加成，使玩家不会因下线而完全丢失前一天的进度。
+
+### 全服签到目标
+
+每次玩家签到时统计今日全服签到人数。当签到人数达到某个目标的 `required` 阈值时，给所有在线玩家发放该目标的奖励（命令/邮件/物品/聊天卡片/字幕/标题），并可通过 QQBot 广播。每个目标每天只触发一次。
+
+### 时刻奖励
+
+在指定时刻（如每天 20:00）给所有在线玩家发放奖励。调度模式支持 hourly（整点）、daily（每天指定时间）、weekly（每周指定星期几）、interval（固定间隔）。
+
+```yaml
+# ArcartXOnlineRewards.yml
+time-based-rewards:
+  - id: "evening_reward"
+    enabled: true
+    schedule:
+      mode: daily
+      time: "20:00"
+    name: "晚间在线奖励"
+    commands:
+      - "say 晚间在线奖励已发放给 {player}"
+    broadcast: "§e[时刻奖励] §f晚间在线奖励已发放！"
+```
+
+## 配置文件概览
+
+| 文件 | 说明 |
+|---|---|
+| `ArcartXOnlineRewards.yml` | 主配置文件，包含设置、UI、存储、跨服、时间倍率、周/月奖励、离线储蓄、全服签到目标、时刻奖励 |
+| `sign-in.yml` | 签到配置文件，包含基础签到、补签卡、连续/累计里程碑、日期/节日奖励、权限组加成 |
+| `rewards.yml` | 在线阶段奖励配置文件，定义各阶段的分钟阈值与奖励内容 |
+| `messages.yml` | 消息文件，命令提示与状态文本 |
+| `ui/online_rewards_menu.yml` | ArcartX 客户端菜单 UI 定义 |
+
+详细配置说明请参考 [配置](/docs/onlinerewards/configuration)，命令与占位符请参考 [命令与占位符](/docs/onlinerewards/commands)，跨模块联动请参考 [联动](/docs/onlinerewards/integration)。

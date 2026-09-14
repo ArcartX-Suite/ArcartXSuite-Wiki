@@ -1,0 +1,133 @@
+---
+title: 概览
+description: Tab 自定义在线列表模块功能概览
+---
+
+# Tab 在线列表
+
+## 模块简介
+
+Tab 是 ArcartXSuite 的自定义 Tab 列表面板模块。它周期性扫描在线玩家，按配置规则排序、过滤、分组、分页后，将渲染结果通过 ArcartX Packet 推送给客户端 Tab UI。模块支持多 Tab 定义、多键复合排序、PVP 高亮、隐身灰化、延迟图标、跨服聚合、退服宽限、快照调试等高级特性，完全替代原版 Tab 列表的显示逻辑。
+
+模块采用**服务端周期 diff 同步**机制：每隔 `refresh-interval-ticks` 扫描一次在线玩家，为每个 Tab 定义构建 payload，仅在内容发生变化时发包给客户端，避免无意义的高频推送。客户端也可通过 `Packet.send("TAB", "update")` 主动请求刷新，但受滑动窗口限流保护。
+
+模块内置三套 UI 模板（`tab` / `tab-rich` / `tab-arena`），分别对应基础文本列表、富信息列表（含头像与延迟图标）、竞技场红蓝双队布局，覆盖从简单到复杂的常见使用场景。
+
+## 功能特性
+
+| 特性 | 说明 |
+|---|---|
+| 多 Tab 定义 | 通过 `tabs/` 目录下每个 `.yml` 文件定义一个独立 Tab，文件名即定义 ID |
+| 多 UI 目标 | 单个 Tab 定义可通过 `ui-targets` 同时推送到多个 UI，每个 UI 可指定独立的 packet-handler |
+| 多键复合排序 | `sort-keys` 支持多级排序，每级可选 `name` / `prem` / `papi` 模式，按列表顺序优先级递减 |
+| 过滤器 | `filters.include` / `filters.exclude` 支持 PAPI 表达式与权限匹配，`hide-vanished` 自动隐藏隐身玩家 |
+| 置顶 / 置底 | `pinned.top` / `pinned.bottom` 规则将指定玩家排在最前或最后，三个分桶各自内部排序 |
+| 分组 | `grouping` 按 PAPI 表达式分桶，每组前可插入 `header-pack`，支持 `group-order` 排序与 `include-unordered` 控制 |
+| 分页 | `pagination` 每页固定行数，客户端发包 `Packet.send("TAB_PAGE", "next")` 或命令 `/axstab page` 翻页 |
+| 跨服聚合 | `aggregate` 模式将每个服务器显示为一行（不展开玩家），用于大区网络总览 |
+| 多视图 | 玩家通过 `/axstab view <name>` 切换 view，只有 `definition.view` 与玩家当前 view 匹配时才推送数据 |
+| 视觉风格 | PVP 高亮（`%axstab_pvp_color%`）、隐身灰化（`%axstab_vanish_color%`）、延迟图标（`%axstab_ping_icon%`） |
+| 隐私脱敏 | `privacy.hide-uuid` / `privacy.hide-ip` 对 UUID 与 IP 占位符脱敏 |
+| 跨服同步 | 本服与远程节点快照聚合，支持退服宽限期（`leave-grace-ms`）避免跨服跳传闪烁 |
+| 客户端限流 | `client-refresh-guard` 滑动窗口限流，防止恶意高频刷新 |
+| PAPI 兜底 | 未安装 `player` / `server` PAPI 扩展时自动注册内置兜底实现 |
+| 调试工具 | `dry-run` 模式、快照存档 / 加载 / 卸载（`/axstab snapshot`） |
+| 内置变量 | pack 中可直接使用 `{player_name}` / `{player_uuid}` / `{player_health}` 等花括号变量 |
+
+## 依赖
+
+| 依赖类型 | 名称 | 说明 |
+|---|---|---|
+| 外部硬依赖 | PlaceholderAPI | 占位符解析（无则占位符不可用，模块仍可运行） |
+| ArcartX 本体 | ArcartX-Suite | 模块运行基础环境，提供 PacketBridge / CrossServer / PlaceholderResolver |
+
+> 模块不硬依赖任何 ArcartX 子模块。跨服同步需要宿主 `config.yml` 的 `cross-server` 节配置 Redis 或 Proxy 后端。PVP 高亮需要 `settings.style.pvp-highlight.enabled: true`。
+
+## Tab 列表机制详解
+
+### 服务端周期同步流程
+
+Tab 模块的核心是 `TabSyncService`，它在启动时注册一个周期任务（间隔 = `settings.refresh-interval-ticks`），每次执行以下流程：
+
+```
+refresh()
+  ├─ cleanupStaleSnapshots()     ← 清理过期的跨服快照（超过 stale-snapshot-ms）
+  ├─ cleanupGraceCache()         ← 清理过期的退服宽限缓存
+  ├─ onlinePlayers()             ← 收集在线玩家列表
+  ├─ dispatchRefresh()            ← 为每个 enabled 的 definition 构建 payload 并推送
+  │    └─ 对每个 viewer：
+  │         ├─ 检查 view 是否匹配
+  │         ├─ buildPayloadForViewer()
+  │         │    ├─ aggregate 模式 → buildAggregatePayload()
+  │         │    ├─ cross-server 模式 → buildCrossServerPayload()
+  │         │    └─ 本服模式 → sortPlayers() + applyPagination() + buildPayload()
+  │         ├─ 结构化 diff（与上次 payload 比较，相同则跳过）
+  │         └─ bridge.sendPacket(viewer, uiId, handler, payload)
+  ├─ broadcastLocalSnapshots()   ← 跨服模式下广播本服快照到其他节点
+  └─ clientRefreshGuard.cleanup() ← 清理限流状态
+```
+
+### Payload 构建路径
+
+根据 Tab 定义的配置，payload 构建走三条不同路径：
+
+| 路径 | 触发条件 | 行为 |
+|---|---|---|
+| 本服模式 | `cross-server` 为 false | 收集在线玩家 → 过滤 → 排序 → 置顶/置底分桶 → maxEntries 截断 → 分页切片 → 逐玩家渲染 pack |
+| 跨服模式 | `cross-server` 为 true | 本服条目 + 远程节点条目合并 → 多键排序 → 置顶/置底分桶 → maxEntries 截断 → 分页切片 → grouping 分组 → 渲染 |
+| 聚合模式 | `aggregate.enabled` 且 `cross-server` 为 true | 每个服务器（含本服与远程节点）只占一行，使用 `line-pack` 渲染 |
+
+### pack 渲染机制
+
+`pack` 是 Tab 定义的核心字段，决定每个玩家在 UI 中如何显示。它支持三种形态：
+
+| pack 形态 | payload 类型 | UI 端消费方式 | 分组支持 |
+|---|---|---|---|
+| 字符串 | `List<String>` | 列表，每元素为一名玩家的渲染文本 | 支持 |
+| 列表 | `List<Object>` | 列表，每玩家的列表扁平合并为根列表 | 支持 |
+| 字典 | `Map<String, Object>` | 字典，每玩家的字典合并为根字典（相同 key 后者覆盖） | 不支持（自动退化） |
+
+pack 中的占位符按以下顺序解析：
+
+1. **花括号内置变量**：`{player_name}` / `{player_uuid}` / `{player_health}` 等，由 `buildValues()` 直接替换
+2. **ArcartX 图标 token 保护**：`%xxx<icon>` 格式的 token 被临时替换为占位符，避免被 PAPI 误解析
+3. **PlaceholderAPI 解析**：`%player_name%` / `%axstab_pvp_color%` 等所有 PAPI 占位符
+4. **图标 token 还原**：将步骤 2 保护的 token 还原
+5. **换行符转换**：`\n` 转为实际换行
+
+### 客户端刷新请求
+
+客户端可通过两种方式主动请求刷新：
+
+| 方式 | Packet | 说明 |
+|---|---|---|
+| 普通刷新 | `Packet.send("TAB", "update")` | 请求服务端重发当前 viewer 的 Tab，受 `client-refresh-guard` 限流 |
+| 翻页 | `Packet.send("TAB_PAGE", "next")` | 请求翻到下一页，受 `client-refresh-guard` 限流 |
+
+> 客户端刷新请求始终以服务端周期 diff 同步为主，客户端回包仅作为兼容入口。限流配置见 [配置](/docs/tab/configuration#客户端刷新防护)。
+
+### 内置 UI 模板
+
+模块内置三套 UI 模板，启用时自动复制到 `plugins/ArcartXSuite/ui/` 目录：
+
+| UI 文件 | ui-id | 对应 Tab 定义 | pack 形态 | 特性 |
+|---|---|---|---|---|
+| `tab.yml` | `AXS:tab` | `online-tab` | 字符串 | 基础文本列表，按住 TAB 显示，多列 VGrid 布局 |
+| `tab-rich.yml` | `AXS:tab-rich` | `demo` | 字典 | 富信息列表，含 PlayerSkin 头像 + 延迟图标 |
+| `tab-arena.yml` | `AXS:tab-arena` | `arena` | 字典 | 竞技场红蓝双队左右分栏，常驻 + 按住 TAB 切详细模式 |
+
+> UI 模板的 `packetHandler` 名称均为 `tab`，对应 Tab 定义中 `ui-targets[].packet-handler: "tab"`。UI 配置详见 [图标配置](/docs/guide/icons) 和 [ArcartX UI 文档](/docs/guide/index)。
+
+## 快速上手
+
+1. 将 `ArcartXSuite-Tab-*.jar` 放入 `plugins/ArcartXSuite/modules/` 目录
+2. 在宿主 `config.yml` 中启用模块：`modules.tab.enabled: true`
+3. 重启服务端，模块自动导出 `ArcartXTab.yml`、`tabs/` 目录和三套 UI 模板
+4. 默认 `online-tab` 定义已启用，按住 TAB 键即可看到自定义列表
+5. 如需自定义排序、过滤、分组等，编辑 `data/tab/tabs/online-tab.yml` 后执行 `/axs reload tab`
+
+## 相关文档
+
+- [配置](/docs/tab/configuration) — 完整配置字段说明与示例
+- [命令与占位符](/docs/tab/commands) — 玩家命令、管理命令、PAPI 占位符、UI 包格式
+- [联动](/docs/tab/integration) — Capability、跨服同步、模块集成

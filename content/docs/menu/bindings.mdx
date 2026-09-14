@@ -1,0 +1,598 @@
+---
+title: 绑定系统
+description: Menu 模块命令绑定、物品绑定、ESC 拦截与自定义 UI 目标详解
+---
+
+# 绑定系统
+
+> **付费模块**
+
+Menu 模块的绑定系统是菜单触发的入口层。除了通过 `/menu open <菜单ID>` 命令手动打开菜单外，模块支持三种自动触发方式：命令绑定（输入命令打开菜单）、物品绑定（手持物品交互打开菜单）和 ESC 拦截（按 ESC 键替换原版暂停界面）。此外，菜单可配置自定义 UI 目标，将同一份菜单数据发送到不同的客户端 UI。
+
+## 命令绑定
+
+命令绑定将菜单注册为游戏命令，玩家输入匹配的命令时自动打开对应菜单。绑定由 `MenuBindingRegistry` 统一管理，在菜单重载时重建。
+
+### 精确命令绑定
+
+通过菜单定义的 `commands` 字段注册精确命令别名。玩家输入 `/别名` 即可打开菜单。
+
+```yaml
+id: example
+commands:
+  - "examplemenu"
+  - "emenu"
+  - "功能菜单"
+```
+
+- 支持中文命令别名
+- 可注册多个别名
+- 命令匹配忽略大小写
+- 支持带参数匹配：`/examplemenu arg1 arg2` 同样触发（匹配前缀 + 空格）
+
+### 命令正则匹配
+
+通过 `command-regex` 字段注册正则表达式，匹配更灵活的命令输入。
+
+```yaml
+id: example
+command-regex:
+  - "example(?:menu)?"
+  - "menu_(?:main|home)"
+```
+
+| 特性 | 说明 |
+|---|---|
+| 正则引擎 | Java `Pattern`，大小写不敏感 + Unicode |
+| 匹配方式 | `Pattern.matcher(commandLine).matches()`（全匹配） |
+| 编译失败 | 记录警告日志，跳过该正则绑定 |
+| 权限继承 | 使用菜单定义的 `permission` 字段 |
+
+> 正则使用 `Pattern.CASE_INSENSITIVE | Pattern.UNICODE_CASE` 标志编译，匹配整个命令行（不含前导 `/`）。
+
+### 命令绑定匹配流程
+
+`MenuBindingListener` 监听 `PlayerCommandPreprocessEvent`（优先级 `HIGH`），按以下流程匹配：
+
+```
+玩家输入命令
+  ↓
+MenuBindingRegistry.matchCommand(commandLine)
+  ↓
+遍历 commandBindings 列表
+  ├─ 精确匹配: command.equalsIgnoreCase(pattern) || command.startsWith(pattern + " ")
+  └─ 正则匹配: compiledRegex.matcher(command).matches()
+  ↓
+命中绑定 → 检查权限 → 取消事件 → 打开菜单
+未命中 → 放行，不干预命令执行
+```
+
+| 步骤 | 说明 |
+|---|---|
+| 去前导 `/` | 命令行开头的 `/` 被去除后匹配 |
+| 权限检查 | 使用菜单定义的 `permission` 字段，无权限时静默放行 |
+| 事件取消 | 匹配成功且权限通过时 `setCancelled(true)`，阻止原命令执行 |
+| 打开菜单 | 调用 `MenuService.openMenu(player, menuId)` |
+
+### 精确匹配 vs 正则匹配
+
+| 维度 | 精确匹配 (`commands`) | 正则匹配 (`command-regex`) |
+|---|---|---|
+| 匹配方式 | 忽略大小写相等 + 前缀匹配 | 正则全匹配 |
+| 性能 | O(1) 字符串比较 | O(n) 正则匹配 |
+| 灵活性 | 固定别名 | 任意正则模式 |
+| 参数支持 | 支持（`/别名 参数`） | 不支持（全匹配） |
+| 适用场景 | 固定命令名 | 命令模式匹配（如 `menu_(?:main\|home)`） |
+
+> 精确匹配支持带参数：`/examplemenu arg1` 会匹配 `examplemenu` 绑定。正则匹配为全匹配，不支持带参数。
+
+## 物品绑定
+
+物品绑定将菜单绑定到背包中的特定物品，玩家手持匹配物品执行指定交互动作时打开菜单。绑定可定义在菜单级（`item-binds`）或全局级（`settings.item-binds`）。
+
+### 菜单级物品绑定
+
+在菜单定义中配置 `item-binds`，仅对该菜单生效：
+
+```yaml
+id: example
+item-binds:
+  - material: COMPASS
+    name-contains: "功能菜单"
+    action: RIGHT_CLICK
+```
+
+### 全局物品绑定
+
+在主配置 `settings.item-binds` 中配置，可绑定到任意菜单（通过 `menu` 字段指定目标菜单 ID）：
+
+```yaml
+settings:
+  item-binds:
+    - menu: example
+      material: NETHER_STAR
+      name-contains: "服务器菜单"
+      action: RIGHT_CLICK
+```
+
+### 物品绑定字段
+
+| 字段 | 类型 | 默认值 | 说明 |
+|---|---|---|---|
+| `menu` | `String` | 菜单自身 ID | 目标菜单 ID（全局绑定时必填） |
+| `material` | `String` | `""` | 物品材质名称（Minecraft 物品 ID），空表示不限制 |
+| `name-contains` | `String` | `""` | 物品显示名称需包含的文本（模糊匹配，忽略大小写） |
+| `name-regex` | `String` | `""` | 物品显示名称需匹配的正则表达式 |
+| `lore-contains` | `String` | `""` | 物品 Lore 需包含的文本 |
+| `custom-model-data` | `int` | `-1` | 自定义模型数据 ID，`-1` 表示不限制 |
+| `action` | `String` | `RIGHT_CLICK` | 触发所需的点击类型 |
+| `main-hand` | `boolean` | `true` | 是否允许主手触发 |
+| `off-hand` | `boolean` | `true` | 是否允许副手触发 |
+| `permission` | `String` | `""` | 触发所需的权限节点，空表示无限制 |
+
+> 字段别名兼容：`name-contains` / `nameContains`、`name-regex` / `nameRegex`、`lore-contains` / `loreContains`、`custom-model-data` / `customModelData`、`action` / `click` 均可使用。
+
+### 点击类型
+
+| 配置值 | 对应 Bukkit Action | 说明 |
+|---|---|---|
+| `RIGHT_CLICK` | `RIGHT_CLICK_AIR` / `RIGHT_CLICK_BLOCK` | 右键点击 |
+| `LEFT_CLICK` | `LEFT_CLICK_AIR` / `LEFT_CLICK_BLOCK` | 左键点击 |
+| `PHYSICAL` | `PHYSICAL` | 物理交互（如踩压力板） |
+
+> 未配置或无法识别的点击类型默认为 `RIGHT_CLICK`。
+
+### 物品匹配流程
+
+`MenuBindingListener` 监听 `PlayerInteractEvent`（优先级 `NORMAL`），按以下流程匹配：
+
+```
+玩家交互事件
+  ↓
+检查点击类型（仅右键/左键空气/方块）
+  ↓
+获取手持物品（air 跳过）
+  ↓
+遍历 itemBindings 列表
+  ├─ 检查手位（main-hand / off-hand）
+  ├─ 检查点击类型匹配
+  ├─ 检查权限
+  └─ 检查物品匹配
+     ├─ material: Material.matchMaterial() 精确匹配
+     ├─ name-contains: 去色后忽略大小写包含匹配
+     ├─ name-regex: 去色后正则查找匹配
+     ├─ lore-contains: 逐行去色后忽略大小写包含匹配
+     └─ custom-model-data: ItemMeta.getCustomModelData() 精确匹配
+  ↓
+全部匹配 → 取消事件 → 打开菜单
+```
+
+| 匹配项 | 匹配方式 | 说明 |
+|---|---|---|
+| `material` | `Material.matchMaterial()` 精确匹配 | 空值跳过材质检查 |
+| `name-contains` | 去色后 `toLowerCase().contains()` | 忽略大小写，支持 `&` 颜色代码 |
+| `name-regex` | 去色后 `Pattern.find()` | 大小写不敏感 + Unicode |
+| `lore-contains` | 逐行去色后 `toLowerCase().contains()` | 任一行匹配即通过 |
+| `custom-model-data` | `ItemMeta.getCustomModelData()` 精确比较 | `>= 0` 时启用检查 |
+
+> 物品名称与 Lore 的颜色代码在匹配前会被 `ChatColor.stripColor()` 去除，`name-contains` 和 `lore-contains` 的匹配文本中的 `&` 颜色代码也会被 `translateAlternateColorCodes` 转换后去除，确保匹配不受颜色干扰。
+
+### 绑定注册表重建
+
+`MenuBindingRegistry` 在菜单重载时由 `MenuService.reload()` 调用 `rebuild()` 重建全部绑定关系：
+
+```
+rebuild(menus, globalItemBinds):
+  1. 清空 commandBindings 和 itemBindings
+  2. 添加全局物品绑定（settings.item-binds）
+  3. 遍历每个菜单定义:
+     ├─ commands → 创建精确命令绑定
+     ├─ command-regex → 编译正则，创建正则命令绑定
+     └─ item-binds → 添加菜单级物品绑定
+```
+
+| 绑定来源 | 存储位置 | 说明 |
+|---|---|---|
+| `settings.item-binds` | `itemBindings` | 全局物品绑定，优先加载 |
+| 菜单 `item-binds` | `itemBindings` | 菜单级物品绑定，追加到全局之后 |
+| 菜单 `commands` | `commandBindings` | 精确命令绑定 |
+| 菜单 `command-regex` | `commandBindings` | 正则命令绑定 |
+
+## ESC 拦截
+
+ESC 拦截将菜单绑定到玩家的 ESC 键，替代原版暂停界面。仅 `layout: esc` 的菜单可启用此功能。
+
+### 配置方式
+
+在菜单定义中设置 `match-esc: true`：
+
+```yaml
+id: esc_main
+layout: esc
+match-esc: true
+```
+
+### ESC 菜单查找流程
+
+当玩家按 ESC 键时，客户端发送 `esc_open` 数据包，`MenuUiPacketHandler` 调用 `MenuService.openEscMenu()`：
+
+```
+openEscMenu(player):
+  1. 查找 client.esc-menu-id 配置指定的菜单 ID
+  2. 若未找到，遍历所有菜单，找第一个 layout=esc 或 match-esc=true 的菜单
+  3. 找到 → 打开菜单（不触发 open-actions 的 UI 打开流程）
+  4. 未找到 → 不做任何操作
+```
+
+| 查找步骤 | 说明 |
+|---|---|
+| 优先级 1 | `client.esc-menu-id` 配置值（默认 `esc_main`） |
+| 优先级 2 | 第一个 `layout: esc` 或 `match-esc: true` 的菜单 |
+| 兜底 | 无匹配菜单时不做任何操作 |
+
+> `client.esc-menu-id` 是菜单定义 ID（非 UI ID），指向 `menus/` 目录中某个 `layout: esc` 的菜单。
+
+### 底栏按钮 footer-buttons
+
+ESC 布局专属功能，底部固定按钮始终显示在菜单底部，不受分页影响。常用于游戏选项、退出游戏等原生功能。
+
+```yaml
+footer-buttons:
+  options:
+    text: "&f游戏选项"
+    order: 0
+    client-action: "options"
+  quit:
+    text: "&f退出游戏"
+    order: 1
+    client-action: "quit"
+```
+
+| 字段 | 类型 | 说明 |
+|---|---|---|
+| `text` | `String` | 按钮显示文字 |
+| `order` | `int` | 排列顺序（越小越靠前） |
+| `permission` | `String` | 按钮级权限，无权限的玩家看不到 |
+| `use-conditions` | `List<String>` | 按钮可点击条件 |
+| `deny-message` | `String` | 条件不满足时的提示 |
+| `actions` | `List<String>` | 点击时执行的服务端动作 |
+| `client-action` | `String` | 客户端原生动作标识 |
+| `icon` | `Map` | 按钮图标配置 |
+
+### client-action 客户端原生动作
+
+`client-action` 字段指定由 ArcartX 客户端 UI 引擎直接处理的动作，不经过服务端：
+
+| client-action | 说明 |
+|---|---|
+| `options` | 打开 Minecraft 原版设置界面 |
+| `quit` | 退出游戏 |
+
+> `client-action` 与 `actions` 可共存：`client-action` 由客户端 UI 直接处理，`actions` 由服务端 `MenuActionExecutor` 执行。底栏按钮点击通过 `footer` 数据包动作触发 `MenuService.handleButtonClick(player, buttonId, true)`。
+
+## 自定义 UI 目标
+
+默认情况下，菜单根据 `layout` 自动选择对应的 UI（`panel` → `menu_panel`，`esc` → `menu_esc`），使用内置的 `init` / `update` 生命周期 handler。菜单可通过 `ui-id` / `ui-targets` 配置自定义 UI 目标。
+
+### 简写格式
+
+单 UI 目标，指定 UI ID 和可选的 packet handler：
+
+```yaml
+id: my_menu
+ui-id: "my_custom_panel"
+packet-handler: "menu"
+```
+
+| 字段 | 说明 |
+|---|---|
+| `ui-id` | 自定义 UI 的注册 ID |
+| `packet-handler` | 自定义 packet handler 名称，留空时使用 `init` / `update` |
+
+### 多 UI 目标
+
+同一份菜单 payload 同时发送给多个 UI，第一个 UI 用于 `open` / `close` 操作：
+
+```yaml
+id: my_menu
+ui-targets:
+  - ui-id: "my_custom_panel"
+    packet-handler: "menu"
+  - ui-id: "menu_hud"
+    packet-handler: "overlay"
+```
+
+| 字段 | 说明 |
+|---|---|
+| `ui-id` | 目标 UI 的注册 ID（必填） |
+| `packet-handler` | packet handler 名称，留空时使用 `init` / `update` |
+
+> `ui-targets` 优先级高于 `ui-id + packet-handler`，两者不要同时配置。
+
+### UI 注册
+
+自定义 UI 文件需放置在 `ArcartXSuite/ui/` 目录下，文件名为 `<ui-id>.yml`。模块启动时由 `MenuModule.registerCustomMenuUis()` 自动注册：
+
+```
+启动流程:
+  1. 注册内置 panel / esc UI
+  2. 遍历所有菜单定义的 ui-targets
+  3. 对每个非内置 UI:
+     ├─ 检查 ui/<ui-id>.yml 文件是否存在
+     ├─ 调用 PacketBridgeAPI.registerOrReloadUi() 注册
+     └─ 记录注册结果（成功/失败/ID 不一致警告）
+```
+
+| 检查项 | 说明 |
+|---|---|
+| 文件存在 | `ui/<ui-id>.yml` 不存在时跳过并记录警告 |
+| 注册成功 | `registerOrReloadUi` 返回失败时记录警告 |
+| ID 一致性 | runtime UI ID 与配置不一致时记录警告 |
+
+> 自定义 UI 的 `ui-id` 应使用不带命名空间前缀的 ID（如 `my_panel` 而非 `AXS:my_panel`），否则 runtime ID 会与配置不一致。
+
+### Payload 分发
+
+`MenuService.pushPayload()` 根据菜单是否配置了 `ui-targets` 决定 payload 分发方式：
+
+| 配置 | 分发方式 |
+|---|---|
+| 无 `ui-targets` | 发送到 `runtimeUiId`，handler 为 `init`（首次）或 `update`（刷新） |
+| 有 `ui-targets` | 遍历每个 target，发送到 `target.uiId()`，handler 为 `target.packetHandler()` 或 `init` / `update` |
+
+### UI 数据包结构
+
+`MenuPacketFactory.buildPayload()` 构建发送给客户端 UI 的 payload，包含菜单元数据、按钮行和底栏行：
+
+| Payload 字段 | 类型 | 说明 |
+|---|---|---|
+| `packetId` | `String` | 数据包 ID（`ui.packet-id`） |
+| `menuId` | `String` | 菜单 ID |
+| `layout` | `String` | 布局类型（`panel` / `esc`） |
+| `title` | `String` | 菜单标题（PAPI 解析后） |
+| `pageId` | `String` | 当前页面 ID |
+| `pageTitle` | `String` | 页面标题（PAPI 解析后） |
+| `pageIndex` | `int` | 当前页索引 |
+| `pageCount` | `int` | 总页数 |
+| `columns` | `int` | 每行按钮列数 |
+| `hasPrev` | `boolean` | 是否有上一页 |
+| `hasNext` | `boolean` | 是否有下一页 |
+| `buttonRows` | `Map<String, Object>` | 按钮行数据 |
+| `buttonCount` | `int` | 当前页按钮数 |
+| `footerRows` | `Map<String, Object>` | 底栏行数据 |
+| `footerCount` | `int` | 底栏按钮数 |
+| `maxButtonCount` | `int` | 每页按钮上限 |
+| `maxFooterCount` | `int` | 底栏按钮总数 |
+
+### 客户端数据包动作
+
+`MenuUiPacketHandler` 接收客户端发来的数据包，根据动作类型分发到服务端逻辑：
+
+| 客户端动作 | 服务端处理 | 说明 |
+|---|---|---|
+| `refresh` | `refreshMenu()` | 刷新当前菜单 UI 数据 |
+| `esc_open` | `openEscMenu()` | 打开默认 ESC 菜单 |
+| `close` | `closeMenu()` | 关闭当前菜单 |
+| `page <token>` | `changePage()` | 翻页（`prev` / `next` / 页面 ID） |
+| `click <buttonId>` | `handleButtonClick(false)` | 普通按钮点击 |
+| `footer <buttonId>` | `handleButtonClick(true)` | 底栏按钮点击 |
+
+> 数据包 ID 需匹配 `ui.packet-id`（默认 `AXS_MENU`），不匹配时忽略。PacketGuard 已由 `ClientPacketRouter` 在路由层统一调用，handler 内不再重复检查。
+
+## 按钮可见性与排序
+
+### 可见性过滤
+
+`MenuPacketFactory.collectVisibleButtons()` 在构建 payload 时过滤不可见按钮：
+
+```
+对每个按钮:
+  1. 检查 permission → 无权限跳过
+  2. 检查 viewConditions → 条件不满足跳过
+  3. 通过 → 加入可见列表
+```
+
+| 过滤层 | 字段 | 不满足时行为 |
+|---|---|---|
+| 权限过滤 | `permission` | 按钮完全不显示 |
+| 查看条件 | `viewConditions` / `requirements` | 按钮完全不显示 |
+| 使用条件 | `useConditions` | 按钮显示但灰色禁用（`enabled: false`） |
+
+> 条件系统的完整说明详见 [条件系统](/docs/guide/conditions)。`viewConditions` 由 `ScriptConditionsLoader.loadViewConditions()` 加载，`useConditions` 由 `loadUseConditions()` 加载。
+
+### 排序规则
+
+可见按钮按 `order` 升序排列，`order` 相同则按 `id` 字典序排列：
+
+```java
+Comparator.comparingInt(MenuButtonDefinition::order)
+    .thenComparing(MenuButtonDefinition::id)
+```
+
+### 分页裁剪
+
+按钮按 `buttons-per-page` 上限分页。`MenuPacketFactory` 取可见按钮列表的前 `buttonsPerPage` 个作为当前页按钮：
+
+```
+visibleButtons = collectVisibleButtons(player, definition, page)
+pageSize = definition.buttonsPerPage()
+pageButtons = visibleButtons.subList(0, min(pageSize, visibleButtons.size()))
+```
+
+> 当前实现仅裁剪首页按钮（`fromIndex=0`），多页按钮需在 YAML 中手动定义多个 `pages` 页面。`pageAt(index)` 方法在页面越界时自动截断到首尾页。
+
+## 图标系统
+
+按钮图标由 `IconResolver` 解析，支持原版材质、物品库、自定义贴图等多种来源。图标配置详见 [图标配置](/docs/guide/icons) 和 [物品库匹配](/docs/guide/item-sources)。
+
+```yaml
+buttons:
+  my_button:
+    text: "&f仓库系统"
+    icon:
+      material: CHEST
+      name: "&f仓库"
+      custom-model-data: 0
+```
+
+| 图标来源 | 配置方式 | 说明 |
+|---|---|---|
+| 原版物品 | `material` + `name` + `lore` + `custom-model-data` | Minecraft 物品 ID |
+| 物品库 | `source` + `id` | NeigeItems / MythicMobs / Overture |
+| MMOItems | `source: mmoitems` + `mmo-type` + `mmo-id` | 需类型与 ID 两段定位 |
+| ArcartX 贴图 | `texture` / `texture-url` / `nbt` | 写入 NBT 渲染自定义贴图 |
+| 直接 NBT | `json` | 直接提供物品 NBT JSON |
+
+> 图标解析结果以 `itemJson` 字段发送给客户端 UI，`hasIcon` 标识是否包含有效图标。图标配置的完整说明详见 [图标配置](/docs/guide/icons)。
+
+## 会话管理
+
+`MenuSession` 记录玩家当前打开的菜单状态，每个玩家同时持有一个会话。
+
+### 会话字段
+
+| 字段 | 类型 | 说明 |
+|---|---|---|
+| `menuId` | `String` | 当前菜单 ID |
+| `layout` | `MenuLayoutType` | 布局类型 |
+| `runtimeUiId` | `String` | 运行时 UI ID |
+| `pageIndex` | `int` | 当前页索引（负值截断为 0） |
+| `lastClickAt` | `long` | 上次点击时间戳（毫秒） |
+
+### 会话生命周期
+
+| 事件 | 操作 |
+|---|---|
+| 打开菜单 | 创建 `MenuSession`，存入 `sessions` Map |
+| 关闭菜单 | 移除 `MenuSession`，执行 `close-actions` |
+| 玩家退出 | 移除 `MenuSession`（不执行 `close-actions`） |
+| 翻页 | 更新 `pageIndex`，刷新 UI payload |
+| 按钮点击 | 检查点击冷却，更新 `lastClickAt` |
+
+### 点击冷却
+
+按钮点击受 `click-cooldown-ms` 配置保护（默认 300ms），防止高频点击：
+
+```
+handleButtonClick:
+  now = System.currentTimeMillis()
+  if (now - session.lastClickAt() < clickCooldownMs):
+    return  // 冷却中，忽略点击
+  session.markClick(now)
+  // 继续处理点击
+```
+
+> 冷却时间通过 `settings.click-cooldown-ms` 配置，设为 `0` 可禁用冷却。
+
+## 完整绑定示例
+
+### 命令 + 物品 + ESC 三重绑定
+
+```yaml
+id: main_menu
+title: "&f&l主菜单"
+layout: panel
+columns: 4
+buttons-per-page: 64
+
+# 命令绑定
+commands:
+  - "menu"
+  - "主菜单"
+command-regex:
+  - "menu(?:main)?"
+
+# 物品绑定
+item-binds:
+  - material: COMPASS
+    name-contains: "功能菜单"
+    action: RIGHT_CLICK
+  - material: CLOCK
+    name-regex: ".*时钟.*"
+    action: RIGHT_CLICK
+
+pages:
+  - id: main
+    title: "&f功能"
+    buttons:
+      shop:
+        text: "&f商城"
+        order: 0
+        actions:
+          - "close"
+          - "delay: 10"
+          - "command: market shop"
+```
+
+### 全局物品绑定
+
+```yaml
+# ArcartXMenu.yml
+settings:
+  item-binds:
+    - menu: main_menu
+      material: NETHER_STAR
+      name-contains: "服务器菜单"
+      action: RIGHT_CLICK
+      main-hand: true
+      off-hand: false
+      permission: "arcartxsuite.menu.use"
+```
+
+### ESC 菜单 + 底栏按钮
+
+```yaml
+id: esc_main
+title: "&f&l菜单"
+layout: esc
+match-esc: true
+columns: 2
+buttons-per-page: 64
+
+pages:
+  - id: main
+    title: "&f菜单"
+    buttons:
+      shop:
+        text: "&f商城"
+        order: 0
+        actions:
+          - "close"
+          - "delay: 10"
+          - "command: market shop"
+
+footer-buttons:
+  options:
+    text: "&f游戏选项"
+    order: 0
+    client-action: "options"
+  quit:
+    text: "&f退出游戏"
+    order: 1
+    client-action: "quit"
+```
+
+### 自定义 UI 目标
+
+```yaml
+id: hud_menu
+title: "&fHUD 菜单"
+layout: panel
+
+# 同时发送到面板 UI 和 HUD 覆盖层
+ui-targets:
+  - ui-id: "menu_panel"
+    packet-handler: "init"
+  - ui-id: "menu_hud"
+    packet-handler: "overlay"
+
+pages:
+  - id: main
+    title: "&fHUD"
+    buttons:
+      toggle:
+        text: "&f切换显示"
+        order: 0
+        actions:
+          - "signal: toggle_hud"
+```

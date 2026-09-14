@@ -1,0 +1,182 @@
+---
+title: 钓鱼区域
+description: Fishing 钓鱼池与区域配置
+---
+
+# 钓鱼区域
+
+水域定义文件位于 `plugins/ArcartXSuite/data/fishing/waters/` 目录下，文件名格式为 `water-<id>.yml`。每个水域定义一片可钓鱼的多边形区域及其鱼类池、宝藏池、难度公式等属性。
+
+## 水域匹配机制
+
+当玩家甩竿钓鱼时，系统按以下顺序解析水域：
+
+1. **遍历所有指定水域**（`water-*.yml` 中有 `pos` 多边形边界的非默认水域）
+2. **多边形检测**：通过 `WaterArea.contains(Location)` 判断玩家位置是否落在水域内
+   - 先做世界名过滤
+   - 再做 bounding box 快速排除
+   - 最后做精确多边形检测（射线法）
+3. **未命中任何指定水域**时使用**默认水域**（`water-default.yml`，无多边形边界，匹配所有位置）
+
+> 默认水域（`water-default.yml`）无 `pos` 节点，始终匹配所有位置。如果 `waters/` 目录不存在或无 `water-default.yml`，系统会创建兜底默认水域。
+
+## 水域定义字段
+
+| 字段 | 类型 | 默认值 | 说明 |
+| --- | --- | --- | --- |
+| `display-name` | string | id | 显示名称（支持颜色代码） |
+| `world` | string | - | 所在世界名称（留空 = 不限世界） |
+| `enabled` | boolean | `true` | 是否启用 |
+| `pos` | list | - | 多边形边界点（`"x,z"` 格式），无此项 = 默认水域 |
+| `fishes` | list | - | 鱼类 ID 列表（引用 `fishes/` 目录下的鱼种） |
+| `treasures` | list | - | 宝藏 ID 列表（引用 `treasures/` 目录下的宝藏） |
+| `difficulty-formula` | string | `1.0` | 难度修正公式（ARIA 表达式，变量 `global.level` = 玩家等级） |
+| `min-player-level` | int | `0` | 最低钓鱼等级（0 = 不限） |
+| `max-player-level` | int | `0` | 最高钓鱼等级（0 = 不限，防高等级刷低级鱼） |
+| `bait-multipliers` | map | - | 饵料在该水域的额外倍率 |
+| `require-permission` | string | - | 进入此水域钓鱼所需权限（留空 = 无限制） |
+
+### pos 多边形边界
+
+`pos` 为 `"x,z"` 格式的字符串列表，至少需要 3 个点定义一个多边形。系统使用 2D 多边形（x, z 坐标）判断玩家位置是否在水域内。
+
+可使用管理命令 `/axs fishing water create <id>` 配合选区工具创建多边形：
+- 左键方块 → 添加顶点
+- 右键方块 → 闭合多边形（至少 3 点）
+- Shift+右键 → 撤销上一个顶点
+
+### difficulty-formula 难度修正公式
+
+使用 ARIA 表达式求值，变量 `global.level` 绑定为玩家钓鱼等级。公式结果为难度修正系数，乘以鱼的 `difficulty` 得到调整后难度：
+
+```
+调整后难度 = fish.difficulty × difficultyFormula(global.level)
+调整后难度 = clamp(1, 100, 调整后难度)
+```
+
+- `1.0` = 不修正
+- `1.0 + 0.005 * global.level` = 随等级提升难度（1 级 = 1.0，50 级 = 1.25，100 级 = 1.5）
+
+> Aria 不可用时回退为固定 1.0 系数。
+
+### bait-multipliers 饵料倍率
+
+`bait-multipliers` 是一个映射，key 为饵料 ID，value 为额外倍率。此倍率与饵料的 `fish-attract-modifiers` 和鱼的 `bait-preferences` 叠加生效，允许管理员针对特定水域配置特定饵料的额外加成。
+
+## 鱼群分布
+
+水域的 `fishes` 列表定义了该水域可出现的鱼类。选鱼时系统会过滤候选鱼：
+
+1. 季节匹配（当前季节 ∈ fish.seasons）
+2. 天气匹配（当前天气 ∈ fish.weathers）
+3. 时段匹配（当前时间 ∈ fish.time-ranges）
+4. 等级匹配（playerLevel ≥ fish.minPlayerLevel）
+5. 权限匹配（fish.requirePermission 为空或玩家有权限）
+6. 生物群系匹配（fish.biomes 为空或当前 biome 在列表中）
+
+如果所有候选鱼都被过滤掉，系统会回退到仅按季节过滤，再回退到全部鱼池。
+
+## 区域条件配置
+
+### 等级限制
+
+- `min-player-level`：低于此等级的玩家无法在此水域钓鱼，会收到提示消息
+- `max-player-level`：高于此等级的玩家无法在此水域钓鱼（防止高等级刷低级鱼）
+
+### 权限限制
+
+`require-permission` 配置进入此水域钓鱼所需的权限节点。玩家无此权限时无法在此水域启动小游戏。
+
+## 水域配置示例
+
+### 默认水域
+
+```yaml
+display-name: "&7普通水域"
+world: ""
+enabled: true
+# 无 pos 节 = 默认水域（匹配所有未命中指定水域的位置）
+fishes:
+  - "minnow"
+  - "crucian_carp"
+  - "carp"
+  - "sea_bass"
+  - "salmon"
+treasures:
+  - "old_boot"
+  - "lost_ring"
+difficulty-formula: "1.0"
+min-player-level: 0
+max-player-level: 0
+bait-multipliers:
+  worm: 1.0
+  bread: 1.0
+  corn: 1.0
+require-permission: ""
+```
+
+### 多边形水域（龙泉湖）
+
+```yaml
+display-name: "&b龙泉湖"
+world: "world"
+enabled: true
+pos:
+  - "100,150"
+  - "200,150"
+  - "200,250"
+  - "100,250"
+fishes:
+  - "sea_bass"
+  - "catfish"
+  - "legendary_carp"
+treasures:
+  - "old_boot"
+  - "lost_ring"
+  - "ancient_coin"
+difficulty-formula: "1.0 + 0.005 * global.level"
+min-player-level: 0
+max-player-level: 0
+bait-multipliers:
+  worm: 1.5
+  corn: 2.0
+require-permission: ""
+```
+
+### 高级水域（等级限制 + 权限）
+
+```yaml
+display-name: "&5深渊之湖"
+world: "world_nether"
+enabled: true
+pos:
+  - "-500,-500"
+  - "-300,-500"
+  - "-300,-300"
+  - "-500,-300"
+fishes:
+  - "fatigue_abyssal_eel"
+  - "fatigue_shadow_carp"
+  - "legendary_carp"
+treasures:
+  - "mythic_gem"
+  - "ancient_coin"
+difficulty-formula: "1.5 + 0.01 * global.level"
+min-player-level: 50
+max-player-level: 0
+bait-multipliers:
+  corn: 3.0
+require-permission: "axs.fishing.abyss"
+```
+
+## 水域管理命令
+
+| 命令 | 说明 |
+| --- | --- |
+| `/axs fishing water create <id>` | 开始多边形选区创建水域（手持选区工具） |
+| `/axs fishing water save <id>` | 保存当前选区为 `water-<id>.yml` 水域文件 |
+| `/axs fishing water delete <id>` | 删除指定水域文件 |
+| `/axs fishing water list` | 列出所有水域 |
+| `/axs fishing water reload` | 重载水域配置 |
+
+> 保存后需手动编辑水域文件添加鱼类、宝藏、难度公式等配置，编辑完成后执行 `reload` 重载。

@@ -1,0 +1,15 @@
+{
+  "title": "EntityTracker 实体追踪",
+  "description": "Boss 追踪与伤害排行系统，支持 MythicMob 血量 HUD、实时伤害排行、死亡结算奖励、掉落分配与跨服排行。",
+  "color": "#fde047",
+  "pages": [
+    "index",
+    "boss-tracking",
+    "target-hud",
+    "damage-ranking",
+    "drop-allocation",
+    "configuration",
+    "commands",
+    "integration"
+  ]
+}

@@ -1,0 +1,262 @@
+---
+title: 拍卖系统
+description: Market 拍卖行配置与竞价机制
+---
+
+# 拍卖系统
+
+Market 的拍卖系统包含 **拍卖行**（竞价交易）和 **玩家商店**（固定价格交易）两个子系统。两者独立运作，使用各自的数据库表和 UI。
+
+## 拍卖行
+
+拍卖行是玩家间的纯竞价交易系统。卖家上架物品设定起拍价，买家竞价，到期后价高者得。
+
+### 拍卖配置结构
+
+拍卖行配置位于 `ArcartXMarket.yml` 的 `auction` 节，详见 [配置 - 拍卖行配置](/docs/market/configuration#拍卖行配置-auction)。
+
+### 上架流程
+
+1. 玩家通过 `/market sell <起拍价> [时长] [货币]` 命令或上架 UI 上架物品
+2. 服务端校验：
+   - 起拍价在 `min-price` ~ `max-price` 范围内
+   - 时长在 `min-duration-seconds` ~ `max-duration-seconds` 范围内
+   - 留言长度不超过 `message-max-length`
+   - 留言通过敏感词过滤（ContentModerator）
+   - 货币在 `currencies` 列表中且可用
+3. 检查上架数量限制（`max-listings-per-player`）
+4. 检查物品黑名单（ItemMatcher）
+5. 校验手持物品一致性（防止客户端伪造物品/数量导致复制）
+6. **先扣除背包物品**（占有），避免"先入库后扣除"异常时物品复制
+7. 扣除上架费（如有，先验余额）
+8. 序列化物品（Overture 物品优先使用原生序列化，其余使用 Bukkit Base64）
+9. 生成拼音/首字母搜索 token（支持中文拼音搜索）
+10. 自动分类（按 NBT/PDC 路径匹配 categories）
+11. 入库 → 失效 Redis 缓存 → 跨服广播
+12. 派发信号 `market_listing_created` + 发布 EventBus 事件 `market.listing_created`
+
+:::tip 物品安全
+上架时使用物品副本，防止与主手物品引用别名。入库失败会自动退费 + 归还物品。
+:::
+
+### 竞价流程
+
+1. 玩家通过 UI 或命令出价
+2. 校验：
+   - 物品处于 ACTIVE 状态且未过期
+   - 出价者不能是卖家本人
+   - 出价 ≥ 最低出价
+3. 扣款冻结资金（`CurrencyBridge.withdraw`）
+4. **数据库 CAS 原子更新**（`updateListingBidIfHigher`）：仅当新出价严格高于当前最高价时才更新
+5. CAS 失败 → 退还本次出价（安全发放，离线入待发放队列）
+6. CAS 成功 → 退还上一位最高出价者押金（安全发放，离线不丢）
+7. 通知被超越者（按 `outbid-notify` 配置：chat/actionbar/title）
+8. 记录竞价历史 → 失效 Redis 缓存 → 跨服广播
+
+### 最低出价计算
+
+```
+最低出价 = 当前最高价 + max(当前最高价 × min-bid-increment-ratio, min-bid-increment-absolute)
+```
+
+| 场景 | 当前最高价 | ratio | absolute | 最低出价 |
+|---|---|---|---|---|
+| 首次出价 | 起拍价 100 | - | - | 100（等于起拍价） |
+| 第二次出价 | 100 | 0.05 | 10 | 110（max(105, 110)） |
+| 高价出价 | 10000 | 0.05 | 10 | 10500（max(10500, 10010)） |
+
+### 拍卖到期与结算
+
+定时任务（`scheduler-interval-ticks` 间隔）扫描到期物品，通过 **CAS 抢占**确保仅处理一次：
+
+#### 有人竞价（SOLD）
+
+1. CAS 抢占 `ACTIVE → SOLD`
+2. 计算税费：`税 = 成交价 × 有效税率`
+3. 有效税率 = `base-rate - max(匹配的 VIP 减免)`，离线玩家通过 LuckPerms 查询权限
+4. 卖家收款 = `成交价 - 税`（安全发放，离线入待发放队列）
+5. 买家得物品（安全发放：在线放入背包，背包满转邮件，离线入待发放队列）
+6. 记录交易历史（类型 `BID_WIN`）
+
+#### 无人竞价（EXPIRED）
+
+1. CAS 抢占 `ACTIVE → EXPIRED`
+2. 退还物品给卖家（安全发放）
+3. 通知在线卖家
+4. 记录交易历史（类型 `EXPIRED`）
+
+:::info 安全发放机制
+物品发放流程：反序列化（异步）→ 在线则主线程放入背包（满则转邮件）→ 离线则入待发放队列。
+货币发放流程：在线则主线程入账 → 失败或离线则入待发放队列。
+玩家上线时由 `PendingDeliveryService` 自动补发，保证不丢钱不丢物品。
+:::
+
+### 取消上架
+
+卖家可取消自己的上架物品：
+
+1. CAS 抢占 `ACTIVE → CANCELLED`
+2. 如有竞价者，退还押金（安全发放）
+3. 返还物品给卖家（安全发放）
+4. 记录交易历史（类型 `CANCELLED`）
+
+管理员可通过 `/axs market remove <ID>` 强制下架，流程类似但记录类型为 `ADMIN_CANCELLED`。
+
+### 手续费配置
+
+| 配置项 | 说明 |
+|---|---|
+| `listing-fee` | 上架手续费（固定金额，上架时立即扣除，无论是否成交） |
+| `listing-fee-currency` | 手续费货币类型 |
+| `transaction-tax-rate` | 成交税率（从卖家最终收入中扣除） |
+| `transaction-tax-currency` | 税费货币类型 |
+| `tax-discount` | VIP 税率减免（权限节点 → 减免值，取最大减免） |
+
+#### 税率计算示例
+
+```
+基础税率 = 5%
+VIP 减免 = 2%（权限 axsmarket.vip）
+MVP 减免 = 1%（权限 axsmarket.mvp）
+
+VIP 玩家有效税率 = 5% - 2% = 3%
+MVP 玩家有效税率 = 5% - 1% = 4%
+同时拥有 VIP + MVP = 5% - max(2%, 1%) = 3%
+```
+
+### 分类系统
+
+拍卖行通过 NBT/PDC 路径自动分类物品。分类用于 UI 筛选功能。
+
+```yaml
+auction:
+  categories:
+    weapon:
+      display-name: "&c武器"
+      priority: 10
+      nbt:
+        path: "pdc:arcartx:item_category"
+        values: ["weapon"]
+    other:
+      display-name: "&7其他"
+      priority: 9999
+      default: true
+```
+
+分类匹配逻辑：
+1. 按优先级（`priority` 升序）遍历所有分类
+2. 读取物品 PDC 中 `path` 指定的键值
+3. 若值匹配 `values` 列表中的任一项，归属此分类
+4. 未匹配任何分类时归入 `default: true` 的分类
+
+### 拼音搜索
+
+拍卖行支持中文拼音搜索。上架时自动生成物品名称的拼音和首字母 token：
+
+- "钻石剑" → 拼音 `zuan shi jian`，首字母 `z s j`
+- 多音字遍历所有读音
+- 搜索时同时匹配物品名称、拼音、首字母
+
+## 玩家商店
+
+玩家商店允许玩家以固定价格上架物品，其他玩家可直接购买（无竞价机制）。与拍卖行独立运作，使用单独的数据库表。
+
+### 与拍卖行的区别
+
+| 对比项 | 拍卖行 | 玩家商店 |
+|---|---|---|
+| 交易方式 | 竞价 | 固定价格直接购买 |
+| 价格机制 | 起拍价 + 竞价加价 | 固定价格 |
+| 最长上架时长 | 7 天 | 30 天 |
+| 默认上架时长 | 24 小时 | 7 天 |
+| 每人上架上限 | 10 件 | 20 件 |
+| 数据库表 | `axs_market_listings` | `axs_market_player_shop_listings` |
+
+### 购买流程
+
+1. 买家通过 UI 浏览/搜索玩家商店商品
+2. 点击购买 → CAS 抢占 `ACTIVE → SOLD`
+3. 扣买家钱（`CurrencyBridge.withdraw`）
+4. 计算税费：`税 = 价格 × 有效税率`
+5. 给卖家打钱（`收入 = 价格 - 税`，安全发放）
+6. 给买家物品（安全发放）
+7. 记录交易历史
+8. 通知在线卖家
+9. 失效 Redis 缓存 → 跨服广播
+
+### 下架流程
+
+卖家可下架自己的商品，流程与拍卖行取消上架类似：CAS 抢占 → 返还物品 → 记录历史。
+
+### 卖家浏览
+
+玩家商店 UI 支持按卖家浏览：显示所有有在售商品的卖家列表（UUID + 名称 + 在售数量），点击进入该卖家的商品页面。
+
+## 跨服竞价
+
+拍卖行和玩家商店均支持跨服同步。启用 `cross-server.enabled: true` 后：
+
+| 同步内容 | 消息格式 | 说明 |
+|---|---|---|
+| 上架创建 | `LISTING_CREATED:<id>` | 失效本地 Redis 缓存 |
+| 竞价 | `BID_PLACED:<listingId>:<amount>:<bidder>` | 本地 CAS 更新竞价 |
+| 取消上架 | `LISTING_CANCELLED:<id>` | 失效缓存 |
+| 玩家商店上架 | `PSHOP_LISTING_CREATED:<id>` | 失效缓存 |
+| 玩家商店购买 | `PSHOP_LISTING_SOLD:<id>` | 失效缓存 |
+| 玩家商店下架 | `PSHOP_LISTING_CANCELLED:<id>` | 失效缓存 |
+| 限购更新 | `SHOP_LIMIT_UPDATE:<uuid>:<shopId>:<itemId>:<count>:<ts>:<resetTime>` | 本地 upsert 限购记录 |
+| 动态商品 | `DYNAMIC_SHOP_UPDATE:<strategyKey>:<shopId>:<jsonData>` | 本地同步动态状态 |
+
+:::info
+跨服同步需配合宿主 `config.yml` 的 `cross-server` 节使用（Redis + BungeeCord/Velocity Forward 双后端）。单服无需开启。
+:::
+
+## 拍卖示例
+
+### 通过命令上架
+
+```
+/market sell 1000 86400 money
+```
+
+将手持物品以起拍价 1000、时长 86400 秒（24 小时）、货币 money 上架到拍卖行。
+
+### 通过 UI 上架
+
+1. 执行 `/market` 打开拍卖行 UI
+2. 点击上架按钮打开上架 UI
+3. 选择背包中的物品
+4. 输入起拍价、时长、货币、留言
+5. 确认上架
+
+### 竞价
+
+在拍卖行 UI 中点击物品，输入出价金额。系统会自动计算最低出价并提示。
+
+### 搜索
+
+```
+/market search 钻石剑
+```
+
+打开拍卖行 UI 并搜索"钻石剑"（同时匹配物品名、拼音 `zuan shi jian`、首字母 `z s j`）。
+
+### 查看我的上架
+
+```
+/market my
+```
+
+打开拍卖行 UI 并筛选显示自己的上架物品。
+
+### 取消上架
+
+```
+/market cancel 42
+```
+
+取消上架 ID 为 42 的物品（退还竞价押金 + 返还物品）。
+
+### 玩家商店上架
+
+通过统一上架 UI（`/market sell` 或 UI 按钮），选择 `pshop` 模式上架。物品以固定价格上架到玩家商店，其他玩家可直接购买。

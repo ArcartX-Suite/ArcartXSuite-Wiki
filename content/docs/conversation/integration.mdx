@@ -1,0 +1,163 @@
+---
+title: 联动
+description: Conversation 模块 Capability、按键路由与跨模块联动
+---
+
+# 联动
+
+## Capability 注册
+
+Conversation 模块在宿主 Capability 注册表中注册以下能力：
+
+### InteractionState
+
+| 方法 | 说明 |
+| --- | --- |
+| `isInteracting(Player)` | 返回玩家是否正在与 Conversation 模块交互（对话中、选择器已打开或电影序列播放中） |
+
+> 该能力由 `ConversationService.isPlayerInteracting()` 与 `CinematicService.isPlaying()` 组合实现。其他模块可通过此能力判断玩家是否处于对话 / 电影序列中，从而决定是否打断或排队等待。
+
+### SubtitlePlayable（消费方）
+
+Conversation 是 `SubtitlePlayable` Capability 的**消费方**，而非提供方。电影序列 `subtitle` 动作通过此能力播放 Announcer 字幕组（打字机效果）。
+
+- **提供方**：Announcer 模块
+- **使用场景**：电影序列 `subtitle` 动作调用 `subtitlePlayable.playGroup(player, groupId)`
+- **降级行为**：Announcer 模块未安装时 `SubtitlePlayable` 为 null，`subtitle` 动作自动跳过
+
+### SoundPlayerBridgeAPI（消费方）
+
+电影序列 `arcartx_sound` 动作通过此桥接播放 ArcartX 资源包自定义音效。
+
+- **使用场景**：`soundPlayer.playSoundForSelf()` / `soundPlayer.playSoundForPlayer()`
+- **降级行为**：桥接不可用时动作自动跳过
+
+### PacketBridgeAPI（消费方）
+
+模块通过此桥接完成所有 UI 打开 / 关闭 / 发包操作，包括对话 UI、选择器 UI、letterbox UI。
+
+- **使用场景**：`bridge.openUiAll()` / `bridge.closeUiAll()` / `bridge.sendPacketToAll()` / `bridge.registerUiCloseCallback()`
+- **降级行为**：桥接不可用时 UI 无法打开，对话降级为无 UI 模式
+
+## 按键路由
+
+按键注册由宿主 `config.yml` 的 `keybinds` 节统一管理，模块通过 `registerKeybindHandler` 注册回调：
+
+| 按键 | 优先级 | 处理逻辑 | 消费条件 |
+| --- | --- | --- | --- |
+| `AXS_INTERACT` | 50 | 选择器有候选时打开对话 | 选择器有候选 NPC |
+| `AXS_NAVIGATE_PREV` | 10 | 选择器中向上导航 | 选择器有候选且可移动 |
+| `AXS_NAVIGATE_NEXT` | 10 | 选择器中向下导航 | 选择器有候选且可移动 |
+
+> 按键回调返回 `true` 表示已消费，宿主不再传递给低优先级处理器。对话 UI 为 Menu 类型不接收全局按键，回复选择通过 UI 内点击或键盘 1-9 完成。
+
+## Chemdah 联动
+
+### 主题注册
+
+模块启动时向 Chemdah `ConversationTheme` 注册 `ArcartXConversation` 主题，替代 Chemdah 默认主题：
+
+| 主题回调 | 处理逻辑 |
+| --- | --- |
+| `onBegin(Session)` | 委托 `onDisplay`，开始对话时渲染首屏 |
+| `onDisplay(Session, lines, canReply)` | 调用 `ConversationService.display()` 渲染对话正文与回复列表 |
+| `onClose(Session)` | 调用 `ConversationService.close()` 关闭对话 UI |
+
+### 事件监听
+
+| 事件 | 处理逻辑 |
+| --- | --- |
+| `PluginReloadEvent.Conversation` | Chemdah 对话重载时重置运行状态并重新注册主题 |
+| `PlayerEvents.Released` | Chemdah 对话释放时清理玩家状态（严格按运行时类型过滤） |
+
+### 对话触发
+
+选择器确认 NPC 后，模块调用 `TriggerAdyeshachKt.openConversation(entity, player, false)` 打开 Chemdah 对话，由 Chemdah 驱动主题回调完成 UI 渲染。
+
+## Adyeshach 联动
+
+模块通过 `AdyeshachNpcBridgeAPI` 桥接 Adyeshach NPC：
+
+| 桥接方法 | 使用场景 |
+| --- | --- |
+| `initialize()` | 初始化 NPC 桥接 |
+| `findNearby(player, range)` | 扫描附近 NPC（选择器候选来源） |
+| `findByName(name)` | 按名称查找 NPC（外观配置、电影序列 NPC 动作） |
+| `applyModel(npc, modelId, scale)` | 设置 NPC 模型 |
+| `applyDefaultState(npc, state, animation)` | 设置持久默认动画状态 |
+| `applyAnimation(npc, animation, speed, transitionTime, keepTime)` | 一次性播放动画 |
+
+> NPC 外观配置在模块启动时自动应用，支持重试机制（最多 30 次，每次间隔 10 tick），应对 NPC 尚未加载完成的情况。
+
+## 电影序列动作联动
+
+电影序列的 15 种内置动作通过 `CinematicActionContext` 访问各桥接：
+
+| 动作类型 | 依赖桥接 / 能力 | 说明 |
+| --- | --- | --- |
+| `teleport` | Bukkit API | 传送玩家 |
+| `camera_path` | Bukkit API | 沿路径平滑插值传送 |
+| `title` | Bukkit API | 原版标题 |
+| `action_bar` | Bukkit API | 原版 Action Bar |
+| `wait` | — | 纯等待 |
+| `sound` | Bukkit API | 原版音效 |
+| `game_mode` | Bukkit API | 切换游戏模式 |
+| `npc_animation` | `AdyeshachNpcBridgeAPI` | NPC 动画 |
+| `npc_model` | `AdyeshachNpcBridgeAPI` | NPC 模型 |
+| `message` | Bukkit API | 聊天消息 |
+| `command` | Bukkit API | 执行命令（`{player}` 替换为玩家名） |
+| `speed` | Bukkit API | 行走 / 飞行速度 |
+| `lock_movement` | Bukkit API | 锁定移动（速度设为 0） |
+| `subtitle` | `SubtitlePlayable` | Announcer 字幕组 |
+| `ui_packet` | `PacketBridgeAPI` | 发包到 ArcartX UI |
+| `arcartx_sound` | `SoundPlayerBridgeAPI` | 资源包自定义音效 |
+
+### 玩家状态快照
+
+电影序列播放前通过 `PlayerSnapshot.capture()` 捕获玩家状态，结束后通过 `restorePlayer()` 恢复：
+
+| 快照字段 | 恢复方式 |
+| --- | --- |
+| `gameMode` | `player.setGameMode()` |
+| `walkSpeed` | `player.setWalkSpeed()` |
+| `flySpeed` | `player.setFlySpeed()` |
+| `allowFlight` | `player.setAllowFlight()` |
+| `isFlying` | `player.setFlying()` |
+| `location` | `player.teleport()` |
+
+> 玩家退出或序列被取消时同样触发状态恢复。
+
+## 跨服
+
+Conversation 模块为无状态桥接模块，不涉及数据库存储与跨服同步。对话状态（选择器候选、对话会话）仅存在于当前服务器内存，玩家退出时自动清理。
+
+## 数据库表结构
+
+本模块无数据库表。对话与电影序列均为实时交互，不持久化数据。
+
+## 与其他模块联动
+
+### Announcer 模块
+
+- **SubtitlePlayable 能力**：电影序列 `subtitle` 动作通过此能力播放字幕组
+- **降级**：Announcer 未安装时 `subtitle` 动作自动跳过
+
+### 宿主按键服务
+
+- **KeybindService**：按键注册由宿主统一管理，模块注册 `AXS_INTERACT` / `AXS_NAVIGATE_PREV` / `AXS_NAVIGATE_NEXT` 回调
+- **降级**：按键桥接不可用时交互增强降级，选择器仍可通过鼠标点击操作
+
+### 宿主 UI 注册
+
+- **ModuleUiSpec**：模块通过 `uiSpec()` 声明三个 UI 文件映射（dialog / selector / letterbox），宿主负责导出与注册
+- **ClientInitializedHandler**：客户端初始化完成时为玩家应用 NPC 外观配置
+
+### Chemdah 对话条件
+
+对话触发条件由 Chemdah 配置，NPC 对话定义中的 `trigger` 节指定 Adyeshach NPC。条件配置详见 [/docs/guide/conditions](/docs/guide/conditions)。
+
+## 相关文档
+
+- [概览](/docs/conversation) — 模块功能与对话机制
+- [配置](/docs/conversation/configuration) — 主配置文件、NPC 外观、电影序列配置
+- [命令与占位符](/docs/conversation/commands) — 管理命令、权限、UI 通讯包结构

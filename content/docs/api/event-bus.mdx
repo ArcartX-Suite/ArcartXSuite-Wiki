@@ -1,0 +1,277 @@
+---
+title: EventBus 事件总线
+description: ArcartXSuite 跨模块事件总线 API，支持主题发布/订阅、通配符匹配、自动注册
+---
+
+# EventBus 事件总线
+
+## 概述
+
+`EventBusCapability` 是 ArcartXSuite 的内存 pub/sub 事件总线。模块间通过主题字符串发布和订阅事件，实现零配置联动。主题采用点分字符串，如 `market.purchase`、`mail.received`。
+
+与 `SignalDispatchable` 的区别：
+
+| 机制 | 模式 | 适用场景 |
+|------|------|----------|
+| `SignalDispatchable` | 1 对 1 | 面向 EventPacket 规则引擎，触发信号 |
+| `EventBusCapability` | 1 对多 pub/sub | 面向所有模块，发布/订阅事件主题 |
+
+事件总线由宿主注册唯一实例，任何模块均可通过 `context.getCapability(EventBusCapability.class)` 获取并使用。
+
+## 核心接口
+
+`EventBusCapability` 接口定义如下：
+
+```java
+public interface EventBusCapability {
+    void publish(@NotNull String topic, @Nullable Player player, @NotNull Object payload);
+    default void publish(@NotNull String topic, @Nullable Player player, @NotNull Map<String, String> payload);
+    @ApiStability.Stable
+    void registerPublisher(@NotNull String topic);
+    @ApiStability.Stable
+    boolean hasPublisher(@NotNull String topic);
+    String subscribe(@NotNull String topic, @NotNull EventHandler handler);
+    void unsubscribe(@NotNull String subscriptionId);
+
+    record BusEvent(@NotNull String topic, @Nullable Player player, @NotNull Object typedPayload, long timestamp) {
+        @NotNull public Map<String, String> payload();
+        @NotNull public Object typedPayload();
+    }
+
+    @FunctionalInterface
+    interface EventHandler {
+        void handle(@NotNull BusEvent event);
+    }
+}
+```
+
+### 方法说明
+
+| 方法 | 说明 |
+|------|------|
+| `publish(topic, player, payload)` | 发布事件，payload 可为任意对象或 `Map<String, String>` |
+| `subscribe(topic, handler)` | 订阅主题，返回订阅 ID（UUID 字符串） |
+| `unsubscribe(subscriptionId)` | 取消订阅 |
+| `registerPublisher(topic)` | 声明发布者（幂等，重复注册安全） |
+| `hasPublisher(topic)` | 检查主题是否有已注册的发布者 |
+
+### BusEvent 数据载体
+
+| 字段 | 类型 | 说明 |
+|------|------|------|
+| `topic` | `String` | 事件主题 |
+| `player` | `@Nullable Player` | 关联玩家（系统事件可为 null） |
+| `typedPayload` | `Object` | 原始 payload 对象（类型安全，订阅方按需强制转换） |
+| `timestamp` | `long` | 事件时间戳（`System.currentTimeMillis()`） |
+| `payload()` | `Map<String, String>` | Map 视图（原始 payload 非 Map 时返回空 Map） |
+
+## 通配符订阅
+
+EventBus 支持末尾 `.*` 通配符订阅。例如 `market.*` 会匹配所有以 `market.` 开头的主题：
+
+```java
+// 订阅所有 market 开头的事件
+String subId = bus.subscribe("market.*", event -> {
+    logger.info(event.player().getName() + " 触发了 " + event.topic());
+    // event.topic() 可能是 "market.purchase"、"market.sell" 等
+});
+```
+
+匹配规则：
+
+| 订阅模式 | 匹配的主题 | 不匹配的主题 |
+|----------|-----------|-------------|
+| `market.purchase` | `market.purchase` | `market.sell` |
+| `market.*` | `market.purchase`、`market.sell` | `mail.received` |
+| `axs.combateffect.*` | `axs.combateffect.kill_entity`、`axs.combateffect.damage_dealt` | `axs.fishing.success` |
+
+> 通配符仅支持末尾 `.*`，不支持中间通配或多级通配（如 `*.*` 或 `market.*.purchase`）。
+
+## 自动注册发布者
+
+`AbstractAXSModule` 提供 `publishedTopics()` 钩子方法，子类返回本模块发布的事件主题列表，基类在 `onEnable` 阶段（`startService` 之前）自动调用 `registerPublisher` 注册到 EventBus。
+
+```java
+public class MyModule extends AbstractAXSModule {
+
+    @Override
+    protected List<String> publishedTopics() {
+        return List.of("mymodule.event_a", "mymodule.event_b");
+    }
+
+    @Override
+    protected void startService() throws Exception {
+        // startService 之前，基类已自动注册 "mymodule.event_a" 和 "mymodule.event_b"
+        // 其他模块可通过 hasPublisher("mymodule.event_a") 检测本模块是否已加载
+    }
+}
+```
+
+基类自动注册逻辑（`AbstractAXSModule.onEnable`）：
+
+```java
+// 3b. 注册 EventBus 发布者主题（在 startService 之前，确保其他模块可查询）
+List<String> topics = publishedTopics();
+if (topics != null && !topics.isEmpty()) {
+    EventBusCapability eventBus = context.getCapability(EventBusCapability.class);
+    if (eventBus != null) {
+        for (String topic : topics) {
+            eventBus.registerPublisher(topic);
+        }
+    }
+}
+```
+
+> 默认返回空列表。只有发布 EventBus 事件的模块才需要重写此方法。
+
+## 事件分发
+
+`SimpleEventBus` 是 `EventBusCapability` 的默认实现，使用 `ConcurrentHashMap` + `CopyOnWriteArrayList` 实现线程安全的订阅管理：
+
+```java
+public final class SimpleEventBus implements EventBusCapability {
+    private final ConcurrentHashMap<String, CopyOnWriteArrayList<Subscription>> subscriptions;
+    private final ConcurrentHashMap<String, Subscription> subscriptionById;
+    private final Set<String> publisherTopics; // ConcurrentHashMap.newKeySet()
+}
+```
+
+### 分发流程
+
+`publish` 方法依次执行：
+
+1. **自动追踪**：将 topic 加入 `publisherTopics`（运行时检测补充）
+2. **精确匹配**：查找 `subscriptions` 中与 topic 完全匹配的订阅列表，逐个分发
+3. **通配符匹配**：遍历所有以 `.*` 结尾的订阅模式，若 topic 以模式前缀开头则分发
+
+### 异常处理
+
+事件分发的异常会被捕获并打 warning 日志，**不会中断其它处理器**：
+
+```java
+private void dispatch(Subscription sub, BusEvent event) {
+    try {
+        sub.handler.handle(event);
+    } catch (Exception e) {
+        logger.warning("[EventBus] 处理器异常 topic=" + event.topic()
+            + " sub=" + sub.id + " : " + e.getMessage());
+    }
+}
+```
+
+## 使用示例
+
+### 发布事件
+
+```java
+EventBusCapability bus = context.getCapability(EventBusCapability.class);
+if (bus != null) {
+    // 发布 Map payload（向后兼容）
+    bus.publish("market.purchase", player, Map.of("price", "1000", "item", "钻石剑"));
+
+    // 发布类型安全 payload
+    bus.publish("market.auction_purchased", player, new PurchaseRecord(itemId, price, buyer));
+}
+```
+
+### 订阅事件
+
+```java
+EventBusCapability bus = context.getCapability(EventBusCapability.class);
+if (bus != null) {
+    // 精确订阅
+    String subId1 = bus.subscribe("market.purchase", event -> {
+        Map<String, String> data = event.payload();
+        logger.info(event.player().getName() + " 购买了 " + data.get("item"));
+    });
+
+    // 通配符订阅
+    String subId2 = bus.subscribe("market.*", event -> {
+        logger.info("市场事件: " + event.topic() + " by " + event.player().getName());
+    });
+
+    // 类型安全 payload 订阅
+    String subId3 = bus.subscribe("market.auction_purchased", event -> {
+        PurchaseRecord record = (PurchaseRecord) event.typedPayload();
+        // 处理类型安全数据
+    });
+
+    // 取消订阅
+    bus.unsubscribe(subId1);
+}
+```
+
+### 在模块中声明发布主题
+
+```java
+public class MarketModule extends AbstractAXSModule {
+
+    @Override
+    protected List<String> publishedTopics() {
+        return List.of(
+            "market.listing_created",
+            "market.auction_purchased",
+            "market.shop_dynamic_triggered"
+        );
+    }
+
+    @Override
+    protected void startService() throws Exception {
+        // 基类已自动注册上述主题为发布者
+        // 其他模块可通过 hasPublisher("market.listing_created") 检测本模块是否已加载
+    }
+}
+```
+
+### 启动时检测依赖模块
+
+```java
+@Override
+protected void startService() throws Exception {
+    EventBusCapability bus = getCapability(EventBusCapability.class);
+    if (bus != null && bus.hasPublisher("market.listing_created")) {
+        // Market 模块已加载，订阅其事件
+        bus.subscribe("market.*", event -> {
+            // 处理市场事件
+        });
+    } else {
+        // Market 模块未加载，降级处理
+        logger.info("Market 模块未加载，跳过市场事件订阅");
+    }
+}
+```
+
+## 已注册主题列表
+
+以下主题由各模块通过 `publishedTopics()` 声明，基类在 `onEnable` 阶段自动注册：
+
+| 模块 | 事件主题 | 说明 |
+|------|----------|------|
+| market | `market.listing_created` | 上架商品 |
+| market | `market.auction_purchased` | 拍卖购买 |
+| market | `market.shop_dynamic_triggered` | 动态商店触发 |
+| chat | `axs.chat.chat_message_sent` | 聊天消息发送 |
+| loginview | `axs.loginview.login_success` | 登录成功 |
+| onlinerewards | `onlinerewards.server_goal_reached` | 服务器目标达成 |
+| regions | `axs.regions.region_change` | 区域变更 |
+| warehouse | `axs.warehouse.item_deposited` | 物品入库 |
+| combateffect | `axs.combateffect.kill_entity` | 击杀实体 |
+| combateffect | `axs.combateffect.damage_dealt` | 造成伤害 |
+| combateffect | `axs.combateffect.player_death` | 玩家死亡 |
+| fishing | `axs.fishing.success` | 钓鱼成功 |
+| fishing | `axs.fishing.perfect` | 完美钓鱼 |
+| fishing | `axs.fishing.collection_unlock` | 图鉴解锁 |
+| fishing | `axs.fishing.treasure` | 钓到宝藏 |
+| questgps | `axs.questgps.quest_completed` | 任务完成 |
+| prop | `axs.prop.prop_used` | 道具使用 |
+| pickup | `axs.pickup.item_pickup` | 物品拾取 |
+| entitytracker | `axs.entitytracker.boss_kill` | Boss 击杀 |
+| afkreward | `axs.afkreward.reward_claimed` | 挂机奖励领取 |
+
+## 注意事项
+
+- 事件分发在**调用线程**同步执行，避免在 handler 中执行耗时操作。
+- `publish` 时 `player` 参数可为 null（如系统事件），订阅方需做空值判断。
+- `payload()` 方法在原始 payload 不是 `Map<String, String>` 时返回空 Map，需要类型安全数据时使用 `typedPayload()`。
+- 模块 `onDisable` 时应取消所有活跃订阅，避免内存泄漏（宿主会自动清理 Capability 注册，但订阅 ID 需模块自行管理）。
+- `BattlePass` 等模块会延迟 1 tick 启动 TaskEngine，确保所有模块的 `publishedTopics()` 已注册到 EventBus（模块加载顺序不确定）。

@@ -1,0 +1,241 @@
+---
+title: 物品库匹配
+description: ArcartXSuite 统一物品来源系统配置指南，支持 Minecraft 原版、MythicMobs、NeigeItems、Overture、MMOItems
+---
+
+# 物品库匹配
+
+## 概述
+
+ItemSourceRegistry 是 ArcartXSuite 的统一物品来源系统。所有模块通过 `source` + `id` 两个字段描述物品来源，无需在各自配置中直接依赖第三方物品库插件。
+
+系统在启动时会自动检测服务端已安装的物品库插件，并为每个已安装的插件创建对应的桥接（Bridge）。当某个物品库插件未安装时，对应的物品来源将不可用，但不会影响其他来源和模块的正常运行。
+
+这种设计带来以下好处：
+
+- **解耦**：模块配置只写 `source` + `id`，不关心底层是哪个插件
+- **可扩展**：新增物品库插件只需注册新的桥接，无需修改各模块代码
+- **容错**：缺少某个插件时仅该来源失效，不影响整体功能
+
+## 支持的物品来源
+
+| source 值 | 对应插件 | 说明 |
+|-----------|----------|------|
+| `minecraft` / `plain` / `vanilla` | 原版 | 使用 Bukkit Material |
+| `mythic` / `mythicmobs` | MythicMobs | MythicMobs 内部物品 ID |
+| `neige` / `neigeitems` | NeigeItems | NeigeItems 物品 ID |
+| `overture` | Overture | Overture 模板 ID（需要玩家上下文） |
+| `mmoitems` / `mmo` | MMOItems | 格式 `TYPE;ITEM` 或拆分 `mmo-type` + `mmo-id` |
+
+> `source` 字段不区分大小写。多个别名指向同一来源，配置时任选其一。
+
+## 基础配置
+
+物品配置采用统一的字段结构：
+
+```yaml
+item:
+  source: "minecraft"
+  id: "DIAMOND_SWORD"
+  amount: 1
+  nbt: "{display:{Name:'{\"text\":\"剑\"}'}}"
+```
+
+### 通用字段说明
+
+| 字段 | 说明 | 适用来源 |
+|------|------|----------|
+| `source` | 物品来源标识 | 全部 |
+| `id` / `item-id` | 物品 ID | 全部 |
+| `amount` | 数量 | 全部 |
+| `nbt` | NBT 标签（SNBT 格式） | 仅 minecraft / plain / vanilla |
+| `mmo-type` / `mmoType` | MMO 类型 | 仅 mmoitems |
+| `mmo-id` / `mmoId` | MMO 物品 ID | 仅 mmoitems |
+
+> `id` 和 `item-id` 互为别名，配置时任选其一。
+
+## 各来源详细配置
+
+### 原版物品
+
+使用 Bukkit 原生 Material 创建物品，无需任何第三方插件。
+
+```yaml
+item:
+  source: "minecraft"
+  id: "DIAMOND"
+  amount: 64
+```
+
+- `id` 为 Bukkit Material 名称（如 `DIAMOND`、`IRON_SWORD`、`GOLDEN_APPLE`）
+- 可通过 `nbt` 字段附加自定义 NBT 标签（SNBT 格式）
+- `source` 可简写为 `plain` 或 `vanilla`
+
+```yaml
+item:
+  source: "vanilla"
+  id: "IRON_SWORD"
+  amount: 1
+  nbt: "{display:{Name:'{\"text\":\"铁剑\",\"color\":\"white\"}'},Damage:10}"
+```
+
+### MythicMobs
+
+使用 MythicMobs 内部物品创建物品，需要服务端安装 MythicMobs 插件。
+
+```yaml
+item:
+  source: "mythic"
+  id: "SwordOfFlame"
+  amount: 1
+```
+
+- `id` 为 MythicMobs 配置文件中定义的内部物品名（如 `SwordOfFlame`、`BossDrop`）
+- 物品的属性、附魔、描述等均由 MythicMobs 配置决定，此处无需重复配置
+
+> 若 MythicMobs 未安装，该来源将不可用，调用时返回 `null` 物品。
+
+### NeigeItems
+
+使用 NeigeItems 物品创建物品，需要服务端安装 NeigeItems 插件。
+
+```yaml
+item:
+  source: "neige"
+  id: "legendary_sword"
+  amount: 1
+```
+
+- `id` 为 NeigeItems 配置中定义的物品 ID
+- NeigeItems 物品通常包含复杂的 Lore 和动态变量，由 NeigeItems 自行处理
+
+### Overture
+
+使用 Overture 模板创建物品，需要服务端安装 Overture 插件。
+
+```yaml
+item:
+  source: "overture"
+  id: "template_weapon_001"
+  amount: 1
+```
+
+- `id` 为 Overture 模板 ID
+- **需要玩家上下文**：Overture 物品的生成依赖玩家信息（如变量替换），因此生成物品时必须传入玩家对象，玩家不在线时无法正确生成
+
+> Overture 来源在离线场景（如邮件发送给离线玩家）中可能无法正确生成物品，请注意使用场景。
+
+### MMOItems
+
+使用 MMOItems 物品创建物品，需要服务端安装 MMOItems 插件。
+
+MMOItems 的物品 ID 由 **类型** 和 **物品名** 两部分组成，支持两种写法：
+
+**合并写法**（推荐）：在 `id` 中使用 `;` 分隔类型和物品名：
+
+```yaml
+item:
+  source: "mmoitems"
+  id: "SWORD;EXCALIBUR"
+  amount: 1
+```
+
+**拆分写法**：使用 `mmo-type` + `mmo-id` 两个字段：
+
+```yaml
+item:
+  source: "mmoitems"
+  mmo-type: "SWORD"
+  mmo-id: "EXCALIBUR"
+  amount: 1
+```
+
+- `SWORD` 为 MMOItems 的 Type（类型），`EXCALIBUR` 为该类型下的物品 ID
+- 两种写法等价，合并写法更简洁，拆分写法更清晰
+
+## 物品识别
+
+物品识别是物品生成的反向操作：从一个已有的 `ItemStack` 反查其对应的外部物品库 ID。该功能主要用于 Market 拍卖行、Mail 邮件附件等场景——当玩家上架物品或发送邮件附件时，系统需要识别该物品是否来自外部物品库，以便在取回时能正确还原。
+
+各物品来源均提供识别接口：
+
+| 来源 | 识别方法 | 返回值 |
+|------|----------|--------|
+| MythicMobs | `mythicItemId` | MythicMobs 内部物品名，非则返回 `null` |
+| NeigeItems | `neigeItemId` | NeigeItems 物品 ID，非则返回 `null` |
+| Overture | `overtureItemId` | Overture 模板 ID，非则返回 `null` |
+| MMOItems | `mmoItemId` | `TYPE;ITEM` 格式字符串，非则返回 `null` |
+
+> 识别功能依赖对应插件已安装。若插件未安装，识别方法直接返回 `null`，不会抛出异常。
+
+## 实际示例
+
+### Market 商店物品
+
+Market 商店中上架的物品通过 `source` + `id` 描述来源：
+
+```yaml
+shops:
+  weapons:
+    items:
+      - source: "mythic"
+        id: "SwordOfFlame"
+        price: 1000
+      - source: "mmoitems"
+        id: "SWORD;EXCALIBUR"
+        price: 5000
+      - source: "minecraft"
+        id: "DIAMOND"
+        amount: 32
+        price: 100
+```
+
+### BattlePass 等级奖励
+
+BattlePass 各等级奖励中的物品配置：
+
+```yaml
+rewards:
+  level-10:
+    items:
+      - source: "neige"
+        id: "rare_chest"
+        amount: 1
+      - source: "minecraft"
+        id: "GOLDEN_APPLE"
+        amount: 5
+  level-20:
+    items:
+      - source: "mmoitems"
+        mmo-type: "SWORD"
+        mmo-id: "EXCALIBUR"
+        amount: 1
+```
+
+### Mail 邮件附件
+
+邮件附件中的物品配置：
+
+```yaml
+mails:
+  welcome-mail:
+    title: "新手礼包"
+    attachments:
+      - source: "minecraft"
+        id: "IRON_SWORD"
+        amount: 1
+        nbt: "{display:{Name:'{\"text\":\"新手铁剑\"}'}}"
+      - source: "overture"
+        id: "starter_kit"
+        amount: 1
+```
+
+## 故障排除
+
+| 现象 | 排查方向 |
+|------|----------|
+| 物品生成返回 null | 确认对应插件已安装，且 `id` 拼写正确 |
+| MythicMobs 物品属性丢失 | 确认 MythicMobs 配置中该物品存在且可正常生成 |
+| Overture 物品生成失败 | 确认玩家在线，Overture 需要玩家上下文 |
+| MMOItems 物品类型错误 | 确认 `TYPE` 名称与 MMOItems 配置中的 Type 一致 |
+| NBT 标签不生效 | 确认 `nbt` 为合法 SNBT 格式，仅对 minecraft 来源生效 |

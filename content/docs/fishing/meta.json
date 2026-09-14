@@ -1,0 +1,15 @@
+{
+  "title": "Fishing 钓鱼系统",
+  "description": "星露谷风格钓鱼小游戏，支持多水域生态、鱼类图鉴、天赋树、赛季等级、疲惫值与任务系统。",
+  "color": "#38bdf8",
+  "pages": [
+    "index",
+    "configuration",
+    "fishes",
+    "rods",
+    "baits",
+    "pools",
+    "commands",
+    "integration"
+  ]
+}

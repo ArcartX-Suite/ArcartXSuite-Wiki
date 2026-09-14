@@ -1,0 +1,479 @@
+---
+title: 配置
+description: CombatEffect 配置文件详解与完整示例
+---
+
+# 配置文件
+
+CombatEffect 模块的配置文件位于模块数据目录下，首次启动时自动导出默认配置。配置采用动态同步策略（`SyncPolicy` 动态节），以下配置节变更时可热重载：`kill-effect`、`combo-tracker`、`death-buffer`、`keybind-trigger`、`state-trigger`、`digis-display`。
+
+## 文件结构
+
+| 文件 | 说明 | 首次导出 |
+|---|---|---|
+| `ArcartXCombatEffect.yml` | 主配置文件 | 是 |
+| `messages.yml` | 消息本地化文件 | 是 |
+| `packets/default.yml` | 默认包定义文件 | 是（目录为空时导出） |
+| `ui/combat_kill_effect.yml` | 击杀/命中特效 HUD | 是 |
+| `ui/combo_effect.yml` | 连击特效 HUD | 是 |
+| `ui/death_buffer.yml` | 死亡缓冲界面 | 是 |
+| `damage_display/ArcartXSuite-damage.yml` | 伤害飘字样式 | 是（导出到 ArcartX 目录） |
+| `damage_display/ArcartXSuite-heal.yml` | 治疗飘字样式 | 是 |
+| `damage_display/ArcartXSuite-critical.yml` | 暴击飘字样式 | 是 |
+| `damage_display/ArcartXSuite-dodged.yml` | 闪避飘字样式 | 是 |
+| `damage_display/ArcartXSuite-advantaged.yml` | 元素克制优势飘字样式 | 是 |
+| `damage_display/ArcartXSuite-disadvantaged.yml` | 元素克制劣势飘字样式 | 是 |
+
+> UI 文件导出到 `plugins/ArcartX-Suite/modules/combateffect/ui/`，damage_display 文件导出到 `plugins/ArcartX/damage_display/`（ArcartX 插件目录）。`ui.overwrite-ui-files` 为 `true` 时强制覆盖用户已修改的 UI 文件。
+
+## 主配置 ArcartXCombatEffect.yml
+
+### config-version 与 ui
+
+| 字段 | 类型 | 默认值 | 说明 |
+|---|---|---|---|
+| `config-version` | int | `1` | 配置版本号，破坏性改动时递增 |
+| `ui.overwrite-ui-files` | boolean | `false` | 是否强制覆盖用户已修改的 UI 文件 |
+
+### kill-effect 击杀/攻击特效
+
+| 字段 | 类型 | 默认值 | 说明 |
+|---|---|---|---|
+| `kill-effect.settings.debug` | boolean | `false` | 是否输出详细发包信息 |
+| `kill-effect.settings.blacklist.mythic-mob-ids` | `List<String>` | `[]` | MythicMob ID 黑名单（大小写不敏感） |
+| `kill-effect.settings.blacklist.entity-types` | `List<String>` | `[]` | Bukkit EntityType 黑名单（如 `ZOMBIE`、`PLAYER`） |
+| `kill-effect.settings.entity-combat.enabled` | boolean | `true` | 实体战斗监听总开关 |
+| `kill-effect.settings.entity-combat.include-players` | boolean | `true` | 是否处理玩家目标（PVP） |
+| `kill-effect.settings.entity-combat.include-non-player-living` | boolean | `true` | 是否处理非玩家活体实体 |
+| `kill-effect.packets-directory` | string | `packets` | 包定义目录（相对模块数据目录） |
+
+### combo-tracker 连击追踪
+
+| 字段 | 类型 | 默认值 | 说明 |
+|---|---|---|---|
+| `combo-tracker.enabled` | boolean | `false` | 是否启用连击追踪 |
+| `combo-tracker.source` | string | `auto` | 连击来源：`auto` / `chronos` / `bukkit` |
+| `combo-tracker.timeout` | long | `2000` | 连击超时重置时间（毫秒），最小 200 |
+| `combo-tracker.chronos-groups` | `List<String>` | `["攻击", "连击"]` | Chronos 状态组过滤，仅这些组的状态进入才计为连击 |
+| `combo-tracker.sync-variable` | boolean | `false` | 是否同步连击数到客户端服务器变量 |
+| `combo-tracker.variable-name` | string | `combo_count` | 客户端变量名，UI 可通过 `{server.combo_count}` 引用 |
+| `combo-tracker.per-target` | boolean | `false` | 切换攻击目标是否重置连击 |
+| `combo-tracker.debug` | boolean | `false` | 是否开启连击追踪调试日志 |
+
+### death-buffer 死亡缓冲
+
+| 字段 | 类型 | 默认值 | 说明 |
+|---|---|---|---|
+| `death-buffer.enabled` | boolean | `false` | 是否启用死亡缓冲 |
+| `death-buffer.duration` | long | `3000` | 缓冲持续时间（毫秒），最小 500 |
+| `death-buffer.visuals.shader` | string | `""` | ArcartX Shader 名称（灰度/模糊等） |
+| `death-buffer.visuals.third-person-camera` | boolean | `true` | 是否切换到第三人称视角 |
+| `death-buffer.visuals.camera-preset` | string | `""` | ArcartX 预设相机 ID（电影级俯拍） |
+| `death-buffer.visuals.chronos.enabled` | boolean | `false` | 是否启用 Chronos 状态切换 |
+| `death-buffer.visuals.chronos.state-id` | string | `死亡` | 强制玩家进入的 Chronos 状态 ID |
+| `death-buffer.block-auto-respawn` | boolean | `true` | 缓冲期间阻止其他插件触发的自动复活 |
+| `death-buffer.world-blacklist` | `List<String>` | `[]` | 不启用死亡缓冲的世界列表 |
+| `death-buffer.debug` | boolean | `false` | 是否开启死亡缓冲调试日志 |
+
+### keybind-trigger 与 state-trigger
+
+| 字段 | 类型 | 默认值 | 说明 |
+|---|---|---|---|
+| `keybind-trigger.enabled` | boolean | `false` | 是否启用 ArcartX 按键触发（需 ArcartX） |
+| `state-trigger.enabled` | boolean | `false` | 是否启用 Chronos 状态/控制器触发（需 Chronos） |
+
+### digis-display 伤害飘字
+
+#### 伤害来源配置
+
+| 字段 | 类型 | 默认值 | 说明 |
+|---|---|---|---|
+| `digis-display.damage-display.source.mode` | string | `auto` | 伤害来源模式：`auto` / `mythiclib` / `craneattribute` / `attributeplus` / `symphony` / `bukkit` |
+| `digis-display.damage-display.source.fallback` | boolean | `true` | 指定来源不可用时是否回退到下一个可用来源 |
+| `digis-display.damage-display.source.debug` | boolean | `false` | 是否输出伤害来源选择与回退日志 |
+| `digis-display.damage-display.show-others-damage` | boolean | `false` | 其他能看到目标的玩家是否也看到伤害飘字 |
+
+#### 原始伤害与 PVP 伤害
+
+| 字段 | 类型 | 默认值 | 说明 |
+|---|---|---|---|
+| `digis-display.damage-display.original.enabled` | boolean | `true` | 是否启用原始伤害飘字 |
+| `digis-display.damage-display.original.config-id` | string | `ArcartXSuite-damage` | 飘字样式 ID |
+| `digis-display.damage-display.original.min-amount` | double | `1.0` | 最小显示阈值 |
+| `digis-display.damage-display.original.ap-compatible` | boolean | `true` | AttributePlus 来源时是否允许显示 |
+| `digis-display.damage-display.player.enabled` | boolean | `true` | 是否启用 PVP 伤害飘字 |
+| `digis-display.damage-display.player.config-id` | string | `ArcartXSuite-player-damage` | PVP 飘字样式 ID |
+| `digis-display.damage-display.player.min-amount` | double | `1.0` | PVP 最小显示阈值 |
+
+#### 属性插件伤害（MythicLib / CraneAttribute / Symphony）
+
+每个属性插件配置结构相同，以下以 MythicLib 为例：
+
+| 字段 | 类型 | 默认值 | 说明 |
+|---|---|---|---|
+| `digis-display.damage-display.mythiclib.enabled` | boolean | `false` | 是否启用 MythicLib 伤害飘字 |
+| `digis-display.damage-display.mythiclib.config-id` | string | `ArcartXSuite-damage` | 普通目标飘字样式 ID |
+| `digis-display.damage-display.mythiclib.player-config-id` | string | `ArcartXSuite-player-damage` | PVP 目标飘字样式 ID |
+| `digis-display.damage-display.mythiclib.min-amount` | double | `1.0` | 普通目标最小显示阈值 |
+| `digis-display.damage-display.mythiclib.player-min-amount` | double | `1.0` | PVP 最小显示阈值 |
+
+> CraneAttribute 与 Symphony 配置路径将 `mythiclib` 替换为 `craneattribute` / `symphony`，字段结构完全一致。
+
+#### 暴击/闪避/克制飘字
+
+| 字段 | 类型 | 默认值 | 说明 |
+|---|---|---|---|
+| `digis-display.damage-display.critical.enabled` | boolean | `false` | 是否启用暴击飘字 |
+| `digis-display.damage-display.critical.config-id` | string | `ArcartXSuite-critical` | 暴击飘字样式 ID |
+| `digis-display.damage-display.critical.player-config-id` | string | `ArcartXSuite-critical` | PVP 暴击飘字样式 ID |
+| `digis-display.damage-display.critical.min-amount` | double | `1.0` | 暴击最小显示阈值 |
+| `digis-display.damage-display.dodged.enabled` | boolean | `false` | 是否启用闪避飘字 |
+| `digis-display.damage-display.dodged.config-id` | string | `ArcartXSuite-dodged` | 闪避飘字样式 ID |
+| `digis-display.damage-display.advantaged.enabled` | boolean | `false` | 是否启用元素克制优势飘字 |
+| `digis-display.damage-display.advantaged.config-id` | string | `ArcartXSuite-advantaged` | 优势飘字样式 ID |
+| `digis-display.damage-display.advantaged.player-config-id` | string | `ArcartXSuite-advantaged` | PVP 优势飘字样式 ID |
+| `digis-display.damage-display.disadvantaged.enabled` | boolean | `false` | 是否启用元素克制劣势飘字 |
+| `digis-display.damage-display.disadvantaged.config-id` | string | `ArcartXSuite-disadvantaged` | 劣势飘字样式 ID |
+| `digis-display.damage-display.disadvantaged.player-config-id` | string | `ArcartXSuite-disadvantaged` | PVP 劣势飘字样式 ID |
+
+#### 伤害合并
+
+| 字段 | 类型 | 默认值 | 说明 |
+|---|---|---|---|
+| `digis-display.damage-display.damage-merge.enabled` | boolean | `false` | 是否启用伤害合并 |
+| `digis-display.damage-display.damage-merge.window-ticks` | int | `2` | 合并窗口（tick） |
+| `digis-display.damage-display.damage-merge.min-amount` | double | `1.0` | 合并后最小显示阈值 |
+| `digis-display.damage-display.damage-merge.max-entries` | int | `500` | 最大缓存条目数 |
+
+### 治疗飘字配置
+
+| 字段 | 类型 | 默认值 | 说明 |
+|---|---|---|---|
+| `digis-display.heal-display.original.enabled` | boolean | `true` | 是否启用原版治疗飘字 |
+| `digis-display.heal-display.original.config-id` | string | `ArcartXSuite-heal` | 治疗飘字样式 ID |
+| `digis-display.heal-display.original.min-amount` | double | `1.0` | 最小显示阈值 |
+| `digis-display.heal-display.mythic.enabled` | boolean | `true` | 是否启用 MythicMobs 技能治疗飘字 |
+| `digis-display.heal-display.mythic.config-id` | string | `ArcartXSuite-heal` | MythicMobs 治疗飘字样式 ID |
+| `digis-display.heal-display.mythic.min-amount` | double | `1.0` | 最小显示阈值 |
+| `digis-display.heal-display.mythic.exact-mode` | boolean | `true` | 是否显示实际生效治疗量（扣除溢出） |
+| `digis-display.heal-display.heal-merge.enabled` | boolean | `false` | 是否启用治疗合并 |
+| `digis-display.heal-display.heal-merge.window-ticks` | int | `2` | 合并窗口（tick） |
+| `digis-display.heal-display.heal-merge.min-amount` | double | `1.0` | 合并后最小显示阈值 |
+| `digis-display.heal-display.heal-merge.max-entries` | int | `500` | 最大缓存条目数 |
+
+## 包定义字段（packets/*.yml）
+
+包定义目录下每个 `*.yml` 文件可包含多个包定义，根键即为包 ID。
+
+| 字段 | 类型 | 默认值 | 说明 |
+|---|---|---|---|
+| `enabled` | boolean | `true` | 是否启用此包定义 |
+| `trigger` | string | — | 触发器类型（单值写法） |
+| `triggers` | `List<String>` | — | 触发器列表（多值写法，与 `trigger` 可混用） |
+| `ui-id` | string | `""` | 目标 ArcartX UI ID |
+| `packet-handler` | string | `""` | UI 中的 packetHandler 名称 |
+| `recipients` | `List<String>` | `["attacker"]` | 接收者列表：`attacker` / `killer` / `target` |
+| `cooldown` | long | `0` | 冷却时间（毫秒），0 = 无冷却 |
+| `conditions` | map | — | 触发条件（按触发器类型有不同可用字段） |
+| `pack` | string / list / map | — | 发包内容，支持变量替换 |
+
+### conditions 条件字段
+
+| 触发器 | 可用条件字段 | 说明 |
+|---|---|---|
+| `combo` | `combo-min` / `combo-max` / `combo-repeat` | 最低/最高连击数，是否重复触发 |
+| `keybind` | `key-name` / `key-action` / `key-type` | 按键名称（支持通配符）、动作、按键类型 |
+| `state` | `state-id` / `state-action` / `controller-id` | 状态 ID（通配符）、动作、控制器 ID |
+| `controller` | `controller-id` | 控制器 ID（通配符） |
+
+| 条件字段 | 类型 | 默认值 | 说明 |
+|---|---|---|---|
+| `combo-min` | int | `0` | 最低连击数（含） |
+| `combo-max` | int | `2147483647` | 最高连击数（含） |
+| `combo-repeat` | boolean | `false` | `true` 在范围内每击触发；`false` 仅达到 `combo-min` 时触发一次 |
+| `key-name` | string | — | 按键名称，支持 `*` 通配符（如 `attack_*`） |
+| `key-action` | string | `press` | `press` / `release` / `both` |
+| `key-type` | string | `client` | `client` / `simple` / `group` |
+| `state-id` | string | — | 状态 ID，支持 `*` 通配符 |
+| `state-action` | string | `enter` | `enter` / `leave` / `both` |
+| `controller-id` | string | — | 控制器 ID，支持 `*` 通配符 |
+
+## 完整配置示例
+
+```yaml
+# ArcartXCombatEffect.yml
+config-version: 1
+
+ui:
+  overwrite-ui-files: false
+
+kill-effect:
+  settings:
+    debug: false
+    blacklist:
+      mythic-mob-ids: []
+      entity-types: []
+    entity-combat:
+      enabled: true
+      include-players: true
+      include-non-player-living: true
+  packets-directory: "packets"
+
+combo-tracker:
+  enabled: true
+  source: "auto"
+  timeout: 2000
+  chronos-groups:
+    - "攻击"
+    - "连击"
+  sync-variable: true
+  variable-name: "combo_count"
+  per-target: false
+  debug: false
+
+death-buffer:
+  enabled: false
+  duration: 3000
+  visuals:
+    shader: ""
+    third-person-camera: true
+    camera-preset: ""
+    chronos:
+      enabled: false
+      state-id: "死亡"
+  block-auto-respawn: true
+  world-blacklist: []
+  debug: false
+
+keybind-trigger:
+  enabled: false
+
+state-trigger:
+  enabled: false
+
+digis-display:
+  damage-display:
+    source:
+      mode: "auto"
+      fallback: true
+      debug: false
+    show-others-damage: false
+    original:
+      enabled: true
+      config-id: "ArcartXSuite-damage"
+      min-amount: 1.0
+      ap-compatible: true
+    player:
+      enabled: true
+      config-id: "ArcartXSuite-player-damage"
+      min-amount: 1.0
+    mythiclib:
+      enabled: false
+      config-id: "ArcartXSuite-damage"
+      player-config-id: "ArcartXSuite-player-damage"
+      min-amount: 1.0
+      player-min-amount: 1.0
+    craneattribute:
+      enabled: false
+      config-id: "ArcartXSuite-damage"
+      player-config-id: "ArcartXSuite-player-damage"
+      min-amount: 1.0
+      player-min-amount: 1.0
+    symphony:
+      enabled: false
+      config-id: "ArcartXSuite-damage"
+      player-config-id: "ArcartXSuite-player-damage"
+      min-amount: 1.0
+      player-min-amount: 1.0
+    critical:
+      enabled: false
+      config-id: "ArcartXSuite-critical"
+      player-config-id: "ArcartXSuite-critical"
+      min-amount: 1.0
+    dodged:
+      enabled: false
+      config-id: "ArcartXSuite-dodged"
+    advantaged:
+      enabled: false
+      config-id: "ArcartXSuite-advantaged"
+      player-config-id: "ArcartXSuite-advantaged"
+    disadvantaged:
+      enabled: false
+      config-id: "ArcartXSuite-disadvantaged"
+      player-config-id: "ArcartXSuite-disadvantaged"
+    damage-merge:
+      enabled: false
+      window-ticks: 2
+      min-amount: 1.0
+      max-entries: 500
+  heal-display:
+    original:
+      enabled: true
+      config-id: "ArcartXSuite-heal"
+      min-amount: 1.0
+    mythic:
+      enabled: true
+      config-id: "ArcartXSuite-heal"
+      min-amount: 1.0
+      exact-mode: true
+    heal-merge:
+      enabled: false
+      window-ticks: 2
+      min-amount: 1.0
+      max-entries: 500
+```
+
+## 包定义完整示例
+
+```yaml
+# packets/default.yml
+
+# 击杀特效 — 玩家击杀活体实体时向攻击者发送
+kill-effect:
+  enabled: true
+  trigger: kill
+  ui-id: "AXS:combat_kill_effect"
+  packet-handler: "kill"
+  recipients:
+    - killer
+  pack: ""
+
+# 命中特效 — 玩家攻击时触发，500ms 冷却
+attack-effect:
+  enabled: false
+  trigger: attack
+  ui-id: "AXS:combat_kill_effect"
+  packet-handler: "attack"
+  recipients:
+    - attacker
+  cooldown: 500
+  pack: ""
+
+# 连击 5 — 达到 5 连击时触发一次
+combo-5:
+  enabled: true
+  trigger: combo
+  ui-id: "AXS:combo_effect"
+  packet-handler: "combo"
+  recipients:
+    - attacker
+  conditions:
+    combo-min: 5
+    combo-max: 2147483647
+    combo-repeat: false
+  pack:
+    combo_count: "{combo_count}"
+
+# 连击 10 — 里程碑特效
+combo-10:
+  enabled: true
+  trigger: combo
+  ui-id: "AXS:combo_effect"
+  packet-handler: "combo_milestone"
+  recipients:
+    - attacker
+  conditions:
+    combo-min: 10
+    combo-max: 2147483647
+    combo-repeat: false
+  pack:
+    combo_count: "{combo_count}"
+
+# 死亡缓冲 — 发给被击杀的玩家
+death-buffer-victim:
+  enabled: true
+  trigger: death
+  ui-id: "AXS:death_buffer"
+  packet-handler: "death"
+  recipients:
+    - target
+  pack:
+    killer: "{attacker}"
+    victim: "{target}"
+
+# 死亡缓冲 — 发给击杀者
+death-buffer-killer:
+  enabled: true
+  trigger: death
+  ui-id: "AXS:combat_kill_effect"
+  packet-handler: "kill"
+  recipients:
+    - attacker
+  pack:
+    killer: "{attacker}"
+    victim: "{target}"
+
+# 按键触发 — 按下 attack_* 按键时触发
+skill-burst:
+  enabled: true
+  trigger: keybind
+  ui-id: "AXS:combat_kill_effect"
+  packet-handler: "attack"
+  recipients:
+    - attacker
+  conditions:
+    key-name: "attack_*"
+    key-action: "press"
+    key-type: "client"
+  cooldown: 1000
+  pack:
+    player: "{player}"
+    key_name: "{key_name}"
+
+# 状态触发 — 进入 "狂暴" 状态时触发
+berserk-effect:
+  enabled: true
+  trigger: state
+  ui-id: "AXS:combat_kill_effect"
+  packet-handler: "attack"
+  recipients:
+    - attacker
+  conditions:
+    state-id: "狂暴"
+    state-action: "enter"
+  pack:
+    player: "{player}"
+    state_id: "{state_id}"
+```
+
+## damage_display 飘字样式
+
+飘字样式文件导出到 `plugins/ArcartX/damage_display/` 目录，由 ArcartX 客户端读取。每个样式文件定义数字贴图、宽高、随机偏移与小数位数：
+
+```yaml
+# ArcartXSuite-damage.yml
+ArcartXSuite-damage:
+  textureWidth: 44
+  textureHeight: 66
+  randomMin: 0
+  randomMax: 0.2
+  decimalPlaces: 1
+  textures:
+    - "damage/damage/0.png"
+    - "damage/damage/1.png"
+    - "damage/damage/2.png"
+    - "damage/damage/3.png"
+    - "damage/damage/4.png"
+    - "damage/damage/5.png"
+    - "damage/damage/6.png"
+    - "damage/damage/7.png"
+    - "damage/damage/8.png"
+    - "damage/damage/9.png"
+    - "damage/damage/dot.png"
+```
+
+| 字段 | 说明 |
+|---|---|
+| `textureWidth` / `textureHeight` | 每张贴图的宽高（像素） |
+| `randomMin` / `randomMax` | 位置随机值（世界坐标单位） |
+| `decimalPlaces` | 小数位数：0 = 仅整数，1 = 1 位小数，2 = 2 位小数 |
+| `textures` | 贴图列表：第 1-10 张对应数字 0-9，第 11 张为小数点，第 12 张为千位分隔逗号 |
+
+> 闪避飘字（`ArcartXSuite-dodged`）固定 `damage=0`，永远不显示小数，无需配置 `decimalPlaces` 与小数点贴图。完整配置参考 [ArcartX 伤害飘字文档](https://wiki.arcartx.com/docs/core/2_simple/9_damage_display)。
+
+## 相关文档
+
+- [概览](/docs/combateffect) — 模块功能与战斗特效机制
+- [命令与占位符](/docs/combateffect/commands) — 命令、权限、UI 包通讯
+- [联动](/docs/combateffect/integration) — EventBus 事件、Capability、跨模块联动
+- [条件系统](/docs/guide/conditions) — 统一条件系统配置指南

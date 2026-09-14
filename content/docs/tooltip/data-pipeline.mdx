@@ -1,0 +1,463 @@
+---
+title: 数据流水线
+description: Tooltip 模块从客户端采集到服务端缓存的完整数据流水线架构
+---
+
+# 数据流水线
+
+> **付费模块**
+
+Tooltip 模块的核心价值在于将客户端 Forge 环境中的动态 tooltip 数据桥接到服务端，供其他模块消费。本页深入剖析从客户端 `ItemTooltipEvent` 采集、`AXS_TOOLTIP_DATA` 网络包传输、JSON 解析、物品指纹去重到 `ConcurrentHashMap` 缓存的完整数据流水线，以及各环节的线程安全与错误处理策略。
+
+## 流水线总览
+
+```
+┌─────────────────────────────────────────────────────────────────┐
+│  客户端（Forge / ArcartX-Suite-Mod）                             │
+│                                                                 │
+│  ItemTooltipEvent 触发                                           │
+│    → 采集 tooltip 文本行（List<String>）                         │
+│    → 采集结构化数据（JSON 对象）                                 │
+│    → 计算物品指纹（ForgeRegistries.ITEMS.getKey()）               │
+│    → 构建 AXS_TOOLTIP_DATA 网络包（4 字段负载）                  │
+│    → ArcartX 自定义网络通道发送                                  │
+└──────────────────────────┬──────────────────────────────────────┘
+                           │ 网络传输
+┌──────────────────────────▼──────────────────────────────────────┐
+│  服务端（ArcartXSuite）                                          │
+│                                                                 │
+│  TooltipPacketHandler.handleClientPacket()（优先级 50）          │
+│    → 包 ID 校验（AXS_TOOLTIP_DATA）                              │
+│    → 数据完整性校验（data.size() >= 4）                          │
+│    → TooltipJsonParser.parseStringArray() 解析文本行 JSON        │
+│    → 空值检查（textLines 非空）                                  │
+│    → TooltipDataCache.put() 写入缓存                             │
+│                                                                 │
+│  TooltipDataCache（ConcurrentHashMap）                           │
+│    → 外层键：玩家 UUID                                           │
+│    → 内层键：物品指纹（namespace:path）                           │
+│    → 值：CachedEntry（textLines + structuredData + timestamp）   │
+│                                                                 │
+│  TooltipDataCapability（Capability 提供方）                       │
+│    → getTooltipLines() / getStructuredData() / injectLore()      │
+│    → 其他模块通过 getCapability() 延迟查询                       │
+└─────────────────────────────────────────────────────────────────┘
+```
+
+## 客户端采集阶段
+
+### ItemTooltipEvent 触发
+
+客户端 ArcartX-Suite-Mod 监听 Forge 的 `ItemTooltipEvent`，在玩家悬停物品时触发 tooltip 渲染事件。mod 在事件回调中采集两类数据：
+
+| 数据类型 | 说明 | 示例 |
+|---|---|---|
+| tooltip 文本行 | tooltip 每一行的渲染文本，包含颜色码 | `["§eAK47", "§7伤害: §f15"]` |
+| 结构化数据 | 从 tooltip 或物品 NBT 中提取的结构化属性 JSON | `{"damage":15,"headshotMultiplier":2.0}` |
+
+:::info
+结构化数据的具体字段由客户端 mod 根据物品类型决定。常见来源包括 TACZ 枪械属性（`damage`、`armorIgnore`、`headshotMultiplier`、`rpm` 等）和 Apotheosis 词缀信息。服务端不解析结构化数据内容，仅透传存储。
+:::
+
+### 物品指纹计算
+
+客户端使用 Forge 注册表计算物品指纹，确保与服务端缓存键一致：
+
+```java
+// 客户端（Forge）
+String fingerprint = ForgeRegistries.ITEMS.getKey(stack.getItem()).toString();
+// 结果示例: "tacz:ak47"、"minecraft:diamond_sword"
+```
+
+| 指纹特性 | 说明 |
+|---|---|
+| 格式 | `namespace:path`（Minecraft 注册名标准格式） |
+| 一致性 | 与服务端 `itemStack.getType().getKey().toString()` 结果一致 |
+| 不含 NBT | 不包含 NBT hash，因客户端 Forge NBT 与服务端 Bukkit ItemMeta 的 hash 计算方式不同 |
+| 同类型共享 | 同类型物品共享一份 tooltip 数据，对聊天预览场景足够精确 |
+
+:::tip
+指纹不含 NBT 是一个经过权衡的设计决策。虽然不同 NBT 的同类型物品可能有不同的 tooltip（如不同附魔的剑），但在聊天物品预览等场景中，按类型粒度展示已足够精确。如需更细粒度的区分，需扩展指纹算法以包含可序列化的 NBT 特征。
+:::
+
+## 网络包传输阶段
+
+### AXS_TOOLTIP_DATA 数据包
+
+客户端将采集的数据封装为 `AXS_TOOLTIP_DATA` 自定义网络包，通过 ArcartX 网络通道发送至服务端。数据包包含 4 个字符串负载字段：
+
+| 索引 | 字段 | 类型 | 说明 |
+|---|---|---|---|
+| `data[0]` | 物品指纹 | `String` | 物品注册名，如 `tacz:ak47` |
+| `data[1]` | 物品类型 ID | `String` | 同 `data[0]`，目前服务端不单独使用 |
+| `data[2]` | tooltip 文本行 | `String`（JSON 数组） | tooltip 每行文本的 JSON 数组字符串 |
+| `data[3]` | 结构化数据 | `String`（JSON 对象） | 结构化属性字段的 JSON 对象字符串 |
+
+### 负载示例
+
+以下是一个 TACZ AK47 枪械的典型数据包负载：
+
+```yaml
+data[0]: "tacz:ak47"
+data[1]: "tacz:ak47"
+data[2]: '["§e§lAK47","§7伤害: §f15","§7护甲穿透: §f30%","§7爆头倍率: §f2.0x"]'
+data[3]: '{"damage":15,"armorIgnore":0.3,"headshotMultiplier":2.0,"rpm":600}'
+```
+
+:::info
+`data[2]` 中的文本行可能包含 Minecraft 颜色码（`§` 前缀）。在 Lore 注入阶段，模块会将 `&` 颜色码转换为 `§` 颜色码，确保 Bukkit Lore 正确渲染颜色。
+:::
+
+## 服务端处理阶段
+
+### 包处理器优先级
+
+Tooltip 模块的包处理器注册优先级为 50，数值越小越先执行：
+
+```java
+@Override
+protected @NotNull PacketHandlerSpec createPacketHandlerSpec() {
+    return PacketHandlerSpec.of(
+        new TooltipPacketHandler(cache, parser),
+        50,
+        TooltipPacketHandler.PACKET_ID,
+        "tooltip"
+    );
+}
+```
+
+| 优先级参数 | 值 | 说明 |
+|---|---|---|
+| `priority` | `50` | 高优先级，确保 tooltip 数据尽快缓存 |
+| `ownershipPacketId` | `AXS_TOOLTIP_DATA` | 模块拥有的包 ID，用于路由层归属 |
+| `guardModule` | `tooltip` | PacketGuard 模块 key |
+
+:::tip
+高优先级（小数值）确保 tooltip 数据在其他模块的包处理器之前缓存。这样依赖 tooltip 数据的模块在处理后续包时，能立即从缓存中读取到最新数据，避免时序问题。
+:::
+
+### 包处理流程
+
+`TooltipPacketHandler.handleClientPacket` 按以下步骤处理数据包：
+
+```java
+public boolean handleClientPacket(@NotNull Player player, @NotNull String packetId,
+                                  @NotNull List<String> data) {
+    if (!PACKET_ID.equalsIgnoreCase(packetId)) return false;
+    if (data.size() < 4) return true;
+    try {
+        String fingerprint = data.get(0);
+        String linesJson = data.get(2);
+        String structuredData = data.get(3);
+        List<String> textLines = parser.parseStringArray(linesJson);
+        if (textLines == null || textLines.isEmpty()) return true;
+        cache.put(player, fingerprint, textLines, structuredData);
+    } catch (Exception e) {
+        // 静默处理解析错误
+    }
+    return true;
+}
+```
+
+| 步骤 | 操作 | 返回值 | 说明 |
+|---|---|---|---|
+| 1 | 包 ID 校验 | `false` | 不匹配则不消费，交由后续处理器 |
+| 2 | 数据完整性校验 | `true` | `data.size() < 4` 时消费但不处理 |
+| 3 | JSON 解析 | - | `TooltipJsonParser.parseStringArray` 解析文本行 |
+| 4 | 空值检查 | `true` | 文本行为 null 或空列表时消费但不处理 |
+| 5 | 缓存写入 | - | 按玩家 UUID + 物品指纹存入缓存 |
+| 6 | 异常处理 | `true` | 解析异常时静默处理，不抛出异常 |
+| 7 | 正常返回 | `true` | 消费此包，后续处理器不再接收 |
+
+### 错误处理策略
+
+Tooltip 模块采用**静默容错**策略，确保客户端异常数据不影响服务端稳定性：
+
+| 异常场景 | 处理方式 | 返回值 |
+|---|---|---|
+| 包 ID 不匹配 | 不消费，交由后续处理器 | `false` |
+| 数据字段不足 4 个 | 消费但不处理 | `true` |
+| JSON 解析失败 | `parseStringArray` 返回 null，消费但不处理 | `true` |
+| 文本行为空列表 | 消费但不处理 | `true` |
+| 其他运行时异常 | 捕获并静默处理 | `true` |
+
+:::info
+静默容错策略确保恶意或异常的客户端数据包不会导致服务端异常。所有错误情况均被捕获，包处理器始终正常返回，不影响网络通道的后续处理。
+:::
+
+## JSON 解析层
+
+### TooltipJsonParser
+
+`TooltipJsonParser` 负责将客户端发送的 JSON 数组字符串解析为 `List<String>`：
+
+```java
+public final class TooltipJsonParser {
+
+    @Nullable
+    public List<String> parseStringArray(@NotNull String json) {
+        try {
+            JsonArray array = JsonParser.parseString(json).getAsJsonArray();
+            List<String> result = new ArrayList<>(array.size());
+            for (JsonElement element : array) {
+                result.add(element.getAsString());
+            }
+            return result;
+        } catch (Exception e) {
+            return null;
+        }
+    }
+}
+```
+
+| 属性 | 说明 |
+|---|---|
+| 输入 | JSON 数组字符串，如 `["line1","line2"]` |
+| 输出 | `List<String>`，解析失败返回 `null` |
+| 依赖 | Gson（`com.google.gson`） |
+| 异常处理 | 捕获所有异常，返回 null |
+
+:::tip
+`parseStringArray` 返回 null 而非空列表来区分"解析失败"和"合法的空数组"。包处理器据此判断是否跳过缓存写入。
+:::
+
+### 结构化数据透传
+
+`data[3]` 的结构化数据 JSON 字符串**不经解析**直接存入缓存，由消费方模块按需解析：
+
+| 阶段 | 处理方式 | 说明 |
+|---|---|---|
+| 包处理器 | 透传 | `data[3]` 原样存入 `CachedEntry.structuredData` |
+| 缓存层 | 透传存储 | `CachedEntry.structuredData()` 原样返回 |
+| 消费方 | 自行解析 | 消费方使用 Gson/Jackson 等库解析 JSON |
+
+:::info
+结构化数据透传设计使 Tooltip 模块不耦合具体的数据格式。客户端 mod 可以自由扩展结构化数据字段（如新增枪械属性），服务端无需修改即可透传，消费方按需解析所需字段。
+:::
+
+## 缓存层
+
+### 缓存结构
+
+`TooltipDataCache` 使用双层 `ConcurrentHashMap` 结构，按玩家和物品指纹两级去重：
+
+```java
+private final ConcurrentMap<UUID, ConcurrentMap<String, CachedEntry>> cache
+    = new ConcurrentHashMap<>();
+```
+
+| 层级 | 键类型 | 值类型 | 说明 |
+|---|---|---|---|
+| 外层 | `UUID`（玩家 UUID） | `ConcurrentMap<String, CachedEntry>` | 每个玩家独立缓存映射 |
+| 内层 | `String`（物品指纹） | `CachedEntry` | 每个物品指纹对应一条缓存 |
+
+### CachedEntry 结构
+
+```java
+public static final class CachedEntry {
+    private final List<String> textLines;      // tooltip 文本行
+    private final String structuredData;        // 结构化数据 JSON
+    private final long timestamp;               // 写入时间戳（毫秒）
+}
+```
+
+| 字段 | 类型 | 说明 |
+|---|---|---|
+| `textLines` | `List<String>` | tooltip 文本行列表 |
+| `structuredData` | `String` | 结构化数据 JSON 字符串 |
+| `timestamp` | `long` | 写入时间（毫秒时间戳），用于 TTL 过期判定 |
+
+### 写入流程
+
+```java
+public void put(@NotNull Player player, @NotNull String fingerprint,
+                @NotNull List<String> textLines, @NotNull String structuredData) {
+    ConcurrentMap<String, CachedEntry> playerCache = cache.computeIfAbsent(
+        player.getUniqueId(), k -> new ConcurrentHashMap<>());
+    playerCache.put(fingerprint, new CachedEntry(textLines, structuredData, System.currentTimeMillis()));
+}
+```
+
+| 步骤 | 操作 | 说明 |
+|---|---|---|
+| 1 | 获取玩家缓存映射 | `computeIfAbsent` 原子操作，不存在则创建 |
+| 2 | 构建缓存条目 | 封装 textLines、structuredData、当前时间戳 |
+| 3 | 写入内层映射 | `put` 覆盖同指纹的旧数据 |
+
+:::tip
+`computeIfAbsent` 保证玩家首次写入时原子创建内层映射，避免并发竞争。同一物品指纹的重复写入会覆盖旧数据，实现去重。
+:::
+
+### 读取流程
+
+```java
+@Nullable
+public CachedEntry get(@NotNull UUID playerUuid, @NotNull String fingerprint) {
+    ConcurrentMap<String, CachedEntry> playerCache = cache.get(playerUuid);
+    if (playerCache == null) return null;
+    CachedEntry entry = playerCache.get(fingerprint);
+    if (entry == null) return null;
+    if (System.currentTimeMillis() - entry.timestamp > TTL_MILLIS) {
+        playerCache.remove(fingerprint);
+        return null;
+    }
+    return entry;
+}
+```
+
+| 步骤 | 操作 | 说明 |
+|---|---|---|
+| 1 | 查找玩家缓存映射 | 不存在则返回 null |
+| 2 | 查找指纹缓存条目 | 不存在则返回 null |
+| 3 | TTL 过期检查 | 超过 60 秒则惰性删除并返回 null |
+| 4 | 返回缓存条目 | 有效则返回 `CachedEntry` |
+
+### TTL 过期机制
+
+| 机制 | 触发条件 | 说明 |
+|---|---|---|
+| 惰性删除 | 读取时发现 `timestamp` 超过 TTL | 读取时删除过期条目，返回 null |
+| 批量清理 | `cleanup()` 调用 | 遍历所有条目，删除过期的，清理空玩家映射 |
+| 玩家退出 | `PlayerQuitEvent` | `removePlayer()` 删除该玩家全部缓存 |
+| 模块卸载 | `stopService()` | `cleanup()` 清理全部缓存 |
+
+```yaml
+# 缓存 TTL 参数（代码内固定）
+TTL_MILLIS: 60000  # 60 秒
+```
+
+:::info
+TTL 60 秒的设计平衡了数据时效性与缓存命中率。tooltip 数据由客户端在悬停物品时主动发送，60 秒内同一物品的 tooltip 通常不变。过期后客户端重新悬停会触发新一轮采集，确保数据新鲜度。
+:::
+
+### 线程安全分析
+
+| 操作 | 线程安全机制 | 说明 |
+|---|---|---|
+| 写入（`put`） | `ConcurrentHashMap.computeIfAbsent` + `put` | 原子创建玩家映射，`put` 线程安全 |
+| 读取（`get`） | `ConcurrentHashMap.get` | 无锁读取，线程安全 |
+| 惰性删除 | `ConcurrentHashMap.remove` | 读取时删除过期条目，线程安全 |
+| 批量清理 | `entrySet().removeIf` | `ConcurrentHashMap` 支持迭代时安全删除 |
+| 玩家退出清理 | `ConcurrentHashMap.remove` | 删除整个玩家映射，线程安全 |
+
+:::tip
+`TooltipDataCache` 全程使用 `ConcurrentHashMap`，无需额外同步锁或异步调度。包处理器同步执行缓存写入，确保其他模块查询时能立即获取最新数据。这种设计简化了并发模型，避免了异步调度的复杂性。
+:::
+
+## 能力消费阶段
+
+### TooltipDataCapable 查询
+
+缓存数据通过 `TooltipDataCapability`（实现 `TooltipDataCapable` 接口）向其他模块提供查询服务：
+
+```java
+@Override
+@NotNull
+public List<String> getTooltipLines(@NotNull Player player, @NotNull ItemStack itemStack) {
+    if (itemStack == null || itemStack.getType().isAir()) return List.of();
+    TooltipDataCache.CachedEntry entry = cache.get(player, itemStack);
+    return entry == null ? List.of() : entry.textLines();
+}
+```
+
+| 查询方法 | 入参 | 返回值 | 空值处理 |
+|---|---|---|---|
+| `getTooltipLines(Player)` | 玩家 | `List<String>` | 无数据返回 `List.of()` |
+| `getTooltipLines(Player, ItemStack)` | 玩家 + 物品 | `List<String>` | 无数据返回 `List.of()` |
+| `getStructuredData(Player)` | 玩家 | `String` | 无数据返回 `"{}"` |
+| `hasTooltipData(Player, ItemStack)` | 玩家 + 物品 | `boolean` | 无数据返回 `false` |
+| `injectLore(ItemStack, List<String>)` | 物品 + 文本行 | `ItemStack` | 异常返回原始物品 |
+
+### Lore 注入
+
+`injectLore` 将 tooltip 文本行注入物品 NBT `display.Lore` 标签，用于聊天物品预览等场景：
+
+```java
+@Override
+@NotNull
+public ItemStack injectLore(@NotNull ItemStack itemStack, @NotNull List<String> lines) {
+    if (itemStack == null || itemStack.getType().isAir()) return itemStack;
+    if (lines == null || lines.isEmpty()) return itemStack;
+    try {
+        ItemStack clone = itemStack.clone();
+        ItemMeta meta = clone.getItemMeta();
+        if (meta == null) return itemStack;
+        List<String> lore = new java.util.ArrayList<>(lines.size());
+        for (String line : lines) {
+            lore.add(org.bukkit.ChatColor.translateAlternateColorCodes('&', line));
+        }
+        meta.setLore(lore);
+        clone.setItemMeta(meta);
+        return clone;
+    } catch (Exception e) {
+        return itemStack;
+    }
+}
+```
+
+| 步骤 | 操作 | 说明 |
+|---|---|---|
+| 1 | 空值检查 | 物品为空/空气、lines 为空时返回原始物品 |
+| 2 | 克隆物品 | `itemStack.clone()` 避免修改原始物品栈 |
+| 3 | 获取 ItemMeta | 无 ItemMeta 时返回原始物品 |
+| 4 | 颜色码转换 | `&` 颜色码转为 `§` 颜色码 |
+| 5 | 设置 Lore | `meta.setLore(lore)` 写入 NBT |
+| 6 | 异常保护 | 发生异常时返回原始物品 |
+
+:::tip
+Lore 注入通常与 `ItemBridgeAPI.itemToJson` 配合使用：先注入 tooltip Lore，再序列化为 JSON 发送给客户端，使客户端 UI 能显示完整的动态物品信息。关于物品序列化与图标系统，详见 [/docs/guide/icons](/docs/guide/icons)。
+:::
+
+## 完整数据流示例
+
+以下展示一个 TACZ AK47 枪械从客户端采集到 Chat 模块消费的完整数据流：
+
+```yaml
+# 1. 客户端采集（Forge ItemTooltipEvent）
+client:
+  event: ItemTooltipEvent
+  item: tacz:ak47
+  fingerprint: "tacz:ak47"
+  textLines: ["§e§lAK47", "§7伤害: §f15", "§7护甲穿透: §f30%"]
+  structuredData: '{"damage":15,"armorIgnore":0.3,"headshotMultiplier":2.0}'
+
+# 2. 网络包传输（AXS_TOOLTIP_DATA）
+packet:
+  id: "AXS_TOOLTIP_DATA"
+  data[0]: "tacz:ak47"
+  data[1]: "tacz:ak47"
+  data[2]: '["§e§lAK47","§7伤害: §f15","§7护甲穿透: §f30%"]'
+  data[3]: '{"damage":15,"armorIgnore":0.3,"headshotMultiplier":2.0}'
+
+# 3. 服务端缓存（TooltipDataCache）
+cache:
+  key: "玩家UUID -> tacz:ak47"
+  entry:
+    textLines: ["§e§lAK47", "§7伤害: §f15", "§7护甲穿透: §f30%"]
+    structuredData: '{"damage":15,"armorIgnore":0.3,"headshotMultiplier":2.0}'
+    timestamp: 1700000000000
+
+# 4. Chat 模块消费（TooltipDataCapable）
+chat:
+  step1: "getTooltipLines(player, itemStack) → 获取文本行"
+  step2: "injectLore(itemStack, lines) → 注入 NBT Lore"
+  step3: "ItemBridgeAPI.itemToJson(itemWithLore) → 序列化为 JSON"
+  step4: "发送至客户端 UI 渲染"
+```
+
+:::info
+完整数据流体现了 Tooltip 模块作为"数据桥接层"的定位：客户端采集 → 服务端缓存 → Capability 查询 → 消费方处理。模块本身不涉及业务逻辑，仅负责数据的接收、存储与提供。关于物品来源与条件判断的联动，详见 [/docs/guide/item-sources](/docs/guide/item-sources) 与 [/docs/guide/conditions](/docs/guide/conditions)。
+:::
+
+## 设计要点总结
+
+| 设计决策 | 实现方式 | 优势 |
+|---|---|---|
+| 物品指纹不含 NBT | `itemStack.getType().getKey().toString()` | 客户端与服务端指纹一致，避免 NBT hash 差异 |
+| 双层 ConcurrentHashMap | `UUID → fingerprint → CachedEntry` | 玩家隔离，按物品去重，线程安全 |
+| TTL 惰性删除 | 读取时检查 `timestamp` | 减少后台调度开销，按需清理 |
+| 结构化数据透传 | 原样存储 JSON 字符串 | 解耦数据格式，消费方按需解析 |
+| 静默容错 | 捕获所有异常，返回安全值 | 客户端异常不影响服务端稳定性 |
+| 高优先级包处理 | 优先级 50 | tooltip 数据尽快缓存，避免时序问题 |
+| 克隆注入 Lore | `itemStack.clone()` | 不修改原始物品栈，安全无副作用 |
+| 延迟 Capability 查找 | `getCapability()` 运行时获取 | 支持模块热加载/卸载 |

@@ -1,0 +1,241 @@
+---
+title: 命令与占位符
+description: EventPacket 命令、权限与 PlaceholderAPI 占位符
+---
+
+## 管理员命令
+
+EventPacket 模块的管理命令通过宿主统一命令系统调度，前缀为 `/axs eventpacket`，需要 `arcartxsuite.admin` 权限。
+
+| 命令 | 说明 |
+|---|---|
+| `/axs eventpacket help` | 查看所有可用子命令 |
+| `/axs eventpacket status` | 查看 EventPacket 模块运行状态 |
+| `/axs eventpacket fire <信号名> <玩家> [key=value...]` | 手动触发命令信号 |
+| `/axs eventpacket clearlag` | 手动执行实体清理 |
+| `/axs eventpacket list` | 列出所有已加载的客户端回包预设 |
+| `/axs eventpacket run <玩家> <预设名> [arg...]` | 手动执行客户端回包预设（绕过权限和冷却） |
+
+### fire 子命令
+
+`fire` 命令用于手动发送命令信号，触发所有 `trigger: command-signal` 且 `signal` 匹配的规则。
+
+```bash
+# 向玩家 Steve 发送信号 accept_mainline
+/axs eventpacket fire accept_mainline Steve
+
+# 向玩家 Steve 发送信号 boss_settlement，附带变量 boss_id=dragon
+/axs eventpacket fire boss_settlement Steve boss_id=dragon
+```
+
+发送的变量可在规则动作中通过 `{boss_id}` 等上下文变量引用。变量以 `key=value` 格式追加在命令末尾。
+
+### run 子命令
+
+`run` 命令用于手动执行客户端回包预设，以管理身份绕过权限和冷却检查，常用于调试。
+
+```bash
+# 向玩家 Steve 执行名为 give_item 的回包预设，附带参数 DIAMOND_SWORD 1
+/axs eventpacket run Steve give_item DIAMOND_SWORD 1
+```
+
+### list 子命令
+
+`list` 命令列出当前已加载的所有客户端回包预设，显示预设名、动作数、冷却时间和权限门槛。
+
+### clearlag 子命令
+
+`clearlag` 命令立即执行一次实体清理，不受 `entity-cleanup.enabled` 配置限制，返回清理的实体数量。
+
+## 权限
+
+| 权限节点 | 默认 | 说明 |
+|---|---|---|
+| `arcartxsuite.admin` | OP | 使用 `/axs eventpacket` 管理命令的权限 |
+| `eventpacket.preset.<预设名>` | 无 | 客户端回包预设的触发权限门槛，由预设配置中的 `permission` 字段定义 |
+
+> 客户端回包预设的 `permission` 字段是触发门槛（通过 `player.hasPermission` 检测）。留空表示任何玩家都能触发该预设。`type: op` 预设触发后命令以 OP 身份执行，留空权限风险自负；命令黑名单仍会拦截 `op`/`deop`/`stop`/`luckperms` 等致命命令，建议为 op 预设配置 permission。
+
+## PlaceholderAPI 占位符
+
+EventPacket 模块**不输出**独立的 PlaceholderAPI 占位符。模块作为 PAPI 的**消费者**，在规则配置中使用 PAPI 占位符作为触发条件和条件判断的输入。
+
+### 可消费的 PAPI
+
+| 使用位置 | 配置字段 | 示例 | 说明 |
+|---|---|---|---|
+| PAPI 触发器 | `rules.<id>.placeholder` | `%player_level%` | 用于 papi-increase/decrease/threshold 触发器监听占位符值变化 |
+| 条件判断 | `rules.<id>.conditions` | `%axsloginview_account_type% == microsoft` | 规则条件中使用 PAPI 占位符进行条件判断 |
+
+> 条件格式为 `%placeholder% operator value`，支持 `==`/`!=`/`>=`/`<=`/`>`/`<`/`contains`/`regex` 操作符。详见 [条件系统](/docs/guide/conditions)。
+
+## 上下文变量
+
+规则动作参数支持 `{变量名}` 形式的上下文变量替换。未匹配的占位符原样保留。
+
+### 玩家主体变量
+
+| 变量 | 说明 |
+|---|---|
+| `{player_name}` | 玩家名（如 `Steve`） |
+| `{player_display_name}` | 显示名（含前缀后缀，可能为空） |
+| `{player_uuid}` | 玩家 UUID |
+| `{player_world}` | 所在世界名 |
+| `{player_x}` / `{player_y}` / `{player_z}` | 玩家所在方块坐标（整数） |
+| `{player_health}` | 当前生命值 |
+| `{player_max_health}` | 最大生命值 |
+| `{player_level}` | 等级（经验等级） |
+| `{player_ping}` | 网络延迟（毫秒） |
+
+> `subject_*` 变量与 `player_*` 等价（如 `{subject_name}` = `{player_name}`），推荐使用 `player_*`。
+
+### 接收者变量
+
+仅 `ui-packet` 动作且 `recipients` 包含 `all-online` 或 `others` 时才有意义。
+
+| 变量 | 说明 |
+|---|---|
+| `{receiver_name}` | 接收者玩家名 |
+| `{receiver_display_name}` | 接收者显示名 |
+| `{receiver_uuid}` | 接收者 UUID |
+| `{receiver_role}` | 接收者角色（`self`/`all-online`/`others`） |
+
+### 触发上下文变量
+
+| 变量 | 说明 |
+|---|---|
+| `{trigger}` / `{trigger_type}` | 触发类型（如 `join`、`papi-increase`） |
+| `{world}` | 玩家所在世界（同 `{player_world}`） |
+| `{placeholder}` | PAPI 占位符（仅 PAPI 触发器） |
+| `{old_value}` | 占位符旧值（字符串） |
+| `{new_value}` | 占位符新值（字符串） |
+| `{old_number}` | 旧数值（BigDecimal 去尾零字符串，非数值触发时为空） |
+| `{new_number}` | 新数值 |
+| `{delta_number}` | 数值变化量（`new_number - old_number`） |
+| `{change_direction}` | 变化方向：`increase` / `decrease`（仅 papi-increase/decrease） |
+| `{signal}` / `{command_signal}` | 信号名（command-signal / quest-* / objective-* / chemdah-level-change） |
+
+### 账号信息变量
+
+由宿主统一账号识别服务解析，未注入时为空。
+
+| 变量 | 说明 |
+|---|---|
+| `{account_type}` | 账号类型：`microsoft` / `littleskin` / `offline` |
+| `{account_type_display}` | 账号类型显示名 |
+| `{account_premium}` | 是否正版（`true` / `false`） |
+
+### 时间变量
+
+| 变量 | 说明 |
+|---|---|
+| `{timestamp_unix}` | Unix 时间戳（秒） |
+| `{timestamp_local}` | 本地时间字符串（`yyyy-MM-dd HH:mm:ss`） |
+
+### 动态变量
+
+按触发类型由监听器注入，未对应触发时为空。
+
+| 触发类型 | 变量 |
+|---|---|
+| `client-packet` | `{preset_id}`、`{arg1}`、`{arg2}`...（按客户端 data 顺序） |
+| `quest-accept` / `quest-complete` / `quest-fail` | `{quest_id}` |
+| `objective-complete` / `objective-continue` / `objective-restart` | `{quest_id}`、`{task_id}`、`{objective_type}`、`{objective_name}` |
+| `chemdah-level-change` | `{level_option}`、`{old_level}`、`{new_level}`、`{old_experience}`、`{new_experience}`、`{level_delta}` |
+| `mob-kill-count` | `{rule_id}`、`{kill_count}`、`{required_count}`、`{mob_world}`、`{mob_entity_type}`、`{mythic_mob_id}` |
+| `script-js` / `script-aria` | `{rule_id}`、`{script_result}` |
+
+## 客户端回包预设
+
+客户端回包预设定义在 `data/eventpacket/packet-command-presets/` 目录或主配置的 `packet-command.presets` 节中。客户端通过 `Packet.send(packetId, presetId, ...args)` 触发服务端命令执行。
+
+### 预设字段表
+
+| 字段 | 类型 | 默认值 | 说明 |
+|---|---|---|---|
+| `type` | String | `op` | 执行类型：`op`（OP 身份）、`console`（控制台）、`player`（玩家身份） |
+| `permission` | String | （空） | 触发权限门槛，空 = 任何玩家可触发 |
+| `cooldown` | string/number | `0` | 冷却时间，支持 `5s`/`1m`/`1h`/`1d` 或数字（秒） |
+| `allow-args` | boolean | `false` | 是否允许客户端透传额外参数 |
+| `args-pattern` | String | `[\w.:-]{1,64}` | `allow-args` 为 true 时对每个参数的正则校验 |
+| `commands` | list | （必填） | 要执行的命令列表 |
+
+### 命令占位符
+
+预设命令支持以下占位符（在加载时自动转换为上下文变量）：
+
+| 占位符 | 转换为 | 说明 |
+|---|---|---|
+| `<player>` | `{player_name}` | 触发玩家名 |
+| `<uuid>` | `{player_uuid}` | 触发玩家 UUID |
+| `<world>` | `{player_world}` | 触发玩家世界 |
+| `<arg1>` / `<arg2>` ... | `{arg1}` / `{arg2}` ... | 客户端透传的参数 |
+
+### 预设示例
+
+```yaml
+# packet-command-presets/example.yml
+
+# OP 身份执行，需权限
+example_op:
+  type: op
+  permission: "eventpacket.preset.example"
+  cooldown: 0
+  allow-args: false
+  args-pattern: "[\w.:-]{1,64}"
+  commands:
+    - say 你好，我是 <player>
+    - say 这里是 OP 身份执行
+
+# 控制台执行，无需权限
+example_console:
+  type: console
+  permission: ""
+  cooldown: 0
+  allow-args: false
+  args-pattern: "[\w.:-]{1,64}"
+  commands:
+    - say 控制台正在响应 <player>
+
+# 带参数透传
+# 客户端调用: Packet.send('ArcartXEventPacket', 'give_item', 'DIAMOND_SWORD', '1')
+example_with_args:
+  type: op
+  permission: "eventpacket.preset.give"
+  cooldown: 5s
+  allow-args: true
+  args-pattern: "[A-Z_0-9]{1,64}"
+  commands:
+    - give <player> <arg1> <arg2>
+```
+
+## UI 数据包
+
+`ui-packet` 动作通过 `PacketBridge` 向客户端发送 UI 数据包。客户端 UI 通过 `packetHandler` 接收并处理包数据。
+
+```yaml
+actions:
+  - type: ui-packet
+    ui-id: "示例UI"                    # 目标 UI ID
+    packet-handler: "questCompleted"   # 目标 packetHandler 名称
+    recipients:                         # 接收者列表
+      - self                            # self=仅触发者, all-online=全服, others=除自身外
+    pack:                               # 包数据（键值对，客户端 packet['key'] 读取）
+      player: "{player_name}"
+      quest: "{quest_id}"
+      time: "{timestamp_local}"
+```
+
+> `ui-id` 对应 ArcartX UI 编辑器中定义的 UI 资源 ID，`packet-handler` 对应 UI 中注册的客户端包处理器名称。详见 [UI 系统](/docs/guide/icons) 和 [物品来源](/docs/guide/item-sources)。
+
+### combateffect.play 动作
+
+`combateffect.play` 动作通过 `PacketBridge` 向客户端发送战斗特效数据包。`ui-id` 不填时使用模块默认的战斗特效 UI ID。
+
+```yaml
+actions:
+  - type: combateffect.play
+    pack: "{player_name};CDK;{preset_name}"  # 特效包数据
+    # ui-id: "CombatEffect"                  # 可选，不填使用默认
+    # packet-handler: "play"                  # 可选，默认 "play"
+```

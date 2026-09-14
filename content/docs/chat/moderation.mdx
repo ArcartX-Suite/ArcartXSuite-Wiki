@@ -1,0 +1,457 @@
+---
+title: 管理与审核
+description: Chat 禁言系统、社交监听、忽略列表、内容审核与发言限制机制
+---
+
+# 管理与审核
+
+> **付费模块**
+
+Chat 模块提供完整的管理与审核工具链，包括禁言管理、社交监听、忽略列表、内容审核、发言冷却与重复检测，以及强制接管模式。
+
+## 禁言系统
+
+禁言系统允许管理员禁止指定玩家在聊天中发言，支持临时禁言（按时长）与永久禁言，禁言记录持久化到数据库。
+
+### 禁言命令
+
+| 命令 | 说明 | 权限 |
+|---|---|---|
+| `/axs chat mute <玩家> <时长> [原因]` | 禁言指定玩家 | `ArcartXSuite.chat.mute` |
+| `/axs chat unmute <玩家>` | 解除指定玩家的禁言 | `ArcartXSuite.chat.mute` |
+
+时长格式为 `<数字><单位>`，单位支持 `s`（秒）、`m`（分）、`h`（时）、`d`（天），或 `permanent` 永久禁言：
+
+```yaml
+# 禁言示例
+/axs chat mute Steve 30m 刷屏        # 禁言 30 分钟，原因"刷屏"
+/axs chat mute Steve 7d 广告         # 禁言 7 天，原因"广告"
+/axs chat mute Steve permanent 恶意行为  # 永久禁言
+```
+
+### 时长解析
+
+`ChatAdminCommand.parseDuration()` 解析时长字符串：
+
+```java
+private static final Pattern DURATION_PATTERN =
+    Pattern.compile("^(\\d+)([smhd])$", Pattern.CASE_INSENSITIVE);
+
+private Instant parseDuration(String input) {
+    if ("permanent".equalsIgnoreCase(input)) return null;
+    Matcher m = DURATION_PATTERN.matcher(input.toLowerCase(Locale.ROOT));
+    if (!m.matches()) return Instant.now().plus(Duration.ofDays(1)); // 默认 1 天
+    long val = Long.parseLong(m.group(1));
+    return Instant.now().plus(switch (m.group(2)) {
+        case "s" -> Duration.ofSeconds(val);
+        case "m" -> Duration.ofMinutes(val);
+        case "h" -> Duration.ofHours(val);
+        case "d" -> Duration.ofDays(val);
+        default -> Duration.ofDays(1);
+    });
+}
+```
+
+| 输入 | 解析结果 |
+|---|---|
+| `permanent` | `null`（永久禁言） |
+| `30s` | 30 秒后过期 |
+| `30m` | 30 分钟后过期 |
+| `12h` | 12 小时后过期 |
+| `7d` | 7 天后过期 |
+| 非法格式 | 默认 1 天后过期 |
+
+:::caution
+无法解析的时长格式不会报错，而是默认禁言 1 天。请确保时长格式正确。
+:::
+
+### 禁言记录
+
+`ChatMuteRecord` 封装禁言操作的全部元数据：
+
+| 字段 | 类型 | 说明 |
+|---|---|---|
+| `playerUuid` | `UUID` | 被禁言玩家 UUID |
+| `mutedBy` | `String` | 执行禁言的操作者名称 |
+| `reason` | `String` | 禁言原因 |
+| `createdAt` | `Instant` | 禁言创建时间 |
+| `expiresAt` | `Instant` | 禁言过期时间，`null` 表示永久禁言 |
+
+### 禁言判定
+
+`ChatMuteRecord.active()` 判断禁言在指定时间点是否仍然生效：
+
+```java
+public boolean active(Instant now) {
+    return expiresAt == null || expiresAt.isAfter(now);
+}
+```
+
+### 剩余时间显示
+
+`ChatMuteRecord.remainingText()` 返回剩余禁言时长的中文可读文本：
+
+| 剩余时间 | 输出 |
+|---|---|
+| 永久禁言 | `永久` |
+| `<= 60` 秒 | `N秒` |
+| `<= 3600` 秒 | `N分` |
+| `<= 86400` 秒 | `N小时` |
+| `> 86400` 秒 | `N天` |
+
+### 禁言通知
+
+禁言后玩家会收到系统提示。优先通过聊天卡片（`axs_chat_system`）发送，卡片不可用时回退为文本消息：
+
+```java
+boolean cardSent = sendSystemCard(online, "mute", Map.of(
+    "message", "你已被禁言",
+    "reason", record.reason().isBlank() ? "无" : record.reason(),
+    "mutedBy", record.mutedBy(),
+    "remaining", record.remainingText(Instant.now())
+));
+if (!cardSent) {
+    online.sendMessage(PREFIX + ChatColor.RED + message("result.muted-notify", ...));
+}
+```
+
+### 发言时禁言校验
+
+`validateBeforeSend()` 在消息发送前校验禁言状态：
+
+```java
+ChatMuteRecord muteRecord = currentMute(sender.getUniqueId());
+if (muteRecord != null && muteRecord.active(Instant.now())) {
+    boolean cardSent = sendSystemCard(sender, "mute", Map.of(
+        "message", "你当前处于禁言状态",
+        "remaining", muteRecord.remainingText(Instant.now()),
+        "reason", muteRecord.reason().isBlank() ? "无" : muteRecord.reason()
+    ));
+    return cardSent
+        ? ChatOperationResult.failureCardNotified(...)
+        : ChatOperationResult.failure(...);
+}
+```
+
+:::info
+禁言校验在权限校验之后、冷却检测之前执行。被禁言的玩家尝试发言时会收到系统提示卡片（或文本消息），显示剩余时间与原因。
+:::
+
+### 禁言缓存与持久化
+
+禁言记录在内存中缓存（`mutes` Map），并异步持久化到 `chat_player_mutes` 表：
+
+| 操作 | 方法 | 说明 |
+|---|---|---|
+| 禁言 | `mutePlayer` | 写入缓存 + `saveMuteAsync` 异步写入数据库 |
+| 解除 | `unmutePlayer` | 移除缓存 + `deleteMuteAsync` 异步删除数据库 |
+| 查询 | `currentMute` | 优先读缓存，未命中时从数据库加载 |
+| 过期清理 | `runCleanup` | 定时任务移除过期记录并删除数据库行 |
+
+### 自动过期清理
+
+清理任务每 1200 tick（60 秒）执行一次，移除已过期的禁言记录：
+
+```java
+for (Map.Entry<UUID, ChatMuteRecord> entry : new ArrayList<>(mutes.entrySet())) {
+    if (!entry.getValue().active(Instant.now())) {
+        mutes.remove(entry.getKey());
+        deleteMuteAsync(entry.getKey());
+    }
+}
+```
+
+:::tip
+禁言记录在玩家查询时也会实时判定过期。`currentMute()` 发现缓存中的记录已过期时，会立即移除缓存并异步删除数据库行，无需等待定时清理。
+:::
+
+### ChatMutable Capability
+
+Chat 模块注册了 `ChatMutable` Capability，允许其他模块（如 Essentials）委托禁言操作：
+
+| 方法 | 返回值 | 说明 |
+|---|---|---|
+| `mutePlayer(playerName, expiresAt, reason, mutedBy)` | `String` | 禁言玩家，返回操作结果消息 |
+| `unmutePlayer(playerName)` | `String` | 解除禁言，返回操作结果消息 |
+| `isMuted(playerUuid)` | `boolean` | 查询玩家是否处于禁言中 |
+| `listMutes()` | `List<MuteInfo>` | 列出所有活跃禁言记录 |
+
+## 社交监听
+
+社交监听（SocialSpy）允许管理员查看全服私聊内容，使用 `spy-format` 模板渲染。
+
+### 玩家命令
+
+| 命令 | 说明 | 权限 |
+|---|---|---|
+| `/chat socialspy` | 切换社交监听 | `arcartxsuite.chat.socialspy` |
+| `/chat socialspy on` | 开启社交监听 | `arcartxsuite.chat.socialspy` |
+| `/chat socialspy off` | 关闭社交监听 | `arcartxsuite.chat.socialspy` |
+
+### 管理员命令
+
+管理员可设置其他玩家的社交监听开关：
+
+```yaml
+/axs chat spy Steve on    # 开启 Steve 的社交监听
+/axs chat spy Steve off   # 关闭 Steve 的社交监听
+```
+
+被操作的玩家会收到通知消息，告知其社交监听已被管理员变更。
+
+### 监听分发逻辑
+
+私聊消息分发时，所有开启了社交监听且有权限的在线玩家都会收到监听消息：
+
+```java
+for (Player viewer : Bukkit.getOnlinePlayers()) {
+    if (senderUuid != null && senderUuid.equals(viewer.getUniqueId())) continue;
+    if (targetUuid != null && targetUuid.equals(viewer.getUniqueId())) continue;
+    ChatPlayerState state = state(viewer.getUniqueId());
+    if (!state.socialSpyEnabled() || !viewer.hasPermission(SOCIAL_SPY_PERMISSION)) continue;
+    sendChatComponents(viewer, envelope.renderedSpyText(), envelope.itemPreview(), true);
+}
+```
+
+| 过滤条件 | 说明 |
+|---|---|
+| 排除发送者 | 发送者不需要监听自己的私聊 |
+| 排除接收者 | 接收者已通过 `recipientFormat` 收到消息 |
+| 社交监听开关 | `ChatPlayerState.socialSpyEnabled` 必须为 `true` |
+| 权限校验 | 必须拥有 `arcartxsuite.chat.socialspy` 权限 |
+
+:::info
+社交监听消息使用 `spy-format` 模板渲染（如 `&5[监听 {player_name} -> {target_name}] &r{message}`），与私聊双方看到的格式不同。
+:::
+
+## 忽略列表
+
+玩家可忽略指定玩家的私聊消息。忽略关系双向生效：你忽略的人发消息你收不到，你给被忽略的人发消息也会被拦截。
+
+### 玩家命令
+
+| 命令 | 说明 | 权限 |
+|---|---|---|
+| `/chat ignore <玩家>` | 忽略指定玩家的私聊 | `arcartxsuite.chat.use` |
+| `/chat unignore <玩家>` | 取消忽略指定玩家 | `arcartxsuite.chat.use` |
+
+### 忽略判定
+
+忽略关系存储在 `ChatPlayerState.ignoredPlayers` 集合中，在以下场景判定：
+
+| 场景 | 判定方法 | 说明 |
+|---|---|---|
+| 频道消息接收 | `state(recipient).ignores(senderUuid)` | 被忽略的发送者的频道消息不会送达 |
+| 私聊消息接收 | `targetState.ignores(senderUuid)` | 被忽略的发送者无法私聊目标 |
+| 跨服私聊接收 | `targetState.ignores(senderUuid)` | 跨服私聊同样受忽略列表限制 |
+
+```java
+public boolean ignores(UUID targetUuid) {
+    return targetUuid != null && ignoredPlayers.contains(targetUuid);
+}
+```
+
+:::tip
+忽略列表持久化到 `chat_ignored_players` 表，以 `(player_uuid, ignored_uuid)` 联合主键存储。玩家退出后忽略列表仍保留，下次登录自动加载。
+:::
+
+## 内容审核
+
+内容审核通过 `ContentModerator` 桥接实现，对消息执行敏感词过滤。
+
+### 审核流程
+
+消息在自定义组件替换之后、提及解析之前进行内容审核：
+
+```java
+ContentModerator.ModerationResult moderationResult = contentModerator.filter(processedMessage);
+if (moderationResult.blocked()) {
+    boolean cardSent = sendSystemCard(sender, "filter", Map.of("message", message("result.filtered")));
+    return cardSent
+        ? ChatOperationResult.failureCardNotified(message("result.filtered"))
+        : ChatOperationResult.failure(message("result.filtered"));
+}
+processedMessage = moderationResult.text();
+```
+
+| 审核结果 | 处理方式 |
+|---|---|
+| `blocked = true` | 消息被拦截，发送者收到系统提示卡片（或文本消息） |
+| `blocked = false` | 使用 `text` 字段（可能已被替换）继续后续流程 |
+
+### ContentModerator 桥接
+
+`ContentModerator` 由宿主提供，未提供时使用 `NoopContentModerator`（原样放行）：
+
+```java
+this.contentModerator = contentModerator != null ? contentModerator : new NoopContentModerator();
+```
+
+:::warning
+敏感词过滤已统一到宿主 `config.yml` 的 `moderation` 节。模块内 `filter` 配置节仅作向后兼容保留，不再生效。请在 `plugins/ArcartXSuite/config.yml` 中配置全局敏感词过滤（支持标点穿透防护、白名单、多 URL 云端词库）。
+:::
+
+### ChatModerationSupport 工具类
+
+`ChatModerationSupport` 提供本地敏感词过滤工具，支持精确词匹配与正则匹配：
+
+| 匹配方式 | 说明 |
+|---|---|
+| 精确词匹配 | 消息中包含屏蔽词（不区分大小写）即命中 |
+| 正则匹配 | 屏蔽正则匹配消息内容即命中 |
+| 命中处理 | `cancelOnMatch = true` 取消发送；`false` 替换为 `replacement` 文本 |
+
+:::info
+`ChatModerationSupport` 支持合并云端敏感词库进行联合判定。云端词库 URL 与刷新间隔在 `filter.cloud` 节配置（已迁移到宿主，模块内配置不再生效）。
+:::
+
+## 发言冷却
+
+发言冷却限制玩家连续发送消息的频率，由 `settings.cooldown-millis` 配置（默认 750 毫秒）。
+
+### 冷却校验
+
+`validateBeforeSend()` 在禁言校验之后、重复检测之前校验冷却：
+
+```java
+long now = System.currentTimeMillis();
+long cooldownMillis = configuration.cooldownMillis();
+if (cooldownMillis > 0L) {
+    long lastAt = lastMessageTimes.getOrDefault(sender.getUniqueId(), 0L);
+    if (now - lastAt < cooldownMillis) {
+        return ChatOperationResult.failure(message("result.too-fast"));
+    }
+}
+```
+
+| 配置 | 默认值 | 说明 |
+|---|---|---|
+| `settings.cooldown-millis` | `750` | 冷却时间（毫秒），设为 0 关闭冷却 |
+
+### 冷却记录
+
+发送消息后记录时间戳，用于下次冷却判定：
+
+```java
+private void trackMessageFingerprint(UUID playerUuid, String message) {
+    long now = System.currentTimeMillis();
+    lastMessageTimes.put(playerUuid, now);
+    lastDuplicateStamps.put(playerUuid, new DuplicateStamp(...));
+}
+```
+
+:::tip
+冷却时间戳缓存在内存中，清理任务会移除超过 `max(ENVELOPE_TTL_MILLIS, cooldownMillis + ENVELOPE_TTL_MILLIS)` 的记录（TTL 为 15 秒）。
+:::
+
+## 重复消息检测
+
+重复消息检测防止玩家在短时间内发送相同内容的消息，由 `settings.duplicate-window-millis` 配置（默认 4000 毫秒）。
+
+### 重复校验
+
+```java
+long duplicateWindowMillis = configuration.duplicateWindowMillis();
+if (duplicateWindowMillis > 0L) {
+    String normalized = ChatFormatSupport.normalizeForDuplicateCheck(message);
+    DuplicateStamp previous = lastDuplicateStamps.get(sender.getUniqueId());
+    if (previous != null && previous.normalizedMessage().equals(normalized)
+        && now - previous.atMillis() < duplicateWindowMillis) {
+        return ChatOperationResult.failure(message("result.duplicate"));
+    }
+}
+```
+
+| 配置 | 默认值 | 说明 |
+|---|---|---|
+| `settings.duplicate-window-millis` | `4000` | 重复判定窗口（毫秒），设为 0 关闭检测 |
+
+### 规范化处理
+
+重复检测使用 `ChatFormatSupport.normalizeForDuplicateCheck()` 规范化消息，去除颜色代码、压缩空白、转小写，确保只有内容不同的消息才被视为非重复。
+
+:::info
+冷却检测和重复检测独立工作：冷却检测限制发送频率，重复检测限制相同内容。两者均可通过设为 0 分别关闭。详见聊天格式化文档中的重复消息检测章节。
+:::
+
+## 强制接管模式
+
+`force-takeover` 模式可强制接管其他聊天插件的消息广播，解决消息被改写、重复或复用旧消息的问题。
+
+### 配置
+
+```yaml
+compatibility:
+  other-chat-plugins:
+    force-takeover: false
+```
+
+| 值 | 行为 |
+|---|---|
+| `false`（默认） | 以 `HIGHEST` 优先级拦截 `AsyncPlayerChatEvent`，取消原版事件后自行分发 |
+| `true` | 以 `LOWEST` 优先级尽早捕获原始消息，并在 `HIGHEST` 再次取消，防止其他插件广播 |
+
+### 事件拦截策略
+
+强制接管模式下注册三个事件处理器：
+
+| 处理器 | 优先级 | 作用 |
+|---|---|---|
+| `onAsyncPlayerChat` | `ignoreCancelled = true` | 正常拦截 |
+| `onAsyncPlayerChatForceTakeover` | `LOWEST` | 尽早捕获原始消息并取消 |
+| `onAsyncPlayerChatForceFinalCancel` | `HIGHEST` | 最终兜底取消，防止其他插件恢复事件 |
+
+```java
+@EventHandler(priority = EventPriority.LOWEST, ignoreCancelled = false)
+public void onAsyncPlayerChatForceTakeover(AsyncPlayerChatEvent event) {
+    if (!configuration.forceChatTakeover()) return;
+    forceCancelLegacyChatEvent(event);
+    dispatchOrDeferToPaper(event.getPlayer(), event.getMessage());
+}
+
+@EventHandler(priority = EventPriority.HIGHEST, ignoreCancelled = false)
+public void onAsyncPlayerChatForceFinalCancel(AsyncPlayerChatEvent event) {
+    if (configuration.forceChatTakeover()) {
+        forceCancelLegacyChatEvent(event);
+    }
+}
+```
+
+### Paper AsyncChatEvent 兼容
+
+模块自动检测 Paper `AsyncChatEvent` 并优先使用。在强制接管模式下，以 `LOWEST` 优先级注册 Paper 事件监听，并在 `HIGHEST` 再次取消：
+
+```java
+EventPriority priority = configuration.forceChatTakeover() ? EventPriority.LOWEST : EventPriority.HIGHEST;
+boolean ignoreCancelled = !configuration.forceChatTakeover();
+Bukkit.getPluginManager().registerEvent(typedEventClass, this, priority,
+    (listener, event) -> handlePaperChatEvent(...), plugin, ignoreCancelled);
+```
+
+:::caution
+`force-takeover: true` 会以 `LOWEST` 优先级拦截聊天事件，可能导致其他依赖聊天事件的插件无法正常工作。仅在服务器安装其他聊天插件并出现冲突时开启。
+:::
+
+### Paper 事件回退机制
+
+如果 Paper `AsyncChatEvent` 已注册但未观察到触发（`paperChatEventObserved = false`），模块会延迟 1 tick 后回退到 Bukkit 旧聊天事件处理：
+
+```java
+private void dispatchOrDeferToPaper(Player player, String message) {
+    if (paperChatEventRegistered) {
+        if (!paperChatEventObserved) {
+            AxsScheduler.runTaskLater(plugin, () -> {
+                if (!paperChatEventObserved) {
+                    scheduleChatMessage(player, message);
+                }
+            }, 1L);
+        }
+        return;
+    }
+    scheduleChatMessage(player, message);
+}
+```
+
+:::tip
+此回退机制确保在 Paper 事件因其他插件取消而未触发时，消息仍能正常处理。模块兼容 Paper / Purpur、Spigot、Mohist / Arclight 等服务端。
+:::

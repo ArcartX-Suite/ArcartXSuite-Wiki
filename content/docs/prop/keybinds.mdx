@@ -1,0 +1,437 @@
+---
+title: 按键绑定系统
+description: Prop 模块客户端按键绑定注册、槽位映射、使用流程与同步生命周期详解
+---
+
+# 按键绑定系统
+
+> **付费模块**
+>
+> Prop 模块属于 ArcartXSuite 付费模块，需在宿主 `config.yml` 中开启 `modules.prop.enabled` 并完成授权后生效。
+
+按键绑定系统是 Prop 模块区别于传统道具插件的核心能力。通过 ArcartX 客户端 MOD 提供的桥接 API，服务器可以将键盘按键映射到客户端额外槽位，玩家按下按键即可触发对应槽位中的道具。本页详细说明按键绑定的注册、触发、槽位同步与冷却管理的完整流程。
+
+## 系统架构
+
+```
+key.yml（按键映射配置）
+  │
+  ├─ PropKeyMappingConfiguration
+  │   ├─ category: 客户端按键分类名
+  │   └─ bindings: Map<绑定ID, PropKeyBindingDefinition>
+  │
+  ├─ PropKeyBindingDefinition
+  │   ├─ bindingId:  绑定唯一标识
+  │   ├─ defaultKey: 默认按键（Z/X/C...）
+  │   └─ slotId:     关联槽位（Slot1/Slot2/Slot3...）
+  │
+  └─ PropService.registerBindings()
+      └─ PropBridgeAPI.registerClientKeyBind(bindingId, category, defaultKey, onPress)
+          └─ 客户端 MOD 注册按键 → 玩家按键设置中可见
+```
+
+## 按键映射配置
+
+按键映射在 `data/prop/key.yml` 中配置，由 `PropKeyMappingConfiguration` 解析。
+
+### 配置结构
+
+| 配置项 | 类型 | 默认值 | 说明 |
+|--------|------|--------|------|
+| `category` | `string` | `ArcartX 快捷道具按键` | 客户端按键分类显示名称 |
+| `keys.<绑定ID>.defaultKey` | `string` | `X` | 默认按键（客户端按键名） |
+| `keys.<绑定ID>.slot` | `string` | `Slot1` | 绑定的道具槽位标识 |
+
+> `<绑定ID>` 是按键绑定的唯一标识，同时也是显示给玩家的按键名称。它在 `PropKeyBindingDefinition` 中作为 `bindingId` 字段，用于客户端注册和注销。
+
+### 配置示例
+
+```yaml
+# 客户端按键分类名。
+category: "ArcartX 快捷道具按键"
+
+keys:
+  # 顶层键是显示给玩家的按键名称。
+  快捷道具1:
+    # 默认按键（客户端按键名）
+    defaultKey: "Z"
+    # 绑定的道具槽位
+    slot: Slot1
+  快捷道具2:
+    defaultKey: "X"
+    slot: Slot2
+  快捷道具3:
+    defaultKey: "C"
+    slot: Slot3
+  快捷道具4:
+    defaultKey: "V"
+    slot: Slot4
+```
+
+> 每个绑定定义了一个按键 → 槽位的映射关系。玩家可以在 ArcartX 客户端按键设置中自行修改默认按键，但槽位绑定由服务器配置决定。
+
+## 按键注册流程
+
+模块启动时（`PropService.start()`）调用 `registerBindings()` 注册全部按键绑定：
+
+```
+registerBindings()
+  │
+  ├─ unregisterBindings()  → 先注销已注册的绑定（防止重复注册）
+  │
+  └─ 遍历 keyMappingConfiguration.bindings().values()
+      │
+      └─ bridge.registerClientKeyBind(bindingId, category, defaultKey, onPress)
+          │
+          ├─ 成功 → registeredBindingIds.add(bindingId)
+          │         调试日志: "注册按键 -> id=... | key=... | slot=..."
+          └─ 失败 → 跳过（不记录到 registeredBindingIds）
+```
+
+### 注册参数
+
+| 参数 | 来源 | 说明 |
+|------|------|------|
+| `bindingId` | `key.yml` 顶层键名 | 绑定唯一标识，用于客户端注册和注销 |
+| `category` | `key.yml` 的 `category` 字段 | 按键分类名，玩家在按键设置中看到的分组 |
+| `defaultKey` | `key.yml` 的 `defaultKey` 字段 | 默认按键（如 `Z` / `X` / `C`） |
+| `onPress` | Lambda 回调 | 按下时切换到主线程执行 `handleKeyPress()` |
+
+> `onPress` 回调通过 `AxsScheduler.runTask()` 切换到主线程执行，确保 `handleKeyPress()` 在 Bukkit 主线程运行，避免线程安全问题。
+
+### 注销流程
+
+模块关闭时（`PropService.shutdown()`）调用 `unregisterBindings()`：
+
+```
+unregisterBindings()
+  │
+  └─ 遍历 registeredBindingIds
+      └─ bridge.unregisterClientKeyBind(bindingId)
+  └─ registeredBindingIds.clear()
+```
+
+> 重载模块时也会先注销再重新注册，确保按键绑定与最新配置一致。
+
+## 按键触发流程
+
+玩家按下已注册的按键后，客户端 MOD 通过桥接 API 触发 `onPress` 回调，切换到主线程执行 `handleKeyPress()`：
+
+```
+handleKeyPress(player, binding)
+  │
+  ├─ 检查 player != null && player.isOnline()
+  │
+  ├─ bridge.resolvePlayerHandle(player)  → PropPlayerHandle
+  │
+  ├─ handle.getSlotItemStack(binding.slotId())  → 读取槽位物品
+  │
+  ├─ resolveBoundProp(slotItem)  → 解析道具绑定
+  │   ├─ isRealItem() 检查物品非空
+  │   ├─ bridge.getPersistentPropId(itemStack)  → 读取 PDC 道具 ID
+  │   ├─ resolveDefinition(propId)  → 查找道具定义
+  │   └─ 同步冷却组标签（若与定义不一致则更新）
+  │
+  ├─ 若物品状态变更 → handle.setSlotItemStack(slotId, newItem)
+  │
+  └─ handleUse(player, resolved, cooldown, PropUseMode.KEY, slotId, handle)
+```
+
+### PropPlayerHandle 槽位操作
+
+`PropPlayerHandle` 是 ArcartX 客户端 MOD 提供的玩家句柄，用于操作客户端额外槽位：
+
+| 方法 | 说明 |
+|------|------|
+| `getSlotItemStack(slotId)` | 读取指定额外槽位的物品 |
+| `setSlotItemStack(slotId, itemStack)` | 设置指定额外槽位的物品 |
+| `syncSlotCacheToClient()` | 同步槽位缓存到客户端 |
+| `getTagCooldown(tag)` | 获取标签冷却剩余时间（毫秒） |
+| `setTagCooldown(tag, millis)` | 设置标签冷却（毫秒） |
+
+> 槽位标识（`slotId`）对应 ArcartX 客户端 MOD 提供的额外槽位，如 `Slot1` / `Slot2` / `Slot3` 等。槽位数量由客户端 MOD 决定。
+
+## 使用流程（按键模式）
+
+`handleUse()` 是按键和手持两种触发方式的统一入口。按键模式（`PropUseMode.KEY`）的完整检查链：
+
+```
+handleUse(player, resolved, cooldown, KEY, slotId, handle)
+  │
+  ├─ 1. 冷却检查
+  │   ├─ cooldown > 0 → 发送冷却提示 + syncSlotCacheToClient() → 返回
+  │   └─ cooldown = 0 → 继续
+  │
+  ├─ 2. 使用方式检查
+  │   ├─ definition.key() == false → 发送"无法按键使用"提示 + syncSlotCacheToClient() → 返回
+  │   └─ definition.key() == true → 继续
+  │
+  ├─ 3. 权限检查
+  │   ├─ permission 非空 && !player.hasPermission(permission)
+  │   │   → 发送"无权限"提示 + syncSlotCacheToClient() → 返回
+  │   └─ 权限通过 → 继续
+  │
+  ├─ 4. 条件检查
+  │   ├─ conditions 非空 → ScriptConditionServices.evaluator().firstFailed()
+  │   │   ├─ 存在失败条件 → 发送"条件不满足"提示 + syncSlotCacheToClient() → 返回
+  │   │   └─ 全部满足 → 继续
+  │   └─ conditions 为空 → 继续
+  │
+  ├─ 5. 设置冷却
+  │   └─ handle.setTagCooldown(coolDownGroup, coolDownTimeSeconds * 1000L)
+  │
+  ├─ 6. 消耗物品
+  │   ├─ definition.remove() == true → handle.setSlotItemStack(slotId, consumeOne(itemStack))
+  │   └─ definition.remove() == false && itemChanged → handle.setSlotItemStack(slotId, itemStack)
+  │   └─ handle.syncSlotCacheToClient()
+  │
+  ├─ 7. 执行效果
+  │   └─ executeEffects(player, definition)
+  │
+  └─ 8. 发布事件
+      └─ eventBus.publish("axs.prop.prop_used", player, {prop_id: definition.id()})
+```
+
+> 按键模式在**每个检查失败的分支**都会调用 `syncSlotCacheToClient()`，确保客户端槽位显示与服务端状态一致。这是因为按键触发时客户端可能会先更新本地缓存，检查失败后需要回滚显示。
+
+### 手持模式对比
+
+手持右键触发（`PropUseMode.HAND`）的检查链与按键模式类似，但有以下区别：
+
+| 差异点 | 按键模式（KEY） | 手持模式（HAND） |
+|--------|-----------------|------------------|
+| 使用方式检查 | `definition.key()` | `definition.hand()` |
+| 物品操作 | `handle.setSlotItemStack()` | `player.getInventory().setItemInMainHand()` |
+| 检查失败时同步 | `syncSlotCacheToClient()` | 无需同步（原版背包自动同步） |
+| 冷却读取 | `handle.getTagCooldown(group)` | `handle.getTagCooldown(group)` |
+
+> 手持模式通过 `PlayerInteractEvent` 触发，会取消原版右键交互（`event.setCancelled(true)`），防止物品被原版逻辑消费。
+
+## 物品绑定与 PDC
+
+道具 ID 通过物品的 PersistentDataContainer（PDC）持久化。`PropBridgeAPI` 提供以下方法：
+
+| 方法 | 说明 |
+|------|------|
+| `writePropId(itemStack, propId)` | 将道具 ID 写入物品 PDC，返回新物品栈 |
+| `getPersistentPropId(itemStack)` | 从物品 PDC 读取持久化道具 ID |
+| `setCooldownTag(itemStack, group)` | 设置物品的冷却组标签 |
+| `getCooldownTag(itemStack)` | 读取物品的冷却组标签 |
+
+### 绑定流程
+
+通过管理命令 `/axs prop set <道具ID>` 绑定道具到主手物品：
+
+```
+applyPropToMainHand(player, propId)
+  │
+  ├─ 检查主手物品非空（isRealItem）
+  ├─ 查找道具定义（resolveDefinition）
+  ├─ bindItem(mainHand, propId, coolDownGroup)
+  │   ├─ bridge.writePropId(itemStack, propId)  → 写入 PDC
+  │   └─ bridge.setCooldownTag(itemStack, group)  → 写入冷却组标签
+  └─ player.getInventory().setItemInMainHand(boundItem)
+```
+
+### 道具解析
+
+使用道具时通过 `resolveBoundProp()` 解析物品中的道具绑定：
+
+```
+resolveBoundProp(itemStack)
+  │
+  ├─ isRealItem() 检查 → 物品为空返回 null
+  ├─ bridge.getPersistentPropId(itemStack) → 读取 PDC 道具 ID
+  │   └─ propId 为空 → 返回 null（未绑定道具）
+  ├─ resolveDefinition(propId) → 查找道具定义
+  │   └─ 定义不存在 → 返回 null
+  └─ 同步冷却组标签
+      ├─ 读取当前标签: bridge.getCooldownTag(itemStack)
+      ├─ 与定义中的 coolDownGroup 比较
+      └─ 不一致 → bridge.setCooldownTag(itemStack, group) + 标记 changed
+```
+
+> 冷却组标签同步确保物品上的冷却组标签与道具定义一致。若管理员修改了道具的 `coolDownGroup`，已有绑定物品会在下次使用时自动更新标签。
+
+## 冷却管理
+
+冷却以**冷却组**为单位管理，通过客户端标签系统存储。
+
+### 冷却组机制
+
+| 项 | 说明 |
+|------|------|
+| 冷却单位 | 冷却组（`coolDownGroup`），同组道具共享冷却 |
+| 存储位置 | 客户端标签系统（`PropPlayerHandle.setTagCooldown()`） |
+| 时间单位 | 毫秒（配置中为秒，运行时 `* 1000L` 转换） |
+| 读取方式 | `handle.getTagCooldown(group)` 返回剩余毫秒 |
+| 跨服行为 | 冷却存储在客户端标签中，跟随玩家跨服同步 |
+
+```yaml
+# 两个道具共享同一冷却组
+# data/prop/props/治疗药水.yml
+coolDownGroup: "药水冷却组"
+coolDownTime: 30
+
+# data/prop/props/魔法药水.yml
+coolDownGroup: "药水冷却组"
+coolDownTime: 30
+```
+
+> 上方配置中，使用治疗药水后魔法药水也会进入冷却，因为它们属于同一冷却组。
+
+### 冷却提示
+
+冷却未结束时，玩家会收到 `language.yml` 中 `COOL_DOWN` 配置的提示消息：
+
+```yaml
+# {NAME} 为道具名，{TIME} 为剩余冷却秒数（保留两位小数）
+COOL_DOWN: "&7[&dArcartXProp&7]&c{NAME}&f还在冷却,你还需要等待&a{TIME}秒&f才能使用道具"
+```
+
+> `{TIME}` 占位符通过 `String.format(Locale.US, "%.2f", cooldownMillis / 1000.0)` 格式化，保留两位小数。
+
+## 槽位同步生命周期
+
+模块在多个时机同步玩家槽位数据，确保客户端额外槽位与服务端状态一致：
+
+| 时机 | 触发方法 | 延迟 | 说明 |
+|------|----------|------|------|
+| 模块启动 | `syncOnlinePlayers()` | 1 tick | 对所有在线玩家同步 |
+| 玩家加入 | `onPlayerJoin()` | 1 tick | 延迟同步，等待客户端就绪 |
+| 客户端初始化 | `handleClientInitialized()` | 1 tick | 客户端 MOD 就绪后同步 |
+| 按键使用成功 | `handleUse()` | 即时 | 同步槽位缓存到客户端 |
+| 按键使用失败 | `handleUse()` | 即时 | 同步槽位缓存到客户端（回滚显示） |
+| 按键冷却中 | `handleUse()` | 即时 | 同步槽位缓存到客户端 |
+
+### 同步流程
+
+```
+synchronizeConfiguredSlots(player)
+  │
+  ├─ bridge.resolvePlayerHandle(player) → PropPlayerHandle
+  │
+  ├─ 收集全部已配置槽位 ID
+  │   └─ 遍历 keyMappingConfiguration.bindings() 收集 slotId（去重）
+  │
+  ├─ 遍历每个槽位
+  │   ├─ handle.getSlotItemStack(slotId) → 读取物品
+  │   ├─ resolveBoundProp(slotItem) → 解析道具绑定
+  │   └─ 若道具绑定存在且冷却标签变更 → handle.setSlotItemStack(slotId, newItem)
+  │
+  └─ handle.syncSlotCacheToClient() → 同步到客户端
+```
+
+> 同步只处理已配置的槽位（`key.yml` 中绑定的槽位），不会扫描客户端全部额外槽位。延迟 1 tick 是为了等待客户端 MOD 和玩家数据完全加载。
+
+## 客户端初始化回调
+
+Prop 模块注册了 `ClientInitializedHandler`，在玩家客户端初始化完成时触发槽位同步：
+
+```java
+// PropModule.createInitializedHandler()
+return player -> {
+    if (service != null) {
+        service.handleClientInitialized(player);
+    }
+};
+```
+
+`handleClientInitialized()` 调用 `scheduleSlotSync(player, 1L)`，延迟 1 tick 后执行 `synchronizeConfiguredSlots()`。
+
+> 客户端初始化完成表示 ArcartX 客户端 MOD 已就绪，可以接收槽位同步数据。`PlayerJoinEvent` 和 `ClientInitializedHandler` 都会触发同步，确保无论客户端加载快慢都能正确同步槽位。
+
+## 多槽位配置实践
+
+### 基础三槽位配置
+
+```yaml
+category: "ArcartX 快捷道具按键"
+
+keys:
+  快捷道具1:
+    defaultKey: "Z"
+    slot: Slot1
+  快捷道具2:
+    defaultKey: "X"
+    slot: Slot2
+  快捷道具3:
+    defaultKey: "C"
+    slot: Slot3
+```
+
+### 扩展槽位配置
+
+```yaml
+category: "ArcartX 快捷道具按键"
+
+keys:
+  快捷道具1:
+    defaultKey: "Z"
+    slot: Slot1
+  快捷道具2:
+    defaultKey: "X"
+    slot: Slot2
+  快捷道具3:
+    defaultKey: "C"
+    slot: Slot3
+  快捷道具4:
+    defaultKey: "V"
+    slot: Slot4
+  快捷道具5:
+    defaultKey: "B"
+    slot: Slot5
+  快捷道具6:
+    defaultKey: "N"
+    slot: Slot6
+```
+
+> 槽位数量由 ArcartX 客户端 MOD 决定。配置中引用的 `slotId` 必须是客户端 MOD 支持的槽位标识，否则 `getSlotItemStack()` 会返回空物品。
+
+### 分类名自定义
+
+```yaml
+# 自定义按键分类名，玩家在按键设置中看到的分组
+category: "我的服务器 - 快捷道具"
+
+keys:
+  治疗键:
+    defaultKey: "Z"
+    slot: Slot1
+  增益键:
+    defaultKey: "X"
+    slot: Slot2
+```
+
+> 分类名用于在 ArcartX 客户端按键设置界面中分组显示。同一分类下的按键绑定会归为一组，方便玩家查找和修改。
+
+## 调试与排错
+
+启用 `ArcartXProp.yml` 中的 `settings.debug: true` 后，按键绑定系统会输出以下调试日志：
+
+| 日志内容 | 触发条件 |
+|----------|----------|
+| `注册按键 -> id=... \| key=... \| slot=...` | 按键绑定注册成功 |
+| `ArcartXProp 使用成功 -> player=... \| prop=... \| mode=key \| cooldownGroup=... \| slot=...` | 按键触发道具使用成功 |
+
+### 常见问题排查
+
+| 问题 | 可能原因 | 排查方法 |
+|------|----------|----------|
+| 按键无反应 | 客户端 MOD 未安装 / 桥接不可用 | 检查 `PropBridgeAPI.isAvailable()` |
+| 按键未注册 | `key.yml` 格式错误 / 绑定 ID 重复 | 查看启动日志的注册结果 |
+| 槽位物品不同步 | 客户端初始化延迟 / 槽位 ID 不匹配 | 确认 `slotId` 与客户端 MOD 支持的槽位一致 |
+| 冷却不生效 | 冷却组标签未写入 / 客户端标签系统异常 | 检查 `setCooldownTag()` 是否成功 |
+| 按键触发但道具不执行 | `key: false` / 权限不足 / 条件不满足 | 查看玩家收到的提示消息 |
+
+> 使用 `/axs prop status` 可查看已注册的按键数量和属性桥接状态，快速判断模块是否正常运行。
+
+## 延伸阅读
+
+- [配置](/docs/prop/configuration) — 按键映射配置字段说明
+- [效果系统](/docs/prop/effects) — 10 种效果类型与属性聚合
+- [命令与占位符](/docs/prop/commands) — 管理命令与客户端 UI 数据包
+- [联动](/docs/prop/integration) — EventBus 事件与跨模块集成
+- [条件系统](/docs/guide/conditions) — 使用条件的完整语法
+- [物品库匹配](/docs/guide/item-sources) — 统一物品来源系统
+- [图标系统](/docs/guide/icons) — UI 图标配置

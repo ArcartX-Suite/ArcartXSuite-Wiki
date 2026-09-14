@@ -1,0 +1,331 @@
+---
+title: 配置
+description: Chat 配置文件详解
+---
+
+# 配置
+
+Chat 模块的配置文件位于 `plugins/ArcartX-Suite/modules/chat/ArcartXChat.yml`。修改后执行 `/axs chat reload` 即可生效。
+
+## 主配置完整字段表
+
+### settings 全局设置
+
+| 字段 | 类型 | 默认值 | 说明 |
+|---|---|---|---|
+| `settings.debug` | boolean | `false` | 是否输出 Chat 模块调试日志 |
+| `settings.server-id` | string | `default` | 当前服务端节点标识；跨服转发或 Redis 去重时会用到 |
+| `settings.default-channel` | string | `normal` | 默认频道 ID；若配置不存在，模块会自动回退到首个有效频道 |
+| `settings.max-length` | int | `256` | 单条消息最大长度（字符数） |
+| `settings.cooldown-millis` | long | `750` | 玩家连续发言冷却，单位毫秒；设为 0 关闭冷却 |
+| `settings.duplicate-window-millis` | long | `4000` | 重复消息判定窗口，单位毫秒；设为 0 关闭重复检测 |
+
+### compatibility 兼容性设置
+
+| 字段 | 类型 | 默认值 | 说明 |
+|---|---|---|---|
+| `compatibility.other-chat-plugins.force-takeover` | boolean | `false` | 强制接管聊天事件。开启后 AXS 会尽早捕获玩家原始消息，并在事件链末尾再次取消原版/其他插件广播。仅在服务器安装其他聊天插件并出现消息被改写、重复或复用旧消息时开启 |
+
+:::caution
+`force-takeover: true` 会以 `LOWEST` 优先级拦截 `AsyncPlayerChatEvent` / Paper `AsyncChatEvent`，并在 `HIGHEST` 再次取消。如果服务器有其他依赖聊天事件的插件，可能导致其无法正常工作。
+:::
+
+### storage 数据存储配置
+
+| 字段 | 类型 | 默认值 | 说明 |
+|---|---|---|---|
+| `storage.shared` | boolean | `true` | `true` 共享存储模式（推荐），使用本体统一数据源；`false` 自建独立连接池 |
+| `storage.mode` | string | `sqlite` | 自建模式存储类型：`sqlite` 或 `mysql`（仅 `shared: false` 时有意义） |
+| `storage.sqlite.file` | string | `chat.db` | SQLite 文件名（相对模块数据目录） |
+| `storage.pool-size` | int | `4` | JDBC 连接池大小（SQLite 建议 1），范围 1~100 |
+| `storage.mysql.host` | string | `127.0.0.1` | MySQL 主机地址 |
+| `storage.mysql.port` | int | `3306` | MySQL 端口 |
+| `storage.mysql.database` | string | `arcartxsuite` | MySQL 数据库名 |
+| `storage.mysql.username` | string | `root` | MySQL 用户名 |
+| `storage.mysql.password` | string | - | MySQL 密码 |
+| `storage.mysql.table-prefix` | string | `axs_chat_` | MySQL 表名前缀 |
+
+:::tip
+`shared: true` 时，数据库连接由本体统一管控，各模块共用 `config.yml` 的 `storage` 节配置。性能更好，推荐使用。
+:::
+
+:::info
+配置版本 1 → 2 的迁移已自动处理 `storage.mode` → `storage.shared` 的重命名与值映射（`mysql` → `false`，`sqlite` → `true`）。详见配置管理文档。
+:::
+
+### cross-server 跨服配置
+
+| 字段 | 类型 | 默认值 | 说明 |
+|---|---|---|---|
+| `cross-server.enabled` | boolean | `false` | 是否启用跨服聊天转发；需要 Redis 支持 |
+
+:::info
+跨服同步需配合宿主 `config.yml` 的 `cross-server` 节使用。单服无需开启。
+:::
+
+### cards 聊天卡片设置
+
+| 字段 | 类型 | 默认值 | 说明 |
+|---|---|---|---|
+| `cards.mention-card-id` | string | `axs_chat_mention` | 提及消息卡片 ID；留空则不发送卡片 |
+| `cards.private-card-id` | string | `axs_chat_private` | 私聊消息卡片 ID；留空则不发送卡片 |
+| `cards.system-card-id` | string | `axs_chat_system` | 系统消息卡片 ID；留空则不发送卡片 |
+| `cards.item-preview-card-id` | string | `axs_item_preview` | 物品预览卡片 ID；留空则不发送卡片 |
+| `cards.char-width-full` | int | `31` | 全角字符（中文等）占位宽度（像素） |
+| `cards.char-width-half` | int | `18` | 半角字符（英文/数字等）占位宽度（像素） |
+| `cards.max-line-width` | int | `750` | 文字区最大宽度（超过此值自动换行） |
+
+:::tip
+卡片宽度与高度由 UI 侧根据 Text 控件实际渲染尺寸自适应，Java 不再计算。`char-width-*` 与 `max-line-width` 仅用于消息文本换行测算。
+:::
+
+### function 功能开关
+
+| 字段 | 类型 | 默认值 | 说明 |
+|---|---|---|---|
+| `function.mention.enabled` | boolean | `true` | 是否开启 @提及识别 |
+| `function.mention.allow-all` | boolean | `true` | 是否允许 @all 全员提及；关闭后只允许 @具体玩家名 |
+| `function.item.enabled` | boolean | `true` | 是否开启 [item] 物品展示 |
+| `function.item.token` | string | `[item]` | 触发物品展示的占位标记 |
+| `function.item.format` | string | `&b[&f{item_name}&b x{item_amount}]` | 物品展示格式，`{item_name}` 为物品名，`{item_amount}` 为数量 |
+| `function.item.failed-format` | string | `&c[物品不可用]` | 物品不可用时显示的替代文本 |
+| `function.custom-components` | section | `{}` | 自定义组件匹配表；为空时不额外替换 |
+
+#### 自定义组件
+
+`function.custom-components` 是一个动态节，用户可自由增删条目。每个条目通过正则匹配聊天消息中的特定文本并替换为自定义内容：
+
+```yaml
+function:
+  custom-components:
+    star:
+      enabled: true
+      pattern: ":star:"
+      replacement: "★"
+    heart:
+      enabled: true
+      pattern: ":heart:"
+      replacement: "❤"
+```
+
+| 字段 | 类型 | 说明 |
+|---|---|---|
+| `enabled` | boolean | 是否启用此组件 |
+| `pattern` | string | 匹配正则表达式 |
+| `replacement` | string | 替换文本 |
+
+:::caution
+`pattern` 必须是合法的 Java 正则表达式。非法正则会被跳过并输出警告日志。
+:::
+
+### filter 敏感词过滤（已迁移）
+
+:::warning
+敏感词过滤已统一到宿主 `config.yml` 的 `moderation` 节。请在 `plugins/ArcartXSuite/config.yml` 中配置全局敏感词过滤（支持标点穿透防护、白名单、多 URL 云端词库）。此处配置仅作向后兼容保留，不再生效。
+:::
+
+| 字段 | 类型 | 默认值 | 说明 |
+|---|---|---|---|
+| `filter.enabled` | boolean | `false` | （已废弃）是否启用过滤 |
+| `filter.cancel-on-match` | boolean | `false` | （已废弃）匹配到敏感词时是否直接取消消息发送 |
+| `filter.replacement` | string | `*` | （已废弃）替换文本 |
+| `filter.blocked-words` | list | `[]` | （已废弃）屏蔽词列表 |
+| `filter.blocked-patterns` | list | `[]` | （已废弃）屏蔽正则列表 |
+| `filter.cloud.enabled` | boolean | `false` | （已废弃）是否启用云端敏感词库 |
+| `filter.cloud.url` | string | `""` | （已废弃）云端敏感词库 URL |
+| `filter.cloud.refresh-minutes` | int | `60` | （已废弃）云端刷新间隔（分钟） |
+
+### channels-directory 频道目录
+
+| 字段 | 类型 | 默认值 | 说明 |
+|---|---|---|---|
+| `channels-directory` | string | `chat/channels` | 频道定义目录，相对于插件数据目录 |
+
+## 频道配置
+
+频道定义文件位于 `channels-directory` 指定的目录下（默认 `chat/channels/`），每个 `.yml` 文件定义一个频道。
+
+### 频道字段表
+
+| 字段 | 类型 | 默认值 | 说明 |
+|---|---|---|---|
+| `enabled` | boolean | `true` | 是否启用此频道 |
+| `display-name` | string | 文件名 | UI / 消息中显示的频道名 |
+| `mode` | string | `normal` | 频道模式：`normal` / `global` / `private` / `staff` |
+| `send-permission` | string | `""` | 发送所需权限，空串表示无限制 |
+| `receive-permission` | string | 继承 `send-permission` | 接收所需权限 |
+| `cross-server` | boolean | `mode` 为 `global` / `staff` 时默认 `true` | 是否跨服传输 |
+| `range` | double | `0` | 本地聊天半径（0 表示全图），仅 `normal` 模式生效 |
+| `format` | string | `&7[{channel}] &f{player_name}&7: &r{message}` | 常规消息格式模板 |
+| `console-format` | string | `[{channel}] {player_name}: {message}` | 控制台消息格式模板 |
+| `sender-format` | string | `&d[私聊 -> {target_name}] &f{player_name}&7: &r{message}` | 私聊发送者视角格式模板 |
+| `recipient-format` | string | `&d[私聊 <- {player_name}] &f{player_name}&7: &r{message}` | 私聊接收者视角格式模板 |
+| `spy-format` | string | `&5[监听 {player_name} -> {target_name}] &r{message}` | 监听视角格式模板 |
+
+### 完整配置示例
+
+```yaml
+# 配置文件版本号；用于自动迁移程序识别当前版本并执行升级。
+config-version: 2
+
+settings:
+  debug: false
+  server-id: "default"
+  default-channel: "normal"
+  max-length: 256
+  cooldown-millis: 750
+  duplicate-window-millis: 4000
+
+compatibility:
+  other-chat-plugins:
+    force-takeover: false
+
+storage:
+  shared: true
+
+cross-server:
+  enabled: false
+
+cards:
+  mention-card-id: "axs_chat_mention"
+  private-card-id: "axs_chat_private"
+  system-card-id: "axs_chat_system"
+  item-preview-card-id: "axs_item_preview"
+  char-width-full: 31
+  char-width-half: 18
+  max-line-width: 750
+
+function:
+  mention:
+    enabled: true
+    allow-all: true
+  item:
+    enabled: true
+    token: "[item]"
+    format: "&b[&f{item_name}&b x{item_amount}]"
+    failed-format: "&c[物品不可用]"
+  custom-components: {}
+
+filter:
+  enabled: false
+  cancel-on-match: false
+  replacement: "*"
+  blocked-words: []
+  blocked-patterns: []
+  cloud:
+    enabled: false
+    url: ""
+    refresh-minutes: 60
+
+channels-directory: "chat/channels"
+```
+
+### 频道配置示例
+
+#### 普通频道（Normal.yml）
+
+```yaml
+enabled: true
+display-name: "普通"
+mode: "normal"
+send-permission: ""
+receive-permission: ""
+cross-server: false
+range: 0
+format: "&7[{channel}] &f{player_name}&7: &r{message}"
+console-format: "[{channel}] {player_name}: {message}"
+sender-format: "&d[私聊 -> {target_name}] &f{player_name}&7: &r{message}"
+recipient-format: "&d[私聊 <- {player_name}] &f{player_name}&7: &r{message}"
+spy-format: "&5[监听 {player_name} -> {target_name}] &r{message}"
+```
+
+#### 全服频道（Global.yml）
+
+```yaml
+enabled: true
+display-name: "全服"
+mode: "global"
+send-permission: ""
+receive-permission: ""
+cross-server: true
+range: 0
+format: "&6[{channel}] &f{player_name}&7: &r{message}"
+console-format: "[{channel}] {player_name}: {message}"
+sender-format: "&d[私聊 -> {target_name}] &f{player_name}&7: &r{message}"
+recipient-format: "&d[私聊 <- {player_name}] &f{player_name}&7: &r{message}"
+spy-format: "&5[监听 {player_name} -> {target_name}] &r{message}"
+```
+
+#### 私聊频道（Private.yml）
+
+```yaml
+enabled: true
+display-name: "私聊"
+mode: "private"
+send-permission: "arcartxsuite.chat.msg"
+receive-permission: "arcartxsuite.chat.msg"
+cross-server: true
+range: 0
+format: "&d[私聊] &f{player_name}&7: &r{message}"
+console-format: "[私聊] {player_name} -> {target_name}: {message}"
+sender-format: "&d[私聊 -> {target_name}] &f{player_name}&7: &r{message}"
+recipient-format: "&d[私聊 <- {player_name}] &f{player_name}&7: &r{message}"
+spy-format: "&5[监听 {player_name} -> {target_name}] &r{message}"
+```
+
+#### 管理频道（Staff.yml）
+
+```yaml
+enabled: true
+display-name: "管理"
+mode: "staff"
+send-permission: "ArcartXSuite.chat.mute"
+receive-permission: "ArcartXSuite.chat.mute"
+cross-server: true
+range: 0
+format: "&c[{channel}] &f{player_name}&7: &r{message}"
+console-format: "[{channel}] {player_name}: {message}"
+sender-format: "&d[私聊 -> {target_name}] &f{player_name}&7: &r{message}"
+recipient-format: "&d[私聊 <- {player_name}] &f{player_name}&7: &r{message}"
+spy-format: "&5[监听 {player_name} -> {target_name}] &r{message}"
+```
+
+## 配置版本迁移
+
+Chat 模块当前配置版本号为 2。版本 1 → 2 的迁移内容：
+
+```yaml
+from-version: 1
+to-version: 2
+description: "storage.mode 重命名为 storage.shared，值从 sqlite/mysql 映射为 true/false"
+operations:
+  - type: set-if-missing
+    path: storage.shared
+    value: true
+  - type: rename
+    from: storage.mode
+    to: storage.shared
+  - type: value-map
+    path: storage.shared
+    mapping:
+      "mysql": false
+      "sqlite": true
+```
+
+:::info
+配置诊断引擎会自动检测版本号变动并执行迁移。详见 [/docs/guide/conditions](/docs/guide/conditions) 中的配置管理章节。
+:::
+
+## 消息文件
+
+消息文件 `messages.yml` 定义了 Chat 模块所有命令反馈、状态提示和错误消息的文本内容。支持 `&` 颜色码和 `{0}` `{1}` 占位符。修改后执行 `/axs reload chat` 即可生效。
+
+| 消息分组 | 说明 |
+|---|---|
+| `prefix` | 消息前缀，所有 Chat 模块消息前自动添加 |
+| `common` | 通用提示（服务未启动、权限不足等） |
+| `help` | 管理命令帮助文本 |
+| `status` | 状态查询输出格式 |
+| `mute` / `unmute` / `spy` | 管理员命令用法提示 |
+| `player` | 玩家命令反馈（频道切换、开关、忽略等） |
+| `result` | 服务操作结果（发送成功、禁言、过滤等） |

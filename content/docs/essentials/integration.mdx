@@ -1,0 +1,201 @@
+---
+title: 联动
+description: Essentials 模块依赖关系、Capability、数据库表与跨模块联动
+---
+
+## 依赖关系
+
+| 依赖 | 类型 | 说明 |
+|------|------|------|
+| ArcartXSuite 本体 | 硬依赖 | 提供模块框架（`AbstractAXSModule`）、存储管理（`StorageManager`）、PacketBridge、PacketGuard、ItemBridge 等全部 API |
+| PlaceholderAPI | 外部依赖 | 提供 PlaceholderAPI 占位符注册与解析（`module.yml` 中声明 `external-depends`） |
+| ArcartX 客户端 | 可选 | UI 菜单与管理面板需要客户端支持（PacketBridge 桥接） |
+| Chat 模块 | 可选 | 禁言 / 解禁功能依赖 `ChatMutable` 能力，未加载时禁言功能不可用 |
+
+## 注册的 Capability
+
+Essentials 模块通过 `registerCapability` 注册以下能力，供其他模块通过 `getCapability` 查询使用：
+
+### `EssentialsQueryable`
+
+查询玩家 Essentials 状态，供 Tab、Chat 等模块在列表渲染时使用。
+
+| 方法 | 返回类型 | 说明 |
+|------|----------|------|
+| `isAfk(UUID)` | `boolean` | 玩家是否处于 AFK 状态 |
+| `isVanished(UUID)` | `boolean` | 玩家是否处于隐身状态 |
+| `isMuted(UUID)` | `boolean` | 玩家是否被禁言（委托 `ChatMutable`） |
+| `getNickname(UUID)` | `String?` | 玩家自定义昵称（未设置返回 null） |
+| `isFlying(UUID)` | `boolean` | 玩家是否正在飞行 |
+| `isGodMode(UUID)` | `boolean` | 玩家是否处于无敌模式 |
+
+> `isMuted` 内部通过 `getCapability(ChatMutable.class)` 延迟获取 Chat 模块能力，Chat 模块未加载时返回 `false`。
+
+### `PlayerDataPurgeable`
+
+支持清除玩家数据，供宿主统一管理（如 GDPR 合规、玩家数据重置）。
+
+| 方法 | 返回类型 | 说明 |
+|------|----------|------|
+| `moduleId()` | `String` | 返回 `"essentials"` |
+| `purgePlayerData(UUID)` | `int` | 删除指定玩家的全部数据（homes、bans、warnings、nicknames、player_data），返回删除行数 |
+| `purgeAllPlayerData()` | `int` | 删除全部玩家的数据，返回删除行数 |
+
+### `DatabaseMigratable`
+
+支持数据库跨源迁移，供宿主执行存储切换（如 SQLite → MySQL）。
+
+| 方法 | 返回类型 | 说明 |
+|------|----------|------|
+| `moduleId()` | `String` | 返回 `"essentials"` |
+| `migrateDatabase(StorageDescriptor, boolean)` | `MigrationResult` | 将数据迁移到目标存储，`overwrite` 控制是否覆盖已有数据 |
+| `currentDescriptor()` | `StorageDescriptor` | 返回当前存储描述符 |
+
+## 消费的 Capability
+
+模块通过 `getCapability` 延迟获取其他模块的能力（因模块加载顺序不定）：
+
+| Capability | 来源模块 | 用途 |
+|------------|----------|------|
+| `TabRefreshable` | Tab 模块 | AFK / 隐身状态变化时调用 `refreshTab` 刷新 Tab 列表显示 |
+| `ChatMutable` | Chat 模块 | 禁言 / 解禁玩家、查询禁言列表，管理面板禁言功能依赖此能力 |
+
+### `ChatMutable` 联动详情
+
+禁言功能完全委托给 Chat 模块的 `ChatMutable` 能力，Essentials 模块本身不存储禁言数据：
+
+| 调用场景 | 方法 | 说明 |
+|----------|------|------|
+| `/essentials mute` 命令 | `mutePlayer(name, expiresAt, reason, operator)` | 禁言玩家 |
+| `/essentials unmute` 命令 | `unmutePlayer(name)` | 解除禁言 |
+| `EssentialsQueryable.isMuted` | `isMuted(uuid)` | 查询禁言状态 |
+| 管理面板禁言列表 | `listMutes()` | 获取全部禁言记录 |
+
+> Chat 模块未加载时，`/essentials mute` 命令会提示"禁言功能需要 Chat 模块启用"，管理面板禁言标签页显示"Chat 模块未加载"。
+
+## 数据库表结构
+
+`EssentialsRepository` 继承 `AbstractModuleRepository`，在模块启动时自动建表。表名使用配置的表前缀（默认 `axs_ess_`）。
+
+### `axs_ess_homes` — 玩家家
+
+| 列名 | 类型 | 说明 |
+|------|------|------|
+| `uuid` | `VARCHAR(36)` | 玩家 UUID（联合主键） |
+| `name` | `VARCHAR(64)` | 家名称（联合主键，存储为小写） |
+| `world` | `VARCHAR(128)` | 世界名称 |
+| `x` | `DOUBLE` | X 坐标 |
+| `y` | `DOUBLE` | Y 坐标 |
+| `z` | `DOUBLE` | Z 坐标 |
+| `yaw` | `FLOAT` | 偏航角 |
+| `pitch` | `FLOAT` | 俯仰角 |
+
+### `axs_ess_warps` — 公共传送点
+
+| 列名 | 类型 | 说明 |
+|------|------|------|
+| `name` | `VARCHAR(64)` | 传送点名称（主键，存储为小写） |
+| `world` | `VARCHAR(128)` | 世界名称 |
+| `x` | `DOUBLE` | X 坐标 |
+| `y` | `DOUBLE` | Y 坐标 |
+| `z` | `DOUBLE` | Z 坐标 |
+| `yaw` | `FLOAT` | 偏航角 |
+| `pitch` | `FLOAT` | 俯仰角 |
+
+### `axs_ess_spawn` — 出生点
+
+| 列名 | 类型 | 说明 |
+|------|------|------|
+| `id` | `INT` | 固定为 1（主键，单行表） |
+| `world` | `VARCHAR(128)` | 世界名称 |
+| `x` | `DOUBLE` | X 坐标 |
+| `y` | `DOUBLE` | Y 坐标 |
+| `z` | `DOUBLE` | Z 坐标 |
+| `yaw` | `FLOAT` | 偏航角 |
+| `pitch` | `FLOAT` | 俯仰角 |
+
+### `axs_ess_bans` — 封禁记录
+
+| 列名 | 类型 | 说明 |
+|------|------|------|
+| `uuid` | `VARCHAR(36)` | 玩家 UUID（主键） |
+| `player_name` | `VARCHAR(32)` | 玩家名称 |
+| `reason` | `TEXT` | 封禁原因 |
+| `operator` | `VARCHAR(32)` | 操作者名称 |
+| `created_at` | `BIGINT` | 创建时间戳（毫秒） |
+| `expires_at` | `BIGINT` | 过期时间戳（毫秒，`-1` 为永久） |
+| `ip` | `VARCHAR(45)` | 玩家 IP 地址（可为 null） |
+
+### `axs_ess_warnings` — 警告记录
+
+| 列名 | 类型 | 说明 |
+|------|------|------|
+| `id` | `INTEGER` | 自增主键（SQLite `AUTOINCREMENT` / MySQL `AUTO_INCREMENT`） |
+| `uuid` | `VARCHAR(36)` | 玩家 UUID |
+| `player_name` | `VARCHAR(32)` | 玩家名称 |
+| `reason` | `TEXT` | 警告原因 |
+| `operator` | `VARCHAR(32)` | 操作者名称 |
+| `created_at` | `BIGINT` | 创建时间戳（毫秒） |
+
+### `axs_ess_nicknames` — 玩家昵称
+
+| 列名 | 类型 | 说明 |
+|------|------|------|
+| `uuid` | `VARCHAR(36)` | 玩家 UUID（主键） |
+| `nickname` | `VARCHAR(128)` | 昵称（原始文本，含 `&` 颜色码） |
+
+### `axs_ess_player_data` — 玩家数据
+
+| 列名 | 类型 | 说明 |
+|------|------|------|
+| `uuid` | `VARCHAR(36)` | 玩家 UUID（主键） |
+| `last_seen` | `BIGINT` | 最后在线时间戳（毫秒） |
+| `last_ip` | `VARCHAR(45)` | 最后已知 IP |
+| `first_join` | `BIGINT` | 首次加入时间戳（毫秒） |
+
+### 玩家数据与全表枚举
+
+`EssentialsRepository` 实现了两个枚举方法以支持宿主统一管理：
+
+| 方法 | 包含的表 | 用途 |
+|------|----------|------|
+| `playerDataTables()` | `homes`、`bans`、`warnings`、`nicknames`、`player_data` | 按 UUID 清除玩家数据 |
+| `allTables()` | 上述全部 + `warps`、`spawn` | 全表枚举（数据库迁移时使用） |
+
+## 跨服支持
+
+Essentials 模块本身不直接使用跨服 API（`CrossServerAPI`），但通过共享存储模式（`storage.shared: true`）间接支持跨服数据同步：
+
+- **共享 MySQL**：多个子服连接同一 MySQL 数据库，家、传送点、出生点、封禁等数据自动跨服共享。
+- **封禁同步**：在线玩家封禁后踢出，其他子服通过共享数据库查询到封禁记录。
+
+> 如需 Redis 实时跨服封禁同步，需配合宿主的 `CrossServerAPI` 扩展开发。
+
+## 模块集成
+
+### 与 Tab 模块集成
+
+| 集成点 | 说明 |
+|--------|------|
+| `EssentialsQueryable` | Tab 模块查询玩家 AFK / 隐身 / 昵称状态，在列表中显示对应标记 |
+| `TabRefreshable` | Essentials 状态变化时调用 Tab 刷新，实时更新列表显示 |
+
+### 与 Chat 模块集成
+
+| 集成点 | 说明 |
+|--------|------|
+| `ChatMutable` | Essentials 禁言 / 解禁命令委托给 Chat 模块执行 |
+| `EssentialsQueryable.isMuted` | 查询禁言状态时委托给 `ChatMutable.isMuted` |
+| 管理面板禁言列表 | 通过 `ChatMutable.listMutes()` 获取禁言记录 |
+
+### 与宿主核心集成
+
+| 集成点 | 说明 |
+|--------|------|
+| `StorageManager` | 共享存储模式下复用本体数据源，自建模式下独立连接池 |
+| `PacketBridge` | 注册与打开 UI、向客户端推送数据 |
+| `PacketGuard` | UI Packet 频率控制（路由层统一处理） |
+| `PlayerDataPurgeable` | 宿主统一清除玩家数据时调用 |
+| `DatabaseMigratable` | 宿主执行存储迁移时调用 |
+
+> 更多关于条件评估、物品来源与图标配置，请参考 [条件系统](/docs/guide/conditions)、[物品来源](/docs/guide/item-sources) 与 [图标配置](/docs/guide/icons)。

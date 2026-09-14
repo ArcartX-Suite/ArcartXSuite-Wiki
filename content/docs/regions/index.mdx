@@ -1,0 +1,161 @@
+---
+title: 概览
+description: Regions 区域保护模块功能概览
+---
+# Regions 区域保护
+
+## 模块简介
+
+Regions 是 ArcartXSuite 的区域保护与管理模块，定位为 **WorldGuard 替代方案**。模块提供完整的选区工具、50+ 区域标志、三态标志系统（ALLOW / DENY / NONE）、优先级与父子继承、成员/拥有者权限管理、进出提示、世界规则限制以及 ArcartX UI 图形化管理面板，覆盖区域保护的全部核心场景。
+
+模块通过空间网格索引（chunk 粒度，16×16×16 分桶）实现高性能区域查询，避免全量线性扫描；通过粒子可视化任务提供选区与区域边框的实时视觉反馈；通过 EventBus 发布区域进出事件供其他模块联动。
+
+| 属性 | 值 |
+|---|---|
+| 模块 ID | `regions` |
+| 版本 | 1.4.4 |
+| 主类 | `xuanmo.arcartxsuite.regions.RegionsModule` |
+| 配置文件 | `ArcartXRegions.yml` |
+| 消息文件 | `messages.yml` |
+| 配置版本 | 3 |
+| 命令 ID | `regions` |
+| 命令别名 | `rg` |
+| 外部依赖 | 无（本体内置 API 即可运行） |
+| 软依赖 | Essentials（飞行/交互绕过权限） |
+
+## 功能特性
+
+| 特性 | 说明 |
+|---|---|
+| 选区工具 | 使用木斧左键设点 1、右键设点 2，粒子柱（红/绿）与选区边框（蓝）实时可视化 |
+| 50+ 区域标志 | 覆盖战斗、方块、环境、生物、玩家、杂项六大类别，共 50 个标志 |
+| 三态标志 | 每个标志支持 `ALLOW` / `DENY` / `NONE` 三态，`NONE` 表示未设置并继承父区域或全局 |
+| 优先级系统 | 区域可设置优先级，高优先级区域的标志覆盖低优先级区域 |
+| 父子继承 | 区域可设置父区域，未设置的标志从父区域继承，支持成环检测 |
+| 全局区域 | `__global__` 作为无任何区域覆盖时的保底规则 |
+| 成员/拥有者 | 支持玩家 UUID 和权限组（`g:` 前缀）两种成员类型，成员对方块/交互类标志豁免 |
+| 进出提示 | 进入/离开区域时通过 Actionbar / Chat / Title 三种方式显示通知，支持自定义 greeting/farewell 文本 |
+| 世界规则 | 按世界级别的限制（禁飞、禁活塞、禁交互物品），不依赖区域选区，运行时可 CRUD 并持久化 |
+| 区域传送 | `tp` 命令传送到指定区域中心（最高方块上方） |
+| 区域重命名/重定义 | `rename` / `redefine` 支持区域改名和范围重新划定 |
+| 粒子可视化 | 选区粒子柱 + 选区边框 + 区域边框常驻粒子（`/rg show` 切换），按视距裁剪 + 节流 |
+| ArcartX UI | 玩家区域查看菜单（`/rg menu`）和管理员管理面板（`/rg admin`），全图形化交互 |
+| 成员豁免 | 方块破坏/放置/交互/容器/载具/丢弃/拾取/骑乘/睡觉等标志对区域成员自动豁免 |
+| 管理员绕过 | 拥有 `axs.regions.bypass` 权限的玩家跳过所有区域保护 |
+| 空间索引 | 按世界分桶的 chunk 粒度网格索引（16×16×16），查询时仅遍历目标点所在 cell 的候选区域 |
+| 数据库迁移 | 支持 `DatabaseMigratable` 能力，可在 SQLite 与 MySQL 之间迁移数据 |
+| 玩家数据清理 | 支持 `PlayerDataPurgeable` 能力，可清理指定/全部玩家的选区与进出追踪数据 |
+
+## 依赖
+
+| 依赖类型 | 名称 | 必需 | 说明 |
+|---|---|---|---|
+| 模块依赖 | 无 | - | Regions 不依赖其他模块即可运行 |
+| 外部软依赖 | Essentials | 否 | 提供飞行绕过（`axs.essentials.fly.bypass`）和交互绕过（`axs.essentials.interact.bypass`）权限节点 |
+| 宿主能力 | EventBusCapability | 否 | 发布区域进出事件（`axs.regions.region_change`）供其他模块监听 |
+| 宿主能力 | DatabaseMigratable | 否 | 支持数据库迁移，供存储管理工具调用 |
+| 宿主能力 | PlayerDataPurgeable | 否 | 支持玩家数据清理，供管理工具调用 |
+| 宿主配置 | Storage | 否 | `shared: true` 时共享本体统一数据源 |
+
+## 区域机制
+
+### 区域数据模型
+
+每个区域（`Region`）由以下属性组成：
+
+| 属性 | 类型 | 说明 |
+|---|---|---|
+| `id` | `String` | 区域唯一标识符（不区分大小写），与 `world` 共同构成主键 |
+| `world` | `String` | 区域所在世界名 |
+| `minX/minY/minZ` | `int` | 区域最小坐标（自动归一化） |
+| `maxX/maxY/maxZ` | `int` | 区域最大坐标（自动归一化） |
+| `priority` | `int` | 优先级，数值越高越优先，默认 0 |
+| `parentId` | `String` | 父区域 ID，`null` 表示无父区域 |
+| `owners` | `Set<UUID>` | 所有者 UUID 集合 |
+| `members` | `Set<UUID>` | 成员 UUID 集合 |
+| `ownerGroups` | `Set<String>` | 所有者权限组集合（`g:` 前缀添加） |
+| `memberGroups` | `Set<String>` | 成员权限组集合 |
+| `flags` | `Map<RegionFlag, State>` | 标志状态映射 |
+| `flagData` | `Map<RegionFlag, String>` | 标志附加数据（如 greeting/farewell 自定义文本） |
+
+### 标志查询流程
+
+当玩家在某坐标执行操作时，模块按以下流程查询标志状态：
+
+```
+1. 获取该坐标的所有区域（按优先级降序排列）
+   └→ 使用空间索引定位目标点所在 cell
+   └→ 遍历 cell 内候选区域，精确 contains 校验
+   └→ 按优先级降序排序
+
+2. 遍历区域列表，对每个区域解析标志：
+   ├→ 区域自身设置了该标志 → 返回其值（ALLOW/DENY）
+   └→ 区域未设置（NONE）→ 沿父链向上继承
+       └→ 父区域设置了 → 返回父区域值
+       └→ 父区域也未设置 → 继续向上
+       └→ 到顶仍为 NONE → 检查下一个同坐标区域
+
+3. 所有区域均为 NONE → 返回 NONE（无保护）
+
+4. 玩家相关标志额外检查：
+   ├→ 玩家拥有 axs.regions.bypass 权限 → 直接返回 ALLOW
+   ├→ 标志为 DENY 且是成员豁免类标志 → 检查玩家是否为区域成员
+   └→ 成员豁免类标志：BLOCK_BREAK, BLOCK_PLACE, USE, CHEST_ACCESS,
+       VEHICLE_DESTROY, VEHICLE_PLACE, ITEM_DROP, ITEM_PICKUP, RIDE, SLEEP
+```
+
+### 优先级与继承
+
+| 机制 | 说明 |
+|---|---|
+| 优先级 | 同一坐标可被多个区域覆盖，高优先级区域的标志先被检查；若为 NONE 则继续检查低优先级区域 |
+| 父子继承 | 区域可设置父区域（须同世界），未设置的标志从父区域继承；父链最多遍历 64 层 |
+| 成环检测 | 设置父区域时自动检测继承环，若沿父链回到自身则拒绝设置 |
+| 全局区域 | `__global__` 作为保底区域 ID，当无任何区域覆盖时使用其标志 |
+
+### 选区机制
+
+| 机制 | 说明 |
+|---|---|
+| 选区工具 | 默认为木斧（`WOODEN_AXE`），可通过 `selection.wand-item` 配置 |
+| 选区操作 | 左键设点 1（红色粒子柱），右键设点 2（绿色粒子柱），两点必须同世界 |
+| 体积限制 | 选区体积上限默认 500000 方块，可通过 `selection.max-volume` 配置 |
+| 数量限制 | 每玩家最大区域数默认 20，`0` 表示无限，可通过 `selection.max-regions-per-player` 配置 |
+| 绕过限制 | 拥有 `axs.regions.bypass.limit` 权限的玩家不受数量限制 |
+| 粒子可视化 | 选区完成后沿 12 条棱勾勒蓝色边框，单次最大 600 粒子，每 8 tick 刷新 |
+
+### 进出追踪
+
+模块通过 `PlayerMoveEvent`（MONITOR 优先级）追踪玩家位置变化：
+
+```
+玩家移动 → 检测区块坐标变化 → 查询最高优先级区域
+  ├→ 区域未变 → 忽略
+  ├→ 离开旧区域：
+  │   ├→ 有 farewell 自定义文本 → 发送自定义消息
+  │   └→ 无自定义文本 + Actionbar 开启 → 发送默认离开消息
+  │   └→ 发布 EventBus 事件（type=leave）
+  └→ 进入新区域：
+      ├→ ENTRY 标志为 DENY → 取消移动 + 提示无权限
+      ├→ 有 greeting 自定义文本 → 发送自定义消息
+      └→ 无自定义文本 + Actionbar 开启 → 发送默认进入消息
+      └→ 发布 EventBus 事件（type=enter）
+```
+
+### 世界规则
+
+世界规则服务（`WorldRulesService`）提供按世界级别的限制，独立于区域系统：
+
+| 规则 | 说明 | 绕过权限 |
+|---|---|---|
+| 禁飞世界 | 进入禁飞世界时取消飞行，阻止飞行切换 | `axs.essentials.fly.bypass` |
+| 禁活塞世界 | 阻止活塞推动事件 | 无 |
+| 禁交互物品 | 按世界配置禁止与指定物品/方块交互 | `axs.essentials.interact.bypass` |
+
+世界规则支持运行时 CRUD（通过管理员 UI），修改后自动持久化回主配置文件。
+
+## 相关页面
+
+- [配置](/docs/regions/configuration) — 完整配置字段表与示例
+- [命令与占位符](/docs/regions/commands) — 命令、权限与 UI 数据包
+- [联动](/docs/regions/integration) — EventBus 事件、Capability 与数据库表结构

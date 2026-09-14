@@ -1,0 +1,140 @@
+---
+title: 安装指南
+description: ArcartX-Suite 环境要求、下载安装步骤、目录结构与首次启动说明
+---
+
+# 安装指南
+
+## 环境要求
+
+| 项 | 要求 |
+| --- | --- |
+| 服务端 | Spigot / Paper / Mohist / Arclight，MC 1.20.1 及以上 |
+| Java | 17 或更高（推荐 21） |
+| ArcartX 服务端插件 | 必装，版本与客户端 MOD 对齐 |
+| 客户端 MOD | 玩家必须安装 ArcartX 客户端 MOD |
+| 数据库 | 默认 SQLite（零配置）；如需 MySQL 跨服共享，准备好访问凭证 |
+
+## 依赖说明
+
+ArcartX-Suite 的硬依赖只有 ArcartX。其他插件按模块或功能降级处理：缺少非必要依赖时，主插件不会整体不可用。
+
+| 依赖 | 类型 | 影响 |
+| --- | --- | --- |
+| ArcartX | 必需 | 缺少时 ArcartX-Suite 无法启动 |
+| PlaceholderAPI | 可选 | 只影响 PAPI 占位符注册和部分文本解析 |
+| MythicMobs / MythicBukkit | 可选 | 缺少时 EntityTracker 的 Boss 追踪跳过 |
+| Chemdah | 指定模块必需 | 缺少时 Conversation、QuestGPS 跳过加载 |
+| Adyeshach | 可选 | 只影响对话 NPC 相关能力 |
+| Vault / PlayerPoints / XConomy / Rondo | 可选 | 经济桥接，缺少时货币相关功能降级 |
+| MythicLib / AttributePlus / CraneAttribute / Symphony | 可选 | 属性桥接，缺少时属性相关功能降级 |
+| OneBot 11 实现端 | QQBot 模块必需 | 缺少时 QQBot 模块无法连接 QQ 群 |
+
+## 安装步骤
+
+### 1. 安装 ArcartX
+
+按 ArcartX 官方文档安装服务端插件，并向玩家分发客户端 MOD。
+
+### 2. 放入 ArcartX-Suite jar
+
+```
+plugins/
+├── ArcartX-x.x.x.jar
+└── ArcartX-Suite.jar
+```
+
+### 3. 启动一次，生成默认资源
+
+启动服务端。ArcartX-Suite 会：
+
+- 把 jar 内默认 YAML 释放到 `plugins/ArcartX-Suite/`
+- 生成 `config.yml`（总开关 + 各模块启用状态）和各模块配置
+- 生成 `arcartx/ui/*.yml` UI 模板
+- 全部模块默认 `enabled: true`（云端授权模块需先绑定云端）
+
+### 4. 验证
+
+```bash
+/axs status
+```
+
+查看所有模块的启用/禁用状态和运行信息。
+
+## 目录结构
+
+```
+plugins/
+  ArcartX-Suite.jar              # 宿主本体
+  ArcartX-Suite/
+    config.yml                   # 主配置：模块开关、货币、跨服、安全等
+    modules/                     # 按需放入模块 Jar（可选）
+      AXS-RGB-x.x.x.jar
+      AXS-Tab-x.x.x.jar
+      ...
+    data/                        # 模块数据目录
+      <moduleId>/
+        config.yml               # 模块独立配置
+        *.db                     # SQLite 数据文件（默认）
+    arcartx/ui/                  # UI 模板文件
+    diagnosis/                   # 配置诊断报告
+    purge-logs/                  # 数据清除审计日志
+    diagnostics/                 # 运行环境诊断报告
+```
+
+### 模块配置文件位置
+
+模块配置统一存放在 `data/&lt;moduleId>/config.yml`，而非旧的 `plugins/ArcartX-Suite/ArcartX&lt;Module>.yml`。首次启动时模块会自动导出默认配置。
+
+## 模块 Jar 部署（可选）
+
+ArcartX-Suite 支持模块 Jar 独立部署。不放入模块 Jar 时，功能由云端授权自动下载加载。
+
+### 工作原理
+
+1. 宿主启动时先扫描 `modules/` 目录，识别所有外部模块 Jar 的 id
+2. 对于有外部 Jar 的模块，宿主跳过内置加载，由模块 Jar 接管
+3. `config.yml` 中的 `enabled` 配置对两种模式均生效
+
+### 何时使用外部 Jar
+
+| 场景 | 推荐方式 |
+|---|---|
+| 服主只使用免费/默认模块 | 云端自动下载，无需手动操作 |
+| 服主购买付费模块 | 云端授权后自动下载 `.axb` 加密模块 |
+| 开发/调试自定义模块 | 放入外部 Jar，方便独立替换和重载 |
+
+### 模块 Jar 命名规范
+
+`modules/` 目录下的 jar 文件名没有强制格式要求，但推荐遵循以下命名：
+
+```
+ArcartXSuite-<ModuleName>-<version>.jar
+# 例如
+ArcartXSuite-RGB.jar
+ArcartXSuite-Tab.jar
+```
+
+宿主通过读取 jar 内 `module.yml` 的 `id` 字段来匹配模块身份，与文件名无关。
+
+## 代理端部署（群组服）
+
+若使用 Velocity / BungeeCord / Waterfall 群组架构，代理服与子服安装不同的 jar：
+
+| 机器 | 安装 |
+| --- | --- |
+| 代理服 | `ArcartXSuite-Proxy-Velocity-*.jar` 或 `ArcartXSuite-Proxy-Bungee-*.jar` |
+| 各子服 | `ArcartX-Suite-*.jar` + ArcartX（不要装 Proxy jar） |
+
+详见 [Proxy 代理端](/docs/guide/proxy-usage)。
+
+## 升级
+
+- 直接覆盖 jar 然后重启；不会丢已有数据库和已编辑过的 YAML
+- 新版本可能新增配置键；升级后 `ConfigDiagnosticEngine` 会自动合并缺失字段
+- 建议升级前备份 `plugins/ArcartX-Suite/` 目录
+
+## 卸载
+
+- 停服后删除 jar
+- 数据保留在 `plugins/ArcartX-Suite/` 不会自动清理

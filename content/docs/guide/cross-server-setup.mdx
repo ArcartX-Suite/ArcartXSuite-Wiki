@@ -1,0 +1,133 @@
+---
+title: 跨服配置
+description: Redis 配置、Proxy Forward 配置、跨服模块设置与验证
+---
+
+# 跨服配置
+
+ArcartX-Suite 提供统一的跨服传输层（CrossServer SDK），支持 Redis Pub/Sub 与 BungeeCord/Velocity Forward 双后端，可同时启用（双发 + 入站去重）。
+
+## 两步启用
+
+### 1. 宿主 config.yml
+
+编辑 `plugins/ArcartX-Suite/config.yml`：
+
+```yaml
+cross-server:
+  node-id: "survival"    # 每台子服改成不同值
+  redis:
+    enabled: true
+    host: "192.168.1.100"
+    port: 6379
+    password: ""
+    database: 0
+    channel: "AXS:CROSS"
+    connect-timeout-ms: 5000
+  proxy:
+    enabled: false       # 无 Redis 时可改为 true（有 32KB 与在线玩家限制）
+    messenger-channel: "AXS_CROSS"
+    forward-target: "ALL"
+  signature:
+    enabled: true
+    secret: "同一网络内所有子服填写相同密钥"
+    verify: true
+```
+
+### 2. 模块配置
+
+在各模块的配置文件中开启跨服：
+
+```yaml
+cross-server:
+  enabled: true
+```
+
+需要跨服的具体功能（Chat 频道、Tab 定义等）仍按模块文档设置对应的跨服开关。
+
+## 配置字段说明
+
+| 字段 | 默认值 | 说明 |
+|------|--------|------|
+| `node-id` | Bukkit 服务器名 | 当前子服节点 ID，多服必须唯一 |
+| `dedupe-ttl-ms` | 60000 | 入站 message-id 去重 TTL（毫秒） |
+| `max-payload-chars` | 524288 | 单条 payload 最大字符数 |
+| `redis.enabled` | false | 是否启用 Redis Pub/Sub |
+| `redis.host` | 127.0.0.1 | Redis 地址 |
+| `redis.port` | 6379 | Redis 端口 |
+| `redis.password` | — | Redis 密码 |
+| `redis.database` | 0 | Redis 数据库编号 |
+| `redis.channel` | AXS:CROSS | 共用频道名 |
+| `redis.connect-timeout-ms` | 5000 | 连接超时（毫秒） |
+| `proxy.enabled` | false | 是否启用 BungeeCord/Velocity Forward |
+| `proxy.messenger-channel` | AXS_CROSS | Forward 子频道 |
+| `proxy.forward-target` | ALL | 转发目标 |
+| `signature.enabled` | false | 是否 HMAC 签名 |
+| `signature.secret` | — | 签名密钥（多服一致） |
+| `signature.verify` | true | 是否验证入站签名 |
+
+## 按模块速查
+
+| 模块 | 模块开关 | 业务开关 | 共享存储 |
+| --- | --- | --- | --- |
+| Chat | `cross-server.enabled` | `chat/channels/*.yml` → `cross-server: true` | MySQL 推荐 |
+| Tab | `cross-server.enabled` | `data/tab/tabs/*.yml` → `cross-server: true` | 无（快照同步） |
+| Announcer | `cross-server.enabled` | `gbroadcast` / `gbroadcastnow` 命令 | 无 |
+| Mail | `cross-server.enabled` | 自动（发信后广播 refresh） | MySQL 必需 |
+| OnlineRewards | `cross-server.enabled` | 自动（签到/补签后 refresh） | MySQL 必需 |
+| Market | `cross-server.enabled` | 拍卖事件自动广播 | MySQL 必需；redis 节仅缓存 |
+| Warehouse | `cross-server.enabled` | 共享仓库编辑锁同步 | MySQL 必需；`shared.enabled: true` |
+| EntityTracker | `cross-server.enabled` | `new-features.cross-server-ranking.enabled: true` | 共享 SQLite 或依赖 SDK 入站合并 |
+
+## Chat 跨服示例
+
+宿主（三台子服仅 `node-id` 不同）+ Chat 模块：
+
+```yaml
+# data/chat/config.yml（每台子服相同，除 settings.server-id 可不同）
+cross-server:
+  enabled: true
+
+settings:
+  server-id: "lobby"   # 展示用，与 node-id 无关
+```
+
+```yaml
+# data/chat/channels/Global.yml
+cross-server: true
+```
+
+重载后 `/axs chat status` 应显示跨服通道已激活。
+
+## 统一数据源与跨服
+
+跨服场景下，建议在宿主 `config.yml` 中配置统一 MySQL 数据源：
+
+```yaml
+storage:
+  mode: "mysql"
+  mysql:
+    host: "192.168.1.100"
+    port: 3306
+    database: "arcartxsuite"
+    username: "root"
+    password: ""
+    pool-size: 8
+```
+
+所有模块默认共用此处的数据库连接配置，无需在各模块配置中重复填写 storage 节。连接池由本体统一创建和关闭。
+
+## 验证
+
+1. 控制台出现：`[CrossServer] 已启动 | node=... | redis=true | proxy=...`
+2. 模块 status 命令显示跨服 ON
+3. 子服 A 触发业务（聊天/公告/上架等），子服 B 有对应反应
+
+## 常见问题
+
+| 现象 | 排查方向 |
+| --- | --- |
+| 跨服消息不到达 | 检查各子服 `node-id` 是否唯一、Redis 连接是否正常 |
+| 双后端重复消息 | 去重 TTL 内的消息会被丢弃，属正常行为 |
+| 签名验证失败 | 确保所有子服 `signature.secret` 一致 |
+| Proxy Forward 消息过大 | Forward 有 32KB 限制，建议使用 Redis |

@@ -1,0 +1,449 @@
+---
+title: 动作系统
+description: Menu 模块动作类型、执行流程、延迟机制、信号分发与脚本集成详解
+---
+
+# 动作系统
+
+> **付费模块**
+
+Menu 模块的动作系统是菜单交互的核心引擎。按钮点击、菜单打开、菜单关闭均可触发一组有序动作列表，由 `MenuActionExecutor` 依次执行。系统支持 14 种动作类型，涵盖命令执行、消息发送、跨服切换、菜单导航、音效播放、信号分发、脚本执行和延迟调度等场景。
+
+## 动作定义结构
+
+每个动作在 YAML 中以单行字符串表示，格式为 `type:value`，由 `MenuActionDefinition` 解析为 `(type, value)` 二元组。
+
+```yaml
+actions:
+  - "close"
+  - "delay: 10"
+  - "command: warehouse open"
+```
+
+解析规则：
+
+| 规则 | 说明 |
+|---|---|
+| 分隔符 | 第一个 `:` 为类型与值的分隔符，后续 `:` 归入值部分 |
+| 空行 | 跳过，不生成动作 |
+| 未知类型 | 降级为 `NONE`，记录警告日志，执行时无副作用 |
+| 空值 | `type` 后无 `:` 时，值为空字符串（如 `close`） |
+
+## 动作类型一览
+
+| 动作关键字 | 类型枚举 | 说明 |
+|---|---|---|
+| `command` | `COMMAND` | 以玩家身份执行命令 |
+| `chat` | `CHAT` | 以玩家身份发送聊天消息 |
+| `connect` | `CONNECT` | 通过 BungeeCord Plugin Messaging 切换子服 |
+| `op` | `PLAYER_OP` | 临时给予 OP 执行命令，用完自动收回 |
+| `console` | `CONSOLE` | 以控制台身份执行命令 |
+| `message` | `MESSAGE` | 向玩家发送聊天消息 |
+| `open` | `OPEN` | 打开另一个菜单 |
+| `close` | `CLOSE` | 关闭当前菜单 |
+| `page` | `PAGE` | 切换到同菜单内的另一页 |
+| `sound` | `SOUND` | 播放音效 |
+| `signal` | `SIGNAL` | 触发 EventPacket command-signal 信号 |
+| `aria` | `SCRIPT_ARIA` | 执行 Aria 脚本 |
+| `js` | `SCRIPT_JS` | 执行 JavaScript |
+| `delay` | `DELAY` | 延迟 N tick 后执行后续动作 |
+| `none` | `NONE` | 空动作，无副作用 |
+
+## 命令类动作
+
+### command
+
+以玩家身份执行命令，使用 `player.performCommand()` 在主线程调度执行。命令前导 `/` 会被自动去除。
+
+```yaml
+actions:
+  - "command: spawn"
+  - "command: warp vip"
+```
+
+- 支持 PlaceholderAPI 变量替换（如 `%player_name%`）
+- 执行后若 `close-on-action: true`（默认），菜单自动关闭
+- 命令为空时跳过执行
+
+### chat
+
+以玩家身份发送聊天消息。以 `/` 开头时等同于执行命令，否则为普通聊天消息。
+
+```yaml
+actions:
+  - "chat: /help"
+  - "chat: 大家好！"
+```
+
+### console
+
+以控制台身份执行命令，通过 `Bukkit.dispatchCommand(ConsoleSender, ...)` 调度。命令注入防护由 `CommandSanitizer.stripCommandSeparators()` 处理，清理命令分隔符。
+
+```yaml
+actions:
+  - "console: say %player_name% 打开了菜单"
+  - "console: eco give %player_name% 100"
+```
+
+### op
+
+以玩家身份临时给予 OP 权限执行命令，执行完毕后自动收回。由 `TemporaryOpExecutor` 实现，确保 OP 权限仅在命令执行期间生效。
+
+```yaml
+actions:
+  - "op: stop"
+```
+
+> `op` 动作会短暂提升玩家权限，请仅在可信场景下使用。命令执行完毕后 OP 状态立即被移除。
+
+## 菜单导航动作
+
+### open
+
+打开另一个菜单。目标菜单通过 `id` 引用，可在同一 `.yml` 文件（用 `---` 分隔）或其他 `.yml` 文件中定义。
+
+```yaml
+actions:
+  - "open: teleport"
+  - "open: shop_main"
+```
+
+- 打开新菜单不会自动关闭当前菜单，如需关闭请在前方添加 `close`
+- 目标菜单不存在时，玩家收到 `menu-open-failed` 提示（需 `notify-open-failed: true`）
+
+### close
+
+关闭玩家当前打开的菜单 UI。执行 `MenuService.closeMenu()`，同时触发菜单的 `close-actions`。
+
+```yaml
+actions:
+  - "close"
+```
+
+### page
+
+在当前菜单内切换页面。支持页面 ID、方向标记两种方式。
+
+```yaml
+actions:
+  - "page: page2"        # 按页面 ID 切换
+  - "page: next"        # 下一页
+  - "page: prev"        # 上一页
+```
+
+| 页面标记 | 等价写法 | 说明 |
+|---|---|---|
+| `next` | `+`, `>` | 页索引 +1 |
+| `prev` | `previous`, `-`, `<` | 页索引 -1（最小为 0） |
+| `<页面ID>` | - | 按页面 ID 查找索引 |
+
+> 页索引越界时自动截断：负值截断为 0，超过最大页截断为最后一页。
+
+## 消息与音效
+
+### message
+
+向玩家发送聊天消息，支持 `&` 颜色代码。消息内容会经过 PlaceholderAPI 变量替换。
+
+```yaml
+actions:
+  - "message: &a欢迎打开示例菜单！"
+  - "message: &c你的余额不足！"
+```
+
+> `message` 动作不会关闭菜单（返回 `false`），适合在菜单保持打开时给玩家反馈。
+
+### sound
+
+播放音效，格式为 `音效名|音量|音调`，音量与音调可省略（默认 1.0）。
+
+```yaml
+actions:
+  - "sound: ENTITY_EXPERIENCE_ORB_PICKUP|1.0|1.0"
+  - "sound: UI_BUTTON_CLICK|0.5|1.2"
+  - "sound: ENTITY_PLAYER_LEVELUP"
+```
+
+| 参数 | 类型 | 默认值 | 说明 |
+|---|---|---|---|
+| 音效名 | `String` | - | Bukkit `Sound` 枚举名或自定义音效名 |
+| 音量 | `float` | `1.0` | 音量（0.0-1.0） |
+| 音调 | `float` | `1.0` | 播放速度（0.5-2.0） |
+
+> 音效名优先按 `Sound` 枚举匹配（大写），匹配失败时按自定义音效名（小写）播放，兼容资源包自定义音效。
+
+## 跨服切换
+
+### connect
+
+通过 BungeeCord Plugin Messaging Channel 将玩家切换到代理端的指定子服。兼容 BungeeCord 与 Velocity（需启用 `bungee-plugin-message-channel = true`）。
+
+```yaml
+actions:
+  - "connect: survival"
+  - "connect: creative"
+```
+
+- 服务器名支持 PlaceholderAPI 变量替换
+- 模块启动时自动注册 `BungeeCord` outgoing channel（已注册时静默忽略）
+- 发送失败时记录警告日志
+
+## 信号分发
+
+### signal
+
+触发 EventPacket command-signal 信号，支持携带变量。信号由 `SignalDispatchable` Capability 分发，其他模块可监听并响应。
+
+```yaml
+# 无变量信号
+actions:
+  - "signal: open_shop"
+
+# 带变量信号（用 | 分隔键值对）
+actions:
+  - "signal: purchase|item=diamond|price=100|player=%player_name%"
+```
+
+| 格式 | 说明 |
+|---|---|
+| `signal: <名称>` | 触发无变量信号 |
+| `signal: <名称>\|键=值\|键2=值2` | 触发信号并传递变量 |
+
+- 信号名与变量值均支持 PlaceholderAPI 变量替换
+- 变量以 `|` 分隔，每段为 `键=值` 格式
+- `SignalDispatchable` 不可用时记录警告并跳过
+
+> 信号系统的完整说明详见 [EventPacket 模块](/docs/eventpacket)。
+
+## 脚本动作
+
+### aria
+
+执行 Aria 脚本。Aria 由 ArcartX 内置提供（硬依赖，始终可用），注入 AXS player 门面到 `global.` 命名空间。
+
+```yaml
+# 单行 Aria
+actions:
+  - "aria: if (global.player.hasPermission('rank.mvp')) { global.player.command('warp mvp') } else { global.player.msg('&c权限不足') }"
+
+# 多行 Aria（YAML 块标量）
+actions:
+  - |
+    aria:
+      if (global.player.papiNumber('%vault_eco_balance%') >= 100) {
+        global.player.console('eco take %player_name% 100');
+        global.player.command('give %player_name% diamond 1');
+        global.player.msg('&a购买成功');
+      } else {
+        global.player.msg('&c余额不足');
+      }
+```
+
+Aria player 门面常用方法：
+
+| 方法 | 返回值 | 说明 |
+|---|---|---|
+| `global.player.getLevel()` | `int` | 玩家等级 |
+| `global.player.getFood()` | `int` | 饥饿值 |
+| `global.player.getHealth()` | `double` | 生命值 |
+| `global.player.getWorld()` | `String` | 世界名 |
+| `global.player.getName()` | `String` | 玩家名 |
+| `global.player.isSneaking()` | `boolean` | 是否潜行 |
+| `global.player.isFlying()` | `boolean` | 是否飞行 |
+| `global.player.hasPermission('a.b')` | `boolean` | 权限检查 |
+| `global.player.papi('%...%')` | `String` | PAPI 解析为字符串 |
+| `global.player.papiNumber('%...%')` | `double` | PAPI 解析为数字 |
+| `global.player.command('cmd')` | - | 以玩家身份执行命令 |
+| `global.player.console('cmd')` | - | 以控制台身份执行命令 |
+| `global.player.op('cmd')` | - | 临时 OP 执行命令 |
+| `global.player.msg('&a..')` | - | 发送消息（支持 `&` 颜色） |
+| `global.player.title('主','副')` | - | 发送标题 |
+| `global.player.sound('名字')` | - | 播放音效 |
+| `global.player.close()` | - | 关闭菜单 |
+| `global.player.bukkit()` | `Player` | 原生 Bukkit API |
+
+> Aria 动作求值前会预展开 `%...%` PAPI 与 `{player}` 变量。Aria 语法：`//` 注释、单引号字符串、空值 `none`、`if/elif/else`、`&& || >= <= ==`。门面未覆盖的原生 API 使用 `global.player.bukkit()`。
+
+### js
+
+执行 JavaScript，注入同一个 player 门面（js 中用裸名 `player`）和 `Bukkit`。需服务器 classpath 上有 JS 引擎（GraalJS 等），Java 15+ 默认无 Nashorn，无引擎时静默跳过。
+
+```yaml
+actions:
+  - "js: player.getLevel() >= 30 ? player.command('warp vip') : player.msg('&c等级不足 30')"
+```
+
+> JS 动作不做脚本级 PAPI 预展开。JS 中取 PAPI 请使用 `player.papi(...)` / `player.papiNumber(...)`。条件系统的完整说明详见 [条件系统](/docs/guide/conditions)。
+
+## 延迟机制
+
+### delay
+
+延迟 N tick 后执行后续所有动作（1 tick = 50ms）。`delay` 是通用延时，可延时执行任意后续动作组合，支持嵌套多个 `delay`（分段延时）。
+
+```yaml
+actions:
+  - "close"
+  - "delay: 10"
+  - "command: warehouse open"
+```
+
+执行流程：
+
+```
+1. 执行 close → 菜单 UI 立即关闭
+2. 遇到 delay: 10 → 调度 10 tick（500ms）后执行剩余动作
+3. 10 tick 后执行 command: warehouse open
+```
+
+### 嵌套延迟
+
+多个 `delay` 可分段延时，每段延迟独立计时：
+
+```yaml
+actions:
+  - "message: &a3 秒后传送..."
+  - "delay: 20"              # 1 秒后
+  - "message: &e2..."
+  - "delay: 20"              # 再 1 秒后
+  - "message: &e1..."
+  - "delay: 20"              # 再 1 秒后
+  - "command: spawn"
+  - "sound: ENTITY_PLAYER_LEVELUP"
+```
+
+### delay 与 close 的交互
+
+`executeAll` 遇到 `delay` 时，会先处理已累积的关闭请求（立即关闭菜单 UI），再延迟执行后续动作。这确保 `close → delay → command` 模式能规避 ArcartX 客户端在菜单 UI 未关闭时打开新界面导致卡死的问题。
+
+| 场景 | 行为 |
+|---|---|
+| `close` 后无 `delay` | 全部动作执行完毕后统一关闭菜单 |
+| `close` 后有 `delay` | 遇到 `delay` 时立即关闭菜单，再延迟执行后续动作 |
+| 无 `close` 的 `delay` | 延迟执行后续动作，菜单保持打开 |
+
+> `delay` 值为非正整数（0 或负数）时跳过延迟，立即继续执行后续动作。解析失败时同样跳过。
+
+## 执行流程
+
+### 单次执行 execute
+
+`MenuActionExecutor.execute(player, action)` 执行单个动作，返回 `boolean` 表示是否应关闭菜单：
+
+| 返回值 | 含义 | 涉及的动作 |
+|---|---|---|
+| `true` | 执行后应关闭菜单 | `command`、`chat`、`connect`、`op`、`console`、`signal`、`aria`、`js`（受 `close-on-action` 控制） |
+| `false` | 不关闭菜单 | `message`、`open`、`close`、`page`、`sound`、`delay`、`none` |
+
+> `close-on-action` 配置项（默认 `true`）控制命令类动作和脚本动作执行后是否关闭菜单。`message`、`sound`、`open`、`page` 等动作不受此设置影响。
+
+### 批量执行 executeAll
+
+`executeAll(player, actions)` 依次执行动作列表，累积关闭请求，全部执行完毕后统一关闭。遇到 `delay` 时触发分段处理。
+
+```
+executeAll(actions):
+  shouldClose = false
+  for action in actions:
+    if action is DELAY:
+      if shouldClose: closeMenu() immediately
+      schedule delayed executeAll(remaining actions)
+      return
+    shouldClose |= execute(action)
+  if shouldClose: closeMenu()
+```
+
+## 生命周期动作
+
+动作不仅用于按钮点击，还用于菜单打开和关闭的生命周期事件。
+
+### open-actions
+
+菜单打开时执行，在 UI 显示给玩家之前触发。适合发送欢迎消息、播放音效、记录统计。
+
+```yaml
+open-actions:
+  - "message: &a欢迎打开示例菜单！"
+  - "sound: ENTITY_EXPERIENCE_ORB_PICKUP|1.0|1.0"
+```
+
+### close-actions
+
+菜单关闭时执行，在 UI 窗口关闭后触发。适合保存状态、播放关闭音效。
+
+```yaml
+close-actions:
+  - "sound: UI_BUTTON_CLICK|0.5|1.2"
+  - "message: &7已关闭菜单"
+```
+
+> `open-actions` 和 `close-actions` 使用与按钮 `actions` 完全相同的动作类型和格式。生命周期动作通过 `MenuActionExecutor.executeAll()` 执行，同样支持 `delay` 延迟机制。
+
+## PlaceholderAPI 集成
+
+所有命令类动作（`command`、`chat`、`connect`、`console`、`op`、`message`、`signal`）的值均支持 PlaceholderAPI 变量替换，由 `MenuConditionEvaluator.applyPlaceholders()` 统一处理。
+
+| 占位符 | 说明 |
+|---|---|
+| `%player_name%` | 玩家名 |
+| `%player_level%` | 玩家等级 |
+| `%player_world%` | 当前世界名 |
+| `%vault_eco_balance%` | 经济余额 |
+| `%player_health%` | 生命值 |
+
+> 占位符替换在动作执行时实时解析，确保使用最新的玩家数据。PlaceholderAPI 为外部软依赖，未安装时占位符原样保留。
+
+## 完整动作示例
+
+### 关闭后延迟执行命令
+
+最常见的模式：先关闭菜单，延迟 10 tick 后执行命令，规避客户端 UI 切换冲突。
+
+```yaml
+actions:
+  - "close"
+  - "delay: 10"
+  - "command: warehouse open"
+```
+
+### 多级条件脚本
+
+按权限和余额分支派发不同指令：
+
+```yaml
+actions:
+  - |
+    aria:
+      if (global.player.hasPermission('rank.mvp')) {
+        global.player.command('warp mvp');
+      } elif (global.player.papiNumber('%vault_eco_balance%') >= 1000) {
+        global.player.console('eco take %player_name% 1000');
+        global.player.command('warp vip');
+      } else {
+        global.player.msg('&c权限/余额不足');
+      }
+  - "close"
+```
+
+### 信号触发 + 延迟反馈
+
+触发信号后延迟播放音效：
+
+```yaml
+actions:
+  - "signal: purchase|item=diamond|price=100"
+  - "delay: 5"
+  - "sound: ENTITY_PLAYER_LEVELUP|1.0|1.0"
+  - "message: &a购买成功！"
+```
+
+### 跨服切换
+
+关闭菜单后切换到生存服：
+
+```yaml
+actions:
+  - "close"
+  - "delay: 10"
+  - "connect: survival"
+```

@@ -1,0 +1,194 @@
+---
+title: Proxy 代理端
+description: BungeeCord / Velocity 代理端安装配置、混合登录与离线拦截
+---
+
+# Proxy 代理端
+
+ArcartXSuite Proxy 是 ArcartX-Suite 在 BungeeCord / Waterfall / Velocity 代理服上使用的伴侣插件，与游戏子服上的 ArcartX-Suite.jar 不是同一个 jar。
+
+## 功能概览
+
+| 能力 | 说明 |
+| --- | --- |
+| 离线玩家拦截 | 在代理层根据 UUID 版本识别离线账号，可配置直接踢出 |
+| 账号类型预判 | 登录代理时按 UUID 版本初步判定微软正版 / LittleSkin / 离线 |
+| 认证环境检测 | 启动时检测是否配置了 authlib-injector，并输出混合登录建议 |
+| 混合登录管理 | 通过 `/axsproxy auth setup` 生成混合登录启动脚本 |
+
+> Proxy 插件不负责 Chat / Tab / Mail / Warehouse 等游戏数据的跨服同步。跨服同步由各子服宿主 config.yml 的 `cross-server` 配置完成。Proxy 管"谁能进网络"，CrossServer 管"进网后各子服怎么互通"。
+
+## 何时需要 / 不需要
+
+| 场景 | 代理端 Proxy | 子服 ArcartX-Suite |
+| --- | --- | --- |
+| 单端 Paper 服 | 不需要 | 需要；混合登录用 `auth` + `/axs auth setup` |
+| Velocity / BungeeCord 群组 | 需要 | 每个子服都要装 |
+| 仅正版、无 LittleSkin | 可选（主要用 deny-offline） | 各子服照常 |
+| LittleSkin + 微软正版混合 | 强烈推荐 | 各子服 + online-mode=true |
+| 需要 Chat/Tab/Mail 等跨服 | Proxy 无关 | 各子服开启 cross-server |
+
+## 构建产物与下载
+
+| 文件 | 安装位置 |
+| --- | --- |
+| `ArcartXSuite-Proxy-Velocity-*.jar` | 仅 Velocity 代理服 `plugins/` |
+| `ArcartXSuite-Proxy-Bungee-*.jar` | 仅 BungeeCord / Waterfall 代理服 `plugins/` |
+| `ArcartX-Suite-*.jar` | 各游戏子服 `plugins/`（不要放在代理服） |
+
+## 目录结构
+
+### Velocity 示例
+
+```
+/home/mc/
+├── velocity/                    # 代理进程
+│   └── plugins/
+│       ├── ArcartXSuite-Proxy-Velocity.jar
+│       └── arcartxsuite-proxy/  # 首次启动自动生成
+│           └── proxy-config.yml
+├── lobby/                       # 子服
+│   └── plugins/
+│       ├── ArcartX-x.x.x.jar
+│       └── ArcartX-Suite.jar
+└── survival/                    # 子服
+    └── plugins/
+        ├── ArcartX-x.x.x.jar
+        └── ArcartX-Suite.jar
+```
+
+### BungeeCord 示例
+
+```
+/home/mc/
+├── bungee/                      # 代理进程
+│   └── plugins/
+│       ├── ArcartXSuite-Proxy-Bungee.jar
+│       └── ArcartXSuite-Proxy/  # 首次启动自动生成
+│           └── proxy-config.yml
+├── lobby/
+│   └── plugins/
+│       └── ArcartX-Suite.jar
+└── survival/
+    └── plugins/
+        └── ArcartX-Suite.jar
+```
+
+> 配置目录名差异：Velocity 为 `plugins/arcartxsuite-proxy/proxy-config.yml`，BungeeCord 为 `plugins/ArcartXSuite-Proxy/proxy-config.yml`。两个平台配置文件内容格式相同。
+
+## 配置文件
+
+首次启动后，Proxy 会在数据目录释放 `proxy-config.yml`。
+
+```yaml
+# proxy-config.yml
+
+debug: false
+
+# 是否拒绝离线模式玩家（UUID v3）
+deny-offline: true
+kick-offline-message: "&c本服务器仅支持正版/LittleSkin 账号登录"
+
+# 是否为离线玩家自动分配 UUID（通常保持 true）
+auto-assign-uuid: true
+
+# 多方认证（混合登录）
+auth:
+  enabled: false
+  auto-check-version: false
+  yggdrasil-source: "https://littleskin.cn/api/yggdrasil?mixed"
+  mixed-proxy-port: 25599
+  mixed-proxy-bind-host: "127.0.0.1"
+  mixed-proxy-token: ""
+  mixed-proxy-allow-ips: []
+
+# Yggdrasil 认证源列表（仅用于 status 展示）
+sources:
+  - name: Mojang
+    api-url: "https://sessionserver.mojang.com/"
+    enabled: true
+    allow-offline-fallback: false
+  - name: LittleSkin
+    api-url: "https://littleskin.cn/api/yggdrasil"
+    enabled: true
+    allow-offline-fallback: false
+```
+
+### 字段说明
+
+| 字段 | 说明 |
+| --- | --- |
+| `debug` | 为 true 时输出每位玩家的账号类型判定日志 |
+| `deny-offline` | true 时拒绝 UUID v3 的离线玩家 |
+| `kick-offline-message` | 踢出提示（支持 `&` 颜色码） |
+| `auth.enabled` | 是否启用 authlib-injector 混合登录 |
+| `auth.mixed-proxy-port` | 本地混合代理监听端口 |
+| `auth.mixed-proxy-bind-host` | 混合代理监听地址（跨机群组服改为内网 IP） |
+| `auth.mixed-proxy-token` | account-source 接口鉴权 token（跨机必配） |
+| `auth.mixed-proxy-allow-ips` | 允许访问 account-source 的 IP 白名单 |
+| `sources` | Yggdrasil 源清单（仅用于 status 展示） |
+
+## 命令
+
+在代理服控制台或具备权限的管理员执行：
+
+| 命令 | 权限 | 说明 |
+| --- | --- | --- |
+| `/axsproxy help` | `arcartxsuite.proxy.admin` | 显示帮助 |
+| `/axsproxy status` | `arcartxsuite.proxy.admin` | 查看状态、源列表、拒绝离线开关 |
+| `/axsproxy reload` | `arcartxsuite.proxy.admin` | 重载配置 |
+| `/axsproxy auth setup` | `arcartxsuite.proxy.admin` | 下载 authlib-injector + 生成混合登录启动脚本 |
+| `/axsproxy auth status` | `arcartxsuite.proxy.admin` | 查看 authlib-injector + 混合代理状态 |
+| `/axsproxy auth update` | `arcartxsuite.proxy.admin` | 更新 authlib-injector 到最新版 |
+
+## 混合登录部署
+
+### 代理服（Velocity）
+
+1. 将 `ArcartXSuite-Proxy-Velocity-*.jar` 放入 `velocity/plugins/`
+2. 配置混合登录：安装 MultiLogin（推荐）或 authlib-injector
+3. `velocity.toml` 中确保子服已注册，`online-mode = true`
+4. 启动 Velocity，确认控制台出现加载完成提示
+5. 编辑 `proxy-config.yml`，设置 `auth.enabled: true`
+6. 执行 `/axsproxy auth setup` 生成 `start-mixed-auth` 脚本
+7. 使用该脚本启动 Velocity
+
+### 每个子服
+
+1. 安装 ArcartX + ArcartX-Suite.jar
+2. `server.properties` 设置 `online-mode=true`
+3. Paper / Spigot 开启 IP 转发
+4. 子服不要启用 `auth.enabled`（群组服用代理端认证）
+
+### 账号类型判定规则
+
+与子服 `account-type` 服务保持一致（代理端不做 Mojang API 网络查询）：
+
+| UUID 版本 | 代理层判定 | 说明 |
+| --- | --- | --- |
+| v4 | LittleSkin | 微软正版在部分场景也是 v4，子服可开 enable-mojang-lookup 二次确认 |
+| v3 | 离线 | 若 deny-offline: true 则在代理踢出 |
+| v1 | 微软正版 | 部分微软账号场景 |
+
+## 与子服 config.yml 的分工
+
+| 配置节 | 单端子服 | 群组子服 | 代理服 proxy-config.yml |
+| --- | --- | --- | --- |
+| `auth` + `/axs auth setup` | 使用 | 不用（auth.enabled: false） | — |
+| `account-type` | 精确判定 | 精确判定 | 代理只做入口预判 |
+| `cross-server` | 单服可关 | 各子服必配（若需跨服） | 无关 |
+| `deny-offline` | 模块内 | 模块内 | 代理入口拦截 |
+
+## 常见问题
+
+### 代理装了 Proxy，子服还要 authlib-injector 吗？
+
+混合登录通常在代理 JVM 配 MultiLogin / authlib-injector；子服只需 `online-mode=true` + IP 转发。子服上的 `/axs auth setup` 是给单端用的，群组服请关闭 `auth.enabled`。
+
+### 能把 Proxy jar 和 ArcartX-Suite jar 都塞子服吗？
+
+不要。Proxy 仅面向 BungeeCord / Velocity API，在 Paper 子服上无法加载。子服只放 ArcartX-Suite.jar。
+
+### 跨服 Chat 不工作，是 Proxy 没装好吗？
+
+多半不是。先查各子服 `cross-server.redis` / `cross-server.proxy`、模块 `cross-server.enabled`、Redis 是否互通。Proxy 与 CrossServer 无依赖关系。

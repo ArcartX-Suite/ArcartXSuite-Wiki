@@ -1,0 +1,196 @@
+---
+title: 联动
+description: Title 跨模块联动与 Capability
+---
+
+# 联动
+
+## Capability 注册
+
+Title 模块在启动时注册以下 Capability，供其他模块跨模块调用：
+
+### TitleGrantable
+
+授予玩家称号的能力接口，由 EventPacket 等模块调用。
+
+| 方法 | 参数 | 返回值 | 说明 |
+|---|---|---|---|
+| `giveTitle` | `UUID playerId`, `String titleId`, `String duration`, `String source` | `boolean` | 给予玩家称号，`duration` 支持 `permanent` / `7d` / `30m` / `2025-01-01~2025-12-31` 等格式，`source` 为来源标识 |
+
+```java
+TitleGrantable grantable = getCapability(TitleGrantable.class);
+boolean success = grantable.giveTitle(playerUuid, "adventurer", "7d", "EventPacket");
+```
+
+> 实现：`TitleModule.startService()` 中通过 Lambda 注册，内部调用 `TitleService.giveTitle()`，时长经 `TitleDurationParser.parse()` 解析。授予成功后自动同步外部属性、刷新菜单、触发全局 Tab 刷新。
+
+### TitleConfigQueryable
+
+查询称号配置元数据的能力接口，由 QuestGps 等模块调用，避免直接依赖 Title 模块内部配置类。
+
+| 方法 | 参数 | 返回值 | 说明 |
+|---|---|---|---|
+| `queryTitle` | `String titleId` | `TitleInfo` / `null` | 查询称号信息，返回 `TitleInfo(displayName, qualityName, description)`，未找到返回 `null` |
+
+```java
+TitleConfigQueryable queryable = getCapability(TitleConfigQueryable.class);
+TitleConfigQueryable.TitleInfo info = queryable.queryTitle("adventurer");
+if (info != null) {
+    String displayName = info.displayName();
+    String qualityName = info.qualityName();
+    String description = info.description();
+}
+```
+
+### PlayerDataPurgeable
+
+玩家数据清理能力，支持 `/axs purge` 统一清理玩家数据。
+
+| 方法 | 参数 | 返回值 | 说明 |
+|---|---|---|---|
+| `purgePlayerData` | `UUID playerUuid` | `int` | 删除指定玩家的全部称号数据，返回删除行数，失败返回 `-1` |
+| `purgeAllPlayerData` | — | `int` | 删除全部玩家的称号数据，返回删除行数，失败返回 `-1` |
+| `moduleId` | — | `String` | 返回 `"title"` |
+
+### DatabaseMigratable
+
+数据库迁移能力，支持 `/axs migrate` 跨源数据库迁移。
+
+| 方法 | 参数 | 返回值 | 说明 |
+|---|---|---|---|
+| `migrateDatabase` | `StorageDescriptor target`, `boolean overwrite` | `MigrationResult` | 将称号数据迁移到目标存储 |
+| `currentDescriptor` | — | `StorageDescriptor` | 返回当前存储描述符 |
+| `moduleId` | — | `String` | 返回 `"title"` |
+
+## EventBus 事件
+
+Title 模块本身不发布 EventBus 主题事件。称号的授予和回收通过 Capability 和管理命令触发，其他模块如需监听称号变更，可通过 PAPI 占位符轮询或调用 `TitleService` 查询状态。
+
+## 跨服同步
+
+### 共享存储模式（推荐）
+
+`storage.shared: true` 时，Title 模块复用本体 `config.yml` 的 `storage` 节配置。多服环境下，所有服务器共享同一数据库，玩家称号数据自动跨服同步：
+
+- 玩家在 A 服装备称号后，数据库写入 `title_player_equipped_groups` 表
+- 玩家登录 B 服时，`PlayerTitleListener.onJoin` 触发 `preloadPlayer`，从数据库加载最新状态
+- 外部属性（AttributePlus / MythicLib 等）在 B 服重新同步
+
+### 自建存储模式
+
+`storage.shared: false` 时，模块自建独立 HikariCP 连接池。若多服指向同一 MySQL 数据库，同样可跨服同步；若各服使用独立 SQLite 文件，则无法跨服。
+
+## 数据库表结构
+
+Title 模块使用三张表存储玩家数据，表名前缀由 `storage.mysql.table-prefix` 配置（默认 `axs_title_`，共享模式下无前缀）：
+
+### title_player_titles
+
+玩家拥有的称号记录。
+
+| 列名 | SQLite 类型 | MySQL 类型 | 说明 |
+|---|---|---|---|
+| `player_uuid` | `TEXT` | `VARCHAR(36)` | 玩家 UUID |
+| `title_id` | `TEXT` | `VARCHAR(128)` | 称号 ID |
+| `hidden` | `INTEGER` | `BOOLEAN` | 是否隐藏（0/1） |
+| `granted_at` | `INTEGER` | `BIGINT` | 发放时间（毫秒时间戳） |
+| `activates_at` | `INTEGER` | `BIGINT NULL` | 激活时间（毫秒时间戳），NULL 表示立即激活 |
+| `expires_at` | `INTEGER` | `BIGINT NULL` | 过期时间（毫秒时间戳），NULL 表示永久 |
+| `updated_at` | `INTEGER` | `BIGINT` | 最后更新时间（毫秒时间戳） |
+| `granted_by` | `TEXT` | `VARCHAR(128)` | 发放者名称 |
+
+> 主键：`(player_uuid, title_id)`。MySQL 额外在 `expires_at` 列创建索引 `idx_title_player_titles_expires_at`，用于过期清理查询。
+
+### title_player_equipped_groups
+
+玩家各分组已装备的称号记录。
+
+| 列名 | SQLite 类型 | MySQL 类型 | 说明 |
+|---|---|---|---|
+| `player_uuid` | `TEXT` | `VARCHAR(36)` | 玩家 UUID |
+| `group_id` | `TEXT` | `VARCHAR(128)` | 分组 ID |
+| `title_id` | `TEXT` | `VARCHAR(128)` | 称号 ID |
+| `updated_at` | `INTEGER` | `BIGINT` | 最后更新时间（毫秒时间戳） |
+
+> 主键：`(player_uuid, group_id)`。每个分组只能装备一个称号。
+
+### title_player_display_title
+
+玩家设置的展示称号记录。
+
+| 列名 | SQLite 类型 | MySQL 类型 | 说明 |
+|---|---|---|---|
+| `player_uuid` | `TEXT` | `VARCHAR(36)` | 玩家 UUID |
+| `title_id` | `TEXT` | `VARCHAR(128)` | 称号 ID |
+| `updated_at` | `INTEGER` | `BIGINT` | 最后更新时间（毫秒时间戳） |
+
+> 主键：`(player_uuid)`。每个玩家只能有一个展示称号。
+
+### Upsert 语句
+
+SQLite 使用 `ON CONFLICT ... DO UPDATE SET`，MySQL 使用 `ON DUPLICATE KEY UPDATE`，确保插入和更新语义一致。
+
+## 与其他模块联动
+
+### EventPacket
+
+EventPacket 模块通过 `TitleGrantable` 能力在事件触发时授予称号：
+
+1. EventPacket 配置动作类型为 `grant_title`
+2. 调用 `TitleGrantable.giveTitle(playerUuid, titleId, duration, "EventPacket")`
+3. Title 模块授予称号并同步属性、刷新菜单、触发 Tab 刷新
+
+### QuestGps
+
+QuestGps 模块通过 `TitleConfigQueryable` 能力查询称号配置元数据，用于任务奖励展示：
+
+1. QuestGps 调用 `TitleConfigQueryable.queryTitle(titleId)`
+2. 获取称号的 `displayName`、`qualityName`、`description`
+3. 在任务面板中展示称号奖励信息
+
+### 属性插件联动
+
+Title 模块通过 `AttributeBridgeRegistry` 获取各属性插件的桥接接口，同步展示属性和收集属性：
+
+| 插件 | 桥接接口 | 同步方式 | 源名格式 |
+|---|---|---|---|
+| AttributePlus | `AttributePlusBridge` | 属性源（Source）写入 | `<prefix>_DISPLAY` / `<prefix>_COLLECTION` |
+| MythicLib | `MythicLibBridge` | Stat Modifier 注册 | `<prefix>_DISPLAY_<STAT>` / `<prefix>_COLLECTION_<STAT>` |
+| CraneAttribute | `CraneAttributeBridge` | 属性源写入（优先静态源） | `<prefix>_DISPLAY` / `<prefix>_COLLECTION` |
+| Symphony | `SymphonyBridge` | flat 属性设置 | `<prefix>_DISPLAY_<attr>` / `<prefix>_COLLECTION_<attr>` |
+
+#### 同步流程
+
+1. 玩家装备/卸下/授予/回收称号时，`TitleService.syncExternalAttributes()` 被调用
+2. `TitleStateResolver.resolve()` 计算展示属性、收集属性、套装属性的汇总
+3. 各属性服务（`TitleAttributePlusService` / `TitleMythicLibService` / `TitleCraneAttributeService` / `TitleSymphonyService`）分别同步到对应插件
+4. 每次同步先移除旧属性源/修饰器，再添加新属性源/修饰器
+
+#### MythicLib 增量同步
+
+MythicLib 服务采用增量同步策略（`TitleMythicLibSyncPlanner`），仅对发生变化的 Stat 进行注册/移除操作，避免全量重注册的性能开销。未在 MythicLib 注册的属性键会记录警告并跳过。
+
+#### Symphony 属性键
+
+Symphony 服务的属性源 key 由 `source-prefix` + `_` + 规范化属性名组成，属性名中的非字母数字字符替换为下划线并转小写。
+
+### Tab 模块联动
+
+Title 模块装备/卸下/隐藏/授予/回收称号时，通过 `TabRefreshable` 能力请求全局 Tab 刷新，确保 Tab 列表中的称号前后缀实时更新。
+
+```java
+TabRefreshable refresher = getCapability(TabRefreshable.class);
+refresher.requestGlobalRefresh("title-equip");
+```
+
+> 刷新原因标识：`title-equip` / `title-unequip` / `title-unequip-all` / `title-grant` / `title-revoke` / `title-hide` / `title-unhide` / `title-display-change`。
+
+### 头顶显示联动
+
+`TitleOverheadService` 通过 `WorldTextureBridgeAPI` 在玩家头顶渲染贴图实体（texture 模式），或通过 Scoreboard Team 设置前后缀（text 模式）。WorldTextureBridge 不可用时自动降级为 text 模式。
+
+| 模式 | 实现 | 依赖 |
+|---|---|---|
+| `texture` | `WorldTextureBridge.spawnOnEntity()` 挂载贴图实体 | ArcartX 客户端 + WorldTextureBridge |
+| `text` | Scoreboard Team 前后缀 | 纯服务端，无额外依赖 |
+| `none` | 无 | — |

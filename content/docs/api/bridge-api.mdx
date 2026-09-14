@@ -1,0 +1,281 @@
+---
+title: 桥接 API
+description: PacketBridgeAPI、ClientBridgeAPI、ItemBridgeAPI、PropBridgeAPI、WaypointBridgeAPI、AdyeshachNpcBridgeAPI、WorldTextureBridgeAPI、SoundPlayerBridgeAPI、VanillaItemNameBridge、ContentModerator 桥接接口参考。
+---
+
+# 桥接 API
+
+ArcartXSuite 提供类型安全的桥接接口，模块通过 `ModuleContext` 获取实例。所有桥接接口均标记了 `@ApiStability` 注解。
+
+## PacketBridgeAPI
+
+UI/Packet 桥接，提供 ArcartX UI 注册、打开、关闭、发包、聊天卡片等能力。标记为 `@ApiStability.Stable`。
+
+**获取方式：** `context.packetBridge()`
+
+### 可用性检查
+
+```java
+PacketBridgeAPI bridge = context.packetBridge();
+if (bridge == null || !bridge.isAvailable()) {
+    logger.warning("ArcartX 桥接不可用");
+    return;
+}
+```
+
+### UI 生命周期
+
+#### registerOrReloadUi
+
+向 ArcartX 注册或热重载一个 UI 文件。幂等安全——先尝试 reload（已注册则刷新），再尝试 register（未注册则注册）。
+
+```java
+UiRegistrationResult result = bridge.registerOrReloadUi("my_ui", uiFile);
+if (result.success()) {
+    String runtimeUiId = result.runtimeUiId();
+    String registeredUiId = result.registeredUiId();
+} else {
+    logger.warning("UI 注册失败: " + result.message());
+}
+```
+
+| 字段 | 类型 | 说明 |
+|------|------|------|
+| `success` | `boolean` | 是否成功 |
+| `runtimeUiId` | `String` | 运行时使用的 UI id |
+| `registeredUiId` | `String` | 注册到 ArcartX 的 id，失败时为 `null` |
+| `action` | `String` | 执行的操作（`register` / `reload` / `fail`） |
+| `message` | `String` | 失败原因 |
+
+#### unregisterUi / normalizeUiId
+
+```java
+boolean success = bridge.unregisterUi("my_ui");
+
+// 静态工具方法：规范化 UI id（configuredUiId 为空时从文件名推导）
+String uiId = PacketBridgeAPI.normalizeUiId(null, new File("my_view.yml")); // → "my_view"
+```
+
+### 打开 / 关闭 UI
+
+```java
+bridge.openUi(player, "my_ui");
+bridge.openUiWithCallback(player, "my_ui", () -> { /* 关闭回调 */ });
+bridge.closeUi(player, "my_ui");
+bridge.isUiOpen(player, "my_ui");
+bridge.openUiAll(player, List.of("ui1", "ui2"));
+bridge.closeUiAll(player, List.of("ui1", "ui2"));
+```
+
+### Packet 发送
+
+```java
+bridge.sendPacket(player, "my_ui", "handlerName", Map.of("key", "value"));
+bridge.sendPacketToAll(player, List.of("ui1", "ui2"), "handlerName", payload);
+```
+
+### 聊天卡片
+
+```java
+bridge.sendChatCard(player, "cardId", Map.of("title", "Hello"));
+```
+
+### 非安全 UI 操作
+
+不经过 ArcartX 服务端校验/回调，模块按需使用：
+
+```java
+bridge.openUiUnsafe(player, "my_ui");
+bridge.openUiUnsafeWithCallback(player, "my_ui", () -> { });
+bridge.closeUiUnsafe(player, "my_ui");
+```
+
+### 关闭回调
+
+```java
+bridge.registerUiCloseCallback("my_ui", player -> { /* UI 关闭时回调 */ });
+bridge.unregisterUiCloseCallback("my_ui");
+```
+
+## ClientBridgeAPI
+
+客户端桥接，提供伤害飘字、服务端变量下发、可见玩家遍历等能力。标记为 `@ApiStability.Stable`。
+
+**获取方式：** `context.clientBridge()`
+
+```java
+// 发送伤害飘字
+clientBridge.sendDamageDisplay(player, "damage_config", 50.0, target);
+
+// 下发服务端变量（客户端 UI 可读取）
+clientBridge.sendServerVariable(player, "player_level", 42);
+
+// 遍历能看到指定实体的所有玩家
+clientBridge.forEachSeenPlayer(entity, viewer -> {
+    // 对每个可见玩家执行操作
+});
+```
+
+## ItemBridgeAPI
+
+ItemStack 桥接，提供序列化与 NBT 标签写入能力。标记为 `@ApiStability.Stable`。
+
+**获取方式：** `context.itemStackBridge()`
+
+```java
+// ItemStack → JSON（用于客户端 UI 物品展示）
+Optional<String> json = itemBridge.itemToJson(itemStack);
+
+// 写入自定义 NBT 标签（用于 ArcartX 自定义贴图）
+// icon: 资源包中的贴图；url: 原版 GUI 中的物品图标
+ItemStack tagged = itemBridge.putStringTag(itemStack, "icon", "my_texture");
+```
+
+## PropBridgeAPI
+
+Prop 桥接，提供客户端按键绑定、额外槽位、冷却标签与物品持久化 prop id 等能力。标记为 `@ApiStability.Internal`。
+
+**获取方式：** `context.propBridge()`
+
+```java
+// 注册客户端按键绑定
+propBridge.registerClientKeyBind("my_key", "category", "R", player -> {
+    player.sendMessage("按键触发");
+});
+
+// 注销
+propBridge.unregisterClientKeyBind("my_key");
+
+// 物品标签读写
+String tag = propBridge.getItemTag(itemStack, "custom_tag");
+propBridge.setCooldownTag(itemStack, "cooldown_group");
+
+// Prop ID 持久化
+ItemStack tagged = propBridge.writePropId(itemStack, "prop_001");
+String propId = propBridge.getPersistentPropId(itemStack);
+```
+
+## WaypointBridgeAPI
+
+路标桥接，为玩家添加/删除/清理客户端路标。标记为 `@ApiStability.Internal`。
+
+**获取方式：** `context.createWaypointBridge()`（每次创建独立实例，模块自行管理生命周期）
+
+```java
+WaypointBridgeAPI waypoint = context.createWaypointBridge();
+if (waypoint.initialize("MyModule")) {
+    // 添加路标
+    waypoint.addWaypoint(player, "wp_1", "目标点", "default", x, y, z);
+    // 移除路标
+    waypoint.removeWaypoint(player, "wp_1", true);
+    // 清理所有
+    waypoint.clearWaypoints(player);
+}
+waypoint.shutdown();
+```
+
+## AdyeshachNpcBridgeAPI
+
+Adyeshach NPC 桥接，查询附近 NPC、应用模型/动画、生成私有导航标记等。标记为 `@ApiStability.Internal`。
+
+**获取方式：** `context.createAdyeshachNpcBridge()`
+
+```java
+AdyeshachNpcBridgeAPI npc = context.createAdyeshachNpcBridge();
+npc.initialize();
+
+// 查找附近 NPC
+List<AdyeshachNearbyNpc> nearby = npc.findNearby(player, 50.0);
+
+// 为 NPC 应用模型
+npc.applyModel(npcEntity, "model_id", 1.0);
+
+// 播放动画
+npc.applyAnimation(npcEntity, "walk", 1.0, 5, 1000);
+
+// 私有导航标记
+npc.spawnPrivateMarker(player, "marker_1", location);
+npc.teleportMarker(player, "marker_1", newLocation);
+npc.removePrivateMarker(player, "marker_1");
+
+npc.shutdown();
+```
+
+## WorldTextureBridgeAPI
+
+世界文字贴图桥接，在实体上方或世界坐标处渲染客户端自定义文字贴图。标记为 `@ApiStability.Internal`。
+
+**获取方式：** `context.worldTextureBridge()`
+
+```java
+WorldTextureBridgeAPI texture = context.worldTextureBridge();
+if (texture != null && texture.isAvailable()) {
+    // 在实体上方渲染
+    texture.spawnOnEntity(entity, "tex_1", "texture_id", 1.0, 0.5, 2.0, true);
+    // 在世界坐标渲染
+    texture.spawnAtLocation(world, location, "tex_2", "texture_id", 1.0, 0.5);
+    // 移除
+    texture.removeFromEntity(entity, "tex_1");
+    texture.removeFromWorld(world, "tex_2", location);
+}
+```
+
+## SoundPlayerBridgeAPI
+
+音效播放器桥接，通过 ArcartX 播放资源包中的自定义音效。标记为 `@ApiStability.Internal`。
+
+**获取方式：** `context.createSoundPlayerBridge()`
+
+```java
+SoundPlayerBridgeAPI sound = context.createSoundPlayerBridge();
+sound.initialize();
+
+// 为指定玩家在指定位置播放（仅该玩家可听到）
+sound.playSoundForPlayer(player, location, "sounds/bell.ogg", "master", 16, 1.0, 5000);
+
+// 为玩家自身播放（无位置）
+sound.playSoundForSelf(player, "sounds/ui_click.ogg", "master", 1.0f, 1000);
+
+sound.shutdown();
+```
+
+## VanillaItemNameBridge
+
+原版物品中文名称解析桥接。标记为 `@ApiStability.Stable`，永不为 null。
+
+**获取方式：** `context.vanillaItemNameBridge()`
+
+解析优先级：物品自定义显示名 > 附魔书/药水 NBT 子类型 > Material 粒度映射表。
+
+```java
+VanillaItemNameBridge bridge = context.vanillaItemNameBridge();
+
+// 按 Material 翻译
+String name = bridge.translate(Material.DIAMOND_SWORD); // → "钻石剑"
+
+// 解析物品中文显示名（优先返回自定义名）
+String displayName = bridge.resolveDisplayName(itemStack);
+```
+
+## ContentModerator
+
+内容审核桥接，对玩家输入文本执行敏感词过滤。标记为 `@ApiStability.Stable`。
+
+**获取方式：** `context.contentModerator()`
+
+过滤流程：剥离标点 → 检查白名单 → 逐词匹配本地+云端屏蔽词 → 匹配正则模式 → 命中时取消或替换。
+
+```java
+ContentModerator moderator = context.contentModerator();
+ContentModerator.ModerationResult result = moderator.filter(playerInput);
+if (result.blocked()) {
+    player.sendMessage("输入包含敏感词，已被拦截");
+} else {
+    String safeText = result.text();
+}
+```
+
+| 字段 | 类型 | 说明 |
+|------|------|------|
+| `blocked` | `boolean` | 是否命中敏感词且应取消操作 |
+| `text` | `String` | 处理后的文本（取消时为原文，替换时为替换后文本） |

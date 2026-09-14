@@ -1,0 +1,234 @@
+---
+title: 命令与占位符
+description: Essentials 模块命令、权限、PlaceholderAPI 占位符与 UI Packet 详解
+---
+
+## 命令体系
+
+Essentials 模块的所有功能通过 `/essentials <action>` 或缩写 `/ess <action>` 访问。同时支持在配置中定义命令简写别名（`command-aliases` 节），将独立顶层命令（如 `/fly`）转发到对应的 `/essentials <action>` 子命令。
+
+| 命令格式 | 说明 |
+|----------|------|
+| `/essentials <action> [参数...]` | 标准命令格式 |
+| `/ess <action> [参数...]` | 缩写别名，等价于 `/essentials` |
+| `/<别名> [参数...]` | 配置中定义的简写别名（如 `/fly`、`/home`），自动转发 |
+
+## 玩家命令
+
+以下命令均可通过 `/essentials <action>`、`/ess <action>` 或配置的简写别名执行。
+
+### 状态切换
+
+| 命令 | 权限 | 参数 | 说明 |
+|------|------|------|------|
+| `fly` | `axs.essentials.fly` | `[玩家]` | 切换飞行模式（可对其他玩家操作） |
+| `god` | `axs.essentials.god` | `[玩家]` | 切换无敌模式 |
+| `heal` | `axs.essentials.heal` | `[玩家]` | 恢复生命值并清除着火状态 |
+| `feed` | `axs.essentials.feed` | `[玩家]` | 恢复饥饿值与饱和度 |
+| `gamemode` | `axs.essentials.gamemode` | `<模式> [玩家]` | 切换游戏模式（survival/creative/adventure/spectator） |
+| `speed` | `axs.essentials.speed` | `<fly\|walk> <速度>` | 设置飞行或行走速度（1-10） |
+| `vanish` | `axs.essentials.vanish` | — | 切换隐身状态 |
+| `afk` | `axs.essentials.afk` | — | 切换 AFK 挂机状态 |
+| `back` | `axs.essentials.back` | — | 返回上次传送前的位置 |
+
+### 物品与容器
+
+| 命令 | 权限 | 参数 | 说明 |
+|------|------|------|------|
+| `repair` | `axs.essentials.repair` | — | 修复主手物品耐久度 |
+| `hat` | `axs.essentials.hat` | — | 将主手物品戴到头盔槽 |
+| `enderchest` | `axs.essentials.enderchest` | `[玩家]` | 打开末影箱（可查看其他玩家） |
+| `workbench` | `axs.essentials.workbench` | — | 打开工作台 |
+| `anvil` | `axs.essentials.anvil` | — | 打开铁砧 |
+| `trash` | `axs.essentials.trash` | — | 打开垃圾桶（54 格虚拟容器） |
+| `nick` | `axs.essentials.nick` | `<昵称\|off>` | 设置或重置自定义昵称 |
+| `seen` | `axs.essentials.seen` | `<玩家>` | 查看玩家在线状态与 IP |
+
+### 传送命令
+
+| 命令 | 权限 | 参数 | 说明 |
+|------|------|------|------|
+| `home` | `axs.essentials.home` | `[名称]` | 传送到家（默认名称 `home`） |
+| `sethome` | `axs.essentials.sethome` | `[名称]` | 设置家（默认名称 `home`） |
+| `delhome` | `axs.essentials.delhome` | `[名称]` | 删除家 |
+| `warp` | `axs.essentials.warp` | `<名称>` | 传送到公共传送点 |
+| `setwarp` | `axs.essentials.setwarp` | `<名称>` | 设置公共传送点 |
+| `delwarp` | `axs.essentials.delwarp` | `<名称>` | 删除公共传送点 |
+| `spawn` | `axs.essentials.spawn` | — | 传送到出生点 |
+| `setspawn` | `axs.essentials.setspawn` | — | 设置出生点 |
+| `tpa` | `axs.essentials.tpa` | `<玩家>` | 请求传送到目标玩家 |
+| `tpahere` | `axs.essentials.tpa` | `<玩家>` | 请求目标玩家传送到你 |
+| `tpaccept` | `axs.essentials.tpa` | — | 接受待处理的 TPA 请求 |
+| `tpdeny` | `axs.essentials.tpa` | — | 拒绝待处理的 TPA 请求 |
+| `tp` | `axs.essentials.teleport` | `<玩家> [目标]` | 传送到玩家，或传送玩家到目标 |
+| `top` | `axs.essentials.teleport` | — | 传送到当前坐标最高方块 |
+| `tppos` | `axs.essentials.teleport` | `<x> <y> <z>` | 传送到指定坐标 |
+
+### 世界命令
+
+| 命令 | 权限 | 参数 | 说明 |
+|------|------|------|------|
+| `time` | `axs.essentials.time` | `<day\|night\|noon\|midnight\|set <值>>` | 设置世界时间 |
+| `weather` | `axs.essentials.weather` | `<clear\|rain\|thunder>` | 设置世界天气 |
+
+### 交互与工具
+
+| 命令 | 权限 | 参数 | 说明 |
+|------|------|------|------|
+| `sit` | `axs.essentials.sit` | — | 坐下（基于 ArmorStand） |
+| `lay` | `axs.essentials.lay` | — | 躺下（基于 sleep API） |
+| `sort` | `axs.essentials.sort` | — | 整理背包（非快捷栏） |
+| `replant` | `axs.essentials.replant` | — | 切换自动补种开关 |
+| `autotool` | `axs.essentials.autotool` | — | 切换自动工具开关 |
+
+### UI 命令
+
+| 命令 | 权限 | 说明 |
+|------|------|------|
+| `menu` | — | 打开玩家工具菜单（ArcartX UI） |
+| `admin` | `axs.essentials.admin` | 打开管理员后台面板 |
+
+## 管理命令
+
+| 命令 | 权限 | 参数 | 说明 |
+|------|------|------|------|
+| `ban` | `axs.essentials.ban` | `<玩家> [原因]` | 永久封禁玩家（记录 IP） |
+| `tempban` | `axs.essentials.ban` | `<玩家> <时长> [原因]` | 临时封禁（时长格式：`1d`、`2h`、`30m`） |
+| `unban` | `axs.essentials.unban` | `<玩家>` | 解除封禁 |
+| `mute` | `axs.essentials.mute` | `<玩家> [原因]` | 永久禁言（依赖 Chat 模块） |
+| `tempmute` | `axs.essentials.mute` | `<玩家> <时长> [原因]` | 临时禁言 |
+| `unmute` | `axs.essentials.unmute` | `<玩家>` | 解除禁言 |
+| `kick` | `axs.essentials.kick` | `<玩家> [原因]` | 踢出玩家 |
+| `warn` | `axs.essentials.warn` | `<玩家> [原因]` | 警告玩家（达阈值自动封禁） |
+| `sudo` | `axs.essentials.sudo` | `<玩家> <命令>` | 强制玩家执行命令 |
+| `inv` | `axs.essentials.inv` | `<玩家>` | 查看在线玩家背包（实时同步） |
+
+### 模块管理命令
+
+| 命令 | 权限 | 说明 |
+|------|------|------|
+| `/axs essentials help` | — | 显示命令帮助 |
+| `/axs essentials status` | — | 显示模块运行状态 |
+| `/axs reload essentials` | `arcartxsuite.admin` | 重载模块配置 |
+
+## 特殊权限节点
+
+| 权限 | 说明 |
+|------|------|
+| `axs.essentials.admin` | 访问管理员后台面板 |
+| `axs.essentials.vanish.see` | 可以看到隐身玩家 |
+| `axs.essentials.afk.exempt` | 免受 AFK 自动踢出 |
+| `axs.essentials.teleport.bypass-delay` | 跳过传送预热延迟 |
+| `axs.essentials.homes.<数字>` | 覆盖家数量上限（如 `axs.essentials.homes.10`） |
+| `axs.essentials.treecap` | 一键砍树权限（可在配置中自定义） |
+
+## PlaceholderAPI 占位符
+
+模块注册了 `axsessentials` 标识符的 PlaceholderAPI 扩展，支持以下占位符：
+
+| 占位符 | 返回值 | 说明 |
+|--------|--------|------|
+| `%axsessentials_afk%` | `true` / `false` | 是否处于 AFK 状态 |
+| `%axsessentials_afk_symbol%` | `&7[AFK]` 或空 | AFK 标记符号（可用于 Tab 列表） |
+| `%axsessentials_vanish%` | `true` / `false` | 是否处于隐身状态 |
+| `%axsessentials_vanish_symbol%` | `&b[V]` 或空 | 隐身标记符号 |
+| `%axsessentials_flying%` | `true` / `false` | 是否正在飞行 |
+| `%axsessentials_god%` | `true` / `false` | 是否处于无敌模式 |
+| `%axsessentials_nick%` | 昵称文本 | 玩家自定义昵称（未设置则返回玩家名） |
+
+> 占位符需要安装 PlaceholderAPI 插件才能生效。模块启动时自动注册，卸载时自动注销。
+
+## UI Packet 详解
+
+模块通过 PacketBridge 与 ArcartX 客户端 UI 交互。服务端通过 `sendPacket` 推送数据，客户端通过 `Packet.send` 发送操作指令。
+
+### 玩家工具菜单（`AXS_ESS_MENU`）
+
+**打开命令**：`/essentials menu`
+
+**服务端推送字段**（`init` handler）：
+
+| 字段 | 类型 | 说明 |
+|------|------|------|
+| `page` | `string` | 当前页面（`home` / `homes` / `warps` / `tpa` / `settings`） |
+| `packetId` | `string` | 固定为 `AXS_ESS_MENU`，客户端回包使用 |
+| `playerName` | `string` | 玩家名称 |
+| `isFlying` | `string` | 是否飞行（`true` / `false`） |
+| `isGod` | `string` | 是否无敌 |
+| `isAfk` | `string` | 是否挂机 |
+| `flySpeed` | `string` | 飞行速度（格式 `X.X`） |
+| `walkSpeed` | `string` | 行走速度 |
+| `location` | `string` | 当前位置（世界名 + 坐标） |
+| `homes` | `list<map>` | 家列表（每项含 `name`、`world`、`coords`） |
+| `homeCount` | `string` | 家数量 |
+| `warps` | `list<string>` | 传送点名称列表 |
+| `warpCount` | `string` | 传送点数量 |
+| `onlinePlayers` | `list<string>` | 在线玩家名称列表（排除自己，用于 TPA） |
+| `replantEnabled` | `string` | 自动补种是否开启 |
+| `autotoolEnabled` | `string` | 自动工具是否开启 |
+
+**客户端操作指令**（`Packet.send('AXS_ESS_MENU', action, ...)`）：
+
+| Action | 参数 | 说明 |
+|--------|------|------|
+| `navigate` | `<page>` | 切换页面 |
+| `refresh` | `<page>` | 刷新当前页面数据 |
+| `teleport_home` | `<name>` | 传送到指定家 |
+| `delete_home` | `<name>` | 删除指定家 |
+| `set_home` | `<name>` | 设置家 |
+| `teleport_warp` | `<name>` | 传送到传送点 |
+| `send_tpa` | `<player> [here]` | 发送 TPA 请求（`here` 为 tpahere） |
+| `accept_tpa` | — | 接受 TPA |
+| `deny_tpa` | — | 拒绝 TPA |
+| `toggle_replant` | — | 切换自动补种 |
+| `toggle_autotool` | — | 切换自动工具 |
+| `sort` | — | 整理背包 |
+
+### 管理员后台（`AXS_ESS_ADMIN`）
+
+**打开命令**：`/essentials admin`（需要 `axs.essentials.admin` 权限）
+
+**服务端推送字段**（`init` handler）：
+
+| 字段 | 类型 | 说明 |
+|------|------|------|
+| `page` | `string` | 当前页面（`players` / `bans` / `mutes` / `warps` / `world`） |
+| `packetId` | `string` | 固定为 `AXS_ESS_ADMIN` |
+| `players` | `list<map>` | 在线玩家列表（含 `name`、`health`、`isFlying`、`isGod`、`world`） |
+| `playerCount` | `string` | 在线玩家数量 |
+| `warps` | `list<string>` | 传送点名称列表 |
+| `bans` | `list<map>` | 封禁列表（含 `uuid`、`name`、`reason`、`operator`、`permanent`） |
+| `banCount` | `string` | 封禁数量 |
+| `chatAvailable` | `string` | Chat 模块是否可用 |
+| `mutes` | `list<map>` | 禁言列表（含 `uuid`、`name`、`reason`、`operator`、`permanent`） |
+| `muteCount` | `string` | 禁言数量 |
+| `worldName` | `string` | 当前世界名称 |
+| `worldTime` | `string` | 当前世界时间（tick） |
+| `worldWeather` | `string` | 当前天气（`clear` / `rain` / `thunder`） |
+
+**客户端操作指令**（`Packet.send('AXS_ESS_ADMIN', action, ...)`）：
+
+| Action | 参数 | 所需权限 | 说明 |
+|--------|------|----------|------|
+| `refresh` | `<page>` | — | 刷新页面数据 |
+| `navigate` | `<page>` | — | 切换页面 |
+| `heal` | `<player>` | `axs.essentials.heal` | 治疗玩家 |
+| `feed` | `<player>` | `axs.essentials.feed` | 喂食玩家 |
+| `fly` | `<player>` | `axs.essentials.fly` | 切换玩家飞行 |
+| `god` | `<player>` | `axs.essentials.god` | 切换玩家无敌 |
+| `teleport_to` | `<player>` | `axs.essentials.teleport` | 传送到玩家 |
+| `teleport_here` | `<player>` | `axs.essentials.teleport` | 将玩家传送到你 |
+| `mute` | `<player> [reason]` | `axs.essentials.mute` | 禁言玩家 |
+| `unmute` | `<player>` | `axs.essentials.unmute` | 解除禁言 |
+| `kick` | `<player> [reason]` | `axs.essentials.kick` | 踢出玩家 |
+| `ban` | `<player> [reason]` | `axs.essentials.ban` | 封禁玩家 |
+| `unban` | `<uuid>` | `axs.essentials.unban` | 解除封禁（需 UUID） |
+| `set_time` | `<day\|night\|noon\|midnight\|tick>` | — | 设置世界时间 |
+| `set_weather` | `<clear\|rain\|thunder>` | — | 设置世界天气 |
+| `set_warp` | `<name>` | — | 设置传送点 |
+| `del_warp` | `<name>` | — | 删除传送点 |
+| `set_spawn` | — | — | 设置出生点 |
+
+> UI Packet 的频率控制由框架路由层（`ClientPacketRouter` + `PacketGuard`）统一处理，Packet Handler 内部不再重复检查。
+>
+> 更多关于 UI 配置文件编写与 Aria 脚本语法，请参考 [图标配置](/docs/guide/icons)。

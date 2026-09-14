@@ -1,0 +1,337 @@
+---
+title: 银行与定期存款
+description: 多货币活期银行、定期存款产品与阶梯利率详解
+---
+
+# 银行与定期存款
+
+Warehouse 模块内置多货币银行系统，支持活期存取和定期存款。银行界面（`AXS:warehouse_bank`）提供完整的活期余额查看、存取款、定期产品购买与到期领取功能。
+
+## 功能概述
+
+| 功能 | 说明 |
+| --- | --- |
+| 多货币活期 | 支持多种货币的活期余额，存取通过货币桥接扣款/放款 |
+| 定期存款 | 可配置多种定期产品，按存入金额分档计息 |
+| 阶梯利率 | 每个产品支持多档利率，按金额区间匹配 |
+| 权限限制 | 定期产品可设置购买权限节点 |
+| 原子操作 | 银行余额增减使用数据库原子操作，防止并发超扣 |
+| 事务保证 | 定期存款领取在事务中原子执行，标记 claimed 并本息入账 |
+| 二级密码 | 提现和领取定期需二级密码解锁 |
+
+## 银行配置
+
+### 货币配置
+
+银行展示的货币在 `bank.currencies` 节定义，这些货币 ID 必须在宿主 `config.yml` 的 `currencies` 节中已定义：
+
+```yaml
+bank:
+  currencies:
+    - money
+    - points
+```
+
+加载时，如果某货币 ID 在全局货币池中不存在，会输出告警并跳过该货币。详见 [货币配置](/docs/guide/currencies)。
+
+### 定期存款产品配置
+
+```yaml
+bank:
+  deposit-products:
+    money_stable_1d:
+      enabled: true
+      display-name: "稳健 1 日"
+      description: "低门槛短期定存。"
+      currency: "money"
+      duration-seconds: 86400
+      min-amount: 100
+      max-amount: 0
+      permission: ""
+      interest-tiers:
+        tier_1:
+          min: 100
+          max: 9999
+          rate: 0.01
+        tier_2:
+          min: 10000
+          max: 99999
+          rate: 0.015
+        tier_3:
+          min: 100000
+          max: 0
+          rate: 0.02
+    money_vip_7d:
+      enabled: true
+      display-name: "贵宾 7 日"
+      description: "权限专属较高收益定存。"
+      currency: "money"
+      duration-seconds: 604800
+      min-amount: 1000
+      max-amount: 0
+      permission: "ArcartXSuite.warehouse.bank.vip"
+      interest-tiers:
+        tier_1:
+          min: 1000
+          max: 49999
+          rate: 0.04
+        tier_2:
+          min: 50000
+          max: 0
+          rate: 0.06
+```
+
+### 产品字段说明
+
+| 字段 | 类型 | 默认值 | 说明 |
+| --- | --- | --- | --- |
+| `enabled` | boolean | `true` | 是否启用此产品 |
+| `display-name` | string | — | 产品显示名称 |
+| `description` | string | `""` | 产品描述 |
+| `currency` | string | `money` | 存入货币 ID |
+| `duration-seconds` | long | `86400` | 定期时长（秒），最小 1 |
+| `min-amount` | `BigDecimal` | `1` | 最低存入金额 |
+| `max-amount` | `BigDecimal` | `0` | 最高存入金额（0 = 无上限） |
+| `permission` | string | `""` | 购买所需权限（留空 = 无限制） |
+| `interest-tiers` | `Map<string, InterestTier>` | — | 利率阶梯配置 |
+
+### 利率阶梯
+
+每个定期产品支持多档利率阶梯，按存入金额匹配对应利率：
+
+| 字段 | 类型 | 说明 |
+| --- | --- | --- |
+| `min` | `BigDecimal` | 此档位最低金额（含） |
+| `max` | `BigDecimal` | 此档位最高金额（含），0 表示无上限 |
+| `rate` | `BigDecimal` | 年化利率（0.01 = 1%） |
+
+利率阶梯在加载时按 `min` 升序排列。匹配逻辑位于 `DepositProductDefinition.tierFor()`：
+
+1. 遍历所有 tier
+2. 检查金额是否 `>= tier.min` 且（`tier.max <= 0` 或 `amount <= tier.max`）
+3. 最后一个匹配的 tier 被选中（由于按 min 升序，后匹配的 tier 覆盖前面的）
+
+> 如果产品没有有效利率阶梯，加载时会跳过该产品并输出告警。
+
+### 利率计算示例
+
+以"贵宾 7 日"产品为例，存入 60000 money：
+
+| 档位 | 金额区间 | 利率 | 是否匹配 |
+| --- | --- | --- | --- |
+| tier_1 | 1000 ~ 49999 | 4% | 否（60000 `>` 49999） |
+| tier_2 | 50000 ~ 无上限 | 6% | 是 |
+
+匹配利率为 6%，到期后本息 = 60000 + 60000 × 0.06 = 63600 money。
+
+## 活期银行
+
+### 存款流程
+
+玩家通过银行界面发送 `bank_deposit` action 存入货币：
+
+1. 通过货币桥接（`CurrencyBridgeAPI`）从玩家背包扣款
+2. 调用 `repository.creditBankBalance()` 原子增加银行余额
+3. 如果数据库写入失败，自动回滚（通过 `bridge.deposit()` 退还款项）
+
+### 取款流程
+
+玩家发送 `bank_withdraw` action 提取货币：
+
+1. 校验二级密码已解锁
+2. 校验金额有效且余额充足
+3. 调用 `repository.debitBankBalance()` 原子扣减余额
+4. 通过货币桥接放款到玩家背包
+5. 如果放款失败，自动回滚（通过 `creditBankBalance` 恢复余额）
+
+### 原子操作实现
+
+银行余额的增减使用数据库原子操作，避免并发超扣：
+
+**creditBankBalance（增加余额）**：
+
+```sql
+-- SQLite
+INSERT INTO warehouse_bank_balances (player_uuid, currency_id, balance, updated_at)
+VALUES (?, ?, ?, ?)
+ON CONFLICT(player_uuid, currency_id) DO UPDATE SET
+    balance = CAST(balance AS REAL) + CAST(excluded.balance AS REAL),
+    updated_at = excluded.updated_at
+
+-- MySQL
+INSERT INTO warehouse_bank_balances (player_uuid, currency_id, balance, updated_at)
+VALUES (?, ?, ?, ?)
+ON DUPLICATE KEY UPDATE
+    balance = balance + VALUES(balance),
+    updated_at = VALUES(updated_at)
+```
+
+**debitBankBalance（扣减余额）**：
+
+```sql
+-- SQLite
+UPDATE warehouse_bank_balances
+SET balance = CAST(balance AS REAL) - ?, updated_at = ?
+WHERE player_uuid = ? AND currency_id = ? AND CAST(balance AS REAL) >= ?
+
+-- MySQL
+UPDATE warehouse_bank_balances
+SET balance = CAST(balance AS DECIMAL(38,8)) - ?, updated_at = ?
+WHERE player_uuid = ? AND currency_id = ? AND CAST(balance AS DECIMAL(38,8)) >= ?
+```
+
+> `debitBankBalance` 仅在 `balance >= amount` 时成功（返回 `true`），否则返回 `false`，确保不会出现负余额。
+
+## 定期存款
+
+### 购买流程
+
+玩家通过银行界面发送 `fixed_create` action 购买定期产品：
+
+1. 校验产品存在且玩家有权限（`canUseProduct`）
+2. 校验金额在 `min-amount` ~ `max-amount` 范围内
+3. 匹配利率阶梯（`tierFor`）
+4. 校验银行余额充足
+5. 原子扣减活期余额（`debitBankBalance`）
+6. 创建定期存款记录（`createFixedDeposit`）
+7. 如果创建失败，自动回滚（`creditBankBalance` 恢复）
+
+### 定期存款记录
+
+创建的 `FixedDepositRecord` 包含以下字段：
+
+| 字段 | 说明 |
+| --- | --- |
+| `id` | 随机 UUID |
+| `playerUuid` | 玩家 UUID |
+| `productId` | 产品 ID |
+| `currencyId` | 货币 ID |
+| `principal` | 本金 |
+| `interestRate` | 匹配的利率 |
+| `createdAt` | 创建时间戳 |
+| `maturesAt` | 到期时间戳（`createdAt + durationSeconds * 1000`） |
+| `claimed` | 是否已领取 |
+| `claimedAt` | 领取时间戳 |
+
+### 领取流程
+
+玩家发送 `fixed_claim` action 领取到期定期：
+
+1. 校验二级密码已解锁
+2. 校验定期存在且未领取且已到期（`maturesAt <= now`）
+3. 通过 `claimFixedDepositAtomic()` 原子执行领取
+
+### 原子领取实现
+
+`claimFixedDepositAtomic()` 在数据库事务中执行：
+
+**MySQL（支持 FOR UPDATE 行锁）**：
+
+1. `SELECT ... FOR UPDATE` 锁定定期记录行
+2. 检查 `claimed = false` 且 `matures_at <= now`
+3. 计算本息 = `principal + principal × interestRate`（精度 8 位，向下截断）
+4. `UPDATE ... SET claimed = true WHERE id = ? AND claimed = false`
+5. `creditBankBalance` 将本息入账
+6. 提交事务
+
+**SQLite（不支持 FOR UPDATE）**：
+
+降级为条件 UPDATE 方案：
+
+1. 查询定期记录（无行锁）
+2. `UPDATE ... SET claimed = true WHERE id = ? AND claimed = false AND matures_at <= ?`
+3. 如果 UPDATE 影响行数为 0，说明被并发领取，回滚
+4. `creditBankBalance` 将本息入账
+5. 提交事务
+
+### 本息计算
+
+到期本息计算公式：
+
+```
+payout = principal + principal × interestRate
+```
+
+结果使用 `setScale(8, RoundingMode.DOWN)` 截断到 8 位小数，然后 `stripTrailingZeros()` 去除尾部零。
+
+## UI 数据包
+
+### 银行界面数据包
+
+银行界面（`buildBankPacket`）发送以下数据：
+
+| 字段 | 类型 | 说明 |
+| --- | --- | --- |
+| `balances` | `Map<string, Map>` | 各货币余额信息 |
+| `products` | `Map<string, Map>` | 可用定期产品列表 |
+| `fixedDeposits` | `Map<string, Map>` | 当前定期存款列表 |
+| `selectedCurrency` | string | 当前选中的货币 ID |
+| `action_token` | string | 操作令牌（防重放） |
+
+### 产品利率展示
+
+UI 中产品的利率文本根据利率档位数量动态生成：
+
+| 档位数 | 展示格式 | 示例 |
+| --- | --- | --- |
+| 0 档 | `—` | — |
+| 1 档 | `{rate}%` | `1%` |
+| 多档 | `{minRate}%~{maxRate}%` | `1%~2%` |
+
+同时发送 `tiers` 数组（包含每档的 min/max/rate），供 UI 端根据输入金额实时计算预期收益。
+
+## 数据库表结构
+
+### warehouse_bank_balances
+
+| 列名 | 类型 | 说明 |
+| --- | --- | --- |
+| `player_uuid` | `VARCHAR(36)` | 玩家 UUID |
+| `currency_id` | `VARCHAR(64)` | 货币 ID |
+| `balance` | `VARCHAR(64)` | 余额（`BigDecimal.toPlainString()` 存储） |
+| `updated_at` | `BIGINT` | 更新时间戳 |
+
+主键为 `(player_uuid, currency_id)`。余额以字符串存储以保留 `BigDecimal` 精度。
+
+### warehouse_fixed_deposits
+
+| 列名 | 类型 | 说明 |
+| --- | --- | --- |
+| `id` | `VARCHAR(36)` | 存款 UUID（主键） |
+| `player_uuid` | `VARCHAR(36)` | 玩家 UUID |
+| `product_id` | `VARCHAR(64)` | 产品 ID |
+| `currency_id` | `VARCHAR(64)` | 货币 ID |
+| `principal` | `VARCHAR(64)` | 本金 |
+| `interest_rate` | `VARCHAR(64)` | 利率 |
+| `created_at` | `BIGINT` | 创建时间戳 |
+| `matures_at` | `BIGINT` | 到期时间戳 |
+| `claimed` | `BOOLEAN` | 是否已领取 |
+| `claimed_at` | `BIGINT` | 领取时间戳 |
+
+## 管理员操作
+
+管理员可通过 `/axs warehouse bank` 命令调整玩家银行余额：
+
+```bash
+# 设置余额
+/axs warehouse bank <玩家> <货币ID> set <金额>
+
+# 增加余额
+/axs warehouse bank <玩家> <货币ID> add <金额>
+
+# 扣减余额
+/axs warehouse bank <玩家> <货币ID> take <金额>
+```
+
+| 模式 | 说明 |
+| --- | --- |
+| `set` | 直接设置余额为指定值 |
+| `add` | 在当前余额基础上增加 |
+| `take` | 在当前余额基础上扣减（不低于 0） |
+
+## 相关文档
+
+- [配置](/docs/warehouse/configuration) — 银行完整配置字段
+- [命令与占位符](/docs/warehouse/commands) — 管理员银行命令
+- [安全与自动化](/docs/warehouse/security) — 二级密码在银行操作中的作用
+- [货币配置](/docs/guide/currencies) — 全局货币定义与桥接

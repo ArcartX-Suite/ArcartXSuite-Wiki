@@ -1,0 +1,321 @@
+---
+title: 配置
+description: Title 配置文件详解
+---
+
+# Title 配置
+
+## 配置文件结构
+
+Title 模块的配置文件位于 `plugins/ArcartX-Suite/modules/title/` 目录下：
+
+| 文件 | 说明 |
+|---|---|
+| `ArcartXTitle.yml` | 主配置文件，定义存储、UI、属性桥接、展示称号、分组、品质、套装 |
+| `messages.yml` | 消息文本配置 |
+| `titles/` | 称号定义目录，每个 `.yml` 文件可包含多个称号定义 |
+| `ui/title_menu.yml` | 称号菜单 UI 配置 |
+
+## 主配置字段表
+
+### settings
+
+| 字段 | 类型 | 默认值 | 说明 |
+|---|---|---|---|
+| `debug` | `boolean` | `false` | 是否输出称号模块调试日志 |
+| `expiration-cleanup-interval-ticks` | `int` | `1200` | 后台过期清理周期（ticks），20 ticks = 1 秒，最小值 20 |
+
+### storage
+
+| 字段 | 类型 | 默认值 | 说明 |
+|---|---|---|---|
+| `shared` | `boolean` | `true` | 是否使用共享存储模式（复用本体数据源） |
+| `mode` | `String` | `sqlite` | 存储模式（`sqlite` / `mysql`），仅 `shared: false` 时生效 |
+| `sqlite.file` | `String` | `titles.db` | SQLite 文件名（相对模块数据目录），仅 `shared: false` 且 `mode: sqlite` 时生效 |
+| `mysql.host` | `String` | `127.0.0.1` | MySQL 主机地址 |
+| `mysql.port` | `int` | `3306` | MySQL 端口 |
+| `mysql.database` | `String` | `arcartxsuite` | MySQL 数据库名 |
+| `mysql.username` | `String` | `root` | MySQL 用户名 |
+| `mysql.password` | `String` | `""` | MySQL 密码 |
+| `mysql.table-prefix` | `String` | `axs_title_` | MySQL 表名前缀 |
+| `pool-size` | `int` | `4` | JDBC 连接池大小（SQLite 建议 1），范围 1-100 |
+
+> `shared: true`（推荐）时复用本体 `config.yml` 的 `storage` 节配置，上述字段全部忽略。`shared: false` 时模块自建独立 HikariCP 连接池。
+
+### ui
+
+| 字段 | 类型 | 默认值 | 说明 |
+|---|---|---|---|
+| `ui-id` | `String` | `AXS:title_menu` | 称号菜单 UI ID |
+| `register-ui-on-enable` | `boolean` | `true` | 启用时是否自动注册 UI |
+| `overwrite-ui-files` | `boolean` | `false` | 启用时是否覆盖用户已修改的 UI 文件 |
+| `attribute-line-color` | `String` | `&0` | 属性列表每行的统一颜色前缀 |
+| `empty-attribute-placeholder` | `String` | `暂无属性` | 属性列表为空时的占位文本 |
+
+### 属性桥接配置
+
+四个属性桥接配置节结构相同，均只有一个 `source-prefix` 字段：
+
+| 配置节 | 默认前缀 | 展示属性源名 | 收集属性源名 |
+|---|---|---|---|
+| `attributeplus` | `AXS_TITLE` | `AXS_TITLE_DISPLAY` | `AXS_TITLE_COLLECTION` |
+| `mythiclib` | `AXS_TITLE` | `AXS_TITLE_DISPLAY_<STAT>` | `AXS_TITLE_COLLECTION_<STAT>` |
+| `craneattribute` | `AXS_TITLE` | `AXS_TITLE_DISPLAY` | `AXS_TITLE_COLLECTION` |
+| `symphony` | `AXS_TITLE` | `AXS_TITLE_DISPLAY_<attr>` | `AXS_TITLE_COLLECTION_<attr>` |
+
+> 属性桥接是否生效由本体 `config.yml` 的 `attribute-bridges.<plugin>` 统一管理，模块侧仅配置源名称前缀。MythicLib 的前缀会经过规范化（非字母数字字符替换为下划线，转大写）。
+
+### display-title
+
+| 字段 | 类型 | 默认值 | 说明 |
+|---|---|---|---|
+| `groups` | `List<String>` | `[]` | 展示称号关联的分组顺序，留空表示按分组定义顺序展示所有组 |
+| `separator` | `String` | ` ` | 多组拼接时的分隔符 |
+| `empty-text` | `String` | `""` | 无展示称号时的占位文本 |
+
+### groups
+
+分组字典，key 为分组 ID（小写英文、数字、下划线）：
+
+| 字段 | 类型 | 默认值 | 说明 |
+|---|---|---|---|
+| `name` | `String` | 分组 ID | 分组显示名称，支持颜色码 |
+| `sort-order` | `int` | 索引位置 | 排序权重，越小越靠前 |
+| `permission` | `String` | `""` | 访问权限节点，空表示所有人可用 |
+
+### qualities
+
+品质字典，key 为品质 ID：
+
+| 字段 | 类型 | 默认值 | 说明 |
+|---|---|---|---|
+| `name` | `String` | 品质 ID | 品质显示名称，支持颜色码 |
+| `sort-order` | `int` | 索引位置 | 排序权重，越小越靠前 |
+
+### sets
+
+套装字典，key 为套装 ID：
+
+| 字段 | 类型 | 默认值 | 说明 |
+|---|---|---|---|
+| `display-name` | `String` | 套装 ID | 套装显示名称 |
+| `required-titles` | `List<String>` | — | 套装所需的称号 ID 列表 |
+| `completion-threshold` | `int` | `-1` | 激活阈值，`<= 0` 时使用所需称号总数 |
+| `bonus-attributes` | `Map<String, Double>` | — | 套装激活后的奖励属性 |
+| `bonus-attribute-lines` | `List<String>` | — | 奖励属性文本行 |
+
+### titles-directory
+
+| 字段 | 类型 | 默认值 | 说明 |
+|---|---|---|---|
+| `titles-directory` | `String` | `titles` | 称号定义目录，相对模块数据目录 |
+
+## 称号定义配置
+
+称号定义放在 `titles/` 目录下的 `.yml` 文件中，每个文件的根键为称号 ID，值为此称号的配置节。称号 ID 统一转为小写。
+
+```yaml
+# 称号 ID（根键）
+adventurer:
+  # 是否启用该称号
+  enabled: true
+  # 所属分组 ID，必须已在 ArcartXTitle.yml 的 groups 中定义
+  group: "adventure"
+  # 品质 ID，必须已在 ArcartXTitle.yml 的 qualities 中定义
+  quality: "common"
+  # 称号类型：text 纯文本 / icon 贴图称号
+  kind: "text"
+  # 称号显示名称
+  display-name: "&0冒险者"
+  # 装备后附加在聊天消息前的文本
+  chat-prefix: "&7[冒险者]&r "
+  # 装备后附加在聊天消息后的文本
+  chat-suffix: ""
+  # 装备后附加在玩家列表名字前的文本
+  tab-prefix: "&7[冒险者]&r "
+  # 装备后附加在玩家列表名字后的文本
+  tab-suffix: ""
+  # 称号描述，常用于菜单提示
+  description: "完成新手冒险线后获得。"
+  # 称号来源说明
+  source: "新手任务"
+  # 展示属性：仅当该称号装备时生效的属性加成
+  display-attributes:
+    attack: 1
+  # 展示属性在菜单中的显示行列表
+  display-attribute-lines:
+    - "&4暴击率: 5(%)"
+  # 收集属性：只要拥有该称号（无需装备）即可生效的属性加成
+  collection-attributes:
+    knowledge: 1
+  # 收集属性在菜单中的显示行列表
+  collection-attribute-lines:
+    - "&a生命力: 100"
+  # 同分组/同品质内的排序权重，越小越靠前
+  sort-order: 10
+  # 头顶显示模式：text / texture / none
+  overhead-mode: text
+  # 头顶前缀（text 模式）
+  overhead-prefix: "&7[冒险者] "
+  # 头顶后缀（text 模式）
+  overhead-suffix: ""
+  # 头顶贴图资源字符串（texture 模式），ArcartX 自定义文字贴图格式
+  # overhead-texture: "§k!%000001<icon>"
+  # 头顶贴图渲染宽度
+  # overhead-width: 80
+  # 头顶贴图渲染高度
+  # overhead-height: 20
+  # 头顶贴图垂直偏移量
+  # overhead-offset-y: 2.3
+```
+
+### 称号定义字段表
+
+| 字段 | 类型 | 默认值 | 说明 |
+|---|---|---|---|
+| `enabled` | `boolean` | `true` | 是否启用，`false` 时跳过加载 |
+| `group` | `String` | `default` | 所属分组 ID，必须已定义 |
+| `quality` | `String` | `default` | 品质 ID，必须已定义 |
+| `kind` | `String` | `text` | 称号类型（`text` / `icon`） |
+| `display-name` | `String` | 称号 ID | 显示名称，支持颜色码 |
+| `chat-prefix` | `String` | `""` | 聊天前缀 |
+| `chat-suffix` | `String` | `""` | 聊天后缀 |
+| `tab-prefix` | `String` | `""` | Tab 列表前缀 |
+| `tab-suffix` | `String` | `""` | Tab 列表后缀 |
+| `description` | `String` | `""` | 称号描述 |
+| `source` | `String` | `""` | 称号来源说明 |
+| `display-attributes` | `Map<String, Double>` | `{}` | 展示属性键值对 |
+| `display-attribute-lines` | `List<String>` | `[]` | 展示属性文本行 |
+| `collection-attributes` | `Map<String, Double>` | `{}` | 收集属性键值对 |
+| `collection-attribute-lines` | `List<String>` | `[]` | 收集属性文本行 |
+| `sort-order` | `int` | 索引位置 | 排序权重 |
+| `overhead-mode` | `String` | `none` | 头顶显示模式（`texture` / `text` / `none`） |
+| `overhead-texture` | `String` | `""` | 头顶贴图资源字符串（texture 模式） |
+| `overhead-width` | `int` | `64` | 头顶贴图宽度 |
+| `overhead-height` | `int` | `64` | 头顶贴图高度 |
+| `overhead-offset-y` | `double` | `2.3` | 头顶贴图垂直偏移量 |
+| `overhead-prefix` | `String` | `""` | 头顶文本前缀（text 模式） |
+| `overhead-suffix` | `String` | `""` | 头顶文本后缀（text 模式） |
+
+> 引用不存在的分组或品质的称号会被跳过并记录警告。`enabled: false` 的称号不加载。
+
+## 属性配置
+
+### 属性键值对与文本行
+
+属性支持两种配置形式，可同时使用：
+
+- **键值对**（`display-attributes`）：`Map<String, Double>`，用于实际属性数值计算和属性插件同步
+- **文本行**（`display-attribute-lines`）：`List<String>`，用于 UI 展示和 AttributePlus / CraneAttribute 属性源数据写入
+
+文本行中可解析为「属性名:数值」格式的行会与键值对按属性名合并累加。不可解析的复杂行（如百分比、区间）按原样保留并去重。
+
+```yaml
+# 键值对形式
+display-attributes:
+  attack: 5
+  defense: 3
+
+# 文本行形式（可包含颜色码和复杂格式）
+display-attribute-lines:
+  - "&4暴击率: 5(%)"
+  - "&a生命力: 100"
+```
+
+### 属性插件源名
+
+属性同步到各属性插件时使用的源名称由 `source-prefix` 派生：
+
+| 插件 | 展示属性源名 | 收集属性源名 |
+|---|---|---|
+| AttributePlus | `<prefix>_DISPLAY` | `<prefix>_COLLECTION` |
+| MythicLib | `<prefix>_DISPLAY_<STAT>` | `<prefix>_COLLECTION_<STAT>` |
+| CraneAttribute | `<prefix>_DISPLAY` | `<prefix>_COLLECTION` |
+| Symphony | `<prefix>_DISPLAY_<attr>` | `<prefix>_COLLECTION_<attr>` |
+
+## 完整配置示例
+
+```yaml
+config-version: 2
+
+settings:
+  debug: false
+  expiration-cleanup-interval-ticks: 1200
+
+storage:
+  shared: true
+
+ui:
+  ui-id: "AXS:title_menu"
+  register-ui-on-enable: true
+  overwrite-ui-files: false
+  attribute-line-color: "&0"
+  empty-attribute-placeholder: "暂无属性"
+
+attributeplus:
+  source-prefix: "AXS_TITLE"
+
+mythiclib:
+  source-prefix: "AXS_TITLE"
+
+craneattribute:
+  source-prefix: "AXS_TITLE"
+
+symphony:
+  source-prefix: "AXS_TITLE"
+
+display-title:
+  groups: []
+  separator: " "
+  empty-text: ""
+
+groups:
+  adventure:
+    name: "&f冒险类&7"
+    sort-order: 10
+    permission: ""
+  exploration:
+    name: "&f探索类&7"
+    sort-order: 20
+    permission: ""
+  activity:
+    name: "&f活动类&7"
+    sort-order: 30
+    permission: ""
+
+qualities:
+  common:
+    name: "&f普通"
+    sort-order: 10
+  legendary:
+    name: "&6传说"
+    sort-order: 20
+  mythic:
+    name: "&c神话"
+    sort-order: 30
+
+sets:
+  adventure_set:
+    display-name: "&f冒险套装"
+    required-titles:
+      - adventurer
+      - explorer
+    completion-threshold: 2
+    bonus-attributes:
+      attack: 10
+    bonus-attribute-lines:
+      - "&c套装攻击力: +10"
+
+titles-directory: "titles"
+```
+
+## 配置版本迁移
+
+模块通过 `config-version` 标识配置结构版本，低于当前版本时由迁移引擎自动升级：
+
+| 迁移 | 说明 |
+|---|---|
+| `0 → 1` | 初始迁移，补充缺失的 `ui.ui-id` 默认值 |
+| `1 → 2` | `storage.mode` 重命名为 `storage.shared`，值从 `sqlite`/`mysql` 映射为 `true`/`false` |
+
+> 当前配置版本为 `2`。迁移使用 `set-if-missing`（仅写入缺失值）和 `rename`（重命名路径）操作，不覆盖用户已有配置。

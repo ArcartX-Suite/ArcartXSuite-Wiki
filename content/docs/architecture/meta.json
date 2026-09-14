@@ -1,0 +1,15 @@
+{
+    "title":  "架构设计",
+    "pages":  [
+                  "index",
+                  "system-architecture",
+                  "modular",
+                  "bridges",
+                  "cross-server",
+                  "packet-flow",
+                  "security",
+                  "config-autofix",
+                  "storage"
+              ]
+}
+

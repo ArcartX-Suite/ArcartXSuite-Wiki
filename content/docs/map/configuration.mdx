@@ -1,0 +1,432 @@
+---
+title: 配置
+description: Map 模块配置文件详解与示例
+---
+
+# 配置
+
+主配置文件为 `data/map/ArcartXMap.yml`，锚点定义位于 `data/map/anchors/` 目录下的 YAML 文件。
+
+## 顶层配置
+
+| 配置项 | 类型 | 默认值 | 说明 |
+|--------|------|--------|------|
+| `config-version` | `int` | `3` | 配置版本号（不要手动修改，由模块自动管理） |
+| `debug` | `boolean` | `false` | 是否输出调试日志 |
+| `anchors-directory` | `String` | `anchors` | 锚点定义文件目录（相对模块数据目录） |
+
+## UI 配置（`ui`）
+
+| 配置项 | 类型 | 默认值 | 说明 |
+|--------|------|--------|------|
+| `ui.menu-ui-id` | `String` | `AXS:map_menu` | 全屏地图菜单 UI ID |
+| `ui.hud-ui-id` | `String` | `AXS:map_hud` | 小地图 HUD UI ID |
+| `ui.packet-id` | `String` | `AXS_MAP` | 客户端与服务端 Packet 通信标识符 |
+| `ui.register-ui-on-enable` | `boolean` | `true` | 启动/重载时是否自动注册 UI |
+| `ui.overwrite-ui-files` | `boolean` | `false` | 是否覆盖用户已修改的 UI 文件 |
+
+> `packet-id` 用于客户端 `Packet.send` 和服务端 `packetHandler` 的通信匹配。修改时需同步更新 UI 配置中的 `packetId` 变量。
+
+## 按键绑定（`keybinds`）
+
+| 配置项 | 类型 | 默认值 | 说明 |
+|--------|------|--------|------|
+| `keybinds.category` | `String` | `AXS Map` | 按键分类名称 |
+| `keybinds.open-menu.enabled` | `boolean` | `true` | 是否启用打开地图按键 |
+| `keybinds.open-menu.display-name` | `String` | `打开地图` | 按键显示名称 |
+| `keybinds.open-menu.default-key` | `String` | `M` | 打开地图默认按键（客户端按键名） |
+| `keybinds.toggle-hud.enabled` | `boolean` | `true` | 是否启用切换小地图按键 |
+| `keybinds.toggle-hud.display-name` | `String` | `切换小地图` | 按键显示名称 |
+| `keybinds.toggle-hud.default-key` | `String` | `H` | 切换小地图默认按键 |
+
+## 入服行为（`join`）
+
+| 配置项 | 类型 | 默认值 | 说明 |
+|--------|------|--------|------|
+| `join.show-hud-on-join` | `boolean` | `true` | 玩家进服后是否自动显示小地图 HUD |
+| `join.show-hud-delay-ticks` | `long` | `20` | 进服后延迟多少 tick 再显示 HUD（等待客户端加载） |
+
+## 存储配置（`storage`）
+
+| 配置项 | 类型 | 默认值 | 说明 |
+|--------|------|--------|------|
+| `storage.shared` | `boolean` | `true` | 是否共享存储模式（true=共享本体数据源，false=模块自建连接池） |
+
+### 共享模式（`shared: true`，推荐）
+
+共享模式下，数据库连接由本体统一管控，各模块共用本体 `config.yml` 的 `storage` 节配置，性能较好。无需配置额外字段。
+
+### 自建模式（`shared: false`）
+
+模块独立创建 HikariCP 连接池，不复用本体连接。需配置以下字段：
+
+| 配置项 | 类型 | 默认值 | 说明 |
+|--------|------|--------|------|
+| `storage.mode` | `String` | `sqlite` | 存储模式：`sqlite` 或 `mysql` |
+| `storage.sqlite.file` | `String` | `map.db` | SQLite 文件名（相对模块数据目录） |
+| `storage.mysql.host` | `String` | `127.0.0.1` | MySQL 主机地址 |
+| `storage.mysql.port` | `int` | `3306` | MySQL 端口 |
+| `storage.mysql.database` | `String` | `arcartxsuite` | MySQL 数据库名 |
+| `storage.mysql.username` | `String` | `root` | MySQL 用户名 |
+| `storage.mysql.password` | `String` | ` ` | MySQL 密码 |
+| `storage.mysql.table-prefix` | `String` | `axs_map_` | MySQL 表名前缀 |
+| `storage.pool-size` | `int` | `4` | 连接池大小（SQLite 建议 1） |
+
+> 向后兼容：如果 `shared` 字段不存在但 `mode=mysql` 存在，视为 `shared=false`。
+
+## 导航配置（`navigation`）
+
+| 配置项 | 类型 | 默认值 | 说明 |
+|--------|------|--------|------|
+| `navigation.enabled` | `boolean` | `true` | 是否启用导航追踪功能 |
+| `navigation.waypoint-style-id` | `String` | `default` | 路径点导航样式 ID |
+| `navigation.anchor-id-prefix` | `String` | `AXS-map-anchor-` | 锚点导航在客户端的 ID 前缀 |
+| `navigation.waypoint-id-prefix` | `String` | `AXS-map-track-` | 路径点导航在客户端的 ID 前缀 |
+
+### 导航标记模型（`navigation.marker`）
+
+| 配置项 | 类型 | 默认值 | 说明 |
+|--------|------|--------|------|
+| `navigation.marker.enabled` | `boolean` | `false` | 是否启用标记模型 |
+| `navigation.marker.model-id` | `String` | `nav_beacon` | 模型 ID（资源包中的模型标识） |
+| `navigation.marker.scale` | `double` | `1.0` | 缩放比例 |
+| `navigation.marker.default-state` | `String` | `idle` | 默认状态 |
+| `navigation.marker.animation` | `String` | `rotate` | 动画类型 |
+| `navigation.marker.y-offset` | `double` | `2.0` | Y 轴偏移（方块） |
+| `navigation.marker.path-interval` | `double` | `3.0` | 路径标记间距（方块） |
+| `navigation.marker.path-max-markers` | `int` | `20` | 路径最大标记数 |
+| `navigation.marker.path-update-ticks` | `int` | `10` | 路径更新间隔（tick） |
+| `navigation.marker.path-max-distance` | `double` | `64.0` | 路径最大距离（方块） |
+| `navigation.marker.path-max-iterations` | `int` | `2000` | 路径计算最大迭代次数 |
+
+> 导航标记依赖 Adyeshach。Adyeshach 不存在时标记功能自动关闭，路标导航不受影响。路径标记相关配置参考 /docs/guide/conditions 中的条件系统。
+
+## 世界配置（`worlds`）
+
+每个根键为世界 ID（对应 Bukkit world name），定义该世界的地图纹理与显示参数。
+
+| 配置项 | 类型 | 默认值 | 说明 |
+|--------|------|--------|------|
+| `worlds.<世界ID>.enabled` | `boolean` | `true` | 是否在地图菜单中显示此世界 |
+| `worlds.<世界ID>.display-name` | `String` | 世界ID | 显示名称 |
+| `worlds.<世界ID>.texture` | `String` | ` ` | 地图纹理文件路径（相对资源包目录） |
+| `worlds.<世界ID>.image-width` | `int` | `2048` | 地图图片宽度（像素，最小 1） |
+| `worlds.<世界ID>.image-height` | `int` | `2048` | 地图图片高度（像素，最小 1） |
+| `worlds.<世界ID>.pixel-offset-x` | `int` | `0` | 像素 X 轴偏移（校准地图与坐标对应关系） |
+| `worlds.<世界ID>.pixel-offset-z` | `int` | `0` | 像素 Z 轴偏移 |
+| `worlds.<世界ID>.default-zoom` | `double` | `1.6` | 全屏地图默认缩放 |
+| `worlds.<世界ID>.hud-zoom` | `double` | `0.18` | 小地图 HUD 缩放 |
+| `worlds.<世界ID>.hud-size` | `int` | `180` | 小地图 HUD 尺寸（像素，最小 64） |
+
+## 默认解锁（`default-unlocks`）
+
+拥有指定权限的玩家在进服时自动解锁对应锚点列表。
+
+| 配置项 | 类型 | 说明 |
+|--------|------|------|
+| `default-unlocks[].permission` | `String` | 所需权限节点 |
+| `default-unlocks[].anchors` | `List<String>` | 自动解锁的锚点 ID 列表 |
+
+## 路径点配置（`waypoints`）
+
+| 配置项 | 类型 | 默认值 | 说明 |
+|--------|------|--------|------|
+| `waypoints.enabled` | `boolean` | `true` | 是否允许玩家创建自定义路径点 |
+| `waypoints.default-style-id` | `String` | `default` | 默认路径点样式 ID |
+| `waypoints.id-prefix` | `String` | `AXS-map-wp-` | 路径点在客户端的 ID 前缀 |
+| `waypoints.auto-name-prefix` | `String` | `标记点` | 自动命名前缀（玩家未命名时使用） |
+| `waypoints.default-max-count` | `int` | `5` | 默认每世界路径点最大数量（最小 1） |
+| `waypoints.limits[].permission` | `String` | ` ` | 权限节点（留空=对所有玩家生效） |
+| `waypoints.limits[].max-count` | `int` | `5` | 每世界最大路径点数量 |
+
+> 路径点上限取 `default-max-count` 与所有匹配权限的 `limits` 中最大值。路径点样式参考 /docs/guide/icons。
+
+## 锚点定义（`anchors/` 目录）
+
+锚点定义文件位于 `data/map/anchors/` 目录，每个 `*.yml` 文件可包含多个锚点，根键即为锚点 ID。
+
+| 配置项 | 类型 | 默认值 | 说明 |
+|--------|------|--------|------|
+| `enabled` | `boolean` | `true` | 是否启用此锚点 |
+| `display-name` | `String` | 锚点ID | 在地图上显示的名称 |
+| `world` | `String` | ` ` | 所在世界名 |
+| `x` / `y` / `z` | `double` | `0` | 锚点坐标 |
+| `description` | `String` | ` ` | 锚点描述文本 |
+| `permission` | `String` | ` ` | 使用此锚点所需权限（留空=无限制） |
+| `sort-order` | `int` | `0` | 排序权重（越小越靠前） |
+| `unlock-currencies` | `List` | `[]` | 解锁需消耗的货币列表 |
+| `teleport-currencies` | `List` | `[]` | 传送需消耗的货币列表 |
+| `unlock-items` | `List` | `[]` | 解锁需消耗的物品列表 |
+
+### 货币消耗
+
+| 字段 | 类型 | 说明 |
+|--------|------|------|
+| `currency` | `String` | 货币 ID |
+| `amount` | `BigDecimal` | 消耗金额（必须大于 0） |
+
+### 物品消耗
+
+| 字段 | 类型 | 说明 |
+|--------|------|------|
+| `amount` | `int` | 消耗数量（最小 1） |
+| `matcher` | `ItemMatcher` | 物品匹配器配置 |
+
+> 物品匹配器配置参考 /docs/guide/item-sources 中的物品匹配器语法。解锁费用文本格式为 `货币名 x数量 + 物品条件 x数量`，无费用时显示「免费解锁」/「免费传送」。
+
+## 完整配置示例
+
+```yaml
+# data/map/ArcartXMap.yml
+config-version: 3
+debug: false
+
+ui:
+  menu-ui-id: "AXS:map_menu"
+  hud-ui-id: "AXS:map_hud"
+  packet-id: "AXS_MAP"
+  register-ui-on-enable: true
+  overwrite-ui-files: false
+
+keybinds:
+  category: "AXS Map"
+  open-menu:
+    enabled: true
+    display-name: "打开地图"
+    default-key: "M"
+  toggle-hud:
+    enabled: true
+    display-name: "切换小地图"
+    default-key: "H"
+
+join:
+  show-hud-on-join: true
+  show-hud-delay-ticks: 20
+
+storage:
+  shared: true
+
+navigation:
+  enabled: true
+  waypoint-style-id: "default"
+  anchor-id-prefix: "AXS-map-anchor-"
+  waypoint-id-prefix: "AXS-map-track-"
+  marker:
+    enabled: false
+    model-id: "nav_beacon"
+    scale: 1.0
+    default-state: "idle"
+    animation: "rotate"
+    y-offset: 2.0
+    path-interval: 3.0
+    path-max-markers: 20
+    path-update-ticks: 10
+    path-max-distance: 64.0
+    path-max-iterations: 2000
+
+worlds:
+  world:
+    enabled: true
+    display-name: "主世界"
+    texture: "Map/world.png"
+    image-width: 2048
+    image-height: 2048
+    pixel-offset-x: 0
+    pixel-offset-z: 0
+    default-zoom: 1.6
+    hud-zoom: 0.18
+    hud-size: 180
+  world_nether:
+    enabled: true
+    display-name: "下界"
+    texture: "Map/world_nether.png"
+    image-width: 1024
+    image-height: 1024
+    pixel-offset-x: 0
+    pixel-offset-z: 0
+    default-zoom: 1.4
+    hud-zoom: 0.16
+    hud-size: 180
+
+default-unlocks:
+  - permission: "ArcartXSuite.map.use"
+    anchors:
+      - "spawn"
+
+anchors-directory: "anchors"
+
+waypoints:
+  enabled: true
+  default-style-id: "default"
+  id-prefix: "AXS-map-wp-"
+  auto-name-prefix: "标记点"
+  default-max-count: 5
+  limits:
+    - permission: "ArcartXSuite.map.admin"
+      max-count: 20
+```
+
+## 自建存储配置示例
+
+```yaml
+# shared: false 时使用模块自建连接池
+storage:
+  shared: false
+  mode: "mysql"
+  mysql:
+    host: "127.0.0.1"
+    port: 3306
+    database: "arcartxsuite"
+    username: "root"
+    password: ""
+    table-prefix: "axs_map_"
+  pool-size: 4
+```
+
+```yaml
+# shared: false + SQLite
+storage:
+  shared: false
+  mode: "sqlite"
+  sqlite:
+    file: "map.db"
+  pool-size: 1
+```
+
+## 锚点定义示例
+
+```yaml
+# data/map/anchors/default.yml
+spawn:
+  enabled: true
+  display-name: "新手村"
+  world: "world"
+  x: 0
+  y: 80
+  z: 0
+  description: "所有玩家默认可见的主城锚点。"
+  permission: ""
+  sort-order: 0
+  unlock-currencies: []
+  teleport-currencies:
+    - currency: "money"
+      amount: 10
+  unlock-items: []
+
+mine:
+  enabled: true
+  display-name: "矿洞入口"
+  world: "world"
+  x: 128
+  y: 64
+  z: -42
+  description: "示例锁定锚点，演示货币 + 物品解锁。"
+  permission: ""
+  sort-order: 10
+  unlock-currencies:
+    - currency: "money"
+      amount: 200
+    - currency: "points"
+      amount: 5
+  teleport-currencies:
+    - currency: "money"
+      amount: 30
+  unlock-items:
+    - amount: 2
+      matcher:
+        material-ids:
+          - "ender_pearl"
+
+nether_hub:
+  enabled: true
+  display-name: "下界中枢"
+  world: "world_nether"
+  x: 12
+  y: 64
+  z: 12
+  description: "下界示例锚点。"
+  permission: ""
+  sort-order: 0
+  unlock-currencies: []
+  teleport-currencies: []
+  unlock-items: []
+```
+
+## 消息文件
+
+消息文件 `messages.yml` 位于模块数据目录，支持 `&` 颜色码和 `{0}` `{1}` 占位符。修改后执行 `/axs reload map` 生效。
+
+### 消息键一览
+
+| 键 | 说明 | 占位符 |
+|---|---|---|
+| `prefix` | 消息前缀 | — |
+| `common.service-down` | 服务未启动 | — |
+| `common.unknown` | 未知命令 | `{0}` = 主命令别名 |
+| `common.only-player` | 仅玩家可用 | — |
+| `common.no-permission` | 无权限 | — |
+| `common.module-down` | 模块未启用 | — |
+| `help.title` | 管理命令帮助标题 | — |
+| `help.status` | status 命令帮助 | `{0}` = 主命令别名 |
+| `help.open` | open 命令帮助 | `{0}` = 主命令别名 |
+| `help.list` | list 命令帮助 | `{0}` = 主命令别名 |
+| `help.anchors` | anchors 命令帮助 | `{0}` = 主命令别名 |
+| `status.title` | 状态标题 | — |
+| `status.worlds` | 世界数量 | `{0}` = 世界数 |
+| `status.anchors` | 锚点数量 | `{0}` = 锚点数 |
+| `status.tracking` | 追踪中玩家数 | `{0}` = 玩家数 |
+| `status.waypoint` | 路径点就绪状态 | `{0}` = true/false |
+| `open.usage` | open 命令用法 | — |
+| `open.not-online` | 玩家不在线 | `{0}` = 玩家名 |
+| `list.empty` | 无配置世界 | — |
+| `list.title` | 世界列表标题 | `{0}` = 世界数 |
+| `list.item` | 世界列表项 | `{0}` = 世界ID |
+| `anchors.empty` | 无配置锚点 | — |
+| `anchors.title` | 锚点列表标题 | `{0}` = 过滤条件 |
+| `anchors.item` | 锚点列表项 | `{0}` = 锚点ID |
+| `player.usage` | 玩家命令用法 | `{0}` = 命令别名 |
+| `player.help.title` | 玩家帮助标题 | — |
+| `player.help.open` | open 帮助 | — |
+| `player.help.hud` | hud 帮助 | — |
+| `player.help.cleartrack` | cleartrack 帮助 | — |
+| `player.offline` | 玩家不在线 | — |
+| `player.world-not-configured` | 世界未配置 | `{0}` = 世界ID |
+| `player.map-unavailable` | 无可用地图 | — |
+| `player.map-opened` | 地图已打开 | — |
+| `player.no-display-world` | 无可显示小地图世界 | — |
+| `player.hud-disabled` | HUD 已关闭 | — |
+| `player.hud-enabled` | HUD 已显示 | — |
+| `player.anchor-not-found` | 锚点未找到 | `{0}` = 锚点ID |
+| `player.anchor-already-unlocked` | 锚点已解锁 | — |
+| `player.anchor-unlock-save-failed` | 解锁保存失败 | — |
+| `player.anchor-unlocked` | 锚点已解锁 | `{0}` = 锚点名 |
+| `player.anchor-locked` | 锚点未解锁 | — |
+| `player.anchor-world-unloaded` | 世界未加载 | `{0}` = 世界ID |
+| `player.teleport-failed` | 传送失败 | — |
+| `player.teleported-to-anchor` | 传送成功 | `{0}` = 锚点名 |
+| `player.navigation-disabled` | 导航未启用 | — |
+| `player.waypoint-unavailable` | 路标不可用 | — |
+| `player.anchor-navigation-failed` | 锚点导航失败 | — |
+| `player.anchor-navigation-started` | 锚点导航开始 | `{0}` = 锚点名 |
+| `player.waypoint-not-found` | 路径点未找到 | `{0}` = 路径点ID |
+| `player.waypoint-navigation-failed` | 路径点导航失败 | — |
+| `player.waypoint-navigation-started` | 路径点导航开始 | `{0}` = 路径点名 |
+| `player.target-not-found` | 任务点未找到 | `{0}` = 目标ID |
+| `player.target-navigation-failed` | 任务点导航失败 | — |
+| `player.target-navigation-started` | 任务点导航开始 | `{0}` = 目标名 |
+| `player.no-active-navigation` | 无活动导航 | — |
+| `player.clear-navigation-failed` | 清除导航失败 | — |
+| `player.navigation-cleared` | 导航已清除 | — |
+| `player.custom-waypoints-disabled` | 自定义路径点未启用 | — |
+| `player.waypoint-world-not-configured` | 世界未配置 | — |
+| `player.waypoint-limit-reached` | 路径点达上限 | `{0}` = 上限 |
+| `player.waypoint-created` | 路径点已创建 | `{0}` = 路径点名 |
+| `player.waypoint-save-failed` | 保存路径点失败 | — |
+| `player.waypoint-delete-failed` | 删除路径点失败 | — |
+| `player.waypoint-deleted` | 路径点已删除 | `{0}` = 路径点名 |
+| `player.anchor-no-permission` | 无锚点权限 | — |
+| `player.anchor-world-not-configured` | 锚点世界未配置 | `{0}` = 世界ID |
+| `player.currency-bridge-unavailable` | 货币桥接不可用 | `{0}` = 货币ID |
+| `player.insufficient-balance` | 余额不足 | `{0}` = 货币ID |
+| `player.charge-failed` | 扣费失败 | `{0}` = 货币ID |
+| `player.missing-unlock-items` | 缺少解锁物品 | — |

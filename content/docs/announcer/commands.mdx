@@ -1,0 +1,189 @@
+---
+title: "命令与占位符"
+description: "Announcer 命令、权限、PAPI 占位符与 UI 包"
+---
+
+Announcer 模块通过 `/axs announcer` 命令提供公告广播、字幕播放与状态查询功能。所有管理命令需要 `arcartxsuite.admin` 权限。模块本身不输出独立的 PlaceholderAPI 占位符，但公告文本与字幕文本中的 PAPI 变量会按接收玩家解析。
+
+## 管理员命令
+
+所有命令通过 `/axs announcer <action>` 触发，需要 `arcartxsuite.admin` 权限。
+
+### 通用命令
+
+| 命令 | 说明 |
+|---|---|
+| `/axs announcer help` | 显示所有可用子命令帮助 |
+| `/axs announcer status` | 查看模块运行状态 |
+| `/axs reload announcer` | 重载 Announcer 模块（配置 + 条目 + 字幕组 + UI） |
+
+### 公告广播命令
+
+| 命令 | 说明 |
+|---|---|
+| `/axs announcer broadcast <文本>` | 本服加入广播队列，当前展示结束后播报 |
+| `/axs announcer broadcastnow <文本>` | 本服立即广播，打断当前展示 |
+| `/axs announcer gbroadcast <文本>` | 跨服加入广播队列，转发到其他子服 |
+| `/axs announcer gbroadcastnow <文本>` | 跨服立即广播，转发到其他子服 |
+
+> `broadcast` 与 `broadcastnow` 仅在本服播放。`gbroadcast` 与 `gbroadcastnow` 会通过跨服通道转发到其他子服，需要 `cross-server.enabled` 为 `true` 且宿主已配置跨服连接。跨服广播仅限手动广播，自动轮播条目不会跨服。
+
+### 字幕命令
+
+| 命令 | 说明 |
+|---|---|
+| `/axs announcer subtitle list` | 列出所有已加载的字幕组 |
+| `/axs announcer subtitle play <玩家> <组ID>` | 为指定玩家播放字幕组 |
+| `/axs announcer subtitle stop <玩家>` | 停止指定玩家的字幕播放 |
+
+### 命令示例
+
+```bash
+# 查看模块状态
+/axs announcer status
+
+# 本服排队广播
+/axs announcer broadcast 欢迎来到服务器！
+
+# 本服立即广播
+/axs announcer broadcastnow 服务器即将维护，请做好准备。
+
+# 跨服立即广播
+/axs announcer gbroadcastnow 全服双倍经验活动已开启！
+
+# 列出字幕组
+/axs announcer subtitle list
+
+# 为 Steve 播放字幕组
+/axs announcer subtitle play Steve default
+
+# 停止 Steve 的字幕播放
+/axs announcer subtitle stop Steve
+```
+
+### Tab 补全
+
+| 参数位置 | 补全内容 |
+|---|---|
+| 第 2 参数（action） | `help` / `status` / `broadcast` / `broadcastnow` / `gbroadcast` / `gbroadcastnow` / `subtitle` |
+| 第 3 参数（subtitle 子命令） | `list` / `play` / `stop` |
+| 第 4 参数（play/stop 玩家名） | 在线玩家名 |
+| 第 5 参数（play 字幕组 ID） | 已加载的字幕组 ID |
+
+## 权限节点
+
+| 权限节点 | 默认 | 说明 |
+|---|---|---|
+| `arcartxsuite.admin` | `op` | 使用 `/axs announcer` 管理命令 |
+
+> Announcer 模块无玩家命令，所有命令均为管理员命令。公告展示与字幕播放对全体在线玩家生效，无需额外权限。
+
+## PlaceholderAPI
+
+本模块无独立 PlaceholderAPI 占位符输出。
+
+公告文本（`entries-directory` 下的条目 `text` 字段）与字幕文本（`subtitle/groups/*.yml` 中的 `text` 字段）中的 PAPI 变量会按接收玩家解析。例如 `%player_name%` 会被替换为当前观看公告的玩家名。
+
+### 内置变量
+
+| 变量 | 位置 | 说明 |
+|---|---|---|
+| `<player>` | `click-command` | 替换为点击公告的玩家名，经 `CommandSanitizer` 校验合法性 |
+
+## status 命令输出
+
+`/axs announcer status` 显示以下信息：
+
+| 输出行 | 说明 |
+|---|---|
+| 活跃公告数 | `enabled: true` 且 `text` 非空的条目数量 |
+| 已初始化玩家数 | 客户端已就绪的在线玩家数量 |
+| 字幕组数量 | 已加载的字幕组总数 |
+| 字幕播放中人数 | 当前正在播放字幕的玩家数量 |
+| 待播队列长度 | 手动广播队列中待播报的消息数量 |
+| 跨服通道状态 | `已启用` 或 `未启用` |
+
+## UI Packet 通信
+
+Announcer 模块通过 ArcartX 客户端桥接与 HUD 通信，使用两种 UI：公告 HUD（`announcer_hud`）与字幕 HUD（`subtitle_hud`）。
+
+### 公告 HUD（`announcer_hud`）
+
+公告 HUD 为 HUD 模式，`defaultOpen: true`（客户端初始化时自动打开），鼠标穿透，渲染层级 8。
+
+#### 服务端→客户端推送（`display` 包）
+
+| 字段 | 类型 | 说明 |
+|---|---|---|
+| `isShow` | `boolean` | 是否显示公告 |
+| `id` | `String` | 当前公告条目 ID |
+| `text` | `String` | 公告文本内容（已渲染 PAPI） |
+| `clickable` | `boolean` | 是否可点击 |
+| `revision` | `String` | 数据修订版本号（时间戳 + 序列号） |
+| `textWidth` | `int` | 公告文字估算宽度（用于滚动动画） |
+
+#### 客户端→服务端回包（`AXS_announcer_click`）
+
+| 字段 | 类型 | 说明 |
+|---|---|---|
+| `entryId` | `String` | 被点击的公告条目 ID |
+
+> 服务端收到点击回包后，查找对应活跃条目，若 `click-command` 非空则以控制台身份执行命令，`<player>` 替换为点击者名。
+
+#### 服务端变量推送
+
+模块通过 `ClientBridgeAPI.sendServerVariable` 向客户端推送以下变量：
+
+| 变量名 | 类型 | 说明 |
+|---|---|---|
+| `AXS_announcer_text` | `String` | 当前公告文本 |
+| `AXS_announcer_id` | `String` | 当前公告条目 ID |
+| `AXS_announcer_clickable` | `boolean` | 是否可点击 |
+| `AXS_announcer_revision` | `String` | 数据修订版本号 |
+
+### 字幕 HUD（`subtitle_hud`）
+
+字幕 HUD 为 HUD 模式，`defaultOpen: false`（不随启动自动打开，播放时按需打开），鼠标不穿透，渲染层级 1。
+
+#### 服务端→客户端推送（`play` 包）
+
+| 字段 | 类型 | 说明 |
+|---|---|---|
+| `text` | `String` | 字幕文本（已渲染 PAPI） |
+| `length` | `int` | 打字机动画总字数（0 = 自动计算） |
+| `time` | `int` | 打字机动画时长（毫秒） |
+| `showBackground` | `boolean` | 是否显示字幕背景板 |
+
+#### 服务端→客户端推送（`close` 包）
+
+`close` 包无字段，仅通知客户端关闭字幕 HUD，清空字幕状态变量。
+
+### 客户端变量与动画
+
+#### 公告 HUD 变量
+
+| 变量名 | 初始值 | 说明 |
+|---|---|---|
+| `displayVisible` | `false` | 是否显示公告 |
+| `currentEntryId` | `none` | 当前条目 ID |
+| `currentText` | `none` | 当前公告文本 |
+| `currentClickable` | `false` | 是否可点击 |
+| `lastRevision` | `none` | 修订版本号 |
+| `textWidth` | `0` | 文本估算宽度 |
+| `textX` | `Display.width()` | 文本滚动 X 坐标 |
+| `scrollSpeed` | `1.5` | 滚动速度（每 tick 像素位移） |
+
+公告 HUD 通过 `tick` action 每帧将 `textX` 递减 `scrollSpeed`，当文本完全滚出屏幕（`textX < 0 - textWidth`）时隐藏公告。
+
+#### 字幕 HUD 变量
+
+| 变量名 | 初始值 | 说明 |
+|---|---|---|
+| `subtitleVisible` | `false` | 是否显示字幕 |
+| `subtitleText` | `none` | 字幕文本 |
+| `subtitleLength` | `0` | 动画总字数 |
+| `subtitleTime` | `0` | 动画时长（毫秒） |
+| `subtitleShowBackground` | `false` | 是否显示背景板 |
+| `subtitleAnimation` | `Lerp(0, 0, 1)` | 打字机动画插值器 |
+
+字幕 HUD 使用 `Lerp(0, length, time)` 创建打字机动画插值器，通过 Text 控件的 `limit` 属性逐字显示。

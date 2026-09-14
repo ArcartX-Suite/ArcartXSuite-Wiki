@@ -1,0 +1,102 @@
+---
+title: 概览
+description: Conversation 对话桥模块功能概览
+---
+
+# Conversation 对话桥
+
+## 模块简介
+
+Conversation 是 ArcartXSuite 的 NPC 对话桥接模块，基于 Chemdah 对话引擎为 ArcartX 客户端提供完整的 NPC 对话能力。模块将 Chemdah 的对话正文、玩家回复列表渲染到 ArcartX UI 面板，替代原版聊天框对话；同时桥接 Adyeshach NPC，周期性扫描附近可交互 NPC 并通过选择器 HUD 展示，玩家可用宿主全局按键直接选择并触发对话。
+
+模块还内置电影序列（Cinematic）回放引擎，可编排一系列动作（传送、摄像机移动、标题、音效、NPC 动画、字幕等）按顺序对玩家播放，播放时自动显示 letterbox 黑边 UI，营造过场动画效果。
+
+- **模块 ID**：`conversation`
+- **版本**：1.4.4
+- **配置版本**：2
+- **源码主类**：`xuanmo.arcartxsuite.conversation.ConversationModule`
+- **配置文件**：`ArcartXConversation.yml`
+- **消息文件**：`messages.yml`
+
+## 功能特性
+
+| 特性 | 说明 |
+| --- | --- |
+| Chemdah 对话桥接 | 注册 `ArcartXConversation` 主题替代 Chemdah 默认主题，将对话正文与回复列表渲染到 ArcartX UI |
+| Adyeshach NPC 联动 | 自动为指定 Adyeshach NPC 设置 ArcartX 模型与动画，支持持久默认状态和一次性播放两种模式 |
+| 附近 NPC 扫描 | 周期性扫描附近可交互 NPC，通过选择器 HUD 展示候选列表与距离 |
+| 快捷键交互 | 通过宿主全局按键（`AXS_INTERACT` / `AXS_NAVIGATE_PREV` / `AXS_NAVIGATE_NEXT`）进行 NPC 选择与对话回复 |
+| 电影序列 | 编排一系列动作（传送、摄像机移动、标题、音效、NPC 动画等）按顺序播放，支持 15 种内置动作类型 |
+| Letterbox 黑边 | 电影序列播放时自动显示 letterbox 黑边 UI，隐藏原版与自定义 HUD 营造沉浸感 |
+| 多 UI 支持 | 对话 UI、选择器 UI、letterbox UI 均支持字符串或列表格式，可同时向多个 UI 发包 |
+| NPC 外观自动配置 | 启动 / 重载时自动为指定 NPC 设置模型和动画，支持重试机制 |
+| 玩家状态快照 | 电影序列播放前捕获玩家游戏模式、速度、位置，结束后自动恢复 |
+| Token 校验 | 客户端回包携带 token，服务端按 generation 校验，防止过期包误操作 |
+| 配置迁移 | 支持配置版本自动迁移（v1 → v2 将 UI 配置抽离到统一 `ui` 节） |
+
+## 依赖
+
+| 依赖类型 | 名称 | 说明 |
+| --- | --- | --- |
+| 外部硬依赖 | Chemdah | 对话引擎，提供会话、回复、主题机制 |
+| 外部硬依赖 | Adyeshach | NPC 引擎，提供 NPC 查找、模型与动画桥接 |
+| 宿主能力（可选） | `SubtitlePlayable` | 电影序列 `subtitle` 动作播放 Announcer 字幕组 |
+| 宿主能力（可选） | `SoundPlayerBridgeAPI` | 电影序列 `arcartx_sound` 动作播放资源包自定义音效 |
+| 宿主能力（可选） | `PacketBridgeAPI` | UI 打开 / 关闭 / 发包，电影序列 `ui_packet` 动作 |
+
+> 模块本身不依赖任何 ArcartX 模块。`SubtitlePlayable` 能力由 Announcer 模块提供，未安装时 `subtitle` 动作自动跳过。
+
+## 对话机制
+
+### 主题注册
+
+模块启动时向 Chemdah 注册 `ArcartXConversation` 主题（`theme.name` 配置），替代 Chemdah 默认主题。当 Chemdah 触发 NPC 对话时，主题回调将对话正文与回复列表交给 `ConversationService` 渲染到 ArcartX UI。
+
+### 对话流程
+
+```
+玩家靠近 NPC
+  → ConversationService 周期扫描附近 NPC（scan-period-ticks）
+  → 过滤出有 Chemdah 对话的 NPC
+  → 打开选择器 HUD，发送 sync 包（npcRows）
+  → 玩家按 AXS_INTERACT 确认 / 点击选项
+  → 客户端回包 confirm_npc
+  → 调用 Chemdah TriggerAdyeshachKt.openConversation 打开对话
+  → Chemdah 主题 onBegin / onDisplay 回调
+  → ChemdahAxRenderer 渲染对话正文 + 回复列表到对话 UI
+  → 玩家点击回复 / 按数字键 1-9
+  → 客户端回包 confirm_reply
+  → 触发 Chemdah 回复执行
+  → 对话结束 → 主题 onClose → 关闭对话 UI → 恢复选择器
+```
+
+### 按键路由
+
+按键注册由宿主 `config.yml` 的 `keybinds` 节统一管理，模块只注册回调：
+
+| 按键 | 优先级 | 处理逻辑 |
+| --- | --- | --- |
+| `AXS_INTERACT` | 50 | 选择器有候选时打开对话并消费按键 |
+| `AXS_NAVIGATE_PREV` | 10 | 选择器中向上导航 |
+| `AXS_NAVIGATE_NEXT` | 10 | 选择器中向下导航 |
+
+> 对话 UI 为 Menu 类型（非 HUD），不接收全局按键事件，回复选择通过 UI 内点击或键盘 1-9 完成。
+
+### 电影序列
+
+电影序列定义文件存放于 `data/conversation/cinematics/*.yml`，模块启动 / 重载时扫描该目录下所有 `.yml` 文件并合并序列。播放时自动显示 letterbox 黑边 UI，结束后恢复玩家状态。
+
+```
+/axs conversation cinematic play <序列ID>
+  → CinematicService.play()
+  → 捕获 PlayerSnapshot（游戏模式/速度/位置）
+  → 显示 letterbox 黑边 UI
+  → 按顺序执行动作（每个动作后等待 delay-after-ms）
+  → 序列结束 → 恢复玩家状态 → 隐藏 letterbox
+```
+
+## 相关文档
+
+- [配置](/docs/conversation/configuration) — 主配置文件、NPC 外观配置、电影序列配置详解
+- [命令与占位符](/docs/conversation/commands) — 管理命令、权限、UI 通讯包结构
+- [联动](/docs/conversation/integration) — Capability 注册、按键路由、电影序列动作、模块联动

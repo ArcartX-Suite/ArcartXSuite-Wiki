@@ -1,0 +1,262 @@
+---
+title: 配置
+description: Prop 模块完整配置文件详解，含主配置、按键映射、语言文件、道具定义与完整示例
+---
+
+# 配置
+
+Prop 模块的配置分散在多个文件中，模块首次启动时自动导出默认值到 `data/prop/` 目录。
+
+| 文件 | 路径 | 说明 |
+|------|------|------|
+| 主配置 | `data/prop/ArcartXProp.yml` | 调试开关、MythicLib 前缀 |
+| 按键映射 | `data/prop/key.yml` | 客户端按键分类与槽位绑定 |
+| 语言文件 | `data/prop/language.yml` | 冷却、权限、条件等提示消息 |
+| 道具定义 | `data/prop/props/*.yml` | 每个文件一个道具定义 |
+| 消息文件 | `data/prop/messages.yml` | 管理命令的提示消息 |
+
+## 主配置（`ArcartXProp.yml`）
+
+主配置由 `PropModuleConfiguration` 解析，包含调试开关与 MythicLib 子配置。
+
+| 配置项 | 类型 | 默认值 | 说明 |
+|--------|------|--------|------|
+| `config-version` | `int` | `1` | 配置版本号，由模块自动管理，不要手动修改 |
+| `settings.debug` | `boolean` | `false` | 是否输出调试日志（按键注册、使用成功、效果跳过等） |
+| `mythiclib.source-prefix` | `string` | `AXS_PROP` | MythicLib 临时属性 modifier 的来源前缀，最终生成格式为 `<前缀>_<道具ID>_<属性ID>` |
+
+> `mythiclib.source-prefix` 是否生效由宿主 `config.yml` 的 `attribute-bridges.mythiclib` 统一管理。前缀中的非字母数字字符会被替换为 `_` 并转为大写。
+
+```yaml
+# 配置版本号（不要手动修改，由模块自动管理）
+config-version: 1
+
+settings:
+  # 是否输出调试日志
+  debug: false
+
+mythiclib:
+  # 临时属性 modifier 前缀。
+  # 是否生效由本体 config.yml 的 attribute-bridges.mythiclib 统一管理。
+  # 最终会生成:
+  #   <前缀>_<PROP_ID>_<STAT>
+  source-prefix: "AXS_PROP"
+```
+
+## 按键映射（`data/prop/key.yml`）
+
+按键映射配置由 `PropKeyMappingConfiguration` 解析，定义客户端按键分类名称与全部按键绑定。
+
+| 配置项 | 类型 | 默认值 | 说明 |
+|--------|------|--------|------|
+| `category` | `string` | `ArcartX 快捷道具按键` | 客户端按键分类显示名称，玩家在按键设置中看到的分类名 |
+| `keys.<绑定ID>.defaultKey` | `string` | `X` | 默认按键（客户端按键名，如 `Z` / `X` / `C`） |
+| `keys.<绑定ID>.slot` | `string` | `Slot1` | 绑定的道具槽位标识（`Slot1` / `Slot2` / `Slot3`...） |
+
+> `<绑定ID>` 是按键绑定的唯一标识，同时也是显示给玩家的按键名称。模块启动时通过 `PropBridgeAPI.registerClientKeyBind()` 注册到客户端。
+
+```yaml
+# 客户端按键分类名。
+category: "ArcartX 快捷道具按键"
+
+keys:
+  # 顶层键是显示给玩家的按键名称。
+  快捷道具1:
+    # 默认按键（客户端按键名）
+    defaultKey: "Z"
+    # 绑定的道具槽位
+    slot: Slot1
+  快捷道具2:
+    defaultKey: "X"
+    slot: Slot2
+  快捷道具3:
+    defaultKey: "C"
+    slot: Slot3
+```
+
+## 语言文件（`data/prop/language.yml`）
+
+语言文件由 `PropLanguageConfiguration` 解析，定义道具使用受限时的提示消息。支持 `&` 颜色码和占位符。
+
+| 配置项 | 占位符 | 说明 |
+|--------|--------|------|
+| `COOL_DOWN` | `{NAME}` `{TIME}` | 冷却中提示，`{TIME}` 为剩余秒数（保留两位小数） |
+| `NO_PERMISSION` | `{NAME}` | 无权限使用提示 |
+| `NO_KEY` | `{NAME}` | 无法通过按键使用提示（`key: false`） |
+| `NO_HAND` | `{NAME}` | 无法手持右键使用提示（`hand: false`） |
+| `CONDITION_NOT_MET` | `{NAME}` `{CONDITION}` | 使用条件不满足提示，`{CONDITION}` 为未满足的条件原文 |
+
+```yaml
+# {NAME} 为道具名，{TIME} 为剩余冷却秒数。
+COOL_DOWN: "&7[&dArcartXProp&7]&c{NAME}&f还在冷却,你还需要等待&a{TIME}秒&f才能使用道具"
+NO_PERMISSION: "&7[&dArcartXProp&7]&f你没有权限使用 &c{NAME}"
+NO_KEY: "&7[&dArcartXProp&7]&c{NAME} &f无法按键使用"
+NO_HAND: "&7[&dArcartXProp&7]&c{NAME} &f该道具无法手持使用"
+
+# {NAME} 为道具名，{CONDITION} 为未满足的条件原文。
+CONDITION_NOT_MET: "&7[&dArcartXProp&7]&c{NAME} &f使用条件不满足: &e{CONDITION}"
+```
+
+## 道具定义（`data/prop/props/*.yml`）
+
+每个 YAML 文件定义一个道具，由 `PropDefinitionLoader` 解析为 `PropDefinition`。文件相对路径（去除扩展名、小写归一化）作为道具 ID。
+
+| 配置项 | 类型 | 默认值 | 说明 |
+|--------|------|--------|------|
+| `name` | `string` | 道具 ID | 道具显示名称，用于 AttributePlus 来源 ID 生成与提示消息 |
+| `coolDownGroup` | `string` | `默认冷却组` | 冷却组名称，同组道具共享冷却时间 |
+| `coolDownTime` | `int` | `10` | 冷却时长（秒） |
+| `Duration` | `int` | `10` | 效果持续时间（秒），属性类效果到期后自动移除 |
+| `remove` | `boolean` | `true` | 使用后是否消耗一个物品 |
+| `hand` | `boolean` | `true` | 是否允许手持右键使用 |
+| `key` | `boolean` | `true` | 是否允许客户端按键触发 |
+| `permission` | `string` | `""` | 使用所需权限节点，留空表示无限制 |
+| `conditions` | `list<string>` | `[]` | 使用条件列表，全部满足才可使用（AND 逻辑） |
+| `effects` | `list<string>` | `[]` | 效果列表，每行格式为 `type\|payload` |
+
+> `coolDownGroup` 为空时会回退为 `默认冷却组` 并输出警告日志。`coolDownTime` 和 `Duration` 的负值会被归零。
+
+### 效果格式
+
+效果行以 `|` 分隔类型和载荷，共支持 10 种类型：
+
+| 格式 | 说明 |
+|------|------|
+| `cmd\|<命令>` | 以控制台身份执行命令，支持 `{player}` 变量（玩家名经安全校验） |
+| `msg\|<消息>` | 给玩家发送消息，支持 `&` 颜色码和 `{player}` 变量 |
+| `food\|<数量>` | 恢复饱食度，上限 20 |
+| `health\|<数量>` | 恢复生命值，上限为玩家最大生命值 |
+| `exp\|<数量>` | 增加经验值 |
+| `healthPercent\|<百分比>` | 按最大生命值百分比恢复生命值 |
+| `potion\|<效果>:<等级>` | 附加药水效果，持续 `Duration` 秒，兼容 1.20.2+ 旧名映射 |
+| `ap\|<属性>:<值>` | 附加 AttributePlus 属性词条，持续 `Duration` 秒后自动移除 |
+| `ml\|<属性>:<值>` | 附加 MythicLib 临时属性 modifier，持续 `Duration` 秒 |
+| `mythiclib\|<属性>:<值>` | 同 `ml`，完整前缀写法 |
+| `sy\|<属性>:<值>` | 附加 Symphony 属性修改，持续 `Duration` 秒 |
+| `symphony\|<属性>:<值>` | 同 `sy`，完整前缀写法 |
+
+> 药水效果兼容映射：`SLOW` → `SLOWNESS`、`FAST_DIGGING` → `HASTE`、`SLOW_DIGGING` → `MINING_FATIGUE`、`INCREASE_DAMAGE` → `STRENGTH`、`JUMP` → `JUMP_BOOST`、`CONFUSION` → `NAUSEA`、`HEAL` → `INSTANT_HEAL`、`HARM` → `INSTANT_DAMAGE`、`DAMAGE_RESISTANCE` → `RESISTANCE`。
+
+### 条件格式
+
+条件使用 ArcartXSuite 统一条件系统，支持 PAPI / ARIA / JS / CONTEXT 四种类型。最常用的是 PAPI 条件：
+
+```
+<PAPI变量> <运算符> <期望值>
+```
+
+支持运算符：`==` `!=` `>=` `<=` `>` `<` `contains` `regex`
+
+详细语法请参考 [条件系统](/docs/guide/conditions)。
+
+## 完整配置示例
+
+### 主配置示例
+
+```yaml
+config-version: 1
+
+settings:
+  debug: true
+
+mythiclib:
+  source-prefix: "AXS_PROP"
+```
+
+### 按键映射示例
+
+```yaml
+category: "ArcartX 快捷道具按键"
+
+keys:
+  快捷道具1:
+    defaultKey: "Z"
+    slot: Slot1
+  快捷道具2:
+    defaultKey: "X"
+    slot: Slot2
+  快捷道具3:
+    defaultKey: "C"
+    slot: Slot3
+  快捷道具4:
+    defaultKey: "V"
+    slot: Slot4
+```
+
+### 道具定义示例
+
+```yaml
+# data/prop/props/治疗药水.yml
+name: "治疗药水"
+coolDownGroup: "治疗冷却组"
+coolDownTime: 30
+Duration: 10
+remove: true
+hand: true
+key: true
+permission: "arcartxsuite.prop.heal"
+
+conditions:
+  - "%player_level% >= 5"
+  - "%player_health% < 20"
+
+effects:
+  - "potion|REGENERATION:2"
+  - "health|10"
+  - "msg|&a你使用了治疗药水！"
+  - "cmd|say {player} 使用了治疗药水"
+```
+
+### 属性道具示例
+
+```yaml
+# data/prop/props/力量卷轴.yml
+name: "力量卷轴"
+coolDownGroup: "增益冷却组"
+coolDownTime: 60
+Duration: 30
+remove: true
+hand: false
+key: true
+permission: ""
+
+conditions: []
+
+effects:
+  - "ml|ATTACK_DAMAGE:5"
+  - "mythiclib|critical_damage:8"
+  - "ap|物理伤害:10"
+  - "sy|ATTACK_DAMAGE:5"
+  - "symphony|ATTACK_SPEED:10%"
+  - "potion|STRENGTH:1"
+```
+
+### 消息文件示例
+
+```yaml
+# data/prop/messages.yml
+prefix: "&3◆ &6ArcartXSuite &7| &r"
+
+common:
+  service-down: "&c服务未启动。"
+  unknown: "&e未知命令，使用 /{0} prop help"
+
+help:
+  title: "&6Prop 管理命令"
+  status: "&7{0} status&f - 查看模块状态"
+  set: "&7{0} set <道具ID>&f - 将道具写入主手物品"
+
+status:
+  title: "&6Prop 状态"
+  props: "&7道具数: &f{0}"
+  keys: "&7Key: &f{0}"
+  ap: "&7AP: &f{0}"
+  mythiclib: "&7MythicLib: &f{0}"
+
+set:
+  no-item: "请先手持一个物品。"
+  invalid-id: "道具 ID 不存在: {0}"
+  success: "已将手中物品设置为道具 {0}。"
+  only-player: "&c此命令只能由玩家执行。"
+  usage: "&e用法: /axs prop set <道具ID>"
+```

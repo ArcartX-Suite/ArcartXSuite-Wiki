@@ -1,0 +1,228 @@
+---
+title: PlaceholderAPI 集成
+description: ArcartXSuite PlaceholderAPI 扩展注册与占位符解析 API
+---
+
+# PlaceholderAPI 集成
+
+## 概述
+
+ArcartXSuite 通过 `PlaceholderExpansionRegistry` 管理所有模块的 PAPI 扩展。模块重写 `createPlaceholderExpansion()` 返回 `PlaceholderExpansion` 子类，基类在 `onEnable` 阶段自动注册，`onDisable` 时自动注销。
+
+设计目标：模块不再直接依赖 `me.clip.placeholderapi.PlaceholderAPI` 类，通过 `axs-api` 的抽象接口完成占位符注册与解析，`axs-api` 本身不直接依赖 PlaceholderAPI。
+
+## 核心接口
+
+| 接口/类 | 包路径 | 说明 |
+|---------|--------|------|
+| `PlaceholderResolverAPI` | `api.placeholder` | 占位符解析入口，统一解析字符串中的 PAPI 占位符 |
+| `PlaceholderExpansionRegistry` | `api.placeholder` | 扩展注册表，模块级独立实例 |
+| `PlaceholderExpansion` | `me.clip.placeholderapi.expansion` | PAPI 扩展基类（第三方库） |
+
+### PlaceholderResolverAPI
+
+```java
+public interface PlaceholderResolverAPI {
+    boolean available();
+    @NotNull String applyPlaceholders(@Nullable Player player, @NotNull String input);
+    @NotNull String applyPlaceholders(@Nullable OfflinePlayer player, @NotNull String input);
+}
+```
+
+| 方法 | 说明 |
+|------|------|
+| `available()` | PlaceholderAPI 是否可用（已安装且已启用） |
+| `applyPlaceholders(player, input)` | 解析字符串中的占位符；PAPI 不可用或输入为空时返回原字符串 |
+
+### PlaceholderExpansionRegistry
+
+```java
+public interface PlaceholderExpansionRegistry {
+    boolean register(@NotNull Object expansion);
+    void unregisterAll();
+}
+```
+
+| 方法 | 说明 |
+|------|------|
+| `register(expansion)` | 注册 PAPI 扩展（参数为 `Object` 避免 axs-api 直接依赖 PAPI） |
+| `unregisterAll()` | 注销当前模块注册的所有扩展（`onDisable` 时自动调用） |
+
+## 占位符解析
+
+模块通过 `placeholderResolver.applyPlaceholders(player, text)` 统一解析占位符。PlaceholderAPI 未安装时原样返回，调用方无需做空值判断：
+
+```java
+PlaceholderResolverAPI resolver = context.placeholderResolver();
+
+// 解析在线玩家占位符
+String text = resolver.applyPlaceholders(player, "欢迎 %player_name%，余额 %vault_eco_balance%");
+
+// 解析离线玩家占位符
+String text2 = resolver.applyPlaceholders(offlinePlayer, "%player_name% 的等级是 %player_level%");
+
+// PAPI 不可用时，返回原字符串
+// resolver.available() == false → "欢迎 %player_name%，余额 %vault_eco_balance%"
+```
+
+> `applyPlaceholders` 永不返回 null，PAPI 不可用时返回原字符串，模块无需做空值判断。
+
+## 扩展注册流程
+
+模块注册 PAPI 扩展的步骤：
+
+1. 重写 `createPlaceholderExpansion()` 返回 `PlaceholderExpansion` 子类
+2. 基类 `onEnable` 检测 PAPI 是否存在（`context.hasPlugin("PlaceholderAPI")`）
+3. 存在则调用 `context.expansionRegistry().register(expansion)` 注册
+4. `onDisable` 时自动 `unregisterAll()` 注销
+
+```java
+// AbstractAXSModule.onEnable 中的自动注册逻辑
+if (context.hasPlugin("PlaceholderAPI")) {
+    try {
+        Object expansion = createPlaceholderExpansion();
+        if (expansion != null) {
+            context.expansionRegistry().register(expansion);
+        }
+    } catch (LinkageError error) {
+        logger.warning(descriptor().name()
+            + " PlaceholderAPI 占位符不可用，已跳过注册: " + error.getMessage());
+    }
+} else {
+    logger.fine(descriptor().name()
+        + " 未检测到 PlaceholderAPI，跳过占位符注册。");
+}
+```
+
+> 默认 `createPlaceholderExpansion()` 返回 null（不注册）。需要提供占位符的模块重写此方法。
+
+## 注册表实现
+
+`PlaceholderExpansionRegistry` 有两种实现，宿主根据 PAPI 是否可加载选择：
+
+### DirectPlaceholderExpansionRegistry
+
+强引用实现，位于 `axs-placeholder` 子模块。直接调用 `PlaceholderExpansion.register()` / `unregister()`，避免反射带来的性能和类型安全问题。仅在服务器已安装 PlaceholderAPI 时使用。
+
+```java
+public final class DirectPlaceholderExpansionRegistry implements PlaceholderExpansionRegistry {
+    @Override
+    public boolean register(@NotNull Object expansion) {
+        if (!(expansion instanceof PlaceholderExpansion pe)) return false;
+        boolean success = pe.register();
+        if (success) registeredExpansions.add(pe);
+        return success;
+    }
+}
+```
+
+### DefaultPlaceholderExpansionRegistry
+
+反射调用实现，位于 `axs-core`。通过反射调用 `register()` / `unregister()` 方法，避免 `axs-api` 直接依赖 PlaceholderAPI。每个模块的 `ModuleContext` 持有独立实例。
+
+```java
+public final class DefaultPlaceholderExpansionRegistry implements PlaceholderExpansionRegistry {
+    @Override
+    public boolean register(@NotNull Object expansion) {
+        Object result = expansion.getClass().getMethod("register").invoke(expansion);
+        if (result instanceof Boolean registered && registered) {
+            registeredExpansions.add(expansion);
+            return true;
+        }
+        return false;
+    }
+}
+```
+
+| 实现 | 位置 | 方式 | 适用场景 |
+|------|------|------|----------|
+| `DirectPlaceholderExpansionRegistry` | `axs-placeholder` | 强引用直接调用 | PAPI 可加载时 |
+| `DefaultPlaceholderExpansionRegistry` | `axs-core` | 反射调用 | 避免 axs-api 直接依赖 PAPI |
+
+## 代码示例
+
+以下参考 `MarketPlaceholderExpansion` 实现一个完整的 PAPI 扩展：
+
+```java
+public class MarketPlaceholderExpansion extends PlaceholderExpansion {
+
+    private final JavaPlugin plugin;
+    private final Supplier<MarketService> serviceSupplier;
+
+    public MarketPlaceholderExpansion(JavaPlugin plugin, Supplier<MarketService> serviceSupplier) {
+        this.plugin = plugin;
+        this.serviceSupplier = serviceSupplier;
+    }
+
+    // PAPI 标识符，对应 %axsmarket_xxx%
+    @Override public @NotNull String getIdentifier() { return "axsmarket"; }
+    @Override public @NotNull String getAuthor() { return "ArcartXSuite"; }
+    @Override public @NotNull String getVersion() { return "1.0.0"; }
+    @Override public boolean persist() { return true; }
+
+    @Override
+    public @Nullable String onPlaceholderRequest(Player player, @NotNull String params) {
+        MarketService service = serviceSupplier.get();
+        if (service == null) return "N/A";
+
+        return switch (params.toLowerCase()) {
+            case "auction_count" -> String.valueOf(service.getAuctionCount());
+            case "shop_count" -> String.valueOf(service.getShopCount());
+            case "recycle_count" -> String.valueOf(service.getRecycleEntryCount());
+            case "redis_status", "list_cache_status" ->
+                service.isListCacheConnected() ? "已连接" : "未连接";
+            case "cross_server_status" ->
+                service.crossServerActive() ? "已启用" : "未启用";
+            case "my_listings" ->
+                player != null ? String.valueOf(service.getMyListingsCount(player)) : "0";
+            default -> null;
+        };
+    }
+}
+```
+
+在模块中注册：
+
+```java
+public class MarketModule extends AbstractAXSModule {
+
+    @Override
+    protected @Nullable Object createPlaceholderExpansion() {
+        return new MarketPlaceholderExpansion(plugin, () -> service);
+    }
+}
+```
+
+> 使用 `Supplier<MarketService>` 延迟引用服务，即使服务启动失败，占位符仍可注册并返回 `"N/A"`。
+
+## 各模块占位符前缀
+
+各模块的 PAPI 标识符前缀（`getIdentifier()` 返回值）：
+
+| 模块 | 标识符前缀 | 占位符示例 |
+|------|-----------|-----------|
+| market | `axsmarket` | `%axsmarket_auction_count%` |
+| battlepass | `axsbattlepass` | `%axsbattlepass_level%` |
+| title | `axstitle` | `%axstitle_current%` |
+| mail | `axsmail` | `%axsmail_unread%` |
+| onlinerewards | `axsonlinerewards` | `%axsonlinerewards_streak%` |
+| entitytracker | `axsentitytracker` | `%axsentitytracker_boss_hp%` |
+| chat | `axschat` | `%axschat_channel%` |
+| qqbot | `axsqqbot` | `%axsqqbot_bound%` |
+| loginview | `axsloginview` | `%axsloginview_status%` |
+| afkreward | `axsafkreward` | `%axsafkreward_time%` |
+| warehouse | `axswarehouse` | `%axswarehouse_slots%` |
+| rgb | `axsrgb` | `%axsrgb_gradient%` |
+| tab | `axstab` | `%axstab_prefix%` |
+| essentials | `axsessentials` | `%axsessentials_afk%` |
+| fishing | `axsfishing` | `%axsfishing_count%` |
+| lottery | `axslottery` | `%axslottery_pity%` |
+
+## 注意事项
+
+- `createPlaceholderExpansion()` 返回类型为 `Object` 而非 `PlaceholderExpansion`，避免 `axs-api` 直接依赖 PlaceholderAPI。模块编译时需 `compileOnly` 依赖 PlaceholderAPI。
+- `persist()` 应返回 `true`，确保扩展在 PlaceholderAPI 重载后不会被注销。
+- 使用 `Supplier` 延迟引用服务，避免服务启动失败导致占位符注册失败。
+- `onPlaceholderRequest` 中 `player` 可能为 null（如控制台调用），需做空值判断。
+- Tab 模块额外提供了 `TabServerFallbackExpansion` 和 `TabPlayerFallbackExpansion` 两个 fallback 扩展，用于服务端占位符兜底。
+- `unregisterAll()` 在模块 `onDisable` 时由基类自动调用，模块无需手动注销。

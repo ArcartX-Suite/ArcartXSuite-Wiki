@@ -1,0 +1,346 @@
+---
+title: 命令与占位符
+description: Tab 模块玩家命令、管理命令、权限、PlaceholderAPI 占位符与 UI 包格式
+---
+
+# 命令与占位符
+
+## 玩家命令
+
+所有玩家命令通过 `/axstab` 根命令触发。除 `debug` 和 `snapshot` 子命令允许控制台调用外，其余子命令仅玩家可用。
+
+### /axstab view
+
+切换当前 Tab 视图。只有 `definition.view` 与玩家当前 view 匹配时，该 Tab 定义才会推送数据。
+
+```yaml
+# 切换到 pvp 视图
+/axstab view pvp
+
+# 查看当前视图
+/axstab view
+```
+
+| 参数 | 类型 | 说明 |
+|---|---|---|
+| `<name>` | `String` | 视图名称，留空时显示当前视图 |
+
+> 切换瞬间旧 view 的 Tab 会被一次性清空（发送空 payload），新 view 的 Tab 会立即重发。默认视图为 `default`。
+
+### /axstab page
+
+翻页操作，仅在启用了 `pagination` 的 Tab 定义上生效。
+
+```yaml
+# 翻到下一页
+/axstab page online-tab next
+
+# 翻到上一页
+/axstab page online-tab prev
+
+# 直接设置页码（0 起）
+/axstab page online-tab 2
+```
+
+| 参数 | 类型 | 说明 |
+|---|---|---|
+| `<definitionId>` | `String` | Tab 定义 ID（文件名去掉 `.yml`） |
+| `<next\|prev\|N>` | `String` | `next` 下一页 / `prev` 上一页 / 数字直接设置页码 |
+
+### /axstab refresh
+
+强制刷新当前玩家的 Tab 列表。此命令绕过周期 diff，立即触发一次 viewer 级刷新。
+
+```yaml
+/axstab refresh
+```
+
+### /axstab help
+
+显示帮助信息。
+
+```yaml
+/axstab help
+```
+
+## 管理命令
+
+### /axstab debug
+
+打印指定玩家在指定 Tab 定义上的排序、分组、状态快照。需要 `axstab.debug` 权限或 OP。
+
+```yaml
+# 打印玩家在所有 definition 上的状态
+/axstab debug LiuYun_King
+
+# 打印玩家在指定 definition 上的状态
+/axstab debug LiuYun_King online-tab
+```
+
+| 参数 | 类型 | 说明 |
+|---|---|---|
+| `<player>` | `String` | 目标玩家名（必须在线） |
+| `[definitionId]` | `String` | Tab 定义 ID，留空时输出全部 definition |
+
+输出内容包括：`view`、`page`、`sort-values-numeric`、`sort-values-string`、`group-key`、`pinned-top`、`pinned-bottom`、`vanished`、`pvp-active`、`ping`、`rank`、`local-visible-count`、`total-visible-count`。
+
+### /axstab snapshot
+
+调试快照管理命令，用于存档 / 加载 / 卸载 / 列出 / 删除 Tab 快照。需要 `axstab.debug` 权限或 OP。
+
+> 快照文件存储在 `plugins/ArcartXSuite/data/tab/snapshots/<name>.json`，仅限测试服或权限受控环境使用。
+
+#### snapshot save
+
+```yaml
+/axstab snapshot save bug-repro-001
+```
+
+将当前在线玩家 + 跨服快照落盘为 JSON 文件。名称仅允许字母 / 数字 / `_` / `-`，长度 1~64。
+
+#### snapshot load
+
+```yaml
+/axstab snapshot load bug-repro-001
+```
+
+把存档注入为 `snapshot:<name>:<原 nodeId>` 虚拟节点，本服 viewer 立即可见历史快照。本服快照注入为 `snapshot:<name>:local`，远程节点逐个注入为 `snapshot:<name>:<原 nodeId>`。
+
+#### snapshot unload
+
+```yaml
+# 卸载指定快照
+/axstab snapshot unload bug-repro-001
+
+# 卸载所有已注入的快照
+/axstab snapshot unload all
+```
+
+卸载该 name 对应的全部虚拟节点。
+
+#### snapshot list
+
+```yaml
+/axstab snapshot list
+```
+
+列出当前已保存的快照名 + 已注入的虚拟节点。
+
+#### snapshot delete
+
+```yaml
+/axstab snapshot delete bug-repro-001
+```
+
+删除存档文件（不影响已注入的虚拟节点）。
+
+## 权限
+
+| 权限节点 | 默认 | 说明 |
+|---|---|---|
+| `axstab.debug` | OP | 使用 `/axstab debug` 和 `/axstab snapshot` 子命令的权限 |
+
+> 玩家命令 `view` / `page` / `refresh` 无权限要求，所有在线玩家均可使用。
+
+## PlaceholderAPI 占位符
+
+Tab 模块注册 identifier 为 `axstab` 的 PAPI 扩展，提供以下占位符：
+
+### 视觉风格占位符
+
+| 占位符 | 返回值 | 说明 |
+|---|---|---|
+| `%axstab_pvp%` | `true` / `false` | 是否处于 PVP 高亮窗口内（受 `settings.style.pvp-highlight.enabled` 控制） |
+| `%axstab_pvp_color%` | 颜色码或空串 | PVP 高亮颜色，未启用或不在窗口返回空串 |
+| `%axstab_vanished%` | `true` / `false` | 是否隐身 |
+| `%axstab_vanish_color%` | 颜色码或空串 | 隐身灰色颜色，未启用或未隐身返回空串 |
+| `%axstab_ping%` | 数字 | 当前延迟（ms） |
+| `%axstab_ping_icon%` | 图标文本或空串 | 按 `tiers` 匹配的延迟图标，未启用返回空串 |
+| `%axstab_uuid%` | UUID 字符串 | 玩家 UUID，受 `privacy.hide-uuid` 脱敏 |
+| `%axstab_ip%` | IP 地址 | 玩家 IP，受 `privacy.hide-ip` 脱敏 |
+
+### 定义级占位符
+
+格式为 `%axstab_<definitionId>_<metric>%`，其中 `definitionId` 为 Tab 定义 ID（文件名去掉 `.yml`）。
+
+| 占位符 | 返回值 | 说明 |
+|---|---|---|
+| `%axstab_<def>_count%` | 数字 | 本服在指定 definition 下当前可见的玩家数（已应用 filters / pinned / maxEntries） |
+| `%axstab_<def>_total%` | 数字 | 本服 + 跨服节点合计的玩家数 |
+| `%axstab_<def>_rank%` | 数字 | 玩家在指定 definition 排序中的位次（1 起，不可见返回 0） |
+| `%axstab_<def>_view%` | 字符串 | 玩家当前 view |
+| `%axstab_<def>_page%` | 数字 | 玩家在指定 definition 的当前页码（0 起） |
+
+> 示例：`%axstab_online-tab_count%` 返回 `online-tab` 定义下本服可见玩家数。
+
+### pack 中可消费的 PAPI
+
+Tab 定义中 `pack` 字段会按每个目标玩家解析完整 PAPI。常用占位符：
+
+| 占位符 | 来源 | 说明 |
+|---|---|---|
+| `%player_name%` | player 扩展 | 玩家名称 |
+| `%player_health%` | player 扩展 | 玩家当前血量 |
+| `%player_ping%` | player 扩展 | 玩家延迟 |
+| `%player_level%` | player 扩展 | 玩家等级 |
+| `%player_world%` | player 扩展 | 玩家所在世界 |
+| `%player_gamemode%` | player 扩展 | 游戏模式 |
+| `%player_scoreboardteam%` | player 扩展 | Scoreboard 队伍名 |
+| `%server_online%` | server 扩展 | 在线人数 |
+| `%server_tps%` | server 扩展 | 服务器 TPS |
+| `%axstitle_tab_<groupId>_prefix%` | Title 模块 | 称号 Tab 前缀 |
+| `%axstitle_tab_<groupId>_suffix%` | Title 模块 | 称号 Tab 后缀 |
+| `%axstitle_display%` | Title 模块 | 主展示称号 |
+
+### PAPI 兜底扩展
+
+当服务器未安装 `player` 或 `server` PAPI 扩展时，Tab 模块会自动注册内置兜底实现：
+
+#### player 兜底
+
+| 占位符 | 说明 |
+|---|---|
+| `%player_name%` | 玩家名称 |
+| `%player_displayname%` / `%player_display_name%` | 显示名 |
+| `%player_uuid%` | UUID |
+| `%player_world%` | 世界 |
+| `%player_x%` / `%player_y%` / `%player_z%` | 坐标 |
+| `%player_health%` | 血量 |
+| `%player_max_health%` | 最大血量 |
+| `%player_ping%` | 延迟 |
+| `%player_gamemode%` | 游戏模式 |
+| `%player_scoreboardteam%` / `%player_scoreboard_team%` | Scoreboard 队伍 |
+
+#### server 兜底
+
+| 占位符 | 说明 |
+|---|---|
+| `%server_online%` | 在线人数 |
+| `%server_max_players%` | 最大玩家数 |
+| `%server_name%` | 服务器名称 |
+| `%server_version%` | 服务器版本 |
+| `%server_motd%` | MOTD |
+| `%server_tps%` / `%server_tps_1%` / `%server_tps_5%` / `%server_tps_15%` | TPS |
+
+> 兜底扩展在模块启动时检测 PAPI 加载状态。如果 PAPI 尚未加载完成，会监听 `ExpansionsLoadedEvent` 等待全部扩展加载后再检测。
+
+## UI 包格式
+
+Tab 模块通过 ArcartX Packet 将 payload 推送给客户端 UI。UI 端通过 `packetHandler` 接收并渲染。
+
+### packetHandler 接收
+
+UI 文件中 `packetHandler` 节定义接收逻辑。以内置 `tab.yml` 为例：
+
+```yaml
+ui:
+  isHud: true
+  hide:
+  - player_list
+  escClose: false
+  defaultOpen: true
+  action:
+    load: |-
+      var.TAB刷新轮次 = 0
+      var.TAB显示 = false
+    keyPress: |-
+      if(self.currentKeyPress() == "TAB"){
+        Packet.send("TAB","update")
+        var.TAB显示 = true
+      }
+    keyRelease: |-
+      if(self.currentKeyReleased() == "TAB"){
+        var.TAB显示 = false
+      }
+  packetHandler:
+    tab: |-
+      i = 0
+      var.TAB刷新轮次 = var.TAB刷新轮次 + 1
+      while(val.TAB遍历2.childrenCount() > 1){
+        val.TAB遍历2.get(1).remove()
+      }
+      while(i < packet.size()){
+        if(val.player.width == 250){
+          TAB = val.player.copy('player_' + var.TAB刷新轮次 + '_' + i.round())
+          TAB['player_text'].texts = packet.get(i)
+          TAB.visible = true
+        }
+        i++
+      }
+```
+
+### pack 形态与 packet 结构
+
+| pack 形态 | packet 类型 | UI 端访问方式 |
+|---|---|---|
+| 字符串 | `List<String>` | `packet.get(i)` 返回第 i 个玩家的渲染文本 |
+| 列表 | `List<List<Object>>` | `packet.get(i)` 返回第 i 个玩家的列表，扁平合并为根列表 |
+| 字典 | `List<Map<String, Object>>` | `packet.get(i).<field>` 返回第 i 个玩家字典中对应字段的值 |
+
+### 字典 pack 示例
+
+服务端配置：
+
+```yaml
+pack:
+  uuid: "{player_uuid}"
+  name: "%axstab_pvp_color%%axstab_vanish_color%%player_name%"
+  ping: "%axstab_ping_icon%"
+  health: "%player_health%"
+```
+
+UI 端 packetHandler 消费：
+
+```yaml
+packetHandler:
+  tab: |-
+    i = 0
+    while(i < packet.size()){
+      ROW = val.player_row.copy('row_' + i.round())
+      ROW['头部'].normal = 'PlayerSkin:' + packet.get(i).uuid
+      ROW['名称文字'].texts = packet.get(i).name
+      ROW['ping_text'].texts = packet.get(i).ping
+      ROW.visible = true
+      i++
+    }
+```
+
+### 客户端发包
+
+客户端可通过 ARIA 脚本主动向服务端发包：
+
+| 脚本 | 说明 |
+|---|---|
+| `Packet.send("TAB", "update")` | 请求服务端刷新当前 viewer 的 Tab（受 `client-refresh-guard` 限流） |
+| `Packet.send("TAB_PAGE", "next")` | 翻到下一页 |
+| `Packet.send("TAB_PAGE", "prev")` | 翻到上一页 |
+| `Packet.send("TAB_PAGE", "set", "2")` | 设置页码为 2 |
+
+> UI 配置中的控件类型、属性、ARIA 脚本语法详见 [图标配置](/docs/guide/icons) 和 [ArcartX UI 文档](/docs/guide/index)。
+
+## 消息文件
+
+消息文件位于 `data/tab/messages.yml`，支持 `&` 颜色码和 `{0}` `{1}` 占位符。修改后执行 `/axs reload tab` 生效。
+
+```yaml
+prefix: "&3◆ &6ArcartXSuite &7| &r"
+common:
+  service-down: "&cTab 服务未启动。"
+  only-player: "&c仅玩家可使用此命令（debug 除外）。"
+  no-permission: "&c缺少权限: {0}"
+player:
+  refresh:
+    requested: "&a已请求刷新。"
+  view:
+    current: "&e当前视图: &f{0}"
+    success: "&a已切换到视图: &f{0}"
+    no-change: "&e已在此视图，无需切换。"
+  page:
+    success: "&a页码已设为: &f{0}"
+    failed: "&e翻页未生效（definition 不存在或未开启分页）。"
+  help:
+    title: "&6Tab列表 命令"
+    view: "&7/axstab view <视图名>&f - 切换视图"
+    page: "&7/axstab page <definitionId> <next|prev|页码>&f - 翻页"
+    refresh: "&7/axstab refresh&f - 强制刷新本玩家"
+```

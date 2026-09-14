@@ -1,0 +1,14 @@
+{
+  "title": "Regions 区域保护",
+  "description": "区域保护（40+ 标志/优先级继承/世界规则）",
+  "color": "#eab308",
+  "pages": [
+    "index",
+    "configuration",
+    "flags",
+    "selection",
+    "world-rules",
+    "commands",
+    "integration"
+  ]
+}

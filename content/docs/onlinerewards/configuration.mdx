@@ -1,0 +1,521 @@
+---
+title: "配置"
+description: "OnlineRewards 配置文件详解"
+---
+
+OnlineRewards 模块的配置由三个文件组成：主配置 `ArcartXOnlineRewards.yml`、签到配置 `sign-in.yml` 和在线阶段奖励配置 `rewards.yml`。模块启动时自动导出默认文件，修改后执行 `/axs onlinerewards reload` 生效。
+
+## 主配置（ArcartXOnlineRewards.yml）
+
+### settings 节
+
+| 字段 | 类型 | 默认值 | 说明 |
+|---|---|---|---|
+| `settings.debug` | `boolean` | `false` | 是否输出详细调试日志 |
+| `settings.client-sync-delay-ticks` | `long` | `50` | 玩家客户端初始化后延迟多少 tick 推送进度变量 |
+| `settings.timezone` | `String` | `""` | 跨天判定时区，留空使用服务器默认时区；海外服务器可设为 `Asia/Shanghai` |
+
+### messages 节
+
+| 字段 | 类型 | 默认值 | 说明 |
+|---|---|---|---|
+| `messages.done` | `String` | `§c所有阶段已领取` | 今日在线阶段全部完成后的客户端标题文案 |
+
+### variables 节
+
+| 字段 | 类型 | 默认值 | 说明 |
+|---|---|---|---|
+| `variables.progress` | `String` | `arcartx_online_time` | 推送给 ArcartX 客户端的进度变量名，值 0.0~1.0 |
+| `variables.title` | `String` | `arcartx_online_time_title` | 推送给 ArcartX 客户端的标题变量名，值为当前阶段名称或完成文案 |
+
+### ui 节
+
+| 字段 | 类型 | 默认值 | 说明 |
+|---|---|---|---|
+| `ui.ui-id` | `String` / `List<String>` | `AXS:online_rewards_menu` | 菜单 UI ID，支持字符串或列表（多 UI 同时发包） |
+| `ui.packet-id` | `String` | `AXS_ONLINE_REWARDS` | 客户端按钮回包 ID，需与 UI yml 中 `Packet.send` 的第一个参数一致 |
+| `ui.register-ui-on-enable` | `boolean` | `true` | 模块启用时是否自动注册默认 UI |
+| `ui.overwrite-ui-files` | `boolean` | `false` | 是否用内置 UI 文件覆盖已导出的 UI 文件 |
+
+### time-bonus 节
+
+在线时长倍率权限组。拥有对应权限的玩家在线计时按 `multiplier` 倍数累计；匹配多个权限时取 `priority` 最高的一组。
+
+| 字段 | 类型 | 默认值 | 说明 |
+|---|---|---|---|
+| `time-bonus.permission-groups` | `List<Map>` | 见下 | 倍率权限组列表 |
+
+每组字段：
+
+| 字段 | 类型 | 说明 |
+|---|---|---|
+| `permission` | `String` | 触发该倍率所需的权限节点 |
+| `multiplier` | `double` | 在线时长倍率（不小于 1.0） |
+| `priority` | `int` | 优先级，数值越大越优先匹配 |
+
+```yaml
+time-bonus:
+  permission-groups:
+    - permission: "ArcartXSuite.onlinerewards.time.1_5"
+      multiplier: 1.5
+      priority: 10
+    - permission: "ArcartXSuite.onlinerewards.time.2"
+      multiplier: 2.0
+      priority: 20
+```
+
+### storage 节
+
+| 字段 | 类型 | 默认值 | 说明 |
+|---|---|---|---|
+| `storage.shared` | `boolean` | `true` | 是否使用共享存储模式（true=共享本体连接，false=自建连接） |
+| `storage.mode` | `String` | `sqlite` | 存储模式（`sqlite` / `mysql`），仅在 `shared: false` 时生效 |
+| `storage.sqlite.file` | `String` | `online-rewards.db` | SQLite 文件名（相对模块数据目录） |
+| `storage.pool-size` | `int` | `2` | JDBC 连接池大小，SQLite 建议保持 1 |
+| `storage.mysql.host` | `String` | `127.0.0.1` | MySQL 主机地址 |
+| `storage.mysql.port` | `int` | `3306` | MySQL 端口 |
+| `storage.mysql.database` | `String` | `arcartxsuite` | MySQL 数据库名 |
+| `storage.mysql.username` | `String` | `root` | MySQL 用户名 |
+| `storage.mysql.password` | `String` | `""` | MySQL 密码 |
+| `storage.mysql.table-prefix` | `String` | `axs_onlinerewards_` | MySQL 表名前缀 |
+
+> `shared: true`（推荐）时，数据库连接由本体统一管控，各模块共用本体 `config.yml` 的 `storage` 节配置。`shared: false` 时模块自建独立 HikariCP 连接池。
+
+### cross-server 节
+
+| 字段 | 类型 | 默认值 | 说明 |
+|---|---|---|---|
+| `cross-server.enabled` | `boolean` | `false` | 是否启用跨服同步 |
+
+> 跨服同步前提：`storage.shared` 必须为 `true` 且使用 MySQL 共享数据库。连接参数见宿主 `config.yml` 的 `cross-server` 节。
+
+### weekly-rewards / monthly-rewards 节
+
+周/月累计在线时长奖励列表。每周期自动重置统计。
+
+| 字段 | 类型 | 说明 |
+|---|---|---|
+| `id` | `String` | 奖励唯一 ID（用于去重与领取记录） |
+| `minutes` | `int` | 所需在线分钟数 |
+| `name` | `String` | 奖励名称 |
+| `rewardText` | `String` | 奖励描述文本 |
+| `icon` | `Map` | UI 展示图标（可选，见 [图标](/docs/guide/icons)） |
+| `commands` | `List<String>` | 达成后执行的命令（支持 `{player}`） |
+| `mail.presets` | `List<String>` | 邮件预设 ID 列表 |
+| `item-rewards` | `List<Map>` | 物品奖励列表（见 [物品来源](/docs/guide/item-sources)） |
+| `repeat` | `boolean` | 是否每周期可重复领取（`true` 跨周期保留可领取状态，`false` 仅领取一次） |
+
+### offline-savings 节
+
+| 字段 | 类型 | 默认值 | 说明 |
+|---|---|---|---|
+| `offline-savings.enabled` | `boolean` | `true` | 是否启用离线时长储蓄 |
+| `offline-savings.max-minutes` | `int` | `120` | 每日可储蓄的最大分钟数（范围 0~1440） |
+| `offline-savings.storage-rate` | `double` | `1.0` | 储蓄比例（1.0=全额储蓄当日在线时长，范围 0.0~1.0） |
+| `offline-savings.expire-days` | `int` | `1` | 过期天数（保留用于未来扩展，当前跨天自动清零） |
+
+### server-sign-in-goal 节
+
+全服签到目标/集体奖励配置。
+
+| 字段 | 类型 | 说明 |
+|---|---|---|
+| `server-sign-in-goal.enabled` | `boolean` | 是否启用全服签到目标 |
+| `server-sign-in-goal.broadcast` | `boolean` | 达成目标时是否全服广播 |
+| `server-sign-in-goal.targets` | `List<Map>` | 目标列表 |
+
+每个目标字段：
+
+| 字段 | 类型 | 说明 |
+|---|---|---|
+| `id` | `String` | 目标唯一 ID |
+| `required` | `int` | 所需签到人数 |
+| `name` | `String` | 目标名称 |
+| `rewardText` | `String` | 奖励描述 |
+| `commands` | `List<String>` | 达成后对每个在线玩家执行的命令（支持 `{player}`） |
+| `mail.presets` | `List<String>` | 邮件预设 ID 列表 |
+| `item-rewards` | `List<Map>` | 物品奖励列表 |
+| `chat-cards` | `List<String>` | 聊天卡片 ID 列表 |
+| `subtitle-groups` | `List<String>` | 字幕组 ID 列表 |
+| `title-ids` | `List<String>` | 标题 ID 列表 |
+| `broadcast` | `String` | 达成时的广播文本（支持 `{player}`） |
+
+### time-based-rewards 节
+
+时刻奖励列表，在指定时刻给所有在线玩家发放奖励。
+
+| 字段 | 类型 | 说明 |
+|---|---|---|
+| `id` | `String` | 奖励唯一 ID |
+| `enabled` | `boolean` | 是否启用 |
+| `schedule` | `Map` | 调度规格（见下表） |
+| `name` | `String` | 奖励名称 |
+| `rewardText` | `String` | 奖励文本 |
+| `commands` | `List<String>` | 控制台命令列表（支持 `{player}`） |
+| `mail.presets` | `List<String>` | 邮件预设 ID 列表 |
+| `item-rewards` | `List<Map>` | 物品奖励列表 |
+| `broadcast` | `String` | 触发时全服广播消息（空则不广播） |
+
+`schedule` 子节支持 4 种模式：
+
+| 模式 | 字段 | 说明 |
+|---|---|---|
+| `hourly` | — | 每个自然整点触发 |
+| `daily` | `time: "HH:mm"` | 每天指定时:分触发 |
+| `weekly` | `time: "HH:mm"`, `day: monday` | 每周指定星期几的指定时:分触发 |
+| `interval` | `interval-minutes` / `interval-seconds` / `interval-ticks`（三选一） | 固定间隔触发 |
+
+### 文件路径配置
+
+| 字段 | 类型 | 默认值 | 说明 |
+|---|---|---|---|
+| `sign-in-file` | `String` | `sign-in.yml` | 签到配置文件路径（相对模块数据目录） |
+| `rewards-file` | `String` | `rewards.yml` | 在线阶段奖励文件路径（相对模块数据目录） |
+
+## 签到配置（sign-in.yml）
+
+### 基础签到
+
+| 字段 | 类型 | 默认值 | 说明 |
+|---|---|---|---|
+| `reminder-on-join` | `boolean` | `true` | 玩家进服时是否提醒未签到 |
+| `messages.sign-in-success` | `String` | — | 签到成功消息（支持 `{streak}` `{total}` `{date}` `{day}`） |
+| `messages.sign-in-repeat` | `String` | — | 重复签到消息 |
+| `messages.sign-in-reminder` | `String` | — | 进服提醒消息 |
+| `base-commands` | `List<String>` | — | 每次签到执行的命令（支持 `{player}` `{streak}` `{total}` `{date}` `{day}`） |
+| `base-rewardText` | `String` | — | 基础签到奖励描述 |
+| `base.mail.presets` | `List<String>` | — | 基础签到邮件预设列表 |
+| `base.icon` | `Map` | — | 基础签到 UI 图标（可选） |
+| `base.item-rewards` | `List<Map>` | — | 基础签到物品奖励列表 |
+
+### 补签卡（makeup）
+
+| 字段 | 类型 | 默认值 | 说明 |
+|---|---|---|---|
+| `makeup.enabled` | `boolean` | `true` | 是否启用补签功能 |
+| `makeup.card-name` | `String` | `补签卡` | 补签卡显示名称 |
+| `makeup.success` | `String` | — | 补签成功消息（支持 `{card}` `{cards}` `{date}`） |
+| `makeup.no-card` | `String` | — | 补签卡不足消息 |
+| `makeup.invalid-date` | `String` | — | 日期无效消息 |
+| `makeup.already-signed` | `String` | — | 该日期已签到消息 |
+
+### 里程碑奖励
+
+`streak-rewards`（连续签到）和 `total-rewards`（累计签到）共用相同字段结构：
+
+| 字段 | 类型 | 说明 |
+|---|---|---|
+| `days` | `int` | 触发该奖励所需的天数阈值（恰好等于时触发） |
+| `rewardText` | `String` | 奖励描述 |
+| `icon` | `Map` | UI 图标（可选） |
+| `mail.presets` | `List<String>` | 邮件预设列表 |
+| `commands` | `List<String>` | 执行的命令 |
+| `item-rewards` | `List<Map>` | 物品奖励列表 |
+
+### 每月指定日期奖励（day-of-month-rewards）
+
+| 字段 | 类型 | 说明 |
+|---|---|---|
+| `day` | `int` | 每月几号（1-31） |
+| `rewardText` | `String` | 奖励描述 |
+| `icon` | `Map` | UI 图标（可选） |
+| `mail.presets` | `List<String>` | 邮件预设列表 |
+| `commands` | `List<String>` | 执行的命令 |
+| `item-rewards` | `List<Map>` | 物品奖励列表 |
+
+### 节日奖励（holiday-rewards）
+
+| 字段 | 类型 | 说明 |
+|---|---|---|
+| `month` | `int` | 节日月份（1-12） |
+| `day` | `int` | 节日日期（1-31） |
+| `name` | `String` | 节日名称 |
+| `rewardText` | `String` | 奖励描述 |
+| `icon` | `Map` | UI 图标（可选） |
+| `mail.presets` | `List<String>` | 邮件预设列表 |
+| `commands` | `List<String>` | 执行的命令 |
+| `item-rewards` | `List<Map>` | 物品奖励列表 |
+
+### 权限组加成（permission-bonus-groups）
+
+| 字段 | 类型 | 说明 |
+|---|---|---|
+| `permission` | `String` | 触发该奖励所需的权限节点 |
+| `priority` | `int` | 优先级，数值越大越优先匹配 |
+| `rewardText` | `String` | 奖励描述 |
+| `icon` | `Map` | UI 图标（可选） |
+| `mail.presets` | `List<String>` | 邮件预设列表 |
+| `commands` | `List<String>` | 执行的命令 |
+| `item-rewards` | `List<Map>` | 物品奖励列表 |
+
+## 在线阶段奖励配置（rewards.yml）
+
+```yaml
+rewards:
+  - minutes: 30          # 达到该阶段所需的今日累计在线分钟数
+    name: "第一阶段"       # 阶段名称
+    rewardText: "奖励描述" # 奖励描述文本（显示在 UI 中）
+    icon:                 # UI 展示图标（可选）
+      material: DIAMOND
+      name: "&b第一阶段奖励"
+    mail:
+      presets: []         # 邮件预设 ID 列表
+    commands:             # 达成后执行的命令（支持 {player}）
+      - "say {player} 达成第一阶段"
+    item-rewards:         # 物品奖励列表
+      - source: "minecraft"
+        id: "DIAMOND"
+        amount: 1
+```
+
+### icon 字段
+
+图标配置支持以下写法，详见 [图标](/docs/guide/icons)：
+
+| 字段 | 说明 |
+|---|---|
+| `material` | 原版材质名（如 `DIAMOND`） |
+| `source` + `id` | 外部物品库图标（`mythic` / `neige` / `overture` / `mmoitems`） |
+| `name` | 图标悬浮名称（支持 `&` 颜色码） |
+| `amount` | 图标显示数量 |
+| `lore` | 图标描述（列表） |
+| `custom-model-data` | 自定义模型数据 |
+| `glow` | 是否附魔发光 |
+| `texture` / `texture-url` | ArcartX 自定义贴图 |
+| `nbt` | 自定义 NBT（键值对或 SNBT 字符串） |
+
+### item-rewards 字段
+
+物品奖励通过 ItemSourceRegistry 生成，详见 [物品来源](/docs/guide/item-sources)：
+
+| 字段 | 类型 | 说明 |
+|---|---|---|
+| `source` | `String` | 物品来源（`minecraft` / `mythic` / `neige` / `overture` / `mmoitems`），默认 `minecraft` |
+| `id` | `String` | 物品 ID（mmoitems 格式为 `类型ID;物品ID`） |
+| `amount` | `int` | 数量 |
+| `nbt` | `String` | 可选，自定义 NBT（SNBT 字符串，仅 minecraft 源有效） |
+
+## 完整配置示例
+
+```yaml
+# ArcartXOnlineRewards.yml
+config-version: 4
+
+settings:
+  debug: false
+  client-sync-delay-ticks: 50
+  timezone: ""
+
+messages:
+  done: "§c所有阶段已领取"
+
+variables:
+  progress: "arcartx_online_time"
+  title: "arcartx_online_time_title"
+
+ui:
+  ui-id: AXS:online_rewards_menu
+  packet-id: AXS_ONLINE_REWARDS
+  register-ui-on-enable: true
+  overwrite-ui-files: false
+
+time-bonus:
+  permission-groups:
+    - permission: "ArcartXSuite.onlinerewards.time.1_5"
+      multiplier: 1.5
+      priority: 10
+    - permission: "ArcartXSuite.onlinerewards.time.2"
+      multiplier: 2.0
+      priority: 20
+
+storage:
+  shared: true
+
+cross-server:
+  enabled: false
+
+sign-in-file: "sign-in.yml"
+rewards-file: "rewards.yml"
+
+weekly-rewards:
+  - id: "weekly_2h"
+    minutes: 120
+    name: "本周活跃 2 小时"
+    rewardText: ""
+    icon:
+      material: CLOCK
+      name: "&b本周活跃 2 小时"
+    commands: []
+    mail:
+      presets: []
+    repeat: false
+
+monthly-rewards:
+  - id: "monthly_10h"
+    minutes: 600
+    name: "本月活跃 10 小时"
+    rewardText: ""
+    icon:
+      material: NETHER_STAR
+      name: "&b本月活跃 10 小时"
+    commands: []
+    mail:
+      presets: []
+    repeat: false
+
+offline-savings:
+  enabled: true
+  max-minutes: 120
+  storage-rate: 1.0
+  expire-days: 1
+
+server-sign-in-goal:
+  enabled: true
+  broadcast: true
+  targets:
+    - id: "goal_10"
+      required: 10
+      name: "今日 10 人签到"
+      rewardText: ""
+      commands: []
+      mail:
+        presets: []
+      chat-cards: []
+      subtitle-groups: []
+      title-ids: []
+      broadcast: "§e[全服签到] §f今日 10 人签到 §7已达成！"
+
+time-based-rewards:
+  - id: "evening_reward"
+    enabled: true
+    schedule:
+      mode: daily
+      time: "20:00"
+    name: "晚间在线奖励"
+    rewardText: ""
+    commands:
+      - "say {player} 领取了晚间在线奖励"
+    mail:
+      presets: []
+    item-rewards: []
+    broadcast: "§e[时刻奖励] §f晚间在线奖励已发放！"
+```
+
+```yaml
+# sign-in.yml
+reminder-on-join: true
+
+messages:
+  sign-in-success: "§a今日签到成功，连续 {streak} 天，累计 {total} 天。"
+  sign-in-repeat: "§e今天已经签到过了。"
+  sign-in-reminder: "§e你今天还没有签到，输入 /signin 即可领取奖励。"
+
+base-commands:
+  - "say [签到] {player} 完成了今日签到"
+
+base-rewardText: "每日基础奖励"
+base:
+  icon:
+    material: WRITABLE_BOOK
+    name: "&f每日签到"
+  mail:
+    presets: []
+  item-rewards:
+    - source: "minecraft"
+      id: "DIAMOND"
+      amount: 1
+
+makeup:
+  enabled: true
+  card-name: "补签卡"
+  success: "§a已消耗 1 张{card}补签 {date}，当前剩余 {cards} 张。"
+  no-card: "§c你的{card}不足，无法补签。"
+  invalid-date: "§c只能补签本月今天之前未签到的日期。"
+  already-signed: "§e该日期已经签到过了。"
+
+streak-rewards:
+  - days: 7
+    rewardText: "连续签到 7 天奖励"
+    icon:
+      material: GOLD_INGOT
+      name: "&6连续签到 7 天"
+    mail:
+      presets: []
+    commands:
+      - "say [签到] {player} 达成连续签到 {streak} 天"
+
+total-rewards:
+  - days: 30
+    rewardText: "累计签到 30 天奖励"
+    icon:
+      material: NETHER_STAR
+      name: "&d累计签到 30 天"
+    mail:
+      presets: []
+    commands:
+      - "say [签到] {player} 达成累计签到 {total} 天"
+
+day-of-month-rewards:
+  - day: 1
+    rewardText: "每月 1 号奖励"
+    commands:
+      - "say [签到] {player} 完成每月 1 号签到"
+
+holiday-rewards:
+  - month: 1
+    day: 1
+    name: "元旦签到"
+    rewardText: "元旦签到奖励"
+    commands:
+      - "say [签到] {player} 完成元旦签到"
+
+permission-bonus-groups:
+  - permission: "ArcartXSuite.onlinerewards.signin.bonus"
+    priority: 10
+    rewardText: "权限额外奖励"
+    mail:
+      presets: []
+    commands:
+      - "say [签到] {player} 领取了权限额外签到奖励"
+```
+
+```yaml
+# rewards.yml
+rewards:
+  - minutes: 30
+    name: "第一阶段"
+    rewardText: "在线 30 分钟奖励"
+    icon:
+      material: DIAMOND
+      name: "&b第一阶段奖励"
+    mail:
+      presets: []
+    commands:
+      - "say {player} 达成第一阶段"
+    item-rewards:
+      - source: "minecraft"
+        id: "DIAMOND"
+        amount: 1
+
+  - minutes: 60
+    name: "第二阶段"
+    rewardText: "在线 60 分钟奖励"
+    icon:
+      material: GOLD_INGOT
+      name: "&6第二阶段奖励"
+    mail:
+      presets: []
+    commands:
+      - "say {player} 达成第二阶段"
+
+  - minutes: 120
+    name: "第三阶段"
+    rewardText: "在线 120 分钟奖励"
+    icon:
+      material: EMERALD
+      name: "&a第三阶段奖励"
+    mail:
+      presets: []
+    commands:
+      - "say {player} 达成第三阶段"
+```

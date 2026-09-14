@@ -1,0 +1,277 @@
+---
+title: 配置
+description: EventPacket 配置文件详解
+---
+
+## 配置文件概览
+
+EventPacket 模块的配置文件位于 `data/eventpacket/ArcartXEventPacket.yml`，规则文件位于 `data/eventpacket/rules/` 目录，客户端回包预设位于 `data/eventpacket/packet-command-presets/` 目录。执行 `/axs eventpacket reload` 可热重载配置和规则。
+
+配置版本号 `config-version` 用于迁移系统自动升级配置结构，当前版本为 `2`。
+
+## 主配置完整字段表
+
+### settings 节
+
+| 配置项 | 类型 | 默认值 | 说明 |
+|---|---|---|---|
+| `settings.refresh-interval-ticks` | long | `20` | PAPI 占位符轮询刷新间隔（tick，20 = 1 秒），最小为 1 |
+| `settings.debug` | boolean | `false` | 是否输出 EventPacket 模块调试日志（规则匹配、动作执行、条件失败等） |
+
+### storage 节
+
+| 配置项 | 类型 | 默认值 | 说明 |
+|---|---|---|---|
+| `storage.shared` | boolean | `true` | 是否共享存储模式（推荐，使用本体统一数据源） |
+| `storage.mode` | String | `sqlite` | 存储模式（`sqlite` 或 `mysql`），仅 `shared: false` 时有效 |
+| `storage.sqlite.file` | String | `eventpacket.db` | SQLite 文件名（相对模块数据目录），仅自建模式有效 |
+| `storage.pool-size` | int | `2` | JDBC 连接池大小，SQLite 建议保持 1，仅自建模式有效 |
+| `storage.mysql.host` | String | `127.0.0.1` | MySQL 主机地址，仅自建 MySQL 模式有效 |
+| `storage.mysql.port` | int | `3306` | MySQL 端口 |
+| `storage.mysql.database` | String | `arcartxsuite` | MySQL 数据库名 |
+| `storage.mysql.username` | String | `root` | MySQL 用户名 |
+| `storage.mysql.password` | String | （空） | MySQL 密码 |
+| `storage.mysql.table-prefix` | String | `axs_eventpacket_` | MySQL 表名前缀 |
+
+> **共享模式**（推荐）：`shared: true` 时使用本体 `config.yml` 的 `storage` 节配置，各模块共用连接池，性能较好。
+> **自建模式**（不推荐）：`shared: false` 时模块独立创建 HikariCP 连接池，需配置上方字段。
+
+### packet-command 节
+
+| 配置项 | 类型 | 默认值 | 说明 |
+|---|---|---|---|
+| `packet-command.enabled` | boolean | `true` | 是否启用客户端回包预设功能 |
+| `packet-command.packet-id` | String | `ArcartXEventPacket` | 客户端回包 ID，客户端 `Packet.send` 时需匹配此值 |
+| `packet-command.presets` | section | （空） | 内联客户端回包预设定义（也可在 `packet-command-presets/` 目录中定义） |
+
+### entity-cleanup 节
+
+| 配置项 | 类型 | 默认值 | 说明 |
+|---|---|---|---|
+| `entity-cleanup.enabled` | boolean | `false` | 是否启用实体清理（ClearLag）功能 |
+| `entity-cleanup.interval-seconds` | int | `300` | 清理间隔（秒） |
+| `entity-cleanup.warning-seconds` | int | `30` | 清理前警告倒计时（秒），0 = 不警告 |
+| `entity-cleanup.warning-message` | String | `&c[清理] 将在 {seconds} 秒后清理掉落物！` | 警告消息，支持 `{seconds}` 变量和 `&` 颜色码 |
+| `entity-cleanup.cleanup-message` | String | `&a[清理] 已清除 {count} 个实体。` | 清理完成消息，支持 `{count}` 变量 |
+| `entity-cleanup.clear-dropped-items` | boolean | `true` | 是否清理掉落物 |
+| `entity-cleanup.clear-monsters` | boolean | `false` | 是否清理怪物（Monster 接口） |
+| `entity-cleanup.clear-animals` | boolean | `false` | 是否清理动物（Animals 接口） |
+| `entity-cleanup.skip-named` | boolean | `true` | 是否跳过有自定义名称的实体 |
+| `entity-cleanup.clear-entity-types` | list | `[]` | 额外要清理的实体类型（`EntityType` 枚举名） |
+| `entity-cleanup.entity-whitelist` | list | `[VILLAGER, ARMOR_STAND]` | 不清理的实体类型白名单 |
+| `entity-cleanup.worlds` | list | `[]` | 限定生效世界，空 = 所有世界 |
+
+### scheduled-commands 节
+
+`scheduled-commands` 为动态节，键名即任务 ID，可定义多个定时任务。
+
+| 配置项 | 类型 | 默认值 | 说明 |
+|---|---|---|---|
+| `scheduled-commands.<id>.enabled` | boolean | `true` | 是否启用该任务 |
+| `scheduled-commands.<id>.interval-seconds` | int | `300` | 固定间隔触发间隔（秒），旧模式 |
+| `scheduled-commands.<id>.delay-seconds` | int | `0` | 首次执行延迟（秒），旧模式 |
+| `scheduled-commands.<id>.as-console` | boolean | `true` | 是否以控制台身份执行（false 则以玩家身份执行） |
+| `scheduled-commands.<id>.permission` | String | （空） | 玩家执行模式下的权限过滤，空 = 所有在线玩家 |
+| `scheduled-commands.<id>.commands` | list | `[]` | 要执行的命令列表，支持 `{player}` 和 `{online}` 变量 |
+| `scheduled-commands.<id>.broadcast-message` | String | （空） | 任务执行后广播的消息，支持 `&` 颜色码 |
+| `scheduled-commands.<id>.schedule` | section | （空） | 日历触发配置（1.6.0+），存在时优先于固定间隔模式 |
+
+#### schedule 子节（日历触发）
+
+| 配置项 | 类型 | 说明 |
+|---|---|---|
+| `schedule.mode` | String | 调度模式：`hourly`（每小时整点）、`daily`（每天指定时刻）、`weekly`（每周指定时刻）、`interval`（固定间隔） |
+| `schedule.time` | String | `daily`/`weekly` 模式的触发时刻，格式 `HH:mm`（如 `02:30`） |
+| `schedule.day` | String | `weekly` 模式的星期几（如 `monday`、`friday`） |
+| `schedule.interval-ticks` | long | `interval` 模式的间隔（tick） |
+| `schedule.interval-seconds` | int | `interval` 模式的间隔（秒） |
+| `schedule.interval-minutes` | int | `interval` 模式的间隔（分钟） |
+
+> `interval` 模式按优先级读取 `interval-ticks` > `interval-seconds` > `interval-minutes`。
+
+## 规则配置
+
+规则文件位于 `data/eventpacket/rules/` 目录，每个 `.yml` 文件的根键即为规则 ID。目录文件按文件名排序加载，同名规则以最后加载的文件为准。
+
+### 规则字段表
+
+| 字段 | 类型 | 默认值 | 说明 |
+|---|---|---|---|
+| `enabled` | boolean | `true` | 是否启用该规则 |
+| `trigger` | String | `join` | 触发器类型，见下方触发器枚举表 |
+| `signal` | String | （空） | 信号标识，用于信号过滤（command-signal / quest-* / objective-* / chemdah-level-change） |
+| `placeholder` | String | （空） | PAPI 占位符表达式（PAPI 触发器使用），如 `%player_level%` |
+| `threshold` | number | （空） | 数值阈值（placeholder-threshold 触发器使用） |
+| `require-non-empty` | boolean | `false` | 是否要求占位符值非空才触发 |
+| `count` | int | `1` | 击杀计数触发器所需的目标击杀数 |
+| `worlds` | list | `[]` | 限制生效的世界名集合，空 = 不限制 |
+| `entity-types` | list | `[]` | 限制生效的实体类型集合（`EntityType` 枚举名） |
+| `mythic-mob-ids` | list | `[]` | 限制生效的 MythicMob ID 集合 |
+| `repeatable` | boolean | `false` | 是否可重复触发 |
+| `cooldown` | string/number | `0` | 冷却时间，支持 `10s`/`5m`/`2h`/`1d` 或数字（秒） |
+| `conditions` | list | `[]` | 脚本条件列表，全部满足才触发，详见 [条件系统](/docs/guide/conditions) |
+| `actions` | list | （必填） | 触发后执行的动作列表，至少一个 |
+| `script` | string | （空） | 脚本内容（script-js / script-aria 触发器必填） |
+
+### 触发器枚举
+
+| 触发器 | 配置值 | 说明 |
+|---|---|---|
+| 玩家加入 | `join` | 玩家加入服务器时触发 |
+| 首次加入 | `first-join` | 玩家首次加入服务器时触发 |
+| 玩家退出 | `quit` | 玩家退出服务器时触发 |
+| PAPI 增加 | `papi-increase` / `placeholder-increase` | 指定 PAPI 数值增加时触发 |
+| PAPI 减少 | `papi-decrease` / `placeholder-decrease` | 指定 PAPI 数值减少时触发 |
+| PAPI 阈值 | `placeholder-threshold` | 指定 PAPI 数值达到阈值时触发 |
+| 击杀计数 | `mob-kill-count` | 玩家击杀指定怪物累计到条件时触发 |
+| 命令信号 | `command-signal` | 管理命令手动发送信号时触发 |
+| 客户端回包 | `client-packet` | 客户端 `Packet.send` 回包时触发 |
+| 任务接受 | `quest-accept` | Chemdah 任务接受后触发 |
+| 任务完成 | `quest-complete` | Chemdah 任务完成后触发 |
+| 任务失败 | `quest-fail` | Chemdah 任务失败后触发 |
+| 目标完成 | `objective-complete` | Chemdah 目标完成后触发 |
+| 目标继续 | `objective-continue` | Chemdah 目标继续时触发 |
+| 目标重启 | `objective-restart` | Chemdah 目标重启时触发 |
+| 等级变化 | `chemdah-level-change` | Chemdah 等级变化时触发 |
+| JS 脚本 | `script-js` | JavaScript 表达式返回 true 时触发 |
+| Aria 脚本 | `script-aria` | Aria 表达式返回 true 时触发 |
+
+### 动作类型枚举
+
+| 动作类型 | 说明 | 必填参数 | 可选参数 |
+|---|---|---|---|
+| `questgps.offer` | 推送任务到 QuestGPS | `quest-id` | `open-menu`（默认 true） |
+| `questgps.accept` | 接受指定任务 | `quest-id` | — |
+| `questgps.open` | 打开 QuestGPS 菜单 | — | — |
+| `questgps.track` | 追踪任务或阶段 | `quest-id` | `task-id` |
+| `subtitle.play` | 播放字幕组 | `group-id` | `subtitle-id` / `id`（别名） |
+| `chat.card` | 发送聊天卡片 | `card-id` | `data`（卡片自定义数据） |
+| `title.give` | 发放称号 | `title-id` | `duration`（默认 `permanent`，如 `7d`） |
+| `command.dispatch` | 派发命令 | `command` | `executor`（`console`/`player`/`op`，默认 console） |
+| `ui-packet` | 向客户端发送 UI 数据包 | `ui-id`、`packet-handler` | `recipients`、`pack` |
+| `mail.send` | 发送邮件 | `preset-id` | — |
+| `qq-broadcast` | QQ 群广播 | `message` | `group-id`（不填则发送到所有群） |
+| `announcer.play` | 播放公告字幕组 | `group-id` | `id`（别名） |
+| `combateffect.play` | 播放战斗特效 | `pack` | `ui-id`、`packet-handler`（默认 `play`） |
+
+### 接收者类型（ui-packet 动作）
+
+| 配置值 | 别名 | 说明 |
+|---|---|---|
+| `self` | `subject`、`player` | 仅触发者自身 |
+| `all-online` | `all` | 全部在线玩家 |
+| `others` | `other-online`、`other-players` | 除触发者外的在线玩家 |
+
+## 完整配置示例
+
+```yaml
+# 配置版本号（请勿手动修改）
+config-version: 2
+
+settings:
+  refresh-interval-ticks: 20
+  debug: false
+
+storage:
+  shared: true
+
+packet-command:
+  enabled: true
+  packet-id: "ArcartXEventPacket"
+
+rules-directory: "rules"
+
+entity-cleanup:
+  enabled: false
+  interval-seconds: 300
+  warning-seconds: 30
+  warning-message: '&c[清理] 将在 {seconds} 秒后清理掉落物！'
+  cleanup-message: '&a[清理] 已清除 {count} 个实体。'
+  clear-dropped-items: true
+  clear-monsters: false
+  clear-animals: false
+  skip-named: true
+  clear-entity-types: []
+  entity-whitelist:
+    - VILLAGER
+    - ARMOR_STAND
+  worlds: []
+
+scheduled-commands:
+  example-save:
+    enabled: false
+    interval-seconds: 600
+    delay-seconds: 600
+    as-console: true
+    commands:
+      - 'save-all'
+    broadcast-message: ''
+  example-tip:
+    enabled: false
+    interval-seconds: 1800
+    delay-seconds: 60
+    as-console: true
+    commands:
+      - 'say 欢迎加入服务器！输入 /help 查看帮助。'
+    broadcast-message: ''
+```
+
+### 定时命令日历触发示例
+
+```yaml
+scheduled-commands:
+  # 每天凌晨 3 点执行自动保存
+  daily-save:
+    enabled: true
+    as-console: true
+    commands:
+      - 'save-all'
+    schedule:
+      mode: daily
+      time: "03:00"
+
+  # 每周一凌晨 4 点重置周常
+  weekly-reset:
+    enabled: true
+    as-console: true
+    commands:
+      - 'say 周常任务已重置！'
+    schedule:
+      mode: weekly
+      day: monday
+      time: "04:00"
+
+  # 每 30 分钟执行一次在线奖励检查
+  interval-reward:
+    enabled: true
+    as-console: true
+    commands:
+      - 'onlinerewards check-all'
+    schedule:
+      mode: interval
+      interval-minutes: 30
+```
+
+## 配置迁移
+
+EventPacket 模块当前配置版本为 `2`。从版本 1 升级到版本 2 的迁移操作：
+
+```yaml
+from-version: 1
+to-version: 2
+description: "storage.mode 重命名为 storage.shared，值从 sqlite/mysql 映射为 true/false"
+operations:
+  - type: set-if-missing
+    path: storage.shared
+    value: true
+  - type: rename
+    from: storage.mode
+    to: storage.shared
+  - type: value-map
+    path: storage.shared
+    mapping:
+      "mysql": false
+      "sqlite": true
+```
+
+迁移由 `ConfigDiagnosticEngine` 自动执行，用户无需手动干预。详见 [配置管理指南](/docs/guide/config-management)。

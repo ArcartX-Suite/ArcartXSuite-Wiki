@@ -1,0 +1,466 @@
+---
+title: 跨服同步与聚合
+description: Tab 模块跨服快照协议、聚合模式、退服宽限、批次节流与快照调试详解
+---
+
+# 跨服同步与聚合
+
+> **付费模块**
+
+Tab 模块的跨服同步系统通过宿主 `CrossServerAPI` 在多个子服节点间广播和接收 Tab 快照，实现跨服玩家列表聚合。模块支持三种跨服模式：完整玩家列表合并、服务器聚合（每服一行）以及退服宽限（避免跨服跳传闪烁）。
+
+## 跨服配置
+
+### 配置层级
+
+跨服功能涉及三个层级的配置：
+
+| 配置层级 | 文件 | 字段 | 说明 |
+|---|---|---|---|
+| 宿主 | `config.yml` | `cross-server` 节 | Redis 或 Proxy 后端连接参数 |
+| 模块 | `ArcartXTab.yml` | `settings.cross-server` | 全局默认开关 |
+| 定义 | Tab 定义文件 | `cross-server` | 单定义覆盖全局开关（`null` 时使用全局） |
+
+```yaml
+# ArcartXTab.yml
+settings:
+  server-id: "lobby-01"
+  cross-server: true
+  stale-snapshot-ms: 30000
+  leave-grace-ms: 2000
+  batch:
+    window-ticks: 20
+cross-server:
+  enabled: true
+```
+
+### 跨服判定逻辑
+
+每个 Tab 定义通过 `isDefinitionCrossServer()` 判定是否启用跨服：
+
+```
+if definition.cross-server != null:
+    return definition.cross-server
+else:
+    return configuration.crossServerDefault
+```
+
+> Tab 定义中 `cross-server` 字段类型为 `Boolean`（包装类型），可为 `null`。`null` 表示使用全局 `settings.cross-server` 默认值。显式设为 `true` 或 `false` 则覆盖全局设置。
+
+### server-id
+
+`server-id` 是当前服务端节点的唯一标识，用于跨服快照中区分不同节点。每个节点必须配置唯一的 `server-id`，否则接收端会跳过自身快照。
+
+```yaml
+settings:
+  server-id: "survival-01"
+```
+
+> `server-id` 为空或空白时自动回退为 `default`。多节点部署时建议使用有意义的名称（如 `lobby-01` / `survival-01` / `arena-01`）。
+
+## 跨服通道
+
+Tab 模块通过宿主 `CrossServerAPI.openChannel()` 打开名为 `tab` 的跨服通道。
+
+```java
+crossServerChannel = crossServer.openChannel(
+    "tab",
+    configuration.crossServer(),
+    delivery -> handleRemoteSnapshotPayload(delivery.payload(), delivery.nodeId())
+);
+```
+
+| 通道属性 | 值 | 说明 |
+|---|---|---|
+| 通道名称 | `tab` | 模块 ID 作为通道名 |
+| 配置 | `configuration.crossServer()` | 继承宿主 `config.yml` 的 `cross-server` 节 |
+| 回调 | `handleRemoteSnapshotPayload` | 收到远程快照时的处理函数 |
+
+### 后端类型
+
+跨服通道支持两种后端，由宿主 `config.yml` 的 `cross-server` 节配置：
+
+| 后端 | 配置 | 说明 |
+|---|---|---|
+| Redis | `redis.enabled: true` | 通过 Redis Pub/Sub 广播消息，适合多机房部署 |
+| Proxy | `proxy.enabled: true` | 通过 BungeeCord / Velocity Forward 转发消息，适合单代理网络 |
+
+```yaml
+# 宿主 config.yml
+cross-server:
+  node-id: "survival-01"
+  redis:
+    enabled: true
+    host: "127.0.0.1"
+    port: 6379
+    channel: "AXS:CROSS"
+  proxy:
+    enabled: false
+    messenger-channel: "AXS_CROSS"
+```
+
+> Redis 与 Proxy 可同时启用，模块会优先使用可用的后端。两个后端均不可用时通道不活跃，跨服功能静默禁用。
+
+## 快照协议
+
+跨服快照使用 YAML 格式编码，由 `TabSnapshotCodec` 负责序列化和反序列化。
+
+### TabServerSnapshot 结构
+
+| 字段 | 类型 | 说明 |
+|---|---|---|
+| `nodeId` | `String` | 来源节点标识 |
+| `definitionId` | `String` | 对应的 Tab 定义 ID |
+| `timestamp` | `long` | 快照时间戳（毫秒） |
+| `entries` | `List<TabRemoteEntry>` | Tab 条目列表 |
+
+### TabRemoteEntry 结构
+
+| 字段 | 类型 | 说明 |
+|---|---|---|
+| `playerUuid` | `String` | 玩家 UUID |
+| `playerName` | `String` | 玩家名称 |
+| `sortValue` | `double` | 首键排序数值（v1 兼容） |
+| `sortStringValue` | `String` | 首键排序字符串（v1 兼容） |
+| `sortValues` | `List<Double>` | 多键排序数值列表（v2 新增） |
+| `sortStringValues` | `List<String>` | 多键排序字符串列表（v2 新增） |
+| `groupKey` | `String` | 分组键（v2 新增） |
+| `renderedPack` | `Object` | 已渲染的 pack（`String` / `List` / `Map`） |
+
+### YAML 编码格式
+
+```yaml
+protocol: 2
+node-id: "survival-01"
+definition-id: "online-tab"
+timestamp: 1700000000000
+entries:
+  - uuid: "550e8400-e29b-41d4-a716-446655440000"
+    name: "Alice"
+    sort-value: 0.0
+    sort-string: "Alice"
+    sort-values: [0.0, 50.0, "Alice"]
+    sort-string-values: ["Alice", "", "Alice"]
+    group-key: "vip1"
+    pack: "&6[VIP] Alice"
+  - uuid: "660e8400-e29b-41d4-a716-446655440001"
+    name: "Bob"
+    sort-value: 1.0
+    sort-string: "default"
+    sort-values: [1.0, 30.0, "Bob"]
+    sort-string-values: ["default", "", "Bob"]
+    group-key: "default"
+    pack: "Bob"
+```
+
+### 协议版本兼容
+
+| 版本 | 字段 | 兼容行为 |
+|---|---|---|
+| v1 | `sort-value` / `sort-string` | 仅首键排序值 |
+| v2 | `sort-values` / `sort-string-values` / `group-key` | 多键排序值 + 分组键 |
+
+v2 节点发出的快照对 v1 节点而言会丢失 `sortValues` / `sortStringValues` / `groupKey` 三个字段，但首键 `sortValue` / `sortStringValue` 仍然可用，等价于 v1 行为。v1 节点发出的快照在 v2 节点解码时，这三个字段会被填充为兼容值（首键复制 + 空 groupKey）。
+
+### 编解码限制
+
+| 限制项 | 值 | 说明 |
+|---|---|---|
+| `MAX_DECODE_CONTENT_LENGTH` | `524288`（512 KB） | 解码时允许的最大 payload 字符数（UTF-16），防止恶意大包 |
+| `MAX_ENTRIES` | `500` | 单快照最大玩家条目数 |
+
+> 超过限制的快照会被拒绝解码并抛出 `InvalidConfigurationException`，模块会打印警告日志但不影响其他快照的处理。
+
+## 快照广播流程
+
+每个刷新周期，模块对所有启用跨服的 Tab 定义广播本服快照。
+
+```
+broadcastLocalSnapshots(onlinePlayers):
+  ├─ 检查跨服通道是否活跃
+  ├─ 对每个 enabled 且 cross-server 的 definition:
+  │    ├─ 检查 batch.window-ticks 节流
+  │    ├─ collectLocalEntriesForBroadcast()
+  │    │    ├─ 在线玩家 → 计算 sortValues / sortStrings / groupKey / renderedPack
+  │    │    └─ 退服宽限缓存 → 保留已退服玩家在 grace 期内的最后渲染结果
+  │    ├─ TabSnapshotCodec.encode() → YAML 字符串
+  │    └─ crossServerChannel.publish()
+  └─ 更新 lastBroadcastTimestamps
+```
+
+### collectLocalEntriesForBroadcast
+
+为每个在线玩家构造 `TabRemoteEntry`，包含预计算的排序值与已渲染的 pack：
+
+| 数据 | 计算方式 | 说明 |
+|---|---|---|
+| `sortValues` | `computeSortValuesPerKey()` | 按 `sortKeys` 顺序计算每个键的数值 |
+| `sortStringValues` | `computeSortStringValuesPerKey()` | 按 `sortKeys` 顺序计算每个键的字符串 |
+| `groupKey` | `computeGroupKey()` | 解析 `grouping.groupByPapi` 得到分组键 |
+| `renderedPack` | `renderNode(packTemplate, player)` | 按当前玩家上下文渲染 pack 模板 |
+
+> `renderedPack` 在发送端预渲染，接收端直接使用该渲染结果，无需在接收端重新解析 PAPI。这意味着跨服 Tab 的显示格式由发送端决定，所有节点应使用兼容的 pack 配置。
+
+## 快照接收流程
+
+```
+handleRemoteSnapshotPayload(payload, nodeId):
+  ├─ TabSnapshotCodec.decode(payload) → TabServerSnapshot
+  ├─ handleRemoteSnapshot(snapshot):
+  │    ├─ 跳过自身节点（nodeId 相同）
+  │    ├─ 存入 remoteSnapshots[nodeId][definitionId]
+  │    ├─ 更新 remoteSnapshotTimestamps[nodeId]
+  │    └─ requestGlobalRefresh("cross-server")
+  └─ 过期清理（cleanupStaleSnapshots）
+       └─ 超过 stale-snapshot-ms 的远程节点条目被移除
+```
+
+### remoteSnapshots 数据结构
+
+```
+remoteSnapshots: Map<nodeId, Map<definitionId, List<TabRemoteEntry>>>
+  ├─ "survival-01" → { "online-tab": [...], "arena": [...] }
+  ├─ "lobby-01"    → { "online-tab": [...] }
+  └─ "snapshot:bug-repro-001:local" → { "online-tab": [...] }  ← 调试快照虚拟节点
+```
+
+> `snapshot:*` 前缀的虚拟节点由调试快照命令注入，在 `cleanupStaleSnapshots` 中被豁免清理，仅通过命令显式 `unload`。
+
+### 过期快照清理
+
+`cleanupStaleSnapshots()` 在每个刷新周期执行，移除超过 `stale-snapshot-ms` 未更新的远程节点条目。
+
+| 配置项 | 默认值 | 说明 |
+|---|---|---|
+| `stale-snapshot-ms` | `30000` | 远程快照过期时间（毫秒），最小 5000 |
+
+> 如果某个远程节点崩溃或网络中断，其快照会在 `stale-snapshot-ms` 后自动从 Tab 列表中移除，避免显示过期数据。
+
+## 跨服 Payload 构建
+
+跨服模式下，`buildCrossServerPayload()` 将本服与远程节点的条目合并排序后构建 payload。
+
+### 合并排序流程
+
+```
+buildCrossServerPayload(definition, onlinePlayers, viewer):
+  1. 收集本服条目（应用 filters / hide-vanished）
+  2. 收集远程节点条目（从 remoteSnapshots 读取）
+  3. pinned 分桶（远程条目统一进入 middle）
+  4. 多键排序（使用预计算的 sortValues / sortStringValues）
+  5. maxEntries 截断
+  6. pagination 切片（基于 viewer 页码）
+  7. grouping 分组（使用预计算的 groupKey）
+  8. 渲染输出
+```
+
+### 本服与远程条目差异
+
+| 特性 | 本服条目 | 远程条目 |
+|---|---|---|
+| 过滤器 | 应用 `filters.include` / `exclude` / `hide-vanished` | 不应用（发送端已过滤） |
+| pinned 分桶 | 可命中 `top` / `bottom` 规则 | 统一进入 `middle`（无法判定 permission / papi） |
+| 排序值 | 接收端实时计算 | 使用快照中预计算的值 |
+| 分组键 | 接收端实时计算 | 使用快照中预计算的 `groupKey` |
+| pack 渲染 | 接收端实时渲染 | 使用快照中已渲染的 `renderedPack` |
+
+> 远程条目的 `renderedPack` 是发送端按该玩家上下文渲染的结果。如果各节点的 pack 配置不同，同一玩家在不同节点的渲染格式可能不一致。建议所有节点使用相同的 Tab 定义文件。
+
+## 聚合模式 aggregate
+
+聚合模式将每个服务器（含本服与远程节点）在 Tab 中只占一行，不展开玩家列表。适用于大区 BungeeCord / Velocity 网络的"服务器总览"视图。
+
+### 配置
+
+| 字段 | 类型 | 默认值 | 说明 |
+|---|---|---|---|
+| `enabled` | `boolean` | `false` | 是否启用聚合模式（仅 `cross-server: true` 时生效） |
+| `line-pack` | `Object` | - | 每行渲染模板，支持 `{server-id}` / `{server-display}` / `{server-online}` 占位符及完整 PAPI |
+
+### line-pack 占位符
+
+| 占位符 | 说明 |
+|---|---|
+| `{server-id}` | 服务端 ID（来自 `settings.server-id`） |
+| `{server-display}` | 服务端显示名（默认同 `server-id`，自定义渲染时可被替换） |
+| `{server-online}` | 当前服在线人数 |
+
+```yaml
+aggregate:
+  enabled: true
+  line-pack: "&b{server-display} &7- &f{server-online} 人在线"
+```
+
+### 聚合 Payload 构建
+
+```
+buildAggregatePayload(definition, onlinePlayers):
+  ├─ 本服一行: renderAggregateLine(line-pack, serverId, onlinePlayers.size())
+  ├─ 远程节点逐一行:
+  │    └─ renderAggregateLine(line-pack, nodeId, remoteEntries.size())
+  └─ 合并为 payload
+```
+
+> 聚合模式下 PAPI 按本服第一个在线玩家上下文渲染。如果本服无在线玩家，PAPI 不解析（占位符原样输出）。`line-pack` 未配置时回退使用 `pack` 作为行模板。
+
+### 聚合模式配置示例
+
+```yaml
+# ArcartXTab.yml
+settings:
+  server-id: "lobby-01"
+  cross-server: true
+  stale-snapshot-ms: 30000
+cross-server:
+  enabled: true
+```
+
+```yaml
+# tabs/overview.yml
+enabled: true
+ui-targets:
+  - ui-id: "AXS:tab"
+    packet-handler: "tab"
+cross-server: true
+aggregate:
+  enabled: true
+  line-pack: "&b{server-display} &7- &f{server-online} 人在线"
+pack: "{server-id}"
+```
+
+## 退服宽限
+
+退服宽限（`leave-grace-ms`）在玩家退服后保留其在跨服快照中的虚拟条目，避免跨服跳传时的"消失闪烁"。
+
+### 配置
+
+| 配置项 | 默认值 | 说明 |
+|---|---|---|
+| `leave-grace-ms` | `0` | 退服宽限期（毫秒），0 表示禁用。典型值 1500~3000 |
+
+```yaml
+settings:
+  leave-grace-ms: 2000
+```
+
+### 宽限机制
+
+```
+PlayerQuitEvent:
+  ├─ 清理 viewer 状态（view / page / forcedRefreshes）
+  ├─ if leave-grace-ms > 0 && 跨服通道活跃:
+  │    └─ cacheGraceEntry(player)
+  │         ├─ 保存最后一次的 renderedPack（每个 definition）
+  │         ├─ 保存最后一次的 sortNumeric / sortString（每个 definition）
+  │         └─ 设置过期时间 = 当前时间 + leave-grace-ms
+  └─ requestGlobalRefresh("player-quit")
+
+collectLocalEntriesForBroadcast():
+  ├─ 在线玩家条目
+  └─ 退服宽限缓存条目（未过期且不在在线列表中）
+```
+
+> 宽限期内，退服玩家的最后一次渲染快照被缓存到 `leaveGraceCache`，并在 `collectLocalEntriesForBroadcast` 中作为额外条目加入快照。其他节点在宽限期内仍能看到该玩家，避免跨服跳传时的短暂消失。宽限期过后 `cleanupGraceCache()` 自动清理。
+
+## 批次节流
+
+`batch.window-ticks` 控制跨服快照广播的最小间隔，避免玩家进退服触发的额外刷新在短时间内产生广播风暴。
+
+| 配置项 | 默认值 | 说明 |
+|---|---|---|
+| `batch.window-ticks` | `0` | 相邻两次广播最小间隔（ticks，50ms/tick）。0 表示禁用节流 |
+
+```yaml
+settings:
+  refresh-interval-ticks: 20
+  batch:
+    window-ticks: 20
+```
+
+### 节流逻辑
+
+```
+broadcastLocalSnapshots():
+  对每个 definition:
+    if batchWindowMs > 0 && 距上次广播 < batchWindowMs:
+        跳过本次广播
+    else:
+        广播快照
+        更新 lastBroadcastTimestamps[definitionId]
+```
+
+> 建议将 `batch.window-ticks` 设为与 `refresh-interval-ticks` 相同的值，这样每个周期最多广播一次，同时不影响正常周期刷新。
+
+## 调试快照
+
+Tab 模块提供调试快照功能，用于存档 / 加载 / 复现跨服 Tab 状态。
+
+### 快照存储
+
+```
+plugins/ArcartXSuite/data/tab/snapshots/<name>.json
+```
+
+### JSON 文件格式
+
+```json
+{
+  "version": 2,
+  "savedAt": 1700000000000,
+  "serverId": "default",
+  "localEntries": {
+    "online-tab": [TabRemoteEntry, ...]
+  },
+  "remoteSnapshots": {
+    "node-02": {
+      "online-tab": [TabRemoteEntry, ...]
+    }
+  }
+}
+```
+
+| 字段 | 类型 | 说明 |
+|---|---|---|
+| `version` | `int` | 文件格式版本（当前为 2） |
+| `savedAt` | `long` | 保存时间戳（epoch-ms） |
+| `serverId` | `String` | 保存时的服务端 ID |
+| `localEntries` | `Map<String, List<TabRemoteEntry>>` | 本服每个 definition 的条目快照 |
+| `remoteSnapshots` | `Map<String, Map<String, List<TabRemoteEntry>>>` | 远程节点每个 definition 的条目快照 |
+
+### 快照命令
+
+| 命令 | 说明 |
+|---|---|
+| `/axstab snapshot save <name>` | 保存当前快照到 JSON 文件 |
+| `/axstab snapshot load <name>` | 加载快照为虚拟节点 |
+| `/axstab snapshot unload <name\|all>` | 卸载虚拟节点 |
+| `/axstab snapshot list` | 列出已保存的快照与已注入的虚拟节点 |
+| `/axstab snapshot delete <name>` | 删除快照文件 |
+
+### 虚拟节点
+
+加载快照时，本服快照注入为 `snapshot:<name>:local`，远程节点逐个注入为 `snapshot:<name>:<原 nodeId>`。虚拟节点在 `cleanupStaleSnapshots` 中被豁免清理，仅通过命令显式 `unload`。
+
+> 快照名称仅允许字母 / 数字 / `_` / `-`，长度 1~64。正则校验：`^[A-Za-z0-9_\-]{1,64}$`。快照功能需要 `axstab.debug` 权限或 OP，仅限测试服使用。
+
+## 跨服部署最佳实践
+
+### 节点配置一致性
+
+| 配置项 | 要求 | 说明 |
+|---|---|---|
+| Tab 定义文件 | 所有节点一致 | 定义 ID、sort-keys、pack 必须相同，否则远程条目渲染异常 |
+| `server-id` | 每节点唯一 | 用于区分不同节点 |
+| `cross-server` | 所有节点启用 | 任一节点未启用则无法收发快照 |
+| `stale-snapshot-ms` | 所有节点一致 | 避免不同节点的过期清理时间不同 |
+
+### 性能建议
+
+| 场景 | 建议 |
+|---|---|
+| 大型网络（10+ 节点） | 使用聚合模式减少条目数量 |
+| 高频 PVP 服 | 降低 `refresh-interval-ticks` 并启用 `batch.window-ticks` 节流 |
+| 跨服跳传频繁 | 启用 `leave-grace-ms: 2000` 避免闪烁 |
+| 调试跨服问题 | 使用 `/axstab snapshot save` 存档现场 |
+
+> 条件系统配置详见 [条件系统](/docs/guide/conditions)，图标配置详见 [图标配置](/docs/guide/icons)。

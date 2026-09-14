@@ -1,0 +1,186 @@
+---
+title: 命令与占位符
+description: Market 命令、权限与 PlaceholderAPI 占位符
+---
+
+# 命令与占位符
+
+## 玩家命令
+
+玩家命令通过 `/market` 注册，无需额外权限即可使用（部分功能有权限要求）。
+
+| 命令 | 说明 | 权限 |
+|---|---|---|
+| `/market` | 打开拍卖行主界面 | 无 |
+| `/market help` | 显示帮助信息 | 无 |
+| `/market shop` | 打开系统商店列表 | 无 |
+| `/market shop <商店ID>` | 打开指定系统商店 | 商店 `permission` 字段 |
+| `/market auction` | 打开拍卖行界面 | 无 |
+| `/market ah` | 打开拍卖行界面（别名） | 无 |
+| `/market pshop` | 打开玩家商店浏览界面 | 无 |
+| `/market playershop` | 打开玩家商店浏览界面（别名） | 无 |
+| `/market sell <起拍价> [时长秒] [货币]` | 上架手持物品到拍卖行 | 无 |
+| `/market list <起拍价> [时长秒] [货币]` | 上架手持物品（别名） | 无 |
+| `/market recycle` | 打开回收界面 | 无 |
+| `/market recycle all` | 一键回收背包所有可回收物品 | `axsmarket.autorecycle`（自动回收） |
+| `/market history` | 打开交易历史界面 | 无 |
+| `/market my` | 查看我的上架物品 | 无 |
+| `/market search <关键词>` | 搜索拍卖行物品 | 无 |
+| `/market cancel <上架ID>` | 取消上架 | 无（仅可取消自己的） |
+
+### 命令详解
+
+#### `/market sell`
+
+将手持物品上架到拍卖行。
+
+```
+/market sell <起拍价> [时长秒] [货币]
+```
+
+| 参数 | 必填 | 说明 |
+|---|---|---|
+| 起拍价 | 是 | 起拍价格，需在 `min-price` ~ `max-price` 范围内 |
+| 时长秒 | 否 | 上架时长（秒），默认使用 `default-duration-seconds` |
+| 货币 | 否 | 交易货币，默认 `money` |
+
+示例：
+```
+/market sell 1000              # 起拍价 1000，默认时长，money 货币
+/market sell 500 3600 points    # 起拍价 500，1 小时，points 货币
+```
+
+#### `/market search`
+
+搜索拍卖行物品，支持中文名称、拼音、首字母匹配。
+
+```
+/market search <关键词>
+```
+
+示例：
+```
+/market search 钻石剑          # 按中文名称搜索
+/market search zuan shi jian   # 按拼音搜索
+/market search zs j            # 按首字母搜索
+```
+
+## 管理员命令
+
+管理员命令通过 `/axs market` 集成，需要 `arcartxsuite.market.admin` 权限。
+
+| 命令 | 说明 | 权限 |
+|---|---|---|
+| `/axs market help` | 显示管理帮助 | `arcartxsuite.market.admin` |
+| `/axs market status` | 查看模块运行状态 | `arcartxsuite.market.admin` |
+| `/axs market clear-expired` | 手动触发到期处理 | `arcartxsuite.market.admin` |
+| `/axs market remove <上架ID>` | 强制移除上架物品 | `arcartxsuite.market.admin` |
+
+### status 输出示例
+
+```
+AXS Market 状态
+活跃拍卖: 42
+系统商店: 3
+回收条目: 10
+列表缓存(Redis): 已连接
+跨服通道: 已启用
+```
+
+### clear-expired
+
+手动触发到期物品处理，返回处理的条目数。正常情况下定时任务会自动处理，此命令用于手动触发。
+
+### remove
+
+强制移除指定上架 ID 的物品。会退还竞价者押金和卖家物品，记录类型为 `ADMIN_CANCELLED`。
+
+## 权限节点
+
+| 权限节点 | 说明 | 默认 |
+|---|---|---|
+| `arcartxsuite.market.admin` | 管理员命令权限 | OP |
+| `axsmarket.autorecycle` | 拾取自动回收权限 | 无 |
+| `axsmarket.vip` | 拍卖行/玩家商店 VIP 税率减免 | 无 |
+| `axsmarket.mvp` | 拍卖行/玩家商店 MVP 税率减免 | 无 |
+| `axsmarket.recycle.vip` | 回收价格 VIP 加成 | 无 |
+| `axsmarket.recycle.mvp` | 回收价格 MVP 加成 | 无 |
+| `axsmarket.shop.legendary` | 系统商店商品购买权限（按商品配置） | 无 |
+| `axsmarket.shop.vip` | 系统商店商品购买权限（按商品配置） | 无 |
+
+:::tip
+权限节点在配置文件中自定义。`tax-discount` 和 `price-multiplier` 的键名即为权限节点，`discount` 的键名也是权限节点。你可以根据需要修改为任意权限节点。
+:::
+
+## PAPI 占位符
+
+Market 注册了 PlaceholderAPI 扩展，标识符为 `axsmarket`。
+
+| 占位符 | 说明 | 返回值 |
+|---|---|---|
+| `%axsmarket_auction_count%` | 当前活跃拍卖数量 | 数字 |
+| `%axsmarket_shop_count%` | 已加载系统商店数量 | 数字 |
+| `%axsmarket_recycle_count%` | 回收表条目数量 | 数字 |
+| `%axsmarket_my_listings%` | 我的上架数量 | 数字（需玩家上下文） |
+| `%axsmarket_redis_status%` | Redis 连接状态 | `已连接` / `未连接` |
+| `%axsmarket_list_cache_status%` | 列表缓存状态（同上别名） | `已连接` / `未连接` |
+| `%axsmarket_cross_server_status%` | 跨服通道状态 | `已启用` / `未启用` |
+
+### 使用示例
+
+```
+# 在记分板中显示活跃拍卖数
+%axsmarket_auction_count%
+
+# 在 Tab 列表中显示玩家上架数
+%axsmarket_my_listings%
+
+# 检查 Redis 连接状态
+%axsmarket_redis_status%
+```
+
+## UI Packet 触发
+
+Market 模块所有 UI 通信通过统一的 packet ID `AXS_MARKET` 进行。客户端 UI 通过发送 packet 触发服务端操作。
+
+### Packet Action 列表
+
+| Action | 参数 | 说明 | 需要 Token |
+|---|---|---|---|
+| `auction_list` | `[action, page, category?, keyword?]` | 获取拍卖列表 | 否 |
+| `auction_bid` | `[action, listingId, amount, token]` | 竞价 | 是 |
+| `auction_cancel` | `[action, listingId, token, page?, category?, keyword?]` | 取消上架 | 是 |
+| `auction_favorite` | `[action, listingId, category?, keyword?]` | 切换收藏 | 否 |
+| `auction_sell_ui_open` | `[action]` | 打开拍卖上架 UI | 否 |
+| `auction_sell_open` | `[action]` | 获取上架 UI 数据 | 否 |
+| `auction_list_create` | `[action, slot, startingBid, message, duration, currency, token]` | 创建拍卖上架 | 是 |
+| `auction_ui_open` | `[action]` | 打开拍卖行 UI | 否 |
+| `shop_list` | `[action, shopId?]` | 获取商店商品列表 | 否 |
+| `shop_buy` | `[action, shopId, itemId, amount, token]` | 购买商品 | 是 |
+| `shop_ui_open` | `[action]` | 打开商店 UI | 否 |
+| `recycle_all` | `[action, token]` | 一键回收 | 是 |
+| `recycle_single` | `[action, slot, token]` | 回收单个物品 | 是 |
+| `recycle_preview` | `[action]` | 预览可回收物品 | 否 |
+| `recycle_ui_open` | `[action]` | 打开回收 UI | 否 |
+| `history_list` | `[action, page]` | 获取交易历史 | 否 |
+| `history_ui_open` | `[action]` | 打开历史 UI | 否 |
+| `sell_open` | `[action]` | 获取统一上架 UI 数据 | 否 |
+| `sell_ui_open` | `[action]` | 打开统一上架 UI | 否 |
+| `pshop_list` | `[action, page, keyword?, sellerUuid?]` | 获取玩家商店列表 | 否 |
+| `pshop_sellers` | `[action, page]` | 获取卖家列表 | 否 |
+| `pshop_buy` | `[action, listingId, token]` | 购买玩家商店商品 | 是 |
+| `pshop_cancel` | `[action, listingId, token]` | 下架玩家商店商品 | 是 |
+| `pshop_create` | `[action, slot, price, message, duration, currency, mode, token]` | 创建上架 | 是 |
+| `pshop_ui_open` | `[action]` | 打开玩家商店 UI | 否 |
+
+### Action Token 机制
+
+涉及经济操作的 Action 需要携带 action token。token 由服务端在打开 UI 或列表请求时签发，客户端在操作请求中附带。服务端校验：
+
+1. 玩家当前打开了对应的 UI（`packetBridge.isUiOpen`）
+2. 附带的 token 与服务端签发的 token 一致
+3. 防止重放攻击（`actionTokensInFlight` 标记，操作完成后移除）
+
+:::info
+所有涉及交易操作的 packet 统一切到主线程串行执行，消除并发竞态（重复购买/限购绕过）与异步线程操作 Bukkit API 的风险。
+:::

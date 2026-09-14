@@ -1,0 +1,133 @@
+---
+title: 概览
+description: QuestGPS 悬赏任务功能概览
+---
+
+# QuestGPS 任务导航
+
+## 模块简介
+
+QuestGPS 是 ArcartXSuite 的任务导航模块，将 Chemdah 任务系统的数据桥接到 ArcartX UI 客户端，提供可视化的任务菜单、分类筛选、目标追踪、路径导航和奖励预览功能。玩家通过 ArcartX UI 面板浏览可接取/进行中/已完成的任务，一键追踪任务目标并获取路标导航与 HUD 指引。
+
+模块本身不实现任务逻辑——任务的定义、接取、完成、奖励发放均由 Chemdah 负责。QuestGPS 负责将 Chemdah 的任务数据整理后通过 Packet 发送给 ArcartX UI 客户端渲染，并将玩家的 UI 操作（接取/放弃/追踪/清除追踪）转发回 Chemdah 执行。
+
+此外，QuestGPS 还提供主线门禁机制：未完成指定主线任务前，可锁定部分分类 Tab、拦截特定命令、锁定其他模块入口和 EventPacket 事件规则，实现新手引导式的玩法限制。
+
+## 功能特性
+
+| 特性 | 说明 |
+|---|---|
+| Chemdah 任务桥接 | 读取 Chemdah 任务模板与玩家档案，在 ArcartX UI 中展示任务列表、目标进度与状态 |
+| 动态分类菜单 | 按分类 Tab 组织任务（主线/支线/奇遇等），分类完全自定义，删除 `categories` 段可关闭分类 Tab |
+| 双数据源 | `chemdah`（SSOT 模式，直接读 Chemdah meta.type）或 `overlay`（白名单模式，仅展示 YAML 登记的任务），全局二选一无链式回退 |
+| 任务发现模式 | `overlay`（白名单，仅 `quests/*.yml` 登记的任务进菜单）或 `auto`（扫描全部 Chemdah 模板） |
+| 三态分页 | 可接取（AVAILABLE）、进行中（ACTIVE）、已完成（COMPLETED）三个页面，自动按任务状态分桶 |
+| 任务接取/放弃 | 通过 UI Packet 触发 Chemdah 任务接取/放弃，支持 `allow-abandon` 开关控制是否允许放弃 |
+| 任务追踪 | 追踪任务级或子任务级目标，同步到 ArcartX waypoint 路标导航和 AXMap 临时目标 |
+| 路标导航 | 通过 ArcartX waypoint 系统创建路标，在客户端显示方向指引 |
+| 路径寻路 | A* 寻路算法，沿路径放置导航标记模型，支持路径间距/最大数量/最大距离/最大迭代次数配置 |
+| 导航标记 | 使用 Adyeshach 私有实体 + ArcartX 模型渲染客户端导航标记，零服务端 tick 开销 |
+| 指引 HUD | 导航引导 HUD，实时显示任务名、进度条、目标列表（最多 3 个）和导航坐标 |
+| 奖励预览 | 任务奖励预览，支持 NeigeItems/MythicMobs/Overture/MMOItems/原版材质/称号/文本六种类型 |
+| 主线门禁 | 未完成指定主线前，锁定分类 Tab、拦截命令、锁定模块入口、锁定 EventPacket 事件规则 |
+| 兜底分类 | 未匹配任何已注册分类的任务可归入兜底分类，不会从菜单消失 |
+| MySQL 补充 | 为 Chemdah 免费版提供 MySQL 存储支持（付费版独有功能下放） |
+| 跨模块联动 | 注册 `QuestGpsNavigable` Capability，供 EventPacket 等模块调用任务推送/接取/追踪/门禁检查 |
+| EventBus 发布 | 任务完成时发布 `axs.questgps.quest_completed` 主题到 EventBus |
+| 信号桥接 | 任务生命周期事件（触发/接取/放弃/完成/追踪变更）向 EventPacket 派发自定义信号 |
+
+## 依赖
+
+| 依赖类型 | 名称 | 说明 |
+|---|---|---|
+| 外部硬依赖 | Chemdah | 任务系统提供方，QuestGPS 读取 Chemdah 任务模板与玩家档案 |
+| 外部软依赖 | Adyeshach | 导航标记模型渲染（不可用时关闭标记功能，路标导航仍可用） |
+| ArcartX 模块（可选） | AXMap | 导航目标同步到地图模块的临时标记 |
+| ArcartX 模块（可选） | EventPacket | 任务生命周期信号桥接，信号派发后由 EventPacket 规则引擎执行动作 |
+| ArcartX 模块（可选） | Announcer | 门禁拦截时播放字幕提示 |
+| ArcartX 模块（可选） | Chat | 门禁拦截时发送聊天卡片 |
+| ArcartX 模块（可选） | Title | 称号奖励预览渲染 |
+
+> 模块本身仅硬依赖 Chemdah。AXMap、EventPacket、Announcer、Chat、Title 等模块不存在时对应功能自动降级或跳过。
+
+## 任务机制详解
+
+### 数据流架构
+
+```
+Chemdah 任务模板 ──→ QuestGPS overlay 配置 ──→ 分类解析 ──→ 任务发现 ──→ 快照构建 ──→ UI Packet ──→ ArcartX 客户端
+                       (quests/*.yml)          (meta.type     (overlay/auto)   (SnapshotBuilder)   (MenuPacketFactory)
+                                               或 overlay
+                                               category)
+```
+
+### 分类系统
+
+QuestGPS 的分类 Tab 完全由 `ArcartXQuestGPS.yml` 的 `categories` 段定义，无内置分类。分类的数据来源由 `category.source` 决定：
+
+- **`chemdah`**（默认）：从 Chemdah 任务模板的 `meta.type` 读取分类，映射到 `categories` 注册表
+- **`overlay`**：从 `quests/*.yml` 的 `category` 字段读取分类
+
+未匹配任何已注册分类的任务，若 `category.fallback.enabled: true` 则归入兜底分类（默认 ID `uncategorized`），否则不进菜单。
+
+### 任务发现
+
+| 模式 | 说明 |
+|---|---|
+| `overlay` | 白名单模式，仅 `quests/*.yml` 中 `enabled: true` 的任务进菜单 |
+| `auto` | 扫描全部 Chemdah 任务模板，overlay 登记的任务使用 overlay 配置，未登记的生成最小定义 |
+
+### 展示数据来源
+
+UI 展示字段（任务名称、描述、目标文案、目标说明）的数据来源由 `presentation.source` 决定：
+
+- **`chemdah`**（默认）：读 Chemdah 模板的 `meta.name` / `meta.description`，奖励预览恒读 QuestGPS 配置
+- **`overlay`**：读 `quests/*.yml` 的 `display-name-override` / `description` / `tasks` 等字段
+
+单个任务可通过 `presentation.source` 覆盖全局设置。
+
+### 导航模式
+
+| 模式 | 说明 |
+|---|---|
+| `hybrid`（默认） | Chemdah tracker 动态坐标优先，overlay 配置坐标作回退 |
+| `chemdah` | 仅使用 Chemdah tracker 动态坐标 |
+| `overlay` | 仅使用 `quests/*.yml` 配置的静态坐标 |
+
+### 任务生命周期与信号桥接
+
+任务在 QuestGPS 中有五个生命周期事件，每个事件可配置向 EventPacket 派发的信号：
+
+| 生命周期 | 触发时机 | 配置字段 |
+|---|---|---|
+| `triggered` | 任务出现在菜单 / 被 offer 推送 | `hooks.triggered` |
+| `accepted` | Chemdah 接取成功 | `hooks.accepted` |
+| `abandoned` | 任务放弃/失败 | `hooks.abandoned` |
+| `completed` | 任务完成 | `hooks.completed` |
+| `track-changed` | 开始/取消导航追踪 | `hooks.track-changed` |
+
+信号通过 `SignalDispatchable` Capability 派发，EventPacket 规则引擎匹配信号后执行动作（发称号/发邮件/派命令等）。所有任务共用同一套信号名，EventPacket 规则中可用 `{quest_id}` 占位符区分具体任务。
+
+### 主线门禁
+
+主线门禁通过 `gate` 段配置，`required-mainline-quest-ids` 为空时整段门禁关闭：
+
+| 拦截类型 | 配置字段 | 说明 |
+|---|---|---|
+| 分类锁定 | `blocked-categories` | 未过关时这些分类 Tab 不可查看/接取 |
+| 命令拦截 | `blocked-command-prefixes` | 未过关时拦截以这些前缀开头的命令 |
+| 模块入口锁定 | `blocked-module-entries` | 其他模块打开 UI 前调用 `QuestGpsNavigable.moduleEntryLocked` 检查 |
+| 事件规则锁定 | `blocked-event-rule-ids` | 未过关时 EventPacket 规则不触发（通过 `QuestGpsNavigable.eventRuleLocked` 检查） |
+
+门禁拦截时向玩家发送 `deny-message` 提示，可选发送 `deny-chat-card` 聊天卡片和 `deny-subtitle` 字幕。
+
+### UI 界面
+
+QuestGPS 注册两个 ArcartX UI 界面：
+
+| UI | 资源路径 | 用途 |
+|---|---|---|
+| 任务菜单 | `arcartx/ui/questgps_menu.yml` → `ui/questgps_menu.yml` | 全屏任务总览，分类 Tab + 三态分页 + 任务列表 + 任务详情 + 奖励预览 |
+| 指引 HUD | `arcartx/ui/questgps_guide.yml` → `ui/questgps_guide.yml` | 追踪时屏幕左上角常驻 HUD，显示任务名/进度/目标列表/导航坐标 |
+
+UI ID 支持字符串（单 UI）或列表（多 UI 同时发包），同一 payload 可同时发送给多个 UI。

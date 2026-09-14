@@ -1,0 +1,288 @@
+---
+title: 命令与占位符
+description: Regions 命令、权限、PlaceholderAPI 占位符与 UI 数据包
+---
+
+# 命令与占位符
+
+Regions 模块通过 `/axs regions` 和 `/rg` 两个命令入口提供全部区域管理功能。`/rg` 为独立注册的缩写命令，自动转发到 `regions` 子命令处理。
+
+## 玩家命令
+
+玩家命令通过 `/axs regions` 或 `/rg` 执行，部分命令需要选区工具或区域权限。
+
+| 命令 | 说明 | 权限 |
+|---|---|---|
+| `/rg help` | 显示帮助信息 | 无 |
+| `/rg status` | 查看模块状态（已加载区域数、标志类型数） | 无 |
+| `/rg menu` | 打开玩家区域查看菜单（ArcartX UI） | 无 |
+| `/rg wand` | 获取选区工具 | `axs.regions.select` |
+| `/rg pos1` | 设置选区点 1（当前站位） | `axs.regions.select` |
+| `/rg pos2` | 设置选区点 2（当前站位） | `axs.regions.select` |
+| `/rg define <名称>` | 用当前选区创建区域 | `axs.regions.select` |
+| `/rg redefine <名称>` | 用当前选区重定义区域范围 | 区域所有者或 `axs.regions.admin` |
+| `/rg remove <名称>` | 删除区域 | 区域所有者或 `axs.regions.admin` |
+| `/rg list [世界]` | 列出区域（默认当前世界） | 无 |
+| `/rg info <名称>` | 查看区域详细信息 | 无 |
+| `/rg show` | 切换区域边框常驻粒子可视化 | 无 |
+| `/rg flag <区域> <标志> <allow\|deny> [数据]` | 设置区域标志 | 区域所有者或 `axs.regions.admin` |
+| `/rg removeflag <区域> <标志>` | 移除区域标志 | 区域所有者或 `axs.regions.admin` |
+| `/rg flags <区域>` | 查看区域所有标志 | 无 |
+| `/rg addowner <区域> <玩家\|g:组>` | 添加所有者 | 区域所有者或 `axs.regions.admin` |
+| `/rg removeowner <区域> <玩家\|g:组>` | 移除所有者 | 区域所有者或 `axs.regions.admin` |
+| `/rg addmember <区域> <玩家\|g:组>` | 添加成员 | 区域所有者或 `axs.regions.admin` |
+| `/rg removemember <区域> <玩家\|g:组>` | 移除成员 | 区域所有者或 `axs.regions.admin` |
+| `/rg priority <区域> <数字>` | 设置区域优先级 | 区域所有者或 `axs.regions.admin` |
+| `/rg parent <区域> <父区域\|none>` | 设置父区域 | 区域所有者或 `axs.regions.admin` |
+| `/rg tp <区域>` | 传送到区域中心 | 无 |
+
+### 命令详解
+
+#### `/rg define`
+
+用当前选区创建区域。创建者自动成为区域所有者。
+
+```
+/rg define <名称>
+```
+
+| 参数 | 必填 | 说明 |
+|---|---|---|
+| 名称 | 是 | 区域 ID（不区分大小写），同世界内不可重复 |
+
+校验流程：选区完成 → 体积不超限 → 名称不重复 → 数量不超限（`axs.regions.bypass.limit` 绕过）→ 创建并清除选区。
+
+#### `/rg flag`
+
+设置区域标志，支持附加数据（如 greeting/farewell 自定义文本）。
+
+```
+/rg flag <区域> <标志> <allow|deny> [数据...]
+```
+
+| 参数 | 必填 | 说明 |
+|---|---|---|
+| 区域 | 是 | 区域 ID |
+| 标志 | 是 | 标志 Key（如 `pvp`、`block-break`、`greeting`） |
+| allow\|deny | 是 | 标志状态（也接受 `true`/`false`/`yes`/`no`） |
+| 数据 | 否 | 附加文本数据（greeting/farewell 的自定义消息） |
+
+示例：
+
+```
+/rg flag spawn pvp deny
+/rg flag spawn greeting allow &6欢迎来到出生点！
+/rg flag spawn block-break deny
+```
+
+#### `/rg addowner` / `/rg addmember`
+
+添加区域所有者或成员，支持玩家名和权限组（`g:` 前缀）。
+
+```
+/rg addowner <区域> <玩家|g:组名>
+/rg addmember <区域> <玩家|g:组名>
+```
+
+示例：
+
+```
+/rg addowner spawn Steve
+/rg addmember spawn g:vip
+```
+
+:::info
+权限组通过 `axs.regions.group.<name>` 权限节点识别。玩家拥有该权限节点时被视为属于对应组，享受成员豁免。
+:::
+
+#### `/rg parent`
+
+设置区域父区域，父区域必须与当前区域同世界，模块自动检测继承环。
+
+```
+/rg parent <区域> <父区域|none>
+```
+
+| 参数 | 必填 | 说明 |
+|---|---|---|
+| 父区域 | 是 | 父区域 ID，设为 `none` 移除父区域 |
+
+#### `/rg show`
+
+切换区域边框常驻粒子可视化。普通玩家仅看到自己拥有/参与的区域（黄色粒子），管理员（`axs.regions.admin`）可看到所有区域（紫色粒子）。按视距 48 方块半径裁剪，每 16 tick 刷新。
+
+## 管理员命令
+
+| 命令 | 说明 | 权限 |
+|---|---|---|
+| `/rg admin` | 打开管理员区域管理面板（ArcartX UI） | `axs.regions.admin` |
+| `/axs reload regions` | 重载模块配置 | `axs.admin` |
+
+管理员面板支持区域列表浏览、区域编辑（标志/成员/优先级/父区域）、区域创建/重定义/重命名/删除，以及世界规则管理（禁飞/禁活塞/禁交互的运行时切换）。
+
+## 权限
+
+| 权限节点 | 默认 | 说明 |
+|---|---|---|
+| `axs.regions.select` | op | 使用选区工具（左/右键选区、`/rg wand`） |
+| `axs.regions.admin` | op | 管理员权限，可管理任意区域、打开管理员面板 |
+| `axs.regions.bypass` | op | 绕过所有区域保护（标志查询直接返回 ALLOW） |
+| `axs.regions.bypass.limit` | op | 绕过每玩家最大区域数量限制 |
+| `axs.regions.group.<name>` | - | 区域权限组，玩家拥有此节点时属于对应组，享受成员豁免 |
+| `axs.essentials.fly.bypass` | op | 绕过世界规则禁飞限制 |
+| `axs.essentials.interact.bypass` | op | 绕过世界规则禁交互限制 |
+
+:::tip
+`axs.regions.bypass` 是全局保护绕过——拥有此权限的玩家在任何区域都不受标志限制。`axs.regions.bypass.limit` 仅绕过区域数量限制，不影响保护逻辑。
+:::
+
+## PlaceholderAPI 占位符
+
+Regions 模块当前 **未注册 PlaceholderAPI 占位符**。区域数据通过 ArcartX UI 面板和命令交互获取。
+
+如需在其他插件中获取区域信息，可通过以下方式：
+
+| 方式 | 说明 |
+|---|---|
+| EventBus 事件 | 监听 `axs.regions.region_change` 事件获取玩家进出区域信息 |
+| 命令输出 | `/rg info <区域>` 获取区域详情 |
+| UI 面板 | `/rg menu` 查看当前区域与个人区域列表 |
+
+## UI 数据包
+
+Regions 模块注册了两个 ArcartX UI 界面，通过 Packet Handler 实现客户端与服务端的数据交互。
+
+### 玩家菜单（AXS_REGIONS_MENU）
+
+| 属性 | 值 |
+|---|---|
+| UI 文件 | `ui/regions_menu.yml` |
+| 打开命令 | `/rg menu` |
+| Packet ID | `AXS_REGIONS_MENU` |
+| UI ID | `AXS:regions_menu` |
+
+#### 客户端 → 服务端动作
+
+| 动作 | 参数 | 说明 |
+|---|---|---|
+| `navigate` | `page`（`current` / `my` / `selection`） | 导航到指定页面 |
+| `refresh` | `page` | 刷新当前页面数据 |
+| `select_region` | `regionId` | 查看指定区域详情 |
+| `clear_selection` | - | 清除当前选区 |
+| `query_selection` | - | 查询当前选区状态 |
+
+#### 服务端 → 客户端推送字段
+
+**current 页面（当前区域）：**
+
+| 字段 | 类型 | 说明 |
+|---|---|---|
+| `page` | `String` | 当前页面标识 |
+| `packetId` | `String` | 服务端回包 ID |
+| `currentRegion` | `String` | 当前所在区域名称 |
+| `currentWorld` | `String` | 当前世界名称 |
+| `currentPriority` | `String` | 当前区域优先级 |
+| `currentOwners` | `String` | 当前区域所有者数量 |
+| `currentMembers` | `String` | 当前区域成员数量 |
+| `currentFlags` | `List<Map>` | 当前区域标志列表（`name`、`desc`、`state`） |
+| `myRegions` | `List<Map>` | 玩家拥有/参与的区域列表（`id`、`world`、`priority`、`isOwner`） |
+| `myRegionCount` | `String` | 玩家区域数量 |
+
+**detail 页面（区域详情）：**
+
+| 字段 | 类型 | 说明 |
+|---|---|---|
+| `page` | `String` | `detail` |
+| `regionId` | `String` | 区域 ID |
+| `regionWorld` | `String` | 区域所在世界 |
+| `regionPriority` | `String` | 区域优先级 |
+| `regionMin` | `String` | 区域最小坐标 |
+| `regionMax` | `String` | 区域最大坐标 |
+| `regionVolume` | `String` | 区域体积（方块数） |
+| `regionParent` | `String` | 父区域 ID |
+| `flags` | `List<Map>` | 标志列表（`name`、`desc`、`state`） |
+| `owners` | `List<String>` | 所有者名称列表 |
+| `members` | `List<String>` | 成员名称列表 |
+
+**selection 页面（选区状态）：**
+
+| 字段 | 类型 | 说明 |
+|---|---|---|
+| `page` | `String` | `selection` |
+| `selWorld` | `String` | 选区所在世界 |
+| `pos1Set` | `String` | 选区点 1 是否设置（`true`/`false`） |
+| `pos2Set` | `String` | 选区点 2 是否设置 |
+| `pos1` | `String` | 选区点 1 坐标文本 |
+| `pos2` | `String` | 选区点 2 坐标文本 |
+| `selComplete` | `String` | 选区是否完成 |
+| `selVolume` | `String` | 选区体积 |
+| `maxVolume` | `String` | 最大选区体积 |
+
+### 管理员面板（AXS_REGIONS_ADMIN）
+
+| 属性 | 值 |
+|---|---|
+| UI 文件 | `ui/regions_admin.yml` |
+| 打开命令 | `/rg admin` |
+| Packet ID | `AXS_REGIONS_ADMIN` |
+| UI ID | `AXS:regions_admin` |
+| 权限 | `axs.regions.admin` |
+
+#### 客户端 → 服务端动作
+
+| 动作 | 参数 | 说明 |
+|---|---|---|
+| `navigate` | `page`（`regions` / `edit` / `world_rules`） | 导航到指定页面 |
+| `refresh` | `page` | 刷新当前页面数据 |
+| `select_region` | `regionId` | 选中区域进入编辑页 |
+| `create_region` | `regionName` | 用当前选区创建区域 |
+| `redefine_region` | `regionId` | 用当前选区重定义区域范围 |
+| `rename_region` | `oldId`、`newId` | 重命名区域 |
+| `set_flag` | `regionId`、`flagKey`、`state` | 设置区域标志 |
+| `remove_flag` | `regionId`、`flagKey` | 移除区域标志 |
+| `add_member` | `regionId`、`playerName`、`role` | 添加成员（`owner`/`member`） |
+| `remove_member` | `regionId`、`uuid` | 移除成员 |
+| `set_priority` | `regionId`、`priority` | 设置优先级 |
+| `set_parent` | `regionId`、`parentId` | 设置父区域（空或 `none` 移除） |
+| `delete_region` | `regionId` | 删除区域 |
+| `select_world_rule` | - | 导航到世界规则页 |
+| `toggle_no_fly` | `worldName` | 切换世界禁飞状态 |
+| `toggle_no_piston` | `worldName` | 切换世界禁活塞状态 |
+| `toggle_interaction` | `worldName`、`materialName` | 切换世界禁交互物品 |
+
+#### 服务端 → 客户端推送字段
+
+**regions 页面（区域列表）：**
+
+| 字段 | 类型 | 说明 |
+|---|---|---|
+| `page` | `String` | `regions` |
+| `regions` | `List<Map>` | 所有区域列表（`id`、`world`、`priority`、`volume`） |
+| `regionCount` | `String` | 区域总数 |
+
+**edit 页面（区域编辑）：**
+
+| 字段 | 类型 | 说明 |
+|---|---|---|
+| `page` | `String` | `edit` |
+| `selId` | `String` | 选中区域 ID |
+| `selWorld` | `String` | 区域所在世界 |
+| `selPriority` | `String` | 区域优先级 |
+| `selParent` | `String` | 父区域 ID |
+| `selMin` | `String` | 区域最小坐标 |
+| `selMax` | `String` | 区域最大坐标 |
+| `selVolume` | `String` | 区域体积 |
+| `selFlags` | `List<Map>` | 全部标志列表（`key`、`desc`、`category`、`state`） |
+| `selMembers` | `List<Map>` | 成员列表（`uuid`、`name`、`role`） |
+
+**world_rules 页面（世界规则）：**
+
+| 字段 | 类型 | 说明 |
+|---|---|---|
+| `page` | `String` | `world_rules` |
+| `worlds` | `List<Map>` | 世界列表（`name`、`noFly`、`noPiston`、`interactions`） |
+| `worldCount` | `String` | 世界数量 |
+
+:::info
+UI 数据包通过 `PacketBridgeAPI` 发送，`PacketGuardAPI` 在路由层统一进行安全校验。客户端通过 `Packet.send(packetId, data)` 发送操作指令，服务端处理后通过 `init` 通道推送最新数据。
+:::

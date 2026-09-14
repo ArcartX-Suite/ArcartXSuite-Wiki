@@ -1,0 +1,12 @@
+{
+  "title": "Mail 邮箱",
+  "description": "邮件系统，玩家写信/预设派发/CDK兑换/物品附件/跨服广播",
+  "color": "#60a5fa",
+  "pages": [
+    "index",
+    "configuration",
+    "presets",
+    "commands",
+    "integration"
+  ]
+}

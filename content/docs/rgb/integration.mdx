@@ -1,0 +1,227 @@
+---
+title: 联动
+description: RGB 模块 API、Capability 与跨模块集成
+---
+
+# 联动
+
+RGB 模块为纯计算型模块，不涉及数据库、跨服同步或 EventBus 事件，主要通过 PlaceholderAPI 对外输出渲染结果。模块提供了内部 Service API 供其他模块或脚本调用渲染能力。
+
+## Capability 注册
+
+RGB 模块**不注册任何 Capability**，不参与宿主的 `/axs migrate`（数据库迁移）和 `/axs purge`（玩家数据清除）命令。
+
+| Capability | 注册状态 | 说明 |
+|---|---|---|
+| `DatabaseMigratable` | 未注册 | 无数据库，无需迁移 |
+| `PlayerDataPurgeable` | 未注册 | 不存储玩家数据，无需清除 |
+| `EventBusCapability` | 未注册 | 不发布事件 |
+| `SignalDispatchable` | 未注册 | 不派发信号 |
+| `MailDispatchable` | 未注册 | 不涉及邮件 |
+
+## EventBus 事件
+
+RGB 模块**不发布任何 EventBus 事件**。渲染过程为纯计算，无状态变更需要通知其他模块。
+
+## 跨服同步
+
+RGB 模块**不参与跨服同步**。渐变文本渲染为纯本地计算，各服务器独立加载条目配置并渲染，无需跨服通信。
+
+:::info
+若需要在多服环境下保持一致的渐变效果，只需确保各服务器的 `entries/` 目录配置相同即可，无需额外的跨服同步机制。
+:::
+
+## 数据库表结构
+
+RGB 模块**不使用数据库**，不创建任何表。所有条目配置存储在 YAML 文件中，运行时加载到内存。
+
+| 存储层 | 使用情况 |
+|---|---|
+| 数据库表 | 无 |
+| Redis 缓存 | 无 |
+| 本地文件 | `ArcartXRGB.yml` + `entries/*.yml` |
+| 内存状态 | `ArcartRgbModuleConfiguration`（不可变 Map） |
+
+## Service API
+
+RGB 模块的核心服务为 `ArcartRgbService`，提供按条目 ID 渲染渐变文本的能力。其他模块可通过 `RgbModule.getService()` 获取服务实例调用渲染 API。
+
+### ArcartRgbService 方法
+
+| 方法 | 参数 | 返回值 | 说明 |
+|---|---|---|---|
+| `render(entryId)` | `String entryId` | `String` | 按条目 ID 渲染渐变文本（无玩家上下文，不解析 PAPI） |
+| `render(entryId, player)` | `String entryId`, `OfflinePlayer player` | `String` | 按条目 ID 渲染，使用指定玩家的上下文解析 PAPI 占位符 |
+| `entryCount()` | 无 | `int` | 已加载条目总数（含禁用的） |
+| `activeEntryCount()` | 无 | `int` | 活跃条目数（enabled + text 非空 + gradient-colors 非空） |
+| `entryIds()` | 无 | `List<String>` | 所有条目 ID 列表 |
+| `shutdown()` | 无 | `void` | 释放 ThreadLocal 资源（模块停止时调用） |
+
+### 渲染调用示例
+
+```java
+// 获取 RGB 模块实例
+RgbModule rgbModule = (RgbModule) moduleManager.getModule("rgb");
+if (rgbModule == null) return;
+
+ArcartRgbService service = rgbModule.getService();
+if (service == null) return;
+
+// 渲染条目（无玩家上下文）
+String text = service.render("welcome");
+
+// 渲染条目（带玩家上下文，解析 PAPI 占位符）
+String textWithPlayer = service.render("welcome", player);
+```
+
+### ArcartRgbRenderer 静态 API
+
+渲染器 `ArcartRgbRenderer` 为静态无状态工具类，可直接调用进行自定义渲染（无需条目配置）：
+
+| 方法 | 参数 | 返回值 | 说明 |
+|---|---|---|---|
+| `render(entry, animationStep)` | `ArcartRgbEntry entry`, `long animationStep` | `String` | 按条目和动画步数渲染 |
+| `renderText(text, shine, colors, animationStep, options)` | `String`, `boolean`, `List<ArcartRgbColor>`, `long`, `ArcartRgbRenderOptions` | `String` | 按原始参数渲染文本 |
+| `renderAtTime(entry, currentTimeMillis)` | `ArcartRgbEntry`, `long` | `String` | 按条目和当前时间戳渲染 |
+| `renderTextAtTime(text, shine, colors, currentTimeMillis, options)` | `String`, `boolean`, `List<ArcartRgbColor>`, `long`, `ArcartRgbRenderOptions` | `String` | 按原始参数和当前时间戳渲染 |
+
+```java
+// 自定义渲染（不依赖条目配置）
+List<ArcartRgbColor> colors = List.of(
+    ArcartRgbColor.parse("#FF7A18"),
+    ArcartRgbColor.parse("#7FE7FF")
+);
+ArcartRgbRenderOptions options = new ArcartRgbRenderOptions(
+    2L,  // switchIntervalTicks
+    2,   // shineWidth
+    ArcartRgbColor.parse("#FFFFFF"),  // shineColor
+    0.55 // shineStrength
+);
+String rendered = ArcartRgbRenderer.renderTextAtTime(
+    "Hello World",
+    true,
+    colors,
+    System.currentTimeMillis(),
+    options
+);
+```
+
+### ArcartRgbColor API
+
+颜色记录类，支持解析、插值和颜色码输出：
+
+| 方法 | 参数 | 返回值 | 说明 |
+|---|---|---|---|
+| `parse(rawValue)` | `String` | `ArcartRgbColor` | 解析颜色字符串（支持 `#RRGGBB`、`§#RRGGBB`、`RRGGBB`） |
+| `lerp(start, end, progress)` | `ArcartRgbColor`, `ArcartRgbColor`, `double` | `ArcartRgbColor` | 两色线性插值，progress 范围 `0.0` ~ `1.0` |
+| `blend(target, amount)` | `ArcartRgbColor`, `double` | `ArcartRgbColor` | 当前颜色与目标色混合，amount 范围 `0.0` ~ `1.0` |
+| `arcartCode()` | 无 | `String` | 返回 ArcartX 颜色码（`§#RRGGBB`） |
+| `hex()` | 无 | `String` | 返回大写十六进制表示（如 `FF00AA`） |
+| `red()` / `green()` / `blue()` | 无 | `int` | 返回 RGB 通道值（0-255） |
+
+```java
+// 颜色解析
+ArcartRgbColor color = ArcartRgbColor.parse("#FF7A18");
+
+// 颜色插值
+ArcartRgbColor start = ArcartRgbColor.parse("#FF0000");
+ArcartRgbColor end = ArcartRgbColor.parse("#0000FF");
+ArcartRgbColor mid = ArcartRgbColor.lerp(start, end, 0.5);  // 紫色
+
+// 输出 ArcartX 颜色码
+String code = color.arcartCode();  // "§#FF7A18"
+```
+
+## 模块集成
+
+### 与 PlaceholderAPI 集成
+
+RGB 模块硬依赖 PlaceholderAPI，启动时自动注册 PAPI 扩展：
+
+| 集成项 | 说明 |
+|---|---|
+| 扩展类 | `ArcartRgbPlaceholderExpansion` |
+| 标识符 | `axsrgb` |
+| 占位符格式 | `%axsrgb_<entryId>%` |
+| 持久注册 | `true`（`/papi reload` 不注销） |
+| 玩家上下文 | 渲染时传入 `OfflinePlayer`，用于解析 `text` 中的 PAPI 变量 |
+
+模块通过 `createPlaceholderExpansion()` 方法在 `startService` 后注册扩展，传入插件实例和 `ArcartRgbService`。
+
+### 与 ArcartX 客户端集成
+
+RGB 渲染输出的颜色码格式为 `§#RRGGBB`，由 ArcartX 客户端模组识别并渲染为真正的 RGB 颜色：
+
+| 客户端状态 | 渲染效果 |
+|---|---|
+| 已安装 ArcartX 客户端 | 正常显示 RGB 渐变色和扫光效果 |
+| 未安装 ArcartX 客户端 | 颜色码显示为原始文本（`§#FF7A18` 等），功能不受影响 |
+
+### 与聊天模块集成
+
+RGB 占位符可用于 Chat 模块的聊天格式配置，为聊天文本添加渐变色：
+
+```yaml
+# Chat 模块聊天格式
+chat-format: "%axsrgb_chat_prefix% %player_name%: %message%"
+```
+
+### 与 TAB 模块集成
+
+RGB 占位符可用于 TAB 模块的玩家列表显示，为玩家名或称号添加渐变色：
+
+```yaml
+# TAB 模块配置
+tab:
+  player-name-format: "%axsrgb_tab_name%"
+  prefix-format: "%axsrgb_tab_prefix%"
+```
+
+### 与 Title 模块集成
+
+RGB 占位符可用于 Title 模块的称号显示，为称号文本添加渐变色：
+
+```yaml
+# Title 模块称号配置
+title:
+  display-format: "%axsrgb_title_display%"
+```
+
+### 与 UI 模块集成
+
+RGB 占位符可用于 ArcartX UI（Aria）的图标文本，为 UI 元素添加渐变色。详见 [图标系统](/docs/guide/icons)。
+
+```yaml
+# UI 图标定义
+icon:
+  display-name: "%axsrgb_shop_title%"
+  lore:
+    - "%axsrgb_shop_description%"
+```
+
+## 配置同步策略
+
+RGB 模块的条目配置使用动态节（`dynamicSection`）同步策略，`entries` 节为动态段，支持热重载：
+
+| 配置节 | 同步策略 | 说明 |
+|---|---|---|
+| `settings` | 静态 | 重载时整体替换 |
+| `entries-directory` | 静态 | 重载时整体替换 |
+| `entries`（动态段） | 动态 | 标记为动态节，支持增量同步 |
+
+:::info
+动态节标记主要用于宿主的配置同步框架。实际热重载通过 `/axs rgb reload` 命令触发，重新扫描 `entries/` 目录并替换内存中的条目映射。
+:::
+
+## 模块生命周期
+
+| 阶段 | 方法 | 说明 |
+|---|---|---|
+| 加载配置 | `loadConfiguration` | 读取 `ArcartXRGB.yml`，扫描 `entries/` 目录加载条目，首次启动自动导出 `default.yml` |
+| 启动服务 | `startService` | 创建 `ArcartRgbService`，注入 PAPI 解析器，输出条目加载日志 |
+| 注册占位符 | `createPlaceholderExpansion` | 创建 `ArcartRgbPlaceholderExpansion` 并注册到 PlaceholderAPI |
+| 停止服务 | `stopService` | 调用 `service.shutdown()` 清理 ThreadLocal，置空配置和服务实例 |
+
+:::tip
+RGB 模块为纯计算型，`shutdown()` 仅清理 ThreadLocal 资源，无需关闭数据库连接池或跨服通道。模块停止后占位符返回空串。
+:::

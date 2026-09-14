@@ -1,0 +1,150 @@
+---
+title: 概览
+description: Tooltip 客户端动态提示数据采集与跨模块共享
+---
+
+# Tooltip 物品提示
+
+## 模块简介
+
+Tooltip 是 ArcartXSuite 的客户端动态提示数据桥接模块。它接收客户端 ArcartX-Suite-Mod 在 `ItemTooltipEvent` 中采集的 tooltip 文本行与结构化数据，通过 ArcartX 自定义网络包传输至服务端，按玩家与物品指纹去重缓存后，以 `TooltipDataCapable` Capability 形式向其他模块提供查询服务。典型应用场景包括 TACZ 枪械属性展示、Apotheosis 词缀预览、聊天物品展示中的动态 Lore 注入等。
+
+| 属性 | 值 |
+|---|---|
+| 模块 ID | `tooltip` |
+| 版本 | 1.4.4 |
+| 主类 | `xuanmo.arcartxsuite.tooltip.TooltipModule` |
+| 配置文件 | 无（仅 `messages.yml` 消息文件） |
+| 消息文件 | `messages.yml` |
+| 数据包 ID | `AXS_TOOLTIP_DATA` |
+| 缓存 TTL | 60 秒 |
+| 模块依赖 | 无 |
+| 外部依赖 | 无 |
+
+## 功能特性
+
+| 特性 | 说明 |
+|---|---|
+| 客户端 tooltip 采集 | 客户端 ArcartX-Suite-Mod 在 Forge `ItemTooltipEvent` 中采集 tooltip 文本行和结构化数据，通过 `AXS_TOOLTIP_DATA` 自定义网络包发送给服务端 |
+| 按物品指纹缓存 | 以玩家 UUID + 物品注册名（如 `tacz:ak47`）为键去重缓存，避免同一物品重复处理 |
+| 结构化数据透传 | 保留客户端采集的 JSON 格式结构化数据（如 TACZ 枪属性的 damage、armorIgnore、headshotMultiplier 等字段），供业务逻辑直接解析使用 |
+| Lore 注入 | 将 tooltip 文本行注入物品 NBT `display.Lore` 标签，用于聊天物品预览等场景，支持 `&` 颜色码自动转换 |
+| 跨模块 Capability | 通过 `TooltipDataCapable` 能力接口向其他模块提供 tooltip 查询、结构化数据获取与 Lore 注入服务 |
+| 高优先级包处理 | 数据包处理器优先级为 50（数值越小越先执行），确保 tooltip 数据尽快缓存供其他模块使用 |
+| 线程安全缓存 | 缓存内部使用 `ConcurrentHashMap`，无需异步调度，包处理同步执行 |
+| 自动清理 | 缓存 TTL 60 秒自动过期，玩家退出时立即清理其全部缓存数据 |
+| 管理命令 | 提供 `/axs tooltip status` 查看模块缓存状态（缓存玩家数、数据包 ID、TTL） |
+
+## 依赖
+
+| 依赖类型 | 名称 | 必需 | 说明 |
+|---|---|---|---|
+| 宿主 | ArcartXSuite 主插件 | 是 | 模块加载、网络包路由、Capability 注册 |
+| 客户端 | ArcartX-Suite-Mod | 是 | 客户端 Forge mod，采集 tooltip 数据并发送 `AXS_TOOLTIP_DATA` 网络包 |
+| 模块依赖 | 无 | - | Tooltip 不依赖任何其他模块即可独立运行 |
+| 外部依赖 | 无 | - | 无 PlaceholderAPI / Vault 等外部插件依赖 |
+
+:::info
+Tooltip 模块本身无任何模块依赖与外部插件依赖。其核心数据来源是客户端 ArcartX-Suite-Mod，服务端仅负责接收、缓存与提供查询。若客户端未安装 mod，模块仍可正常启动，但缓存为空，所有查询返回空值。
+:::
+
+## Tooltip 机制
+
+### 数据采集流程
+
+```
+客户端 Forge ItemTooltipEvent
+  → ArcartX-Suite-Mod 采集 tooltip 文本行 + 结构化数据
+  → 构建 AXS_TOOLTIP_DATA 网络包
+  → ArcartX 自定义网络通道发送至服务端
+  → TooltipPacketHandler 接收（优先级 50，高优先级尽快缓存）
+  → TooltipJsonParser 解析 JSON 数组
+  → TooltipDataCache 按玩家 UUID + 物品指纹存入缓存
+  → 其他模块通过 TooltipDataCapable 查询使用
+```
+
+### 网络包格式
+
+客户端发送的 `AXS_TOOLTIP_DATA` 数据包包含 4 个字符串负载字段：
+
+| 索引 | 字段 | 说明 | 示例 |
+|---|---|---|---|
+| `data[0]` | 物品指纹 | 物品注册名（namespace:path 格式），与客户端 `ForgeRegistries.ITEMS.getKey()` 一致 | `tacz:ak47` |
+| `data[1]` | 物品类型 ID | 同 `data[0]`，目前服务端不单独使用 | `tacz:ak47` |
+| `data[2]` | tooltip 文本行 | JSON 数组字符串，包含 tooltip 每一行的文本 | `["§eAK47","§7伤害: §f15"]` |
+| `data[3]` | 结构化数据 | JSON 对象字符串，包含结构化属性字段 | `{"damage":15,"headshotMultiplier":2.0}` |
+
+:::tip
+`data[2]` 的文本行中可能包含 Minecraft 颜色码（`§` 前缀）。在 Lore 注入时，模块会自动将 `&` 颜色码转换为 `§` 颜色码。
+:::
+
+### 物品指纹机制
+
+物品指纹（fingerprint）是缓存去重的核心键。Tooltip 模块使用物品注册名作为指纹：
+
+```java
+public static String fingerprint(@NotNull ItemStack itemStack) {
+    return itemStack.getType().getKey().toString();
+}
+```
+
+| 特性 | 说明 |
+|---|---|
+| 指纹格式 | `namespace:path`（如 `minecraft:diamond_sword`、`tacz:ak47`） |
+| 不包含 NBT | 不包含 NBT hash，因客户端 Forge NBT 与服务端 Bukkit ItemMeta 的 hash 计算方式不同，无法统一 |
+| 同类型共享 | 同类型物品共享一份 tooltip 数据，对于聊天预览场景足够精确 |
+| 匹配一致性 | 与客户端 `ForgeRegistries.ITEMS.getKey(stack.getItem()).toString()` 一致，确保缓存正确匹配 |
+
+### 缓存生命周期
+
+| 阶段 | 触发条件 | 行为 |
+|---|---|---|
+| 写入 | 收到 `AXS_TOOLTIP_DATA` 包 | 按玩家 UUID + 物品指纹存入 `ConcurrentHashMap`，覆盖旧数据 |
+| 读取 | 其他模块调用 `TooltipDataCapable` 查询 | 按玩家 UUID + 物品指纹查找，TTL 过期则返回 null |
+| TTL 过期 | 距写入时间超过 60 秒 | 读取时惰性删除，或 `cleanup()` 批量清理 |
+| 玩家退出 | `PlayerQuitEvent`（MONITOR 优先级） | 立即删除该玩家的全部缓存数据 |
+| 模块卸载 | `stopService()` | 调用 `cleanup()` 清理全部缓存 |
+
+:::info
+缓存使用 `ConcurrentHashMap` 保证线程安全，无需异步调度。数据包处理同步执行，确保其他模块在查询时能立即获取最新数据。
+:::
+
+### Lore 注入机制
+
+`TooltipDataCapable.injectLore` 方法将 tooltip 文本行注入物品 NBT `display.Lore` 标签，用于聊天物品预览等场景：
+
+```java
+ItemStack clone = itemStack.clone();
+ItemMeta meta = clone.getItemMeta();
+List<String> lore = new ArrayList<>(lines.size());
+for (String line : lines) {
+    lore.add(ChatColor.translateAlternateColorCodes('&', line));
+}
+meta.setLore(lore);
+clone.setItemMeta(meta);
+return clone;
+```
+
+| 特性 | 说明 |
+|---|---|
+| 克隆物品 | 注入前克隆物品，不修改原始物品栈 |
+| 颜色码转换 | 自动将 `&` 颜色码转换为 `§` 颜色码 |
+| 空值保护 | 物品为空 / 空气 / 无 ItemMeta 时返回原始物品 |
+| 异常保护 | 注入过程发生异常时返回原始物品，不抛出异常 |
+
+:::tip
+Lore 注入通常与 `ItemBridgeAPI.itemToJson` 配合使用：先注入 tooltip Lore，再序列化为 JSON 发送给客户端，使客户端 UI 能显示完整的动态物品信息。详见 [/docs/guide/icons](/docs/guide/icons)。
+:::
+
+### 与其他模块的关系
+
+Tooltip 模块作为数据提供方，通过 `TooltipDataCapable` Capability 向其他模块提供服务：
+
+| 消费方模块 | 联动场景 |
+|---|---|
+| Chat | 聊天物品展示 `[item]` 时，从 Tooltip 获取物品 tooltip 文本行，注入 NBT Lore 后序列化发送给客户端 |
+| 其他模块 | 可通过 `getStructuredData` 获取结构化 JSON 数据，解析后用于业务逻辑（如枪械属性判定） |
+
+:::info
+Tooltip 模块不消费任何其他模块的 Capability，是纯提供方。模块加载顺序不影响其功能——消费方通过延迟查找 `getCapability(TooltipDataCapable.class)` 获取能力，若 Tooltip 未加载则返回 null，消费方降级处理。
+:::

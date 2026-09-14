@@ -1,0 +1,157 @@
+---
+title: 联动
+description: VanillaUI EventBus 事件、Capability、跨服与模块联动
+---
+
+# 联动
+
+## EventBus 事件
+
+VanillaUI 模块当前**不发布** EventBus 事件。模块专注于原版界面替换与配方书功能，不通过 EventBus 向其他模块广播操作事件。
+
+模块未覆写 `publishedTopics()` 方法，不注册任何事件主题。其他模块无法通过 `EventBusCapability.hasPublisher(topic)` 检测 VanillaUI 是否已加载。
+
+> 如需感知玩家打开工作台/熔炉的行为，其他模块可自行监听 Bukkit 的 `InventoryOpenEvent`，检查 `Inventory` 类型是否为 `CraftingInventory` 或 `FurnaceInventory`。
+
+## Capability 注册
+
+VanillaUI 模块**不注册**任何 Capability。模块不对外暴露编程访问接口，其他模块无法通过 `getCapability()` 获取 VanillaUI 的服务实例。
+
+模块的核心逻辑封装在 `VanillaService` 中，仅在模块内部使用，不通过 `registerCapability()` 暴露。
+
+## 宿主桥接依赖
+
+VanillaUI 模块使用以下宿主桥接服务：
+
+| 桥接 | 来源 | 用途 |
+| --- | --- | --- |
+| `PacketBridgeAPI` | 核心 `ModuleContext` | 向客户端 UI 推送配方书数据与熔炉状态 |
+| `VanillaItemNameBridge` | 核心 `ModuleContext` | 获取原版物品中文名，用于配方书中文搜索 |
+
+### PacketBridgeAPI
+
+模块通过 `PacketBridgeAPI` 实现与客户端 UI 的双向通讯：
+
+| 方向 | 方法 | 说明 |
+| --- | --- | --- |
+| 服务端 -> 客户端 | `sendPacket(player, uiId, packetId, data)` | 推送配方书数据与熔炉状态 |
+| 客户端 -> 服务端 | `ClientPacketHandler` 回调 | 接收客户端 UI 发送的交互包 |
+
+模块在 `createPacketHandlerSpec()` 中注册包处理器，将客户端包路由到 `VanillaService.handleClientPacket()`：
+
+```java
+@Override
+protected @NotNull PacketHandlerSpec createPacketHandlerSpec() {
+    return PacketHandlerSpec.of(
+        (player, packetId, data) ->
+            service != null && service.handleClientPacket(player, packetId, data),
+        0, null, null);
+}
+```
+
+### VanillaItemNameBridge
+
+模块通过 `VanillaItemNameBridge` 将原版物品材质名翻译为中文，用于配方书的中文搜索功能：
+
+| 方法 | 说明 |
+| --- | --- |
+| `isAvailable()` | 桥接是否可用（宿主未初始化时返回 `false`） |
+| `translate(Material)` | 按 Material 粒度翻译原版物品名 |
+| `resolveDisplayName(ItemStack)` | 解析物品中文显示名（含自定义名） |
+
+> 当 `VanillaItemNameBridge.isAvailable()` 返回 `false` 时，`RecipeCollector` 降级为返回材质名的小写空格形式（如 `diamond_sword` -> `diamond sword`），配方书仍可使用英文搜索。
+
+## 跨服同步
+
+VanillaUI 模块**不涉及**跨服同步。模块不使用数据库存储，所有状态均为内存态：
+
+| 状态 | 存储位置 | 生命周期 |
+| --- | --- | --- |
+| 工作台配方书开关状态 | `VanillaService.craftingBookState` | 玩家级 `Map<UUID, Boolean>`，模块关闭时清除 |
+| 熔炉配方书开关状态 | `VanillaService.furnaceBookState` | 玩家级 `Map<UUID, Boolean>`，模块关闭时清除 |
+| 熔炉追踪状态 | `FurnaceStateTask.trackedFurnaces` | 玩家级 `Map<UUID, String>`，玩家退出/关闭界面时移除 |
+| 熔炉最大燃烧时间 | `FurnaceStateTask.maxBurnTimes` | 熔炉坐标级 `Map<String, Integer>`，模块关闭时清除 |
+
+> 配方书开关状态不持久化，玩家重新打开 UI 时默认为关闭状态（`open` 触发器发送 `request_recipe_book` 请求当前状态）。熔炉追踪状态在玩家关闭熔炉界面时自动移除。
+
+## 数据库表结构
+
+VanillaUI 模块**不使用**数据库存储，不创建任何数据库表。模块不实现 `PlayerDataPurgeable` 或 `DatabaseMigratable` 接口，因此 `/axs purge` 和 `/axs migrate` 命令不涉及 VanillaUI 数据。
+
+## 模块集成
+
+### module.yml 声明
+
+```yaml
+id: vanilla
+name: VanillaUI
+version: 1.4.4
+main: xuanmo.arcartxsuite.vanilla.VanillaModule
+api-version: 1.0
+
+depends: []
+softdepends: []
+external-depends: []
+external-softdepends: []
+```
+
+> VanillaUI 模块无任何模块依赖（`depends` 为空）与软依赖（`softdepends` 为空），可独立运行。
+
+### UI 资源导出
+
+模块在 `uiSpec()` 中声明 UI 资源映射，根据配置动态决定导出哪些 UI 文件：
+
+| 条件 | 导出的 UI 文件 | 输出路径 |
+| --- | --- | --- |
+| `crafting.enabled = true` | `arcartx/ui/vanilla_crafting.yml` | `ui/vanilla_crafting.yml` |
+| `furnace.enabled = true` | `arcartx/ui/vanilla_furnace.yml` | `ui/vanilla_furnace.yml` |
+
+> UI 文件是否覆盖用户修改由 `ui.overwrite-ui-files` 配置项控制。设为 `false` 时仅首次导出，设为 `true` 时每次启动/reload 都覆盖。
+
+### 监听器注册
+
+模块根据熔炉启用状态动态注册监听器：
+
+| 监听器 | 注册条件 | 说明 |
+| --- | --- | --- |
+| `InventoryOpenListener` | `furnace.enabled = true` | 监听熔炉打开/关闭，追踪状态推送 |
+
+`InventoryOpenListener` 监听以下 Bukkit 事件：
+
+| 事件 | 优先级 | 说明 |
+| --- | --- | --- |
+| `InventoryOpenEvent` | `MONITOR` | 玩家打开熔炉时，记录熔炉坐标 key 到 `FurnaceStateTask` |
+| `InventoryCloseEvent` | `MONITOR` | 玩家关闭熔炉时，从 `FurnaceStateTask` 移除追踪 |
+
+> 工作台界面由 UI YAML 的 `match` 自动替换，无需监听器介入。熔炉界面虽然也由 `match` 替换，但需要监听器追踪熔炉方块坐标以轮询状态。
+
+### 定时任务
+
+模块在熔炉启用时启动 `FurnaceStateTask` 定时任务：
+
+| 任务 | 触发方式 | 间隔 | 说明 |
+| --- | --- | --- | --- |
+| `FurnaceStateTask` | `Bukkit.runTaskTimer` | `furnace.push-interval-ticks` | 轮询追踪的熔炉方块状态并推送到客户端 |
+
+任务流程：
+
+1. 遍历 `trackedFurnaces` 中所有追踪的玩家与熔炉坐标
+2. 检查玩家在线状态，离线玩家自动移除追踪
+3. 通过熔炉坐标 key 解析 `Furnace` BlockEntity
+4. 读取 `burnTime`、`cookTime`、`cookTimeTotal`
+5. 维护 `maxBurnTimes`（`burnTime` 增大时更新最大值）
+6. 组装状态包并通过 `PacketBridgeAPI` 推送到客户端
+
+> 熔炉坐标 key 格式为 `worldName,x,y,z`，由 `FurnaceStateTask.buildFurnaceKey(Location)` 生成。
+
+### 与其他模块联动
+
+| 联动对象 | 机制 | 说明 |
+| --- | --- | --- |
+| 核心 | `PacketBridgeAPI` | UI 注册、打开、关闭、Packet 收发均通过核心 PacketBridge |
+| 核心 | `VanillaItemNameBridge` | 原版物品材质中文名翻译，用于配方书中文搜索 |
+| 核心 | `AbstractAXSModule` | 模块生命周期管理（配置加载、UI 绑定、监听器注册、包处理器注册） |
+
+> VanillaUI 模块不与其他模块直接联动。模块不注册 Capability，不发布 EventBus 事件，不依赖其他模块的 Capability 或事件。
+
+> 关于物品来源与图标渲染的通用知识，参考 [物品来源](/docs/guide/item-sources) 与 [图标系统](/docs/guide/icons)。

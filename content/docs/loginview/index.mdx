@@ -1,0 +1,137 @@
+---
+title: 概览
+description: LoginView 登录界面模块功能概览
+---
+
+# LoginView 登录界面
+
+## 模块简介
+
+LoginView 是 ArcartXSuite 的 UI 登录认证模块，通过 ArcartX UI（Aria）在客户端渲染登录、注册、改密界面，取代传统聊天栏输入密码的方式。模块支持 **standalone**（独立账户库）与 **authme**（委托 AuthMe API）两种认证模式，内置 AuthMe 数据迁移能力，并与宿主账号类型识别服务（`AccountTypeService`）深度集成，自动识别微软正版 / LittleSkin / 离线账号，为正版玩家提供免密登录体验。
+
+|| 属性 | 值 |
+|---|---|---|
+| 模块 ID | `loginview` |
+| 版本 | 1.4.4 |
+| 主类 | `xuanmo.arcartxsuite.loginview.LoginViewModule` |
+| 配置文件 | `ArcartXLoginView.yml` |
+| 消息文件 | `messages.yml` |
+| 配置版本号 | 3 |
+| 外部软依赖 | AuthMe（可选）、PlaceholderAPI（可选） |
+| 模块依赖 | 无 |
+
+## 功能特性
+
+|| 特性 | 说明 |
+|---|---|---|
+| 双认证模式 | `standalone` 使用 AXS 独立账户库（PBKDF2 哈希）；`authme` 委托 AuthMe API 做注册、登录、改密 |
+| ArcartX UI 面板 | 客户端渲染登录/注册/改密界面，内置紧凑面板与纯色块主菜单两种 UI 风格 |
+| AuthMe 桥接 | `authme` 模式下通过 `AuthMeApi` 安全调用，AuthMe 缺失时自动降级 |
+| AuthMe 迁移 | `standalone` 模式下可从 AuthMe 数据库导入历史账户哈希，支持 BCRYPT / BCRYPT2Y / SHA256 |
+| 密码安全策略 | 密码长度限制、最大尝试次数锁定、未登录时锁定移动/聊天/命令/交互/物品丢弃 |
+| Session 持久化 | 登录后一定时间内重连或服务器重启无需重新登录，可选 IP 绑定校验 |
+| QQ 绑定集成 | 微软/LittleSkin 账号可配置强制绑定 QQ 才能进入游戏，需 qqbot 模块配合 |
+| 服务条款 | 登录前强制玩家查阅并同意服务器服规 |
+| 登录后传送 | 登录成功后可传送至指定出生点（主城） |
+| 账号类型识别 | 自动识别微软正版 / LittleSkin / 离线账号，正版玩家免密直接进入 |
+| 正版免登 | 微软/LittleSkin 玩家显示「进入服务器」按钮，无需输入密码 |
+| 密码重置 | 管理员可重置玩家密码，支持随机生成密码并强制重新登录 |
+| 无敌保护 | 未登录玩家自动获得无敌状态，防止登录期间被怪物攻击 |
+| 数据库迁移 | 注册 `DatabaseMigratable` 能力，支持存储后端切换时数据迁移 |
+| 玩家数据清理 | 注册 `PlayerDataPurgeable` 能力，支持按 UUID 或全量清理玩家数据 |
+
+## 依赖
+
+|| 依赖类型 | 名称 | 必需 | 说明 |
+|---|---|---|---|
+| 模块依赖 | 无 | - | LoginView 不依赖其他模块即可运行 |
+| 外部软依赖 | AuthMe | 否 | `auth.mode=authme` 或 `migrate-authme` 命令时需要；standalone 模式不需要 |
+| 外部软依赖 | PlaceholderAPI | 否 | 注册 `%axsloginview_xxx%` 占位符，缺失时自动跳过 |
+| 宿主能力 | `SignalDispatchable` | 否 | 登录/注册/免登成功后派发信号 |
+| 宿主能力 | `EventBusCapability` | 否 | 发布 `axs.loginview.login_success` 事件供其他模块监听 |
+| 宿主能力 | `QqBindCapable` | 否 | QQ 绑定验证（需 qqbot 模块加载） |
+| 宿主能力 | `DatabaseMigratable` | 否 | 存储后端切换时数据迁移 |
+| 宿主能力 | `PlayerDataPurgeable` | 否 | 玩家数据清理 |
+| 宿主服务 | `AccountTypeService` | 是 | 统一账号类型识别（微软/LittleSkin/离线） |
+| 宿主服务 | `PacketBridgeAPI` | 是 | ArcartX UI 数据包通信 |
+| 宿主服务 | `PacketGuardAPI` | 是 | 客户端数据包安全校验 |
+| 宿主配置 | `storage` | 否 | 共享存储模式下使用本体统一数据源 |
+
+## 认证模式
+
+LoginView 支持两种认证模式，通过 `auth.mode` 配置项切换：
+
+### standalone（独立模式）
+
+使用 AXS 自有的账户库存储玩家密码哈希，完全不依赖 AuthMe。新注册账号使用 **PBKDF2-SHA256** 算法（18 万次迭代 + 16 字节随机盐）哈希密码，安全性高于 AuthMe 默认的 BCrypt。支持从 AuthMe 数据库迁移历史账户，迁移后首次登录成功可自动重写为 AXS 哈希。
+
+### authme（兼容模式）
+
+将注册、登录、改密等操作委托给 AuthMe 插件的 `AuthMeApi`，LoginView 仅提供 ArcartX UI 登录界面。适用于已安装 AuthMe 且希望保留现有认证体系的服主。AuthMe 缺失时模块不加载。
+
+|| 对比项 | standalone | authme |
+|---|---|---|
+| 账户存储 | AXS 独立账户库（`accounts` 表） | AuthMe 数据库 |
+| 密码哈希 | PBKDF2-SHA256（180000 次迭代） | AuthMe 配置的哈希算法 |
+| AuthMe 依赖 | 不需要 | 必需 |
+| 密码重置 | `/axs loginview reset-password` | 使用 AuthMe 自带命令 |
+| 数据迁移 | 支持从 AuthMe 导入 | 不适用 |
+| Session 持久化 | 支持（数据库 `sessions` 表） | 由 AuthMe 管理 |
+
+## 登录界面机制
+
+LoginView 的登录流程围绕 ArcartX UI 数据包通信展开，服务端与客户端通过 `packet-id` 通道交互：
+
+### 界面类型
+
+服务端根据玩家账号类型和注册状态，向客户端发送 `init` 包决定显示哪种界面：
+
+|| 界面类型 | `type` 值 | 触发条件 | 说明 |
+|---|---|---|---|
+| 登录 | `login` | 离线账号且已注册 | 显示密码输入框与登录按钮 |
+| 注册 | `register` | 离线账号且未注册 | 显示密码 + 确认密码输入框与注册按钮 |
+| 修改密码 | `change` | 玩家点击「修改密码」 | 显示旧密码、新密码、确认密码三个输入框 |
+| 免密进入 | `bypass` | 正版/LittleSkin 且已绑定 QQ（或不要求绑定） | 显示「进入服务器」按钮 |
+| 未绑定 QQ | `bypass_unbound` | 正版/LittleSkin 且未绑定 QQ（要求绑定时） | 显示绑定提示与验证码输入框 |
+
+### 登录流程
+
+```
+玩家进服 → ClientInitializedHandler 触发
+  → 异步预热账号类型缓存（AccountTypeService.resolveBlocking）
+  → 延迟 open-delay-ticks 后打开 UI
+  → 服务端发送 init 包（含 type/registered/premiumBypass/qqBound 等字段）
+  → 客户端根据 type 渲染对应界面
+  → 玩家输入密码/点击按钮 → 客户端通过 Packet.send 回传
+  → 服务端 handleClientPacket 处理（login/register/change_password/bypass_enter/bind_code）
+  → 验证密码 → 成功/失败发送 result 包
+  → 成功：关闭 UI → 派发信号 → 发布 EventBus 事件 → 传送出生点 → 持久化 session
+  → 失败：记录失败次数 → 达到上限踢出
+```
+
+### 未登录锁定
+
+未通过认证的玩家会受到以下限制（均可配置开关）：
+
+|| 锁定项 | 配置字段 | 默认值 | 说明 |
+|---|---|---|---|
+| 移动 | `security.lock-movement` | `true` | 阻止玩家移动（同方块内移动允许） |
+| 聊天 | `security.lock-chat` | `true` | 取消聊天事件 |
+| 命令 | `security.lock-commands` | `true` | 取消命令事件，`allow-commands-prefix` 中的前缀除外 |
+| 背包点击 | - | `true` | 取消 InventoryClickEvent |
+| 物品丢弃 | - | `true` | 取消 PlayerDropItemEvent |
+| 方块交互 | - | `true` | 取消左右键方块/空气交互 |
+
+### Session 免密登录
+
+standalone 模式下，登录成功后可将认证状态持久化到数据库 `sessions` 表，支持掉线重连或服务器重启后免重新登录：
+
+- `security.session-ttl-minutes`：session 有效期（分钟），设为 0 禁用持久化
+- `security.session-strict-ip`：是否要求 session 绑定 IP（更严格，但可能影响 NAT/移动网络用户）
+- 每小时自动清理过期 session
+
+## 相关页面
+
+- [配置](/docs/loginview/configuration) — 完整配置字段表与示例
+- [命令与占位符](/docs/loginview/commands) — 管理命令、PAPI 占位符、UI 数据包
+- [联动](/docs/loginview/integration) — EventBus 事件、Capability、数据库表、模块集成

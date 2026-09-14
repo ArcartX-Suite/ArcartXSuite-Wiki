@@ -1,0 +1,346 @@
+---
+title: 奖励档位与物品奖励
+description: AfkReward 奖励档位匹配、命令占位符、物品奖励发放与倍率系统详解
+---
+
+# 奖励档位与物品奖励
+
+> **付费模块**
+
+AfkReward 模块的奖励系统由「档位匹配」「命令奖励」「物品奖励」「倍率计算」四个部分组成。每个区域在 `reward` 节下定义多个奖励档位（如 vip3/vip2/vip1/common），系统按权限从高到低匹配玩家所属档位，在结算时执行对应命令并发放物品。倍率系统通过基础倍率、周末倍率、定时调度与收益衰减共同决定最终结算倍率，影响命令中的占位符取值。
+
+## 奖励档位
+
+### 档位定义
+
+在区域配置的 `reward` 节下，除保留字段外的每个键都是一个奖励档位，对应一个命令列表。保留字段名（不可用作档位名）：`round`、`max`、`player`、`describe`、`mail`、`item-rewards`。
+
+```yaml
+reward:
+  round: 15
+  max:
+    enable: true
+    limit: 32
+  player:
+    enable: true
+    limit: 30
+  describe: "泡澡的人越多，获取的铜币和经验越多"
+  mail:
+    presets: []
+  # ── 以下为奖励档位（从高到低排列） ──
+  vip3:
+    - "addbalance %player_name% 铜币 %axsafkreward_multiplier%*35+250"
+    - "cmi give %player_name% cobblestone 54"
+    - "cmi exp %player_name% add %axsafkreward_multiplier%*%player_level%/4+%player_level%"
+  vip2:
+    - "addbalance %player_name% 铜币 %axsafkreward_multiplier%*30+200"
+  vip1:
+    - "addbalance %player_name% 铜币 %axsafkreward_multiplier%*25+150"
+  common:
+    - "addbalance %player_name% 铜币 %axsafkreward_multiplier%*20+100"
+```
+
+### 档位匹配逻辑
+
+系统按配置顺序（`LinkedHashMap` 保持插入顺序）从高到低匹配玩家权限：
+
+| 权限节点 | 优先级 | 说明 |
+|---|---|---|
+| `axs.afkreward.start.<areaId>.<tier>` | 高 | 匹配指定区域指定档位 |
+| `axs.afkreward.start.<tier>` | 低 | 匹配任意区域指定档位（通用档位权限） |
+
+匹配流程：
+
+```
+遍历档位列表（配置顺序）
+  ↓
+检查 axs.afkreward.start.<areaId>.<tier> 或 axs.afkreward.start.<tier>
+  ↓
+命中第一个有权限的档位 → 停止匹配
+  ↓
+无任何档位权限 → 默认取最后一个档位（通常是 common）
+```
+
+> 档位顺序由 YAML 配置顺序决定。建议将高 VIP 档位写在前面，普通档位写在最后，确保高权限玩家优先匹配高奖励档位。
+
+### 每日奖励次数上限
+
+| 字段 | 类型 | 默认值 | 说明 |
+|---|---|---|---|
+| `reward.max.enable` | `boolean` | `true` | 是否启用每日奖励次数上限 |
+| `reward.max.limit` | `int` | `32` | 每日最大奖励次数，最小 1 |
+
+> 拥有 `axs.afkreward.not.reward.limit` 权限的玩家可豁免每日上限。每日计数在日期切换时自动归零。
+
+### 区域人数上限
+
+| 字段 | 类型 | 默认值 | 说明 |
+|---|---|---|---|
+| `reward.player.enable` | `boolean` | `true` | 是否启用区域人数上限 |
+| `reward.player.limit` | `int` | `30` | 最大同时挂机人数，最小 1 |
+
+> 拥有 `axs.afkreward.not.player.limit` 权限的玩家可豁免人数上限（仅 MANUAL 模式 `startManualAfk` 检查时生效）。
+
+## 命令奖励
+
+### 命令占位符
+
+命令以控制台身份执行（`Bukkit.dispatchCommand(ConsoleSender, cmd)`），支持以下占位符：
+
+| 占位符 | 说明 | 示例值 |
+|---|---|---|
+| `%player_name%` | 玩家名（经过命令注入校验 `CommandSanitizer.validatePlayerName`） | `Steve` |
+| `%axsafkreward_multiplier%` | 当前结算倍率（保留两位小数） | `1.50` |
+| `%axsafk_multiplier%` | 同上（兼容旧写法） | `1.50` |
+
+> 玩家名经过 `CommandSanitizer.validatePlayerName()` 校验，防止命令注入。倍率占位符在 `replaceRewardPlaceholders()` 中替换为 `computeMultiplier()` 的计算结果。
+
+### 命令执行示例
+
+```yaml
+reward:
+  vip3:
+    - "addbalance %player_name% 铜币 %axsafkreward_multiplier%*35+250"
+    - "cmi give %player_name% cobblestone 54"
+    - "cmi exp %player_name% add %axsafkreward_multiplier%*%player_level%/4+%player_level%"
+```
+
+上述配置在倍率为 `1.50`、玩家 `Steve`、等级 `40` 时，实际执行的命令为：
+
+```
+addbalance Steve 铜币 1.50*35+250
+cmi give Steve cobblestone 54
+cmi exp Steve add 1.50*40/4+40
+```
+
+> 命令中的数学表达式由接收命令的插件（如 CMI、经济插件）自行解析，AfkReward 只负责占位符替换。
+
+## 物品奖励
+
+### 物品奖励配置
+
+在 `reward.item-rewards` 节下按档位定义物品列表，通过 `ItemSourceRegistry` 生成物品直接发放。物品来源详见 [物品库匹配](/docs/guide/item-sources) 指南。
+
+```yaml
+reward:
+  item-rewards:
+    vip3:
+      - source: "minecraft"
+        id: "DIAMOND"
+        amount: 3
+        nbt: "{display:{Name:'{\"text\":\"挂机钻石\"}'}}"
+      - source: "mythic"
+        id: "legendary_gem"
+        amount: 1
+    vip2:
+      - source: "neige"
+        id: "rune_pack"
+        amount: 2
+    common:
+      - source: "minecraft"
+        id: "IRON_INGOT"
+        amount: 5
+```
+
+### 物品奖励字段
+
+| 字段 | 类型 | 默认值 | 说明 |
+|---|---|---|---|
+| `source` | `string` | `"minecraft"` | 物品来源（minecraft/mythic/neige/overture/mmoitems） |
+| `id` | `string` | — | 物品 ID（原版材质名或外部物品库 ID；mmoitems 格式为 `类型ID;物品ID`） |
+| `amount` | `int` | `1` | 物品数量（最小 1） |
+| `nbt` | `string` | — | 自定义 NBT（SNBT 字符串，仅 minecraft 源有效），可省略 |
+
+### 物品来源说明
+
+| 来源 | source 值 | id 格式 | 说明 |
+|---|---|---|---|
+| 原版物品 | `minecraft` | 材质名（如 `DIAMOND`） | 支持自定义 NBT |
+| MythicMobs | `mythic` | 物品 ID | 需 MythicMobs 插件 |
+| NeigeItems | `neige` | 物品 ID | 需 NeigeItems 插件 |
+| Overture | `overture` | 物品 ID | 需 Overture 插件 |
+| MMOItems | `mmoitems` | `类型ID;物品ID`（如 `SWORD;EPEX_SWORD`） | 需 MMOItems 插件 |
+
+### 物品发放流程
+
+物品奖励统一通过 `ItemRewardDispatcher` 发放，保证全模块一致的行为：
+
+```
+dispatchItemRewards(player, itemRewards)
+  ↓
+遍历物品列表 → ItemSourceRegistry.generateItem(source, id, amount, nbt, player)
+  ↓
+生成失败 → 打印警告，跳过该物品
+  ↓
+生成成功 → ItemRewardDispatcher.dispatchItem(player, item, options)
+  ↓
+放入背包 → 背包满时溢出物品通过 Mail 模块发邮件补发
+  ↓
+Mail 模块不可用 → 溢出物品掉落地面
+```
+
+### DispatchOptions 配置
+
+`ItemRewardDispatcher.DispatchOptions` 中预设了挂机奖励的溢出处理参数：
+
+| 参数 | 值 | 说明 |
+|---|---|---|
+| `sourceModule` | `"afkreward"` | 来源模块标识 |
+| `sourceDetail` | `"item-reward"` | 来源明细 |
+| `overflowMailSubject` | `"挂机奖励溢出物品"` | 溢出邮件主题 |
+| `overflowMailBody` | `"你的背包已满，挂机奖励物品通过邮件补发。"` | 溢出邮件正文 |
+| `overflowMailSenderName` | `"挂机奖励"` | 溢出邮件发件人名 |
+
+> `ItemSourceRegistry` 或 `ItemRewardDispatcher` 未注入时，物品奖励跳过并打印警告，不影响命令奖励的发放。
+
+## 倍率系统
+
+### 倍率配置
+
+倍率配置位于区域文件的 `multiplier` 节：
+
+```yaml
+multiplier:
+  enable: false
+  base: 1.0
+  weekend: 1.0
+  combine: MAX
+  schedules:
+    - days: "SAT,SUN"
+      start: "20:00"
+      end: "22:00"
+      multiplier: 2.0
+```
+
+| 字段 | 类型 | 默认值 | 说明 |
+|---|---|---|---|
+| `multiplier.enable` | `boolean` | `false` | 是否启用倍率系统 |
+| `multiplier.base` | `double` | `1.0` | 基础倍率 |
+| `multiplier.weekend` | `double` | `1.0` | 周末倍率（周六、周日生效） |
+| `multiplier.combine` | `string` | `MAX` | 多倍率叠加方式 |
+| `multiplier.schedules` | `list<section>` | `[]` | 定时倍率调度列表 |
+
+### 定时倍率调度
+
+| 字段 | 类型 | 默认值 | 说明 |
+|---|---|---|---|
+| `days` | `string` | `"ALL"` | 生效的星期（英文缩写逗号分隔，如 `SAT,SUN`；`ALL` 表示每天） |
+| `start` | `string` | `"00:00"` | 生效开始时间（`HH:mm` 格式） |
+| `end` | `string` | `"23:59"` | 生效结束时间（`HH:mm` 格式，跨天时 `end` 早于 `start` 表示到次日） |
+| `multiplier` | `double` | `1.0` | 该时段的倍率 |
+
+> 支持的星期缩写：`MON`、`TUE`、`WED`、`THU`、`FRI`、`SAT`、`SUN`。时间格式解析失败时该调度不生效。
+
+### 倍率叠加方式
+
+当多个倍率同时命中时（如周末倍率 + 定时调度），按 `combine` 字段决定叠加方式：
+
+| 叠加方式 | 说明 | 示例（base=1.0, weekend=2.0, schedule=1.5） |
+|---|---|---|
+| `MAX` | 取所有命中倍率的最大值（默认） | `max(1.0, 2.0, 1.5) = 2.0` |
+| `MULTIPLY` | 所有命中倍率连乘 | `1.0 * 2.0 * 1.5 = 3.0` |
+| `LAST` | 取最后一个命中的倍率 | `1.5`（按调度列表顺序） |
+
+### 倍率计算公式
+
+`computeMultiplier()` 的完整计算流程：
+
+```
+最终倍率 = 区域倍率 × 区域权重(reward-weight) × 衰减系数
+```
+
+详细步骤：
+
+```
+1. 初始值 = multiplier.enable ? multiplier.base : 1.0
+2. 收集命中倍率：
+   - 周末命中（SAT/SUN）且 weekend != 1.0 → 加入 weekend
+   - 遍历 schedules，scheduleMatches() 命中 → 加入 schedule.multiplier
+3. 按 combine 方式叠加到 result
+4. result *= area.rewardWeight()（区域权重）
+5. 若 decay.enable 且挂机时长 > start-seconds：
+   elapsedHours = (seconds - start-seconds) / 3600
+   decay = max(minMultiplier, 1.0 - factorPerHour * elapsedHours)
+   result *= decay
+6. 若 time-limit.on-exceed == "DECAY" 且超限：
+   result = min(result, decay.minMultiplier)
+7. return max(0.0, result)
+```
+
+### 调度匹配逻辑
+
+`scheduleMatches()` 判断当前时间是否在调度时段内：
+
+| 场景 | 判断逻辑 |
+|---|---|
+| `days` 为 `ALL` | 每天都匹配 |
+| `days` 包含当前星期缩写 | 匹配（如 `SAT,SUN` 在周六匹配） |
+| `end` 晚于 `start` | `start <= now <= end` |
+| `end` 早于 `start`（跨天） | `now >= start` 或 `now <= end` |
+
+```yaml
+# 跨天调度示例：周五 22:00 到次日 02:00
+multiplier:
+  schedules:
+    - days: "FRI"
+      start: "22:00"
+      end: "02:00"
+      multiplier: 3.0
+```
+
+## 收益衰减
+
+衰减机制属于反滥用系统，但直接影响倍率计算，在此一并说明。详见 [反滥用与审计](/docs/afkreward/anti-abuse) 页面。
+
+| 字段 | 类型 | 默认值 | 说明 |
+|---|---|---|---|
+| `anti-abuse.decay.enable` | `boolean` | `false` | 是否启用收益衰减 |
+| `anti-abuse.decay.start-seconds` | `int` | `3600` | 衰减开始时间（秒） |
+| `anti-abuse.decay.factor-per-hour` | `double` | `0.2` | 每小时衰减因子 |
+| `anti-abuse.decay.min-multiplier` | `double` | `0.3` | 最低衰减倍率 |
+
+衰减计算：
+
+```
+elapsedHours = (当前挂机秒数 - start-seconds) / 3600
+decay = max(minMultiplier, 1.0 - factorPerHour * elapsedHours)
+最终倍率 *= decay
+```
+
+> 示例：`start-seconds=3600`（1 小时）、`factor-per-hour=0.2`、`min-multiplier=0.3`。挂机 2 小时后衰减系数 = `max(0.3, 1.0 - 0.2 * 1) = 0.8`；挂机 5 小时后 = `max(0.3, 1.0 - 0.2 * 4) = 0.2`，但受 `min-multiplier` 限制为 `0.3`。
+
+## 邮件集成
+
+### 发奖邮件
+
+区域配置 `reward.mail.presets` 可在每次发奖后发送预设邮件（需 Mail 模块）：
+
+```yaml
+reward:
+  mail:
+    presets:
+      - "afk_reward_mail"
+```
+
+### 结束挂机邮件
+
+主配置 `manual.end-mail.mail.presets` 可在结束原地挂机时发送预设邮件：
+
+```yaml
+manual:
+  end-mail:
+    mail:
+      presets:
+        - "afk_end_mail"
+```
+
+> 邮件预设需在 Mail 模块的 `presets` 目录中存在，否则会打印"预设邮件派发失败"警告。邮件派发通过 `MailPresetHelper.dispatchPresets()` 统一处理。
+
+## 相关文档
+
+- [概览](/docs/afkreward) — 模块功能概览
+- [配置](/docs/afkreward/configuration) — 主配置文件与区域配置文件详解
+- [区域与双模式挂机](/docs/afkreward/afk-areas) — 区域定义、REGION 与 MANUAL 模式、行为保护与崩溃恢复
+- [反滥用与审计](/docs/afkreward/anti-abuse) — 时长限制、机器人检测、IP 限制、收益衰减与审计日志
+- [物品库匹配](/docs/guide/item-sources) — 统一物品来源系统配置指南
+- [图标配置](/docs/guide/icons) — 统一图标系统配置指南

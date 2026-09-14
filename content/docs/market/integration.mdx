@@ -1,0 +1,253 @@
+---
+title: 联动
+description: Market 跨模块联动与 Capability
+---
+
+# 联动
+
+Market 模块通过 EventBus、Capability、跨服通道等机制与其他模块和外部系统联动。
+
+## EventBus 事件
+
+Market 模块通过 `EventBusCapability` 发布事件，其他模块可通过 EventBus 监听这些事件实现联动。
+
+### 发布的事件
+
+| 事件 Topic | 触发时机 | Payload |
+|---|---|---|
+| `market.listing_created` | 拍卖行上架成功 | `price`（起拍价）、`currency`（货币 ID） |
+| `market.auction_purchased` | 拍卖行竞价成交 | - |
+| `market.shop_dynamic_triggered` | 动态商品策略触发 | `strategy_key`、`strategy_type`、`shop_id` |
+
+### 事件发布机制
+
+事件通过 `EventBusCapability` 发布，由 Market 模块在 `MarketService` 中延迟查找：
+
+```java
+service.setEventBusProvider(() -> getCapability(EventBusCapability.class));
+```
+
+```java
+private void publishEvent(String topic, Player player, Map<String, String> payload) {
+    if (eventBusProvider == null) return;
+    EventBusCapability bus = eventBusProvider.get();
+    if (bus != null) {
+        bus.publish(topic, player, payload);
+    }
+}
+```
+
+:::info
+EventBus 为延迟查找（`getCapability`），因模块加载顺序不定。若 EventBus 模块未加载，事件发布为空操作，不影响 Market 正常运行。
+:::
+
+### 信号派发
+
+Market 还通过 `SignalDispatchable` 派发信号：
+
+| 信号 | 触发时机 | 变量 |
+|---|---|---|
+| `market_listing_created` | 拍卖行上架成功 | `price`、`currency` |
+
+信号由 `SignalDispatchable` 派发，可供 QuestGPS、条件触发器等模块监听。
+
+## Capability 注册
+
+Market 模块注册了以下 Capability，供其他模块调用：
+
+### DatabaseMigratable
+
+支持数据库迁移，供本体存储管理模块调用。
+
+| 方法 | 说明 |
+|---|---|
+| `moduleId()` | 返回 `market` |
+| `migrateDatabase(target, overwrite)` | 迁移数据到目标存储描述符 |
+| `currentDescriptor()` | 返回当前存储描述符 |
+
+### PlayerDataPurgeable
+
+支持玩家数据清理，供管理工具调用。
+
+| 方法 | 说明 |
+|---|---|
+| `moduleId()` | 返回 `market` |
+| `purgePlayerData(playerUuid)` | 删除指定玩家的所有市场数据 |
+| `purgeAllPlayerData()` | 删除所有玩家的市场数据 |
+
+### MailDispatchable（消费方）
+
+Market 模块消费 `MailDispatchable` Capability，用于到期物品通过邮件退回：
+
+```java
+java.util.function.Supplier<MailDispatchable> mailSupplier = () -> getCapability(MailDispatchable.class);
+```
+
+当 `expired-return-method: mail` 时，到期未售物品和背包满的物品通过邮件系统发放。若 Mail 模块未加载，则降级为待发放队列（玩家上线补发）。
+
+## 跨服同步
+
+### 跨服通道
+
+Market 通过 `CrossServerAPI.openChannel` 注册跨服通道：
+
+```java
+crossServerChannel = crossServer.openChannel(
+    "market",
+    config.crossServer(),
+    delivery -> handleCrossServerMessage(delivery.payload())
+);
+```
+
+### 跨服消息处理
+
+服务端收到跨服消息后，根据前缀分发处理：
+
+| 消息前缀 | 处理逻辑 |
+|---|---|
+| `BID_PLACED:<listingId>:<amount>:<bidder>` | 本地 CAS 更新竞价（`updateListingBidIfHigher`） |
+| `LISTING_CREATED/CANCELLED` | 失效本地 Redis 缓存 |
+| `PSHOP_LISTING_CREATED/SOLD/CANCELLED` | 失效玩家商店 Redis 缓存 |
+| `SHOP_LIMIT_UPDATE:<uuid>:<shopId>:<itemId>:<count>:<ts>:<resetTime>` | 本地 upsert 限购记录 |
+| `DYNAMIC_SHOP_UPDATE:<strategyKey>:<shopId>:<jsonData>` | 本地同步动态商品状态 |
+
+### 跨服配置
+
+跨服同步需配合宿主 `config.yml` 的 `cross-server` 节：
+
+```yaml
+# 宿主 config.yml
+cross-server:
+  node-id: "default"
+  redis:
+    enabled: true
+    host: "127.0.0.1"
+    port: 6379
+    channel: "AXS:CROSS"
+  proxy:
+    enabled: false
+    messenger-channel: "AXS_CROSS"
+```
+
+```yaml
+# 模块 ArcartXMarket.yml
+cross-server:
+  enabled: true
+```
+
+:::tip
+跨服同步支持 Redis + BungeeCord/Velocity Forward 双后端。单服无需开启跨服和 Redis。
+:::
+
+## 数据库表结构
+
+Market 模块使用 JDBC 仓储（`JdbcMarketRepository`），支持 MySQL 和 SQLite 双模式。表前缀默认为 `axs_market_`。
+
+### 拍卖行相关表
+
+| 表名 | 说明 |
+|---|---|
+| `axs_market_listings` | 拍卖上架记录（物品数据、起拍价、当前竞价、卖家、到期时间、分类、拼音 token 等） |
+| `axs_market_bids` | 竞价记录（上架 ID、出价者、出价金额、时间） |
+| `axs_market_history` | 交易历史（上架 ID、卖家、买家、物品、成交价、税费、交易类型、时间） |
+| `axs_market_favorites` | 收藏记录（玩家、上架 ID） |
+| `axs_market_listings_fts` | 全文搜索索引（SQLite FTS5 或 MySQL FULLTEXT+ngram，不可用时降级 LIKE） |
+
+### 系统商店相关表
+
+| 表名 | 说明 |
+|---|---|
+| `axs_market_shop_limits` | 限购记录（玩家、商店 ID、商品 ID、已购数量、重置时间） |
+| `axs_market_shop_global_stock` | 全服共享库存（商店 ID、商品 ID、剩余库存） |
+| `axs_market_shop_player_stock` | 玩家独立库存（玩家、商店 ID、商品 ID、剩余库存） |
+
+### 玩家商店相关表
+
+| 表名 | 说明 |
+|---|---|
+| `axs_market_player_shop_listings` | 玩家商店上架记录 |
+| `axs_market_player_shop_history` | 玩家商店交易历史 |
+
+### 其他表
+
+| 表名 | 说明 |
+|---|---|
+| `axs_market_recycle_stats` | 回收统计（玩家、货币、总金额、总数量） |
+| `axs_market_pending_deliveries` | 待发放队列（玩家、物品数据/货币、原因） |
+| `axs_market_dynamic_shop_state` | 动态商品策略持久化状态 |
+
+### 全文搜索
+
+拍卖行搜索支持全文索引：
+- **SQLite**：使用 FTS5 虚拟表
+- **MySQL**：使用 FULLTEXT 索引 + ngram 分词器
+- **降级**：全文索引不可用时降级到 `LIKE` 查询（配合 `ESCAPE '\\'` 转义特殊字符）
+
+搜索关键字最大长度 100 字符，超长输入会被截断。
+
+## 与其他模块联动
+
+### Mail 模块
+
+Market 消费 `MailDispatchable` Capability，用于：
+- 拍卖行到期未售物品退回
+- 竞价成交物品发放（背包满时转邮件）
+- 玩家商店到期/下架物品退回
+- 待发放队列补发（背包满时转邮件）
+
+若 Mail 模块未加载，物品发放降级为：放入背包 → 背包满则掉落 → 掉落失败则入待发放队列。
+
+### QuestGPS / 信号触发模块
+
+Market 通过 `SignalDispatchable` 派发 `market_listing_created` 信号，可供任务系统监听"上架物品"事件。
+
+### EventPacket 模块
+
+Market 发布的 EventBus 事件可被 EventPacket 模块捕获，用于触发条件判定（如"玩家上架物品后触发某事件"）。
+
+### CurrencyBridge（经济系统）
+
+Market 通过 `CurrencyBridgeAPI` 统一管理货币，支持：
+- Vault（`money`）
+- PlayerPoints（`points`）
+- Xconomy
+- Rondo
+- Command（自定义命令货币）
+- Placeholder-Command（占位符货币）
+- Custom（自定义货币）
+
+货币定义在宿主 `config.yml` 的 `currencies` 节，模块配置只引用货币 ID。
+
+### ItemSourceRegistry（物品来源）
+
+Market 通过 `ItemSourceRegistry` 识别和生成多种物品来源的物品：
+
+| 来源 | 方法 | 用途 |
+|---|---|---|
+| MythicMobs | `generateMythicItem` | 系统商店/回收表生成 MythicMobs 物品 |
+| NeigeItems | `generateNeigeItem` | 系统商店/回收表生成 NeigeItems 物品 |
+| Overture | `generateOvertureItem` | 系统商店/回收表生成 Overture 物品（需玩家上下文） |
+| MMOItems | `generateMmoItem` | 系统商店/回收表生成 MMOItems 物品 |
+
+拍卖行和玩家商店上架的物品使用 `AuctionItemSerializer` 序列化：
+- Overture 物品优先使用原生 JSON 序列化（前缀 `OVERTURE:`）
+- 其余物品使用 Bukkit 原生序列化（Base64 编码）
+
+### ItemRewardDispatcher（物品发放）
+
+Market 通过 `ItemRewardDispatcher` 统一发放物品，发放优先级：
+1. 放入玩家背包
+2. 背包满 → 转邮件（需 Mail 模块）
+3. 邮件不可用 → 掉落在玩家脚下
+4. 以上均失败 → 入待发放队列
+
+### ContentModerator（内容审核）
+
+Market 通过 `ContentModerator` 对拍卖行/玩家商店的留言进行敏感词过滤。若 ContentModerator 不可用，使用 `NoopContentModerator`（不拦截）。
+
+### LuckPerms（权限查询）
+
+拍卖行税率减免支持离线玩家权限查询：
+- 在线玩家：直接 `player.hasPermission`
+- 离线玩家：通过 LuckPerms API 异步加载用户数据后查询权限
+- LuckPerms 不可用时：回退到默认税率

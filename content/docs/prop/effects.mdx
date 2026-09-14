@@ -1,0 +1,408 @@
+---
+title: 效果系统
+description: Prop 模块效果类型详解，含 10 种效果格式、解析流程、属性聚合与持续时间管理
+---
+
+# 效果系统
+
+> **付费模块**
+>
+> Prop 模块属于 ArcartXSuite 付费模块，需在宿主 `config.yml` 中开启 `modules.prop.enabled` 并完成授权后生效。
+
+效果系统是 Prop 模块的核心能力。每个道具定义中的 `effects` 列表以 `type|payload` 格式编写，模块按行解析并分类执行。效果分为两大类：
+
+- **即时效果**：命令、消息、饱食度、生命值、经验、百分比生命、药水——使用后立即生效
+- **属性效果**：AttributePlus、MythicLib、Symphony——聚合后批量提交，在 `Duration` 秒后自动移除
+
+## 效果类型一览
+
+| 类型标识 | 格式 | 分类 | 说明 |
+|----------|------|------|------|
+| `cmd` | `cmd\|<命令>` | 即时 | 以控制台身份执行命令，支持 `{player}` 变量 |
+| `msg` | `msg\|<消息>` | 即时 | 给玩家发送消息，支持 `&` 颜色码和 `{player}` 变量 |
+| `food` | `food\|<数量>` | 即时 | 恢复饱食度，上限 20 |
+| `health` | `health\|<数量>` | 即时 | 恢复生命值，上限为玩家最大生命值 |
+| `exp` | `exp\|<数量>` | 即时 | 增加经验值 |
+| `healthPercent` | `healthPercent\|<百分比>` | 即时 | 按最大生命值百分比恢复生命值 |
+| `potion` | `potion\|<效果>:<等级>` | 即时 | 附加药水效果，持续 `Duration` 秒 |
+| `ap` | `ap\|<属性>:<值>` | 属性 | 附加 AttributePlus 属性词条 |
+| `ml` | `ml\|<属性>:<值>` | 属性 | 附加 MythicLib 临时属性 modifier |
+| `mythiclib` | `mythiclib\|<属性>:<值>` | 属性 | 同 `ml`，完整前缀写法 |
+| `sy` | `sy\|<属性>:<值>` | 属性 | 附加 Symphony 属性修改 |
+| `symphony` | `symphony\|<属性>:<值>` | 属性 | 同 `sy`，完整前缀写法，支持百分比 |
+
+> 类型标识不区分大小写，解析时会转为小写后匹配。格式无效的行会被跳过，调试模式下会输出警告日志。
+
+## 解析流程
+
+`PropService.executeEffects()` 是效果执行的核心方法。每次道具使用成功后调用，遍历 `effects` 列表逐行解析：
+
+```
+executeEffects(player, definition)
+  │
+  ├─ 遍历 effects 列表
+  │   ├─ 按 "|" 分割为 type 和 payload
+  │   ├─ type 转小写
+  │   └─ switch(type) 分发
+  │       ├─ cmd/msg/food/health/exp/healthPercent/potion → 立即执行
+  │       ├─ ap → 收集到 attributeLines 列表
+  │       ├─ ml/mythiclib → 解析为 PropMythicLibEffect，收集到 mythicLibEffects 列表
+  │       └─ sy/symphony → 解析为 PropSymphonyEffect，收集到 symphonyEffects 列表
+  │
+  ├─ 批量提交 attributeLines → PropAttributePlusService.apply()
+  ├─ 批量提交 mythicLibEffects → PropMythicLibService.apply()
+  └─ 批量提交 symphonyEffects → PropSymphonyService.apply()
+```
+
+属性类效果不会逐行提交，而是先聚合到列表中，待全部行解析完毕后一次性提交给对应属性服务。这样可以减少 API 调用次数，并支持同属性多行值的累加。
+
+## 即时效果详解
+
+### 命令（`cmd`）
+
+以控制台身份执行任意 Bukkit 命令。`{player}` 占位符会被替换为玩家名（经 `CommandSanitizer.validatePlayerName()` 安全校验，防止命令注入）。
+
+```yaml
+effects:
+  - "cmd|say {player} 使用了治疗药水"
+  - "cmd|give {player} diamond 1"
+  - "cmd|lp user {player} parent add vip"
+```
+
+> 玩家名安全校验会过滤非法字符，确保 `{player}` 替换后不会产生命令注入风险。
+
+### 消息（`msg`）
+
+向玩家发送消息，支持 `&` 颜色码和 `{player}` 变量替换。消息通过 `ChatColor.translateAlternateColorCodes()` 转换颜色码。
+
+```yaml
+effects:
+  - "msg|&a你获得了力量加成！"
+  - "msg|&6{player} &e感受到了神圣的庇护"
+```
+
+### 饱食度（`food`）
+
+恢复玩家饱食度，数值会与当前饱食度相加，上限为 20。负数表示减少饱食度。
+
+```yaml
+effects:
+  - "food|10"   # 恢复 10 点饱食度
+  - "food|-5"   # 减少 5 点饱食度
+```
+
+### 生命值（`health`）
+
+恢复玩家生命值，数值与当前生命值相加，上限为玩家最大生命值（通过 `AttributeResolver.getMaxHealth()` 获取，兼容属性插件修改的最大生命值）。负数表示扣血。
+
+```yaml
+effects:
+  - "health|10"   # 恢复 10 点生命值
+  - "health|-5"   # 扣除 5 点生命值
+```
+
+### 经验（`exp`）
+
+增加玩家经验值，通过 `Player.giveExp()` 实现。负数表示减少经验。
+
+```yaml
+effects:
+  - "exp|100"   # 增加 100 点经验
+```
+
+### 百分比生命（`healthPercent`）
+
+按玩家最大生命值的百分比恢复生命值。通过 `AttributeResolver.getMaxHealthAttribute()` 获取最大生命值属性，计算 `maxHealth * percent / 100` 作为恢复量。
+
+```yaml
+effects:
+  - "healthPercent|10"   # 恢复最大生命值的 10%
+  - "healthPercent|50"   # 恢复最大生命值的 50%
+```
+
+> `healthPercent` 依赖 `AttributeResolver.getMaxHealthAttribute()`，若返回 `null` 则跳过执行（不报错）。
+
+### 药水（`potion`）
+
+附加药水效果，格式为 `<效果名>:<等级>`。持续时间由道具的 `Duration` 字段决定（秒 → tick，乘以 20）。等级从 0 开始（0 = I 级，1 = II 级）。
+
+```yaml
+Duration: 30
+
+effects:
+  - "potion|SPEED:2"           # 速度 III，持续 30 秒
+  - "potion|REGENERATION:1"     # 生命恢复 II，持续 30 秒
+  - "potion|STRENGTH:0"         # 力量 I，持续 30 秒
+  - "potion|JUMP_BOOST:1"       # 跳跃提升 II，持续 30 秒
+```
+
+#### 药水效果名兼容映射
+
+Minecraft 1.20.2 重命名了部分 `PotionEffectType` 枚举。Prop 模块内置旧名 → 新名映射表，配置中可继续使用旧名：
+
+| 旧名（1.20.1 及以下） | 新名（1.20.2+） |
+|----------------------|-----------------|
+| `SLOW` | `SLOWNESS` |
+| `FAST_DIGGING` | `HASTE` |
+| `SLOW_DIGGING` | `MINING_FATIGUE` |
+| `INCREASE_DAMAGE` | `STRENGTH` |
+| `JUMP` | `JUMP_BOOST` |
+| `CONFUSION` | `NAUSEA` |
+| `HEAL` | `INSTANT_HEAL` |
+| `HARM` | `INSTANT_DAMAGE` |
+| `DAMAGE_RESISTANCE` | `RESISTANCE` |
+
+> 解析时优先使用新名查找（`PotionEffectType.getByName()`），查找失败后回退到旧名映射。两个版本名都支持，无需根据服务器版本修改配置。
+
+## 属性效果详解
+
+属性效果通过宿主 `AttributeBridgeRegistry` 获取三套属性插件的桥接实例。每个桥接独立初始化，对应插件未安装时 `available()` 返回 `false`，效果调用为空操作。
+
+### AttributePlus（`ap`）
+
+| 项 | 说明 |
+|------|------|
+| 桥接接口 | `AttributePlusBridge` |
+| 效果类型 | `ap` |
+| 来源 ID 格式 | `ArcartXProp_<道具显示名>` |
+| 持续时间 | 道具 `Duration` 秒，到期后自动移除来源 |
+| 服务类 | `PropAttributePlusService` |
+
+AttributePlus 效果将属性行列表（如 `物理伤害:10`）作为来源添加到玩家的属性数据中。来源 ID 由道具显示名生成（非字母数字字符替换为 `_` 并转小写）。
+
+```yaml
+name: "力量卷轴"
+Duration: 30
+
+effects:
+  - "ap|物理伤害:10"
+  - "ap|暴击伤害:5"
+  - "ap|移动速度:2"
+```
+
+上方配置会生成一个来源 ID 为 `ArcartXProp_力量卷轴`（经 sanitize 后为 `arcartxprop_______`），包含三行属性数据，30 秒后自动移除。
+
+> 来源 ID 生成规则：`ArcartXProp_` + 道具显示名经 `sanitizeSourceName()` 处理（去除非字母数字字符，转小写）。多个道具若显示名 sanitize 后相同，会共享同一个来源 ID，后添加的会覆盖前者。
+
+### MythicLib（`ml` / `mythiclib`）
+
+| 项 | 说明 |
+|------|------|
+| 桥接接口 | `MythicLibBridge` |
+| 效果类型 | `ml` / `mythiclib` |
+| Modifier 键格式 | `<source-prefix>_<道具ID>_<属性ID>` |
+| 持续时间 | 道具 `Duration` 秒，到期后自动关闭 modifier |
+| 服务类 | `PropMythicLibService` |
+| 解析器 | `PropMythicLibEffectParser` |
+| 规划器 | `PropMythicLibModifierPlanner` |
+
+MythicLib 效果的解析链路最为复杂：
+
+```
+效果行 "ml|ATTACK_DAMAGE:5"
+  │
+  ├─ PropMythicLibEffectParser.parse()
+  │   ├─ 分割 type 和 payload
+  │   ├─ 按 ":" 分割 statId 和 value
+  │   ├─ MythicLibStatKeyNormalizer.normalize(statId)  → 归一化属性 ID
+  │   └─ 解析 value 为 double
+  │   → PropMythicLibEffect(statId, value)
+  │
+  ├─ PropMythicLibModifierPlanner.plan()
+  │   ├─ 按 statId 聚合，同属性值累加（Double::sum）
+  │   └─ 生成 PropMythicLibModifierSpec 列表
+  │       ├─ key:   <source-prefix>_<道具ID>_<属性ID>
+  │       ├─ name:  同 key
+  │       ├─ statId: 归一化后的属性 ID
+  │       ├─ value: 累加后的数值
+  │       ├─ durationMillis: Duration * 1000
+  │       └─ durationTicks:  Duration * 20
+  │
+  └─ PropMythicLibService.apply()
+      ├─ resolveKnownEffects()  → 过滤未注册属性，记录一次性警告
+      ├─ 获取 PlayerData
+      ├─ 遍历 modifiers:
+      │   ├─ 若同 key 已存在 → 先 closeTemporaryModifier() 关闭旧的
+      │   ├─ registerTemporaryModifier(playerData, name, statId, value, durationMillis)
+      │   └─ scheduleCleanup()  → 延迟 durationTicks 后自动关闭
+      └─ 返回是否至少成功注册一个
+```
+
+```yaml
+# ArcartXProp.yml
+mythiclib:
+  source-prefix: "AXS_PROP"
+
+# 道具定义
+name: "力量卷轴"
+Duration: 30
+
+effects:
+  - "ml|ATTACK_DAMAGE:5"
+  - "mythiclib|critical_damage:8"
+  - "ml|ATTACK_DAMAGE:3"   # 同属性多行，值会累加为 8
+```
+
+上方配置最终生成两个 modifier：
+- 键 `AXS_PROP_力量卷轴_ATTACK_DAMAGE`，值 `8`（5 + 3 累加）
+- 键 `AXS_PROP_力量卷轴_CRITICAL_DAMAGE`，值 `8`
+
+> 仅处理已注册的 MythicLib 属性。未注册的属性会通过 `warnUnknownStat()` 记录一次性警告日志并跳过，不会重复警告同一属性。
+
+> `source-prefix` 在 `ArcartXProp.yml` 的 `mythiclib.source-prefix` 中配置，默认 `AXS_PROP`。前缀中的非字母数字字符会被替换为 `_` 并转为大写。
+
+### Symphony（`sy` / `symphony`）
+
+| 项 | 说明 |
+|------|------|
+| 桥接接口 | `SymphonyBridge` |
+| 效果类型 | `sy` / `symphony` |
+| 来源键格式 | `AXS_PROP_<道具ID>_<属性ID>` |
+| 持续时间 | 道具 `Duration` 秒，到期后自动移除并重新计算 |
+| 服务类 | `PropSymphonyService` |
+
+Symphony 效果支持百分比修饰（payload 以 `%` 结尾时启用）。属性修改后立即调用 `bridge.recalculate()` 重新计算玩家属性。
+
+```yaml
+name: "力量卷轴"
+Duration: 30
+
+effects:
+  - "sy|ATTACK_DAMAGE:5"        # 数值修饰
+  - "symphony|ATTACK_SPEED:10%" # 百分比修饰
+```
+
+解析规则：
+- payload 以 `%` 结尾 → `percent = true`，去除 `%` 后解析数值
+- payload 不含 `%` → `percent = false`，直接解析数值
+- 按 `:` 分割属性 ID 和数值
+
+来源键格式为 `AXS_PROP_<道具ID>_<属性ID>`（均经 sanitize 处理，转小写）。同一来源键重复添加时，会先移除旧属性再添加新属性。
+
+> Symphony 效果在添加和移除时都会调用 `bridge.recalculate()` 重新计算玩家属性，确保属性值实时准确。玩家下线时自动清除全部活跃属性并重新计算。
+
+## 持续时间与自动移除
+
+属性效果的持续时间由道具定义的 `Duration` 字段控制（单位：秒）。三套属性服务使用不同的调度方式：
+
+| 属性服务 | 调度方式 | 移除逻辑 |
+|----------|----------|----------|
+| AttributePlus | `AxsScheduler.runTaskLater()` | 延迟 `Duration * 20` tick 后移除来源 |
+| MythicLib | `AxsScheduler.runTaskLater()` | 延迟 `Duration * 20` tick 后关闭 modifier |
+| Symphony | `AxsScheduler.runTaskLater()` | 延迟 `Duration * 20` tick 后移除属性并重新计算 |
+
+> 最小延迟为 1 tick（`Math.max(1L, durationSeconds) * 20L`），确保 `Duration: 0` 时仍能正确调度移除任务。
+
+## 玩家下线清理
+
+玩家退出服务器时（`PlayerQuitEvent`），三个属性服务会清除该玩家的全部活跃属性状态：
+
+| 服务 | 清理方法 | 清理内容 |
+|------|----------|----------|
+| `PropAttributePlusService` | `clear(player)` | 移除全部活跃属性来源 |
+| `PropMythicLibService` | `clear(player)` | 关闭全部活跃 modifier |
+| `PropSymphonyService` | `clear(player)` | 移除全部活跃属性并重新计算 |
+
+> 清理逻辑确保玩家下线后不会残留临时属性。玩家重新上线时，道具需要重新使用才能再次获得属性加成。
+
+## 效果组合示例
+
+### 综合增益道具
+
+```yaml
+name: "神圣祝福"
+coolDownGroup: "祝福冷却组"
+coolDownTime: 120
+Duration: 60
+remove: true
+hand: false
+key: true
+permission: "arcartxsuite.prop.blessing"
+
+conditions:
+  - "%player_level% >= 20"
+  - "%player_health% > 0"
+
+effects:
+  # 即时效果
+  - "msg|&6你获得了神圣祝福！"
+  - "cmd|say {player} 获得了神圣祝福"
+  - "health|20"
+  - "food|10"
+  - "exp|500"
+  # 药水效果（持续 60 秒）
+  - "potion|REGENERATION:2"
+  - "potion|DAMAGE_RESISTANCE:1"
+  # 属性效果（持续 60 秒）
+  - "ap|物理伤害:15"
+  - "ap|魔法防御:10"
+  - "ml|ATTACK_DAMAGE:10"
+  - "ml|MOVEMENT_SPEED:5"
+  - "sy|ATTACK_SPEED:15%"
+  - "symphony|LUCK:5"
+```
+
+### 纯药水道具
+
+```yaml
+name: "隐身药水"
+coolDownGroup: "药水冷却组"
+coolDownTime: 30
+Duration: 15
+remove: true
+hand: true
+key: true
+permission: ""
+
+conditions: []
+
+effects:
+  - "potion|INVISIBILITY:0"
+  - "potion|SPEED:1"
+  - "msg|&7你进入了隐身状态"
+```
+
+### 纯命令道具
+
+```yaml
+name: "传送卷轴"
+coolDownGroup: "传送冷却组"
+coolDownTime: 60
+Duration: 0
+remove: true
+hand: false
+key: true
+permission: "arcartxsuite.prop.teleport"
+
+conditions:
+  - "%player_world% != world_nether"
+
+effects:
+  - "cmd|spawn {player}"
+  - "msg|&a你已被传送回主城"
+```
+
+## 调试与排错
+
+启用 `ArcartXProp.yml` 中的 `settings.debug: true` 后，效果执行过程中会输出以下调试日志：
+
+| 日志内容 | 触发条件 |
+|----------|----------|
+| `ArcartXProp 检测到未知效果类型: <行>` | 效果行的 type 不在 10 种已知类型中 |
+| `Prop MythicLib 效果格式无效，已跳过: <行>` | MythicLib 效果行解析失败（格式错误或数值无法解析） |
+| `Prop Symphony 效果格式无效，已跳过: <行>` | Symphony 效果行解析失败 |
+| `Prop MythicLib 属性未注册，已跳过: <statId>` | MythicLib 属性 ID 未在插件中注册（仅警告一次） |
+| `ArcartXProp AP 效果已跳过 -> hooked=false` | AttributePlus 未挂钩，AP 效果被跳过 |
+| `ArcartXProp MythicLib 效果已跳过 -> hooked=false` | MythicLib 未挂钩，效果被跳过 |
+| `ArcartXProp Symphony 效果已跳过 -> hooked=false` | Symphony 未挂钩，效果被跳过 |
+
+> 属性插件未安装或未在宿主 `config.yml` 的 `attribute-bridges` 中启用时，对应属性效果会被静默跳过。调试模式下会输出跳过日志，帮助排查属性效果不生效的问题。
+
+## 延伸阅读
+
+- [配置](/docs/prop/configuration) — 完整配置字段说明与效果格式速查
+- [按键绑定系统](/docs/prop/keybinds) — 客户端按键注册与槽位绑定
+- [联动](/docs/prop/integration) — 属性桥接状态查询与跨模块集成
+- [条件系统](/docs/guide/conditions) — 使用条件的完整语法（PAPI / ARIA / JS / CONTEXT）
+- [物品库匹配](/docs/guide/item-sources) — 统一物品来源系统
+- [图标系统](/docs/guide/icons) — UI 图标配置

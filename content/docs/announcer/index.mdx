@@ -1,0 +1,107 @@
+---
+title: "概览"
+description: "Announcer 公告轮播与字幕播放模块概览"
+---
+
+## 模块简介
+
+Announcer（公告轮播）模块为服务器提供基于 ArcartX 客户端 HUD 的公告展示系统。它以可配置的间隔自动循环播放公告条目，每条公告支持 PlaceholderAPI 变量解析与点击执行命令。模块同时内置字幕（Subtitle）子系统，可按字幕组顺序播放打字机动画字幕，供其他模块通过 Capability 跨模块触发。
+
+模块支持单服轮播与跨服广播：手动广播命令可转发到其他子服，自动轮播条目仅在本地播放。公告文本可选转发到 QQ 群（需 QQBot 模块）。字幕播放通过 `SubtitlePlayable` 能力接口对外暴露，EventPacket、OnlineRewards、Conversation 等模块均可调用。
+
+## 功能特性
+
+| 特性 | 说明 |
+|---|---|
+| 自动轮播 | 按配置顺序循环播放公告条目，可配置冷却时间与条目间隔 |
+| 手动广播 | 支持排队广播与立即广播两种模式，立即广播会打断当前展示 |
+| 点击执行命令 | 每条公告可配置 `click-command`，玩家点击 HUD 时以控制台身份执行命令 |
+| PAPI 解析 | 公告文本与字幕文本支持 PlaceholderAPI 变量，按接收玩家解析 |
+| 多 UI 支持 | 公告 HUD 与字幕 HUD 均支持字符串或列表形式的多 UI ID，同一 payload 同时发送到多个 HUD |
+| 轮播节奏控制 | 可配置检查周期（tick）、轮播冷却（毫秒）、条目间隔（毫秒） |
+| 文本宽度估算 | 服务端根据字号估算公告文本渲染宽度，驱动客户端滚动动画 |
+| 跨服广播 | 手动广播可转发到其他子服，带去重与节点过滤 |
+| QQ 转发 | 公告可自动转发到 QQ 群（需 QQBot 模块启用） |
+| 打字机字幕 | 按字幕组顺序播放多条字幕帧，逐字显示动画 |
+| 字幕组管理 | 字幕组文件位于 `subtitle/groups/` 目录，每个 `.yml` 文件为一组 |
+| 字幕停留控制 | 每条字幕可配置动画时长（毫秒）与停留时间（秒） |
+| 字幕背景板 | 可选显示字幕底部背景板 |
+| 跨模块触发 | 通过 `SubtitlePlayable` 能力供其他模块调用字幕播放 |
+| 配置版本迁移 | 支持配置版本自动迁移，当前版本为 2 |
+
+## 依赖
+
+| 依赖类型 | 名称 | 说明 |
+|---|---|---|
+| 硬依赖 | ArcartX 客户端 | HUD 渲染、客户端变量推送与点击回包 |
+| 可选依赖 | PlaceholderAPI | 解析公告文本与字幕文本中的 PAPI 变量（如 `%player_name%`） |
+| 可选联动 | QQBot 模块 | 公告自动转发到 QQ 群（`settings.forward-to-qq`） |
+| 可选联动 | 跨服传输 | 跨服广播，连接参数由宿主 `config.yml` 的 `cross-server` 节统一配置 |
+
+> 模块无硬依赖的 Java 库或外部插件，`module.yml` 中 `depends` 与 `softdepends` 均为空。ArcartX 客户端是运行时必须的，由宿主本体统一管理。
+
+## 公告轮播机制
+
+### 自动轮播流程
+
+1. 模块启动时从 `entries-directory`（默认 `announcer`）目录加载所有 `.yml` 公告条目文件
+2. 每个文件根键为条目 ID，包含 `enabled`、`text`、`click-command` 三个字段
+3. 仅 `enabled: true` 且 `text` 非空的条目参与轮播（活跃条目）
+4. 后台定时任务按 `check-interval-ticks` 周期检查是否到达广播时间
+5. 到达后按顺序取下一条活跃条目，渲染文本（含 PAPI 解析），推送到所有在线玩家的 HUD
+6. 一轮播完后进入 `cooldown-ms` 冷却，轮中相邻条目间隔 `between-entry-interval-ms`
+
+### 手动广播
+
+手动广播分为两种模式：
+
+- **排队广播**（`broadcast` / `gbroadcast`）：将文本加入待播队列，当前展示结束后立即播报，不受冷却限制
+- **立即广播**（`broadcastnow` / `gbroadcastnow`）：强制打断当前展示，立即播报
+
+手动广播展示时长为 `between-entry-interval-ms`，不触发轮播冷却逻辑。
+
+### 点击事件
+
+当公告条目配置了非空的 `click-command` 时，HUD 显示可点击区域。玩家点击后客户端发送 `AXS_announcer_click` 回包，携带当前公告条目 ID。服务端收到后查找对应条目，以控制台身份执行命令，`<player>` 占位符替换为点击者名称。
+
+### 文本宽度估算
+
+服务端根据 `text-width-font-size` 配置的字号估算公告文本在 UI 自适应坐标系中的渲染宽度：
+
+- CJK 全角字符（`U+2E80` 及以上）宽度 ≈ `fontSize`
+- Latin 半角字符宽度 ≈ `fontSize × 0.55`
+- Minecraft 颜色代码（`§x` / `&x`）不占渲染宽度，直接跳过
+
+估算宽度随 `display` 包发送到客户端，驱动 HUD 滚动动画的起止逻辑。
+
+## 字幕播放机制
+
+### 字幕组结构
+
+字幕组文件位于 `subtitle/groups/` 目录，每个 `.yml` 文件为一个字幕组，文件名（去掉 `.yml`）即为组 ID。文件内顶层数字节点按升序排列，每个节点为一帧字幕。
+
+### 播放流程
+
+1. 通过命令 `/axs announcer subtitle play <玩家> <组ID>` 或 `SubtitlePlayable` 能力触发
+2. 服务端打开字幕 HUD（仅首次打开，后续播放复用已打开的 UI 避免重置动画）
+3. 按帧顺序逐帧发送 `play` 包，包含文本、动画字数、动画时长、背景显示开关
+4. 客户端按打字机效果逐字显示，动画完成后停留 `keep` 秒
+5. 下一帧延迟 = 动画时长（`time` 毫秒 → tick）+ 停留时间（`keep` 秒 → tick）
+6. 最后一帧播放完毕后发送 `close` 包，关闭字幕 HUD
+
+### 字幕组级 UI 覆盖
+
+字幕组文件可配置 `ui-id` 字段（字符串或列表），指定本组使用的 UI ID。不填则使用全局 `ui.subtitle-ui-id` 配置的默认 UI。
+
+## 配置文件概览
+
+| 文件 | 说明 |
+|---|---|
+| `ArcartXAnnouncer.yml` | 主配置文件，包含 UI 配置、轮播设置、跨服通道、字幕设置 |
+| `announcer/*.yml` | 公告条目文件目录，每个 `.yml` 文件可包含多个条目 |
+| `subtitle/groups/*.yml` | 字幕组文件目录，每个 `.yml` 文件为一个字幕组 |
+| `ui/announcer_hud.yml` | 公告 HUD 的 ArcartX UI 定义 |
+| `ui/subtitle_hud.yml` | 字幕 HUD 的 ArcartX UI 定义 |
+| `messages.yml` | 消息文件，命令提示与状态文本 |
+
+详细配置说明请参考 [配置](/docs/announcer/configuration)，命令与占位符请参考 [命令与占位符](/docs/announcer/commands)，跨模块联动请参考 [联动](/docs/announcer/integration)。

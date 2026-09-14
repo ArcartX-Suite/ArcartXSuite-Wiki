@@ -1,0 +1,21 @@
+---
+title: Menu 通用菜单
+description: 配置驱动的通用 ArcartX 菜单框架，支持多页菜单、按钮动作、ESC 暂停界面替换、命令与物品绑定。
+---
+
+## 模块简介
+
+Menu 是 ArcartXSuite 的通用菜单框架，通过 `menus/` 目录下的 YAML 文件定义多页菜单、按钮动作、打开条件与命令绑定。模块采用类 TrMenu 的配置驱动方式，支持居中面板（panel）与左侧滑出（esc）两种布局，可替换原版 ESC 暂停界面，并允许将菜单绑定到游戏命令或背包物品上触发。
+
+## 功能特性
+
+- 配置驱动菜单：一个 `.yml` 文件可包含多个菜单（用 `---` 分隔），每个菜单支持多页分页
+- 两种布局模式：`panel`（居中弹出面板，适合功能菜单/商店）与 `esc`（左侧滑出，专用于替换暂停界面）
+- 按钮动作系统：支持命令、聊天、跨服切换、控制台命令、消息、音效、打开/关闭菜单、翻页、信号分发、Aria/JS 脚本、延迟等动作
+- 条件与权限：菜单级 `permission` 与 `open-requirements`，按钮级 `use-conditions`/`requirements`，支持 PlaceholderAPI 表达式与 Aria 脚本条件
+- 命令绑定：菜单可注册为游戏命令（含中文别名与正则匹配），输入命令即打开
+- 物品绑定：将菜单绑定到背包物品，右键/左键/潜行点击触发
+- ESC 界面替换：`match-esc: true` 的菜单会拦截 ESC 键并替代原版暂停界面，支持底部固定按钮（如游戏选项、退出游戏）
+- 图标系统：支持原版材质、CustomModelData、头颅材质、皮革颜色、物品库（NeigeItems/MythicMobs/Overture/MMOItems）、ArcartX 自定义贴图（url NBT）、直接 NBT JSON
+- 自定义 UI：菜单可引用自定义 UI 文件，启动时自动注册
+- 对外提供 `MenuOpenable` Capability，供其他模块以编程方式打开/刷新菜单

@@ -1,0 +1,247 @@
+---
+title: 条件系统
+description: ArcartXSuite 统一条件系统配置指南，支持 PAPI、ARIA、JS、上下文变量四种条件类型
+---
+
+# 条件系统
+
+## 概述
+
+条件系统是 ArcartXSuite 多模块共用的统一条件判断框架。无论是菜单按钮的显示、邮件的领取、事件规则的匹配，还是任务完成判定，都通过同一套条件引擎完成判断，避免各模块各自实现一套互不兼容的语法。
+
+系统支持 **4 种条件类型**：
+
+| 类型 | 说明 | 运行时依赖 |
+|------|------|-----------|
+| **PAPI** | 通过 PlaceholderAPI 占位符判断 | PlaceholderAPI |
+| **ARIA** | 通过 Aria 脚本引擎判断 | ArcartX（内置） |
+| **JS** | 通过 JavaScript 引擎判断 | JVM 上的 JS ScriptEngine |
+| **CONTEXT** | 从上下文字典取值比较 | 无 |
+
+条件可在以下配置节中使用：`use-conditions`、`requirements`、`open-requirements`、`claim-conditions`、`conditions` 等。同一列表内的多条条件为 **AND（且）** 关系——必须全部通过才算满足。如需实现 OR / NOT 等复杂逻辑，请将其写在一条 ARIA 或 JS 脚本条件中。
+
+> ARIA 由 ArcartX 内置提供，ArcartXSuite 硬依赖 ArcartX，正常启动后 Aria 随之可用，无需额外安装插件，推荐优先使用。JS 条件需要 JVM classpath 上有 JS 引擎（Java 15 起已移除 Nashorn），无引擎时 JS 条件恒为 `false`。
+
+## 条件类型
+
+### PAPI
+
+通过 PlaceholderAPI 占位符进行判断，是最常用的条件类型。占位符会被解析为实际值后再参与比较。
+
+语法示例：
+
+```yaml
+- "%player_level% >= 10"
+```
+
+- 占位符必须以 `%` 开头和结尾
+- 占位符与运算符、期望值之间用空格分隔
+- 支持 PlaceholderAPI 提供的所有占位符（如 `%player_level%`、`%vault_eco_balance%`、`%luckperms_groups%` 等）
+
+### ARIA
+
+通过 Aria 脚本引擎进行判断。Aria 是 ArcartX 内置的轻量脚本语言，ArcartXSuite 会将当前玩家包装成 `AriaPlayer` 门面，以全局变量 `player` 注入脚本。
+
+语法示例：
+
+```yaml
+- "aria: global.player.getLevel() >= 5"
+```
+
+- 以 `aria:` 前缀开头
+- 脚本中可直接调用 `player`（当前玩家门面）的方法
+- 单个表达式时系统会自动补 `return` 再求值
+
+> 需要 ArcartX/Aria 插件。由于 ArcartXSuite 硬依赖 ArcartX，正常启动后即可使用。
+
+### JS
+
+通过 JVM 的 `javax.script` 引擎执行 JavaScript 进行判断。脚本中同样可访问 `player` 变量。
+
+语法示例：
+
+```yaml
+- "js: player.getLevel() >= 5"
+```
+
+- 以 `js:` 前缀开头
+- 需要服务器 classpath 上提供 JS 引擎（如 GraalJS 或 standalone Nashorn）
+- 无引擎时该条件恒为 `false`，不会抛出异常
+
+> 除非确有 JS 引擎，否则请优先使用 ARIA。
+
+### CONTEXT
+
+从上下文字典中取值进行比较，主要用于 EventPacket 事件规则等场景。事件触发时会携带一个上下文字典（payload），CONTEXT 条件从中取值与期望值比较。
+
+语法示例：
+
+```yaml
+- "{quest-id} == main_1"
+- "{value} >= 10"
+```
+
+- 使用 `{变量名}` 语法从上下文字典中取值
+- 左右操作数均支持 `{variable}` 语法或字面量
+
+## 内联写法
+
+内联写法是最简写法，直接在配置节中写一个字符串列表。系统会根据字符串前缀自动识别条件类型：
+
+- `aria:` 开头 → ARIA 条件
+- `js:` 开头 → JS 条件
+- 其余 → PAPI 条件
+
+```yaml
+use-conditions:
+  - "%player_level% >= 10"
+  - "aria: global.player.getLevel() >= 5"
+  - "js: player.getLevel() >= 5"
+```
+
+内联写法适合简单条件，可读性高。同一列表可混写不同类型，仍为 AND 关系：
+
+```yaml
+open-requirements:
+  - "%player_level% >= 5"                       # PAPI：快速筛等级
+  - "aria: player.hasPermission('vip.access')"  # ARIA：权限判断
+```
+
+## Map 写法
+
+Map 写法是完整字段写法，可显式指定每个字段，适合复杂条件或需要精确控制的场景。
+
+```yaml
+use-conditions:
+  - type: papi
+    placeholder: "%player_name%"
+    operator: "=="
+    value: "Admin"
+  - type: aria
+    script: "global.player.getLevel() >= 5"
+  - type: js
+    code: "player.getLevel() >= 5"
+  - type: context
+    placeholder: "{quest-id}"
+    operator: "=="
+    value: "main_1"
+```
+
+### 字段说明
+
+| 字段 | 说明 | 默认值 |
+|------|------|--------|
+| `type` / `kind` | 条件类型：`papi` / `aria` / `js` / `context` | `papi` |
+| `placeholder` / `placeholders` | PAPI 占位符（type=papi 时） | - |
+| `operator` / `op` | 比较运算符 | `==` |
+| `value` | 比较值 | - |
+| `expr` / `expression` / `script` / `code` | 脚本表达式（type=aria/js 时） | - |
+
+> `type`、`placeholder`、`operator`、`script` 等字段都支持别名，配置时任选其一即可。
+
+## 比较运算符
+
+条件系统支持以下比较运算符（不区分大小写）：
+
+| 运算符 | 别名 | 含义 |
+|--------|------|------|
+| `==` | `EQ` | 等于 |
+| `!=` | `NE` | 不等于 |
+| `>=` | `GTE` | 大于等于 |
+| `<=` | `LTE` | 小于等于 |
+| `>` | `GT` | 大于 |
+| `<` | `LT` | 小于 |
+| `contains` | `CONTAINS` | 包含（子串匹配） |
+| `regex` | `REGEX` | 正则匹配 |
+
+**比较规则：**
+
+- 数值比较时，系统会自动将两侧操作数转为 `double` 进行比较
+- 若数值转换失败，则退化为字符串字典序比较
+- `==`、`!=`、`contains` 的字符串比较不区分大小写
+- `regex` 使用正则表达式匹配，同样不区分大小写
+
+## 配置节名称
+
+不同模块使用不同的配置节名称来承载条件，但底层都走同一套条件引擎：
+
+| 配置节 | 使用场景 |
+|--------|----------|
+| `use-conditions` | 使用 / 触发条件（如道具使用、按钮点击） |
+| `requirements` | 通用前置条件 |
+| `open-conditions` / `open-requirements` | 打开 UI 前置条件 |
+| `claim-conditions` | 领取条件（如邮件、奖励领取） |
+| `conditions` | 事件规则条件（如 EventPacket） |
+
+> 这些配置节的语法完全一致，只是命名随模块语义不同。配置时按模块文档选择对应节名即可。
+
+## 实际示例
+
+### Menu 菜单按钮显示条件
+
+菜单按钮的 `requirements` 控制按钮是否可见，`use-conditions` 控制是否可点击：
+
+```yaml
+buttons:
+  vip-shop:
+    icon:
+      material: DIAMOND
+      name: "&bVIP 商店"
+    requirements:           # 可见条件：等级 >= 10
+      - "%player_level% >= 10"
+    use-conditions:         # 使用条件：拥有 vip 权限
+      - "aria: player.hasPermission('vip.access')"
+```
+
+### Mail 邮件领取条件
+
+邮件的 `claim-conditions` 控制玩家能否领取该邮件附件：
+
+```yaml
+mails:
+  welcome-mail:
+    title: "新手礼包"
+    claim-conditions:
+      - "%player_level% >= 5"
+      - "aria: player.getWorld() == 'world'"
+    rewards:
+      money: 1000
+```
+
+### EventPacket 事件规则条件
+
+EventPacket 规则的 `conditions` 使用 CONTEXT 类型从事件 payload 中取值：
+
+```yaml
+rules:
+  - id: "quest-complete-check"
+    conditions:
+      - "{quest-id} == main_1"
+      - "{value} >= 10"
+    actions:
+      - "command: say 任务完成"
+```
+
+### BattlePass 任务条件
+
+BattlePass 任务通过条件判定玩家行为是否满足任务要求：
+
+```yaml
+tasks:
+  - id: "kill-mobs"
+    name: "击杀 10 只怪物"
+    conditions:
+      - "{entity-type} == ZOMBIE"
+      - "aria: player.getLevel() >= 1"
+    target: 10
+```
+
+## 故障排除
+
+| 现象 | 排查方向 |
+|------|----------|
+| PAPI 条件永远不通过 | 确认已安装 PlaceholderAPI 且相关 Expansion 已注册 |
+| ARIA 条件报错 | 检查脚本语法，确认 `player` 变量用法正确 |
+| JS 条件恒为 false | 确认服务器 classpath 上有 JS 引擎 |
+| CONTEXT 条件不生效 | 确认变量名与事件 payload 中的键名一致 |
+| 数值比较结果异常 | 确认占位符返回纯数字，不含货币符号或单位 |

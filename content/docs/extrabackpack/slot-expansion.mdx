@@ -1,0 +1,498 @@
+---
+title: 槽位扩容
+description: ExtraBackpack 槽位容量模型、付费扩容机制与货币扣费流程详解
+---
+
+# 槽位扩容
+
+> **福利模块**
+
+ExtraBackpack 的每个分类页拥有独立的容量模型：初始槽位、最大上限与付费扩容价格。玩家可在 UI 中通过货币付费购买额外槽位，扩容后实时重建槽位数组并保留已有物品。本页详细说明容量模型、扩容流程、货币扣费与异常处理机制。
+
+## 容量模型
+
+每个分类页的容量由三个配置字段决定：
+
+| 字段 | 配置路径 | 说明 |
+| --- | --- | --- |
+| 初始槽位 | `slots.initial` | 玩家首次加载该分类页时的默认容量 |
+| 最大上限 | `slots.max` | 容量上限，扩容不可超过此值 |
+| 单槽价格 | `price.per-slot` | 每个槽位的扩容金额 |
+
+```yaml
+categories:
+  equipment:
+    slots:
+      initial: 9    # 初始 9 格
+      max: 27       # 最大 27 格
+    price:
+      currency: "points"  # 使用 points 货币
+      per-slot: 100       # 每格 100 点券
+```
+
+### 容量解析规则
+
+玩家每次加载分类页时，服务端通过 `resolveCapacity()` 解析当前容量：
+
+```java
+long stored = repository.loadExtraBackpackCapacity(uuid, category.id());
+long capacity = stored < 0 ? category.initialSlots() : stored;
+return Math.max(category.initialSlots(), Math.min(capacity, category.maxSlots()));
+```
+
+| 条件 | 容量值 |
+| --- | --- |
+| 数据库无记录（`stored < 0`） | 使用 `initialSlots` |
+| 数据库有记录 | 使用 `stored` |
+| 数据库记录 `< initialSlots` | 钳制为 `initialSlots` |
+| 数据库记录 `> maxSlots` | 钳制为 `maxSlots` |
+
+> 容量始终限制在 `[initialSlots, maxSlots]` 范围内。若管理员修改了 `initialSlots` 或 `maxSlots`，已有玩家的容量会在下次加载时自动钳制到新范围内。
+
+### 不可扩容分类
+
+当以下任一条件满足时，分类页不可扩容：
+
+| 条件 | 说明 |
+| --- | --- |
+| `price.currency` 为空 | 未配置货币 ID |
+| `price.per-slot <= 0` | 单槽价格为零或负数 |
+| `price` 节缺失 | 整个价格配置缺失 |
+
+不可扩容的分类页在 UI 中隐藏购买按钮，`buySlotsText` 显示 `该分类页未配置槽位价格，无法购买`。
+
+## 扩容配置
+
+### 货币 ID
+
+`price.currency` 指定扩容使用的货币 ID，通过核心 `CurrencyBridgeAPI` 桥接到具体经济插件：
+
+| 货币 ID | 对应插件 | 说明 |
+| --- | --- | --- |
+| `vault` | Vault + 经济插件 | 通过 Vault 桥接的任意经济插件 |
+| `points` | PlayerPoints | PlayerPoints 点券系统 |
+| 自定义 ID | XConomy 等 | 由本体 `config.yml` 的 `currencies` 节定义 |
+
+> 货币 ID 不区分大小写，但建议与本体 `config.yml` 中定义的货币 ID 保持一致。若货币不存在或不可用，扩容操作会提示 `未知货币` 或货币插件的不可用原因。
+
+### 单槽价格
+
+`price.per-slot` 支持整数与小数：
+
+```yaml
+# 整数价格
+price:
+  currency: "points"
+  per-slot: 100
+
+# 小数价格
+price:
+  currency: "vault"
+  per-slot: 500.0
+
+# 字符串形式
+price:
+  currency: "vault"
+  per-slot: "250.50"
+```
+
+> 价格值通过 `BigDecimal` 解析，支持 `Number` 类型（int/double）与字符串形式。解析失败时默认为 `BigDecimal.ZERO`（即不可扩容）。
+
+### 不同分类独立定价
+
+每个分类页可配置不同的货币与价格：
+
+```yaml
+extra-backpack:
+  enabled: true
+  categories:
+    equipment:
+      display-name: "装备"
+      priority: 10
+      slots:
+        initial: 9
+        max: 54
+      price:
+        currency: "vault"
+        per-slot: 500.0
+    material:
+      display-name: "材料"
+      priority: 20
+      slots:
+        initial: 9
+        max: 27
+      price:
+        currency: "points"
+        per-slot: 80
+    free_category:
+      display-name: "免费分类"
+      priority: 30
+      slots:
+        initial: 27
+        max: 27
+      # 不配置 price → 初始即满，不可扩容
+```
+
+## 扩容流程
+
+玩家在 UI 中输入购买数量后点击"购买槽位"按钮，触发 `buy_slots` action。完整流程如下：
+
+```
+buySlots(player, amount)
+  │
+  ├─ 获取当前分类页
+  │   └─ category 为 null → 刷新并返回
+  │
+  ├─ 校验购买数量
+  │   ├─ amount <= 0 → 提示"请输入有效的购买数量"
+  │   └─ 刷新并返回
+  │
+  ├─ 校验扩容配置
+  │   └─ price 为 null → 提示"该分类页未配置槽位价格，无法购买"
+  │
+  ├─ 读取当前容量
+  │   └─ current >= maxSlots → 提示"该分类页槽位已达上限"
+  │
+  ├─ 计算实际购买数量
+  │   └─ actual = min(amount, maxSlots - current)
+  │
+  ├─ 计算总价
+  │   └─ cost = per-slot * actual
+  │
+  ├─ 扣费
+  │   ├─ withdrawCost(player, cost)
+  │   │   ├─ 获取货币桥接 → bridge 为 null 或不可用 → 提示错误，返回 false
+  │   │   └─ bridge.withdraw(player, amount) → 失败 → 提示余额不足，返回 false
+  │   └─ 扣费失败 → 刷新并返回
+  │
+  ├─ 更新数据库容量
+  │   ├─ repository.setExtraBackpackCapacity(uuid, categoryId, newCapacity, now)
+  │   └─ 写入失败 → 退款（refundCost）并抛出异常
+  │
+  ├─ 重建槽位数组
+  │   ├─ 创建新数组（长度 = newCapacity）
+  │   ├─ 复制旧数组内容到新数组
+  │   └─ 替换内存中的分类页
+  │
+  ├─ 提示成功
+  │   └─ "已购买 {0} 个槽位，当前容量 {1} 格"
+  │
+  ├─ 轮换 Action Token
+  │   └─ markActionCommitted(player)
+  │
+  └─ 刷新 UI
+      └─ refresh(player)
+```
+
+### 实际购买数量计算
+
+玩家请求购买的数量可能超过剩余可购买上限，服务端自动钳制：
+
+```java
+long actual = Math.min((long) amount, category.maxSlots() - current);
+```
+
+| 玩家请求 | 当前容量 | 最大上限 | 实际购买 |
+| --- | --- | --- | --- |
+| 5 | 9 | 27 | 5 |
+| 20 | 9 | 27 | 18 |
+| 10 | 27 | 27 | 0（已达上限，提前拦截） |
+
+### 总价计算
+
+```java
+UpgradeCost cost = new UpgradeCost(
+    price.currencyId(),
+    price.amount().multiply(BigDecimal.valueOf(actual))
+);
+```
+
+总价 = `per-slot * actual`，使用 `BigDecimal` 精确计算，避免浮点精度问题。
+
+## 槽位数组重建
+
+扩容成功后，服务端按新容量重建该分类页的槽位数组，保留已有物品：
+
+```java
+Map<String, ItemStack[]> pages = pages(player);
+ItemStack[] oldPage = pages.get(category.id());
+ItemStack[] newPage = new ItemStack[(int) newCapacity];
+if (oldPage != null) {
+    System.arraycopy(oldPage, 0, newPage, 0, Math.min(oldPage.length, newPage.length));
+}
+pages.put(category.id(), newPage);
+```
+
+| 场景 | 行为 |
+| --- | --- |
+| 扩容（newCapacity `>` oldLength） | 新数组更长，旧物品保留在前 N 格，新增格为 `null` |
+| 容量不变（理论上不会发生） | 数组内容不变 |
+| 缩容（管理员调低 maxSlots，下次加载时钳制） | 旧数组截断，超出的物品在 `loadPlayer` 时重新归类 |
+
+> `System.arraycopy` 复制旧数组的前 `min(oldLength, newLength)` 个元素到新数组。扩容时新数组尾部为 `null`（空闲槽位），缩容时尾部物品丢失（但 `loadPlayer` 的 `reclassifyIntoPages` 会重新归类）。
+
+## 货币扣费与退款
+
+### 扣费流程
+
+`withdrawCost()` 方法通过 `CurrencyBridgeAPI` 执行扣费：
+
+```java
+var bridge = currencyBridge == null ? null : currencyBridge.bridge(cost.currencyId());
+if (bridge == null || !bridge.available()) {
+    sendMessage(player, false, bridge == null ? message("unknown-currency") : bridge.unavailableReason());
+    return false;
+}
+var result = bridge.withdraw(player, cost.amount());
+if (!result.success()) {
+    sendMessage(player, false, result.message());
+    return false;
+}
+return true;
+```
+
+| 失败场景 | 提示消息 |
+| --- | --- |
+| 货币桥接为 null | `未知货币` |
+| 货币桥接不可用 | 货币插件的不可用原因 |
+| 扣费失败（余额不足等） | 货币插件返回的失败消息 |
+
+### 退款机制
+
+数据库写入容量失败时，自动退款：
+
+```java
+try {
+    repository.setExtraBackpackCapacity(player.getUniqueId(), category.id(), newCapacity, System.currentTimeMillis());
+} catch (Exception exception) {
+    refundCost(player, cost);
+    throw exception;
+}
+```
+
+`refundCost()` 通过同一货币桥接执行 `deposit()` 存入退款金额：
+
+```java
+private void refundCost(Player player, UpgradeCost cost) {
+    if (cost == null || currencyBridge == null) {
+        return;
+    }
+    var bridge = currencyBridge.bridge(cost.currencyId());
+    if (bridge != null && bridge.available()) {
+        bridge.deposit(player, cost.amount());
+    }
+}
+```
+
+> 退款仅在数据库写入异常时触发。扣费成功但数据库写入失败属于极端场景（如数据库连接断开），退款确保玩家不会"花钱买不到槽位"。
+
+## UI 扩容交互
+
+### 购买卡片
+
+UI 底部的购买卡片展示扩容信息与购买控件：
+
+| UI 元素 | 对应包字段 | 说明 |
+| --- | --- | --- |
+| 购买提示文本 | `buySlotsText` | 显示单价与剩余可购买数量 |
+| 数量输入框 | `var.buyAmount` | 玩家输入购买数量，默认 1 |
+| 购买槽位按钮 | `canBuySlots` | 仅在可购买时显示 |
+
+### 购买提示文本
+
+服务端根据分类配置生成提示文本：
+
+| 分类状态 | `buySlotsText` 内容 |
+| --- | --- |
+| 可扩容 | `每个槽位 {单价}，剩余可购买 {剩余数} 个` |
+| 不可扩容（无价格配置） | `该分类页未配置槽位价格，无法购买` |
+| 原版背包标签页 | 空字符串 |
+
+### 购买按钮可见性
+
+购买按钮的 `visible` 属性绑定到 `canBuySlots` 包字段：
+
+```yaml
+购买槽位:
+  type: Canvas
+  attribute:
+    visible: var.canBuySlots
+    enable: "!var.actionBusy && var.actionToken != ''"
+```
+
+| 条件 | `canBuySlots` 值 | 按钮状态 |
+| --- | --- | --- |
+| 有价格配置且 `capacity < maxSlots` | `true` | 显示 |
+| 无价格配置 | `false` | 隐藏 |
+| `capacity >= maxSlots` | `false` | 隐藏 |
+| 原版背包标签页 | `false` | 隐藏 |
+
+### 防抖机制
+
+购买按钮的 `enable` 属性绑定到 `actionBusy` 标志，防止重复点击：
+
+```yaml
+enable: "!var.actionBusy && var.actionToken != ''"
+```
+
+| 事件 | `actionBusy` | 说明 |
+| --- | --- | --- |
+| 点击购买按钮 | `true` | 按钮禁用，防止重复提交 |
+| 收到 `update` 包 | `false` | 服务端回包后恢复可点击 |
+| 超时 3 秒 | `false` | `action` 定时器自动恢复 |
+
+> `actionBusy` 在点击时设为 `true`，在 `update` 包到达时重置为 `false`。若服务端未回包（如 token 校验失败静默丢弃），`action` 定时器在 3 秒后自动恢复按钮可用。
+
+## Action Token 保护
+
+`buy_slots` 操作需要携带有效的 action token，防止重放攻击：
+
+| 步骤 | 说明 |
+| --- | --- |
+| UI 打开 | 服务端签发 UUID 格式的 action token |
+| 客户端发送 | `Packet.send(packetId, 'buy_slots', amount, actionToken)` |
+| 服务端校验 | 比对客户端 token 与服务端 token |
+| 校验失败 | 静默丢弃请求（不提示错误） |
+| 操作完成 | 轮换 token（`markActionCommitted`） |
+| UI 刷新 | `update` 包携带新 token |
+
+```java
+private boolean requiresActionToken(String action) {
+    return "buy_slots".equals(action)
+        || "vanilla_destroy".equals(action)
+        || "password_set".equals(action)
+        || "password_clear".equals(action);
+}
+```
+
+> token 校验失败时静默丢弃（不提示 `操作令牌无效`），因为这些场景对正常玩家都是误报（并发冲突、token 轮换在途、模块重载后 token 丢失），UI 防抖机制会阻止重复点击。
+
+## 容量持久化
+
+### 容量表
+
+扩容后的容量写入 `extra_backpack_capacity` 表：
+
+| 列名 | 类型 | 说明 |
+| --- | --- | --- |
+| `player_uuid` | VARCHAR(36) | 玩家 UUID |
+| `category_id` | VARCHAR(64) | 分类标识 |
+| `capacity` | BIGINT | 当前容量 |
+| `updated_at` | BIGINT | 更新时间戳（毫秒） |
+
+主键：`(player_uuid, category_id)`
+
+### Upsert 写入
+
+容量写入使用 upsert 语法，避免重复键冲突：
+
+| 数据库 | 语法 |
+| --- | --- |
+| SQLite | `INSERT ... ON CONFLICT(player_uuid, category_id) DO UPDATE SET capacity = excluded.capacity, updated_at = excluded.updated_at` |
+| MySQL | `INSERT ... ON DUPLICATE KEY UPDATE capacity = VALUES(capacity), updated_at = VALUES(updated_at)` |
+
+### 加载时容量钳制
+
+玩家上线加载时，`loadPlayer()` 对每个分类页调用 `resolveCapacity()`，确保容量在 `[initialSlots, maxSlots]` 范围内：
+
+```java
+for (ExtraBackpackCategory category : categories()) {
+    pages.put(category.id(), new ItemStack[(int) resolveCapacity(uuid, category)]);
+}
+```
+
+> 若管理员下调了 `maxSlots`，已有玩家下次上线时容量自动钳制到新上限。超出部分的物品通过 `reclassifyIntoPages` 重新归类到其他分类页或兜底分类页。
+
+## 扩容消息
+
+扩容相关的消息定义在 `messages.yml`：
+
+| 消息键 | 默认文本 | 参数 |
+| --- | --- | --- |
+| `extra-backpack.buy-invalid` | `&c请输入有效的购买数量。` | - |
+| `extra-backpack.buy-not-configured` | `&c该分类页未配置槽位价格，无法购买。` | - |
+| `extra-backpack.buy-maxed` | `&c该分类页槽位已达上限。` | - |
+| `extra-backpack.buy-success` | `&a已购买 {0} 个槽位，当前容量 {1} 格。` | `{0}`=购买数量，`{1}`=新容量 |
+| `extra-backpack.buy-hint` | `&f每个槽位 {0}，剩余可购买 {1} 个` | `{0}`=单价，`{1}`=剩余可购买数 |
+| `extra-backpack.unknown-currency` | `&c未知货币。` | - |
+
+> 消息支持 `&` 颜色代码（`&a` 绿色、`&c` 红色、`&f` 白色、`&e` 黄色）。成功消息使用绿色前缀，失败消息使用红色前缀。
+
+## 完整扩容配置示例
+
+### 多货币多分类扩容
+
+```yaml
+extra-backpack:
+  enabled: true
+  categories:
+    equipment:
+      display-name: "装备"
+      priority: 10
+      slots:
+        initial: 9
+        max: 54
+      price:
+        currency: "vault"
+        per-slot: 500.0
+      match:
+        nbt:
+          path: "pdc:arcartx:item_category"
+          values: ["equipment", "weapon", "armor"]
+    material:
+      display-name: "材料"
+      priority: 20
+      slots:
+        initial: 18
+        max: 54
+      price:
+        currency: "points"
+        per-slot: 80
+      match:
+        nbt:
+          path: "pdc:arcartx:item_category"
+          values: ["material"]
+    quest:
+      display-name: "任务物品"
+      priority: 5
+      slots:
+        initial: 9
+        max: 18
+      # 不配置 price → 不可扩容，初始 9 格固定
+      match:
+        nbt:
+          path: "lore"
+          values: ["任务物品"]
+    other:
+      display-name: "杂物"
+      priority: 9999
+      default: true
+      slots:
+        initial: 9
+        max: 27
+      price:
+        currency: "points"
+        per-slot: 60
+```
+
+### 免费扩容（零成本）
+
+设置 `per-slot: 0` 时分类不可扩容。若需要"免费扩容"，可设置极低价格：
+
+```yaml
+categories:
+  free_expand:
+    display-name: "免费扩容分类"
+    priority: 0
+    slots:
+      initial: 9
+      max: 54
+    price:
+      currency: "points"
+      per-slot: 0.01
+    # 每格 0.01 点券，近似免费
+```
+
+> `per-slot` 必须大于 0 才可扩容。设为 `0` 或不配置 `price` 节时分类不可扩容。
+
+> 关于货币配置与物品来源的通用知识，参考 [物品来源](/docs/guide/item-sources) 与 [图标系统](/docs/guide/icons)。

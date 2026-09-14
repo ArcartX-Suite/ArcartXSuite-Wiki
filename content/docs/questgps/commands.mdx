@@ -1,0 +1,177 @@
+---
+title: 命令与占位符
+description: QuestGPS 命令、权限与 PlaceholderAPI 占位符
+---
+
+# 命令与占位符
+
+## 玩家命令
+
+玩家命令通过 `/questgps` 触发，仅限玩家执行。
+
+| 命令 | 说明 | 权限 |
+|---|---|---|
+| `/questgps` | 打开任务导航菜单（等同于 `open`） | `arcartxsuite.questgps.use` |
+| `/questgps open` | 打开任务导航菜单 | `arcartxsuite.questgps.use` |
+| `/questgps cleartrack` | 清除当前导航追踪 | `arcartxsuite.questgps.use` |
+| `/questgps help` | 显示玩家命令帮助 | `arcartxsuite.questgps.use` |
+
+> 非玩家执行时提示「该命令只能由玩家执行」。无权限时提示「你没有权限执行这个命令」。服务未就绪时提示「QuestGPS 模块当前未启用」。
+
+## 管理员命令
+
+管理命令通过 `/axs questgps <action>` 触发，由 `ModuleCommandHandler` 注册。
+
+| 命令 | 说明 |
+|---|---|
+| `/axs questgps help` | 显示管理命令帮助 |
+| `/axs questgps status` | 查看模块运行状态 |
+| `/axs questgps open <玩家>` | 为指定玩家打开任务导航菜单 |
+
+### status 输出
+
+`/axs questgps status` 输出以下信息：
+
+| 输出项 | 说明 |
+|---|---|
+| 配置任务数 | `quests/*.yml` 中已登记的任务总数 |
+| 追踪中 | 当前正在追踪任务的在线玩家数 |
+| 导航就绪 | 导航运行时是否就绪（true/false） |
+
+## 权限节点
+
+| 权限节点 | 默认 | 说明 |
+|---|---|---|
+| `arcartxsuite.questgps.use` | 所有玩家 | 使用 `/questgps` 玩家命令的权限 |
+
+> 管理命令通过 `/axs` 主命令的权限控制，无需额外权限节点。
+
+## PlaceholderAPI 占位符
+
+QuestGPS **不提供独立的 PlaceholderAPI 占位符**。任务名称、目标、状态和奖励均由 Chemdah 任务系统提供，本模块整理后通过 Packet 发送给 UI 客户端渲染。
+
+> 如需在聊天/计分板等场景显示任务信息，请使用 Chemdah 自身的 PAPI 占位符。
+
+## UI Packet 触发
+
+QuestGPS 的 UI 交互通过 ArcartX Packet 通讯完成。客户端向服务端发送的 Packet 使用 `ui.packet-id`（默认 `AXS_QUESTGPS`）作为标识符，`data` 列表第一个元素为操作名。
+
+### 客户端→服务端操作
+
+| 操作名 | 参数 | 说明 |
+|---|---|---|
+| `refresh` | — | 刷新菜单数据 |
+| `switch_category` | `data[1]` = 分类 ID | 切换分类 Tab |
+| `switch_page` | `data[1]` = 页面 ID（`available`/`active`/`completed`） | 切换分页 |
+| `select_quest` | `data[1]` = 任务 ID | 选中任务（显示详情） |
+| `accept_quest` | `data[1]` = 任务 ID | 接取任务 |
+| `abandon_quest` | `data[1]` = 任务 ID | 放弃任务 |
+| `track_quest` | `data[1]` = 任务 ID | 追踪任务级导航 |
+| `track_task` | `data[1]` = 任务 ID, `data[2]` = 子目标 ID | 追踪子任务级导航 |
+| `clear_track` | — | 清除当前导航追踪 |
+| `open_map` | — | 打开 AXMap 菜单（不可用时刷新菜单） |
+
+### 服务端→客户端 Packet 字段
+
+#### 菜单 Packet（init / update）
+
+| 字段 | 类型 | 说明 |
+|---|---|---|
+| `packetId` | `String` | Packet 标识符 |
+| `categories` | `Map<String, Map>` | 分类字典，key=分类ID，value含 `id`/`name`/`sort_order`/`selected` |
+| `pages` | `Map<String, Map>` | 分页字典，key=页面ID，value含 `id`/`name`/`count`/`selected` |
+| `quests` | `Map<String, Map>` | 任务字典，key=任务ID，value含 `id`/`name`/`summary`/`state`/`trackable`/`selected` |
+| `tasks` | `Map<String, Map>` | 目标字典，key=目标ID，value含 `id`/`text`/`description`/`status`/`completed`/`trackable`/`tracked` |
+| `rewards` | `Map<String, Map>` | 奖励字典，key=奖励ID，value含 `id`/`title`/`description`/`type`/`amount`/`itemJson`/`material` |
+| `categoryId` | `String` | 当前选中分类 ID |
+| `pageId` | `String` | 当前选中页面 ID |
+| `categoryName` | `String` | 当前分类显示名 |
+| `pageName` | `String` | 当前页面显示名 |
+| `availableCount` | `int` | 可接取任务数 |
+| `activeCount` | `int` | 进行中任务数 |
+| `completedCount` | `int` | 已完成任务数 |
+| `questCount` | `int` | 当前列表任务总数 |
+| `navigationReady` | `boolean` | 导航功能是否就绪 |
+| `selected_quest_id` | `String` | 当前选中任务 ID（兼容字段） |
+| `selectedQuestId` | `String` | 当前选中任务 ID |
+| `selectedQuestName` | `String` | 当前选中任务名称 |
+| `selectedQuestState` | `String` | 当前选中任务状态文本 |
+| `selectedQuestPath` | `String` | 当前选中任务路径 |
+| `selectedQuestDescriptionText` | `String` | 当前选中任务描述（换行拼接） |
+| `trackSummary` | `String` | 追踪摘要文本 |
+| `canAccept` | `boolean` | 是否可接取任务 |
+| `canAbandon` | `boolean` | 是否可放弃任务 |
+| `canTrackQuest` | `boolean` | 是否可追踪任务 |
+| `canTrackTask` | `boolean` | 是否可追踪目标 |
+| `canClearTrack` | `boolean` | 是否可清除追踪 |
+| `questTracked` | `boolean` | 当前任务是否已追踪 |
+| `taskCount` | `int` | 目标总数 |
+| `rewardCount` | `int` | 奖励总数 |
+
+#### 引导 HUD Packet（init / update）
+
+| 字段 | 类型 | 说明 |
+|---|---|---|
+| `packetId` | `String` | Packet 标识符 |
+| `active` | `boolean` | HUD 是否激活显示 |
+| `questName` | `String` | 当前追踪任务名称 |
+| `completedCount` | `int` | 已完成目标数 |
+| `totalCount` | `int` | 总目标数 |
+| `progressText` | `String` | 进度文本（如 `"2/5"`） |
+| `tasks` | `Map<String, Map>` | 目标字典，key=目标ID，value含 `id`/`text`/`description`/`completed`/`status`（最多 3 个） |
+| `taskCount` | `int` | 目标总数 |
+| `hasNav` | `boolean` | 是否有可用导航点 |
+| `navWorld` | `String` | 导航点所在世界名 |
+| `navX` | `int` | 导航点 X 坐标 |
+| `navY` | `int` | 导航点 Y 坐标 |
+| `navZ` | `int` | 导航点 Z 坐标 |
+
+> 引导 HUD 最多展示 3 个目标，由 `QuestGpsGuidePacketFactory.DISPLAY_TASK_LIMIT` 控制。
+
+## 消息文件
+
+消息文件 `messages.yml` 位于模块数据目录，支持 `&` 颜色码和 `{0}` `{1}` 占位符。修改后执行 `/axs reload questgps` 生效。
+
+### 消息键一览
+
+| 键 | 说明 | 占位符 |
+|---|---|---|
+| `prefix` | 消息前缀 | — |
+| `common.service-down` | 模块未启用 | — |
+| `common.unknown` | 未知命令 | `{0}` = 主命令别名 |
+| `common.only-player` | 仅玩家可用 | — |
+| `common.no-permission` | 无权限 | — |
+| `help.title` | 管理命令帮助标题 | — |
+| `help.status` | status 命令帮助 | `{0}` = 主命令别名 |
+| `help.open` | open 命令帮助 | `{0}` = 主命令别名 |
+| `status.title` | 状态标题 | — |
+| `status.configured-quests` | 配置任务数 | `{0}` = 任务总数 |
+| `status.tracking-players` | 追踪中玩家数 | `{0}` = 玩家数 |
+| `status.nav-ready` | 导航就绪 | `{0}` = true/false |
+| `open.usage` | open 命令用法 | — |
+| `open.not-online` | 玩家不在线 | `{0}` = 玩家名 |
+| `open.success` | 打开成功 | `{0}` = 玩家名 |
+| `player.usage` | 玩家命令用法 | `{0}` = 命令别名 |
+| `player.help.title` | 玩家帮助标题 | — |
+| `player.help.open` | open 帮助 | — |
+| `player.help.cleartrack` | cleartrack 帮助 | — |
+| `player.quest-not-configured` | 任务未配置 | `{0}` = 任务ID |
+| `player.chemdah-not-found` | Chemdah 任务未找到 | `{0}` = 任务ID |
+| `player.category-not-registered` | 分类未注册 | `{0}` = 分类ID |
+| `player.accept-failed` | 接取失败 | — |
+| `player.accept-success` | 接取成功 | `{0}` = 任务名 |
+| `player.accept-result-failed` | 接取失败原因 | `{0}` = 失败原因 |
+| `player.abandon-not-allowed` | 不允许放弃 | — |
+| `player.abandon-unavailable` | 不可放弃 | — |
+| `player.abandon-failed` | 放弃失败 | — |
+| `player.abandon-success` | 放弃成功 | `{0}` = 任务名 |
+| `player.navigation-unavailable` | 无可用导航点 | — |
+| `player.navigation-create-failed` | 导航创建失败 | — |
+| `player.navigation-set` | 导航已设置 | `{0}` = 任务名 |
+| `player.task-not-found` | 未找到任务 | — |
+| `player.task-navigation-unavailable` | 目标无导航点 | — |
+| `player.task-navigation-create-failed` | 目标导航创建失败 | — |
+| `player.task-navigation-set` | 目标导航已设置 | `{0}` = 目标文案 |
+| `player.navigation-cleared` | 导航已清除 | — |
+| `player.chemdah-profile-not-loaded` | 档案未加载 | — |
+| `player.chemdah-profile-read-failed` | 档案读取失败 | — |

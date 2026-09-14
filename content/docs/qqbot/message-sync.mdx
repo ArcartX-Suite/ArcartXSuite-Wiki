@@ -1,0 +1,310 @@
+---
+title: 消息同步与群通知
+description: 双向消息同步、击杀死亡播报、自动回复、入群欢迎、群公告、@提示与自动审核
+---
+
+# 消息同步与群通知
+
+QQBot 模块实现了 QQ 群与 Minecraft 服务器之间的双向消息同步，并提供击杀/死亡播报、关键词自动回复、入群欢迎、群公告广播、@提示和自动审核等丰富的群通知功能。
+
+## 消息同步方向
+
+每个 QQ 群可独立配置消息同步方向（`sync-mode`）：
+
+| 同步模式 | 游戏 → QQ | QQ → 游戏 | 说明 |
+|---|---|---|---|
+| `both` | ✅ | ✅ | 双向同步（默认） |
+| `game-to-qq` | ✅ | ❌ | 仅游戏消息转发到 QQ 群 |
+| `qq-to-game` | ❌ | ✅ | 仅 QQ 群消息转发到游戏内 |
+| `none` | ❌ | ❌ | 不同步消息（仅指令和通知） |
+
+> 同步方向由 `QQBotGroupConfig.syncGameToQq()` 和 `syncQqToGame()` 方法判断，`both` 模式下两个方向均返回 `true`。
+
+## 游戏 → QQ 消息同步
+
+当玩家在游戏内发言时，`QQBotService` 监听 `AsyncPlayerChatEvent` 事件，将消息转发到所有开启 `syncGameToQq` 的群。
+
+### 处理流程
+
+1. 检查机器人是否已连接（`connected`）
+2. 去除消息中的颜色代码（`§` 前缀和 `ChatColor.stripColor`）
+3. 遍历所有已配置群，对开启 `syncGameToQq` 的群发送格式化消息
+
+### 消息格式模板
+
+```yaml
+groups:
+  - group-id: 123456789
+    sync-mode: "both"
+    game-to-qq: "[MC] {player}: {message}"
+```
+
+| 占位符 | 说明 |
+|---|---|
+| `{player}` | 玩家名 |
+| `{display_name}` | 玩家显示名（DisplayName） |
+| `{message}` | 消息内容（已去除颜色代码） |
+| `{server}` | 服务器标识（`settings.server-id`） |
+
+## QQ → 游戏消息同步
+
+当群成员在 QQ 群发言时，`QQBotService.handleOneBotEvent()` 将消息转发到游戏内。
+
+### 处理流程
+
+1. 黑名单拦截（配置静态 + 数据库动态双重检查）
+2. notice 事件处理（入群欢迎 / 禁言同步）
+3. 自动 moderation（关键词拦截）
+4. 指令处理（`QQBotCommandRouter`）
+5. 关键词自动回复（FAQ）
+6. @ 提示（群内 @ → 游戏内 Title）
+7. 群活跃度记录
+8. 消息同步（QQ → 游戏内广播）
+
+### 消息格式模板
+
+```yaml
+groups:
+  - group-id: 123456789
+    qq-to-game: "&7[QQ] &f{nick}: &7{message}"
+```
+
+| 占位符 | 说明 |
+|---|---|
+| `{nick}` | 群名片（优先）或昵称，为空时使用 QQ 号 |
+| `{qq}` | 发送者 QQ 号 |
+| `{message}` | 消息内容（已过滤 CQ 码） |
+| `{group}` | 群号 |
+
+### CQ 码过滤
+
+QQ → 游戏方向的消息会过滤 CQ 码（如 `[CQ:image,...]`），仅保留纯文本。过滤后若消息为空则不转发。
+
+> CQ 码过滤使用正则 `\[CQ:[^]]+]` 匹配并替换为空字符串。
+
+## 进退服通知
+
+玩家加入和退出服务器时，模块自动推送通知到所有开启 `syncGameToQq` 的群。
+
+| 事件 | 配置字段 | 默认格式 |
+|---|---|---|
+| 玩家进服 | `join-message` | `[MC] {player} 加入了服务器` |
+| 玩家退服 | `quit-message` | `[MC] {player} 离开了服务器` |
+
+| 占位符 | 说明 |
+|---|---|
+| `{player}` | 玩家名 |
+| `{online}` | 当前在线人数（退服时为减 1 后的值） |
+| `{max}` | 最大人数 |
+
+> `join-message` 或 `quit-message` 留空则不推送对应通知。
+
+## 击杀与死亡播报
+
+### 击杀播报
+
+监听 `EntityDeathEvent`，当玩家击杀实体时推送到所有群。
+
+```yaml
+broadcast:
+  kill:
+    enabled: false
+    format: "🗡 {killer} 击杀了 {victim}"
+    boss-only: true
+    player-kill-only: false
+    boss-keywords:
+      - "Boss"
+      - "首领"
+      - "魔王"
+```
+
+#### 过滤优先级
+
+| 优先级 | 配置 | 说明 |
+|---|---|---|
+| 1 | `player-kill-only` | 仅播报玩家击杀玩家（PvP），优先级最高 |
+| 2 | `boss-only` | 仅播报 Boss 击杀（实体名包含 `boss-keywords` 关键词） |
+| 3 | 无过滤 | 播报所有有玩家击杀者的死亡 |
+
+| 占位符 | 说明 |
+|---|---|
+| `{killer}` | 击杀者玩家名 |
+| `{victim}` | 被击杀实体名（优先使用 CustomName，去除颜色代码） |
+
+### 死亡播报
+
+监听 `PlayerDeathEvent`，玩家死亡时推送到所有群。
+
+```yaml
+broadcast:
+  death:
+    enabled: false
+    format: "☠ {player} 死亡了"
+```
+
+| 占位符 | 说明 |
+|---|---|
+| `{player}` | 死亡玩家名 |
+
+## 关键词自动回复（FAQ）
+
+群消息匹配预设关键词时自动回复，适用于常见问题解答。
+
+```yaml
+auto-reply:
+  enabled: false
+  cooldown-seconds: 30
+  rules:
+    - keywords: ["怎么进服", "服务器地址", "ip"]
+      response: "服务器地址: play.example.com\n首次进入请先在群内 #绑定 <游戏名>"
+      exact-match: false
+    - keywords: ["怎么绑定", "如何绑定"]
+      response: "在群里发送: #绑定 <你的游戏名>\n然后按提示在游戏内输入验证码即可"
+      exact-match: false
+```
+
+| 字段 | 类型 | 说明 |
+|---|---|---|
+| `enabled` | boolean | 是否启用自动回复 |
+| `cooldown-seconds` | int | 同一群两次自动回复最小间隔（秒），防刷屏 |
+| `rules` | list | 回复规则列表 |
+
+### 回复规则字段
+
+| 字段 | 类型 | 说明 |
+|---|---|---|
+| `keywords` | list(string) | 触发关键词列表 |
+| `response` | string | 回复内容 |
+| `exact-match` | boolean | `true`=消息须完全等于关键词，`false`=包含即触发 |
+
+> 冷却按群维度独立计算，不同群的冷却互不影响。匹配到第一条规则即回复并重置冷却。
+
+## 入群欢迎
+
+新成员加入群时自动 @ 并发送欢迎消息。
+
+```yaml
+welcome:
+  enabled: false
+  message: "欢迎新成员加入！\n发送 #绑定 <游戏名> 关联你的游戏账号\n发送 #帮助 查看可用指令"
+```
+
+| 占位符 | 说明 |
+|---|---|
+| `{qq}` | 新成员 QQ 号 |
+| `{group}` | 群号 |
+
+> 入群欢迎通过 OneBot `notice` 事件（`group_increase`）触发，使用 `sendGroupMessageAt` 发送 @ + 文本消息。仅对已配置的群生效。
+
+## 群公告广播
+
+管理员在群内发布公告，同步到游戏内（聊天栏 + 可选标题）。
+
+```yaml
+announce:
+  enabled: false
+  prefix: "#公告"
+  game-format: "&e&l[群公告] &f{content}"
+  qq-receipt: "✓ 公告已发布到游戏内"
+  title-enabled: true
+  title-text: "&e群公告"
+  subtitle-format: "&f{content}"
+```
+
+| 字段 | 说明 |
+|---|---|
+| `prefix` | 公告指令前缀（如 `#公告 <内容>`） |
+| `game-format` | 游戏内聊天栏格式，`{content}` 替换为公告内容 |
+| `qq-receipt` | 发布成功后给群的回执消息 |
+| `title-enabled` | 是否同时弹出游戏内 Title |
+| `title-text` | Title 主标题 |
+| `subtitle-format` | Title 副标题格式，`{content}` 替换为公告内容 |
+
+> 公告指令权限：群管理/群主或配置管理员（`admin.qq-list`）可用。
+
+## @ 提示（群 → 游戏）
+
+当群消息中 @ 了某 QQ 号，若该 QQ 绑定的玩家在线，游戏内收到 Title 提示。
+
+```yaml
+at-to-game:
+  enabled: true
+```
+
+### 处理流程
+
+1. 从 OneBot 消息段数组提取被 @ 的 QQ 号列表（`atQQs()`）
+2. 对每个被 @ 的 QQ 号查询绑定关系（`bindService.findByQq()`）
+3. 若绑定玩家在线，发送 Title 和聊天消息
+
+| 提示类型 | 内容 |
+|---|---|
+| Title 副标题 | `player.at-title` 消息模板（含 @ 者昵称） |
+| 聊天消息 | `player.at-message` 消息模板（含 @ 者昵称） |
+
+> @全体成员（`qq=all`）会被忽略，仅处理 @ 具体群员的消息。
+
+## 自动审核（Auto Moderation）
+
+群消息包含敏感关键词时自动撤回并禁言发送者。
+
+```yaml
+moderation:
+  auto-moderation:
+    enabled: false
+    keywords:
+      - "http://"
+      - "https://"
+      - "www."
+      - "点击"
+      - "加群"
+    ban-duration-seconds: 600
+    cooldown-seconds: 300
+```
+
+| 字段 | 类型 | 说明 |
+|---|---|---|
+| `enabled` | boolean | 是否启用自动审核 |
+| `keywords` | list(string) | 敏感关键词列表（包含即触发，不区分大小写） |
+| `ban-duration-seconds` | int | 禁言时长（秒） |
+| `cooldown-seconds` | int | 同一群两次自动审核最小间隔（秒） |
+
+### 处理流程
+
+1. 消息转小写，遍历关键词列表检查是否包含
+2. 命中关键词且冷却已过：
+   - 调用 `OneBotClient.deleteMessage()` 撤回消息
+   - 调用 `OneBotClient.setGroupBan()` 禁言发送者
+3. 更新该群最后审核时间
+
+> 自动审核在指令处理之前执行，命中关键词的消息不会进入指令路由。冷却按群维度独立计算。
+
+## 消息处理流水线总结
+
+群消息到达后，`QQBotService.handleOneBotEvent()` 按以下顺序处理：
+
+| 步骤 | 处理逻辑 | 命中后行为 |
+|---|---|---|
+| 1 | 黑名单拦截 | 命中则丢弃，不继续处理 |
+| 2 | notice 事件 | 入群欢迎 / 禁言同步，处理后返回 |
+| 3 | 自动 moderation | 命中关键词则撤回 + 禁言，不继续 |
+| 4 | 指令处理 | 匹配指令则执行，处理后返回 |
+| 5 | 自动回复 | 匹配关键词则回复（不阻断后续） |
+| 6 | @ 提示 | @ 了绑定玩家则发送游戏内提示（不阻断） |
+| 7 | 活跃度记录 | 记录群发言次数（不阻断） |
+| 8 | 消息同步 | QQ → 游戏内广播（受 sync-mode 控制） |
+
+> 步骤 5-8 为非阻断式处理，即使自动回复命中，消息同步仍会执行。
+
+## 群消息通知 HUD
+
+当 QQ 群消息同步到游戏内时，同时通过 ArcartX UI 框架向所有在线玩家发送通知 HUD（屏幕右上角弹出新消息）。
+
+| 配置 | 说明 |
+|---|---|
+| `ui.notify-enabled` | 是否启用通知 HUD（默认 `true`） |
+| `ui.notify-ui-id` | 通知 HUD 的 UI ID（默认 `AXS:qqbot_notify`） |
+
+通知 HUD 每条消息显示昵称、消息摘要（截断 60 字符）和时间，最多同时显示 4 条。群消息同时缓存最近 50 条供绑定中心 UI 查看。
+
+> 通知 HUD 通过 `QQBotUiService.broadcastNotification()` 实现，受 `ui.notify-enabled` 开关控制。禁用时消息仍会广播到游戏内聊天栏，只是不弹出 HUD。

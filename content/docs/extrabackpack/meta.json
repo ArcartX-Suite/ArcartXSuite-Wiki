@@ -1,0 +1,13 @@
+{
+  "title": "ExtraBackpack 额外背包",
+  "description": "扩展背包（多分类额外槽位）",
+  "color": "#8b5cf6",
+  "pages": [
+    "index",
+    "configuration",
+    "categories",
+    "slot-expansion",
+    "commands",
+    "integration"
+  ]
+}

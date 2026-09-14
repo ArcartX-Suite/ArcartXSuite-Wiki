@@ -1,0 +1,167 @@
+---
+title: 玩家管理
+description: PlayerManagementService 详解 — 飞行、无敌、治疗、速度、隐身、AFK、返回栈、容器、背包查看与事件监听
+---
+
+## 服务概述
+
+玩家管理由 `PlayerManagementService` 统一承担，它是 Essentials 模块中代码量最大、事件监听最密集的服务层。服务实现 `Listener` 接口，在 `start()` 阶段注册事件监听器并启动 AFK 检测定时任务，在 `shutdown()` 阶段注销监听器、取消任务并清空全部运行时状态。
+
+所有玩家状态均以 `UUID` 为键存储在并发集合中，保证多线程安全：
+
+| 状态集合 | 类型 | 说明 |
+|----------|------|------|
+| `flyEnabled` | `Set<UUID>` | 已启用飞行的玩家 |
+| `godEnabled` | `Set<UUID>` | 已启用无敌的玩家 |
+| `vanished` | `Set<UUID>` | 已隐身的玩家 |
+| `afkPlayers` | `Set<UUID>` | 处于 AFK 状态的玩家 |
+| `lastActivity` | `Map<UUID, Long>` | 玩家最后活动时间戳（毫秒） |
+| `backStacks` | `Map<UUID, Deque<Location>>` | `/back` 返回位置栈 |
+| `invViewerToTarget` | `Map<UUID, UUID>` | 背包查看者 → 被查看者映射 |
+
+> 状态集合均使用 `ConcurrentHashMap.newKeySet()` 或 `ConcurrentHashMap` 创建，可在主线程与异步任务间安全访问。
+
+## 状态切换功能
+
+### 飞行（Fly）
+
+`toggleFly(Player)` 切换飞行开关。开启时调用 `setAllowFlight(true)`，关闭时根据当前游戏模式恢复默认值（创造 / 旁观模式保留飞行能力，其余模式禁用）。支持对其他玩家操作：`toggleFly(Player executor, Player target)` 在切换后会向执行者发送提示。
+
+### 无敌（God）
+
+`toggleGod(Player)` 切换无敌开关，通过 `setInvulnerable(true/false)` 实现。无敌状态下 `EntityDamageEvent` 会被监听器取消（`onDamage`，`EventPriority.HIGH`），确保玩家不受任何伤害。
+
+### 治疗 / 饱食
+
+| 方法 | 效果 |
+|------|------|
+| `heal(Player)` | 生命值恢复至 `AttributeResolver.getMaxHealth` 上限，清除着火状态（`setFireTicks(0)`） |
+| `feed(Player)` | 饥饿值与饱和度均设为 20 |
+
+> `heal` 使用 `AttributeResolver.getMaxHealth` 而非硬编码 20，兼容修改了最大生命值的 RPG 服务器。
+
+### 游戏模式与速度
+
+`setGameMode(Player, GameMode)` 直接切换模式并向玩家发送提示。`setSpeed(Player, float, boolean)` 设置飞行或行走速度，输入值自动限幅至 0-10，再除以 10 转换为 Bukkit 的 0-1 区间：
+
+```java
+float clamped = Math.max(0f, Math.min(10f, speed));
+float bukkit = clamped / 10f;
+if (isFly) player.setFlySpeed(Math.min(1f, bukkit));
+else player.setWalkSpeed(Math.min(1f, bukkit));
+```
+
+## 隐身（Vanish）
+
+`toggleVanish(Player)` 切换隐身状态。隐身时对全部在线玩家调用 `hidePlayer`，但拥有 `axs.essentials.vanish.see` 权限的玩家仍可见。取消隐身时对全部在线玩家调用 `showPlayer` 恢复显示。
+
+隐身还联动进出服消息隐藏，由两个配置项控制：
+
+| 配置项 | 默认值 | 说明 |
+|--------|--------|------|
+| `player.vanish-hide-join-message` | `true` | 隐身玩家加入时隐藏加入消息 |
+| `player.vanish-hide-quit-message` | `true` | 隐身玩家退出时隐藏退出消息 |
+
+`onJoin` 监听器（`EventPriority.MONITOR`）会在新玩家加入时，对该玩家隐藏所有已隐身的玩家，保证后加入的玩家也看不到隐身者。状态变化后调用 `refreshTab` 通知 Tab 模块刷新列表。
+
+## AFK 挂机检测
+
+AFK 系统结合手动切换与自动检测两种机制：
+
+| 机制 | 触发方式 | 说明 |
+|------|----------|------|
+| 手动 | `/essentials afk` | 调用 `toggleAfk` 立即切换状态并广播 |
+| 自动 | 定时任务 | `checkAfk` 每 200 tick（10 秒）执行一次 |
+
+自动检测逻辑：
+
+1. 读取每位在线玩家的 `lastActivity` 时间戳，计算空闲时长 `idle`。
+2. 当 `idle >= afk-timeout` 且未处于 AFK 时，自动标记为 AFK 并广播。
+3. 当 `afk-kick-timeout > 0` 且 `idle >= afk-timeout + afk-kick-timeout` 时，踢出玩家（拥有 `axs.essentials.afk.exempt` 权限者豁免）。
+
+`onMove` 监听器（`EventPriority.MONITOR`）在玩家移动时更新 `lastActivity`，若玩家处于 AFK 则自动退出 AFK 状态并广播 `afk-leave` 消息。
+
+> `afk-timeout` 为 0 时禁用自动检测（定时任务不启动）；`afk-kick-timeout` 为 0 时不会自动踢出。
+
+## 返回栈（/back）
+
+`pushBackLocation(Player)` 在玩家传送前将当前位置压入栈，`popBackLocation(Player)` 弹出最新位置。栈深度由 `teleport.back-stack-size` 控制（默认 5），超出时丢弃最旧记录。传送服务在执行实际传送前会调用 `pushBackLocation`，确保 `/back` 能返回传送前的位置。
+
+## 物品与容器
+
+| 方法 | 功能 |
+|------|------|
+| `repair(Player)` | 修复主手物品耐久（仅对 `Damageable` 物品生效，空气提示 `repair-nothing`） |
+| `hat(Player)` | 主手物品与头盔槽交换（主手为空气时提示 `hat-nothing`） |
+| `openEnderChest(viewer, target)` | 打开目标玩家的末影箱 |
+| `openWorkbench(Player)` | 打开工作台（`openWorkbench`，`force=true`） |
+| `openAnvil(Player)` | 打开铁砧（创建 `InventoryType.ANVIL` 容器） |
+| `openTrash(Player)` | 打开 54 格垃圾桶虚拟容器 |
+
+## 背包查看（/inv）
+
+`openPlayerInventory(viewer, target)` 是玩家管理中最复杂的功能，用于查看并实时修改其他在线玩家的背包。实现要点：
+
+- 创建 36 格自定义容器，按"主背包在前（0-26）、工具栏在后（27-35）"的顺序展示，与玩家自己打开背包的视觉一致。
+- 通过 `invViewerToTarget` 映射记录查看者与被查看者的关系。
+- 监听 `InventoryClickEvent`（`EventPriority.HIGH`）与 `InventoryDragEvent`，取消原事件后手动同步到目标玩家真实背包。
+- 槽位映射 `mapToTargetSlot` 将自定义容器槽位转换回 `PlayerInventory` 真实槽位：
+
+```java
+// 自定义槽位 0-26 ← 目标槽位 9-35（主背包）
+// 自定义槽位 27-35 ← 目标槽位 0-8（工具栏）
+if (viewSlot < 27) return 9 + viewSlot;
+return viewSlot - 27;
+```
+
+- 支持的点击操作包括：拾取（PICKUP_*）、放置（PLACE_*）、光标交换（SWAP_WITH_CURSOR）、Shift 移动、数字键交换（HOTBAR_SWAP）、收集（COLLECT_TO_CURSOR）。
+- `InventoryCloseEvent` 监听器在关闭时清理映射关系；目标玩家下线时自动取消事件并关闭查看者界面。
+
+> 背包查看仅对在线玩家生效。点击查看者自身背包下半区不拦截，允许查看者正常管理自己的物品。
+
+## 事件监听汇总
+
+`PlayerManagementService` 注册的事件监听器：
+
+| 事件 | 优先级 | 用途 |
+|------|--------|------|
+| `PlayerJoinEvent` | `MONITOR` | 记录活动时间、隐藏隐身玩家、隐藏隐身加入消息 |
+| `PlayerQuitEvent` | `MONITOR` | 清理状态集合、隐藏隐身退出消息 |
+| `PlayerMoveEvent` | `MONITOR` | 更新活动时间、自动退出 AFK |
+| `EntityDamageEvent` | `HIGH` | 无敌玩家取消伤害 |
+| `InventoryClickEvent` | `HIGH` | 背包查看同步 |
+| `InventoryDragEvent` | `HIGH` | 背包查看拖拽同步 |
+| `InventoryCloseEvent` | `MONITOR` | 清理背包查看映射 |
+
+## PlaceholderAPI 集成
+
+模块注册 `axsessentials` 标识符的 PlaceholderAPI 扩展（`EssentialsPlaceholderExpansion`），查询的数据全部来自 `PlayerManagementService`：
+
+| 占位符 | 返回值 | 数据来源 |
+|--------|--------|----------|
+| `%axsessentials_afk%` | `true` / `false` | `isAfk(uuid)` |
+| `%axsessentials_afk_symbol%` | `&7[AFK]` 或空 | `isAfk(uuid)` |
+| `%axsessentials_vanish%` | `true` / `false` | `isVanished(uuid)` |
+| `%axsessentials_vanish_symbol%` | `&b[V]` 或空 | `isVanished(uuid)` |
+| `%axsessentials_flying%` | `true` / `false` | `player.isFlying()` |
+| `%axsessentials_god%` | `true` / `false` | `player.isInvulnerable()` |
+| `%axsessentials_nick%` | 昵称文本 | `player.getDisplayName()` |
+
+> 占位符扩展通过 `Supplier<PlayerManagementService>` 延迟获取服务实例，模块未启动时返回空字符串。
+
+## UI 菜单集成
+
+玩家工具菜单（`/essentials menu`）的首页展示玩家状态，数据由 `EssentialsMenuPacketHandler.pushInitData` 推送：
+
+| 推送字段 | 来源方法 | 说明 |
+|----------|----------|------|
+| `isFlying` | `isFlyEnabled(uuid)` | 飞行状态 |
+| `isGod` | `isGodEnabled(uuid)` | 无敌状态 |
+| `isAfk` | `isAfk(uuid)` | AFK 状态 |
+| `flySpeed` | `player.getFlySpeed() * 10` | 飞行速度（格式 `X.X`） |
+| `walkSpeed` | `player.getWalkSpeed() * 10` | 行走速度 |
+| `location` | `player.getLocation()` | 世界名 + 坐标 |
+
+管理员面板（`/essentials admin`）的玩家列表页展示每位在线玩家的健康、飞行、无敌与世界信息，`heal` / `feed` / `fly` / `god` 操作均委托给 `PlayerManagementService` 对应方法。
+
+> 更多关于 UI 配置文件编写与图标显示，请参考 [图标配置](/docs/guide/icons)。

@@ -1,0 +1,155 @@
+---
+title: 概览
+description: EntityTracker 实体追踪功能概览
+---
+
+# EntityTracker 实体追踪
+
+## 模块简介
+
+EntityTracker 是 ArcartXSuite 的 Boss 追踪与伤害排行模块。它跟踪指定的 MythicMob 实体，通过 ArcartX 客户端 MOD 向玩家实时同步 Boss 血量、距离、目标、存活时间、伤害排行和死亡结算结果。同时提供玩家最近攻击目标的 HUD 显示，以及 Boss 掉落记录、掉落分配、跨服 Boss 排行与排行榜定时奖励等进阶功能。
+
+模块由两大子系统组成：
+
+- **Boss 追踪子系统**：依赖 MythicMobs / MythicBukkit，监听 MythicMob 的生成、死亡、消失事件，管理 Boss 会话生命周期，定时刷新观察者 HUD 数据包，处理伤害排名与死亡结算。
+- **攻击目标 HUD 子系统**：不依赖 MythicMobs，监听玩家攻击任意 LivingEntity 的事件，在超时时间内显示目标实体的血量、类型、距离等信息。
+
+两个子系统共享 UI 配置节，但各自拥有独立的 UI ID、刷新间隔和显示格式。
+
+## 功能特性
+
+| 特性 | 说明 |
+|---|---|
+| Boss 追踪 HUD | 实时显示 Boss 血量、距离、存活时间、目标信息，支持多 Boss 同时显示（上限可配置） |
+| 实时伤害排行 | 追踪并显示每个 Boss 的伤害排行榜，支持伤害门槛过滤 |
+| 死亡结算 | Boss 死亡时按伤害排名发放奖励（物品/命令/消息/邮件/信号） |
+| 排行榜定时奖励 | 按周/月调度发放排行榜奖励，独立于即时死亡结算 |
+| 攻击目标 HUD | 显示玩家最近攻击的实体信息（血量、类型、距离），支持黑名单与 Boss 联动过滤 |
+| Boss 定义 | 通过 `bosses/` 目录为每个 MythicMob 独立配置追踪参数、显示格式、排名与奖励 |
+| 多种排序模式 | 生成顺序、距离优先、血量百分比、配置优先级、混合排序 |
+| 聊天卡片 | Boss 生成/死亡/消失时发送 ArcartX 聊天卡片（需配置卡片模板 ID） |
+| 掉落记录系统 | 记录 Boss 掉落物品，支持统计与自动清理 |
+| 掉落分配系统 | 支持 DKP / ROLL / 优先级 / 手动四种分配模式 |
+| 跨服 Boss 排行 | 各服最高伤害同步至共享存储并经 CrossServer SDK 广播合并 |
+| 伤害阈值过滤 | 可配置最低伤害门槛（固定值或百分比），低于门槛不参与排名 |
+| 奖励动作 | 物品 / 命令 / 消息 / 邮件 / 信号五种奖励类型，支持变量替换与 PlaceholderAPI 二次解析 |
+| 物品奖励兜底 | 背包满时自动转邮件，无邮件则掉落（由 ItemRewardDispatcher 统一处理） |
+| 属性插件桥接 | 支持 AttributePlus / Crane / MythicLib / Symphony 等属性插件的伤害事件 |
+| Mohist 混合端兼容 | 自动补扫遗漏的 MythicMobs Boss，启动时高频补扫、稳定后降频 |
+| PlaceholderAPI | 提供 `%axsentitytracker_*%` 系列占位符 |
+| 数据库迁移 | 注册 DatabaseMigratable 能力，支持存储切换时数据迁移 |
+| 玩家数据清理 | 注册 PlayerDataPurgeable 能力，支持按 UUID 或全量清理玩家数据 |
+
+## 依赖
+
+| 依赖类型 | 名称 | 说明 |
+|---|---|---|
+| 外部硬依赖 | PlaceholderAPI | 占位符扩展（无则占位符不可用，模块仍可运行） |
+| 外部软依赖 | MythicMobs / MythicBukkit | Boss 追踪子系统必需；未安装时 Boss 追踪跳过，攻击目标 HUD 仍可使用 |
+| ArcartX 模块（可选） | Mail | 邮件类型奖励发放与物品奖励背包满转邮件（不可用时降级为掉落） |
+| ArcartX 宿主 | ArcartX 客户端 MOD | UI 面板与数据包通讯的必需前提 |
+
+> Boss 追踪子系统依赖 MythicMobs / MythicBukkit。若服务器未安装 MythicMobs，模块启动时会输出警告并跳过 Boss 追踪，仅运行攻击目标 HUD 子系统。两个子系统可独立运行。
+
+## 追踪机制详解
+
+### Boss 追踪生命周期
+
+```
+MythicMob 生成
+  → BossTrackerService.onSpawn()
+  → 在 bosses/ 目录查找匹配的 BossDefinition
+  → 创建 BossSession，分配 spawnOrder
+  → 发送 spawn 聊天卡片（若配置）
+  → 请求 HUD 刷新
+
+定时刷新循环（每 refresh-interval-ticks）
+  → 收集所有活跃 BossSession 快照
+  → 按世界分组
+  → 对每个在线玩家：
+    → 筛选可见 Boss（同世界 + 距离 ≤ viewer-range）
+    → 按配置 sort-mode 排序
+    → 截取前 max-visible-bars 个
+    → 构建 UI 数据包（init / update）
+    → 通过 PacketBridge 发送至客户端
+  → 无可见 Boss 时关闭 HUD
+
+玩家攻击 Boss
+  → EntityDamageByEntityEvent / 属性插件伤害事件
+  → BossSession.recordDamage()
+  → 请求 HUD 刷新
+
+MythicMob 死亡
+  → BossTrackerService.onDeath()
+  → BossDamageSettlementService.settle() 生成结算记录
+  → 按排名发放即时奖励（rewards）
+  → 跨服同步结算数据（若启用）
+  → 记录击杀与掉落（若启用）
+  → 发送 death 聊天卡片
+  → 移除 BossSession
+
+MythicMob 消失
+  → BossTrackerService.onDespawn()
+  → 发送 despawn 聊天卡片
+  → 移除 BossSession
+```
+
+### 攻击目标 HUD 生命周期
+
+```
+玩家攻击 LivingEntity
+  → EntityTargetHudService.onEntityDamage()
+  → 解析攻击者（支持投射物、属性插件等）
+  → 检查黑名单（MythicMob ID / EntityType）
+  → 检查 Boss 联动过滤（ignore-configured-bosses）
+  → 记录 TrackedTarget（目标 UUID + 最后攻击时间）
+
+定时刷新循环（每 refresh-interval-ticks）
+  → 对每个追踪中的玩家：
+    → 解析目标实体（存活、同世界、距离 ≤ max-view-distance）
+    → 检查超时（lastHitAgoMs > target-timeout-ms 则关闭）
+    → 构建 EntityTargetSnapshot
+    → 渲染 title-format / subtitle-format
+    → 通过 PacketBridge 发送 init / update 包
+
+超时 / 玩家退出 / 玩家死亡
+  → 关闭目标 HUD
+```
+
+### Boss 联动过滤
+
+当 `attack-target.entitytracker-link.ignore-configured-bosses` 为 `true` 时，已被 EntityTracker 追踪的 Boss（`bosses/` 目录中 `enabled: true` 的 MythicMob）不会触发攻击目标 HUD，避免两个 HUD 同时显示同一个实体。
+
+### 排序模式
+
+| 模式 | 配置值 | 说明 |
+|---|---|---|
+| 生成顺序 | `spawn-order` | 按 Boss 生成先后排序（默认） |
+| 距离优先 | `distance` | 按玩家与 Boss 的距离升序排序 |
+| 血量百分比 | `health-percent` | 按 Boss 血量百分比升序排序（残血优先） |
+| 配置优先级 | `priority` | 按 BossDefinition 的 `priority` 字段降序排序 |
+| 混合 | `hybrid` | 综合排序，同时启用 Mohist 补扫机制 |
+
+### 伤害门槛
+
+Boss 伤害排名支持三种门槛模式，通过 Boss 配置文件的 `damage-ranking.min-damage` 字段设置：
+
+| 模式 | 配置示例 | 说明 |
+|---|---|---|
+| 任意伤害 | 留空或无法解析 | 任何伤害均可参与排名 |
+| 绝对值 | `1000` | 伤害 ≥ 1000 才参与排名 |
+| 百分比 | `1%` | 伤害 ≥ Boss 最大血量的 1% 才参与排名 |
+
+### UI 资源
+
+模块导出 5 个 UI 文件至 `plugins/ArcartXSuite/ui/` 目录：
+
+| UI 文件 | 用途 |
+|---|---|
+| `boss_tracker.yml` | Boss 追踪 HUD 面板 |
+| `attack_target_hud.yml` | 攻击目标 HUD 面板 |
+| `ranking_rewards.yml` | 排行榜奖励管理界面 |
+| `reward_editor.yml` | 奖励配置编辑器 |
+| `reward_history.yml` | 奖励发放历史界面 |
+
+> UI 文件支持多 UI ID 同时发包，在配置中将 `boss-ui-id` 或 `target-ui-id` 设为列表即可。详见 [配置](/docs/entitytracker/configuration) 页面。

@@ -1,0 +1,160 @@
+---
+title: 联动
+description: QuestGPS 跨模块联动与 Capability
+---
+
+# 联动
+
+## EventBus 事件
+
+QuestGPS 在任务完成时通过 `EventBusCapability` 发布事件主题，供其他模块订阅。
+
+| 主题 | 触发时机 | Payload |
+|---|---|---|
+| `axs.questgps.quest_completed` | Chemdah 任务完成事件（`QuestEvents.Complete.Post`） | `quest_id` = 任务 ID, `quest_name` = 任务显示名 |
+
+> 主题在 `QuestGpsModule.publishedTopics()` 中声明。其他模块（如 BattlePass）可通过 EventBus 订阅此主题，将任务完成作为战令任务的完成条件。
+
+## Capability 注册
+
+QuestGPS 注册以下 Capability，供其他模块跨模块调用：
+
+### QuestGpsNavigable
+
+任务导航能力接口，由 `QuestGpsModule` 在 `startService()` 中注册。供 EventPacket 等模块调用。
+
+| 方法 | 参数 | 说明 |
+|---|---|---|
+| `offerQuest` | `Player`, `String questId`, `boolean openMenu` | 向玩家推送任务，可选自动打开菜单 |
+| `acceptQuest` | `Player`, `String questId` | 让玩家接受指定任务 |
+| `openMenu` | `Player` | 为玩家打开任务导航菜单 |
+| `trackQuest` | `Player`, `String questId` | 追踪任务级导航 |
+| `trackTask` | `Player`, `String questId`, `String taskId` | 追踪子任务级导航 |
+| `eventRuleLocked` | `Player`, `String ruleId` | 检查 EventPacket 事件规则是否被主线门禁锁定 |
+| `moduleEntryLocked` | `Player`, `String moduleEntryId` | 检查其他模块入口是否被主线门禁锁定 |
+
+#### 调用示例
+
+```java
+// 获取 QuestGpsNavigable 能力
+QuestGpsNavigable questGps = getCapability(QuestGpsNavigable.class);
+if (questGps != null) {
+    // 向玩家推送任务并自动打开菜单
+    questGps.offerQuest(player, "example_mainline_quest", true);
+
+    // 检查模块入口是否被门禁锁定
+    if (questGps.moduleEntryLocked(player, "market")) {
+        player.sendMessage("请先完成主线任务");
+        return;
+    }
+}
+```
+
+### SignalDispatchable
+
+任务生命周期信号通过 `SignalDispatchable` Capability 派发到 EventPacket 规则引擎。信号携带 `quest_id` 参数：
+
+```java
+dispatcher.dispatchSignal(signal, player, Map.of("quest_id", questId));
+```
+
+EventPacket 规则匹配信号后执行 actions（发称号/发邮件/派命令等），规则中可用 `{quest_id}` 占位符区分具体任务。
+
+## 跨服同步
+
+QuestGPS 的配置文件支持 `SyncPolicy`，`categories` 段标记为动态段，可在跨服环境下同步分类配置。
+
+| 同步段 | 说明 |
+|---|---|
+| `categories` | 分类注册表（动态段，跨服同步） |
+
+> 其他配置段（`ui`、`navigation`、`gate`、`database` 等）为静态段，各服独立加载。
+
+## 数据库表结构
+
+当 `database.enabled: true` 时，QuestGPS 为 Chemdah 免费版注册内置 `DatabaseMySQL` 实现，表结构完全复刻 Chemdah 付费版 `DatabaseSQL`。
+
+### 表前缀
+
+表前缀沿用 Chemdah `config.yml` 的 `database.source.SQL` 配置。
+
+### 表结构
+
+| 表名 | 列 | 说明 |
+|---|---|---|
+| `<prefix>_user` | `id`（自增主键）, `name`（VARCHAR(36), UNIQUE）, `uuid`（VARCHAR(36), UNIQUE）, `time`（DATE） | 玩家用户表 |
+| `<prefix>_user_data` | `id`（自增主键）, `user`（INT, KEY）, `key`（VARCHAR(64), KEY）, `value`（VARCHAR(64)）, `mode`（BOOL） | 玩家持久化数据 |
+| `<prefix>_variables` | `id`（自增主键）, `name`（VARCHAR(64), UNIQUE）, `data`（VARCHAR(64)）, `mode`（BOOL） | 全局变量 |
+| `<prefix>_quest` | `id`（自增主键）, `user`（INT）, `quest`（VARCHAR）, `mode`（INT） | 任务记录（按数据隔离后缀分表） |
+| `<prefix>_quest_data` | `id`（自增主键）, `quest`（INT）, `key`（VARCHAR）, `value`（VARCHAR）, `mode`（BOOL） | 任务持久化数据 |
+
+> `DatabaseMySQL` 继承 Chemdah 免费版已有的 `Relational` 基类，通过 `Chemdah.registerDatabaseImpl` 注册，无需修改 Chemdah 本体。连接参数沿用 Chemdah 自身配置（`config.yml` 的 `database.source.SQL`）。
+
+## 与其他模块联动
+
+### EventPacket
+
+| 联动方式 | 说明 |
+|---|---|
+| 信号桥接 | 任务生命周期事件（`triggered`/`accepted`/`abandoned`/`completed`/`track-changed`）向 EventPacket 派发自定义信号，EventPacket 规则匹配信号后执行动作 |
+| 门禁检查 | EventPacket 在触发规则前调用 `QuestGpsNavigable.eventRuleLocked` 检查是否被主线门禁锁定，未过关则跳过规则 |
+| 信号携带参数 | 信号携带 `quest_id` 参数，EventPacket 规则中可用 `{quest_id}` 占位符区分具体任务 |
+
+### AXMap
+
+| 联动方式 | 说明 |
+|---|---|
+| 临时目标同步 | 追踪任务/子任务时，通过 `MapNavigable` Capability 向 AXMap 同步临时目标标记（source = `questgps`） |
+| 清除目标 | 清除追踪时调用 `clearExternalTargets` 移除 QuestGPS 来源的临时目标 |
+| 打开地图 | UI Packet `open_map` 操作调用 `MapNavigable.openMenuFor` 打开 AXMap 菜单 |
+
+> AXMap 不存在时导航功能正常运行，仅跳过地图标记同步。
+
+### Announcer
+
+| 联动方式 | 说明 |
+|---|---|
+| 门禁字幕 | 主线门禁拦截时，若 `gate.deny-subtitle` 非空，通过 `SubtitlePlayable` Capability 播放字幕组 |
+
+### Chat
+
+| 联动方式 | 说明 |
+|---|---|
+| 门禁聊天卡片 | 主线门禁拦截时，若 `gate.deny-chat-card` 非空，通过 `ChatCardSendable` Capability 发送聊天卡片 |
+
+### Title
+
+| 联动方式 | 说明 |
+|---|---|
+| 称号奖励预览 | 奖励类型为 `title` 时，通过 `TitleConfigQueryable` Capability 查询称号信息（显示名、品质、描述）用于 UI 预览 |
+
+### Adyeshach
+
+| 联动方式 | 说明 |
+|---|---|
+| 导航标记模型 | 通过 `AdyeshachNpcBridgeAPI` 创建私有实体，使用 ArcartX 模型渲染客户端导航标记 |
+| 路径标记 | A* 寻路沿路径放置标记模型，仅在追踪状态变更时发包，客户端独立渲染 |
+
+> Adyeshach 不存在时导航标记功能自动关闭（`navigation.marker.enabled` 仍可设为 `true`，但运行时检测不可用后跳过），路标导航不受影响。
+
+### ArcartX Waypoint
+
+| 联动方式 | 说明 |
+|---|---|
+| 路标导航 | 通过 `WaypointBridgeAPI` 创建/移除路标，在客户端显示方向指引 |
+| 样式解析 | 路标样式 ID 优先使用任务/子任务配置的 `style-id`，回退到全局 `navigation.waypoint-style-id` |
+
+> ArcartX Waypoint 不存在时导航功能不可用（`navigationRuntimeReady` 返回 `false`）。
+
+### Chemdah
+
+| 联动方式 | 说明 |
+|---|---|
+| 任务模板读取 | 通过 `ChemdahAPI.getQuestTemplate` 读取任务模板，获取任务名称、描述、目标等元数据 |
+| 玩家档案 | 通过 `ChemdahAPI.getChemdahProfile` 读取玩家档案，获取任务状态（可接取/进行中/已完成） |
+| 任务接取/放弃 | 通过 `Template.acceptTo` / `Quest.failQuestFuture` 执行任务接取/放弃 |
+| 任务追踪 | 通过 `ChemdahTrackAPI` 启动/停止任务追踪，解析动态导航坐标 |
+| 任务事件监听 | 监听 `QuestEvents.Accept.Post`、`QuestEvents.Fail.Post`、`QuestEvents.Complete.Post` 和 `PluginReloadEvent.Quest` 事件 |
+| MySQL 存储 | `database.enabled: true` 时注册内置 `DatabaseMySQL`，为 Chemdah 免费版提供 MySQL 存储支持 |
+
+> Chemdah 是硬依赖，不存在时模块无法启动。Chemdah Tracker API 不可用时回退 overlay 导航。

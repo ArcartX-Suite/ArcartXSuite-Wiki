@@ -1,0 +1,295 @@
+---
+title: 图标配置
+description: ArcartXSuite 统一图标系统配置指南，支持 Material、外部物品库、自定义贴图、头颅、发光等
+---
+
+# 图标配置
+
+## 概述
+
+IconDefinition 是 ArcartXSuite 的统一图标配置系统。所有模块中需要展示物品图标的地方——如菜单按钮、奖励图标、商店商品、鱼类图鉴、抽奖物品等——都使用统一的 `icon:` 配置节。
+
+IconResolver 负责将配置解析为两部分：
+
+- **ItemStack**：服务端实际使用的物品对象
+- **JSON**：客户端 UI 渲染用的物品 JSON 数据
+
+这种统一设计使得图标配置在不同模块间完全一致，学会一处即可全局适用。无论你是配置一个菜单按钮还是一个抽奖奖品，`icon:` 节的写法完全相同。
+
+## 完整字段列表
+
+IconDefinition 支持以下 17 个字段：
+
+| 字段 | 说明 | 默认值 |
+|------|------|--------|
+| `material` | Bukkit Material 名 | `STONE` |
+| `amount` | 数量 | `1` |
+| `name` | 显示名（支持颜色码 `&` 和 PAPI） | - |
+| `lore` | 描述列表（支持颜色码和 PAPI） | - |
+| `custom-model-data` / `customModelData` | 自定义模型数据 | - |
+| `source` | 外部物品来源 | - |
+| `id` / `item-id` | 外部物品 ID | - |
+| `mmo-type` / `mmoType` | MMO 类型 | - |
+| `mmo-id` / `mmoId` | MMO 物品 ID | - |
+| `json` | 整段物品 JSON（SNBT） | - |
+| `texture` | 自定义贴图标识（写入 NBT `icon` 键） | - |
+| `texture-url` / `url` | 贴图 URL（写入 NBT `url` 键） | - |
+| `nbt` | NBT 标签（键值对配置节或 SNBT 字符串） | - |
+| `glow` | 是否附魔发光 | `false` |
+| `skull-texture` / `skullTexture` | 头颅 Base64 或 URL | - |
+| `color` | 皮革染色 `#RRGGBB` | - |
+
+> 带斜杠的字段名互为别名，配置时任选其一。`name` 和 `lore` 中的 `&` 颜色码会自动转换为 `§`，PlaceholderAPI 占位符也会自动解析。
+
+## 解析优先级
+
+IconResolver 按以下顺序解析图标配置：
+
+1. **JSON 优先**：若配置了 `json` 字段，按 SNBT 格式直接生成物品，跳过其他来源
+2. **外部物品来源**：若配置了 `source` + `id`，调用 ItemSourceRegistry 生成外部物品（MythicMobs、NeigeItems、Overture、MMOItems 等）
+3. **原版 Material**：否则按 `material` 字段创建原版物品
+4. **属性叠加**：最后在生成的物品基础上叠加 `name`、`lore`、`customModelData`、`glow`、`skullTexture`、`color`、`nbt`、`texture`、`textureUrl` 等属性
+
+```
+json ──> 生成物品 ──┐
+                   │
+source+id ──> 外部物品 ──┤──> 叠加属性 ──> 最终 ItemStack
+                   │
+material ──> 原版物品 ──┘
+```
+
+> 属性叠加阶段会覆盖外部物品自带的 `name`、`lore` 等属性。若希望保留外部物品原始属性，请勿在 `icon:` 中重复配置这些字段。
+
+## 配置示例
+
+### 基础原版物品图标
+
+最简单的图标配置，仅需指定 `material`：
+
+```yaml
+icon:
+  material: DIAMOND
+```
+
+### 带自定义名称和描述
+
+通过 `name` 和 `lore` 自定义显示文本，支持 `&` 颜色码和 PAPI 占位符：
+
+```yaml
+icon:
+  material: DIAMOND_SWORD
+  name: "&b传说之剑"
+  lore:
+    - "&7一把流传千年的神兵"
+    - "&7持有者：&f%player_name%"
+    - ""
+    - "&c攻击力 +100"
+```
+
+### 使用 MythicMobs 物品作为图标
+
+通过 `source` + `id` 引用外部物品库的物品：
+
+```yaml
+icon:
+  source: "mythic"
+  id: "SwordOfFlame"
+  name: "&6火焰之剑"       # 覆盖 MythicMobs 物品原始名称
+```
+
+### 自定义模型数据
+
+通过 `custom-model-data` 配合资源包使用，实现自定义贴图：
+
+```yaml
+icon:
+  material: PAPER
+  custom-model-data: 10001
+  name: "&e金币"
+```
+
+### 附魔发光效果
+
+通过 `glow` 让物品呈现附魔发光效果（不实际添加附魔属性）：
+
+```yaml
+icon:
+  material: STICK
+  glow: true
+  name: "&a魔法棒"
+```
+
+### 玩家头颅
+
+通过 `skull-texture` 配置玩家头颅，支持 Base64 纹理值或 URL：
+
+```yaml
+# 使用 Base64 纹理
+icon:
+  material: PLAYER_HEAD
+  skull-texture: "eyJ0ZXh0dXJlcyI6eyJTS0lOIjp7InVybCI6..."
+  name: "&6服务器头颅"
+
+# 使用 URL
+icon:
+  material: PLAYER_HEAD
+  skull-texture: "http://textures.minecraft.net/texture/abc123..."
+  name: "&6自定义头颅"
+```
+
+> `material` 必须为 `PLAYER_HEAD` 才能显示头颅纹理。
+
+### 皮革染色
+
+通过 `color` 为皮革盔甲染色，格式为 `#RRGGBB`：
+
+```yaml
+icon:
+  material: LEATHER_CHESTPLATE
+  color: "#FF5555"
+  name: "&c红色胸甲"
+```
+
+> `color` 仅对皮革类物品（`LEATHER_HELMET`、`LEATHER_CHESTPLATE`、`LEATHER_LEGGINGS`、`LEATHER_BOOTS`）生效。
+
+### 自定义贴图
+
+通过 `texture` 和 `texture-url` 写入自定义 NBT 键，供客户端模组或资源包识别：
+
+```yaml
+icon:
+  material: PAPER
+  texture: "custom_icon_vip"
+  texture-url: "https://example.com/textures/vip.png"
+  name: "&dVIP 标识"
+```
+
+- `texture` 写入 NBT 的 `icon` 键
+- `texture-url` 写入 NBT 的 `url` 键
+
+### 完整 NBT
+
+通过 `nbt` 字段直接附加 NBT 标签，支持键值对配置节或 SNBT 字符串两种写法：
+
+**键值对写法**：
+
+```yaml
+icon:
+  material: DIAMOND_SWORD
+  nbt:
+    display:
+      Name: '{"text":"神剑","color":"gold","bold":true}'
+    Damage: 50
+    CustomTags:
+      rarity: "legendary"
+      level: 10
+```
+
+**SNBT 字符串写法**：
+
+```yaml
+icon:
+  material: DIAMOND_SWORD
+  nbt: "{display:{Name:'{\"text\":\"神剑\",\"color\":\"gold\"}'},Damage:50,CustomTags:{rarity:\"legendary\",level:10}}"
+```
+
+### 综合示例
+
+结合多种属性配置一个完整图标：
+
+```yaml
+icon:
+  source: "mmoitems"
+  id: "SWORD;EXCALIBUR"
+  amount: 1
+  name: "&6&l圣剑 Excalibur"
+  lore:
+    - "&7传说中亚瑟王使用的圣剑"
+    - ""
+    - "&c攻击力 +500"
+    - "&e稀有度: 传说"
+  glow: true
+  custom-model-data: 20001
+```
+
+## 在各模块中的使用
+
+`icon:` 配置节在以下模块配置中出现，写法完全一致：
+
+| 模块 | 使用场景 | 示例 |
+|------|----------|------|
+| **Menu** | 菜单按钮图标 | 按钮 `icon:` 节 |
+| **Market** | 商店商品图标 | 商品 `icon:` 节 |
+| **BattlePass** | 等级奖励图标 | 奖励 `icon:` 节 |
+| **Fishing** | 鱼类图鉴图标 | 鱼类 `icon:` 节 |
+| **Lottery** | 抽奖物品图标 | 奖品 `icon:` 节 |
+
+### Menu 菜单按钮
+
+```yaml
+buttons:
+  shop:
+    icon:
+      material: EMERALD
+      name: "&a商店"
+      lore:
+        - "&7点击打开商店"
+    slot: 0
+```
+
+### Market 商店商品
+
+```yaml
+items:
+  - icon:
+      source: "mythic"
+      id: "RareGem"
+      name: "&b稀有宝石"
+    price: 500
+```
+
+### BattlePass 等级奖励
+
+```yaml
+rewards:
+  level-5:
+    icon:
+      material: GOLDEN_APPLE
+      name: "&6等级 5 奖励"
+      lore:
+        - "&7点击领取"
+```
+
+### Fishing 鱼类图鉴
+
+```yaml
+fishes:
+  - id: "gold_fish"
+    icon:
+      material: TROPICAL_FISH
+      name: "&e金鱼"
+      custom-model-data: 30001
+```
+
+### Lottery 抽奖物品
+
+```yaml
+prizes:
+  - icon:
+      source: "neige"
+      id: "legendary_box"
+      name: "&6传说宝箱"
+    weight: 1
+```
+
+## 故障排除
+
+| 现象 | 排查方向 |
+|------|----------|
+| 图标显示为石头 | 确认 `material` 名称拼写正确，参考 Bukkit Material 枚举 |
+| 外部物品图标不显示 | 确认对应插件已安装，`source` 和 `id` 正确 |
+| 头颅纹理不显示 | 确认 `material` 为 `PLAYER_HEAD`，`skull-texture` 为合法 Base64 或 URL |
+| 皮革染色不生效 | 确认 `material` 为皮革类物品，`color` 格式为 `#RRGGBB` |
+| 自定义名称不显示颜色 | 确认使用 `&` 颜色码（非 `§`），系统会自动转换 |
+| PAPI 占位符未解析 | 确认已安装 PlaceholderAPI 且相关 Expansion 已注册 |
+| NBT 标签格式错误 | 确认 SNBT 格式正确，字符串用双引号转义 |

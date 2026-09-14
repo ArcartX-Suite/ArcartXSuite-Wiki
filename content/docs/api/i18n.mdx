@@ -1,0 +1,133 @@
+---
+title: 消息外部化
+description: MessageProvider 消息外部化框架，支持多语言、占位符替换与颜色码翻译。
+---
+
+# 消息外部化 (i18n)
+
+ArcartXSuite 提供消息外部化框架，让模块的所有用户可见文本从硬编码迁移到可编辑的 `messages.yml`。服主可自定义措辞、翻译为其他语言，无需改动代码。
+
+## 核心组件
+
+| 组件 | 位置 | 职责 |
+|------|------|------|
+| `MessageProvider` | `api.message` | 加载 `messages.yml`，提供 `get(key, args...)` 取值 |
+| `AbstractAXSModule#configSpec()` | `api` | 声明 `messagesFileName`，基类自动导出+加载 |
+| `AbstractAXSModule#messages()` | `api` | 获取已加载的 `MessageProvider` |
+
+## 工作原理
+
+```
+模块 jar 内 messages.yml
+   │ (onEnable 时自动导出)
+   ▼
+data/<moduleId>/messages.yml  ← 用户可编辑
+   │ (MessageProvider.load 读取)
+   ▼
+messages().get("key", args)  ← 代码中使用
+```
+
+消息文件与 `config.yml` 走同一套资源导出管线。
+
+## 接入步骤
+
+### 1. 创建默认消息文件
+
+在模块 `src/main/resources/messages.yml`：
+
+```yaml
+# 支持 & 颜色码和 {0} {1} 占位符
+prefix: "&3◆ &6ArcartXSuite &7| &r"
+no-permission: "&c你没有权限执行这个命令。"
+toggle:
+  enabled: "&a功能已开启。"
+  disabled: "&e功能已关闭。"
+status:
+  mode: "&7当前模式: &f{0}"
+```
+
+嵌套键用点号路径访问：`status.mode` → `"当前模式: {0}"`。
+
+### 2. 模块声明消息文件
+
+在 `AbstractAXSModule` 子类中覆写 `configSpec()`：
+
+```java
+@Override
+protected ModuleConfig configSpec() {
+    return ModuleConfig.builder()
+        .configFileName("config.yml")
+        .messagesFileName("messages.yml")
+        .build();
+}
+```
+
+### 3. 使用消息
+
+`messages()` 在 `startService()` 之前已就绪，可直接传给命令：
+
+```java
+@Override
+protected Map<String, TabExecutor> commandBindings() {
+    return Map.of("mycommand", new MyCommand(messages()));
+}
+```
+
+### 4. 替换硬编码文本
+
+```java
+// 改造前
+player.sendMessage(PREFIX + ChatColor.RED + "你没有权限执行这个命令。");
+
+// 改造后
+player.sendMessage(messages.get("prefix") + messages.get("no-permission"));
+```
+
+带占位符：
+
+```java
+// messages.yml:  status.mode: "&7当前模式: &f{0}"
+player.sendMessage(messages.get("status.mode", modeName));
+```
+
+## API 速查
+
+### MessageProvider
+
+| 方法 | 说明 |
+|------|------|
+| `get(key)` | 取消息；键不存在时返回键名本身 |
+| `get(key, args...)` | 取消息并替换 `{0}` `{1}` ... 占位符；`null` 参数替换为空串 |
+| `has(key)` | 判断键是否存在 |
+| `size()` | 已加载消息条数 |
+| `load()` | 加载或重载消息文件 |
+| `translateColors(input)` | 静态方法，翻译 `&` 颜色码和 `&#rrggbb` 十六进制颜色码 |
+
+### 颜色码支持
+
+`get()` 自动翻译颜色码：
+
+- `&a`、`&c` 等单字符颜色码 → `§` 格式
+- `&#rrggbb` 十六进制颜色码（1.16+）→ RGB 格式
+
+### 占位符替换
+
+使用 `{0}`、`{1}` 等位置占位符。参数中的 `{` 和 `}` 会被临时转义，避免替换后的内容被二次匹配。
+
+```java
+messages.get("welcome", player.getName(), serverName);
+// messages.yml: welcome: "&a欢迎 {0} 来到 {1}！"
+```
+
+## 多语言支持
+
+`MessageProvider` 从模块 Jar 内导出默认消息文件，用户编辑 `data/&lt;moduleId>/messages.yml` 后 `/axs reload &lt;module>` 即可生效。
+
+服主可将消息文件翻译为任意语言，无需修改代码。新增字段无需迁移声明——`messages.yml` 不是配置，不走 `ConfigDiagnosticEngine`，新增键直接在 Jar 默认文件补充即可。
+
+## 注意事项
+
+- 键命名使用 `kebab-case` + 点号分层（如 `toggle.enabled`）
+- 前缀复用：把 `prefix` 也放进 `messages.yml`，连品牌前缀都可定制
+- reload 生效：用户编辑后执行 `/axs reload &lt;module>` 即可
+- 内置默认消息作为 fallback：用户文件中缺少的键会回退到 Jar 内默认值

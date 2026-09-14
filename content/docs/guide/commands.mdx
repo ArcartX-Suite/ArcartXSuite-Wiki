@@ -1,0 +1,291 @@
+---
+title: 命令速查
+description: /axs 主命令、各子命令用法与权限节点速查表
+---
+
+# 命令速查
+
+本页列出 ArcartX-Suite 全部可用命令及其用法。`&lt;参数>` 表示必填，`[参数]` 表示选填，`A|B` 表示二选一。
+
+## 管理命令
+
+主入口：`/axs`（别名 `/ArcartX-Suite`），需要权限 `arcartxsuite.admin`（默认 OP）。
+
+### 全局管理
+
+| 命令 | 说明 |
+| --- | --- |
+| `/axs` 或 `/axs status` | 查看全部模块运行状态 |
+| `/axs help` | 查看帮助及已加载模块列表 |
+| `/axs reload all` | 重载本体配置 + 全部模块 |
+| `/axs reload &lt;模块名>` | 仅重载指定模块 |
+| `/axs load &lt;模块名>` | 热加载新模块（从 `modules/` 扫描） |
+| `/axs unload &lt;模块名>` | 热卸载模块（释放 ClassLoader） |
+| `/axs diagnostic` | 生成运行环境诊断报告到 `diagnostics/` 目录 |
+| `/axs purge &lt;玩家名\|all> [模块ID\|all]` | 仅控制台。清除玩家模块数据，需 10 秒内重复确认 |
+| `/axs migrate &lt;模块ID\|all> &lt;sqlite-to-mysql\|mysql-to-sqlite> [overwrite]` | 仅控制台。跨源数据库一键迁移 |
+
+### 智能配置体检
+
+| 命令 | 说明 |
+|--------|------|
+| `/axs config status` | 查看当前会话诊断概况 |
+| `/axs config diagnose [ownerId\|all]` | 重新运行诊断 |
+| `/axs config preview &lt;ownerId\|all>` | 控制台输出 issue 详情 |
+| `/axs config apply &lt;ownerId\|all> [--force]` | 应用自动修复提案 |
+| `/axs config rollback &lt;ownerId\|all> [--to &lt;timestamp>]` | 还原备份 |
+
+### 云端模块管理
+
+| 命令 | 说明 |
+| --- | --- |
+| `/axs sync` | 从云端同步授权模块列表并加载新授权的模块 |
+| `/axs update &lt;模块ID\|all>` | 从云端强制更新模块到最新版本并热加载 |
+
+### 多方认证管理
+
+| 命令 | 说明 |
+| --- | --- |
+| `/axs auth status` | 查看 authlib-injector 加载状态与混合代理连通性 |
+| `/axs auth setup [api-url]` | 一键下载 authlib-injector 并生成启动脚本 |
+| `/axs auth update` | 手动更新最新版 authlib-injector |
+| `/axs auth check` | 检测 authlib-injector 最新版本并输出提示 |
+
+### 统一二级密码
+
+| 命令 | 权限 | 说明 |
+| --- | --- | --- |
+| `/axs password set &lt;新密码> [旧密码]` | `arcartxsuite.password` | 设置二级密码 |
+| `/axs password unlock &lt;密码>` | `arcartxsuite.password` | 解锁二级密码 |
+| `/axs password clear &lt;密码\|玩家名>` | `arcartxsuite.password` / `arcartxsuite.admin` | 清除自己或指定玩家的密码 |
+
+## 模块管理命令
+
+以下命令均以 `/axs &lt;模块名>` 为前缀，仅管理员可用。每个模块都自带 `status` 子命令。
+
+### EntityTracker
+
+| 命令 | 说明 |
+| --- | --- |
+| `/axs entitytracker sessions [mobId]` | 列出当前正在追踪的 Boss 会话 |
+| `/axs entitytracker rank &lt;实体UUID> [页码]` | 查看指定 Boss 的实时伤害排行榜 |
+| `/axs entitytracker settlements [页码]` | 分页查看历史结算记录 |
+| `/axs entitytracker settlement &lt;结算ID> [页码]` | 查看某次结算的详细排名 |
+| `/axs entitytracker reissue &lt;结算ID> &lt;名次> [玩家]` | 补发奖励 |
+
+### EventPacket
+
+| 命令 | 说明 |
+| --- | --- |
+| `/axs eventpacket fire &lt;信号名> &lt;玩家> [key=value...]` | 手动触发信号，可附带参数 |
+
+### Announcer
+
+| 命令 | 说明 |
+| --- | --- |
+| `/axs announcer broadcast &lt;文本>` | 将自定义广播加入队列 |
+| `/axs announcer broadcastnow &lt;文本>` | 立即广播，打断当前公告 |
+| `/axs announcer subtitle list` | 列出所有字幕组 |
+| `/axs announcer subtitle play &lt;玩家> &lt;字幕组ID>` | 向玩家播放字幕组 |
+| `/axs announcer subtitle stop &lt;玩家>` | 停止玩家字幕播放 |
+
+### Title
+
+| 命令 | 说明 |
+| --- | --- |
+| `/axs title give &lt;玩家> &lt;称号ID> &lt;时长>` | 发放称号（时长如 `permanent`、`7d`、`12h`） |
+| `/axs title revoke &lt;玩家> &lt;称号ID>` | 收回玩家称号 |
+| `/axs title open &lt;玩家>` | 为玩家打开称号管理界面 |
+
+### Mail
+
+| 命令 | 说明 |
+| --- | --- |
+| `/axs mail open &lt;玩家>` | 为玩家打开邮箱界面 |
+| `/axs mail admin` | 打开邮箱管理 UI |
+| `/axs mail preset list` | 列出所有邮件预设 |
+| `/axs mail preset send &lt;预设ID> &lt;目标>` | 按预设派发邮件 |
+| `/axs mail preset info &lt;预设ID>` | 查看预设详情 |
+| `/axs mail preset delete &lt;预设ID>` | 删除预设 |
+| `/axs mail preset reload` | 重新加载所有预设 |
+| `/axs mail cdk create &lt;预设ID> &lt;兑换码\|auto> &lt;最大领取数> &lt;有效期>` | 创建 CDK 兑换码 |
+| `/axs mail cdk info &lt;兑换码>` | 查看 CDK 详情 |
+| `/axs mail cdk list [页码]` | 分页查看 CDK 列表 |
+| `/axs mail cdk delete &lt;兑换码>` | 删除 CDK |
+
+### Chat
+
+| 命令 | 说明 |
+| --- | --- |
+| `/axs chat mute &lt;玩家> &lt;时长> [原因]` | 禁言玩家 |
+| `/axs chat unmute &lt;玩家>` | 解除禁言 |
+| `/axs chat spy &lt;玩家> &lt;on\|off>` | 开关私聊监听 |
+
+### Warehouse
+
+| 命令 | 说明 |
+| --- | --- |
+| `/axs warehouse open &lt;玩家>` | 为玩家打开仓库界面 |
+| `/axs warehouse info &lt;玩家>` | 查看玩家仓库概览 |
+| `/axs warehouse password &lt;玩家> clear` | 清除玩家二级密码 |
+| `/axs warehouse bank &lt;玩家> &lt;货币ID> &lt;set\|add\|take> &lt;金额>` | 管理银行余额 |
+
+### BattlePass
+
+| 命令 | 说明 |
+| --- | --- |
+| `/axs battlepass status` | 查看战令状态 |
+| `/axs battlepass reset &lt;玩家>` | 重置玩家战令进度 |
+| `/axs battlepass unlock &lt;玩家> &lt;premium\|deluxe>` | 解锁高级或典藏通行证 |
+
+### 其他模块
+
+| 命令 | 说明 |
+| --- | --- |
+| `/axs combateffect send &lt;packetId> &lt;玩家> [k=v ...]` | 发送战斗特效包 |
+| `/axs prop set &lt;道具ID>` | 绑定道具到主手物品 |
+| `/axs questgps open &lt;玩家>` | 打开任务导航界面 |
+| `/axs map open &lt;玩家> [世界名]` | 打开地图界面 |
+| `/axs map list` | 列出地图世界 |
+| `/axs map anchors [世界名]` | 列出锚点 |
+| `/axs market status` | 查看市场状态 |
+| `/axs market clear-expired` | 处理过期拍卖 |
+| `/axs market remove &lt;ID>` | 强制移除拍卖上架 |
+| `/axs qqbot status` | 查看 QQBot 状态 |
+| `/axs qqbot send &lt;消息>` | 向 QQ 群发送消息 |
+| `/axs qqbot lookup &lt;玩家名\|QQ号>` | 查询绑定关系 |
+| `/axs loginview open &lt;玩家>` | 打开登录界面 |
+| `/axs loginview migrate-authme [dry-run]` | 从 AuthMe 迁移密码 |
+| `/axs onlinerewards add\|remove\|set &lt;时长> &lt;玩家>` | 修改在线时长 |
+| `/axs onlinerewards card add\|remove\|set &lt;数量> &lt;玩家>` | 修改补签卡数量 |
+
+## 玩家命令
+
+以下命令面向普通玩家，需要对应的 `arcartxsuite.&lt;模块>.use` 权限节点（默认全部玩家可用）。
+
+### Title — 称号
+
+权限：`arcartxsuite.title.use`
+
+| 命令 | 说明 |
+| --- | --- |
+| `/title` 或 `/title open` | 打开称号管理菜单 |
+| `/title equip &lt;称号ID>` | 装备称号 |
+| `/title unequip &lt;组ID\|all>` | 卸下称号 |
+| `/title hide &lt;称号ID>` | 隐藏称号 |
+| `/title unhide &lt;称号ID>` | 取消隐藏 |
+
+### Warehouse — 仓库
+
+权限：`arcartxsuite.warehouse.use`
+
+| 命令 | 说明 |
+| --- | --- |
+| `/warehouse` 或 `/wh` | 打开个人仓库 |
+
+### Mail — 邮箱
+
+权限：`arcartxsuite.mail.use`
+
+| 命令 | 说明 |
+| --- | --- |
+| `/mail` 或 `/mail open` | 打开邮箱收件箱 |
+| `/mail compose` | 打开写信界面 |
+| `/mail claimall` | 一键领取所有附件 |
+| `/mail deleteall` | 删除所有已读邮件 |
+| `/mail cdk &lt;兑换码>` | 使用兑换码 |
+
+### Chat — 聊天
+
+权限：`arcartxsuite.chat.use`
+
+| 命令 | 说明 |
+| --- | --- |
+| `/chat` | 查看聊天状态 |
+| `/chat channel &lt;频道ID>` | 切换频道 |
+| `/chat toggle private [on\|off]` | 开关私聊接收 |
+| `/chat toggle mentions [on\|off]` | 开关 @提及通知 |
+| `/chat ignore &lt;玩家>` | 屏蔽玩家 |
+| `/chat unignore &lt;玩家>` | 取消屏蔽 |
+| `/msg &lt;玩家> &lt;消息>` | 发送私聊 |
+| `/reply &lt;消息>` | 回复最近私聊 |
+
+### 其他玩家命令
+
+| 命令 | 权限 | 说明 |
+| --- | --- | --- |
+| `/onlinerewards` 或 `/signin` | `arcartxsuite.onlinerewards.use` | 在线奖励 / 签到 |
+| `/afkreward` 或 `/afk` | `arcartxsuite.afkreward.use` | 挂机奖励 |
+| `/questgps` | `arcartxsuite.questgps.use` | 任务导航 |
+| `/map` 或 `/axmap` | `arcartxsuite.map.use` | 地图 |
+| `/market` 或 `/mk`、`/ah` | `arcartxsuite.market.use` | 全球市场 |
+| `/bp` | — | 战令主界面 |
+| `/qqbot bind &lt;验证码>` | `arcartxsuite.qqbot.use` | QQ 账号绑定 |
+| `/qqbot unbind` | `arcartxsuite.qqbot.use` | 解除绑定 |
+| `/qqbot info` | `arcartxsuite.qqbot.use` | 查看绑定状态 |
+
+### Essentials 模块
+
+支持 `/axs essentials` 或独立别名 `/ess` 调用所有子命令。
+
+| 命令 | 说明 |
+| --- | --- |
+| `/ess menu` | 打开玩家功能菜单 |
+| `/ess admin` | 打开管理员面板（权限 `ArcartX-Suite.essentials.admin`） |
+| `/ess fly [玩家]` | 切换飞行 |
+| `/ess god [玩家]` | 切换无敌 |
+| `/ess heal [玩家]` | 恢复生命 |
+| `/ess feed [玩家]` | 恢复饥饿 |
+| `/ess gamemode &lt;模式> [玩家]` | 设置游戏模式 |
+| `/ess speed &lt;数值> [玩家]` | 设置速度 |
+| `/ess vanish` | 切换隐身 |
+| `/ess afk` | 切换 AFK |
+| `/ess back` | 回到上次位置 |
+| `/ess repair` | 修复手持物品 |
+| `/ess hat` | 戴头上 |
+| `/ess enderchest [玩家]` | 打开末影箱 |
+| `/ess workbench` | 打开工作台 |
+| `/ess anvil` | 打开铁砧 |
+| `/ess trash` | 打开垃圾桶 |
+| `/ess nick &lt;昵称\|off>` | 设置/重置昵称 |
+| `/ess tpa &lt;玩家>` | 发起传送请求 |
+| `/ess tpaccept` | 接受传送 |
+| `/ess tpdeny` | 拒绝传送 |
+| `/ess tp &lt;玩家>` | 管理员直接传送 |
+| `/ess home [名称]` | 传送到家 |
+| `/ess sethome [名称]` | 设置家 |
+| `/ess warp &lt;名称>` | 传送到传送点 |
+| `/ess spawn` | 传送到出生点 |
+| `/ess inv &lt;玩家>` | 查看玩家背包 |
+
+### Regions 模块
+
+支持 `/axs regions` 或独立别名 `/rg` 调用所有子命令。
+
+| 命令 | 说明 |
+| --- | --- |
+| `/rg menu` | 打开区域查看菜单 |
+| `/rg admin` | 打开区域管理面板 |
+| `/rg define &lt;名称>` | 用当前选区创建区域 |
+| `/rg remove &lt;名称>` | 删除区域 |
+| `/rg redefine &lt;名称>` | 重定义区域范围 |
+| `/rg list [世界]` | 列出区域 |
+| `/rg info &lt;名称>` | 查看区域详情 |
+| `/rg flag &lt;区域> &lt;标志> &lt;allow\|deny>` | 设置标志 |
+| `/rg addowner &lt;区域> &lt;玩家>` | 添加所有者 |
+| `/rg addmember &lt;区域> &lt;玩家>` | 添加成员 |
+| `/rg priority &lt;区域> &lt;数字>` | 设置优先级 |
+| `/rg parent &lt;区域> &lt;父区域\|none>` | 设置父区域 |
+
+## 权限节点
+
+| 权限 | 默认 | 说明 |
+| --- | --- | --- |
+| `arcartxsuite.admin` | OP | 管理命令总权限 |
+| `arcartxsuite.password` | 所有玩家 | 二级密码管理 |
+| `arcartxsuite.&lt;模块>.use` | 所有玩家 | 模块玩家命令 |
+| `arcartxsuite.chat.msg` | 所有玩家 | 私聊命令 |
+| `arcartxsuite.chat.socialspy` | OP | 社交监听 |
+| `ArcartX-Suite.essentials.admin` | OP | Essentials 管理面板 |
+| `ArcartX-Suite.regions.admin` | OP | Regions 管理面板 |
+| `arcartxsuite.proxy.admin` | OP | 代理端管理命令 |

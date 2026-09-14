@@ -1,0 +1,329 @@
+---
+title: 账号绑定与白名单
+description: QQ-游戏账号验证码绑定流程、白名单联动、登录门控与 UI 面板
+---
+
+# 账号绑定与白名单
+
+QQBot 模块通过验证码方式关联 QQ 号与 Minecraft 游戏账号，并联动服务器白名单实现绑定即准入的闭环管理。模块同时提供绑定中心、消息通知和管理后台三个 UI 面板，通过 ArcartX UI 框架实现可视化操作。
+
+## 绑定机制概述
+
+模块使用 **验证码绑定** 方式，QQ 群内发起绑定请求生成 6 位验证码，玩家在游戏内输入验证码完成确认。绑定关系持久化存储在数据库中，支持跨服同步。
+
+### 绑定流程
+
+```
+QQ 群                          Minecraft 服务端
+  │                                │
+  │  #绑定 <游戏名>                 │
+  │ ──────────────────────────────>│
+  │  检查 QQ 是否已绑定             │
+  │  检查玩家名是否已被绑定          │
+  │  生成 6 位验证码                 │
+  │  <── 验证码已生成: {code} ──────│
+  │  (验证码有效期 300 秒)           │
+  │                                │
+  │              /qqbot bind {code}│
+  │ <──────────────────────────────│
+  │  校验验证码有效性                │
+  │  校验玩家名匹配                 │
+  │  写入数据库                     │
+  │  <── 绑定成功! ─────────────────│
+  │  自动加白名单（若启用）          │
+```
+
+### 反向绑定流程
+
+玩家也可在游戏内通过 UI 面板发起绑定请求，生成验证码后在 QQ 群中关联：
+
+```
+Minecraft 服务端                   QQ 群
+  │                                  │
+  │  /qqbot ui → 点击"申请验证码"      │
+  │  生成验证码（qqId 暂为 0）         │
+  │  <── 验证码: {code} ─────────────│
+  │                                  │
+  │  将验证码告知群内管理员/好友        │
+  │  管理员在群内 #绑定 <游戏名>       │
+  │ ────────────────────────────────>│
+  │  关联 QQ 号与验证码               │
+```
+
+## 绑定规则
+
+| 规则 | 说明 |
+|---|---|
+| 绑定方式 | 验证码（code），群内发起 → 游戏内确认 |
+| 验证码格式 | 6 位随机数字（100000-999999） |
+| 验证码有效期 | `binding.code-expire-seconds`（默认 300 秒） |
+| 每 QQ 绑定上限 | `binding.max-bindings-per-qq`（默认 1） |
+| 玩家名唯一 | 同一玩家名只能被一个 QQ 绑定 |
+| 验证码防碰撞 | 生成时检查重复，确保唯一 |
+| 验证码玩家名匹配 | 游戏内确认时校验玩家名与验证码生成时的玩家名一致 |
+
+## 绑定服务详解
+
+`QQBotBindService` 负责绑定流程的核心逻辑，验证码存储在内存 `ConcurrentHashMap` 中，定时清理过期验证码。
+
+### 核心方法
+
+| 方法 | 说明 |
+|---|---|
+| `requestBind(qqId, playerName)` | QQ 群发起绑定，生成验证码 |
+| `requestBindFromGame(playerName)` | 游戏内发起绑定，生成验证码（qqId 暂为 0） |
+| `confirmBind(player, code)` | 游戏内确认绑定，校验并写入数据库 |
+| `unbindByQq(qqId)` | QQ 群发起解绑 |
+| `unbindByPlayer(uuid)` | 游戏内解绑 |
+| `unbindByPlayer(playerName)` | 按玩家名解绑（管理操作） |
+| `findByQq(qqId)` | 按 QQ 号查询绑定 |
+| `findByPlayer(uuid)` | 按 UUID 查询绑定 |
+| `findByPlayerName(name)` | 按玩家名查询绑定 |
+| `cleanupExpiredCodes()` | 清理过期验证码 |
+
+### 绑定校验逻辑
+
+`requestBind` 发起绑定时执行以下校验：
+
+1. 绑定功能是否启用（`binding.enabled`）
+2. 该 QQ 已绑定数量是否达到上限（`max-bindings-per-qq`）
+3. 目标玩家名是否已被其他 QQ 绑定
+
+`confirmBind` 确认绑定时执行以下校验：
+
+1. 验证码是否存在（从内存 Map 中移除）
+2. 验证码是否过期
+3. 玩家名是否与验证码生成时的玩家名匹配
+
+> 验证码确认后从内存中移除（一次性使用）。玩家名不匹配时验证码会放回 Map，允许正确玩家继续使用。
+
+### 验证码清理
+
+模块每 5 分钟异步清理过期验证码，同时清理已处理消息 ID 缓存：
+
+```java
+cleanupTask = AxsScheduler.runAsyncTimer(plugin, () -> {
+    bindService.cleanupExpiredCodes();
+    processedMessageIds.clear();
+}, 6000L, 6000L); // 每 5 分钟（6000 tick）
+```
+
+## 白名单联动
+
+绑定和解绑时可自动操作 Minecraft 服务器白名单，实现绑定即准入的闭环管理。
+
+### 配置
+
+```yaml
+whitelist:
+  enabled: true
+  auto-add-on-bind: true
+  auto-remove-on-unbind: true
+  add-command: "whitelist add {name}"
+  remove-command: "whitelist remove {name}"
+  add-prefix: "#白名单添加"
+  remove-prefix: "#白名单移除"
+  list-prefix: "#白名单列表"
+```
+
+| 字段 | 说明 |
+|---|---|
+| `auto-add-on-bind` | 绑定成功后自动执行 `add-command` |
+| `auto-remove-on-unbind` | 解绑后自动执行 `remove-command` |
+| `add-command` | 白名单添加命令模板，`{name}` 替换为玩家名 |
+| `remove-command` | 白名单移除命令模板，`{name}` 替换为玩家名 |
+
+> 白名单命令通过 `SafeCommandExecutor` 安全执行，玩家名经过合法性校验。非法玩家名时跳过白名单操作，不抛出异常。
+
+### 白名单管理指令
+
+群内管理员（群管理/群主）可通过指令管理白名单：
+
+| 指令 | 用法 | 说明 |
+|---|---|---|
+| `#白名单添加` | `#白名单添加 <玩家名\|QQ号>` | 添加白名单（支持通过 QQ 号查绑定） |
+| `#白名单移除` | `#白名单移除 <玩家名\|QQ号>` | 移除白名单（支持通过 QQ 号查绑定） |
+| `#白名单列表` | `#白名单列表` | 查看白名单列表 |
+
+> 输入纯数字时自动通过绑定关系解析玩家名，无需手动查找。非群管理/群主执行时提示无权限。
+
+## QqBindCapable Capability
+
+模块注册了 `QqBindCapable` Capability，供 loginview 等模块查询绑定状态和确认绑定。
+
+| 方法 | 返回值 | 说明 |
+|---|---|---|
+| `isBound(UUID)` | boolean | 查询玩家是否已绑定 QQ |
+| `getBoundQqId(UUID)` | Long | 获取玩家绑定的 QQ 号（未绑定返回 null） |
+| `confirmBind(Player, code)` | BindResult | 确认绑定（含自动加白名单逻辑） |
+
+### BindResult 记录
+
+| 字段 | 类型 | 说明 |
+|---|---|---|
+| `success` | boolean | 是否绑定成功 |
+| `qqId` | Long | 绑定的 QQ 号（成功时） |
+| `message` | String | 结果消息 |
+
+> `confirmBind` 成功时会自动执行白名单添加命令（若 `whitelist.auto-add-on-bind` 启用），保持与 `/qqbot bind` 行为一致。
+
+## 登录门控
+
+`QQBotLoginGateListener` 监听 `AsyncPlayerPreLoginEvent`，记录玩家账号类型与绑定状态的审计日志。
+
+### 审计日志内容
+
+| 字段 | 说明 |
+|---|---|
+| 玩家名 | 登录玩家名 |
+| UUID | 玩家 UUID |
+| UUID 版本 | v3（离线）/ v4（LittleSkin）等 |
+| 账号类型 | 微软正版 / LittleSkin / 离线 |
+| QQ 绑定状态 | 是否已绑定 |
+
+> 此监听器 **仅做审计日志**，不拦截任何登录。实际的 QQ 绑定验证由 LoginView 模块在登录面板中统一管控。
+
+### 账号类型判定原理
+
+| 判定条件 | 账号类型 |
+|---|---|
+| UUID 与 Mojang 官方一致 | 微软正版 |
+| UUID 与 Mojang 官方不同 | LittleSkin |
+| 不在 Mojang 且 v4 UUID | LittleSkin |
+| 不在 Mojang 且 v3 UUID | 离线 |
+
+> Mixed Auth Mode 需在启动脚本中为 authlib-injector API 地址加上 `?mixed` 后缀，并设置 `online-mode=true`。
+
+## 绑定数据存储
+
+绑定记录存储在 `axs_qqbot_bindings` 表中：
+
+| 字段 | 类型 | 说明 |
+|---|---|---|
+| `id` | INTEGER | 自增主键 |
+| `qq_id` | BIGINT | QQ 号 |
+| `player_uuid` | VARCHAR(36) | 玩家 UUID |
+| `player_name` | VARCHAR(64) | 玩家名 |
+| `bound_at` | BIGINT | 绑定时间戳（毫秒） |
+
+索引：`idx_qqbot_qq` (qq_id)、`idx_qqbot_uuid` (player_uuid)、`idx_qqbot_name` (player_name)
+
+约束：`UNIQUE(qq_id, player_uuid)` — 同一 QQ 与同一玩家不可重复绑定
+
+> 绑定表是 `PlayerDataPurgeable` 唯一清理的玩家数据表。积分、签到等数据按 QQ 号关联，不在玩家数据清理范围。
+
+## UI 面板
+
+QQBot 模块提供三个 UI 界面，通过 ArcartX UI 框架渲染，使用 PacketBridge 实现 server ↔ client 通讯。
+
+### UI 资源文件
+
+| UI | 资源路径 | 导出文件 | UI ID |
+|---|---|---|---|
+| 绑定中心 | `arcartx/ui/qqbot_bind.yml` | `ui/qqbot_bind.yml` | `AXS:qqbot_bind` |
+| 消息通知 HUD | `arcartx/ui/qqbot_notify.yml` | `ui/qqbot_notify.yml` | `AXS:qqbot_notify` |
+| 管理后台 | `arcartx/ui/qqbot_admin.yml` | `ui/qqbot_admin.yml` | `AXS:qqbot_admin` |
+
+> UI 文件名为代码常量（`QQBotUiService.BIND_UI_FILE` 等），不可在配置中修改。UI ID 可在 `ui` 配置节中自定义。UI 编辑请参考 [UI 指南](/docs/guide/icons)。
+
+### 绑定中心
+
+玩家通过 `/qqbot ui` 打开绑定中心，查看绑定状态、申请验证码、解绑、查看群消息。
+
+#### 初始化数据
+
+| 数据 | 说明 |
+|---|---|
+| `bound` | 是否已绑定 |
+| `qqId` | 绑定的 QQ 号 |
+| `playerName` | 玩家名 |
+| `bindTime` | 绑定时间 |
+| `messages` | 最近群消息列表 |
+| `msgCount` | 消息总数 |
+
+#### 客户端包处理
+
+| Action | 说明 |
+|---|---|
+| `request_code` | 申请验证码（游戏内发起绑定） |
+| `unbind` | 解除绑定 |
+| `fetch_messages` | 获取最近群消息 |
+| `send_message` | 从游戏内发送消息到所有群 |
+
+> 绑定中心使用 `AXS_qqbot` 包 ID 通讯。群消息缓存最近 50 条，供 UI 消息页查看。
+
+### 消息通知 HUD
+
+屏幕右上角弹出新群消息通知，受 `ui.notify-enabled` 控制。
+
+| 数据 | 说明 |
+|---|---|
+| `nick` | 发送者昵称 |
+| `msg` | 消息摘要（截断 60 字符） |
+| `time` | 消息时间 |
+| `maxDisplay` | 最大显示条数（4） |
+
+> 通知 HUD 通过 `packetBridge.sendPacket(player, notifyUiId, "notify", payload)` 发送，每条群消息同步到游戏内时触发。
+
+### 管理后台
+
+管理员通过 `/qqbot admin`（需 `arcartxsuite.qqbot.admin` 权限）打开管理后台。
+
+#### 初始化数据
+
+| 数据 | 说明 |
+|---|---|
+| `botConnected` | 机器人连接状态 |
+| `totalBindings` | 总绑定数 |
+| `onlinePlayers` | 在线人数 |
+| `maxPlayers` | 最大人数 |
+| `groups` | 已配置群列表 |
+| `bindings` | 绑定记录分页数据 |
+| `bindTotal` | 绑定总数 |
+
+#### 客户端包处理
+
+| Action | 说明 |
+|---|---|
+| `refresh` | 刷新管理面板数据 |
+| `fetch_bindings` | 获取绑定记录分页（每页 10 条） |
+| `search_binding` | 按关键词搜索绑定记录 |
+| `admin_unbind` | 管理员强制解绑 |
+| `exec_command` | 执行服务器命令 |
+
+> 管理后台使用 `AXS_qqbot_admin` 包 ID 通讯。无 `arcartxsuite.qqbot.admin` 权限时包处理被忽略。命令执行结果通过 `cmd_result` 包返回。
+
+### UI 配置
+
+```yaml
+ui:
+  bind-ui-id: "AXS:qqbot_bind"
+  notify-ui-id: "AXS:qqbot_notify"
+  admin-ui-id: "AXS:qqbot_admin"
+  notify-enabled: true
+  register-ui-on-enable: true
+  overwrite-ui-files: false
+```
+
+| 字段 | 说明 |
+|---|---|
+| `bind-ui-id` | 绑定中心 UI ID |
+| `notify-ui-id` | 消息通知 HUD UI ID |
+| `admin-ui-id` | 管理后台 UI ID |
+| `notify-enabled` | 是否启用消息通知 HUD |
+| `register-ui-on-enable` | 模块启动时是否自动注册 UI |
+| `overwrite-ui-files` | 是否强制覆盖已存在的 UI 文件 |
+
+> `overwrite-ui-files: false` 时，模块仅在 UI 文件不存在时导出默认文件。设为 `true` 会每次启动覆盖，适用于恢复默认 UI。UI 文件中的图标配置参考 [图标指南](/docs/guide/icons)。
+
+## 游戏内绑定命令
+
+| 命令 | 用法 | 说明 |
+|---|---|---|
+| `/qqbot bind` | `/qqbot bind <验证码>` | 使用验证码绑定 QQ 账号 |
+| `/qqbot unbind` | `/qqbot unbind` | 解除 QQ 绑定 |
+| `/qqbot info` | `/qqbot info` | 查看当前绑定信息 |
+| `/qqbot ui` | `/qqbot ui` | 打开绑定中心 UI 面板 |
+| `/qqbot admin` | `/qqbot admin` | 打开管理后台 UI（需管理员权限） |
+
+> 绑定成功后自动加白名单（若启用），解绑后自动移除白名单（若启用）。

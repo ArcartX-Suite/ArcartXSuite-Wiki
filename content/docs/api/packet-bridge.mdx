@@ -1,0 +1,410 @@
+---
+title: PacketBridge 数据包桥接
+description: ArcartXSuite 客户端 UI 数据包桥接 API，支持 UI 注册/热重载/开关/数据包收发
+---
+
+# PacketBridge 数据包桥接
+
+## 概述
+
+`PacketBridgeAPI` 是 ArcartXSuite 与 ArcartX 客户端 MOD 的通信桥梁。提供 UI 注册、热重载、开关、数据包收发等能力。模块通过 `context.packetBridge()` 获取实例。
+
+标记为 `@ApiStability.Stable`，仅暴露模块开发所需的安全操作，内部反射细节对模块不可见。
+
+## 核心接口
+
+`PacketBridgeAPI` 接口方法表：
+
+| 方法 | 说明 |
+|------|------|
+| `isAvailable()` | 桥接是否可用（ArcartX 插件已加载且初始化成功） |
+| `registerOrReloadUi(uiId, file)` | 注册或热重载 UI（幂等安全） |
+| `unregisterUi(uiId)` | 注销指定 UI |
+| `openUi(player, uiId)` | 为玩家打开 UI |
+| `openUiWithCallback(player, uiId, callback)` | 打开 UI，关闭时回调 |
+| `closeUi(player, uiId)` | 关闭玩家 UI |
+| `openUiAll(player, uiIds)` | 批量打开多个 UI |
+| `closeUiAll(player, uiIds)` | 批量关闭多个 UI |
+| `isUiOpen(player, uiId)` | 检查 UI 是否打开 |
+| `sendPacket(player, uiId, handlerName, payload)` | 发送数据包到客户端 UI |
+| `sendPacketToAll(player, uiIds, handlerName, payload)` | 向多个 UI 同时发送 |
+| `sendChatCard(player, cardId, data)` | 发送聊天卡片 |
+| `registerUiCloseCallback(uiId, callback)` | 注册关闭回调 |
+| `unregisterUiCloseCallback(uiId)` | 注销关闭回调 |
+
+### 可用性检查
+
+```java
+PacketBridgeAPI bridge = context.packetBridge();
+if (bridge == null || !bridge.isAvailable()) {
+    logger.warning("ArcartX 桥接不可用");
+    return;
+}
+```
+
+### UI 注册结果
+
+`registerOrReloadUi` 返回 `UiRegistrationResult` record：
+
+| 字段 | 类型 | 说明 |
+|------|------|------|
+| `success` | `boolean` | 是否成功 |
+| `runtimeUiId` | `String` | 运行时使用的 UI id |
+| `registeredUiId` | `String` | 注册到 ArcartX 的 id，失败时为 null |
+| `action` | `String` | 执行的操作（`register` / `reload` / `fail`） |
+| `message` | `String` | 失败原因 |
+
+```java
+UiRegistrationResult result = bridge.registerOrReloadUi("my_ui", uiFile);
+if (result.success()) {
+    String runtimeUiId = result.runtimeUiId();
+} else {
+    logger.warning("UI 注册失败: " + result.message());
+}
+```
+
+## PacketHandlerSpec
+
+模块通过 `createPacketHandlerSpec()` 声明数据包处理器。`ClientPacketHandler` 接口处理客户端回包，基类在 `onEnable` 阶段自动注册。
+
+### ClientPacketHandler 接口
+
+```java
+@FunctionalInterface
+public interface ClientPacketHandler {
+    boolean handleClientPacket(@NotNull Player player, @NotNull String packetId, @NotNull List<String> data);
+}
+```
+
+| 参数 | 说明 |
+|------|------|
+| `player` | 发包玩家 |
+| `packetId` | 数据包 id |
+| `data` | 数据负载（字符串列表） |
+| 返回值 | `true` 表示已消费此包，后续处理器不再接收 |
+
+### PacketHandlerSpec 规约
+
+```java
+public record PacketHandlerSpec(
+    @Nullable ClientPacketHandler handler,  // 包处理器，null 表示不注册
+    int priority,                            // 优先级（越小越先，默认 0，EventPacket 建议 100）
+    @Nullable String ownershipPacketId,     // 模块拥有的包 ID（用于路由层归属）
+    @Nullable String guardModule            // PacketGuard 模块 key
+) {
+    public static final PacketHandlerSpec NONE = new PacketHandlerSpec(null, 0, null, null);
+    public static PacketHandlerSpec of(ClientPacketHandler handler);
+    public static PacketHandlerSpec of(ClientPacketHandler handler, int priority);
+    public static PacketHandlerSpec of(ClientPacketHandler handler, int priority, String ownershipPacketId, String guardModule);
+}
+```
+
+### 模块中声明 PacketHandler
+
+```java
+public class MyModule extends AbstractAXSModule {
+
+    @Override
+    protected @NotNull PacketHandlerSpec createPacketHandlerSpec() {
+        if (service == null || packetBridge == null || !packetBridge.isAvailable()) {
+            return PacketHandlerSpec.NONE;
+        }
+        MyPacketHandler handler = new MyPacketHandler(service, packetBridge, plugin);
+        return PacketHandlerSpec.of(handler, 0, null, null);
+    }
+}
+```
+
+基类自动注册逻辑：
+
+```java
+// AbstractAXSModule.onEnable
+PacketHandlerSpec packetSpec = createPacketHandlerSpec();
+if (packetSpec.handler() != null) {
+    context.registerClientPacketHandler(
+        packetSpec.handler(),
+        packetSpec.priority(),
+        packetSpec.ownershipPacketId(),
+        packetSpec.guardModule()
+    );
+}
+```
+
+## ModuleUiSpec
+
+模块通过 `uiSpec()` 声明要导出的 UI 资源。基类在 `onEnable` 阶段自动导出 UI 文件到 `ui/` 目录并注册到 ArcartX。
+
+```java
+public record ModuleUiSpec(
+    @NotNull Map<String, String> resourceMappings,  // Jar 内资源路径 → 宿主输出路径
+    boolean overwrite                                // 是否覆盖已有 UI 文件
+) {
+    public static final ModuleUiSpec NONE = new ModuleUiSpec(Map.of(), false);
+    public static ModuleUiSpec of(Map<String, String> mappings);
+    public static ModuleUiSpec of(Map<String, String> mappings, boolean overwrite);
+}
+```
+
+### 模块中声明 UI 资源
+
+```java
+public class LotteryModule extends AbstractAXSModule {
+
+    @Override
+    protected @NotNull ModuleUiSpec uiSpec() {
+        Map<String, String> mappings = new LinkedHashMap<>();
+        mappings.put("ui/lottery_gacha.yml", "lottery_gacha.yml");
+        mappings.put("ui/lottery_wish.yml", "lottery_wish.yml");
+        mappings.put("ui/lottery_case.yml", "lottery_case.yml");
+        return new ModuleUiSpec(mappings, configuration != null && configuration.overwriteUiFiles());
+    }
+}
+```
+
+| 字段 | 说明 |
+|------|------|
+| `resourceMappings` | key 为 Jar 内资源路径，value 为宿主 `ui/` 目录下的输出文件名 |
+| `overwrite` | 是否覆盖已有 UI 文件（默认 false，保留用户自定义） |
+
+## UI 配置中的 packetHandler
+
+UI YAML 中的 `packetHandler` 节点与服务端 `sendPacket` 的 `handlerName` 对应。客户端 UI 通过 `packet['key']` 访问服务端推送的数据：
+
+```yaml
+ui:
+  packetHandler:
+    init: |-
+      var.title = packet['title']
+      var.data = packet['data']
+    update: |-
+      var.data = packet['data']
+      var.page = packet['currentPage']
+    result: |-
+      var.resultItems = packet['resultItemNames']
+      var.resultStars = packet['resultItemStars']
+```
+
+| handler 名称 | 触发时机 | 数据来源 |
+|-------------|----------|----------|
+| `init` | UI 首次加载 | 服务端 `sendPacket(player, uiId, "init", payload)` |
+| `update` | 服务端推送更新 | 服务端 `sendPacket(player, uiId, "update", payload)` |
+| `result` | 服务端推送结果 | 服务端 `sendPacket(player, uiId, "result", payload)` |
+
+服务端发送数据：
+
+```java
+Map<String, Object> payload = new LinkedHashMap<>();
+payload.put("title", "抽奖");
+payload.put("data", items);
+packetBridge.sendPacket(player, "lottery_gacha", "update", payload);
+```
+
+客户端 UI 接收：
+
+```yaml
+ui:
+  packetHandler:
+    update: |-
+      var.title = packet['title']
+      var.data = packet['data']
+```
+
+## 数据包收发流程
+
+完整的 UI 数据包交互流程：
+
+```
+1. 模块 onEnable 注册 UI + PacketHandler
+   └→ uiSpec() 导出 UI 文件 → registerOrReloadUi 注册到 ArcartX
+   └→ createPacketHandlerSpec() 声明 ClientPacketHandler → 自动注册
+
+2. 玩家执行命令 → 模块调用 openUi
+   └→ packetBridge.openUi(player, "lottery_gacha")
+
+3. 模块调用 sendPacket 推送初始数据
+   └→ packetBridge.sendPacket(player, "lottery_gacha", "update", payload)
+
+4. 客户端 UI packetHandler 接收并渲染
+   └→ packetHandler.update: var.data = packet['data']
+
+5. 玩家操作 → 客户端回包 → 服务端 PacketHandler.onPacket 处理
+   └→ ClientPacketHandler.handleClientPacket(player, packetId, data)
+   └→ 返回 true 消费此包
+
+6. 模块更新数据 → sendPacket 推送更新
+   └→ packetBridge.sendPacket(player, "lottery_gacha", "update", newPayload)
+```
+
+```
+┌──────────┐  openUi   ┌──────────┐  sendPacket   ┌──────────┐
+│  服务端   │ ────────→ │  客户端   │ ←─────────── │  服务端   │
+│  模块     │           │  UI      │  packetHandler │  模块   │
+└──────────┘           └──────────┘              └──────────┘
+                           │                          ↑
+                           │ 玩家操作                  │ sendPacket
+                           ↓                          │ 回包更新
+                      ┌──────────┐  handleClientPacket │
+                      │  客户端   │ ──────────────────→ │
+                      │  回包     │                    │
+                      └──────────┘                    │
+```
+
+## 安全版与 Unsafe 版
+
+`PacketBridgeAPI` 提供安全版与 Unsafe 版 UI 操作：
+
+| 方法 | 校验 | 说明 |
+|------|------|------|
+| `openUi` / `closeUi` | 经过 ArcartX 服务端校验 | 安全版，推荐使用 |
+| `openUiWithCallback` | 经过 ArcartX 服务端校验 + 关闭回调 | 安全版 |
+| `openUiUnsafe` | 不经过校验 | Unsafe 版，模块按需使用 |
+| `openUiUnsafeWithCallback` | 不经过校验 + 关闭回调 | Unsafe 版 |
+| `closeUiUnsafe` | 不经过校验 | Unsafe 版 |
+
+```java
+// 安全版（推荐）
+bridge.openUi(player, "my_ui");
+bridge.openUiWithCallback(player, "my_ui", () -> {
+    // UI 关闭时回调
+});
+
+// Unsafe 版（不经过 ArcartX 服务端校验/回调）
+bridge.openUiUnsafe(player, "my_ui");
+bridge.openUiUnsafeWithCallback(player, "my_ui", () -> { });
+bridge.closeUiUnsafe(player, "my_ui");
+```
+
+> Unsafe 版不触发 ArcartX 服务端校验和回调，仅在特殊场景下使用。
+
+## 代码示例
+
+以下参考 `LotteryPacketHandler` 实现一个完整的数据包处理器：
+
+```java
+public final class LotteryPacketHandler implements ClientPacketHandler {
+
+    private static final String GACHA = "AXS_LOTTERY_GACHA";
+    private static final String CASE = "AXS_LOTTERY_CASE";
+
+    private final LotteryService service;
+    private final PacketBridgeAPI packetBridge;
+    private final JavaPlugin plugin;
+    private final String gachaUiId;
+    private final String caseUiId;
+    private final ConcurrentMap<UUID, Integer> gachaIndex = new ConcurrentHashMap<>();
+    private final ConcurrentMap<UUID, String> tokens = new ConcurrentHashMap<>();
+
+    public LotteryPacketHandler(LotteryService service, PacketBridgeAPI packetBridge,
+                                JavaPlugin plugin, String gachaUiId, String caseUiId) {
+        this.service = service;
+        this.packetBridge = packetBridge;
+        this.plugin = plugin;
+        this.gachaUiId = gachaUiId;
+        this.caseUiId = caseUiId;
+    }
+
+    @Override
+    public boolean handleClientPacket(@NotNull Player player, @NotNull String packetId,
+                                      @NotNull List<String> data) {
+        if (!GACHA.equalsIgnoreCase(packetId) && !CASE.equalsIgnoreCase(packetId)) {
+            return false; // 不属于本处理器，交给后续处理器
+        }
+        Runnable operation = () -> handle(player, packetId.toUpperCase(), data);
+        if (Bukkit.isPrimaryThread()) {
+            operation.run();
+        } else {
+            AxsScheduler.runTask(plugin, operation);
+        }
+        return true; // 已消费此包
+    }
+
+    private void handle(Player player, String packetId, List<String> data) {
+        String action = data.isEmpty() ? "refresh" : data.get(0).toLowerCase();
+        switch (action) {
+            case "switch_pool" -> switchPool(player, packetId, data);
+            case "pull" -> pull(player, packetId, data);
+            default -> update(player, packetId, currentIndex(player, packetId));
+        }
+    }
+
+    private void pull(Player player, String packetId, List<String> data) {
+        if (data.size() < 3 || !checkToken(player, data, 2)) return;
+        try {
+            int count = parseInt(data, 1, 1);
+            PoolDefinition pool = currentPool(player, packetId);
+            if (pool == null) return;
+            GachaResult result = service.pullGacha(player, pool.id(), count);
+            if (result != null && !result.items().isEmpty()) {
+                sendGachaResult(player, packetId, pool, result, count);
+            }
+        } finally {
+            update(player, packetId, currentIndex(player, packetId));
+        }
+    }
+
+    private void sendGachaResult(Player player, String packetId, PoolDefinition pool,
+                                 GachaResult result, int count) {
+        Map<String, Object> payload = new LinkedHashMap<>();
+        payload.put("resultCount", result.items().size());
+        payload.put("resultItemNames", buildNames(result.items()));
+        payload.put("resultItemStars", buildStars(result.items()));
+        payload.put("guaranteed", result.guaranteed());
+        packetBridge.sendPacket(player, gachaUiId, count == 1 ? "result" : "batch_result", payload);
+    }
+
+    private void update(Player player, String packetId, int index) {
+        if (!packetBridge.isAvailable()) return;
+        List<PoolDefinition> pools = pools(packetId);
+        if (pools.isEmpty()) return;
+        PoolDefinition pool = pools.get(index);
+        String token = UUID.randomUUID().toString();
+        tokens.put(player.getUniqueId(), token);
+        Map<String, Object> payload = new LinkedHashMap<>();
+        payload.put("packetId", packetId);
+        payload.put("poolName", pool.displayName());
+        payload.put("poolList", poolList(pools));
+        payload.put("currentPoolIndex", index);
+        payload.put("poolCount", pools.size());
+        payload.put("action_token", token);
+        packetBridge.sendPacket(player, gachaUiId, "update", payload);
+    }
+
+    private boolean checkToken(Player player, List<String> data, int tokenIndex) {
+        String token = tokens.get(player.getUniqueId());
+        return token != null && token.equals(data.get(tokenIndex));
+    }
+
+    private int currentIndex(Player player, String packetId) {
+        return gachaIndex.getOrDefault(player.getUniqueId(), 0);
+    }
+}
+```
+
+在模块中注册：
+
+```java
+public class LotteryModule extends AbstractAXSModule {
+
+    @Override
+    protected @NotNull PacketHandlerSpec createPacketHandlerSpec() {
+        if (service == null || packetBridge == null || !packetBridge.isAvailable()) {
+            return PacketHandlerSpec.NONE;
+        }
+        String gachaUiId = configuration.ui().gachaUiId();
+        String caseUiId = configuration.ui().caseUiId();
+        LotteryPacketHandler handler = new LotteryPacketHandler(
+            service, packetBridge, plugin, gachaUiId, caseUiId);
+        return PacketHandlerSpec.of(handler, 0, null, null);
+    }
+}
+```
+
+## 注意事项
+
+- `sendPacket` 的 `payload` 支持 `Map` / `List` / 基本类型，客户端通过 `packet['key']` 访问。
+- `handleClientPacket` 返回 `true` 表示已消费此包，后续优先级的处理器不再接收。优先级越小越先执行。
+- 客户端回包可能在非主线程到达，处理器内部应确保在主线程操作 Bukkit API（使用 `AxsScheduler.runTask`）。
+- `registerOrReloadUi` 是幂等的：先尝试 reload（已注册则刷新），再尝试 register（未注册则注册）。
+- `normalizeUiId` 静态工具方法：`configuredUiId` 为空时从文件名推导 UI id。
+- `openUiAll` / `closeUiAll` 的第二个参数是 `List<String>`（UI id 列表），用于批量操作。
+- EventPacket 模块的 PacketHandler 建议使用优先级 100，确保在其他模块处理器之后执行。

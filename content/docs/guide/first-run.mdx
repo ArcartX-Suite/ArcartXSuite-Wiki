@@ -1,0 +1,89 @@
+---
+title: 第一次启用
+description: 首次启动流程、模块扫描、渐进启用与常见问题排查
+---
+
+# 第一次启用流程
+
+为避免一次开全部模块导致排查困难，强烈推荐"先单模块，再全量"的渐进流程。
+
+## 推荐启用顺序
+
+1. **Announcer** — 几乎零依赖，验证 ArcartX 桥接是否正常
+2. **EntityTracker** — 验证 MythicMobs 联动和 HUD 注册
+3. **RGB**（可选）— 验证 PlaceholderAPI 流程
+4. **Title** — 引入数据库（SQLite），验证持久化
+5. **Chat** / **Mail** — 业务量更大的模块，放最后
+
+## 单模块启用步骤
+
+以 Announcer 为例：
+
+### 1. 修改 config.yml
+
+```yaml
+modules:
+  announcer:
+    enabled: true
+```
+
+### 2. 修改模块配置（可选）
+
+首次启用后，模块会自动导出默认公告条目。也可手动编辑：
+
+```yaml
+# data/announcer/announcer/default.yml
+welcome:
+  enabled: true
+  text: "欢迎来到 ArcartX 测试服 — 你好，%player_name%。"
+  click-command: "say <player> 点了公告"
+```
+
+### 3. 重载并验证
+
+```bash
+/axs reload announcer
+/axs announcer status
+```
+
+### 4. 进游戏查看 HUD
+
+带 ArcartX 客户端的玩家进入服务器，几秒后 HUD 应滚出公告文本。
+
+## 启动流程概览
+
+服务器启动时，ArcartX-Suite 按以下顺序初始化：
+
+1. 初始化智能配置诊断 `ConfigDiagnosticEngine`
+2. 初始化 `ClientPacketGuard`（客户端包防护）
+3. `BridgeLifecycleManager.initialize()` — 创建并初始化所有桥接实现
+4. `KeybindService.initialize()` — 注册全局按键
+5. `CrossServerService.start()` — 启动跨服通道
+6. `ClientEventLifecycleManager.start()` — 监听 ArcartX 客户端事件
+7. `ChatSignBypassService.initialize()` — Paper 1.21+ 签名绕过
+8. 创建 `ModuleRegistry`，按拓扑排序加载外部模块 Jar
+9. 完成
+
+## 全量启用
+
+确认 1-2 个模块跑通后，逐个打开其他模块：
+
+```bash
+/axs reload all
+/axs status
+```
+
+## 常见问题排查
+
+| 现象 | 排查方向 |
+| --- | --- |
+| 控制台 `bridge missing` | ArcartX 服务端插件没装 |
+| UI 注册成功但 HUD 不出现 | 客户端 MOD 没装 |
+| HUD 出现但文字不对 | YAML 缩进/引号问题 |
+| 模块提示"缺少依赖" | 检查对应模块的前置插件（如 Chemdah、MythicMobs） |
+| 模块提示"桥接不可用" | 检查对应经济插件（如 Vault、PlayerPoints）是否安装 |
+| 控制台"跳过占位符注册" | PlaceholderAPI 未安装，属正常降级 |
+
+## 降级行为说明
+
+如果日志出现"某模块需要某插件，已跳过加载"或"跳过占位符注册"，这是正常降级。只有 ArcartX 缺失、模块配置错误、jar 损坏才需要按错误处理。

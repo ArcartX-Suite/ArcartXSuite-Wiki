@@ -1,0 +1,270 @@
+---
+title: "命令与占位符"
+description: "OnlineRewards 命令、权限与 PlaceholderAPI 占位符"
+---
+
+OnlineRewards 模块提供玩家命令和管理员命令，并通过 PlaceholderAPI 向外暴露在线时长、签到状态、排行榜等占位符。
+
+## 玩家命令
+
+玩家命令通过 `/onlinerewards` 或 `/signin` 别名触发。无参数时，`/onlinerewards` 打开菜单，`/signin` 执行签到。
+
+| 命令 | 说明 | 权限 |
+|---|---|---|
+| `/onlinerewards` | 打开在线奖励菜单（`/signin` 别名则执行签到） | `arcartxsuite.onlinerewards.use` |
+| `/onlinerewards open` | 打开在线奖励菜单 | `arcartxsuite.onlinerewards.use` |
+| `/onlinerewards status` | 查看在线时长与签到状态 | `arcartxsuite.onlinerewards.use` |
+| `/onlinerewards signin` | 每日签到 | `arcartxsuite.onlinerewards.use` |
+| `/onlinerewards top <daily\|weekly\|monthly\|total> [页码]` | 查看排行榜 | `arcartxsuite.onlinerewards.use` |
+| `/onlinerewards history [月数]` | 查看签到历史（默认 6 个月，最大 24） | `arcartxsuite.onlinerewards.use` |
+| `/onlinerewards help` | 显示帮助 | `arcartxsuite.onlinerewards.use` |
+
+### status 输出示例
+
+```
+◆ ArcartXSuite | 今日在线: 1时30分 | 本周在线: 5时20分
+◆ ArcartXSuite | 本月在线: 12时0分 | 总在线: 120时30分
+◆ ArcartXSuite | 每日阶段: 第二阶段 (45%)
+◆ ArcartXSuite | 签到状态: 今日已签到 | 连续: 7 | 累计: 30
+```
+
+### top 排行榜
+
+排行榜支持四种范围：`daily`（日榜）、`weekly`（周榜）、`monthly`（月榜）、`total`（总榜），每页 10 条。
+
+```
+◆ ArcartXSuite | 排行榜: daily | 页数: 1
+#1 Steve | 时长: 5时0分 | 分钟: 300
+#2 Alex  | 时长: 4时30分 | 分钟: 270
+```
+
+### history 签到历史
+
+```
+◆ ArcartXSuite | 最近 6 个月签到历史：
+2025-01: 25 / 31 天
+2024-12: 30 / 31 天
+2024-11: 20 / 30 天
+```
+
+## 管理员命令
+
+管理员命令通过 `/axs onlinerewards <action>` 触发，需要 `arcartxsuite.admin` 权限。
+
+| 命令 | 说明 |
+|---|---|
+| `/axs onlinerewards help` | 显示管理命令帮助 |
+| `/axs onlinerewards status` | 查看模块状态（缓存玩家数、跨服通道状态） |
+| `/axs onlinerewards add <时长> <玩家>` | 增加玩家在线时长 |
+| `/axs onlinerewards remove <时长> <玩家>` | 扣除玩家在线时长 |
+| `/axs onlinerewards set <时长> <玩家>` | 设置玩家在线时长 |
+| `/axs onlinerewards card add\|remove\|set <数量> <玩家>` | 修改玩家补签卡数量 |
+| `/axs onlinerewards savings add\|set\|reset <时长> <玩家>` | 修改玩家离线储蓄分钟数 |
+
+### 时长格式
+
+管理命令中的时长参数支持以下后缀：
+
+| 后缀 | 说明 | 示例 |
+|---|---|---|
+| `m` | 分钟 | `30m` = 30 分钟 |
+| `h` | 小时 | `2h` = 120 分钟 |
+| `d` | 天 | `1d` = 1440 分钟 |
+| 无后缀 | 纯数字按分钟 | `60` = 60 分钟 |
+
+### 管理命令示例
+
+```bash
+# 给 Steve 增加 1 小时在线时长
+/axs onlinerewards add 1h Steve
+
+# 扣除 Alex 30 分钟在线时长
+/axs onlinerewards remove 30m Alex
+
+# 设置 Steve 今日在线时长为 2 小时
+/axs onlinerewards set 2h Steve
+
+# 给 Steve 增加 5 张补签卡
+/axs onlinerewards card add 5 Steve
+
+# 设置 Alex 离线储蓄为 1 小时
+/axs onlinerewards savings set 1h Alex
+
+# 重置 Steve 离线储蓄
+/axs onlinerewards savings reset 0 Steve
+```
+
+## 权限节点
+
+| 权限节点 | 默认 | 说明 |
+|---|---|---|
+| `arcartxsuite.onlinerewards.use` | `true` | 使用玩家命令（打开菜单、签到、查看状态/排行榜/历史） |
+| `arcartxsuite.admin` | `op` | 使用管理命令（`/axs onlinerewards <action>`） |
+| `ArcartXSuite.onlinerewards.time.1_5` | `false` | 在线时长 1.5 倍倍率（示例，可自定义） |
+| `ArcartXSuite.onlinerewards.time.2` | `false` | 在线时长 2.0 倍倍率（示例，可自定义） |
+| `ArcartXSuite.onlinerewards.signin.bonus` | `false` | 签到权限组加成（示例，可自定义） |
+
+> 时间倍率和签到权限组加成的权限节点在配置文件中自定义，上表仅为默认配置示例。多组倍率匹配时取 `priority` 最高的一组。
+
+## PlaceholderAPI 占位符
+
+占位符前缀为 `%axsonlinerewards_*%`，由 `OnlineRewardsPlaceholderExpansion` 提供。
+
+### 在线时长占位符
+
+| 占位符 | 返回值 | 说明 |
+|---|---|---|
+| `%axsonlinerewards_daily_minutes%` | `int` | 今日在线原始分钟数 |
+| `%axsonlinerewards_weekly_minutes%` | `int` | 本周在线原始分钟数 |
+| `%axsonlinerewards_monthly_minutes%` | `int` | 本月在线原始分钟数 |
+| `%axsonlinerewards_total_minutes%` | `int` | 总在线原始分钟数 |
+| `%axsonlinerewards_daily_time%` | `String` | 今日在线格式化时长（如 `1时30分`） |
+| `%axsonlinerewards_weekly_time%` | `String` | 本周在线格式化时长 |
+| `%axsonlinerewards_monthly_time%` | `String` | 本月在线格式化时长 |
+| `%axsonlinerewards_total_time%` | `String` | 总在线格式化时长 |
+
+### 签到占位符
+
+| 占位符 | 返回值 | 说明 |
+|---|---|---|
+| `%axsonlinerewards_signin_signed_today%` | `boolean` | 今日是否已签到（`true` / `false`） |
+| `%axsonlinerewards_signin_streak%` | `int` | 当前连续签到天数 |
+| `%axsonlinerewards_signin_total%` | `int` | 累计签到天数 |
+| `%axsonlinerewards_signin_history_yyyy-MM_count%` | `int` | 指定月份签到天数（如 `signin_history_2025-01_count`） |
+
+### 离线储蓄占位符
+
+| 占位符 | 返回值 | 说明 |
+|---|---|---|
+| `%axsonlinerewards_offline_savings_minutes%` | `int` | 离线储蓄原始分钟数 |
+| `%axsonlinerewards_offline_savings_time%` | `String` | 离线储蓄格式化时长 |
+
+### 全服签到目标占位符
+
+| 占位符 | 返回值 | 说明 |
+|---|---|---|
+| `%axsonlinerewards_server_signin_count%` | `int` | 今日已签到人数 |
+| `%axsonlinerewards_server_signin_next_goal%` | `int` | 下一个全服签到目标所需人数（0 表示无目标） |
+
+### 排行榜占位符
+
+排行榜占位符格式为 `%axsonlinerewards_top_<scope>_<rank>_<field>%`，其中：
+
+- `<scope>`：`daily` / `weekly` / `monthly` / `total`
+- `<rank>`：1-10
+- `<field>`：`name`（玩家名）/ `minutes`（原始分钟数）/ `time`（格式化时长）
+
+| 占位符 | 返回值 | 说明 |
+|---|---|---|
+| `%axsonlinerewards_top_daily_1_name%` | `String` | 日榜第 1 名玩家名 |
+| `%axsonlinerewards_top_daily_1_minutes%` | `int` | 日榜第 1 名分钟数 |
+| `%axsonlinerewards_top_daily_1_time%` | `String` | 日榜第 1 名格式化时长 |
+| `%axsonlinerewards_top_weekly_3_name%` | `String` | 周榜第 3 名玩家名 |
+| `%axsonlinerewards_top_monthly_5_minutes%` | `int` | 月榜第 5 名分钟数 |
+| `%axsonlinerewards_top_total_10_time%` | `String` | 总榜第 10 名格式化时长 |
+
+> 排行榜数据来自定时刷新的缓存（每 5 分钟刷新一次），非实时查询。
+
+## UI Packet 触发
+
+OnlineRewards 菜单通过 ArcartX 客户端 UI 实现，服务端与客户端通过 `AXS_ONLINE_REWARDS` 包 ID 通信。
+
+### 客户端→服务端回包 Action
+
+客户端 UI 通过 `Packet.send(var.packetId, action, ...)` 向服务端发送操作请求：
+
+| Action | 参数 | 说明 |
+|---|---|---|
+| `open` | — | 打开菜单 |
+| `signin` | `action_token` | 执行签到 |
+| `makeup` | `date`, `action_token` | 对指定日期执行补签 |
+| `calendar_prev` | — | 日历翻到上个月 |
+| `calendar_next` | — | 日历翻到下个月 |
+| `calendar_today` | — | 日历回到今天 |
+| `preview_day` | `date` | 预览指定日期的奖励 |
+| `refresh` | — | 刷新菜单数据 |
+
+### 服务端→客户端推送字段
+
+服务端通过 `packetHandler.init` 和 `packetHandler.update` 向客户端推送菜单数据：
+
+| 字段 | 类型 | 说明 |
+|---|---|---|
+| `packetId` | `String` | 通信标识 |
+| `dailyTimeText` | `String` | 今日在线时长文本 |
+| `weeklyTimeText` | `String` | 本周在线时长文本 |
+| `monthlyTimeText` | `String` | 本月在线时长文本 |
+| `totalTimeText` | `String` | 总在线时长文本 |
+| `offlineSavingsText` | `String` | 离线储蓄时长文本 |
+| `progress` | `float` | 当前进度（0.0~1.0） |
+| `progressPercent` | `int` | 进度百分比数值 |
+| `progressPercentText` | `String` | 进度百分比文本 |
+| `progressTitle` | `String` | 当前阶段标题 |
+| `completed` | `boolean` | 是否全部完成 |
+| `rewardStage` | `int` | 当前奖励阶段 |
+| `rewardCount` | `int` | 奖励阶段总数 |
+| `rewardStageText` | `String` | 奖励阶段文本（如 `2/5`） |
+| `signedToday` | `boolean` | 今日是否已签到 |
+| `signInStatusText` | `String` | 签到状态文本 |
+| `signInButtonText` | `String` | 签到按钮文本 |
+| `signInStreak` | `int` | 连续签到天数 |
+| `signInTotal` | `int` | 累计签到天数 |
+| `makeupCardCount` | `int` | 补签卡数量 |
+| `calendarMonthText` | `String` | 日历月份文本（如 `2025年1月`） |
+| `calendarMonthOffset` | `int` | 日历月份偏移（-1/0/1） |
+| `calendarCount` | `int` | 日历天数 |
+| `selectedDateText` | `String` | 选中日期文本 |
+| `selectedCanMakeup` | `boolean` | 选中日期是否可补签 |
+| `selectedAction` | `String` | 选中日期操作类型（`signin` / `makeup` / `none`） |
+| `selectedActionText` | `String` | 选中日期操作文本 |
+| `selectedActionEnabled` | `boolean` | 选中日期操作是否可用 |
+| `rewardRows` | `Map<String, Object>` | 阶段奖励行数据 |
+| `periodicRewardRows` | `Map<String, Object>` | 周期奖励行数据（先 weekly 后 monthly） |
+| `signInRewardRows` | `Map<String, Object>` | 签到奖励行数据 |
+| `calendarRows` | `Map<String, Object>` | 日历行数据 |
+| `selectedRewardRows` | `Map<String, Object>` | 选中日期奖励预览行数据 |
+| `serverSignInGoalEnabled` | `boolean` | 是否启用全服签到目标 |
+| `serverSignInGoalCurrent` | `int` | 当前全服签到人数 |
+| `serverSignInGoalNext` | `int` | 下一个目标所需人数 |
+| `rewardIconJson{N}` | `String` | 阶段奖励图标 itemJson（扁平字段，N 从 0 开始） |
+| `periodicIconJson{N}` | `String` | 周期奖励图标 itemJson（先 weekly 后 monthly） |
+| `signinIconJson{N}` | `String` | 签到奖励图标 itemJson（base → streak → total → dayOfMonth） |
+| `action_token` | `String` | 操作令牌，用于回包验证 |
+| `maxRewardCount` | `int` | 阶段奖励行模板最大复制数 |
+| `maxPeriodicCount` | `int` | 周期奖励行模板最大复制数 |
+| `maxSigninRewardCount` | `int` | 签到奖励行模板最大复制数 |
+| `maxSelectedRewardCount` | `int` | 选中奖励行模板最大复制数 |
+
+### rewardRows 行字段
+
+每行 `rewardRows` 包含以下字段：
+
+| 字段 | 类型 | 说明 |
+|---|---|---|
+| `id` | `String` | 行 ID |
+| `index` | `int` | 序号（从 1 开始） |
+| `name` | `String` | 阶段名称 |
+| `thresholdText` | `String` | 阈值文本（如 `30分`） |
+| `statusText` | `String` | 状态文本（已领取/待发放/进行中/未达成） |
+| `current` | `boolean` | 是否为当前阶段 |
+| `claimed` | `boolean` | 是否已领取 |
+| `reached` | `boolean` | 是否已达到阈值 |
+| `rewardText` | `String` | 奖励描述 |
+
+### calendarRows 行字段
+
+每行 `calendarRows` 包含以下字段：
+
+| 字段 | 类型 | 说明 |
+|---|---|---|
+| `date` | `String` | 日期（ISO 格式） |
+| `day` | `int` | 当月第几天 |
+| `label` | `String` | 显示标签 |
+| `signed` | `boolean` | 是否已签到 |
+| `today` | `boolean` | 是否为今天 |
+| `selected` | `boolean` | 是否被选中 |
+| `future` | `boolean` | 是否为未来日期 |
+| `expired` | `boolean` | 是否为已过期未签到日期 |
+| `status` | `String` | 状态（`signed` / `future` / `expired` / `open`） |
+| `statusText` | `String` | 状态文本 |
+| `canMakeup` | `boolean` | 该日期是否可补签 |

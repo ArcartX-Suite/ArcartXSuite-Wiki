@@ -1,0 +1,13 @@
+{
+  "title": "LoginView 登录界面",
+  "description": "ArcartX UI 登录/注册面板，支持 AuthMe 桥接",
+  "color": "#3b82f6",
+  "pages": [
+    "index",
+    "configuration",
+    "auth-modes",
+    "security",
+    "commands",
+    "integration"
+  ]
+}

@@ -1,0 +1,232 @@
+---
+title: 配置
+description: BattlePass 配置文件详解
+---
+
+# 配置文件
+
+BattlePass 模块的配置文件位于模块数据目录下，首次启动时自动导出默认配置。配置采用严格同步策略（`SyncPolicy.strict()`），配置版本变更时自动触发迁移。
+
+## 文件结构
+
+| 文件 | 说明 | 首次导出 |
+|---|---|---|
+| `ArcartXBattlePass.yml` | 主配置文件 | 是 |
+| `messages.yml` | 消息本地化文件 | 是 |
+| `tasks/daily.yml` | 每日任务池 | 是 |
+| `tasks/weekly.yml` | 每周任务池 | 是 |
+| `tasks/season.yml` | 赛季任务池 | 是 |
+| `rewards.yml` | 等级奖励配置 | 是 |
+| `season-rewards.yml` | 赛季结算奖励配置 | 是 |
+| `ui/battlepass_main.yml` | 主界面 UI | 是 |
+| `ui/battlepass_tasks.yml` | 任务列表 UI | 是 |
+| `ui/battlepass_rewards.yml` | 奖励列表 UI | 是 |
+| `ui/battlepass_settlement.yml` | 赛季结算 UI | 是 |
+
+## 主配置 ArcartXBattlePass.yml
+
+### config-version
+
+| 字段 | 类型 | 默认值 | 说明 |
+|---|---|---|---|
+| `config-version` | int | `6` | 配置版本号，变更时触发迁移 |
+
+当前版本为 6。模块内置 1→2、2→3、3→4、4→5、5→6 共 5 个迁移脚本，位于 `resources/migrations/` 目录。
+
+### storage 存储配置
+
+| 字段 | 类型 | 默认值 | 说明 |
+|---|---|---|---|
+| `storage.shared` | boolean | `true` | 是否使用共享存储模式（推荐）。`true` 使用本体统一数据源，`false` 自建独立连接池 |
+| `storage.mode` | string | `"sqlite"` | 存储模式（`sqlite` / `mysql`），仅 `shared: false` 时生效 |
+| `storage.sqlite.file` | string | `"battlepass.db"` | SQLite 文件名（相对模块数据目录），仅 `shared: false` 且 `mode: sqlite` 时生效 |
+| `storage.mysql.host` | string | `"127.0.0.1"` | MySQL 主机地址 |
+| `storage.mysql.port` | int | `3306` | MySQL 端口 |
+| `storage.mysql.database` | string | `"arcartxsuite"` | MySQL 数据库名 |
+| `storage.mysql.username` | string | `"root"` | MySQL 用户名 |
+| `storage.mysql.password` | string | `""` | MySQL 密码 |
+| `storage.mysql.table-prefix` | string | `"axs_battlepass_"` | MySQL 表名前缀 |
+| `pool-size` | int | `1` | 连接池大小（SQLite 建议保持 1） |
+
+> **推荐使用 `shared: true`**。共享存储模式下，数据库连接由本体 `config.yml` 的 `storage` 节统一管控，性能更好且配置更简单。
+
+### season 赛季配置
+
+| 字段 | 类型 | 默认值 | 说明 |
+|---|---|---|---|
+| `season.season-id` | string | `"season-1"` | 赛季唯一标识（**必填**，用于数据隔离） |
+| `season.display-name` | string | `"第一赛季"` | 赛季显示名称 |
+| `season.max-level` | int | `100` | 赛季最大等级（**必填**，范围 1~10000） |
+| `season.xp-curve` | list | 见下方 | 经验成长曲线断点列表 |
+| `season.start-date` | date | `"2026-06-01"` | 赛季开始日期（格式 `yyyy-MM-dd`） |
+| `season.end-date` | date | `"2026-12-01"` | 赛季结束日期（格式 `yyyy-MM-dd`） |
+
+#### xp-curve 经验曲线
+
+`xp-curve` 是一个断点列表，每项包含：
+
+| 字段 | 类型 | 说明 |
+|---|---|---|
+| `level` | int | 起始等级（首个断点必须为 1，断点 level 必须严格递增） |
+| `formula` | string | ARIA 表达式，以 `global.level` 为入参，计算结果为"升到该等级所需经验值"（必须 ≥ 1） |
+
+系统按 level 升序选取最大的且不超过目标等级的断点公式求值。默认曲线为线性×S 曲线因子模型：
+
+```yaml
+xp-curve:
+  - level: 1
+    formula: "5.0 * global.level * (1 + 5.0 * math.pow(math.pow(global.level / 100, 2) * (3 - 2 * global.level / 100), 1.5))"
+```
+
+特征：
+- 前期近似线性（快速升级给正反馈）
+- 中后期 S 曲线因子平滑加速（挑战感递增）
+- 全程无拐点突变
+- 满级(100)累计约 101,520 XP
+- FREE 日产约 564 XP：Lv25 约 3 天、Lv50 约 19 天、Lv75 约 72 天、Lv100 约 180 天
+- DELUXE(1.5x) 满级约 120 天
+
+> ARIA 表达式中幂运算用 `math.pow`（ARIA 中 `^` 是位异或，不是幂）。`global.level` 需用 `global.` 前缀访问。
+
+如果 `xp-curve` 缺失，回退为默认线性曲线 `1000`（即每级固定 1000 经验）。
+
+### tasks 任务配置
+
+| 字段 | 类型 | 默认值 | 说明 |
+|---|---|---|---|
+| `tasks.daily-count` | int | `3` | 每天分配给玩家的每日任务数量 |
+| `tasks.weekly-count` | int | `2` | 每周分配给玩家的每周任务数量 |
+| `tasks.tasks-directory` | string | `"tasks"` | 任务文件所在目录（相对模块数据目录） |
+
+任务模板从 `<数据目录>/<tasks-directory>/daily.yml`、`weekly.yml`、`season.yml` 三个文件加载。详细配置见 [任务系统](/docs/battlepass/tasks)。
+
+### rewards-file 奖励配置
+
+| 字段 | 类型 | 默认值 | 说明 |
+|---|---|---|---|
+| `rewards-file` | string | `"rewards.yml"` | 等级奖励配置文件名（相对模块数据目录） |
+
+### season-rewards-file 赛季结算奖励配置
+
+| 字段 | 类型 | 默认值 | 说明 |
+|---|---|---|---|
+| `season-rewards-file` | string | `"season-rewards.yml"` | 赛季结算奖励配置文件名（相对模块数据目录） |
+
+### ui UI 配置
+
+| 字段 | 类型 | 默认值 | 说明 |
+|---|---|---|---|
+| `ui.register-ui-on-enable` | boolean | `true` | 模块启动时是否自动注册 UI |
+| `ui.overwrite-ui-files` | boolean | `false` | 是否强制覆盖用户已修改的 UI 文件 |
+| `ui.main-ui-id` | string | `"AXS:battlepass_main"` | 主界面 UI 标识 |
+| `ui.tasks-ui-id` | string | `"AXS:battlepass_tasks"` | 任务列表界面 UI 标识 |
+| `ui.rewards-ui-id` | string | `"AXS:battlepass_rewards"` | 奖励界面 UI 标识 |
+| `ui.settlement-ui-id` | string | `"AXS:battlepass_settlement"` | 赛季结算奖励界面 UI 标识 |
+
+> `overwrite-ui-files: false` 时，模块更新不会覆盖用户已修改的 UI 文件。设为 `true` 则每次启动强制覆盖（用于恢复默认 UI）。
+
+### cross-server 跨服配置
+
+| 字段 | 类型 | 默认值 | 说明 |
+|---|---|---|---|
+| `cross-server.enabled` | boolean | `false` | 是否启用跨服数据同步 |
+| `cross-server.sync-fields` | list | `["progress", "task-progress", "claimed-rewards"]` | 需同步的字段列表 |
+
+可同步字段：
+
+| 字段值 | 说明 |
+|---|---|
+| `progress` | 战令等级与经验进度 |
+| `task-progress` | 任务完成进度 |
+| `claimed-rewards` | 已领取的奖励记录 |
+
+## 完整配置示例
+
+```yaml
+# ArcartXBattlePass 主配置文件
+config-version: 6
+
+# 存储配置
+storage:
+  shared: true  # 推荐使用共享存储
+
+# 赛季配置
+season:
+  season-id: "season-1"
+  display-name: "第一赛季"
+  max-level: 100
+  xp-curve:
+    - level: 1
+      formula: "5.0 * global.level * (1 + 5.0 * math.pow(math.pow(global.level / 100, 2) * (3 - 2 * global.level / 100), 1.5))"
+  start-date: "2026-06-01"
+  end-date: "2026-12-01"
+
+# 任务配置
+tasks:
+  daily-count: 3
+  weekly-count: 2
+  tasks-directory: "tasks"
+
+# 奖励配置
+rewards-file: "rewards.yml"
+season-rewards-file: "season-rewards.yml"
+
+# UI 配置
+ui:
+  register-ui-on-enable: true
+  overwrite-ui-files: false
+  main-ui-id: "AXS:battlepass_main"
+  tasks-ui-id: "AXS:battlepass_tasks"
+  rewards-ui-id: "AXS:battlepass_rewards"
+  settlement-ui-id: "AXS:battlepass_settlement"
+
+# 跨服同步配置
+cross-server:
+  enabled: false
+  sync-fields:
+    - "progress"
+    - "task-progress"
+    - "claimed-rewards"
+```
+
+## 自建存储配置示例（不推荐）
+
+```yaml
+storage:
+  shared: false
+  mode: "mysql"
+  mysql:
+    host: "127.0.0.1"
+    port: 3306
+    database: "arcartxsuite"
+    username: "root"
+    password: "your_password"
+    table-prefix: "axs_battlepass_"
+  pool-size: 5
+```
+
+## 配置校验
+
+模块启动时对以下字段进行强制校验（`ValidationRule.required`）：
+
+| 字段 | 类型 | 校验规则 |
+|---|---|---|
+| `storage.shared` | BOOLEAN | 必须存在且为布尔值 |
+| `season.season-id` | STRING | 必须存在且为字符串 |
+| `season.max-level` | INT | 必须存在，范围 1~10000 |
+
+校验失败时模块不会启动，控制台会输出具体错误信息。
+
+## 配置迁移
+
+模块内置配置版本迁移机制。当 `config-version` 与当前版本不一致时，自动执行 `resources/migrations/` 下的迁移脚本：
+
+| 迁移 | 说明 |
+|---|---|
+| 1→2 | 任务模板从主配置拆分为外部文件，移除内联任务定义 |
+| 2→3 | 后续版本迁移 |
+| 3→4 | 后续版本迁移 |
+| 4→5 | 后续版本迁移 |
+| 5→6 | 后续版本迁移 |
+
+迁移操作类型包括 `remove`（移除配置段）、`set-if-missing`（设置默认值）等，按顺序执行。

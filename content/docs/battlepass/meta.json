@@ -1,0 +1,13 @@
+{
+  "title": "BattlePass 战令系统",
+  "description": "三层通行证系统，支持日/周/赛季任务池、等级奖励、赛季结算与 ArcartX UI 面板。",
+  "color": "#a78bfa",
+  "pages": [
+    "index",
+    "configuration",
+    "tasks",
+    "rewards",
+    "commands",
+    "integration"
+  ]
+}

@@ -1,0 +1,14 @@
+{
+  "title": "QuestGPS 任务导航",
+  "description": "Chemdah SSOT + overlay 白名单，动态分类菜单、路径寻路、指引 HUD",
+  "color": "#818cf8",
+  "pages": [
+    "index",
+    "configuration",
+    "quest-definitions",
+    "navigation",
+    "gate",
+    "commands",
+    "integration"
+  ]
+}

@@ -1,0 +1,253 @@
+---
+title: 联动
+description: AfkReward 挂机奖励模块跨模块联动、Capability、数据库表结构
+---
+
+# 联动
+
+AfkReward 模块通过 ArcartXSuite 的 EventBus、Capability 和信号派发机制与其他模块联动。模块本身不硬依赖任何 ArcartX 模块，所有联动均为可选的运行时行为，对应模块不存在时自动降级或跳过。
+
+## EventBus 事件发布
+
+AfkReward 模块通过 `EventBusCapability` 发布事件主题，供其他模块（如 BattlePass）订阅。
+
+### 发布的事件主题
+
+| 事件主题 | 触发时机 | payload 字段 | 说明 |
+|---|---|---|---|
+| `axs.afkreward.reward_claimed` | 玩家获得挂机奖励时 | `area`, `mode` | 区域挂机模式下每次发放奖励时触发 |
+
+> 该事件在 `publishedTopics()` 中注册，其他模块可通过 `eventBus.hasPublisher("axs.afkreward.reward_claimed")` 检测发布者是否存在。
+
+### 事件发布流程
+
+```
+玩家在区域内达到 round 周期
+  ↓
+grantReward() 发放命令与物品奖励
+  ↓
+publishRewardEvent() → eventBus.publish("axs.afkreward.reward_claimed", player, payload)
+  ↓
+其他模块（如 BattlePass）订阅该主题 → 驱动任务进度
+```
+
+> MANUAL 模式结束时的批量奖励发放也会触发 `axs.afkreward.reward_claimed` 事件（每次奖励触发一次）。
+
+## EventPacket 信号派发
+
+AfkReward 通过 `SignalDispatchable` 能力向 EventPacket 模块派发信号。信号名可在主配置中自定义。
+
+| 信号名 | 配置字段 | 触发时机 | 信号变量 |
+|---|---|---|---|
+| `afk_reward` | `manual.signal-on-reward` | 发放奖励时 | `area`、`mode`、`seconds`、`rewards` |
+| `afk_end` | `manual.signal-on-end` | 结束原地挂机时 | `area`、`mode`、`seconds`、`rewards` |
+| `afk_start` | 硬编码 | 开始原地挂机时 | `area`、`mode` |
+| `afk_enter_area` | 硬编码 | 进入挂机区域时 | `area`、`mode` |
+| `afk_leave_area` | 硬编码 | 离开挂机区域时 | `area`、`mode`、`seconds` |
+
+> 信号名为空时跳过派发。EventPacket 模块不可用时信号静默跳过，不影响奖励发放。
+
+## Capability 注册
+
+AfkReward 模块注册了两个跨模块能力。
+
+### AfkRewardDispatchable
+
+注册 `AfkRewardDispatchable` 能力，供 Essentials 等模块跨模块查询玩家挂机状态或触发原地挂机。
+
+| 方法 | 返回类型 | 说明 |
+|---|---|---|
+| `isAfk(UUID playerUuid)` | `boolean` | 查询玩家是否正在挂机（REGION 或 MANUAL 模式） |
+| `getAreaName(UUID playerUuid)` | `String` | 获取玩家当前挂机区域名，未挂机时返回 `null` |
+| `getAfkSeconds(UUID playerUuid)` | `int` | 获取玩家本次挂机已持续秒数，未挂机时返回 `0` |
+| `getAfkMode(UUID playerUuid)` | `String` | 获取玩家当前挂机模式（`"REGION"` / `"MANUAL"`），未挂机时返回 `null` |
+| `startManualAfk(Player player, String areaName)` | `boolean` | 让指定玩家开始原地挂机到指定区域，返回是否成功启动 |
+
+> Essentials 模块可在 AFK 超时后调用 `startManualAfk()` 自动触发原地挂机。AfkReward 在开始原地挂机前也会通过 `EssentialsQueryable` 能力检测玩家是否处于 Essentials AFK 状态，实现互斥。
+
+### PlayerDataPurgeable
+
+注册 `PlayerDataPurgeable` 能力，支持玩家数据清理。
+
+| 方法 | 返回类型 | 说明 |
+|---|---|---|
+| `moduleId()` | `String` | 返回 `"afkreward"` |
+| `purgePlayerData(UUID playerUuid)` | `int` | 清理指定玩家的挂机数据（stats + sessions + area_stats），返回清理数量 |
+| `purgeAllPlayerData()` | `int` | 清理所有玩家的挂机数据，返回清理数量 |
+
+## 联动能力依赖
+
+AfkReward 在运行时通过 Supplier 延迟获取以下能力，对应模块不存在时自动降级：
+
+| 能力接口 | 用途 | 降级行为 |
+|---|---|---|
+| `MailDispatchable` | 邮件预设派发与背包满溢出补发 | 物品溢出时掉落地面 |
+| `SignalDispatchable` | EventPacket 信号派发 | 信号静默跳过 |
+| `SubtitlePlayable` | 字幕组播放 | 字幕静默跳过 |
+| `EssentialsQueryable` | Essentials AFK 状态互斥检测 | 不检测，允许直接开始挂机 |
+| `EventBusCapability` | EventBus 事件发布 | 事件不发布 |
+| `ItemSourceRegistry` | 物品奖励生成 | 物品奖励跳过并打印警告 |
+| `ItemRewardDispatcher` | 物品奖励统一发放 | 物品奖励跳过并打印警告 |
+
+## 数据库表结构
+
+AfkReward 使用 3 张数据表，表名前缀为 `axs_afk_`（共享存储模式）或配置的 `table-prefix`（自建存储模式）。
+
+### axs_afk_stats 玩家统计表
+
+| 列名 | SQLite 类型 | MySQL 类型 | 说明 |
+|---|---|---|---|
+| `player_uuid` | `TEXT` | `VARCHAR(36)` | 玩家 UUID（主键） |
+| `player_name` | `TEXT` | `VARCHAR(64)` | 玩家名 |
+| `today_date` | `TEXT` | `VARCHAR(32)` | 今日日期（`yyyy-MM-dd`） |
+| `today_count` | `INTEGER` | `INT` | 今日奖励次数 |
+| `total_count` | `INTEGER` | `INT` | 历史总奖励次数 |
+| `total_seconds` | `INTEGER` | `INT` | 历史总挂机秒数 |
+
+主键：`player_uuid`
+
+索引：`axs_afk_stats_date` on `today_date`
+
+### axs_afk_sessions 挂机会话表
+
+用于 MANUAL 模式崩溃恢复。玩家开始原地挂机时写入 session 记录，正常结束时删除。
+
+| 列名 | SQLite 类型 | MySQL 类型 | 说明 |
+|---|---|---|---|
+| `player_uuid` | `TEXT` | `VARCHAR(36)` | 玩家 UUID（主键） |
+| `player_name` | `TEXT` | `VARCHAR(64)` | 玩家名 |
+| `area_name` | `TEXT` | `VARCHAR(64)` | 挂机区域名 |
+| `reward_type` | `TEXT` | `VARCHAR(64)` | 奖励类型 ID |
+| `mode` | `TEXT` | `VARCHAR(16)` | 挂机模式（默认 `MANUAL`） |
+| `start_seconds` | `INTEGER` | `INT` | 开始时已累计的秒数 |
+| `start_time` | `INTEGER` | `BIGINT` | 开始时间戳（毫秒） |
+| `today_count` | `INTEGER` | `INT` | 开始时的今日奖励次数 |
+| `total_count` | `INTEGER` | `INT` | 开始时的总奖励次数 |
+| `today_date` | `TEXT` | `VARCHAR(32)` | 今日日期 |
+| `total_seconds` | `INTEGER` | `INT` | 开始时的总挂机秒数 |
+
+主键：`player_uuid`
+
+### axs_afk_area_stats 区域统计表
+
+| 列名 | SQLite 类型 | MySQL 类型 | 说明 |
+|---|---|---|---|
+| `player_uuid` | `TEXT` | `VARCHAR(36)` | 玩家 UUID |
+| `area_name` | `TEXT` | `VARCHAR(64)` | 区域名 |
+| `total_seconds` | `INTEGER` | `INT` | 在该区域的累计挂机秒数 |
+| `today_seconds` | `INTEGER` | `INT` | 在该区域的今日挂机秒数 |
+| `today_date` | `TEXT` | `VARCHAR(32)` | 今日日期 |
+
+主键：`(player_uuid, area_name)`
+
+## 数据缓存与持久化
+
+### 缓存策略
+
+- 玩家统计（`PlayerStats`）缓存在内存中（`ConcurrentHashMap`）
+- 区域统计（`AreaStats`）按区域名分组缓存
+- 排行榜缓存合并内存数据与 DB 数据，超过 60 秒异步刷新
+- 进服时预加载缓存（`preloadStats`），退服时清理并落盘
+
+### 持久化策略
+
+| 操作 | 持久化时机 |
+|---|---|
+| 玩家统计变更 | 发奖后立即落盘（`trySave`） |
+| 在线玩家统计 | 定时落盘（每 600 tick ≈ 30 秒） |
+| 区域统计 | 退服与结束挂机时落盘（`saveAreaStats`） |
+| MANUAL session | 开始挂机时写入，正常结束时删除 |
+| 退服 | 异步落盘全部缓存数据 |
+
+### 加载失败处理
+
+- DB 加载失败时短暂等待后重试一次（500ms）
+- 重试仍失败时标记为 `failedLoads`，返回空数据但不缓存
+- `trySave` / `saveAreaStats` 跳过 `failedLoads` 中的玩家，避免空数据覆盖 DB 真实数据
+
+### 崩溃恢复
+
+服务器重启后，`AfkRewardService.start()` 调用 `recoverCrashedSessions()` 恢复上次未正常结束的 MANUAL 挂机：
+
+1. 遍历在线玩家，从 `sessions` 表加载未完成的 session 记录
+2. 计算从 session 开始时间到服务器启动时间的挂机时长
+3. 按 `round` 分钟计算奖励次数，一次性发放全部奖励
+4. 发送恢复提示消息
+5. 删除 session 记录
+
+> 关闭服务时（`shutdown()`），所有 MANUAL 模式的在线玩家 session 会保存到 DB，确保下次重启可恢复。
+
+## 跨服同步
+
+AfkReward 模块当前不注册独立的跨服同步配置。共享存储模式（`storage.shared: true`）下，多个子服共用同一数据库即可实现挂机数据互通。
+
+> 跨服场景下，`sessions` 表仅用于单服崩溃恢复，不跨服共享。玩家在一个子服开始 MANUAL 挂机后切换到另一个子服，原子服的 session 会在重启时结算。
+
+## 与其他模块联动
+
+### 与 BattlePass 联动
+
+BattlePass 模块可订阅 `axs.afkreward.reward_claimed` 事件主题，追踪玩家领取挂机奖励行为：
+
+```yaml
+season-afk-30:
+  display-name: "挂机专家"
+  description: "本赛季累计领取30次挂机奖励（需 afkreward 模块）"
+  difficulty: easy
+  event-topic: "axs.afkreward.reward_claimed"
+  required-count: 30
+  base-xp-reward: 1500
+  increment-strategy:
+    type: fixed
+    value: 1
+```
+
+### 与 Mail 模块联动
+
+Mail 模块提供两种联动能力：
+
+1. **发奖邮件**：区域配置 `reward.mail.presets` 和主配置 `manual.end-mail.mail.presets` 可在发奖/结束挂机时发送预设邮件
+2. **物品溢出补发**：物品奖励通过 `ItemRewardDispatcher` 发放时，背包满的溢出物品自动通过 Mail 模块发邮件补发
+
+> 邮件预设需在 Mail 模块的 `presets` 目录中存在，否则会打印"预设邮件派发失败"警告。
+
+### 与 EventPacket 模块联动
+
+EventPacket 模块接收 AfkReward 派发的信号（`afk_reward`、`afk_end`、`afk_start`、`afk_enter_area`、`afk_leave_area`），可触发自定义事件规则。信号变量中包含区域名、模式、挂机时长、奖励次数等信息。
+
+### 与 Subtitle 模块联动
+
+Subtitle 模块播放配置的字幕组。通过 `manual.subtitle-on-reward` 和 `manual.subtitle-on-end` 配置字幕组 ID，在发奖和结束挂机时播放。
+
+### 与 Essentials 模块联动
+
+双向互斥检测：
+
+- AfkReward 开始原地挂机前通过 `EssentialsQueryable.isAfk()` 检测玩家是否处于 Essentials AFK 状态，若是则拒绝开始
+- Essentials 模块可通过 `AfkRewardDispatchable.startManualAfk()` 在 AFK 超时后自动触发原地挂机
+
+## 审计日志
+
+每次发放奖励时，`AfkRewardAuditLogger` 将以下信息追加写入审计文件：
+
+| 字段 | 说明 |
+|---|---|
+| 时间 | `OffsetDateTime.now()` |
+| player | 玩家名 |
+| uuid | 玩家 UUID |
+| area | 区域名 |
+| mode | 挂机模式（`REGION` / `MANUAL`） |
+| tier | 奖励档位标识 |
+| count | 本次发放数量 |
+| multiplier | 本次结算使用的倍率（保留两位小数） |
+
+审计文件路径由 `audit.file` 配置（默认 `audit.log`，相对模块 data 目录）。通过内部锁保证多线程写入安全。
+
+## 相关文档
+
+- [概览](/docs/afkreward) — 模块功能概览、双模式挂机机制
+- [配置](/docs/afkreward/configuration) — 主配置文件、区域配置文件、倍率调度详解
+- [命令与占位符](/docs/afkreward/commands) — 玩家命令、管理命令、PAPI 占位符、HUD UI 包
+- [条件系统](/docs/guide/conditions) — ArcartXSuite 统一条件系统配置指南
+- [物品库匹配](/docs/guide/item-sources) — 统一物品来源系统配置指南
+- [图标配置](/docs/guide/icons) — 统一图标系统配置指南

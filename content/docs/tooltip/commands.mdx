@@ -1,0 +1,266 @@
+---
+title: 命令与占位符
+description: Tooltip 模块命令、权限、PlaceholderAPI 与网络包
+---
+
+# 命令与占位符
+
+Tooltip 模块通过宿主 `/axs` 命令系统注册管理子命令，提供模块状态查询功能。模块本身不注册 PlaceholderAPI 占位符，也不提供玩家命令。
+
+## 命令系统
+
+### 命令注册机制
+
+Tooltip 模块实现 `ModuleCommandHandler` 接口，由宿主命令系统自动识别并在 `/axs tooltip` 下注册子命令：
+
+```java
+public final class TooltipModule extends AbstractAXSModule implements ModuleCommandHandler {
+
+    @Override
+    public String commandId() {
+        return "tooltip";
+    }
+
+    @Override
+    public List<String> actions() {
+        return adminCommand != null ? adminCommand.actions() : List.of("help", "status");
+    }
+
+    @Override
+    public boolean onCommand(@NotNull CommandSender sender, @NotNull String label, @NotNull String[] args) {
+        return adminCommand != null && adminCommand.onCommand(sender, label, args);
+    }
+
+    @Override
+    public @Nullable List<String> onTabComplete(@NotNull CommandSender sender, @NotNull String[] args) {
+        return adminCommand != null ? adminCommand.onTabComplete(sender, args) : null;
+    }
+}
+```
+
+| 注册属性 | 值 | 说明 |
+|---|---|---|
+| `commandId` | `tooltip` | 子命令 ID，与 `module.yml` 的 `id` 一致 |
+| `commandAliases` | `[]`（默认） | 无命令别名 |
+| `actions` | `help`、`status` | 支持的子命令动作列表，用于 Tab 补全 |
+
+### 命令参数结构
+
+宿主命令系统将完整参数数组传入 `onCommand`，其中 `args[0]` 为模块 ID，`args[1]` 开始为子命令动作：
+
+| 参数位置 | 内容 | 示例 |
+|---|---|---|
+| `args[0]` | 模块 ID | `tooltip` |
+| `args[1]` | 子命令动作 | `status` |
+| `args[2]+` | 子命令参数 | 无（Tooltip 子命令无额外参数） |
+
+## 管理命令
+
+### `/axs tooltip help`
+
+查看 Tooltip 模块可用子命令。
+
+| 属性 | 值 |
+|---|---|
+| 命令 | `/axs tooltip help` |
+| 权限 | `arcartxsuite.admin` |
+| 参数 | 无 |
+| 控制台 | 支持 |
+| 说明 | 显示模块帮助信息，列出可用子命令 |
+
+**输出示例**：
+
+```
+◆ ArcartXSuite | Tooltip 管理
+/axs tooltip status - 查看模块状态
+```
+
+### `/axs tooltip status`
+
+查看 Tooltip 模块缓存运行状态。
+
+| 属性 | 值 |
+|---|---|
+| 命令 | `/axs tooltip status` |
+| 权限 | `arcartxsuite.admin` |
+| 参数 | 无 |
+| 控制台 | 支持 |
+| 说明 | 显示缓存玩家数、数据包 ID、缓存 TTL |
+
+**输出示例**：
+
+```
+◆ ArcartXSuite | Tooltip 模块状态
+缓存玩家数: 3
+数据包 ID: AXS_TOOLTIP_DATA
+缓存 TTL: 60秒
+```
+
+**缓存为空时输出**：
+
+```
+◆ ArcartXSuite | Tooltip 模块状态
+缓存玩家数: 0
+数据包 ID: AXS_TOOLTIP_DATA
+缓存 TTL: 60秒
+缓存为空，等待客户端 mod 发送数据
+```
+
+### 命令一览表
+
+| 命令 | 权限 | 参数 | 说明 |
+|---|---|---|---|
+| `/axs tooltip help` | `arcartxsuite.admin` | 无 | 查看可用子命令 |
+| `/axs tooltip status` | `arcartxsuite.admin` | 无 | 查看模块缓存状态 |
+| `/axs tooltip` | `arcartxsuite.admin` | 无 | 无参数时默认显示 help |
+
+:::info
+无参数或未知子命令时，默认显示 `help` 内容。所有子命令均需 `arcartxsuite.admin` 权限。
+:::
+
+## 权限
+
+| 权限节点 | 默认 | 说明 |
+|---|---|---|
+| `arcartxsuite.admin` | OP | 执行 Tooltip 管理命令所需权限 |
+
+:::tip
+`arcartxsuite.admin` 是 ArcartXSuite 宿主的通用管理权限，所有模块的管理命令均使用此权限节点。
+:::
+
+## Tab 补全
+
+Tooltip 模块支持二级 Tab 补全，补全逻辑由 `TooltipAdminCommand.onTabComplete` 实现：
+
+| 补全位置 | 补全内容 | 示例 |
+|---|---|---|
+| `args[1]`（子命令动作） | `help`、`status` | 输入 `s` → 补全 `status` |
+| `args[2]+` | 无补全 | 返回 null |
+
+```java
+public @Nullable List<String> onTabComplete(@NotNull CommandSender sender, @NotNull String[] args) {
+    if (args.length == 2) {
+        return ACTIONS.stream()
+            .filter(a -> a.startsWith(args[1].toLowerCase(Locale.ROOT)))
+            .toList();
+    }
+    return null;
+}
+```
+
+## PlaceholderAPI
+
+Tooltip 模块**不注册** PlaceholderAPI 占位符。
+
+| 项目 | 说明 |
+|---|---|
+| PAPI 占位符 | 无 |
+| PAPI 依赖 | 无（模块不依赖 PlaceholderAPI） |
+| 占位符注册 | 模块未实现 `createPlaceholderExpansion` |
+
+:::info
+Tooltip 模块的数据通过 `TooltipDataCapable` Capability 以编程方式提供，不通过 PAPI 占位符暴露。其他模块应通过 `getCapability(TooltipDataCapable.class)` 获取能力后调用 API 查询数据。详见 [联动](/docs/tooltip/integration)。
+:::
+
+## 玩家命令
+
+Tooltip 模块**不提供**玩家命令。所有命令均为管理命令，需 `arcartxsuite.admin` 权限。
+
+| 命令类型 | 可用命令 |
+|---|---|
+| 玩家命令 | 无 |
+| 管理命令 | `/axs tooltip help`、`/axs tooltip status` |
+
+## 网络包
+
+### `AXS_TOOLTIP_DATA` 数据包
+
+Tooltip 模块通过 `TooltipPacketHandler` 处理客户端发送的 `AXS_TOOLTIP_DATA` 自定义网络包。
+
+| 属性 | 值 |
+|---|---|
+| 数据包 ID | `AXS_TOOLTIP_DATA` |
+| 处理器 | `TooltipPacketHandler` |
+| 优先级 | 50（高优先级，数值越小越先执行） |
+| 归属模块 | `tooltip` |
+| 方向 | 客户端 → 服务端 |
+
+### 包处理器注册
+
+```java
+@Override
+protected @NotNull PacketHandlerSpec createPacketHandlerSpec() {
+    return PacketHandlerSpec.of(
+        new TooltipPacketHandler(cache, parser),
+        50,
+        TooltipPacketHandler.PACKET_ID,
+        "tooltip"
+    );
+}
+```
+
+| `PacketHandlerSpec` 参数 | 值 | 说明 |
+|---|---|---|
+| `handler` | `TooltipPacketHandler` 实例 | 包处理器 |
+| `priority` | `50` | 处理器优先级，数值越小越先执行 |
+| `ownershipPacketId` | `AXS_TOOLTIP_DATA` | 模块拥有的包 ID，用于路由层归属 |
+| `guardModule` | `tooltip` | PacketGuard 模块 key |
+
+### 数据包负载格式
+
+| 索引 | 字段 | 类型 | 说明 |
+|---|---|---|---|
+| `data[0]` | 物品指纹 | string | 物品注册名（如 `tacz:ak47`） |
+| `data[1]` | 物品类型 ID | string | 同 `data[0]`，目前不单独使用 |
+| `data[2]` | tooltip 文本行 | string（JSON 数组） | tooltip 每行文本的 JSON 数组字符串 |
+| `data[3]` | 结构化数据 | string（JSON 对象） | 结构化属性字段的 JSON 对象字符串 |
+
+### 包处理流程
+
+```java
+public boolean handleClientPacket(@NotNull Player player, @NotNull String packetId,
+                                  @NotNull List<String> data) {
+    if (!PACKET_ID.equalsIgnoreCase(packetId)) return false;
+    if (data.size() < 4) return true; // 数据不完整，消费但不处理
+    try {
+        String fingerprint = data.get(0);
+        String linesJson = data.get(2);
+        String structuredData = data.get(3);
+        List<String> textLines = parser.parseStringArray(linesJson);
+        if (textLines == null || textLines.isEmpty()) return true;
+        cache.put(player, fingerprint, textLines, structuredData);
+    } catch (Exception e) {
+        // 静默处理解析错误
+    }
+    return true;
+}
+```
+
+| 步骤 | 说明 |
+|---|---|
+| 1. 包 ID 校验 | 检查 `packetId` 是否为 `AXS_TOOLTIP_DATA`，不匹配则返回 false（不消费） |
+| 2. 数据完整性 | `data.size() < 4` 时消费包但不处理（返回 true） |
+| 3. 解析文本行 | `TooltipJsonParser.parseStringArray` 解析 `data[2]` JSON 数组 |
+| 4. 空值检查 | 文本行为 null 或空列表时消费包但不处理 |
+| 5. 缓存写入 | 按玩家 UUID + 物品指纹存入 `TooltipDataCache` |
+| 6. 异常处理 | 解析异常时静默处理，不抛出异常 |
+| 7. 返回 true | 消费此包，后续处理器不再接收 |
+
+:::tip
+包处理优先级为 50，高于默认值 0，确保 tooltip 数据在其他模块的包处理器之前缓存。这样依赖 tooltip 数据的模块在处理后续包时能立即读取到最新数据。
+:::
+
+### UI 包
+
+Tooltip 模块**不发送** UI 包，不注册 UI 界面，不使用 `PacketBridgeAPI` 发送聊天卡片。
+
+| UI 相关 | 说明 |
+|---|---|
+| UI 界面 | 无 |
+| UI 包发送 | 无 |
+| 聊天卡片 | 无 |
+| HUD | 无 |
+
+:::info
+Tooltip 模块是纯数据桥接模块，不涉及任何 UI 渲染。tooltip 数据通过 Capability 提供给其他模块（如 Chat），由消费方模块负责 UI 展示。关于 UI 与图标系统的设计，详见 [/docs/guide/icons](/docs/guide/icons)。
+:::

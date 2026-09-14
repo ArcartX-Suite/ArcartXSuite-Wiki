@@ -1,0 +1,160 @@
+---
+title: 命令与占位符
+description: Mail 命令、权限与 PlaceholderAPI 占位符
+---
+
+## 玩家命令
+
+玩家命令绑定到 `/mail`，需要 `arcartxsuite.mail.use` 权限。
+
+| 命令 | 权限 | 说明 |
+|---|---|---|
+| `/mail` 或 `/mail open` | `arcartxsuite.mail.use` | 打开收件箱 UI |
+| `/mail compose` | `arcartxsuite.mail.use` | 打开写信界面 |
+| `/mail claimall` | `arcartxsuite.mail.use` | 一键领取所有可领取邮件的附件 |
+| `/mail deleteall` | `arcartxsuite.mail.use` | 一键删除所有可删除邮件 |
+| `/mail cdk <兑换码>` | `arcartxsuite.mail.use` | 兑换 CDK |
+
+> **CDK 兑换权限**：当 `cdk.require-permission` 设为 `true` 时，CDK 兑换还需 `arcartxsuite.mail.cdk` 权限。
+
+> **写信权限**：当 `player-send.require-permission` 设为 `true` 时，写信还需 `arcartxsuite.mail.send` 权限。
+
+## 管理员命令
+
+管理员命令通过宿主统一命令系统调度，前缀为 `/axs mail`，需要 `arcartxsuite.admin` 权限。
+
+### 通用子命令
+
+| 命令 | 说明 |
+|---|---|
+| `/axs mail help` | 查看所有可用子命令 |
+| `/axs mail status` | 查看邮件模块状态（预设数、跨服通道、写信会话数） |
+| `/axs mail open <玩家>` | 为指定在线玩家打开收件箱 |
+| `/axs mail admin` | 打开管理 UI（预设编辑器） |
+
+### 预设邮件子命令
+
+| 命令 | 说明 |
+|---|---|
+| `/axs mail preset list` | 列出所有已加载的预设（显示 ID、显示名、附件数、命令数） |
+| `/axs mail preset send <预设ID> <目标> [force-bypass]` | 派发预设邮件 |
+| `/axs mail preset send confirm` | 确认上一次发起的多人派发请求 |
+| `/axs mail preset info <预设ID>` | 查看预设详情（启用状态、显示名、标题、正文、过期、附件数、命令数、条件数、CDK 数） |
+| `/axs mail preset delete <预设ID>` | 删除预设（从内存和 YAML 文件） |
+| `/axs mail preset reload` | 重新从磁盘加载全部预设 |
+
+#### preset send 参数说明
+
+| 参数 | 说明 |
+|---|---|
+| `<预设ID>` | 预设 ID（不区分大小写） |
+| `<目标>` | 玩家名、`all-online`（所有在线玩家）或 `all-registered`（所有注册玩家） |
+| `[force-bypass]` | 可选，跳过多人派发二次确认（仅对 `all-online`/`all-registered` 生效） |
+
+> **多人派发确认流程**：当目标为 `all-online` 或 `all-registered` 时，系统会提示在 30 秒内执行 `/axs mail preset send confirm` 完成确认。附加 `force-bypass` 可直接派发，跳过确认。
+
+### CDK 子命令
+
+| 命令 | 说明 |
+|---|---|
+| `/axs mail cdk create <预设ID> <code\|auto> <最大领取数> <有效期>` | 创建 CDK |
+| `/axs mail cdk info <兑换码>` | 查看 CDK 详情（关联预设、领取次数、过期时间、启用状态） |
+| `/axs mail cdk list [页码]` | 分页列出所有 CDK（每页 10 条） |
+| `/axs mail cdk delete <兑换码>` | 删除 CDK |
+
+#### cdk create 参数说明
+
+| 参数 | 说明 |
+|---|---|
+| `<预设ID>` | 关联的预设邮件 ID |
+| `<code\|auto>` | CDK 兑换码（自定义或 `auto` 自动生成） |
+| `<最大领取数>` | 全局共享最大领取次数（所有玩家共用） |
+| `<有效期>` | 有效期格式：`permanent`（永久）、`<N>s`（秒）、`<N>m`（分）、`<N>h`（时）、`<N>d`（天），默认 7 天 |
+
+示例：
+
+```
+/axs mail cdk create starter WELCOME2026 100 30d
+/axs mail cdk create summer-event auto 50 7d
+/axs mail cdk create starter PERMANENT_CODE 999 permanent
+```
+
+## 权限节点
+
+| 权限 | 默认 | 说明 |
+|---|---|---|
+| `arcartxsuite.mail.use` | op | 使用邮件系统（收件箱、写信、CDK 兑换） |
+| `arcartxsuite.mail.send` | op | 玩家写信权限（需 `player-send.require-permission: true`） |
+| `arcartxsuite.mail.cdk` | op | CDK 兑换权限（需 `cdk.require-permission: true`） |
+| `arcartxsuite.admin` | op | 管理员命令和管理 UI 权限 |
+
+## PlaceholderAPI 占位符
+
+Mail 模块注册的 PAPI 占位符前缀为 `axsmail`，需要安装 PlaceholderAPI 插件。
+
+| 占位符 | 说明 |
+|---|---|
+| `%axsmail_unread_count%` | 当前玩家未读邮件数 |
+| `%axsmail_claimable_count%` | 当前玩家可领取邮件数（含附件或领取命令且状态为 UNREAD/READ） |
+| `%axsmail_total_count%` | 当前玩家收件箱总邮件数（不含已删除） |
+
+### 可消费的 PAPI 占位符
+
+Mail 模块在以下场景消费 PAPI 占位符：
+
+- **领取条件**：`claim-conditions` 中的内联格式 `%placeholder% <op> <value>` 会解析 PAPI 后判断
+- **货币余额**：`currencies.<id>.balance-placeholder` 用于读取余额
+
+### 内置变量
+
+领取命令（`claim-commands`）等命令支持玩家相关 token：
+
+| 变量 | 说明 |
+|---|---|
+| `<player>` | 玩家名称 |
+
+## UI Packet 触发
+
+Mail 模块通过 ArcartX 客户端包 `AXS_MAIL` 与客户端 UI 通信。客户端 UI 通过发送 packet action 触发服务端操作。
+
+### 收件箱 UI Packet
+
+| Action | 参数 | 说明 |
+|---|---|---|
+| `open` | 无 | 打开收件箱 |
+| `refresh` | 无 | 刷新收件箱列表 |
+| `filter` | `<filter>` | 切换筛选模式（`ALL`/`UNREAD`/`CLAIMABLE`/`SYSTEM`/`PLAYER`/`PRESET`/`CDK`） |
+| `select` | `<mailId>` | 选中邮件（自动标记为已读） |
+| `claim` | `<mailId>` | 领取指定邮件附件 |
+| `delete` | `<mailId>` | 删除指定邮件 |
+| `claimall` | 无 | 一键领取所有 |
+| `deleteall` | 无 | 一键删除所有 |
+| `cdk` | `<code>` | 兑换 CDK |
+| `logs` | 无 | 打开邮件日志 |
+| `compose` | 无 | 打开写信界面 |
+
+### 写信 UI Packet
+
+| Action | 参数 | 说明 |
+|---|---|---|
+| `compose-send` | `<sessionId> <recipient> <subject> <body> <vaultAmount> <actionToken>` | 发送邮件 |
+| `compose-add-attachment` | `<slot> <count\|all>` | 从背包添加物品到附件 |
+| `compose-remove-attachment` | `<index>` | 从附件移除物品退回背包 |
+| `password-unlock` | `<password>` | 解锁二级密码 |
+
+### 管理 UI Packet
+
+| Action | 参数 | 说明 |
+|---|---|---|
+| `admin` | 无 | 打开管理 UI |
+| `admin-preset-list` | 无 | 刷新预设列表 |
+| `admin-preset-new` | 无 | 新建预设（清空编辑区） |
+| `admin-preset-get` | `<presetId>` | 加载预设到编辑区 |
+| `admin-preset-cancel` | 无 | 取消编辑（退回物品） |
+| `admin-preset-save` | `<id> <enabled> <displayName> <subject> <body> <expiresAfterDays> <currencyAttachments> <claimCommands> <claimConditions> <cdks>` | 保存预设 |
+| `admin-preset-delete` | `<presetId>` | 删除预设 |
+| `admin-preset-send` | `<presetId> <target>` | 派发预设 |
+| `admin-add-attachment` | `<slot> <count\|all>` | 管理员添加物品附件 |
+| `admin-remove-attachment` | `<index>` | 管理员移除物品附件 |
+
+> 管理 UI Packet 需要玩家拥有 `arcartxsuite.admin` 权限，否则服务端静默丢弃。

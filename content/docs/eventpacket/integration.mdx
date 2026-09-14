@@ -1,0 +1,309 @@
+---
+title: 联动
+description: EventPacket 跨模块联动与 Capability
+---
+
+## 依赖关系
+
+| 类型 | 依赖 | 作用 | 缺少时表现 |
+|---|---|---|---|
+| 必需 | ArcartXSuite 本体 | 核心 API、存储管理、Capability 注册、PacketBridge、脚本条件引擎 | 模块无法运行 |
+| 可选 | PlaceholderAPI | PAPI 触发器（papi-increase/decrease/threshold）和 PAPI 条件 | 这部分触发器和条件不生效，启动时输出警告 |
+| 可选 | Chemdah | Chemdah 任务事件触发器（quest-*/objective-*/chemdah-level-change） | 这部分触发器不生效，启动时输出警告 |
+
+## SignalDispatchable Capability
+
+EventPacket 模块注册了 `SignalDispatchable` Capability，供其他模块跨模块调用发送命令信号。信号发送后，所有 `trigger: command-signal` 且 `signal` 匹配的规则将被触发。
+
+### 接口方法
+
+```java
+public interface SignalDispatchable {
+    // 发送命令信号，触发匹配的 command-signal 规则
+    void dispatchSignal(String signal, Player subject, Map<String, String> variables);
+}
+```
+
+### 调用示例
+
+```java
+SignalDispatchable signalDispatcher = getCapability(SignalDispatchable.class);
+if (signalDispatcher == null) return; // EventPacket 模块未启用
+
+Map<String, String> variables = new LinkedHashMap<>();
+variables.put("boss_id", "dragon");
+variables.put("damage", "1500");
+signalDispatcher.dispatchSignal("boss_settlement", player, variables);
+```
+
+信号发送后，规则中可通过 `{boss_id}`、`{damage}` 等上下文变量引用传入的变量。
+
+## 消费的 Capability
+
+EventPacket 模块在动作执行时通过 Capability Supplier 延迟获取其他模块的能力。缺失能力时对应动作直接跳过，不报错。
+
+| Capability | 消费动作 | 提供模块 | 缺失时表现 |
+|---|---|---|---|
+| `QuestGpsNavigable` | `questgps.offer`、`questgps.accept`、`questgps.open`、`questgps.track` | QuestGPS | 任务相关动作跳过 |
+| `SubtitlePlayable` | `subtitle.play`、`announcer.play` | Subtitle / Announcer | 字幕播放动作跳过 |
+| `ChatCardSendable` | `chat.card` | Chat | 聊天卡片动作跳过 |
+| `TitleGrantable` | `title.give` | Title | 称号发放动作跳过 |
+| `MailDispatchable` | `mail.send` | Mail | 邮件发送动作跳过 |
+| `QQBotBroadcastable` | `qq-broadcast` | QQBot | QQ 广播动作跳过 |
+| `PacketBridgeAPI` | `ui-packet`、`combateffect.play` | 本体 PacketBridge | UI 包和战斗特效动作跳过 |
+
+> 所有跨模块调用通过 Capability Supplier 完成，模块间无编译期依赖，缺失能力时优雅降级。
+
+## Chemdah 事件桥接
+
+EventPacket 通过 `ChemdahEventBridge` 反射注册 Chemdah 事件监听器，将 Chemdah 任务事件桥接到事件包分发系统。桥接器在模块启动时检测 Chemdah 插件是否存在，存在且有 Chemdah 触发器规则时自动注册。
+
+### 桥接的事件
+
+| Chemdah 事件 | 触发器 | 注入变量 |
+|---|---|---|
+| `QuestEvents$Accept$Post` | `quest-accept` | `{quest_id}` |
+| `QuestEvents$Complete$Post` | `quest-complete` | `{quest_id}` |
+| `QuestEvents$Fail$Post` | `quest-fail` | `{quest_id}` |
+| `ObjectiveEvents$Complete$Post` | `objective-complete` | `{quest_id}`、`{task_id}`、`{objective_type}`、`{objective_name}` |
+| `ObjectiveEvents$Continue$Post` | `objective-continue` | `{quest_id}`、`{task_id}`、`{objective_type}`、`{objective_name}` |
+| `ObjectiveEvents$Restart$Post` | `objective-restart` | `{quest_id}`、`{task_id}`、`{objective_type}`、`{objective_name}` |
+| `PlayerEvents$LevelChange` | `chemdah-level-change` | `{level_option}`、`{old_level}`、`{new_level}`、`{old_experience}`、`{new_experience}`、`{level_delta}` |
+
+### signal 过滤说明
+
+| 触发器 | signal 过滤规则 |
+|---|---|
+| `quest-accept` / `quest-complete` / `quest-fail` | `signal` 留空匹配所有任务；填任务 ID 仅匹配该任务 |
+| `objective-complete` / `objective-continue` / `objective-restart` | `signal` 可填 `quest_id` 或 `objective_name` 过滤 |
+| `chemdah-level-change` | `signal` 填等级选项 ID 过滤（如 `adventure`） |
+
+> Chemdah 事件类继承 TabooLib `BukkitProxyEvent`，共享同一个 `HandlerList`。桥接器通过运行时类型严格过滤（`e.getClass() != eventClass`），避免其他 `BukkitProxyEvent` 子类事件误触发。
+
+## 脚本触发器
+
+EventPacket 支持 JavaScript 和 Aria 两种脚本触发器，通过 `PapiWatcherService` 在轮询周期内评估脚本表达式。脚本返回 `true` 时触发规则（仅在从 `false` 变为 `true` 的上升沿触发）。
+
+### script-js
+
+```yaml
+js_low_health_alert:
+  enabled: true
+  trigger: script-js
+  repeatable: true
+  cooldown: "30s"
+  script: |
+    player.getHealth() / player.getMaxHealth() < 0.25
+  actions:
+    - type: subtitle.play
+      group-id: "low_health_warning"
+```
+
+JavaScript 表达式中 `player` 变量直接注入 Bukkit `Player` 对象。
+
+### script-aria
+
+```yaml
+aria_high_altitude:
+  enabled: true
+  trigger: script-aria
+  repeatable: true
+  cooldown: "1m"
+  script: |
+    playerY = global.player.getLocation().getY()
+    playerY > 200
+  actions:
+    - type: subtitle.play
+      group-id: "high_altitude"
+```
+
+Aria 表达式中 `player` 门面注入到 `global.` 命名空间，需用 `global.player` 访问。
+
+> 脚本触发器使用 [条件系统](/docs/guide/conditions) 的 `ScriptConditionKind.JS` 和 `ScriptConditionKind.ARIA` 引擎评估。
+
+## 数据库表
+
+EventPacket 模块使用两张数据表存储击杀进度和规则触发状态。表名前缀由存储模式决定（共享模式无前缀，自建模式使用 `axs_eventpacket_`）。
+
+### eventpacket_kill_progress
+
+记录玩家在击杀计数规则下的累计击杀数。
+
+| 列名 | SQLite 类型 | MySQL 类型 | 说明 |
+|---|---|---|---|
+| `player_uuid` | TEXT | VARCHAR(36) | 玩家 UUID |
+| `rule_id` | TEXT | VARCHAR(128) | 规则 ID |
+| `kill_count` | INTEGER | INT | 累计击杀数 |
+| `updated_at` | INTEGER | BIGINT | 更新时间戳（毫秒） |
+
+主键：`(player_uuid, rule_id)`
+
+### eventpacket_fired_rules
+
+记录玩家是否已触发过某条规则（用于非 `repeatable` 规则的一次性触发控制）。
+
+| 列名 | SQLite 类型 | MySQL 类型 | 说明 |
+|---|---|---|---|
+| `player_uuid` | TEXT | VARCHAR(36) | 玩家 UUID |
+| `rule_id` | TEXT | VARCHAR(128) | 规则 ID |
+| `fired_at` | INTEGER | BIGINT | 触发时间戳（毫秒） |
+
+主键：`(player_uuid, rule_id)`
+
+## 数据库迁移
+
+EventPacket 模块注册了 `DatabaseMigratable` Capability，支持通过 `/axs migrate` 命令跨源数据库迁移。
+
+```java
+public interface DatabaseMigratable {
+    String moduleId();
+    MigrationResult migrateDatabase(StorageDescriptor target, boolean overwrite);
+    StorageDescriptor currentDescriptor();
+}
+```
+
+迁移时将 `eventpacket_kill_progress` 和 `eventpacket_fired_rules` 两张表的数据从当前数据源迁移到目标数据源。
+
+## 数据清理
+
+EventPacket 模块注册了 `PlayerDataPurgeable` Capability，支持通过 `/axs purge` 命令统一清理玩家数据。
+
+```java
+public interface PlayerDataPurgeable {
+    String moduleId();
+    int purgePlayerData(UUID playerUuid);
+    int purgeAllPlayerData();
+}
+```
+
+- `purgePlayerData` — 清理指定玩家在 `eventpacket_kill_progress` 和 `eventpacket_fired_rules` 表中的所有记录
+- `purgeAllPlayerData` — 清理所有玩家的数据
+
+## 模块集成示例
+
+### 与 QuestGPS 联动
+
+```yaml
+# 玩家首次加入时推送主线任务
+first_join_offer_mainline:
+  enabled: true
+  trigger: first-join
+  repeatable: false
+  actions:
+    - type: questgps.offer
+      quest-id: "main/example_quest"
+      open-menu: true
+```
+
+### 与 Mail 联动
+
+```yaml
+# Boss 结算时发送奖励邮件
+boss_settlement_celebration:
+  enabled: true
+  trigger: command-signal
+  signal: "boss_settlement"
+  repeatable: true
+  cooldown: "3s"
+  actions:
+    - type: mail.send
+      preset-id: "boss_reward_{boss_id}"
+```
+
+### 与 Title 联动
+
+```yaml
+# 任务完成后发放称号
+quest_completed_title_reward:
+  enabled: true
+  trigger: command-signal
+  signal: "questgps_quest_completed"
+  repeatable: false
+  actions:
+    - type: title.give
+      title-id: "newcomer"
+      duration: "permanent"
+```
+
+### 与 Subtitle 联动
+
+```yaml
+# 签到成功时播放庆祝字幕
+signin_streak_milestone:
+  enabled: true
+  trigger: command-signal
+  signal: "signin_success"
+  repeatable: true
+  cooldown: "1d"
+  actions:
+    - type: subtitle.play
+      group-id: "signin_celebrate"
+```
+
+### 与 Chat 联动
+
+```yaml
+# LittleSkin 玩家首次注册后发送聊天卡片
+welcome_littleskin_after_register:
+  enabled: true
+  trigger: command-signal
+  signal: "first_register"
+  conditions:
+    - "%axsloginview_account_type% == littleskin"
+  repeatable: false
+  actions:
+    - type: chat.card
+      card-id: "quest_offer"
+      data:
+        title: "LittleSkin 登录奖励"
+        source: "{account_type_display}"
+```
+
+### 与 QQBot 联动
+
+```yaml
+# 重要事件通知 QQ 群
+notify_qq_group:
+  enabled: true
+  trigger: command-signal
+  signal: "server_milestone"
+  repeatable: true
+  actions:
+    - type: qq-broadcast
+      message: "玩家 {player_name} 达成了里程碑！"
+      group-id: 123456789
+```
+
+### 与 CombatEffect 联动
+
+```yaml
+# CDK 兑换成功时播放战斗特效
+cdk_redeemed_effect:
+  enabled: true
+  trigger: command-signal
+  signal: "cdk_redeemed"
+  repeatable: true
+  cooldown: "5s"
+  actions:
+    - type: combateffect.play
+      pack: "{player_name};CDK;{preset_name}"
+```
+
+### 与 Chemdah 联动
+
+```yaml
+# 玩家完成特定任务时发放奖励
+chemdah_quest_completed_reward:
+  enabled: true
+  trigger: quest-complete
+  signal: "main/tutorial"
+  repeatable: false
+  actions:
+    - type: title.give
+      title-id: "quest_master"
+      duration: "permanent"
+    - type: mail.send
+      preset-id: "quest_complete_reward"
+    - type: subtitle.play
+      group-id: "quest_completed"
+```

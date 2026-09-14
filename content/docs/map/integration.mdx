@@ -1,0 +1,200 @@
+---
+title: 联动
+description: Map 模块跨模块联动、Capability 与数据库表结构
+---
+
+# 联动
+
+## Capability 注册
+
+Map 模块在 `startService()` 中注册以下 Capability，供其他模块跨模块调用：
+
+### MapNavigable
+
+地图导航能力接口，供 QuestGPS 等外部模块向地图注入临时导航目标。
+
+| 方法 | 参数 | 说明 |
+|---|---|---|
+| `upsertExternalTarget` | `Player`, `String targetId`, `String source`, `String worldId`, `double x`, `double y`, `double z`, `String displayName`, `String iconId`, `boolean select` | 新增或更新外部导航目标，可选自动选中 |
+| `clearExternalTargets` | `Player`, `String source`, `boolean syncView` | 按来源清除玩家的所有外部导航目标（source 为空时清除全部） |
+| `openMenuFor` | `Player`, `String waypointId` | 为玩家打开地图菜单 |
+
+#### 调用示例
+
+```java
+// 获取 MapNavigable 能力
+MapNavigable mapNavigable = getCapability(MapNavigable.class);
+if (mapNavigable != null) {
+    // 向玩家推送任务导航目标
+    mapNavigable.upsertExternalTarget(
+        player,
+        "quest_boss_001",
+        "QuestGPS",
+        "world",
+        128.5, 64.0, -42.0,
+        "击杀世界Boss",
+        null,
+        true
+    );
+
+    // 清除 QuestGPS 来源的所有外部目标
+    mapNavigable.clearExternalTargets(player, "QuestGPS", true);
+
+    // 为玩家打开地图菜单
+    mapNavigable.openMenuFor(player, "");
+}
+```
+
+> 外部目标的 `source` 字段标识来源模块，用于按来源批量清除。`select` 为 `true` 时自动切换到目标所在世界并选中该目标。
+
+### PlayerDataPurgeable
+
+玩家数据清除能力，支持 `/axs purge` 统一清理玩家地图数据。
+
+| 方法 | 参数 | 说明 |
+|---|---|---|
+| `moduleId` | — | 返回模块 ID `map` |
+| `purgePlayerData` | `UUID playerUuid` | 清除指定玩家的全部地图数据（解锁记录 + 路径点），返回删除行数 |
+| `purgeAllPlayerData` | — | 清除所有玩家的全部地图数据，返回删除行数 |
+
+> `purgePlayerData` 在事务中删除 `AXS_map_unlocks` 和 `AXS_map_waypoints` 两表中该玩家的所有记录。失败时返回 `-1`。
+
+### DatabaseMigratable
+
+数据库迁移能力，支持 `/axs migrate map` 跨源数据库迁移。
+
+| 方法 | 参数 | 说明 |
+|---|---|---|
+| `moduleId` | — | 返回模块 ID `map` |
+| `migrateDatabase` | `StorageDescriptor target`, `boolean overwrite` | 将数据从当前存储迁移到目标存储 |
+| `currentDescriptor` | — | 返回当前存储描述符 |
+
+> 迁移时支持从 SQLite 迁移到 MySQL 或反向迁移，`overwrite` 为 `true` 时覆盖目标库已有数据。
+
+## 跨服同步
+
+Map 模块的配置文件支持 `SyncPolicy`，以下段标记为动态段，可在跨服环境下同步配置：
+
+| 同步段 | 说明 |
+|---|---|
+| `worlds` | 世界定义（动态段，跨服同步） |
+| `anchors` | 锚点定义（动态段，跨服同步） |
+| `waypoints` | 路径点配置（动态段，跨服同步） |
+
+> 其他配置段（`ui`、`keybinds`、`join`、`storage`、`navigation` 等）为静态段，各服独立加载。
+
+## 数据库表结构
+
+Map 模块使用两张表存储玩家数据，表名前缀取决于存储模式。
+
+### 共享模式表名
+
+共享模式下使用本体统一表前缀，表名固定为 `AXS_map_unlocks` 和 `AXS_map_waypoints`。
+
+### 自建模式表名
+
+自建模式下使用 `storage.mysql.table-prefix`（默认 `axs_map_`）作为表名前缀。
+
+### 表结构
+
+#### AXS_map_unlocks（锚点解锁记录）
+
+| 列 | SQLite 类型 | MySQL 类型 | 说明 |
+|---|---|---|---|
+| `uuid` | `TEXT NOT NULL` | `VARCHAR(36) NOT NULL` | 玩家 UUID |
+| `anchor_id` | `TEXT NOT NULL` | `VARCHAR(128) NOT NULL` | 锚点 ID |
+| `unlock_time` | `INTEGER NOT NULL` | `BIGINT NOT NULL` | 解锁时间戳（毫秒） |
+| **主键** | `(uuid, anchor_id)` | `(uuid, anchor_id)` | 联合主键 |
+
+#### AXS_map_waypoints（玩家路径点）
+
+| 列 | SQLite 类型 | MySQL 类型 | 说明 |
+|---|---|---|---|
+| `uuid` | `TEXT NOT NULL` | `VARCHAR(36) NOT NULL` | 玩家 UUID |
+| `waypoint_id` | `TEXT NOT NULL` | `VARCHAR(128) NOT NULL` | 路径点 ID |
+| `name` | `TEXT NOT NULL` | `VARCHAR(128) NOT NULL` | 路径点名称 |
+| `world` | `TEXT NOT NULL` | `VARCHAR(64) NOT NULL` | 所在世界 ID |
+| `x` | `REAL NOT NULL` | `DOUBLE NOT NULL` | X 坐标 |
+| `y` | `REAL NOT NULL` | `DOUBLE NOT NULL` | Y 坐标 |
+| `z` | `REAL NOT NULL` | `DOUBLE NOT NULL` | Z 坐标 |
+| `created_at` | `INTEGER NOT NULL` | `BIGINT NOT NULL` | 创建时间戳（毫秒） |
+| `updated_at` | `INTEGER NOT NULL` | `BIGINT NOT NULL` | 更新时间戳（毫秒） |
+| **主键** | `(uuid, waypoint_id)` | `(uuid, waypoint_id)` | 联合主键 |
+
+> MySQL 表使用 `ENGINE=InnoDB DEFAULT CHARSET=utf8mb4`。SQLite 使用 `INSERT OR IGNORE` / `ON CONFLICT` 语法，MySQL 使用 `INSERT IGNORE` / `ON DUPLICATE KEY UPDATE` 语法实现原子 upsert。
+
+## 与其他模块联动
+
+### QuestGPS
+
+| 联动方式 | 说明 |
+|---|---|
+| 外部目标注入 | QuestGPS 追踪任务/子任务时，通过 `MapNavigable.upsertExternalTarget` 向地图注入临时导航目标（source = `QuestGPS`） |
+| 清除目标 | QuestGPS 清除追踪时调用 `clearExternalTargets` 移除 QuestGPS 来源的临时目标 |
+| 打开地图 | QuestGPS UI Packet `open_map` 操作调用 `MapNavigable.openMenuFor` 打开 Map 菜单 |
+
+> Map 模块不存在时 QuestGPS 导航功能正常运行，仅跳过地图标记同步。
+
+### ArcartX Waypoint
+
+| 联动方式 | 说明 |
+|---|---|
+| 路标导航 | 通过 `WaypointBridgeAPI` 创建/移除路标，在客户端显示方向指引 |
+| 样式解析 | 路标样式 ID 优先使用 `navigation.waypoint-style-id`，回退到 `waypoints.default-style-id` |
+| 初始化 | 模块启动时调用 `waypointBridge.initialize("Map 导航")` 初始化路标系统 |
+
+> ArcartX Waypoint 不存在时导航功能不可用（`waypointRuntimeReady` 返回 `false`），但地图菜单和 HUD 正常使用。
+
+### Adyeshach
+
+| 联动方式 | 说明 |
+|---|---|
+| 导航标记模型 | 通过 `AdyeshachNpcBridgeAPI` 创建私有实体，使用 ArcartX 模型渲染客户端导航标记 |
+| 路径标记 | 沿导航路径放置标记模型，仅在追踪状态变更时发包，客户端独立渲染 |
+| Debug 模式 | `debug: true` 时 Adyeshach 桥接开启调试日志 |
+
+> Adyeshach 不存在时导航标记功能自动关闭（`navigation.marker.enabled` 仍可设为 `true`，但运行时检测不可用后跳过），路标导航不受影响。
+
+### Vault / 货币系统
+
+| 联动方式 | 说明 |
+|---|---|
+| 锚点解锁费用 | 通过 `CurrencyBridgeAPI` 扣除锚点解锁所需的货币 |
+| 锚点传送费用 | 通过 `CurrencyBridgeAPI` 扣除锚点传送所需的货币 |
+| 余额检查 | 解锁/传送前检查玩家货币余额是否充足 |
+| 回滚机制 | 扣费失败或后续操作失败时自动回滚已扣除的货币 |
+
+> Vault 不存在时锚点解锁/传送的货币消耗不可用。配置了货币消耗但桥接不可用时，操作失败并提示「货币桥接不可用」。
+
+### 物品消耗
+
+| 联动方式 | 说明 |
+|---|---|
+| 锚点解锁物品 | 通过 `ItemMatcherAPI` 匹配玩家背包物品，解锁时消耗指定数量 |
+| 预检机制 | 解锁前先检查背包是否有足够物品，不足时提示「缺少解锁所需物品」 |
+| 回滚机制 | 物品扣除后若后续操作失败，自动恢复原始背包内容 |
+
+> 物品匹配器配置参考 /docs/guide/item-sources 中的物品匹配器语法。
+
+### ArcartX 核心
+
+| 联动方式 | 说明 |
+|---|---|
+| UI 注册 | 通过 `registerModuleUi` 注册地图菜单和小地图 HUD 两个 UI |
+| Packet 通讯 | 通过 `PacketBridgeAPI` 向客户端 UI 发送 `init`/`update` 包 |
+| Packet 安全 | 通过 `PacketGuardAPI` 对客户端 Packet 进行权限校验 |
+| 客户端初始化 | 通过 `ClientInitializedHandler` 监听客户端初始化完成，触发默认解锁和 HUD 显示 |
+| 物品源 | 通过 `ItemSourceRegistry` 获取物品源 |
+| 物品匹配 | 通过 `ItemMatcherAPI` 进行物品匹配 |
+| 调度器 | 通过 `AxsScheduler` 执行延迟任务（如入服 HUD 延迟显示） |
+
+## 配置版本迁移
+
+Map 模块内置配置迁移脚本，自动将旧版本配置升级到当前版本：
+
+| 迁移 | 操作 |
+|---|---|
+| 1 → 2 | `client` 节的 UI 配置字段（`menu-ui-id`/`hud-ui-id`/`packet-id`/`register-ui-on-enable`/`overwrite-ui-files`）整体迁移到统一 `ui` 节，移除 `client` 节 |
+| 2 → 3 | `storage.mode` 重命名为 `storage.shared`，值从 `sqlite`/`mysql` 映射为 `true`/`false`；`storage.shared` 缺失时设为 `true` |
+
+> 迁移脚本位于 `resources/migrations/` 目录，模块启动时自动检测 `config-version` 并按序执行迁移。

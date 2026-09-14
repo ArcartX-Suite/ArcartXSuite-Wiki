@@ -1,0 +1,331 @@
+---
+title: "GACHA 保底与概率系统"
+description: "GACHA 抽卡保底机制、软保底概率递增、UP 大小保底、武器池命运点定轨与共享保底组详解"
+---
+
+> **付费模块**：Lottery 为付费模块，需通过 ArcartXSuite 云端下发获取。模块依赖本体 ArcartX-Suite 运行，不可独立使用。
+
+## 概述
+
+GACHA 抽卡引擎（`GachaEngine`）实现原神风格的祈愿系统，核心机制包括：
+
+- **硬保底**：5 星 / 4 星达到指定抽数必出
+- **软保底**：5 星在起始抽数后概率逐抽递增
+- **UP 机制**：大保底 / 小保底判定，UP 物品概率占比
+- **命运点定轨**：武器池专属，定轨目标必出机制
+- **共享保底组**：跨池共享保底计数
+
+本页详解 `GachaEngine.pull` 的完整抽奖流程与概率计算逻辑。配置字段详见 [配置](/docs/lottery/configuration)，机制概览详见 [概览](/docs/lottery)。
+
+## 保底参数
+
+保底参数由奖池文件 `gacha` 节配置，`GachaPoolConfig` record 承载：
+
+| 参数 | 配置字段 | 默认值 | 说明 |
+|---|---|---|---|
+| 5 星硬保底 | `pity-5star` | `90` | 达到该抽数必出 5 星 |
+| 4 星硬保底 | `pity-4star` | `10` | 达到该抽数必出 4 星 |
+| 软保底起始 | `soft-pity-start` | `73` | 之后每抽 5 星概率递增 |
+| 软保底增量 | `soft-pity-increment` | `0.06` | 软保底区间每抽概率增量 |
+| 5 星基础概率 | `base-5star-rate` | `0.006` | 软保底前的 5 星概率（0.6%） |
+| 4 星基础概率 | `base-4star-rate` | `0.051` | 4 星基础概率（5.1%） |
+| UP 概率 | `up-rate` | `0.5` | UP 物品在对应星级中的占比（50%） |
+| 命运点上限 | `fate-point-cap` | `0` | 武器池定轨上限，0 不启用 |
+| 共享保底组 | `shared-pity-group` | 无 | 同组卡池共享保底计数 |
+
+## 玩家抽卡状态
+
+`PlayerGachaState` record 记录玩家在某个奖池的抽卡状态：
+
+| 字段 | 类型 | 说明 |
+|---|---|---|
+| `playerUuid` | `UUID` | 玩家 UUID |
+| `poolId` | `String` | 奖池 ID（共享保底组时为组名） |
+| `pity5star` | `int` | 5 星保底当前抽数 |
+| `pity4star` | `int` | 4 星保底当前抽数 |
+| `guaranteedUp` | `boolean` | 下次 5 星是否大保底（必出 UP） |
+| `fatePoints` | `int` | 当前命运点数（武器池定轨） |
+| `fateTarget` | `String` | 定轨目标物品 ID，未定轨时为 `null` |
+
+初始空状态通过 `PlayerGachaState.empty(uuid, poolId)` 创建，所有计数为 0、无大保底、无定轨。
+
+## 抽卡流程详解
+
+`GachaEngine.pull(pool, state, count)` 按次数循环执行以下流程，每抽更新状态：
+
+### 1. 保底计数递增
+
+每抽开始时，`pity5star` 与 `pity4star` 各 +1：
+
+```java
+int currentPity5 = state.pity5star() + 1;
+int currentPity4 = state.pity4star() + 1;
+```
+
+### 2. 5 星概率计算
+
+`calculate5StarProbability(pity, pool)` 根据当前保底计数计算 5 星概率：
+
+```java
+private double calculate5StarProbability(int pity, GachaPoolConfig pool) {
+    if (pity < pool.softPityStart()) return pool.base5starRate();
+    int steps = pity - pool.softPityStart();
+    return Math.min(pool.base5starRate() + steps * pool.softPityIncrement(), 1.0);
+}
+```
+
+| 抽数区间 | 概率公式 | 示例（默认参数） |
+|---|---|---|
+| `1` ~ `72` 抽 | `base-5star-rate` | 0.6% |
+| `73` 抽 | `base + 0 × increment` | 0.6% |
+| `74` 抽 | `base + 1 × increment` | 6.6% |
+| `75` 抽 | `base + 2 × increment` | 12.6% |
+| ... | `base + steps × increment` | 递增 6%/抽 |
+| `90` 抽 | 硬保底触发 | 100%（必出） |
+
+> 软保底起始抽数 `soft-pity-start` 当抽数等于该值时 `steps = 0`，概率仍为基础值；从下一抽开始递增。
+
+### 3. 5 星判定
+
+当 `currentPity5 >= pity-5star`（硬保底）或随机数 < 计算概率时，出 5 星：
+
+```java
+if (currentPity5 >= pool.pity5star() || ThreadLocalRandom.current().nextDouble() < p5) {
+    boolean isUp = isGuaranteed || rollUpChance(pool);
+    // ...
+}
+```
+
+5 星判定内分 UP 与常驻两条路径：
+
+| 条件 | 结果 | 状态变化 |
+|---|---|---|
+| `guaranteedUp = true`（上次歪了） | 必出 UP 5 星 | `guaranteedUp` 置 `false` |
+| `guaranteedUp = false` 且随机数 `<` `up-rate` | 出 UP 5 星（小保底命中） | `guaranteedUp` 保持 `false` |
+| `guaranteedUp = false` 且随机数 ``>`=` `up-rate` | 出常驻 5 星（歪了） | `guaranteedUp` 置 `true`（下次大保底） |
+
+出 5 星后，`pity5star` 与 `pity4star` 均重置为 0。
+
+### 4. 武器池命运点定轨
+
+当 `pool-type = WEAPON` 且 `fate-point-cap > 0` 时，5 星 UP 判定额外处理命运点：
+
+```java
+if (pool.poolType() == GachaPoolType.WEAPON && pool.fatePointCap() > 0) {
+    PoolItem selected = resolveWeaponUp(pool, fatePoints, fateTarget);
+    if (selected != null && fateTarget != null) {
+        if (!selected.key().equals(fateTarget)) {
+            fatePoints++;           // 未命中定轨目标，命运点 +1
+        } else {
+            fatePoints = 0;         // 命中定轨目标，命运点清零
+            fateTarget = null;      // 移除定轨
+            fateTriggered = true;
+        }
+    }
+    results.add(selected != null ? selected : randomFrom(pool.up5starItems()));
+}
+```
+
+`resolveWeaponUp` 逻辑：
+
+| 条件 | 结果 |
+|---|---|
+| `fatePoints >= fatePointCap` 且有定轨目标 | 必出定轨目标物品 |
+| 其他 | 从 UP 5 星列表中加权随机选取 |
+
+命运点机制总结：
+
+| 事件 | 命运点变化 | 定轨状态 |
+|---|---|---|
+| 命中 UP 但非定轨目标 | `+1` | 保持定轨 |
+| 命中定轨目标 | 清零为 `0` | 移除定轨（`fateTarget = null`） |
+| 未命中 5 星 UP | 不变 | 保持定轨 |
+| 命运点达到上限 | 下次必出定轨目标 | 命中后清零移除 |
+
+### 5. 4 星判定
+
+未出 5 星时，检查 4 星：
+
+```java
+} else if (currentPity4 >= pool.pity4star()
+        || ThreadLocalRandom.current().nextDouble() < pool.base4starRate()) {
+    boolean isUp4 = rollUpChance(pool);
+    if (isUp4) {
+        results.add(randomFrom(pool.up4starItems().isEmpty()
+            ? pool.standard4starItems() : pool.up4starItems()));
+    } else {
+        results.add(randomFrom(pool.standard4starItems().isEmpty()
+            ? pool.up4starItems() : pool.standard4starItems()));
+    }
+    currentPity4 = 0;
+}
+```
+
+4 星判定规则：
+
+| 条件 | 结果 |
+|---|---|
+| `pity4star >= pity-4star`（硬保底） | 必出 4 星 |
+| 随机数 `<` `base-4star-rate` | 出 4 星 |
+| 4 星 UP 列表为空 | UP 与常驻互相 fallback |
+| 出 4 星 | `pity4star` 重置为 0 |
+
+### 6. 3 星判定
+
+未命中 5 星或 4 星时，出 3 星：
+
+```java
+} else {
+    results.add(randomFrom(pool.star3Items()));
+}
+```
+
+3 星物品列表（`star3-items`）为必填项，加载时通过 `requireItems("star3", star3)` 校验。
+
+### 7. 同星级内加权随机
+
+`randomFrom(items)` 在同星级物品列表内按 `weight` 加权随机选取：
+
+```java
+private PoolItem randomFrom(List<PoolItem> items) {
+    if (items == null || items.isEmpty()) return null;
+    if (items.size() == 1) return items.get(0);
+    int totalWeight = items.stream().mapToInt(PoolItem::weight).sum();
+    if (totalWeight <= 0) return items.get(0);
+    int roll = ThreadLocalRandom.current().nextInt(totalWeight);
+    int current = 0;
+    for (PoolItem item : items) {
+        current += item.weight();
+        if (roll < current) return item;
+    }
+    return items.get(items.size() - 1);
+}
+```
+
+| 物品列表长度 | 选取方式 |
+|---|---|
+| 0 | 返回 `null`（该抽跳过） |
+| 1 | 直接返回唯一物品 |
+| `>`1 | 按 `weight` 加权随机 |
+
+## 共享保底组
+
+共享保底组允许同组 GACHA 池共享保底计数，通过两种方式配置：
+
+### 奖池内显式声明
+
+奖池文件 `gacha` 节直接指定 `shared-pity-group`：
+
+```yaml
+gacha:
+  shared-pity-group: "character_events"
+```
+
+### 顶层通配符匹配
+
+主配置 `shared-pity-groups` 使用通配符匹配奖池 ID：
+
+```yaml
+shared-pity-groups:
+  character_events: "character_event_*"
+  weapon_events: "weapon_event_*"
+```
+
+### 解析优先级
+
+`LotteryService.resolveSharedPoolId(poolId)` 按以下优先级解析有效池 ID：
+
+| 优先级 | 来源 | 说明 |
+|---|---|---|
+| 1 | 奖池内 `shared-pity-group` | 显式声明，最高优先 |
+| 2 | 顶层 `shared-pity-groups` 通配符 | `*` 匹配池 ID |
+| 3 | 原始池 ID | 无共享，独立保底 |
+
+通配符匹配将 `.` 转义为 `\.`、`*` 转为 `.*` 后做正则匹配：
+
+```java
+String regex = pattern.replace(".", "\\.").replace("*", ".*");
+return text.matches(regex);
+```
+
+> 共享组内任一卡池抽卡都会读写同一保底状态记录（以组名作为 `poolId` 存取）。
+
+## 概率计算示例
+
+### 单物品概率
+
+UI 详情页（`LotteryPacketHandler.details`）展示每个物品的综合概率：
+
+| 奖池类型 | 概率公式 |
+|---|---|
+| GACHA 5 星 | `base-5star-rate × (item.weight / 同星级总权重)` |
+| GACHA 4 星 | `base-4star-rate × (item.weight / 同星级总权重)` |
+| GACHA 3 星 | `(1 - base-5star-rate - base-4star-rate) × (item.weight / 同星级总权重)` |
+| CASE | `(rarity.base-weight / 稀有度总权重) × (item.weight / 同稀有度总权重)` |
+
+> GACHA 概率计算未含软保底递增与硬保底修正，展示的是基础概率。实际概率随保底计数递增。
+
+### 示例：角色池 5 星 UP 物品
+
+默认参数下，UP 5 星物品（`weight: 1`，同星级仅 1 件）的综合基础概率：
+
+```
+P(UP 5星) = base-5star-rate × up-rate × (1 / 1) = 0.006 × 0.5 = 0.003 = 0.3%
+```
+
+常驻 5 星物品（`weight: 1`，同星级 1 件）：
+
+```
+P(常驻 5星) = base-5star-rate × (1 - up-rate) × (1 / 1) = 0.006 × 0.5 = 0.003 = 0.3%
+```
+
+### 示例：软保底区间概率
+
+第 80 抽（`pity = 80`，`steps = 80 - 73 = 7`）的 5 星概率：
+
+```
+P(5星) = 0.006 + 7 × 0.06 = 0.006 + 0.42 = 0.426 = 42.6%
+```
+
+## 概率模拟
+
+管理员可通过 `/axs lottery simulate <奖池ID> <次数>` 模拟抽奖统计：
+
+```java
+public Map<String, Integer> simulate(String poolId, int times) {
+    // GACHA: 使用随机 UUID 的空状态，循环 pull 单抽，按星级统计
+    // CASE: 循环 openCase，按稀有度统计
+    // 不扣费、不发奖、不保存状态
+}
+```
+
+| 限制 | 说明 |
+|---|---|
+| 次数范围 | `1` ~ `100000` |
+| GACHA 统计维度 | 星级（`3star` / `4star` / `5star`） |
+| CASE 统计维度 | 稀有度名称（如 `COMMON` / `RARE`） |
+| 状态 | 使用随机 UUID 的空状态，模拟过程独立于真实玩家 |
+
+模拟结果包含保底递增效果（GACHA 使用真实 `GachaEngine.pull`），统计更接近实际体验。
+
+## 抽卡结果
+
+`GachaResult` record 承载抽卡结果：
+
+| 字段 | 类型 | 说明 |
+|---|---|---|
+| `items` | `List<PoolItem>` | 本次获得的奖品列表 |
+| `finalState` | `PlayerGachaState` | 更新后的玩家状态 |
+| `guaranteed` | `boolean` | 本次是否触发大保底（必出 UP） |
+| `fateTriggered` | `boolean` | 本次是否触发命运点（命中定轨目标） |
+
+`guaranteed` 与 `fateTriggered` 用于 UI 展示特殊提示（如"大保底已触发""定轨已命中"）。
+
+## 相关文档
+
+- [概览](/docs/lottery) — 模块功能概览
+- [配置](/docs/lottery/configuration) — 奖池配置字段详解
+- [命令与占位符](/docs/lottery/commands) — `simulate` 命令与保底占位符
+- [联动](/docs/lottery/integration) — 数据库表结构（`gacha_state` / `gacha_log`）
+- [CASE 开箱机制](/docs/lottery/case-opening) — CASE 开箱引擎与动画
+- [奖品投递与兑换](/docs/lottery/prize-delivery) — 奖品发放与兑换商店

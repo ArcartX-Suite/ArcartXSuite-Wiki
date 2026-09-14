@@ -1,0 +1,344 @@
+---
+title: 排序与过滤
+description: Tab 模块多键复合排序、过滤器、置顶置底、分组与分页系统详解
+---
+
+# 排序与过滤
+
+> **付费模块**
+
+Tab 模块的排序与过滤系统是决定 Tab 列表中玩家显示顺序与可见性的核心机制。模块支持多键复合排序、PAPI 表达式过滤、权限匹配、置顶 / 置底分桶、按 PAPI 分组以及客户端翻页，覆盖从简单按名排序到复杂多级排定的完整需求。
+
+## 排序系统 sort-keys
+
+### 多键复合排序原理
+
+`sort-keys` 是一个有序列表，模块按列表顺序从前往后依次应用排序键，优先级递减。每个排序键独立指定模式、排序值来源与排序方向，最终通过 Java `Comparator.thenComparing()` 链式组合为一个复合比较器。
+
+```
+sort-keys:
+  - { mode: prem, prem-group: [admin, vip3, vip2, vip1, default] }   ← 第一优先级
+  - { mode: papi, key: "%player_level%", numeric: true, order: desc } ← 第二优先级
+  - { mode: name }                                                    ← 第三优先级
+```
+
+上述配置的排序逻辑为：先按权限组排（admin 最前），同组内按等级倒序（高等级在前），等级相同则按玩家名升序。
+
+### 排序模式
+
+模块支持三种排序模式，由 `TabSortMode` 枚举定义：
+
+| 模式 | 配置值 | 排序依据 | 适用场景 |
+|---|---|---|---|
+| `NAME` | `name` | 玩家名称（忽略大小写） | 默认按字母顺序排列 |
+| `PREM` | `prem` | 权限组优先级（由 `prem-group` 列表定义） | VIP / 管理员置顶 |
+| `PAPI` | `papi` | PlaceholderAPI 变量值（支持数字或文本排序） | 按等级、击杀数、战力等自定义排序 |
+
+### sort-keys 元素字段
+
+| 字段 | 类型 | 默认值 | 说明 |
+|---|---|---|---|
+| `mode` | `String` | `name` | 排序模式：`name` / `prem` / `papi` |
+| `key` | `String` | - | `papi` 模式的占位符表达式（如 `%player_level%`），支持别名 `papi-key` |
+| `numeric` | `boolean` | `false` | `papi` 模式是否按数字排序，支持别名 `papi-numeric` |
+| `prem-group` | `List<String>` | `["default"]` | `prem` 模式的优先级列表，未列出的玩家归 `default` |
+| `order` | `String` | `asc` | 排序方向：`asc` 升序 / `desc` 降序，等价写法 `descending: true` |
+
+### NAME 模式
+
+按玩家名称排序，使用 `String.CASE_INSENSITIVE_ORDER` 忽略大小写比较。这是最简单的排序模式，无需额外参数。
+
+```yaml
+sort-keys:
+  - { mode: name }
+```
+
+### PREM 模式
+
+按权限组优先级排序。模块依次尝试 Vault、LuckPerms、Scoreboard Team 解析玩家的主权限组，然后在 `prem-group` 列表中查找其索引作为排序值。
+
+| 解析来源 | 优先级 | 说明 |
+|---|---|---|
+| Vault | 1 | 通过 `Permission.getPrimaryGroup()` 获取，转为小写 |
+| LuckPerms | 2 | 通过 `UserManager.getUser().getPrimaryGroup()` 获取，转为小写 |
+| Scoreboard Team | 3 | 通过 `Scoreboard.getEntryTeam()` 获取队伍名，转为小写 |
+| 兜底 | - | 以上均不可用时返回 `default` |
+
+```yaml
+sort-keys:
+  - { mode: prem, prem-group: [admin, vip3, vip2, vip1, default] }
+  - { mode: name }
+```
+
+> `prem-group` 列表中越靠前的组优先级越高。未在列表中出现的玩家组归入 `default`，`default` 在列表中的位置决定其优先级。如果 `default` 不在列表中，未列出玩家的优先级排在列表末尾之后。
+
+### PAPI 模式
+
+按 PlaceholderAPI 变量值排序，支持数字排序与文本排序两种子模式。
+
+| 子模式 | 配置 | 比较方式 | 示例 |
+|---|---|---|---|
+| 数字排序 | `numeric: true` | `Comparator.comparingDouble()` | 按等级 `%player_level%`、击杀数 `%statistic_player_kills%` |
+| 文本排序 | `numeric: false` | `String.CASE_INSENSITIVE_ORDER` | 按世界名 `%player_world%`、队伍名 `%player_scoreboardteam%` |
+
+```yaml
+# 按等级倒序，同等级按名升序
+sort-keys:
+  - { mode: papi, key: "%player_level%", numeric: true, order: desc }
+  - { mode: name }
+```
+
+> PAPI 数字排序时，无法解析为数字的值视为 `0.0`。文本排序时，PAPI 解析结果为空或等于原始表达式时视为空串。
+
+### 向后兼容
+
+旧字段 `sort-mode` / `sort-papi-key` / `sort-papi-numeric` / `sort-prem-group` / `sort-descending` 仍然向后兼容。模块在加载时检测 `sort-keys` 是否存在，若不存在则从旧字段构造单元素 `sort-keys` 列表。
+
+```yaml
+# 旧格式（等价于 sort-keys: [{ mode: papi, key: "%player_level%", numeric: true, descending: true }]）
+sort-mode: papi
+sort-papi-key: "%player_level%"
+sort-papi-numeric: true
+sort-descending: true
+```
+
+### 跨服排序
+
+跨服模式下，本服与远程节点的玩家条目合并排序。每个节点在广播快照时会附带多键排序值（`sortValues` / `sortStringValues`），接收端直接使用这些预计算值进行排序，无需在接收端重新解析 PAPI。
+
+| 字段 | 类型 | 说明 |
+|---|---|---|
+| `sortValues` | `List<Double>` | 每个排序键的数值（NAME=0.0, PREM=组索引, PAPI=解析值） |
+| `sortStringValues` | `List<String>` | 每个排序键的字符串值（NAME=玩家名, PREM=组名, PAPI=解析值） |
+
+> 跨服排序时远程条目无法在接收端重新解析 PAPI（远程玩家不在本服在线列表中），因此排序值必须在发送端预计算并随快照传输。v1 协议仅传输首键值，v2 协议传输完整多键值列表。
+
+## 过滤器 filters
+
+过滤器决定哪些玩家会出现在 Tab 列表中。`include` 与 `exclude` 均为规则列表，各自内部为 OR 关系（任一命中即生效）。
+
+### 过滤规则字段
+
+| 字段 | 类型 | 说明 |
+|---|---|---|
+| `papi` | `String` | PAPI 表达式（如 `%player_world%`），非空时按 PAPI 判定 |
+| `equals` | `String` | PAPI 渲染结果的期望值（忽略大小写比较），留空时只判断 PAPI 结果非空且被实际渲染 |
+| `permission` | `String` | 权限节点，非空时按权限判定 |
+| `invert` | `boolean` | `true` 时反转匹配结果 |
+
+> 同一规则只生效一种判定：`papi` 非空时按 PAPI 判定，否则按 `permission` 判定。两者均为空时规则无效，加载时会被跳过并打印警告。
+
+### include 与 exclude 逻辑
+
+| 过滤器 | 逻辑 | 行为 |
+|---|---|---|
+| `include` | OR（任一命中保留） | 玩家必须命中至少一条 include 规则才会保留；无 include 规则时全部保留 |
+| `exclude` | OR（任一命中剔除） | 玩家命中任意一条 exclude 规则即被剔除；无 exclude 规则时不剔除任何人 |
+
+### hide-vanished
+
+`hide-vanished: true` 自动隐藏隐身玩家。模块通过 Bukkit `vanished` metadata 判定隐身状态，兼容 Essentials、SuperVanish、PremiumVanish 等常见隐身插件。
+
+```yaml
+filters:
+  hide-vanished: true
+  include:
+    - { papi: "%player_world%", equals: "world" }
+  exclude:
+    - { permission: "axs.tab.hide" }
+    - { papi: "%player_gamemode%", equals: "SPECTATOR" }
+```
+
+### PAPI 判定细节
+
+当 `equals` 留空时，过滤逻辑为：PAPI 渲染结果非空 **且** 不等于原始表达式（即占位符被实际解析了）。这可以过滤掉 PAPI 不可用或占位符无效的情况。
+
+当 `equals` 非空时，PAPI 渲染结果与 `equals` 值进行忽略大小写的字符串比较。
+
+> 条件系统的完整说明详见 [条件系统](/docs/guide/conditions)。Tab 过滤规则与条件系统使用不同的判定机制，过滤规则仅支持 PAPI 比较与权限检查。
+
+## 置顶与置底 pinned
+
+`pinned.top` 与 `pinned.bottom` 将指定玩家分别排在所有 middle 之前与之后。三个分桶（top / middle / bottom）各自独立使用 `sort-keys` 内部排序。
+
+### 分桶流程
+
+```
+所有玩家
+  ├─ 命中 pinned.top 规则 → top 桶
+  ├─ 命中 pinned.bottom 规则 → bottom 桶
+  └─ 其余 → middle 桶
+
+最终顺序: top（内部排序）→ middle（内部排序）→ bottom（内部排序）
+```
+
+### 配置示例
+
+```yaml
+pinned:
+  top:
+    - { permission: "axs.tab.pin-top" }
+    - { papi: "%player_uuid%", equals: "{player_uuid}" }
+  bottom:
+    - { permission: "axs.tab.pin-bottom" }
+```
+
+> 上例中 `{player_uuid}` 是内置花括号变量，在过滤规则中会被替换为当前被判定玩家的 UUID。`papi: "%player_uuid%"` 解析的也是该玩家的 UUID，因此 `equals: "{player_uuid}"` 的效果是将自己置顶。
+
+### 跨服模式下的 pinned
+
+跨服模式下，远程条目无法判定 `permission` 或 `papi` 规则（远程玩家不在本服在线列表中），因此远程条目统一进入 middle 桶。只有本服玩家会参与 top / bottom 分桶判定。
+
+## 分组 grouping
+
+分组按 PAPI 表达式将已排序的玩家分桶，每组前可插入 `header-pack` 头部模板。
+
+### grouping 字段
+
+| 字段 | 类型 | 默认值 | 说明 |
+|---|---|---|---|
+| `enabled` | `boolean` | `false` | 是否启用分组 |
+| `group-by-papi` | `String` | - | 分组依据的 PAPI 表达式（如 `%vault_primary_group%`） |
+| `group-order` | `List<String>` | `[]` | 分组输出顺序，未列出的组按 `include-unordered` 控制 |
+| `include-unordered` | `boolean` | `true` | 未在 `group-order` 中列出的组是否仍输出 |
+| `header-pack` | `Object` | - | 每组前的头部模板，`{group}` 会被替换为组键，支持 PAPI |
+
+### 分组流程
+
+```
+1. 对每个玩家解析 group-by-papi → 得到组键（解析失败归 "default"）
+2. 按 group-order 顺序输出已列出的组
+3. 若 include-unordered: true，输出未列出的组（按解析顺序）
+```
+
+### header-pack 渲染
+
+`header-pack` 支持字符串、列表、字典三种形态，与 `pack` 渲染规则一致。`{group}` 占位符会被替换为当前组键，随后按组内第一个玩家（anchor）的上下文解析 PAPI。
+
+```yaml
+grouping:
+  enabled: true
+  group-by-papi: "%vault_primary_group%"
+  group-order: ["admin", "vip3", "vip2", "vip1", "default"]
+  include-unordered: true
+  header-pack: "&6=== {group} ==="
+```
+
+> 仅 list / string 形态的 pack 支持分组。map 形态的 pack 会自动退化为不分组并打印警告，因为 map 的合并语义（相同 key 后者覆盖前者）与分组头部插入不兼容。
+
+### 跨服分组
+
+跨服模式下，每个节点在广播快照时会附带 `groupKey` 字段（由发送端预计算）。接收端直接使用快照中的 `groupKey` 进行分组，无需在接收端重新解析 PAPI。`header-pack` 的 PAPI 渲染优先使用组内第一个本服玩家作为 anchor，若组内无本服玩家则 PAPI 不解析。
+
+## 分页 pagination
+
+分页将排序后的列表按固定行数切片，每个 viewer 独立维护当前页码。
+
+### pagination 字段
+
+| 字段 | 类型 | 默认值 | 说明 |
+|---|---|---|---|
+| `enabled` | `boolean` | `false` | 是否启用分页 |
+| `page-size` | `int` | `80` | 每页行数 |
+| `packet-id` | `String` | `TAB_PAGE` | 翻页 Packet ID |
+| `next-action` | `String` | `next` | 翻到下一页的 action |
+| `prev-action` | `String` | `prev` | 翻到上一页的 action |
+| `set-action` | `String` | `set` | 设置指定页码的 action（需附带页码参数） |
+
+### 翻页方式
+
+| 方式 | 触发 | 说明 |
+|---|---|---|
+| 客户端发包 | `Packet.send("TAB_PAGE", "next")` | UI 端 ARIA 脚本主动翻页 |
+| 客户端发包 | `Packet.send("TAB_PAGE", "prev")` | UI 端 ARIA 脚本翻上一页 |
+| 客户端发包 | `Packet.send("TAB_PAGE", "set", "2")` | UI 端 ARIA 脚本直接设置页码 |
+| 服务端命令 | `/axstab page <def> next` | 玩家命令翻页 |
+| 服务端命令 | `/axstab page <def> prev` | 玩家命令翻上一页 |
+| 服务端命令 | `/axstab page <def> 2` | 玩家命令直接设置页码 |
+
+### 页码越界处理
+
+当 viewer 当前页码超过总页数时（如玩家退服导致总页数减少），模块自动修正为最后一页并触发刷新。页码从 0 开始计数。
+
+> 翻页操作受 `client-refresh-guard` 限流保护，防止恶意高频翻页。限流配置详见 [配置](/docs/tab/configuration#客户端刷新防护)。
+
+## max-entries 截断
+
+`max-entries` 限制 Tab 列表的最大条目数，在排序完成后、分页切片前执行截断。
+
+| 值 | 行为 |
+|---|---|
+| `-1` | 不限制（默认） |
+| `0` | 列表为空 |
+| `N` (`N > 0`) | 仅保留前 N 个条目 |
+
+> 截断发生在 pinned 分桶合并之后、分页切片之前。因此 `max-entries` 限制的是最终列表长度，而非每个分桶的长度。
+
+## omit-blank-values
+
+`omit-blank-values: true` 时，pack 渲染结果为空字符串 / 空列表 / 空字典的条目会被跳过，不加入最终 payload。这对于按条件显示玩家（如仅显示有称号的玩家）很有用。
+
+```yaml
+omit-blank-values: true
+pack: "%axstitle_display% %player_name%"
+```
+
+> 当玩家没有主展示称号时，`%axstitle_display%` 解析为空串，整个 pack 渲染结果为 `" Alice"`（前导空格）。`omit-blank-values` 判定的是整个渲染节点是否为空白，而非单个占位符是否为空。
+
+## 完整配置示例
+
+### 多键排序 + 过滤 + 置顶 + 分组
+
+```yaml
+enabled: true
+ui-targets:
+  - ui-id: "AXS:tab-rich"
+    packet-handler: "tab"
+max-entries: 80
+sort-keys:
+  - { mode: prem, prem-group: [admin, vip3, vip2, vip1, default] }
+  - { mode: papi, key: "%player_level%", numeric: true, order: desc }
+  - { mode: name }
+filters:
+  hide-vanished: true
+  exclude:
+    - { permission: "axs.tab.hide" }
+    - { papi: "%player_gamemode%", equals: "SPECTATOR" }
+pinned:
+  top:
+    - { permission: "axs.tab.pin-top" }
+grouping:
+  enabled: true
+  group-by-papi: "%vault_primary_group%"
+  group-order: ["admin", "vip3", "vip2", "vip1", "default"]
+  include-unordered: true
+  header-pack: "&6=== {group} ==="
+pagination:
+  enabled: true
+  page-size: 60
+pack:
+  uuid: "{player_uuid}"
+  name: "%axstab_pvp_color%%axstab_vanish_color%%player_name%"
+  ping: "%axstab_ping_icon%"
+  health: "%player_health%"
+```
+
+### 竞技场按队伍排序
+
+```yaml
+enabled: true
+ui-targets:
+  - ui-id: "AXS:tab-arena"
+    packet-handler: "tab"
+sort-keys:
+  - { mode: papi, key: "%player_scoreboardteam%" }
+  - { mode: name }
+pack:
+  team: "%player_scoreboardteam%"
+  uuid: "{player_uuid}"
+  name: "%axstab_pvp_color%%axstab_vanish_color%%player_name%"
+  status: "%axstab_pvp%"
+  health: "%player_health%/%player_max_health%"
+```
+
+> 图标配置详见 [图标配置](/docs/guide/icons)，物品来源配置详见 [物品库匹配](/docs/guide/item-sources)。

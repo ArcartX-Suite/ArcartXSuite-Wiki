@@ -1,0 +1,365 @@
+---
+title: 配置
+description: Regions 模块配置文件详解
+---
+
+# 配置
+
+Regions 模块的配置文件位于 `plugins/ArcartX-Suite/data/regions/ArcartXRegions.yml`，消息文件位于 `plugins/ArcartX-Suite/data/regions/messages.yml`。修改后执行 `/axs reload regions` 即可生效。
+
+## 主配置完整字段表
+
+### 顶层设置
+
+| 字段 | 类型 | 默认值 | 说明 |
+|---|---|---|---|
+| `config-version` | int | `3` | 配置版本号（请勿手动修改，模块自动迁移） |
+| `debug` | boolean | `false` | 调试模式，输出详细日志 |
+
+### selection 选区设置
+
+| 字段 | 类型 | 默认值 | 说明 |
+|---|---|---|---|
+| `selection.wand-item` | Material | `WOODEN_AXE` | 选区工具物品类型（MATERIAL 枚举名） |
+| `selection.max-volume` | long | `500000` | 单次选区最大方块体积，范围 `1` ~ `100000000` |
+| `selection.max-regions-per-player` | int | `20` | 每玩家最大区域数量，`0` 表示无限 |
+
+:::tip
+`max-volume` 有配置诊断校验，范围为 `1` ~ `100000000`，超出范围会在 `diagnosis/` 目录报告中提示。
+:::
+
+### defaults 区域默认值
+
+| 字段 | 类型 | 默认值 | 说明 |
+|---|---|---|---|
+| `defaults.priority` | int | `0` | 新建区域默认优先级 |
+| `defaults.global-region-id` | string | `__global__` | 全局区域 ID，无任何区域覆盖时的保底规则 |
+
+### notifications 通知设置
+
+| 字段 | 类型 | 默认值 | 说明 |
+|---|---|---|---|
+| `notifications.show-actionbar` | boolean | `true` | 进出区域时是否显示通知 |
+| `notifications.display-mode` | string | `actionbar` | 通知显示方式：`actionbar` / `chat` / `title` |
+
+| 显示模式 | 说明 |
+|---|---|
+| `actionbar` | 在 Actionbar 展示通知（默认） |
+| `chat` | 在聊天栏发送通知消息 |
+| `title` | 以 Title 副标题展示通知（淡入 5 tick / 持续 40 tick / 淡出 10 tick） |
+
+:::info
+当区域设置了 `greeting` / `farewell` 标志的自定义文本时，通知消息使用自定义文本，忽略 `display-mode` 配置（始终通过 `sendNotification` 发送）。
+:::
+
+### world-rules 世界规则
+
+| 字段 | 类型 | 默认值 | 说明 |
+|---|---|---|---|
+| `world-rules.no-fly-worlds` | list | `["world_pvp"]` | 禁止飞行的世界名列表 |
+| `world-rules.no-fly-action` | string | `cancel` | 进入禁飞世界的处理方式：`cancel`（取消飞行） |
+| `world-rules.no-fly-message` | string | `&c此世界禁止飞行。` | 禁飞提示消息（支持 `&` 颜色码） |
+| `world-rules.no-piston-worlds` | list | `[]` | 禁止活塞推动的世界名列表 |
+| `world-rules.disabled-interactions` | map | `{}` | 按世界配置禁止交互的物品/方块类型 |
+
+`disabled-interactions` 为动态配置节（`SyncPolicy.dynamicSection`），格式为世界名到 MATERIAL 列表的映射：
+
+```yaml
+world-rules:
+  disabled-interactions:
+    world_spawn:
+      - ENDER_CHEST
+      - ANVIL
+    world_creative:
+      - CRAFTING_TABLE
+```
+
+:::tip
+世界规则支持运行时 CRUD——管理员通过 `/rg admin` UI 面板修改后，变更自动持久化回 `ArcartXRegions.yml` 配置文件，无需手动编辑。
+:::
+
+### storage 存储配置
+
+| 字段 | 类型 | 默认值 | 说明 |
+|---|---|---|---|
+| `storage.shared` | boolean | `true` | `true` 共享存储模式（推荐），使用本体统一数据源；`false` 自建独立连接池 |
+| `storage.mode` | string | `sqlite` | 自建模式存储类型：`sqlite` 或 `mysql`（仅 `shared: false` 时生效） |
+| `storage.sqlite.file` | string | `regions.db` | SQLite 文件名（相对模块数据目录） |
+| `storage.pool-size` | int | `3` | JDBC 连接池大小（SQLite 建议 1） |
+| `storage.mysql.host` | string | `127.0.0.1` | MySQL 主机地址 |
+| `storage.mysql.port` | int | `3306` | MySQL 端口 |
+| `storage.mysql.database` | string | `arcartxsuite` | MySQL 数据库名 |
+| `storage.mysql.username` | string | `root` | MySQL 用户名 |
+| `storage.mysql.password` | string | - | MySQL 密码 |
+| `storage.mysql.table-prefix` | string | `axs_rg_` | MySQL 表名前缀 |
+
+:::tip
+`shared: true` 时，数据库连接由本体统一管控，各模块共用 `config.yml` 的 `storage` 节配置。性能更好，推荐使用。`storage.shared` 有配置诊断校验（`ValidationRule.required`），必须为布尔值。
+:::
+
+:::caution
+向后兼容：如果 `shared` 字段不存在但 `mode` 为 `mysql`，模块会自动视为 `shared: false`（自建模式）。
+:::
+
+## 配置迁移
+
+Regions 模块支持配置版本自动迁移，迁移文件位于 jar 内 `migrations/` 目录：
+
+| 迁移 | from → to | 说明 |
+|---|---|---|
+| `1-2.yml` | 1 → 2 | storage 字段统一为嵌套结构：`sqlite-file` → `sqlite.file`，扁平 mysql 字段 → `mysql` 子节 |
+| `2-3.yml` | 2 → 3 | `storage.mode` 重命名为 `storage.shared`，值从 `sqlite`/`mysql` 映射为 `true`/`false` |
+
+## 区域标志定义
+
+区域标志（`RegionFlag`）共 50 个，分为六大类别。每个标志支持 `ALLOW` / `DENY` / `NONE` 三态。
+
+### 战斗类（COMBAT）
+
+| 标志 Key | 说明 |
+|---|---|
+| `pvp` | 玩家间伤害 |
+| `mob-damage` | 怪物对玩家伤害 |
+| `damage-animals` | 玩家伤害动物 |
+| `invincibility` | 玩家无敌 |
+| `fall-damage` | 摔落伤害 |
+
+### 方块类（BLOCK）
+
+| 标志 Key | 说明 |
+|---|---|
+| `block-break` | 方块破坏 |
+| `block-place` | 方块放置 |
+| `use` | 右键交互（门/按钮/拉杆等） |
+| `chest-access` | 容器访问 |
+| `trample` | 踩踏耕地 |
+| `vehicle-destroy` | 破坏矿车/船 |
+| `vehicle-place` | 放置矿车/船 |
+
+### 环境类（ENVIRONMENT）
+
+| 标志 Key | 说明 |
+|---|---|
+| `tnt` | TNT 爆炸 |
+| `creeper-explosion` | 苦力怕爆炸 |
+| `other-explosion` | 其他爆炸（末影水晶等） |
+| `fire-spread` | 火焰蔓延 |
+| `lava-fire` | 岩浆点火 |
+| `lightning` | 雷击起火 |
+| `snow-fall` | 雪覆盖 |
+| `snow-melt` | 雪融化 |
+| `ice-form` | 冰生成 |
+| `ice-melt` | 冰融化 |
+| `leaf-decay` | 树叶腐烂 |
+| `grass-spread` | 草方块蔓延 |
+| `mushroom-spread` | 蘑菇蔓延 |
+| `vine-growth` | 藤蔓生长 |
+| `crop-growth` | 作物生长 |
+| `water-flow` | 水流动 |
+| `lava-flow` | 岩浆流动 |
+| `pistons` | 活塞移动 |
+| `soil-dry` | 耕地干燥 |
+
+### 生物类（MOB）
+
+| 标志 Key | 说明 |
+|---|---|
+| `mob-spawning` | 怪物生成 |
+| `animal-spawning` | 动物生成 |
+| `enderman-grief` | 末影人搬方块 |
+| `ghast-fireball` | 恶魂火球 |
+| `wither-damage` | 凋灵破坏 |
+
+### 玩家类（PLAYER）
+
+| 标志 Key | 说明 |
+|---|---|
+| `entry` | 玩家进入 |
+| `exit` | 玩家离开 |
+| `enderpearl` | 末影珍珠传送 |
+| `chorus-fruit` | 紫颂果传送 |
+| `item-drop` | 丢弃物品 |
+| `item-pickup` | 拾取物品 |
+| `exp-drop` | 经验球掉落 |
+| `hunger` | 饥饿消耗 |
+| `heal` | 自然恢复 |
+| `fly` | 允许飞行 |
+| `ride` | 骑乘实体 |
+| `sleep` | 使用床 |
+| `respawn-anchors` | 重生锚 |
+
+### 杂项类（MISC）
+
+| 标志 Key | 说明 |
+|---|---|
+| `notify-enter` | 进入时通知区域成员 |
+| `notify-exit` | 离开时通知区域成员 |
+| `greeting` | 进入消息（自定义文本，通过 flag data 设置） |
+| `farewell` | 离开消息（自定义文本，通过 flag data 设置） |
+| `potion-splash` | 药水瓶投掷 |
+| `send-chat` | 发送聊天 |
+| `receive-chat` | 接收聊天 |
+
+### 标志状态值
+
+| 状态 | 别名 | 说明 |
+|---|---|---|
+| `allow` | `true`、`yes` | 允许操作 |
+| `deny` | `false`、`no` | 拒绝操作 |
+| `none` | - | 未设置，继承父区域或全局 |
+
+## 完整配置示例
+
+### 最小配置（共享存储）
+
+```yaml
+config-version: 3
+debug: false
+
+selection:
+  wand-item: WOODEN_AXE
+  max-volume: 500000
+  max-regions-per-player: 20
+
+defaults:
+  priority: 0
+  global-region-id: "__global__"
+
+notifications:
+  show-actionbar: true
+  display-mode: actionbar
+
+world-rules:
+  no-fly-worlds: []
+  no-fly-action: cancel
+  no-fly-message: "&c此世界禁止飞行。"
+  no-piston-worlds: []
+  disabled-interactions: {}
+
+storage:
+  shared: true
+```
+
+### 完整配置（自建 MySQL + 世界规则）
+
+```yaml
+config-version: 3
+debug: false
+
+selection:
+  wand-item: WOODEN_AXE
+  max-volume: 1000000
+  max-regions-per-player: 50
+
+defaults:
+  priority: 0
+  global-region-id: "__global__"
+
+notifications:
+  show-actionbar: true
+  display-mode: title
+
+world-rules:
+  no-fly-worlds:
+    - "world_pvp"
+    - "world_nether"
+  no-fly-action: cancel
+  no-fly-message: "&c此世界禁止飞行。"
+  no-piston-worlds:
+    - "world_spawn"
+  disabled-interactions:
+    world_spawn:
+      - ENDER_CHEST
+      - ANVIL
+      - CRAFTING_TABLE
+    world_creative:
+      - ENCHANTING_TABLE
+
+storage:
+  shared: false
+  mode: mysql
+  pool-size: 5
+  mysql:
+    host: "127.0.0.1"
+    port: 3306
+    database: "arcartxsuite"
+    username: "root"
+    password: "your_password"
+    table-prefix: "axs_rg_"
+```
+
+### 自建 SQLite 配置
+
+```yaml
+storage:
+  shared: false
+  mode: sqlite
+  sqlite:
+    file: "regions.db"
+  pool-size: 1
+```
+
+## 消息文件
+
+消息文件 `messages.yml` 位于 `plugins/ArcartX-Suite/data/regions/messages.yml`，支持 `&` 颜色码和占位符变量。
+
+### 通用消息
+
+| 键 | 默认值 | 说明 |
+|---|---|---|
+| `prefix` | `&8[&6Regions&8] &r` | 消息前缀 |
+| `common.service-down` | `&cRegions 服务未启动。` | 服务未启动提示 |
+| `common.unknown` | `&e未知命令，使用 /{0} regions help 查看帮助` | 未知命令提示 |
+| `common.only-player` | `&c该命令仅限玩家使用。` | 非玩家执行提示 |
+| `common.no-permission` | `&c你没有权限执行这个命令。` | 无权限提示 |
+
+### 玩家消息
+
+| 键 | 占位符 | 说明 |
+|---|---|---|
+| `wand-pos1` | `{x}`、`{y}`、`{z}` | 选区点 1 设置提示 |
+| `wand-pos2` | `{x}`、`{y}`、`{z}` | 选区点 2 设置提示 |
+| `region-created` | `{name}` | 区域创建提示 |
+| `region-deleted` | `{name}` | 区域删除提示 |
+| `region-not-found` | `{name}` | 未找到区域提示 |
+| `region-exists` | `{name}` | 区域已存在提示 |
+| `no-selection` | - | 未选区提示 |
+| `selection-too-large` | `{max}` | 选区过大提示 |
+| `max-regions-reached` | `{max}` | 达到最大区域数量提示 |
+| `flag-set` | `{region}`、`{flag}`、`{value}` | 标志设置提示 |
+| `flag-removed` | `{region}`、`{flag}` | 标志移除提示 |
+| `flag-unknown` | `{flag}` | 未知标志提示 |
+| `member-added` | `{player}`、`{region}`、`{role}` | 成员添加提示 |
+| `member-removed` | `{player}`、`{region}` | 成员移除提示 |
+| `no-permission-region` | - | 区域无权限提示 |
+| `no-build` | - | 禁止建造提示 |
+| `no-interact` | - | 禁止交互提示 |
+| `no-pvp` | - | 禁止 PVP 提示 |
+| `region-enter` | `{region}` | 进入区域提示 |
+| `region-leave` | `{region}` | 离开区域提示 |
+
+### 消息文件示例
+
+```yaml
+prefix: "&8[&6Regions&8] &r"
+
+common:
+  service-down: "&cRegions 服务未启动。"
+  unknown: "&e未知命令，使用 /{0} regions help 查看帮助"
+  only-player: "&c该命令仅限玩家使用。"
+  no-permission: "&c你没有权限执行这个命令。"
+
+player:
+  ui:
+    offline: "&cUI 功能不可用（ArcartX 未加载）"
+
+wand-pos1: "&a已设置选区点 1: &f{x}, {y}, {z}"
+wand-pos2: "&a已设置选区点 2: &f{x}, {y}, {z}"
+region-created: "&a区域 &f{name} &a已创建。"
+region-deleted: "&c区域 &f{name} &c已删除。"
+region-not-found: "&c未找到区域: &f{name}"
+region-enter: "&a[进入] &f{region}"
+region-leave: "&a[离开] &f{region}"
+no-build: "&c你不能在此区域放置或破坏方块。"
+no-pvp: "&c此区域禁止 PVP。"
+```

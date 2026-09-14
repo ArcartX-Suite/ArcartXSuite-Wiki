@@ -1,0 +1,233 @@
+---
+title: "联动"
+description: "Lottery 跨模块联动与 Capability"
+---
+
+## Capability 注册
+
+Lottery 模块通过 `AbstractAXSModule.registerCapability` 注册以下能力，供本体或其他模块调用：
+
+| Capability 接口 | 实现说明 | 用途 |
+|---|---|---|
+| `DatabaseMigratable` | `moduleId()` = `lottery`，`migrateDatabase()` 委托 `JdbcLotteryRepository.migrateData`，`currentDescriptor()` 返回当前存储描述符 | 支持本体统一数据库迁移（如 SQLite → MySQL 切换） |
+| `PlayerDataPurgeable` | `moduleId()` = `lottery`，`purgePlayerData(uuid)` 委托 `deletePlayerData`，`purgeAllPlayerData()` 委托 `deleteAllPlayerData` | 支持单玩家/全量数据清除（如玩家退服数据清理） |
+
+### DatabaseMigratable
+
+```java
+registerCapability(DatabaseMigratable.class, new DatabaseMigratable() {
+    @Override public String moduleId() { return "lottery"; }
+    @Override public MigrationResult migrateDatabase(StorageDescriptor target, boolean overwrite) {
+        return repo.migrateData(target, overwrite);
+    }
+    @Override public StorageDescriptor currentDescriptor() {
+        return repo.getDescriptor();
+    }
+});
+```
+
+当本体执行数据库迁移（如从 SQLite 切换到 MySQL）时，会调用各模块的 `DatabaseMigratable.migrateDatabase`，将模块数据从旧存储迁移到新存储。
+
+### PlayerDataPurgeable
+
+```java
+registerCapability(PlayerDataPurgeable.class, new PlayerDataPurgeable() {
+    @Override public String moduleId() { return "lottery"; }
+    @Override public int purgePlayerData(UUID playerUuid) {
+        return repo.deletePlayerData(playerUuid);
+    }
+    @Override public int purgeAllPlayerData() {
+        return repo.deleteAllPlayerData();
+    }
+});
+```
+
+`purgePlayerData` 删除指定玩家在 Lottery 全部表中的数据（GACHA 状态、CASE 状态、日志、待领取奖励、积分、兑换记录），返回删除行数。`purgeAllPlayerData` 清空全部玩家数据。
+
+## 跨模块 API 依赖
+
+Lottery 模块在 `LotteryService` 构造时注入以下跨模块 API：
+
+| API | 来源 | 用途 |
+|---|---|---|
+| `CurrencyBridgeAPI` | 本体货币桥接 | 扣除/退还/查询货币余额（`CURRENCY` 消耗类型） |
+| `ItemSourceRegistry` | 本体物品来源注册表 | 生成奖品物品（`PoolItem.source` 分发到对应桥接） |
+| `ItemMatcherAPI` | 本体物品匹配器 | 匹配背包物品（`ITEM` 消耗与 `case-item` 识别） |
+| `ItemRewardDispatcher` | 本体物品奖励发放器 | 统一发放物品（放入背包 → 背包满转邮件 → 无邮件则入队待领取） |
+| `MailDispatchable` | 邮件模块 Capability（延迟获取） | 发送邮件预设（`MAIL` 投递方式） |
+| `MessageProvider` | 本体消息提供者 | 本地化消息发送 |
+| `PacketBridgeAPI` | 本体 Packet 桥接 | UI 数据包通信 |
+| `StorageManager` | 本体存储管理器 | 数据源解析（共享/自建模式） |
+
+### MailDispatchable 延迟获取
+
+邮件能力通过 `Supplier<MailDispatchable>` 延迟获取，避免邮件模块加载顺序依赖：
+
+```java
+Supplier<MailDispatchable> mailSupplier =
+    () -> getCapability(MailDispatchable.class);
+```
+
+`PrizeDistributor.sendMail` 调用 `MailPresetHelper.dispatchPresets` 发送邮件预设。若邮件模块未安装或不可用，`MAIL` 投递方式返回失败，奖品不会入队（避免与邮件预设内容不一致）。
+
+## EventBus 事件
+
+Lottery 模块当前未通过 `EventBus` 发布自定义事件。模块内部通过 Bukkit 事件监听器处理玩家上线/下线/交互：
+
+| 事件 | 处理逻辑 |
+|---|---|
+| `PlayerJoinEvent` | 调用 `service.claimPending(player)` 自动领取待发放奖励 |
+| `PlayerQuitEvent` | 调用 `service.removePlayerLock(uuid)` 移除玩家并发锁；调用 `packetHandler.onPlayerQuit(uuid)` 清理 UI 状态缓存 |
+| `PlayerInteractEvent`（右键空气/方块） | 匹配手持物品与 CASE 奖池 `case-item`，匹配时取消原版交互并打开开箱 UI |
+
+## 跨服同步
+
+Lottery 模块的数据存储支持共享模式（`storage.shared: true`），使用本体统一数据源。在多服环境下：
+
+- **共享 MySQL**：各服共用同一 MySQL 数据库，玩家抽奖状态、积分、兑换记录实时同步。
+- **独立 SQLite**：各服使用独立 SQLite 文件，数据不互通（不推荐多服使用）。
+
+模块未实现跨服事件广播（如抽卡结果通知），如需跨服联动需通过本体 EventBus 或第三方插件实现。
+
+### 数据库表结构
+
+Lottery 模块使用 `JdbcLotteryRepository` 管理以下表，表名前缀默认为 `axs_lottery_`（共享模式）或配置的 `table-prefix`（自建模式）：
+
+#### `axs_lottery_gacha_state` — GACHA 抽卡状态
+
+| 列 | SQLite 类型 | MySQL 类型 | 说明 |
+|---|---|---|---|
+| `player_uuid` | `TEXT` | `VARCHAR(36)` | 玩家 UUID |
+| `pool_id` | `TEXT` | `VARCHAR(64)` | 奖池 ID（共享保底组时为组名） |
+| `pity_5star` | `INTEGER` | `INT` | 5 星保底当前抽数 |
+| `pity_4star` | `INTEGER` | `INT` | 4 星保底当前抽数 |
+| `guaranteed_up` | `INTEGER` | `BOOLEAN` | 下次 5 星是否大保底 |
+| `fate_points` | `INTEGER` | `INT` | 命运点数（武器池定轨） |
+| `fate_target` | `TEXT` | `VARCHAR(64)` | 定轨目标物品 ID |
+
+主键：`(player_uuid, pool_id)`
+
+#### `axs_lottery_gacha_log` — GACHA 抽卡日志
+
+| 列 | SQLite 类型 | MySQL 类型 | 说明 |
+|---|---|---|---|
+| `id` | `INTEGER AUTOINCREMENT` | `BIGINT AUTO_INCREMENT` | 日志 ID |
+| `player_uuid` | `TEXT` | `VARCHAR(36)` | 玩家 UUID |
+| `pool_id` | `TEXT` | `VARCHAR(64)` | 奖池 ID |
+| `pull_time` | `INTEGER` | `BIGINT` | 抽卡时间戳（毫秒） |
+| `pull_count` | `INTEGER` | `INT` | 本次抽卡次数 |
+| `items_json` | `TEXT` | `TEXT` | 获得奖品 key 列表 JSON |
+| `pity_at_pull` | `INTEGER` | `INT` | 抽卡时 5 星保底计数 |
+| `is_guaranteed` | `INTEGER` | `BOOLEAN` | 是否触发大保底 |
+
+索引：`(player_uuid, pool_id)`
+
+#### `axs_lottery_case_state` — CASE 开箱状态
+
+| 列 | SQLite 类型 | MySQL 类型 | 说明 |
+|---|---|---|---|
+| `player_uuid` | `TEXT` | `VARCHAR(36)` | 玩家 UUID |
+| `pool_id` | `TEXT` | `VARCHAR(64)` | 奖池 ID |
+| `open_count` | `INTEGER` | `INT` | 累计开箱次数 |
+| `last_open_time` | `INTEGER` | `BIGINT` | 上次开箱时间戳（毫秒） |
+
+主键：`(player_uuid, pool_id)`
+
+#### `axs_lottery_case_log` — CASE 开箱日志
+
+| 列 | SQLite 类型 | MySQL 类型 | 说明 |
+|---|---|---|---|
+| `id` | `INTEGER AUTOINCREMENT` | `BIGINT AUTO_INCREMENT` | 日志 ID |
+| `player_uuid` | `TEXT` | `VARCHAR(36)` | 玩家 UUID |
+| `pool_id` | `TEXT` | `VARCHAR(64)` | 奖池 ID |
+| `open_time` | `INTEGER` | `BIGINT` | 开箱时间戳（毫秒） |
+| `item_id` | `TEXT` | `VARCHAR(64)` | 奖品 ID |
+| `rarity` | `TEXT` | `VARCHAR(32)` | 稀有度名称 |
+
+索引：`(player_uuid, pool_id)`
+
+#### `axs_lottery_pending_claim` — 待领取奖励队列
+
+| 列 | SQLite 类型 | MySQL 类型 | 说明 |
+|---|---|---|---|
+| `id` | `INTEGER AUTOINCREMENT` | `BIGINT AUTO_INCREMENT` | 记录 ID |
+| `player_uuid` | `TEXT` | `VARCHAR(36)` | 玩家 UUID |
+| `pool_id` | `TEXT` | `VARCHAR(64)` | 奖池 ID（回滚时为 `rollback`） |
+| `item_metadata` | `TEXT` | `TEXT` | 奖品元数据（`key|name|delivery`） |
+| `item_data` | `TEXT` | `LONGTEXT` | 序列化物品数据（Base64） |
+| `created_time` | `INTEGER` | `BIGINT` | 创建时间戳（毫秒） |
+| `claimed` | `INTEGER` | `BOOLEAN` | 是否已领取 |
+| `attempts` | `INTEGER` | `INT` | 投递尝试次数 |
+
+索引：`(player_uuid, claimed)`
+
+#### `axs_lottery_points` — 积分余额
+
+| 列 | SQLite 类型 | MySQL 类型 | 说明 |
+|---|---|---|---|
+| `player_uuid` | `TEXT` | `VARCHAR(36)` | 玩家 UUID |
+| `point_id` | `TEXT` | `VARCHAR(64)` | 积分 ID |
+| `amount` | `INTEGER` | `BIGINT` | 积分余额 |
+
+主键：`(player_uuid, point_id)`
+
+#### `axs_lottery_exchange` — 兑换记录
+
+| 列 | SQLite 类型 | MySQL 类型 | 说明 |
+|---|---|---|---|
+| `player_uuid` | `TEXT` | `VARCHAR(36)` | 玩家 UUID |
+| `item_id` | `TEXT` | `VARCHAR(64)` | 商品 ID |
+| `amount` | `INTEGER` | `INT` | 已兑换次数 |
+
+主键：`(player_uuid, item_id)`
+
+## 与其他模块联动
+
+### 与邮件模块联动
+
+Lottery 通过 `MailDispatchable` Capability 联动邮件模块：
+
+- **奖品 MAIL 投递**：`PoolItem.delivery = MAIL` 时，通过 `mail.presets` 指定的邮件预设 ID 发送邮件
+- **背包满溢出**：`DIRECT` 投递时背包满，`ItemRewardDispatcher` 自动将溢出物品转邮件补发（`overflowMailSubject` / `overflowMailBody`）
+- **待领取奖励**：投递失败的物品入队 `pending_claim` 表，玩家上线时 `claimPending` 重新发放（背包满再次转邮件）
+
+### 与货币模块联动
+
+Lottery 通过 `CurrencyBridgeAPI` 联动货币模块：
+
+- **消耗扣除**：`CURRENCY` 消耗类型调用 `bridge.withdraw(player, amount)` 扣除货币
+- **余额查询**：UI 资源栏展示当前货币余额（`bridge.balance(player)`）
+- **退还回滚**：扣除失败或投递失败时调用 `bridge.deposit(player, amount)` 退还货币
+
+### 与物品库模块联动
+
+Lottery 通过 `ItemSourceRegistry` 联动物品库模块：
+
+| `item.source` | 对应桥接 | 说明 |
+|---|---|---|
+| `minecraft` / `MINECRAFT` / `PLAIN` | 原版物品 | `item.id` 为材质名（可带 `minecraft:` 前缀） |
+| `mythicmobs` / `MYTHICMOBS` | MythicMobs | `item.id` 为内部 ID |
+| `neigeitems` / `NEIGEITEMS` | NeigeItems | `item.id` 为内部 ID |
+| `overture` / `OVERTURE` | Overture | `item.id` 为内部 ID |
+| `mmoitems` / `MMOITEMS` | MMOItems | `item.id` 为 `TYPE;ID` 格式 |
+
+物品来源详情详见 [物品来源](/docs/guide/item-sources)。
+
+### 与 UI 模块联动
+
+Lottery 通过 `PacketBridgeAPI` 联动 ArcartX UI：
+
+- **UI 注册**：模块启动时注册三个 UI 文件（`lottery_gacha.yml`、`lottery_wish.yml`、`lottery_case.yml`），绑定到配置的 UI ID
+- **UI 打开**：`packetBridge.openUi(player, uiId)` 打开指定 UI
+- **数据推送**：`packetBridge.sendPacket(player, uiId, subPacketId, payload)` 推送数据包更新界面
+- **客户端动作**：`ClientPacketHandler.handleClientPacket` 接收客户端 UI 动作并分发处理
+
+UI 配置写法详见 [ArcartX UI 文档](/docs/guide/multi-ui)。
+
+## 相关文档
+
+- [概览](/docs/lottery) — 模块功能概览
+- [配置](/docs/lottery/configuration) — 配置文件详解
+- [命令与占位符](/docs/lottery/commands) — 命令与 PAPI 占位符
+- [跨服配置](/docs/guide/cross-server-setup) — 多服共享数据库配置
+- [物品来源](/docs/guide/item-sources) — 物品来源支持列表

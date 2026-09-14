@@ -1,0 +1,14 @@
+{
+  "title": "OnlineRewards 在线奖励",
+  "description": "在线奖励 / 每日签到 / 连续签到 / 补签卡",
+  "color": "#22c55e",
+  "pages": [
+    "index",
+    "configuration",
+    "sign-in-system",
+    "time-rewards",
+    "server-goals",
+    "commands",
+    "integration"
+  ]
+}

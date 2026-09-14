@@ -1,0 +1,493 @@
+---
+title: 分类与物品匹配
+description: ExtraBackpack 分类页配置、NBT 匹配规则与自动归类机制详解
+---
+
+# 分类与物品匹配
+
+> **福利模块**
+
+ExtraBackpack 的核心机制是**多分类额外背包**：物品按照可配置的 NBT/PDC/Lore 匹配规则自动归入不同分类页，每页独立管理槽位与扩容。本页详细说明分类配置结构、匹配规则、优先级排序、兜底分类与自动归类流程。
+
+## 分类配置结构
+
+每个分类页在 `extra-backpack.categories` 下以键名作为分类 ID（自动 `trim().toLowerCase()` 归一化），包含以下字段：
+
+| 字段 | 类型 | 默认值 | 说明 |
+| --- | --- | --- | --- |
+| `display-name` | string | 分类 ID | 分类显示名称，展示在 UI 标签上 |
+| `priority` | int | 当前分类序号 | 排序优先级，数值越小越靠前匹配 |
+| `default` | boolean | `false` | 是否为兜底分类 |
+| `slots.initial` | int | `9` | 初始槽位数量（最小 0） |
+| `slots.max` | int | `initial` | 最大槽位上限（不小于 `initial`） |
+| `price.currency` | string | `""` | 扩容货币 ID |
+| `price.per-slot` | decimal | `0` | 每个槽位的升级金额 |
+| `match.nbt.path` | string | `""` | NBT 匹配路径 |
+| `match.nbt.values` | `list<string>` | `[]` | 匹配值列表 |
+
+> 向后兼容字段：`initial-slots` 等价于 `slots.initial`，`max-slots` 等价于 `slots.max`，`nbt.path` 等价于 `match.nbt.path`，`nbt.values` 等价于 `match.nbt.values`。
+
+### 分类 ID 归一化
+
+分类 ID 在加载时统一执行 `trim().toLowerCase(Locale.ROOT)` 归一化处理。例如配置键 `Equipment` 会被归一化为 `equipment`，后续所有匹配与存储操作均使用归一化后的 ID。
+
+```yaml
+extra-backpack:
+  enabled: true
+  categories:
+    # 键名 "Equipment" → 归一化为 "equipment"
+    Equipment:
+      display-name: "装备"
+      priority: 10
+      match:
+        nbt:
+          path: "pdc:arcartx:item_category"
+          values: ["equipment", "weapon", "armor"]
+```
+
+## NBT 匹配路径类型
+
+`match.nbt.path` 支持以下路径类型，服务端通过 `resolvePath()` 方法读取物品对应值：
+
+| 路径格式 | 说明 | 匹配方式 |
+| --- | --- | --- |
+| `pdc:<namespace>:<key>` | 读取 PersistentDataContainer 字符串值 | 精确匹配 |
+| `pdc:<key>` | 读取 PDC 值，namespace 默认为插件名 | 精确匹配 |
+| `material` | 读取物品材质 ID（经 VanillaItemNameBridge 翻译） | 精确匹配 |
+| `display-name` | 读取物品显示名称 | 精确匹配 |
+| `name` | 等价于 `display-name` | 精确匹配 |
+| `custom-model-data` | 读取 CustomModelData 整数值 | 精确匹配 |
+| `lore` | 遍历物品 Lore 行 | 包含匹配（`contains`） |
+
+### 路径解析细节
+
+#### PDC 路径
+
+`pdc:` 前缀的路径用于读取 Bukkit `PersistentDataContainer` 中的字符串值：
+
+```yaml
+# 带命名空间
+match:
+  nbt:
+    path: "pdc:arcartx:item_category"
+    values: ["equipment", "weapon", "armor"]
+
+# 不带命名空间（默认使用插件名作为 namespace）
+match:
+  nbt:
+    path: "pdc:category"
+    values: ["rare", "epic"]
+```
+
+服务端解析逻辑：
+1. 截取 `pdc:` 后的字符串作为 key 文本
+2. 若 key 文本包含 `:`，按第一个 `:` 拆分为 namespace 与 key
+3. 否则使用插件名作为 namespace
+4. 通过 `PersistentDataType.STRING` 读取 PDC 值
+
+#### material 路径
+
+读取物品的材质 ID。若 `VanillaItemNameBridge` 可用，会将材质名翻译为中文名后再匹配：
+
+```yaml
+# 匹配原版药水与金苹果类物品
+match:
+  nbt:
+    path: "material"
+    values: ["potion", "golden_apple", "enchanted_golden_apple"]
+```
+
+> `VanillaItemNameBridge` 由核心提供，用于将 `Material.DIAMOND_SWORD` 等枚举名翻译为中文显示名。匹配值与读取值均做 `trim().toLowerCase()` 归一化。
+
+#### display-name / name 路径
+
+读取物品的显示名称（`ItemMeta.getDisplayName()`）。若物品无自定义名称，回退到 `VanillaItemNameBridge.resolveDisplayName()` 返回的名称：
+
+```yaml
+# 按物品显示名称分类
+match:
+  nbt:
+    path: "display-name"
+    values: ["传说之剑", "神话装备"]
+```
+
+#### custom-model-data 路径
+
+读取物品的 `CustomModelData` 整数值（转为字符串）：
+
+```yaml
+match:
+  nbt:
+    path: "custom-model-data"
+    values: ["10001", "10002"]
+```
+
+> 仅当 `ItemMeta.hasCustomModelData()` 为 `true` 时返回值，否则返回空字符串。
+
+#### lore 路径
+
+遍历物品的 Lore 行，逐行检查是否**包含**匹配值（使用 `contains` 而非精确匹配）：
+
+```yaml
+# 匹配 Lore 中包含"任务物品"或"不可丢弃"的物品
+match:
+  nbt:
+    path: "lore"
+    values: ["任务物品", "不可丢弃"]
+```
+
+> Lore 匹配对每一行和每一个匹配值都做 `trim().toLowerCase()` 归一化后执行 `contains` 检查。只要任意一行包含任意一个匹配值即匹配成功。
+
+## 匹配流程
+
+物品分类匹配由 `matchCategory()` 方法执行，流程如下：
+
+```
+matchCategory(itemStack)
+  │
+  ├─ 遍历所有分类（按 priority 升序排序）
+  │   │
+  │   ├─ 跳过兜底分类（default: true）
+  │   ├─ 跳过无匹配规则的分类（nbt.path 为空或 values 为空）
+  │   │
+  │   └─ 对每个有效分类执行 matches() 检查
+  │       ├─ 读取物品对应路径的值
+  │       ├─ 归一化值（trim + toLowerCase）
+  │       └─ 检查值是否在 values 列表中
+  │           ├─ lore 路径：contains 匹配
+  │           └─ 其他路径：精确匹配
+  │
+  ├─ 首个匹配成功的分类 → 返回该分类 ID
+  └─ 无匹配 → 返回空字符串（不自动归类）
+```
+
+### 优先级排序
+
+分类按 `priority` 字段升序排列（`Comparator.comparingInt`）。数值越小越优先匹配：
+
+```yaml
+categories:
+  quest_item:
+    priority: 5      # 最先匹配
+    # ...
+  equipment:
+    priority: 10     # 其次匹配
+    # ...
+  material:
+    priority: 20     # 再次匹配
+    # ...
+  other:
+    priority: 9999   # 兜底分类，最后
+    default: true
+    # ...
+```
+
+> `priority` 未配置时默认值为当前分类在 `LinkedHashMap` 中的插入序号（从 0 开始），因此不配置 `priority` 时分类按配置文件中的声明顺序排列。
+
+## 兜底分类
+
+标记 `default: true` 的分类作为兜底分类。兜底分类在匹配流程中被跳过（不参与自动归类），但在物品存入额外背包时作为"放不下时的备选页"：
+
+| 场景 | 行为 |
+| --- | --- |
+| 拾取自动归类 | 兜底分类不参与匹配，物品不会直接归入兜底分类 |
+| 存入物品放不下 | 先尝试目标分类页，放不下的部分尝试兜底分类页 |
+| 兜底分类也放不下 | 剩余物品返回原版背包或掉落地面 |
+| 无兜底分类 | 配置中无 `default: true` 时，取 priority 最大的分类作为兜底 |
+
+### 兜底分类选择逻辑
+
+`fallbackCategory()` 方法的选择逻辑：
+
+1. 遍历所有分类，返回第一个 `default: true` 的分类
+2. 若无分类标记为 `default`，返回排序后列表的最后一个分类（priority 最大）
+3. 若无任何分类，返回 `null`
+
+```yaml
+# 兜底分类示例
+other:
+  display-name: "杂物"
+  priority: 9999
+  default: true
+  slots:
+    initial: 9
+    max: 27
+  # 兜底分类可不配置 match 规则
+  # 也可配置 match 规则，但匹配流程会跳过它
+```
+
+> 兜底分类配置了 `match.nbt.path` 和 `match.nbt.values` 时，匹配流程仍会跳过它（因为 `default: true`）。兜底分类的匹配规则不会生效。
+
+## 拾取自动归类
+
+当 `EntityPickupItemEvent` 触发时，模块尝试将拾取的物品自动存入额外背包：
+
+```
+onPickup(event)
+  │
+  ├─ 检查模块启用状态与玩家类型
+  ├─ 获取拾取物品
+  │
+  └─ synchronized(playerLock)
+      ├─ matchCategory(stack) → 确定分类
+      │   ├─ 分类为空 → 不拦截，物品正常进入原版背包
+      │   └─ 分类非空 → 尝试存入对应分类页
+      │       ├─ 全部存入 → 移除地面物品，取消事件
+      │       ├─ 部分存入 → 更新地面物品数量为剩余量
+      │       └─ 完全没存入 → 不拦截
+      └─ persist(uuid) → 持久化
+```
+
+> 拾取自动归类仅对 `matchCategory()` 返回非空分类的物品生效。若物品不匹配任何分类（且无兜底分类参与匹配），物品正常进入原版背包，不会被额外背包拦截。
+
+## 手动存入
+
+除拾取自动归类外，玩家可通过 UI 手动存入物品：
+
+### 快捷栏存入
+
+点击 UI 底部快捷栏区域的物品，触发 `store` action，将快捷栏指定槽位（0-8）的物品存入额外背包：
+
+| 步骤 | 说明 |
+| --- | --- |
+| 1. 读取快捷栏物品 | `inventory.getItem(hotbarSlot)` |
+| 2. 匹配分类 | `matchCategory(stack)` 确定目标分类页 |
+| 3. 存入分类页 | 先合并相同物品槽位，再写入空闲槽位 |
+| 4. 更新快捷栏 | 剩余物品留在快捷栏，或设为 `null` |
+| 5. 持久化 | `persist(uuid)` 保存到数据库 |
+
+> 快捷栏存入不使用兜底分类回退逻辑。若目标分类页已满，剩余物品留在快捷栏并提示 `该分类页已满`。
+
+### 原版标签页存入
+
+在原版背包标签页右键物品，选择"存入"，触发 `vanilla_store` action：
+
+| 步骤 | 说明 |
+| --- | --- |
+| 1. 读取原版背包指定槽位物品 | `inventory.getItem(slot)` |
+| 2. 匹配分类并存入（含兜底回退） | `storeIntoBackpackWithFallback()` |
+| 3. 检查物品是否变化 | 重新读取槽位，确认物品未被修改 |
+| 4. 更新原版槽位 | 剩余物品设回原槽位 |
+| 5. 持久化与刷新 | `persist(uuid)` + `refresh(player)` |
+
+> 原版标签页存入使用兜底回退逻辑：目标分类页放不下时，尝试兜底分类页。若兜底分类也放不下，提示 `无可用额外槽位`。
+
+## 物品存入算法
+
+`storeIntoPage()` 方法负责将物品存入指定分类页的槽位数组，分两个阶段：
+
+### 阶段一：合并到相同物品
+
+遍历已有槽位，找到 `isSimilar()` 的物品堆叠，在 `maxStackSize` 限制内合并：
+
+```java
+for (int slot = 0; slot < page.length && working.getAmount() > 0; slot++) {
+    ItemStack existing = page[slot];
+    if (existing != null && existing.isSimilar(working)) {
+        int space = existing.getMaxStackSize() - existing.getAmount();
+        if (space > 0) {
+            int move = Math.min(space, working.getAmount());
+            existing.setAmount(existing.getAmount() + move);
+            working.setAmount(working.getAmount() - move);
+        }
+    }
+}
+```
+
+### 阶段二：写入空闲槽位
+
+遍历槽位，将剩余物品写入空闲槽位（`null` 或 air）：
+
+```java
+for (int slot = 0; slot < page.length && working.getAmount() > 0; slot++) {
+    if (page[slot] == null || page[slot].getType().isAir()) {
+        int move = Math.min(working.getMaxStackSize(), working.getAmount());
+        ItemStack placed = working.clone();
+        placed.setAmount(move);
+        page[slot] = placed;
+        working.setAmount(working.getAmount() - move);
+    }
+}
+```
+
+> 返回值为剩余未存入的物品（`amount > 0` 时非 `null`），由调用方决定后续处理（兜底分类页、返回原版背包、掉落地面）。
+
+## 配置示例
+
+### PDC 标签分类（推荐）
+
+适用于通过其他插件或命令为物品写入 PDC 标签的场景：
+
+```yaml
+extra-backpack:
+  enabled: true
+  categories:
+    equipment:
+      display-name: "装备"
+      priority: 10
+      slots:
+        initial: 9
+        max: 27
+      price:
+        currency: "points"
+        per-slot: 100
+      match:
+        nbt:
+          path: "pdc:arcartx:item_category"
+          values: ["equipment", "weapon", "armor"]
+    material:
+      display-name: "材料"
+      priority: 20
+      slots:
+        initial: 9
+        max: 27
+      price:
+        currency: "points"
+        per-slot: 80
+      match:
+        nbt:
+          path: "pdc:arcartx:item_category"
+          values: ["material"]
+    other:
+      display-name: "杂物"
+      priority: 9999
+      default: true
+      slots:
+        initial: 9
+        max: 27
+      price:
+        currency: "points"
+        per-slot: 60
+```
+
+### 材质分类
+
+按原版物品材质 ID 分类，无需额外 PDC 标签：
+
+```yaml
+extra-backpack:
+  enabled: true
+  categories:
+    consumable:
+      display-name: "消耗品"
+      priority: 5
+      slots:
+        initial: 9
+        max: 36
+      price:
+        currency: "points"
+        per-slot: 50
+      match:
+        nbt:
+          path: "material"
+          values: ["potion", "splash_potion", "lingering_potion", "golden_apple", "enchanted_golden_apple"]
+    tool:
+      display-name: "工具"
+      priority: 10
+      slots:
+        initial: 9
+        max: 18
+      match:
+        nbt:
+          path: "material"
+          values: ["diamond_pickaxe", "diamond_axe", "diamond_shovel", "netherite_pickaxe"]
+    fallback:
+      display-name: "其他"
+      priority: 9999
+      default: true
+      slots:
+        initial: 9
+        max: 27
+```
+
+### Lore 匹配分类
+
+按物品 Lore 文本分类，适用于 RPG 服务器自定义物品：
+
+```yaml
+extra-backpack:
+  enabled: true
+  categories:
+    quest_item:
+      display-name: "任务物品"
+      priority: 5
+      slots:
+        initial: 9
+        max: 18
+      match:
+        nbt:
+          path: "lore"
+          values: ["任务物品", "不可丢弃", "绑定"]
+    rare_item:
+      display-name: "稀有装备"
+      priority: 10
+      slots:
+        initial: 9
+        max: 27
+      price:
+        currency: "vault"
+        per-slot: 200
+      match:
+        nbt:
+          path: "lore"
+          values: ["稀有", "史诗", "传说"]
+    fallback:
+      display-name: "普通物品"
+      priority: 9999
+      default: true
+      slots:
+        initial: 9
+        max: 27
+```
+
+### 混合路径分类
+
+不同分类使用不同路径类型：
+
+```yaml
+extra-backpack:
+  enabled: true
+  categories:
+    custom_model:
+      display-name: "自定义模型"
+      priority: 5
+      slots:
+        initial: 9
+        max: 18
+      match:
+        nbt:
+          path: "custom-model-data"
+          values: ["10001", "10002", "10003"]
+    named_item:
+      display-name: "命名物品"
+      priority: 10
+      slots:
+        initial: 9
+        max: 27
+      match:
+        nbt:
+          path: "display-name"
+          values: ["传说之剑", "神话护甲"]
+    other:
+      display-name: "杂物"
+      priority: 9999
+      default: true
+      slots:
+        initial: 9
+        max: 27
+```
+
+## 匹配规则注意事项
+
+| 注意点 | 说明 |
+| --- | --- |
+| 大小写归一化 | 所有路径值与匹配值均执行 `trim().toLowerCase(Locale.ROOT)`，配置时无需关心大小写 |
+| 空路径跳过 | `nbt.path` 为空字符串的分类不参与匹配，等同于"不自动归类" |
+| 空值列表跳过 | `nbt.values` 为空列表的分类不参与匹配 |
+| 兜底分类跳过 | `default: true` 的分类在匹配流程中被跳过，不参与自动归类 |
+| 首匹配优先 | 按 `priority` 升序遍历，首个匹配成功的分类即为结果，后续分类不再检查 |
+| 无匹配不拦截 | 拾取时若物品不匹配任何分类，物品正常进入原版背包，额外背包不拦截 |
+| lore 使用 contains | `lore` 路径使用 `contains` 匹配，其他路径使用精确匹配 |
+| PDC 仅读 STRING | PDC 路径仅读取 `PersistentDataType.STRING` 类型的值，不支持其他 PDC 类型 |
+
+> 关于条件系统与物品来源的通用知识，参考 [条件系统](/docs/guide/conditions) 与 [物品来源](/docs/guide/item-sources)。

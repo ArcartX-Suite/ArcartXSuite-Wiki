@@ -1,0 +1,13 @@
+{
+  "title": "Pickup 拾取提示",
+  "description": "物品拾取 HUD 弹出提示 + 扫描器模式",
+  "color": "#84cc16",
+  "pages": [
+    "index",
+    "configuration",
+    "commands",
+    "scanner-mode",
+    "notification-hud",
+    "integration"
+  ]
+}

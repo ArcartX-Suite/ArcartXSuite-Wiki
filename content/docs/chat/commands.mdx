@@ -1,0 +1,221 @@
+---
+title: 命令与占位符
+description: Chat 命令、权限与 PlaceholderAPI 占位符
+---
+
+# 命令与占位符
+
+## 玩家命令
+
+Chat 模块注册了三个玩家命令，通过 `TabExecutor` 实现自动补全。所有玩家命令仅限玩家执行（控制台执行会提示）。
+
+### /chat 频道管理
+
+| 命令 | 说明 | 权限 |
+|---|---|---|
+| `/chat` | 查看当前频道、开关状态、回复目标与忽略数 | `arcartxsuite.chat.use` |
+| `/chat help` | 显示聊天命令帮助 | `arcartxsuite.chat.use` |
+| `/chat channel <频道ID>` | 切换到指定频道 | `arcartxsuite.chat.use` + 频道 `send-permission` |
+| `/chat toggle <private\|mentions> [on\|off]` | 切换私聊接收 / 提及接收开关 | `arcartxsuite.chat.use` |
+| `/chat ignore <玩家>` | 忽略指定玩家的私聊 | `arcartxsuite.chat.use` |
+| `/chat unignore <玩家>` | 取消忽略指定玩家 | `arcartxsuite.chat.use` |
+| `/chat socialspy [on\|off]` | 切换社交监听（监听全服私聊） | `arcartxsuite.chat.socialspy` |
+
+#### /chat（无参数）
+
+查看当前聊天状态，输出三行信息：
+
+```
+当前频道: 普通
+私聊接收 / 提及接收 / 社交监听: true / true / false
+最近私聊对象 / 忽略数: Steve / 3
+```
+
+#### /chat channel
+
+切换到指定频道。频道 ID 不区分大小写。需要频道 `send-permission` 权限。
+
+```
+/chat channel global    # 切换到全服频道
+/chat channel staff     # 切换到管理频道
+```
+
+#### /chat toggle
+
+切换私聊接收或提及接收开关。不传 `on|off` 时切换当前状态。
+
+```
+/chat toggle private        # 切换私聊接收
+/chat toggle mentions off   # 关闭提及接收
+```
+
+#### /chat socialspy
+
+切换社交监听。开启后可看到全服私聊内容（使用 `spy-format` 格式渲染）。需要 `arcartxsuite.chat.socialspy` 权限。
+
+```
+/chat socialspy         # 切换社交监听
+/chat socialspy on      # 开启社交监听
+```
+
+### /msg 私聊
+
+| 命令 | 说明 | 权限 |
+|---|---|---|
+| `/msg <玩家> <消息>` | 向指定玩家发送私聊消息 | `arcartxsuite.chat.msg` |
+
+```
+/msg Steve 你好，一起去挖矿吗？
+```
+
+:::tip
+私聊消息使用私聊频道的 `sender-format`（发送者视角）和 `recipient-format`（接收者视角）渲染。如果私聊频道配置了 `cross-server: true` 且跨服通道活跃，私聊可跨服送达。
+:::
+
+### /reply 回复
+
+| 命令 | 说明 | 权限 |
+|---|---|---|
+| `/reply <消息>` | 回复最近一次私聊的对方 | `arcartxsuite.chat.msg` |
+
+```
+/reply 好的，马上过去
+```
+
+:::info
+`/reply` 会自动回复最近一次私聊的对象。如果还没有私聊过任何人，会提示"当前没有可回复的私聊对象"。
+:::
+
+## 管理员命令
+
+管理员命令通过 `/axs chat <子命令>` 执行，需要 `ArcartXSuite.chat.mute` 权限（spy 命令）或管理员权限。
+
+| 命令 | 说明 | 权限 |
+|---|---|---|
+| `/axs chat help` | 显示管理命令帮助 | 无 |
+| `/axs chat status` | 查看模块运行状态 | 无 |
+| `/axs chat mute <玩家> <时长> [原因]` | 禁言指定玩家 | `ArcartXSuite.chat.mute` |
+| `/axs chat unmute <玩家>` | 解除指定玩家的禁言 | `ArcartXSuite.chat.mute` |
+| `/axs chat spy <玩家> <on\|off>` | 设置指定玩家的社交监听开关 | `ArcartXSuite.chat.mute` |
+
+### /axs chat status
+
+查看 Chat 模块运行状态：
+
+```
+Chat 状态
+频道数: 4
+缓存状态: 15
+缓存禁言: 2
+跨服通道: 已启用
+```
+
+### /axs chat mute
+
+禁言指定玩家。时长格式为 `<数字><单位>`，单位支持 `s`（秒）、`m`（分）、`h`（时）、`d`（天），或 `permanent` 永久禁言。
+
+```
+/axs chat mute Steve 30m 刷屏        # 禁言 Steve 30 分钟，原因"刷屏"
+/axs chat mute Steve 7d 广告         # 禁言 Steve 7 天，原因"广告"
+/axs chat mute Steve permanent 恶意行为  # 永久禁言 Steve
+```
+
+| 参数 | 必填 | 说明 |
+|---|---|---|
+| 玩家 | 是 | 被禁言的玩家名（支持离线玩家，通过档案查询） |
+| 时长 | 是 | 禁言时长：`<数字><s\|m\|h\|d>` 或 `permanent` |
+| 原因 | 否 | 禁言原因，显示在禁言通知卡片中 |
+
+:::tip
+禁言后玩家会收到系统提示卡片（`axs_chat_system`），显示剩余时间与原因。如果卡片不可用，则回退为文本消息。
+:::
+
+### /axs chat unmute
+
+解除指定玩家的禁言。
+
+```
+/axs chat unmute Steve
+```
+
+### /axs chat spy
+
+设置指定玩家的社交监听开关。玩家会收到通知消息告知其社交监听已被管理员变更。
+
+```
+/axs chat spy Steve on    # 开启 Steve 的社交监听
+/axs chat spy Steve off   # 关闭 Steve 的社交监听
+```
+
+## 权限节点
+
+| 权限节点 | 说明 | 默认 |
+|---|---|---|
+| `arcartxsuite.chat.use` | 使用 `/chat` 命令（频道切换、开关、忽略） | 所有玩家 |
+| `arcartxsuite.chat.msg` | 使用 `/msg` 和 `/reply` 私聊命令 | 所有玩家 |
+| `arcartxsuite.chat.socialspy` | 使用 `/chat socialspy` 切换社交监听 | 管理员 |
+| `ArcartXSuite.chat.mute` | 使用 `/axs chat mute/unmute/spy` 管理命令 | 管理员 |
+
+:::info
+频道的 `send-permission` 和 `receive-permission` 可自定义权限节点。例如管理频道可设为 `ArcartXSuite.chat.mute`，仅管理员可发送和接收。
+:::
+
+## PlaceholderAPI 占位符
+
+Chat 模块注册了 `axschat` 标识符的 PlaceholderAPI 扩展，提供以下占位符：
+
+| 占位符 | 说明 | 返回值示例 |
+|---|---|---|
+| `%axschat_current_channel%` | 当前频道 ID | `normal` |
+| `%axschat_current_channel_display%` | 当前频道显示名 | `普通` |
+| `%axschat_reply_target%` | 当前 `/reply` 目标玩家名 | `Steve` |
+| `%axschat_spy_enabled%` | 当前玩家是否开启社交监听 | `true` / `false` |
+| `%axschat_ignore_count%` | 当前玩家忽略列表数量 | `3` |
+| `%axschat_muted%` | 当前玩家是否处于禁言中 | `true` / `false` |
+
+:::tip
+频道格式模板、卡片文本和物品展示文本中的 PAPI 占位符会按聊天上下文（发送者玩家）解析。详见 [/docs/guide/conditions](/docs/guide/conditions)。
+:::
+
+## UI 包通信
+
+Chat 模块通过 `PacketBridgeAPI` 与客户端 UI 通信，涉及以下包：
+
+### @补全玩家列表包
+
+| 包 ID | 方向 | 字段 | 说明 |
+|---|---|---|---|
+| `AXS:axs_chat_completion` | 服务端 → 客户端 | `updatePlayers`（`List<String>`） | 推送在线玩家名称列表，供 @补全 HUD 匹配使用 |
+
+服务端在以下时机推送玩家列表：
+- 模块启动时（`broadcastCompletionPlayerList`）
+- 玩家加入服务器时（`PlayerJoinEvent`）
+- 玩家退出服务器时（`PlayerQuitEvent`）
+
+### 聊天卡片包
+
+| 卡片 ID | 方向 | data 字段 | 说明 |
+|---|---|---|---|
+| `axs_chat_mention` | 服务端 → 客户端 | `senderName`、`senderDisplayName`、`channel`、`channelId`、`msg0`~`msg9` | @提及通知卡片 |
+| `axs_chat_private` | 服务端 → 客户端 | `senderName`、`senderDisplayName`、`targetName`、`direction`（`sender`/`recipient`）、`msg0`~`msg9` | 私聊通知卡片 |
+| `axs_chat_system` | 服务端 → 客户端 | `type`（`mute`/`filter`）、`message`、`remaining`、`reason`、`mutedBy` | 系统提示卡片 |
+| `axs_item_preview` | 服务端 → 客户端 | `senderDisplayName`、`itemName`、`itemJson` | 物品预览卡片 |
+
+:::info
+卡片中 `msg0`~`msg9` 为消息文本的换行分段，服务端按 `max-line-width` 自动换行后推送。卡片宽度与高度由 UI 侧根据 Text 控件实际渲染尺寸自适应。详见 [/docs/guide/icons](/docs/guide/icons)。
+:::
+
+### @补全 Tab 补全包
+
+除了 HUD 方式，模块还通过以下方式注册 `@玩家名` Tab 补全条目：
+
+| 策略 | 适用服务端 | 方式 |
+|---|---|---|
+| Paper API | Paper / Purpur 1.19.1+ | `Player.addCustomChatCompletions()` / `removeCustomChatCompletions()` |
+| NMS 发包 | Spigot / Mohist / Arclight 1.19.1+ | `ClientboundCustomChatCompletionsPacket`（ADD / REMOVE） |
+
+玩家加入时，向所有在线玩家发送 `@新玩家名` 补全条目，并向新玩家发送所有在线玩家的 `@玩家名` 补全条目。玩家退出时，移除对应的补全条目。
+
+:::tip
+物品展示功能通过 `ItemBridgeAPI` 序列化物品为 JSON，并支持 `TooltipDataCapable` 注入动态 tooltip Lore。详见 [/docs/guide/item-sources](/docs/guide/item-sources)。
+:::

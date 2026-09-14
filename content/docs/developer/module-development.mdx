@@ -1,0 +1,400 @@
+---
+title: 开发第三方模块
+description: 从零编写 ArcartXSuite 第三方模块——Gradle 工程、module.yml、AbstractAXSModule、UI 绑定、配置、命令与客户端包。
+---
+
+# 开发第三方模块
+
+本文是完整动手教程：读完即可创建一个可加载的 AXS 模块 Jar。更底层的 API 说明见 [API 参考](../api/)。
+
+## 前置条件
+
+| 项目 | 要求 |
+|------|------|
+| JDK | 17+ |
+| 构建 | Gradle（推荐）或 Maven |
+| 服务端 | 已安装 ArcartX 插件 + ArcartXSuite 宿主 |
+| 客户端 | 玩家需安装 ArcartX 模组（UI/HUD/自定义包依赖客户端） |
+| SDK | `axs-api.jar` |
+
+::: warning 不要引用宿主实现
+模块代码中只能 `import xuanmo.arcartxsuite.api.*`。不要 `import xuanmo.arcartxsuite.bridge.*` 或宿主 `module` 包——会导致 ClassLoader 隔离失败，且在不同版本间不兼容。
+:::
+
+## 第一步：工程结构
+
+```
+MyAXSModule/
+├── build.gradle.kts
+├── settings.gradle.kts
+├── libs/
+│   └── axs-api-x.x.x.jar
+└── src/main/
+    ├── java/com/example/mymodule/
+    │   ├── MyModule.java          # 入口
+    │   ├── MyService.java         # 业务
+    │   ├── MyListener.java        # 事件（可选）
+    │   └── MyPacketHandler.java   # 客户端包（可选）
+    └── resources/
+        ├── module.yml             # 必须：模块元数据
+        ├── config.yml             # 默认配置（首次导出用）
+        ├── messages.yml           # 默认消息（可选）
+        └── arcartx/ui/my_ui.yml   # ArcartX UI 模板（可选）
+```
+
+### build.gradle.kts
+
+```kotlin
+plugins {
+    id("java")
+}
+
+repositories {
+    mavenCentral()
+    maven("https://hub.spigotmc.org/nexus/content/repositories/snapshots/")
+}
+
+dependencies {
+    compileOnly(files("libs/axs-api-x.x.x.jar"))
+    compileOnly("org.spigotmc:spigot-api:1.20.1-R0.1-SNAPSHOT")
+    // 可选
+    compileOnly("me.clip:placeholderapi:2.11.7")
+}
+
+java {
+    toolchain.languageVersion.set(JavaLanguageVersion.of(17))
+}
+
+tasks.jar {
+    archiveBaseName.set("MyAXSModule")
+    // module.yml 必须在 Jar 根目录
+    from("src/main/resources") {
+        include("module.yml")
+    }
+}
+```
+
+执行 `./gradlew jar`，产物在 `build/libs/MyAXSModule.jar`。
+
+## 第二步：module.yml
+
+放在 `src/main/resources/module.yml`，打包后位于 Jar 根目录：
+
+```yaml
+id: mymodule
+name: MyModule
+version: 1.0.0
+main: com.example.mymodule.MyModule
+api-version: 1.0
+depends: []
+softdepends: []
+external-depends: []
+external-softdepends: []
+```
+
+| 字段 | 说明 |
+|------|------|
+| `id` | 全局唯一，与 `config.yml` 中 `modules.mymodule` 对应 |
+| `main` | 实现 `AXSModule` 的类全限定名 |
+| `depends` | 硬依赖的其他 AXS 模块 id；缺失则本模块拒绝启动 |
+| `softdepends` | 软依赖；缺失时跳过，不报错（跨模块 Capability 常用） |
+| `external-depends` | 硬依赖的外部 Bukkit 插件名（如 `PlaceholderAPI`） |
+| `signature` | 可选；Ed25519 签名（Base64）。见[模块签名](./module-signature) |
+
+::: tip 加载顺序
+宿主按 `depends` 做拓扑排序。若模块 A `depends: [title]`，则 Title 一定先于 A 启用——这对 Capability 使用方很重要。
+:::
+
+## 第三步：实现模块入口
+
+### 推荐：继承 AbstractAXSModule
+
+基类自动处理：配置导出、UI 资源复制、监听器/命令/PAPI 注册与卸载、reload 时保留 UI。
+
+```java
+package com.example.mymodule;
+
+import java.io.File;
+import java.util.List;
+import java.util.Map;
+import org.bukkit.event.Listener;
+import xuanmo.arcartxsuite.api.AbstractAXSModule;
+import xuanmo.arcartxsuite.api.ModuleDescriptor;
+import xuanmo.arcartxsuite.api.ModuleUiSpec;
+import xuanmo.arcartxsuite.api.config.ModuleConfig;
+
+public final class MyModule extends AbstractAXSModule {
+
+    private MyService service;
+
+    @Override
+    public ModuleDescriptor descriptor() {
+        return ModuleDescriptor.builder("mymodule")
+            .name("MyModule")
+            .version("1.0.0")
+            .mainClass(getClass().getName())
+            .build();
+    }
+
+    @Override
+    protected ModuleConfig configSpec() {
+        return ModuleConfig.builder()
+            .configFileName("config.yml")
+            .messagesFileName("messages.yml")
+            .build();
+    }
+
+    @Override
+    protected ModuleUiSpec uiSpec() {
+        return ModuleUiSpec.of(Map.of(
+            "arcartx/ui/my_ui.yml", "ui/my_ui.yml"
+        ));
+    }
+
+    @Override
+    protected List<Listener> createListeners() {
+        return List.of(new MyListener(this));
+    }
+
+    @Override
+    protected void loadConfiguration(File configFile) {
+        // 读取 configFile（已导出到 data/mymodule/config.yml）
+    }
+
+    @Override
+    protected void startService() {
+        // 注册 UI
+        registerModuleUi("ui/my_ui.yml", "my_ui", true);
+        service = new MyService(this);
+        service.start();
+    }
+
+    @Override
+    protected void stopService() {
+        if (service != null) {
+            service.shutdown();
+            service = null;
+        }
+    }
+}
+```
+
+### 极简：直接实现 AXSModule
+
+无配置、无 UI 时可用，需自行管理 `onEnable` / `onDisable` / `onReload`。
+
+```java
+public final class MyModule implements AXSModule {
+    private ModuleContext context;
+
+    @Override
+    public ModuleDescriptor descriptor() {
+        return ModuleDescriptor.builder("mymodule")
+            .name("MyModule").version("1.0.0")
+            .mainClass(getClass().getName()).build();
+    }
+
+    @Override
+    public boolean onEnable(ModuleContext context) throws Exception {
+        this.context = context;
+        // 初始化逻辑
+        return true;
+    }
+
+    @Override
+    public void onDisable() {
+        // 清理逻辑
+    }
+
+    @Override
+    public void onReload() throws Exception {
+        onDisable();
+        onEnable(context);
+    }
+
+    @Override
+    public boolean isReady() { return true; }
+}
+```
+
+## 第四步：使用 ModuleContext
+
+`AbstractAXSModule` 子类可直接使用 `protected` 字段（基类自动注入）：
+
+```java
+// 调度与日志
+plugin.getServer().getScheduler().runTask(...);
+logger.info("模块已启动");
+
+// 数据目录
+File data = dataFolder;           // plugins/ArcartXSuite/data/mymodule/
+File uiDir = context.uiFolder();   // plugins/ArcartXSuite/ui/
+
+// ArcartX 桥接
+var packet = packetBridge;         // UI 注册、发包
+var client = clientBridge;         // 检测客户端在线
+var items  = itemStackBridge;      // 物品序列化
+
+// 全局桥接
+var itemsrc = itemSourceRegistry;   // MythicMobs / MMOItems 等
+var currency = currencyManager;    // Vault / PlayerPoints
+var attr     = attributeBridge;    // AttributePlus / MythicLib 等
+
+// 跨模块
+var mail = getCapability(MailDispatchable.class);
+
+// 跨服
+crossServer.openChannel("mymodule", config, delivery -> { });
+```
+
+完整列表见 [ModuleContext](../api/module-context)。
+
+## 第五步：UI 注册
+
+### 声明式 UI（推荐）
+
+1. 资源放在 Jar 内 `arcartx/ui/xxx.yml`
+2. `uiSpec()` 声明导出路径
+3. `startService()` 中调用 `registerModuleUi()`
+
+```java
+@Override
+protected ModuleUiSpec uiSpec() {
+    return ModuleUiSpec.of(Map.of(
+        "arcartx/ui/my_ui.yml", "ui/my_ui.yml"
+    ));
+}
+
+@Override
+protected void startService() {
+    UiBinding binding = registerModuleUi("ui/my_ui.yml", "my_ui", true);
+    String runtimeUiId = binding.runtimeUiId();
+    // 使用 packetBridge.openUi(player, runtimeUiId) 打开
+}
+```
+
+reload 时 `registerModuleUi` 会自动重新读取磁盘文件并热重载，手动修改的 YAML 即时生效。
+
+### 打开 UI
+
+```java
+if (packetBridge != null && packetBridge.isAvailable()) {
+    packetBridge.openUi(player, "my_ui");
+}
+```
+
+## 第六步：客户端自定义包
+
+实现 `ClientPacketHandler`，通过 `createPacketHandlerSpec()` 注册：
+
+```java
+@Override
+protected PacketHandlerSpec createPacketHandlerSpec() {
+    return new PacketHandlerSpec(
+        new MyPacketHandler(),  // handler
+        0,                       // priority
+        "my_packet_id",          // ownershipPacketId（用于 PacketGuard）
+        "mymodule"                // guardModule
+    );
+}
+```
+
+客户端通过 ArcartX 模组发送 `action` 字段匹配的数据包，服务端在 `handle(Player, Map)` 中处理。
+
+## 第七步：注册 /axs 子命令
+
+实现 `ModuleCommandHandler`：
+
+```java
+public final class MyModule extends AbstractAXSModule implements ModuleCommandHandler {
+
+    @Override
+    public String commandId() { return "mymodule"; }
+
+    @Override
+    public List<String> actions() { return List.of("help", "status", "reload"); }
+
+    @Override
+    public boolean onCommand(CommandSender sender, String label, String[] args) {
+        // /axs mymodule help
+        if (args.length < 2 || "help".equals(args[1])) {
+            sender.sendMessage("用法: /axs mymodule <help|status|reload>");
+            return true;
+        }
+        if ("status".equals(args[1])) {
+            sender.sendMessage("模块状态: " + (isReady() ? "运行中" : "已停止"));
+        }
+        return true;
+    }
+}
+```
+
+### 独立玩家命令
+
+通过 `commandBindings()` 注册独立命令（命令名需在 `plugin.yml` 中声明）：
+
+```java
+@Override
+protected Map<String, TabExecutor> commandBindings() {
+    return Map.of("mycommand", new MyCommand(this));
+}
+```
+
+## 第八步：与其他模块联动（Capability）
+
+AXS 不推荐在模块 A 里 `import` 模块 B 的实现类。标准做法是：
+
+1. 在 `axs-api` 或你的公共包中定义接口（Capability）
+2. 提供方：`registerCapability(接口.class, 实现)`
+3. 使用方：`getCapability(接口.class)`，务必判空
+
+完整教程见 [Capability 详解](./capability-guide)。
+
+## 第九步：打包与部署
+
+可选：发布前对 `module.yml` 做 [Ed25519 签名](./module-signature)。
+
+```bash
+./gradlew jar
+cp build/libs/MyAXSModule.jar /path/to/server/plugins/ArcartXSuite/modules/
+```
+
+`config.yml`：
+
+```yaml
+modules:
+  mymodule:
+    enabled: true
+```
+
+热加载（无需重启）：
+
+```
+/axs load mymodule
+/axs reload mymodule
+/axs unload mymodule
+```
+
+服主侧安装说明见 [使用第三方模块](./using-third-party-modules)。
+
+## 常见问题
+
+### ClassNotFoundException
+
+- 检查 `module.yml` 的 `main` 是否与类名一致
+- 确认 Jar 内含编译后的 `.class`
+
+### 模块加载了但 UI 不显示
+
+- 玩家是否安装 ArcartX 客户端模组
+- `registerModuleUi` 的路径是否与 `uiSpec()` 一致
+
+### PlaceholderAPI 扩展未注册
+
+- 服务器需安装 PAPI
+- `createPlaceholderExpansion()` 返回非 null 对象
+
+### 依赖模块未加载
+
+- `depends` 写错 id → 本模块拒绝启动
+- 需要可选联动时用 `softdepends` + Capability 判空

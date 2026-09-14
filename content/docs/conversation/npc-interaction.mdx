@@ -1,0 +1,317 @@
+---
+title: NPC 交互与选择器
+description: Conversation 模块 NPC 附近扫描、选择器状态管理与 NPC 外观自动配置详解
+---
+
+# NPC 交互与选择器
+
+> **付费模块**
+
+Conversation 模块的交互增强子系统负责周期性扫描附近可交互 NPC，通过选择器 HUD 展示候选列表，玩家使用宿主全局按键选择并触发对话。同时支持 NPC 外观自动配置，在玩家看见 NPC 时点对点发送模型与动画包。
+
+## 交互增强生命周期
+
+### 初始化流程
+
+模块启动时 `ConversationService.initializeInteractionEnhancement()` 按以下顺序初始化：
+
+```
+interaction.enabled == false?
+  → 降级原因："配置已关闭"
+selectorUiIds 为空?
+  → 降级原因："selector UI 未就绪"
+npcBridge.initialize()
+  → 失败则降级
+initializeConversationOpener()
+  → 检查 Chemdah 插件与 Adyeshach 桥接可用性
+全部就绪?
+  → 启动扫描任务（scanTask）
+  → 应用 NPC 外观配置
+  → interactionReady = true
+```
+
+### 就绪状态标志
+
+| 标志 | 说明 | 检查方式 |
+| --- | --- | --- |
+| `selectorUiReady` | 选择器 UI ID 列表非空 | `!selectorUiIds.isEmpty()` |
+| `npcBridgeReady` | Adyeshach NPC 桥接初始化成功 | `npcBridge.initialize()` |
+| `conversationOpenerReady` | Chemdah 插件已安装且 Adyeshach 可用 | `initializeConversationOpener()` |
+| `keybindBridgeReady` | 按键桥接就绪 | 初始化通过即设为 true |
+| `keybindsRegistered` | 按键回调已注册 | 初始化通过即设为 true |
+| `keyPressEventReady` | 客户端按键事件就绪 | 初始化通过即设为 true |
+| `interactionReady` | 交互增强完全就绪 | 全部检查通过 |
+
+> 任一标志未就绪时 `interactionReady` 为 false，`/axs conversation status` 会输出降级原因。降级时选择器仍可通过鼠标点击操作，但快捷键交互不可用。
+
+### 降级原因
+
+| 降级项 | 说明 |
+| --- | --- |
+| `配置已关闭` | `interaction.enabled` 为 false |
+| `selector UI` | 选择器 UI ID 列表为空 |
+| `KeyBindRegistry` | 按键桥接不可用 |
+| `ClientKeyPressEvent` | 客户端按键事件不可用 |
+| `Adyeshach NPC 反射` | NPC 桥接初始化失败 |
+| `Chemdah Adyeshach opener` | Chemdah 插件未安装或 Adyeshach 不可用 |
+
+## 附近 NPC 扫描
+
+### 扫描任务
+
+`scanTask` 由 `AxsScheduler.runTaskTimer` 调度，周期为 `interaction.scan-period-ticks`（默认 10 tick = 0.5 秒）。每轮扫描处理所有在线玩家：
+
+```
+scanNearbyCandidates()
+  → 遍历所有在线玩家
+  → findCandidatesForPlayer(player)
+  → refreshSelectorState(state, candidates, now)
+  → 玩家正在对话中? → closeSelectorView("dialog-active")
+  → 无候选? → closeSelectorView("no-candidates")
+  → 有变化或未打开? → syncSelectorView()
+  → cleanupOfflineStates()
+```
+
+### 候选 NPC 发现
+
+`findCandidatesForPlayer(player)` 通过 NPC 桥接扫描附近 NPC 并过滤出有 Chemdah 对话的：
+
+| 步骤 | 说明 |
+| --- | --- |
+| `npcBridge.findNearby(player, scanRange)` | 获取扫描范围内的 Adyeshach NPC 列表 |
+| `hasConversationForNpcId(npcId)` | 遍历 Chemdah 对话，检查是否有对话的 `trigger` 匹配该 NPC |
+| 构建 `NpcCandidate` | 包含 npcId、label、distanceText、conversationEntity、distanceSquared |
+
+> `hasConversationForNpcId` 使用 `conversationCache`（`Map<String, Boolean>`）缓存本轮扫描的结果，避免对同一 NPC ID 重复遍历 Chemdah 对话。NPC 源固定为 `adyeshach`。
+
+### NpcCandidate 字段
+
+| 字段 | 类型 | 说明 |
+| --- | --- | --- |
+| `npcId` | string | NPC ID |
+| `label` | string | NPC 显示名 |
+| `distanceText` | string | 距离文本（如 `6.0m`，由 `Math.sqrt(distanceSquared)` 格式化） |
+| `conversationEntity` | `Object` | Adyeshach `EntityInstance`，用于触发对话 |
+| `distanceSquared` | double | 距离平方（用于排序） |
+
+## 选择器状态管理
+
+### SelectorState
+
+每个在线玩家对应一个 `SelectorState`，存储于 `selectorStates`（`ConcurrentMap<UUID, SelectorState>`）：
+
+| 字段 | 类型 | 说明 |
+| --- | --- | --- |
+| `candidates` | `List<NpcCandidate>` | 候选 NPC 列表 |
+| `selectedNpcId` | string | 当前选中的 NPC ID |
+| `selectedIndex` | int | 当前选中索引 |
+| `lastVisibleAt` | long | 最后一次有候选的时间戳 |
+| `suppressOpenUntil` | long | 抑制打开对话的截止时间戳 |
+| `lastOpenAt` | long | 上次打开对话的时间戳 |
+| `generation` | long | 创建 / 更新时的 generation |
+
+### 候选列表刷新
+
+`refreshSelectorState(state, candidates, now)` 处理候选列表的更新与粘滞：
+
+| 场景 | 处理 |
+| --- | --- |
+| 有新候选 | `replaceCandidates()` 更新列表，保持选中项 |
+| 无候选但粘滞期内 | 保持当前列表不关闭（`selector-sticky-ms`） |
+| 无候选且粘滞过期 | `clearCandidates()` 清空列表 |
+
+> 粘滞机制（`selector-sticky-ms`，默认 1500ms）防止 NPC 短暂离开扫描范围时选择器频繁闪烁。选中项保持通过 `preserveSelection` 实现：优先沿用之前的 `selectedNpcId`，无效时回退到列表首项。
+
+### 选中项导航
+
+`moveSelection(delta)` 在候选列表中环绕移动选中项：
+
+```java
+int next = (normalized + delta) % size;
+return next < 0 ? next + size : next;
+```
+
+| 操作 | delta | 说明 |
+| --- | --- | --- |
+| 向上导航 | -1 | `AXS_NAVIGATE_PREV` 按键或 `navigate_npc: prev` 回包 |
+| 向下导航 | +1 | `AXS_NAVIGATE_NEXT` 按键或 `navigate_npc: next` 回包 |
+
+> 导航使用环绕索引（`wrapIndex`），到达列表末尾后回到开头，反之亦然。
+
+## 选择器 UI 同步
+
+### sync 包构建
+
+`buildSelectorPayload(state)` 构建发送给选择器 UI 的 sync 包：
+
+| 字段 | 类型 | 说明 |
+| --- | --- | --- |
+| `token` | string | 会话令牌（基于 generation） |
+| `packetId` | string | 通信标识 |
+| `title` | string | 固定为 `"附近对话"` |
+| `hintText` | string | 固定为 `"滚轮/↑/↓ 切换，G 确认"` |
+| `selectedNpcId` | string | 当前选中的 NPC ID |
+| `selectedNpcIndex` | int | 当前选中的 NPC 索引 |
+| `npcCount` | int | 可对话 NPC 总数 |
+| `npcScrollRatio` | double | 列表滚动比例（0.0 ~ 1.0） |
+| `npcRows` | `Map<String, Map<String, Object>>` | NPC 行数据字典 |
+| `maxNpcCount` | int | NPC 行模板最大复制数 |
+
+### npcRows 单行字段
+
+| 字段 | 类型 | 说明 |
+| --- | --- | --- |
+| `id` | string | NPC ID |
+| `text` | string | NPC 显示名 |
+| `distanceText` | string | 距离文本（如 `6.0m`） |
+| `selected` | boolean | 是否当前选中 |
+| `index` | int | NPC 序号（0-based） |
+
+> 行键使用 `Integer.toString(index)`（纯数字字符串），UI 引擎自动转为整数。滚动比例由 `computeScrollRatio` 计算，使选中项尽量居中显示。可见行数为 5 行（`SELECTOR_VISIBLE_ROWS`）。
+
+## 对话触发
+
+### 打开对话流程
+
+`openSelectedConversation(player, state, source)` 处理选择器确认后打开对话：
+
+```
+检查 interactionReady 且有候选
+  → 检查抑制区间（suppressOpenUntil）
+  → 检查打开冷却（open-cooldown-ms）
+  → 获取选中的 NpcCandidate
+  → 更新 lastOpenAt
+  → closeSelectorView() 关闭选择器
+  → invokeOpenConversation(entity, player)
+  → TriggerAdyeshachKt.openConversation(entity, player, false)
+  → future 完成后检查对话是否成功打开
+  → 未打开则 restoreSelectorIfEligible()
+```
+
+### 防抖与抑制
+
+| 机制 | 配置项 | 默认值 | 说明 |
+| --- | --- | --- | --- |
+| 打开冷却 | `interaction.open-cooldown-ms` | `350` | 两次打开对话的最小间隔 |
+| 回复后抑制 | `interaction.suppress-reopen-ms` | `500` | 回复确认后抑制选择器重新打开的时长 |
+| 粘滞 | `interaction.selector-sticky-ms` | `1500` | NPC 离开范围后选择器保持显示的延迟 |
+
+> `suppressSelectorOpen` 在回复确认后设置，防止对话关闭后选择器立即重新打开同一个 NPC 对话。
+
+## 按键路由
+
+按键注册由宿主 `config.yml` 的 `keybinds` 节统一管理，模块通过 `registerKeybindHandler` 注册回调：
+
+| 按键 | 优先级 | 处理逻辑 | 消费条件 |
+| --- | --- | --- | --- |
+| `AXS_INTERACT` | 50 | 选择器有候选时打开对话 | 选择器有候选 NPC |
+| `AXS_NAVIGATE_PREV` | 10 | 选择器中向上导航 | 选择器有候选且可移动 |
+| `AXS_NAVIGATE_NEXT` | 10 | 选择器中向下导航 | 选择器有候选且可移动 |
+
+> `AXS_INTERACT` 优先级为 50，高于拾取模块，确保对话中不会误触拾取。按键回调返回 `true` 表示已消费，宿主不再传递给低优先级处理器。
+
+## NPC 外观自动配置
+
+### 配置结构
+
+`npc-appearances` 配置节定义 NPC 名称到模型与动画的映射，模块启动 / 重载时自动应用：
+
+```yaml
+npc-appearances:
+  - npc: "村长老王"
+    model: npc_village_elder
+    scale: 1.0
+    state: idle
+    animation: idle_loop
+```
+
+### 动画模式
+
+| 模式 | 条件 | 调用方法 | 说明 |
+| --- | --- | --- | --- |
+| 模式 A（持久默认状态） | 填 `state` + `animation`，不填 `animation-speed` | `setDefaultState(state, animation)` | NPC 进入视野时设置持久动画 |
+| 模式 B（一次性播放） | 填 `animation` + `animation-speed`（`>` 0） | `playAnimation(animation, speed, transitionTime, keepTime)` | 播放一次动画，`state` 被忽略 |
+
+### 应用机制
+
+NPC 外观配置通过三种机制确保正确应用：
+
+| 机制 | 触发时机 | 说明 |
+| --- | --- | --- |
+| Visible Handler | 玩家进入 NPC 视野 | `onAdyeshachEntityVisible` 回调，点对点发送模型 / 动画包 |
+| 启动重试 | 模块启动 | `applyNpcAppearancesAttempt` 最多重试 30 次，每次间隔 10 tick |
+| 客户端初始化补发 | `ClientInitializedEvent` | `applyNpcAppearancesForPlayer` 在客户端 mod 握手完成后补发 |
+
+> Visible Handler 是主要机制：玩家看见 NPC 时立即发送模型包。启动重试作为兜底，应对 NPC 尚未加载完成的情况。客户端初始化补发解决玩家登录瞬间 visible 事件早于客户端 mod 握手的问题。
+
+### Visible Handler 流程
+
+```
+玩家进入 NPC 视野
+  → AdyeshachEntityVisibleEvent
+  → onAdyeshachEntityVisible(viewer, entity)
+  → npcBridge.getEntityNames(entity) 获取 NPC 名称列表
+  → 在 appearanceMapByLowerName 中匹配（忽略大小写）
+  → 匹配成功:
+    → applyModelForPlayer(viewer, entity, modelId, scale)
+    → 有动画则 applyAnimationForPlayer / applyDefaultStateForPlayer
+```
+
+> `appearanceMapByLowerName` 是 `Map<String, NpcAppearanceEntry>`，key 为 NPC 名称的小写形式。`getEntityNames` 返回 NPC 的所有可能名称（displayName、customName、Adyeshach ID），逐一匹配。
+
+### 启动重试机制
+
+`applyNpcAppearancesAttempt(pending, attempt)` 处理启动时 NPC 尚未加载的情况：
+
+| 参数 | 说明 |
+| --- | --- |
+| `pending` | 待应用的配置列表 |
+| `attempt` | 当前尝试次数（0-based） |
+
+```
+遍历 pending:
+  → npcBridge.findByName(npcName)
+  → 找到: 应用模型 + 动画，从 pending 移除
+  → 未找到: 加入 stillPending 队列
+stillPending 为空? → 完成
+attempt + 1 >= 30? → 输出最终警告，跳过
+否则 → 延迟 10 tick 后重试 stillPending
+```
+
+> 最大重试次数为 30（`NPC_APPEARANCE_MAX_ATTEMPTS`），每次间隔 10 tick（`NPC_APPEARANCE_RETRY_INTERVAL_TICKS`）。达到上限后对仍未找到的 NPC 输出警告日志。
+
+## 运行时状态清理
+
+### 玩家退出
+
+`PlayerQuitEvent` 触发 `cleanupPlayerState(player, "player-quit")`：
+
+| 操作 | 说明 |
+| --- | --- |
+| `dialogRenderer.closePlayerView` | 关闭对话 UI |
+| `closeSelectorView` | 关闭选择器 UI |
+| `selectorStates.remove` | 移除选择器状态 |
+| `selectorOpenedPlayers.remove` | 移除已打开标记 |
+
+### Chemdah 对话释放
+
+`PlayerEvents.Released` 事件触发时清理玩家状态。模块通过反射注册监听器，严格按运行时类型过滤（`event.getClass() != expected`），避免误处理 `TemplateEvents.Load` 等共享 HandlerList 的其他子类事件。
+
+### 离线状态清理
+
+每轮扫描结束后 `cleanupOfflineStates(onlinePlayerIds)` 清理已离线玩家的状态：
+
+| 清理项 | 说明 |
+| --- | --- |
+| `selectorStates` | 移除离线玩家的选择器状态 |
+| `selectorOpenedPlayers` | 移除已打开标记 |
+| `dialogRenderer.removePlayer` | 移除对话渲染状态 |
+
+## 相关文档
+
+- [概览](/docs/conversation) — 模块功能与对话机制
+- [配置](/docs/conversation/configuration) — 交互参数与 NPC 外观配置
+- [命令与占位符](/docs/conversation/commands) — 选择器 UI 通讯包结构
+- [联动](/docs/conversation/integration) — Adyeshach 桥接与按键路由
+- [条件系统](/docs/guide/conditions) — Chemdah 对话触发条件配置
+- [图标系统](/docs/guide/icons) — NPC 模型与图标配置

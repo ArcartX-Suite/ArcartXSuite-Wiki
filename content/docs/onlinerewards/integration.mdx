@@ -1,0 +1,250 @@
+---
+title: "联动"
+description: "OnlineRewards 跨模块联动与 Capability"
+---
+
+OnlineRewards 模块通过 Capability 注册、EventBus 事件发布、跨服通道同步等机制与其他模块和子系统联动。
+
+## Capability 注册
+
+模块在启动时注册以下 Capability，供其他模块通过 `getCapability()` 获取并调用：
+
+### OnlineRewardsQueryable
+
+提供在线奖励的查询与操作能力，接口定义位于 `xuanmo.arcartxsuite.onlinerewards.capability.OnlineRewardsQueryable`。
+
+| 方法签名 | 返回值 | 说明 |
+|---|---|---|
+| `hasSignedToday(UUID playerUuid)` | `boolean` | 查询玩家今日是否已签到 |
+| `todayOnlineMinutes(UUID playerUuid)` | `int` | 查询玩家今日在线分钟数 |
+| `weeklyOnlineMinutes(UUID playerUuid)` | `int` | 查询玩家本周在线分钟数 |
+| `monthlyOnlineMinutes(UUID playerUuid)` | `int` | 查询玩家本月在线分钟数 |
+| `signIn(Player player)` | `boolean` | 为玩家执行签到（已签到返回 false） |
+| `makeupSignIn(Player player, String date)` | `boolean` | 为玩家执行补签（日期格式 `yyyy-MM-dd`） |
+| `addMakeupCards(Player player, int amount)` | `boolean` | 为玩家增加补签卡数量 |
+| `grantDailyRewards(Player player)` | `void` | 立即发放玩家当前已达阈值但未领取的阶段奖励 |
+| `addOnlineMinutes(Player player, int minutes)` | `boolean` | 给玩家增加在线时长（用于联动活动或 GM 补偿） |
+
+使用示例（其他模块中）：
+
+```java
+OnlineRewardsQueryable rewards = getCapability(OnlineRewardsQueryable.class);
+if (rewards != null) {
+    boolean signed = rewards.hasSignedToday(player.getUniqueId());
+    int todayMinutes = rewards.todayOnlineMinutes(player.getUniqueId());
+    // 给玩家增加 30 分钟在线时长
+    rewards.addOnlineMinutes(player, 30);
+}
+```
+
+### PlayerDataPurgeable
+
+提供玩家数据清除能力，供本体统一清理模块数据。
+
+| 方法签名 | 返回值 | 说明 |
+|---|---|---|
+| `moduleId()` | `String` | 返回 `"onlinerewards"` |
+| `purgePlayerData(UUID playerUuid)` | `int` | 删除指定玩家的全部数据，返回删除行数 |
+| `purgeAllPlayerData()` | `int` | 删除全部玩家数据，返回删除行数 |
+
+### DatabaseMigratable
+
+提供数据库迁移能力，供本体统一迁移模块存储。
+
+| 方法签名 | 返回值 | 说明 |
+|---|---|---|
+| `moduleId()` | `String` | 返回 `"onlinerewards"` |
+| `migrateDatabase(StorageDescriptor target, boolean overwrite)` | `MigrationResult` | 将数据迁移到目标存储 |
+| `currentDescriptor()` | `StorageDescriptor` | 返回当前存储描述符 |
+
+## EventBus 事件
+
+模块通过 `EventBusCapability` 发布事件，其他模块可订阅对应 Topic 接收事件。
+
+### onlinerewards.server_goal_reached
+
+全服签到目标达成时发布。
+
+| Payload 字段 | 类型 | 说明 |
+|---|---|---|
+| `goal_id` | `String` | 目标 ID |
+| `goal_name` | `String` | 目标名称 |
+| `required` | `String` | 所需签到人数 |
+| `signed_count` | `String` | 实际签到人数 |
+
+```java
+// 订阅示例
+eventBus.subscribe("onlinerewards.server_goal_reached", (player, payload) -> {
+    String goalId = payload.get("goal_id");
+    int signed = Integer.parseInt(payload.get("signed_count"));
+    // 处理全服签到目标达成事件
+});
+```
+
+## 跨服同步
+
+### 跨服通道
+
+模块通过 `CrossServerAPI.openChannel("onlinerewards", ...)` 建立跨服通道。当 `cross-server.enabled` 为 `true` 且使用 MySQL 共享数据库时，以下操作会自动通知其他子服：
+
+| 操作 | 跨服消息 | 说明 |
+|---|---|---|
+| 签到 | `refresh:<playerUuid>` | 通知其他子服清除该玩家缓存并刷新 UI |
+| 补签 | `refresh:<playerUuid>` | 同上 |
+| 管理员调整在线时长 | `refresh:<playerUuid>` | 同上 |
+| 管理员调整补签卡 | `refresh:<playerUuid>` | 同上 |
+| 管理员调整离线储蓄 | `refresh:<playerUuid>` | 同上 |
+
+收到跨服消息后，服务端在主线程执行：清除该玩家缓存 → 重新加载状态 → 刷新菜单 → 刷新排行榜。
+
+### 跨服前提条件
+
+1. `storage.shared` 必须为 `true`（共享 MySQL 数据库）
+2. 宿主 `config.yml` 的 `cross-server` 节已正确配置
+3. `cross-server.enabled` 设为 `true`
+
+## 数据库表结构
+
+模块使用 4 张表（表名前缀由 `storage.mysql.table-prefix` 控制，默认 `axs_onlinerewards_`，共享模式下无前缀）：
+
+### online_rewards_players
+
+玩家运行时状态表，存储在线时长、签到、补签卡等全部可变状态。
+
+| 列名 | SQLite 类型 | MySQL 类型 | 说明 |
+|---|---|---|---|
+| `player_uuid` | `TEXT PRIMARY KEY` | `VARCHAR(36) PRIMARY KEY` | 玩家 UUID |
+| `player_name` | `TEXT` | `VARCHAR(64)` | 玩家名称 |
+| `reward_date` | `TEXT` | `VARCHAR(32)` | 当前奖励日期（ISO 格式） |
+| `online_minutes` | `INTEGER` | `INT` | 当日在线分钟数 |
+| `reward_stage` | `INTEGER` | `INT` | 已领取的阶段奖励序号 |
+| `week_key` | `TEXT` | `VARCHAR(32)` | 当前周键（如 `2025-W01`） |
+| `week_minutes` | `INTEGER` | `INT` | 本周在线分钟数 |
+| `month_key` | `TEXT` | `VARCHAR(32)` | 当前月键（如 `2025-01`） |
+| `month_minutes` | `INTEGER` | `INT` | 本月在线分钟数 |
+| `total_minutes` | `INTEGER` | `INT` | 历史总在线分钟数 |
+| `last_sign_in_date` | `TEXT` | `VARCHAR(32)` | 上次签到日期 |
+| `sign_in_streak` | `INTEGER` | `INT` | 连续签到天数 |
+| `sign_in_total` | `INTEGER` | `INT` | 累计签到天数 |
+| `makeup_cards` | `INTEGER` | `INT` | 补签卡数量 |
+| `time_bonus_remainder` | `REAL` | `DOUBLE` | 时长倍率累计余数 |
+| `offline_savings_minutes` | `INTEGER` | `INT` | 离线储蓄分钟数 |
+| `claimed_weekly_reward_ids` | `TEXT` | `TEXT` | 已领取的周奖励 ID（逗号分隔） |
+| `claimed_monthly_reward_ids` | `TEXT` | `TEXT` | 已领取的月奖励 ID（逗号分隔） |
+
+### online_rewards_sign_ins
+
+签到记录表，每次签到/补签写入一条记录。
+
+| 列名 | SQLite 类型 | MySQL 类型 | 说明 |
+|---|---|---|---|
+| `player_uuid` | `TEXT` | `VARCHAR(36)` | 玩家 UUID |
+| `sign_in_date` | `TEXT` | `VARCHAR(32)` | 签到日期（ISO 格式） |
+| `player_name` | `TEXT` | `VARCHAR(64)` | 玩家名称 |
+| `makeup` | `INTEGER` | `TINYINT` | 是否为补签（0=正常, 1=补签） |
+| `created_at` | `TEXT` | `TIMESTAMP` | 创建时间 |
+
+> 主键：`(player_uuid, sign_in_date)`
+
+### online_rewards_server_goals
+
+全服签到目标触发记录表，防止同一目标同一天重复触发。
+
+| 列名 | SQLite 类型 | MySQL 类型 | 说明 |
+|---|---|---|---|
+| `goal_date` | `TEXT` | `VARCHAR(32)` | 目标日期 |
+| `goal_id` | `TEXT` | `VARCHAR(64)` | 目标 ID |
+| `triggered` | `INTEGER` | `TINYINT` | 是否已触发（1=已触发） |
+| `created_at` | `TEXT` | `TIMESTAMP` | 创建时间 |
+
+> 主键：`(goal_date, goal_id)`
+
+### online_rewards_schema_meta
+
+迁移记录表，记录已完成的数据库迁移。
+
+| 列名 | SQLite 类型 | MySQL 类型 | 说明 |
+|---|---|---|---|
+| `migration_id` | `TEXT PRIMARY KEY` | `VARCHAR(64) PRIMARY KEY` | 迁移 ID |
+| `completed_at` | `TEXT` | `TIMESTAMP` | 完成时间 |
+
+### 索引
+
+| 索引名 | 表 | 列 | 用途 |
+|---|---|---|---|
+| `idx_online_rewards_daily_rank` | `online_rewards_players` | `reward_date, online_minutes` | 日榜查询 |
+| `idx_online_rewards_weekly_rank` | `online_rewards_players` | `week_key, week_minutes` | 周榜查询 |
+| `idx_online_rewards_monthly_rank` | `online_rewards_players` | `month_key, month_minutes` | 月榜查询 |
+| `idx_online_rewards_total_rank` | `online_rewards_players` | `total_minutes` | 总榜查询 |
+| `idx_online_rewards_sign_ins_date` | `online_rewards_sign_ins` | `sign_in_date` | 全服签到人数统计 |
+
+## 与其他模块联动
+
+### Mail 模块
+
+所有奖励（阶段奖励、签到奖励、周期奖励、时刻奖励、全服签到目标）均支持通过 `mail.presets` 字段发送邮件预设。填写 Mail 模块 `mail/presets/*.yml` 中的 `preset.id`，达成条件后自动发送邮件给玩家。
+
+### 物品来源（ItemSourceRegistry）
+
+所有奖励支持通过 `item-rewards` 字段发放物品。物品来源支持：
+
+| source | 说明 | id 格式 |
+|---|---|---|
+| `minecraft` | 原版物品 | 材质名（如 `DIAMOND`） |
+| `mythic` | MythicMobs | 物品 ID |
+| `neige` | NeigeItems | 物品 ID |
+| `overture` | Overture | 物品 ID |
+| `mmoitems` | MMOItems | `类型ID;物品ID` |
+
+物品发放统一行为：放入背包 → 背包满转邮件 → 无邮件则掉落。详见 [物品来源](/docs/guide/item-sources)。
+
+### SignalDispatchable
+
+签到成功后，模块通过 `SignalDispatchable.dispatchSignal("signin_success", player, variables)` 发送信号，其他模块可监听该信号触发联动逻辑。
+
+信号变量：
+
+| 变量名 | 说明 |
+|---|---|
+| `streak` | 连续签到天数 |
+| `total` | 累计签到天数 |
+| `date` | 签到日期 |
+| `day_of_month` | 当月第几天 |
+
+### ChatCardSendable
+
+全服签到目标达成时，通过 `ChatCardSendable.sendChatCard(player, cardId, variables)` 向在线玩家发送聊天卡片。`chat-cards` 字段填写卡片 ID。
+
+### SubtitlePlayable
+
+全服签到目标达成时，通过 `SubtitlePlayable.playGroup(player, groupId)` 向在线玩家播放字幕组。`subtitle-groups` 字段填写字幕组 ID。
+
+### TitleGrantable
+
+全服签到目标达成时，通过 `TitleGrantable.giveTitle(uuid, titleId, "permanent", "OnlineRewards:ServerGoal")` 向在线玩家授予标题。`title-ids` 字段填写标题 ID。
+
+### QQBotBroadcastable
+
+全服签到目标达成时，通过 `QQBotBroadcastable.sendToAllGroups(message)` 向 QQ 群广播消息。
+
+### 客户端变量推送
+
+模块通过 `ClientBridgeAPI.sendServerVariable` 向 ArcartX 客户端推送以下变量：
+
+| 变量名 | 默认值 | 说明 |
+|---|---|---|
+| `arcartx_online_time` | 0.0~1.0 | 当前进度（可通过 `variables.progress` 配置） |
+| `arcartx_online_time_title` | `String` | 当前阶段标题（可通过 `variables.title` 配置） |
+
+客户端 HUD 或其他 UI 可读取这些变量显示在线奖励进度。
+
+## 配置版本迁移
+
+模块支持配置版本自动迁移。当前配置版本为 4。
+
+| 迁移 | 说明 |
+|---|---|
+| 2→3 | 签到配置独立为外部 `sign-in.yml` 文件 |
+| 3→4 | `storage.mode` 重命名为 `storage.shared`，值从 `sqlite`/`mysql` 映射为 `true`/`false` |
+
+模块启动时自动检测 `config-version` 并执行迁移，无需手动干预。

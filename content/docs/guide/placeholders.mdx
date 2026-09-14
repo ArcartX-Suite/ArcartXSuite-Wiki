@@ -1,0 +1,274 @@
+---
+title: PlaceholderAPI 占位符
+description: ArcartX-Suite 全部 PlaceholderAPI 占位符速查表
+---
+
+# PlaceholderAPI 占位符
+
+本页列出 ArcartX-Suite 对外输出的全部 PlaceholderAPI 占位符。
+
+> 前置条件：服务器需安装 PlaceholderAPI 插件，ArcartX-Suite 会在启动时自动注册占位符。
+
+## 占位符总览
+
+ArcartX-Suite 共有 16 个模块对外输出 PAPI 占位符：
+
+| 模块 | 前缀 | 说明 |
+| --- | --- | --- |
+| AfkReward | `%axsafkreward_*%` | 区域挂机状态、时长、奖励次数 |
+| BattlePass | `%axsbattlepass_*%` | 战令等级、XP、通行证层级 |
+| EntityTracker | `%axsentitytracker_*%` | Boss 追踪、伤害排行、结算数据 |
+| Essentials | `%axsess_*%` | AFK、隐身、飞行、昵称等玩家状态 |
+| Title | `%axstitle_*%` | 称号前缀/后缀、装备状态、属性加成 |
+| RGB | `%axsrgb_*%` | 动态渐变彩色文本渲染（必装 PAPI） |
+| OnlineRewards | `%axsonlinerewards_*%` | 在线时长、签到状态、排行榜 |
+| Mail | `%axsmail_*%` | 邮箱未读数、可领取数 |
+| Chat | `%axschat_*%` | 聊天频道、禁言状态 |
+| LoginView | `%axsloginview_*%` | 账号来源识别 |
+| Warehouse | `%axswarehouse_*%` | 仓库容量、银行余额 |
+| Market | `%axsmarket_*%` | 拍卖数量、商店数、Redis 状态 |
+| QQBot | `%axsqqbot_*%` | OneBot 连接状态、QQ 绑定信息 |
+| Tab | `%axstab_*%` | Tab 在线列表变量 |
+| Fishing | `%axsfishing_*%` | 钓鱼等级、经验、捕获数 |
+| Lottery | `%axslottery_*%` | 保底计数、开箱次数、命运点 |
+
+## AfkReward 占位符
+
+前缀：`%axsafkreward_&lt;字段>%`
+
+| 占位符 | 返回值 | 说明 |
+| --- | --- | --- |
+| `%axsafkreward_type%` | 文本 | 挂机类型：区域挂机 / 原地挂机 / 未挂机 |
+| `%axsafkreward_status%` | 文本 | 挂机状态：挂机中 / 未挂机 |
+| `%axsafkreward_mode%` | 文本 | 挂机模式名称 |
+| `%axsafkreward_area%` | 文本 | 当前所在区域名称 |
+| `%axsafkreward_time%` | 文本 | 当前挂机时长（格式化） |
+| `%axsafkreward_multiplier%` | 数字 | 当前倍率 |
+| `%axsafkreward_session_rewards%` | 数字 | 本次会话已获得奖励数 |
+| `%axsafkreward_daily_seconds%` | 数字 | 今日已挂机总秒数 |
+| `%axsafkreward_total_time%` | 文本 | 累计总挂机时长 |
+| `%axsafkreward_total%` | 数字 | 累计获得奖励总次数 |
+| `%axsafkreward_players%` | 数字 | 当前区域同时挂机人数 |
+| `%axsafkreward_next%` | 数字 | 距离下次奖励的剩余秒数 |
+| `%axsafkreward_top_&lt;名次>_name%` | 文本 | 排行榜指定名次玩家名 |
+| `%axsafkreward_top_&lt;名次>_time%` | 文本 | 排行榜指定名次总时长 |
+
+## EntityTracker 占位符
+
+前缀：`%axsentitytracker_&lt;字段>%`
+
+### 全局信息
+
+| 占位符 | 返回值 | 说明 |
+| --- | --- | --- |
+| `%axsentitytracker_sort_mode%` | 文本 | 当前 Boss 排序模式 |
+| `%axsentitytracker_max_visible_bars%` | 数字 | 最大同时显示 Boss 血条数 |
+| `%axsentitytracker_active_session_count%` | 数字 | 当前活跃 Boss 战斗会话数 |
+
+### 玩家视野中的 Boss
+
+| 占位符 | 说明 |
+| --- | --- |
+| `%axsentitytracker_current_&lt;字段>%` | 视野中第一个 Boss 的信息 |
+| `%axsentitytracker_slot_&lt;N>_&lt;字段>%` | 第 N 个 Boss 的信息 |
+| `%axsentitytracker_boss_count%` | 该玩家视野中的 Boss 数量 |
+
+常用字段：`display_name`、`health_percent`、`mob_id`、`viewer_rank`、`viewer_damage`、`top_&lt;排名>_name`、`top_&lt;排名>_damage`
+
+### 最近结算
+
+| 占位符 | 说明 |
+| --- | --- |
+| `%axsentitytracker_last_rank%` | 最近结算中的排名 |
+| `%axsentitytracker_last_damage%` | 造成的伤害值 |
+| `%axsentitytracker_last_boss_name%` | 被击杀的 Boss 名称 |
+
+## Essentials 占位符
+
+前缀：`%axsess_&lt;字段>%`
+
+| 占位符 | 返回值 | 说明 |
+| --- | --- | --- |
+| `%axsess_afk%` | true/false | 是否处于 AFK |
+| `%axsess_afk_symbol%` | 文本 | AFK 标记符号 |
+| `%axsess_vanish%` | true/false | 是否隐身 |
+| `%axsess_vanish_symbol%` | 文本 | 隐身标记符号 |
+| `%axsess_flying%` | true/false | 是否飞行 |
+| `%axsess_god%` | true/false | 是否无敌 |
+| `%axsess_nick%` | 文本 | 玩家昵称 |
+
+## Tab 占位符
+
+前缀：`%axstab_&lt;字段>%`
+
+| 占位符 | 返回值 | 说明 |
+| --- | --- | --- |
+| `%axstab_ping%` | 数字 | 玩家 ping 值 |
+| `%axstab_ping_icon%` | 文本 | 信号图标 |
+| `%axstab_pvp%` | true/false | 是否处于 PvP |
+| `%axstab_vanished%` | true/false | 是否隐身 |
+| `%axstab_uuid%` | 文本 | 玩家 UUID |
+| `%axstab_&lt;defId>_count%` | 数字 | 本服当前 definition 可见玩家数 |
+| `%axstab_&lt;defId>_total%` | 数字 | 本服 + 跨服合计可见玩家数 |
+| `%axstab_&lt;defId>_rank%` | 数字 | 当前玩家在本服排序中的位次 |
+
+## Title 占位符
+
+前缀：`%axstitle_&lt;字段>%`
+
+| 占位符 | 返回值 | 说明 |
+| --- | --- | --- |
+| `%axstitle_owned_count%` | 数字 | 拥有的称号总数 |
+| `%axstitle_hidden_count%` | 数字 | 已隐藏的称号数量 |
+| `%axstitle_chat_&lt;组ID>_prefix%` | 文本 | 该组已装备称号的聊天前缀 |
+| `%axstitle_chat_&lt;组ID>_suffix%` | 文本 | 该组已装备称号的聊天后缀 |
+| `%axstitle_equipped_&lt;组ID>_id%` | 文本 | 该组已装备称号的 ID |
+| `%axstitle_equipped_&lt;组ID>_name%` | 文本 | 该组已装备称号的显示名称 |
+| `%axstitle_owned_&lt;称号ID>%` | true/false | 是否拥有指定称号 |
+| `%axstitle_remaining_&lt;称号ID>%` | 数字/文本 | 称号剩余有效时间，永久返回"永久" |
+| `%axstitle_total_attr_&lt;属性键>%` | 数字 | 展示 + 收藏的总属性加成 |
+
+## RGB 占位符
+
+前缀：`%axsrgb_&lt;条目ID>%`
+
+> 此模块必须安装 PAPI 才能使用。
+
+| 占位符 | 返回值 | 说明 |
+| --- | --- | --- |
+| `%axsrgb_&lt;条目ID>%` | 彩色文本 | 渲染配置中定义的渐变文本条目 |
+
+## OnlineRewards 占位符
+
+前缀：`%axsonlinerewards_&lt;字段>%`
+
+| 占位符 | 返回值 | 说明 |
+| --- | --- | --- |
+| `%axsonlinerewards_daily_minutes%` | 数字 | 今日在线分钟数 |
+| `%axsonlinerewards_total_minutes%` | 数字 | 总在线分钟数 |
+| `%axsonlinerewards_daily_time%` | 文本 | 今日在线时间（格式化） |
+| `%axsonlinerewards_signin_signed_today%` | true/false | 今日是否已签到 |
+| `%axsonlinerewards_signin_streak%` | 数字 | 连续签到天数 |
+| `%axsonlinerewards_top_&lt;范围>_&lt;名次>_name%` | 文本 | 排行榜指定名次玩家名 |
+
+范围可选：`daily`、`weekly`、`monthly`、`total`
+
+## Mail 占位符
+
+前缀：`%axsmail_&lt;字段>%`
+
+| 占位符 | 返回值 | 说明 |
+| --- | --- | --- |
+| `%axsmail_unread_count%` | 数字 | 未读邮件数量 |
+| `%axsmail_claimable_count%` | 数字 | 有附件但尚未领取的邮件数量 |
+| `%axsmail_total_count%` | 数字 | 收件箱中的邮件总数 |
+
+## Chat 占位符
+
+前缀：`%axschat_&lt;字段>%`
+
+| 占位符 | 返回值 | 说明 |
+| --- | --- | --- |
+| `%axschat_current_channel%` | 文本 | 当前频道 ID |
+| `%axschat_current_channel_display%` | 文本 | 当前频道显示名称 |
+| `%axschat_muted%` | true/false | 是否被禁言 |
+| `%axschat_ignore_count%` | 数字 | 已屏蔽的玩家数量 |
+
+## LoginView 占位符
+
+前缀：`%axsloginview_&lt;字段>%`
+
+| 占位符 | 返回值 | 说明 |
+| --- | --- | --- |
+| `%axsloginview_account_type%` | 文本 | 账号来源：microsoft / littleskin / offline |
+| `%axsloginview_account_type_display%` | 文本 | 中文显示名 |
+| `%axsloginview_is_microsoft%` | true/false | 是否微软正版 |
+| `%axsloginview_is_littleskin%` | true/false | 是否 LittleSkin |
+| `%axsloginview_is_offline%` | true/false | 是否离线 |
+| `%axsloginview_is_premium%` | true/false | 是否认证账号 |
+
+## Warehouse 占位符
+
+前缀：`%axswarehouse_&lt;字段>%`
+
+| 占位符 | 返回值 | 说明 |
+| --- | --- | --- |
+| `%axswarehouse_total_items%` | 数字 | 个人仓库物品总数 |
+| `%axswarehouse_personal_used%` | 数字 | 个人仓库已使用格子数 |
+| `%axswarehouse_personal_capacity%` | 数字 | 个人仓库总容量 |
+| `%axswarehouse_shared_owned_count%` | 数字 | 自己拥有的共享仓库数量 |
+| `%axswarehouse_shared_joined_count%` | 数字 | 已加入的他人共享仓库数量 |
+| `%axswarehouse_bank_balance_&lt;货币ID>%` | 数字 | 指定货币的银行余额 |
+
+## Market 占位符
+
+前缀：`%axsmarket_&lt;字段>%`
+
+| 占位符 | 返回值 | 说明 |
+| --- | --- | --- |
+| `%axsmarket_auction_count%` | 数字 | 当前活跃拍卖上架数量 |
+| `%axsmarket_shop_count%` | 数字 | 已加载的系统商店数量 |
+| `%axsmarket_recycle_count%` | 数字 | 回收表条目数 |
+| `%axsmarket_redis_status%` | 文本 | Redis 连接状态 |
+| `%axsmarket_my_listings%` | 数字 | 当前玩家的拍卖上架数量 |
+
+## QQBot 占位符
+
+前缀：`%axsqqbot_&lt;字段>%`
+
+| 占位符 | 返回值 | 说明 |
+| --- | --- | --- |
+| `%axsqqbot_connected%` | true/false | OneBot 机器人是否连接 |
+| `%axsqqbot_connected_display%` | 文本 | 连接状态中文显示 |
+| `%axsqqbot_is_bound%` | true/false | 当前玩家是否已绑定 QQ |
+| `%axsqqbot_bound_qq%` | 数字 | 绑定的 QQ 号 |
+| `%axsqqbot_group_count%` | 数字 | 已配置监听的 QQ 群数量 |
+
+## BattlePass 占位符
+
+前缀：`%axsbattlepass_&lt;字段>%`
+
+| 占位符 | 返回值 | 说明 |
+| --- | --- | --- |
+| `%axsbattlepass_season%` | 文本 | 当前赛季 ID |
+| `%axsbattlepass_level%` | 数字 | 当前等级 |
+| `%axsbattlepass_xp%` | 数字 | 当前 XP |
+| `%axsbattlepass_xp_needed%` | 数字 | 升级还需 XP |
+| `%axsbattlepass_tier%` | 文本 | 通行证层级：免费/高级/典藏 |
+| `%axsbattlepass_active_tasks%` | 数字 | 当前未完成的任务数量 |
+
+## Fishing 占位符
+
+前缀：`%axsfishing_&lt;字段>%`
+
+| 占位符 | 返回值 | 说明 |
+| --- | --- | --- |
+| `%axsfishing_level%` | 数字 | 当前钓鱼等级 |
+| `%axsfishing_total_xp%` | 数字 | 累计钓鱼经验 |
+| `%axsfishing_total_caught%` | 数字 | 累计捕获鱼数 |
+| `%axsfishing_collection%` | 文本 | 图鉴进度（如 12/30） |
+| `%axsfishing_collection_percent%` | 数字 | 图鉴完成百分比 |
+
+## Lottery 占位符
+
+前缀：`%axslottery_&lt;类型>_&lt;奖池ID>%`
+
+| 占位符 | 返回值 | 说明 |
+| --- | --- | --- |
+| `%axslottery_pity5_&lt;奖池ID>%` | 数字 | 5 星保底抽数 |
+| `%axslottery_pity4_&lt;奖池ID>%` | 数字 | 4 星保底抽数 |
+| `%axslottery_opens_&lt;奖池ID>%` | 数字 | 总开箱次数 |
+| `%axslottery_guaranteed_&lt;奖池ID>%` | 文本 | 是否处于大保底（是/否） |
+| `%axslottery_fatepoints_&lt;奖池ID>%` | 数字 | 当前命定值 |
+| `%axslottery_point_&lt;奖池ID>%` | 数字 | 抽奖点数 |
+
+## 反向消费 PAPI
+
+部分模块会读取其他插件的 PAPI 占位符作为数据来源，无需额外配置：
+
+| 模块 | 配置字段 | 用途 |
+| --- | --- | --- |
+| Tab | `tabs.&lt;id>.pack` / `sort-papi-key` | 渲染自定义行并按占位符值排序 |
+| EventPacket | `rules.&lt;id>.placeholder` / `conditions` | 监控占位符值变化或条件判断 |
+| Mail | `currencies.&lt;id>.balance-placeholder` | 读取玩家货币余额 |
+| EntityTracker | `bosses.&lt;id>.title-format` | Boss 名称格式中嵌入占位符 |

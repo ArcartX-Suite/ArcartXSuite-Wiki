@@ -1,0 +1,14 @@
+{
+  "title": "Lottery 抽奖系统",
+  "description": "抽奖系统，支持 CS 开箱滚动动画与原神祈愿卡池，含保底机制、积分兑换商店与多货币消耗。",
+  "color": "#fbbf24",
+  "pages": [
+    "index",
+    "configuration",
+    "gacha-pity",
+    "case-opening",
+    "prize-delivery",
+    "commands",
+    "integration"
+  ]
+}

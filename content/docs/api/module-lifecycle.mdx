@@ -1,0 +1,269 @@
+---
+title: 模块生命周期
+description: AXSModule 接口、AbstractAXSModule 抽象基类、ModuleDescriptor 与 ModuleCommandHandler 的完整 API 参考。
+---
+
+# 模块生命周期
+
+## AXSModule
+
+模块生命周期核心接口。每个独立模块 Jar 需提供一个实现此接口的主类，并在 `module.yml` 的 `main` 字段中声明。
+
+```java
+public interface AXSModule {
+    ModuleDescriptor descriptor();
+    boolean onEnable(ModuleContext context) throws Exception;
+    void onDisable();
+    void onReload() throws Exception;
+    boolean isReady();
+    default List<ModuleConfigSpec> configSpecs() { return List.of(); }
+}
+```
+
+### 生命周期方法
+
+| 方法 | 调用时机 | 说明 |
+|------|----------|------|
+| `descriptor()` | 模块加载前 | 返回模块元数据 |
+| `onEnable(context)` | 密码验证和依赖检查通过后 | 启动模块，返回 `true` 表示成功 |
+| `onDisable()` | 模块被卸载/禁用时 | 释放所有资源 |
+| `onReload()` | 执行 `/axs reload` 时 | 热重载配置，不卸载 ClassLoader |
+| `isReady()` | 任意时刻 | 查询模块是否正常运行 |
+| `configSpecs()` | `onEnable` 之前 | 返回配置诊断规约（参与智能配置体检） |
+
+## AbstractAXSModule
+
+推荐使用的模块抽象基类，封装了声明式生命周期管理。子类通过覆写声明式钩子方法和实现三个抽象方法即可完成模块开发。
+
+`onEnable` 和 `onDisable` 被标记为 `final`，子类无法直接覆写，而是通过声明式钩子参与生命周期。
+
+### 声明式钩子（按需覆写）
+
+| 方法 | 默认值 | 说明 |
+|------|--------|------|
+| `configSpec()` | `ModuleConfig.DEFAULT` | 配置规约（文件名/消息文件/同步策略/版本/迁移/校验） |
+| `uiSpec()` | `ModuleUiSpec.NONE` | UI 资源规约（资源映射/是否覆写） |
+| `createListeners()` | `List.of()` | Bukkit 事件监听器列表（自动注册/注销） |
+| `commandBindings()` | `Map.of()` | 命令绑定（命令名 → TabExecutor） |
+| `createPlaceholderExpansion()` | `null` | PlaceholderAPI 扩展实例 |
+| `createPacketHandlerSpec()` | `PacketHandlerSpec.NONE` | 客户端包处理器规约 |
+| `createInitializedHandler()` | `null` | 客户端初始化回调 |
+| `publishedTopics()` | `List.of()` | EventBus 发布的事件主题列表 |
+
+### 必须实现的抽象方法
+
+```java
+// 加载并解析配置
+protected abstract void loadConfiguration(@Nullable File configFile) throws Exception;
+
+// 创建并启动服务
+protected abstract void startService() throws Exception;
+
+// 关闭服务并释放资源
+protected abstract void stopService();
+```
+
+### onEnable 自动处理流程
+
+`onEnable` 时基类按以下顺序自动执行：
+
+1. **注入 API 字段** — 将 `context` 中的桥接、存储等 API 注入为 `protected` 字段
+2. **导出并加载配置** — 从模块 Jar 导出默认配置到 `data/&lt;moduleId>/config.yml`，调用 `loadConfiguration()`
+3. **导出并加载消息** — 若 `configSpec().messagesFileName()` 非空，自动导出并加载 `MessageProvider`
+4. **导出 UI 资源** — 根据 `uiSpec().resourceMappings()` 导出 UI 文件
+5. **绑定命令** — 根据 `commandBindings()` 注册命令
+6. **注册 EventBus 发布者** — 根据 `publishedTopics()` 注册主题
+7. **启动服务** — 调用 `startService()`
+8. **注册监听器** — 注册 `createListeners()` 返回的监听器
+9. **注册 PAPI** — 注册 `createPlaceholderExpansion()` 返回的占位符
+10. **注册包处理器** — 注册 `createPacketHandlerSpec()` 和 `createInitializedHandler()`
+
+`onDisable` 时反向清理所有已注册的资源（先 `stopService()`，再注销 UI、监听器、PAPI）。
+
+### UI 注册工具方法
+
+基类提供 `registerModuleUi()` 统一封装导出 + 注册/热重载：
+
+```java
+// 基于 uiSpec() 中的 resourceMappings 注册
+UiBinding binding = registerModuleUi("ui/my_view.yml", "my_ui", true);
+
+// 显式指定 jar 内资源路径（用于动态生成的 UI）
+UiBinding binding = registerModuleUi(
+    "arcartx/ui/my_view.yml",   // jar 内路径
+    "ui/my_view.yml",            // 输出路径
+    "my_ui",                     // 配置的 UI ID
+    true                         // 是否注册
+);
+
+// 获取已注册 UI 的 runtime ID
+String runtimeUiId = getModuleUiId("ui/my_view.yml");
+```
+
+| 方法 | 说明 |
+|------|------|
+| `registerModuleUi(relativePath, uiId, register)` | 基于 `uiSpec()` 注册，未声明会抛异常 |
+| `registerModuleUi(resourcePath, relativePath, uiId, register)` | 显式路径，不依赖 `uiSpec()` |
+| `getModuleUiId(relativePath)` | 获取已注册 UI 的 runtime ID |
+| `recordExternalUi(runtimeUiId, registeredUiId)` | 记录 Service 手动注册的 UI，纳入基类生命周期管理 |
+| `messages()` | 获取 `MessageProvider`（需声明 `messagesFileName`） |
+
+### 子类可用的 protected 字段
+
+基类在 `onEnable` 时自动注入以下字段，子类可直接使用：
+
+| 字段 | 类型 | 说明 |
+|------|------|------|
+| `plugin` | `JavaPlugin` | 宿主插件实例 |
+| `logger` | `Logger` | 带模块前缀的 Logger |
+| `dataFolder` | `File` | 模块私有数据目录 |
+| `packetBridge` | `PacketBridgeAPI` | UI/Packet 桥接 |
+| `clientBridge` | `ClientBridgeAPI` | 客户端桥接 |
+| `itemStackBridge` | `ItemBridgeAPI` | 物品序列化桥接 |
+| `storageManager` | `StorageManager` | 统一数据源管理器 |
+| `crossServer` | `CrossServerAPI` | 跨服 API |
+| `currencyManager` | `CurrencyBridgeAPI` | 货币管理器 |
+| `attributeBridge` | `AttributeBridgeRegistry` | 属性桥接注册表 |
+| `placeholderResolver` | `PlaceholderResolverAPI` | PAPI 解析器 |
+| `expansionRegistry` | `PlaceholderExpansionRegistry` | PAPI 扩展注册表 |
+| `scheduler` | `SchedulerAPI` | 统一调度 API |
+
+### 完整示例
+
+```java
+public class MyModule extends AbstractAXSModule {
+
+    private MyConfig config;
+    private MyService service;
+
+    @Override
+    public ModuleDescriptor descriptor() {
+        return ModuleDescriptor.builder("mymodule")
+            .name("MyModule").version("1.0.0")
+            .mainClass(getClass().getName())
+            .build();
+    }
+
+    @Override
+    protected ModuleConfig configSpec() {
+        return ModuleConfig.builder()
+            .configFileName("config.yml")
+            .messagesFileName("messages.yml")
+            .build();
+    }
+
+    @Override
+    protected ModuleUiSpec uiSpec() {
+        return ModuleUiSpec.of(Map.of(
+            "arcartx/ui/my_view.yml", "ui/my_view.yml"
+        ));
+    }
+
+    @Override
+    protected List<Listener> createListeners() {
+        return List.of(new MyListener(service));
+    }
+
+    @Override
+    protected void loadConfiguration(File configFile) {
+        config = MyConfig.load(configFile);
+    }
+
+    @Override
+    protected void startService() {
+        registerModuleUi("ui/my_view.yml", "my_ui", true);
+        service = new MyService(this, config);
+        service.start();
+    }
+
+    @Override
+    protected void stopService() {
+        if (service != null) { service.shutdown(); service = null; }
+    }
+}
+```
+
+## ModuleDescriptor
+
+模块元数据描述符，使用 Builder 模式构造。通常从 `module.yml` 解析，也可由模块主类直接构造返回。
+
+```java
+ModuleDescriptor desc = ModuleDescriptor.builder("mymodule")
+    .name("MyModule")
+    .version("1.0.0")
+    .mainClass("com.example.MyModule")
+    .depends(List.of("title"))
+    .softDepends(List.of("warehouse"))
+    .externalDepends(List.of("MythicMobs"))
+    .externalSoftDepends(List.of("Vault"))
+    .build();
+```
+
+### 字段说明
+
+| 字段 | 类型 | 说明 |
+|------|------|------|
+| `id` | `String` | 必填，模块唯一标识 |
+| `name` | `String` | 显示名称，默认同 `id` |
+| `version` | `String` | 版本号，默认 `"1.0.0"` |
+| `mainClass` | `String` | 主类全限定名 |
+| `depends` | `List&lt;String>` | 强依赖的其他 AXS 模块 id |
+| `softDepends` | `List&lt;String>` | 软依赖的其他 AXS 模块 id |
+| `externalDepends` | `List&lt;String>` | 强依赖的外部 Bukkit 插件名 |
+| `externalSoftDepends` | `List&lt;String>` | 软依赖的外部 Bukkit 插件名 |
+| `signature` | `String` | Ed25519 签名（Base64），见[模块签名](../developer/module-signature) |
+
+## ModuleCommandHandler
+
+模块可选实现的命令处理接口。实现后自动在 `/axs &lt;moduleId> ...` 下注册子命令。
+
+```java
+public interface ModuleCommandHandler {
+    String commandId();
+    default List<String> commandAliases() { return List.of(); }
+    default List<String> actions() { return List.of("help", "status", "reload"); }
+    boolean onCommand(CommandSender sender, String label, String[] args);
+    default List<String> onTabComplete(CommandSender sender, String[] args) { return null; }
+}
+```
+
+### 示例
+
+```java
+public final class MyModule extends AbstractAXSModule implements ModuleCommandHandler {
+
+    @Override
+    public String commandId() { return "mymodule"; }
+
+    @Override
+    public List<String> actions() { return List.of("help", "status", "reload"); }
+
+    @Override
+    public boolean onCommand(CommandSender sender, String label, String[] args) {
+        // /axs mymodule help
+        if (args.length < 2 || "help".equals(args[1])) {
+            sender.sendMessage("用法: /axs mymodule <help|status|reload>");
+            return true;
+        }
+        return true;
+    }
+}
+```
+
+## module.yml
+
+每个模块 Jar 在 `resources/` 中必须包含 `module.yml`，打包后位于 Jar 根目录：
+
+```yaml
+id: mymodule
+name: MyModule
+version: 1.0.0
+main: com.example.mymodule.MyModule
+api-version: 1.0
+depends: []
+softdepends: []
+external-depends: []
+external-softdepends: []
+```
+
+宿主在加载模块 Jar 时解析此文件，并将其与 `descriptor()` 返回值合并。

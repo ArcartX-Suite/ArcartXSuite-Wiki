@@ -1,0 +1,311 @@
+---
+title: 联动
+description: Chat 跨模块联动与 Capability
+---
+
+# 联动
+
+Chat 模块通过 EventBus、Capability、跨服通道等机制与其他模块和外部系统联动。
+
+## EventBus 事件
+
+Chat 模块通过 `EventBusCapability` 发布事件，其他模块可通过 EventBus 监听这些事件实现联动。
+
+### 发布的事件
+
+| 事件 Topic | 触发时机 | Payload |
+|---|---|---|
+| `axs.chat.chat_message_sent` | 玩家发送频道消息成功 | `channel_id`（频道 ID）、`type`（消息类型，如 `channel`） |
+
+### 事件发布机制
+
+事件通过 `EventBusCapability` 发布，由 Chat 模块在 `ChatService` 中延迟查找：
+
+```java
+service.setEventBusProvider(() -> getCapability(EventBusCapability.class));
+```
+
+```java
+private void publishChatEvent(Player player, String channelId, String type) {
+    if (eventBusProvider == null) return;
+    EventBusCapability eventBus = eventBusProvider.get();
+    if (eventBus == null) return;
+    Map<String, String> payload = new HashMap<>();
+    payload.put("channel_id", channelId);
+    payload.put("type", type);
+    eventBus.publish("axs.chat.chat_message_sent", player, payload);
+}
+```
+
+:::info
+EventBus 为延迟查找（`getCapability`），因模块加载顺序不定。若 EventBus 模块未加载，事件发布为空操作，不影响 Chat 正常运行。
+:::
+
+### publishedTopics 声明
+
+Chat 模块在 `publishedTopics()` 中声明了发布的事件 Topic，供宿主进行事件路由与权限管理：
+
+```java
+@Override
+protected List<String> publishedTopics() {
+    return List.of("axs.chat.chat_message_sent");
+}
+```
+
+## Capability 注册
+
+Chat 模块注册了以下 Capability，供其他模块调用：
+
+### ChatCardSendable（提供方）
+
+允许其他模块通过 `PacketBridgeAPI` 发送聊天卡片。
+
+| 方法 | 说明 |
+|---|---|
+| `sendChatCard(player, cardId, data)` | 向指定玩家发送聊天卡片 |
+
+注册实现：
+
+```java
+registerCapability(ChatCardSendable.class, (player, cardId, data) ->
+    cardBridge.sendChatCard(player, cardId, data));
+```
+
+:::tip
+其他模块可通过 `getCapability(ChatCardSendable.class)` 获取此能力，向玩家发送自定义聊天卡片。
+:::
+
+### ChatMutable（提供方）
+
+允许其他模块（如 Essentials）委托禁言操作。提供禁言、解除禁言、查询禁言状态与列出禁言记录等功能。
+
+| 方法 | 返回值 | 说明 |
+|---|---|---|
+| `mutePlayer(playerName, expiresAt, reason, mutedBy)` | `String` | 禁言玩家，返回操作结果消息 |
+| `unmutePlayer(playerName)` | `String` | 解除禁言，返回操作结果消息 |
+| `isMuted(playerUuid)` | `boolean` | 查询玩家是否处于禁言中 |
+| `listMutes()` | `List<MuteInfo>` | 列出所有活跃禁言记录 |
+
+`MuteInfo` 包含以下字段：
+
+| 字段 | 类型 | 说明 |
+|---|---|---|
+| `playerUuid` | `UUID` | 被禁言玩家 UUID |
+| `playerName` | `String` | 被禁言玩家名（在线时从 Bukkit 获取） |
+| `mutedBy` | `String` | 执行禁言的操作者名称 |
+| `reason` | `String` | 禁言原因 |
+| `createdAt` | `Instant` | 禁言创建时间 |
+| `expiresAt` | `Instant` | 禁言过期时间，`null` 表示永久 |
+
+:::info
+Essentials 等模块可通过 `getCapability(ChatMutable.class)` 获取此能力，将自身的禁言命令委托给 Chat 模块统一处理。
+:::
+
+### PlayerDataPurgeable（提供方）
+
+支持玩家数据清理，供管理工具调用。
+
+| 方法 | 返回值 | 说明 |
+|---|---|---|
+| `moduleId()` | `String` | 返回 `chat` |
+| `purgePlayerData(playerUuid)` | `int` | 删除指定玩家的所有聊天数据，返回删除行数 |
+| `purgeAllPlayerData()` | `int` | 删除所有玩家的聊天数据，返回删除行数 |
+
+清理的数据表包括：`chat_player_states`、`chat_player_mutes`、`chat_player_profiles`、`chat_ignored_players`。
+
+### DatabaseMigratable（提供方）
+
+支持数据库迁移，供本体存储管理模块调用。
+
+| 方法 | 返回值 | 说明 |
+|---|---|---|
+| `moduleId()` | `String` | 返回 `chat` |
+| `migrateDatabase(target, overwrite)` | `MigrationResult` | 迁移数据到目标存储描述符 |
+| `currentDescriptor()` | `StorageDescriptor` | 返回当前存储描述符 |
+
+## Capability 消费
+
+Chat 模块消费以下宿主 Capability / 桥接，实现功能增强：
+
+| Capability / 桥接 | 用途 | 未提供时行为 |
+|---|---|---|
+| `EventBusCapability` | 发布聊天事件 | 事件发布为空操作 |
+| `TabRefreshable` | 频道切换 / 开关变更后刷新 Tab | 不刷新 Tab |
+| `TooltipDataCapable` | 物品展示时注入动态 tooltip Lore | 不注入动态 Lore |
+| `ContentModerator` | 敏感词过滤 | 使用 `NoopContentModerator`（原样放行） |
+| `PacketBridgeAPI` | 聊天卡片发送、UI 包通信 | 必需，不提供则模块无法启动 |
+| `ItemBridgeAPI` | 物品 JSON 序列化（物品展示） | 必需，不提供则模块无法启动 |
+| `VanillaItemNameBridge` | 原版物品名称解析 | 使用物品材质键作为名称 |
+| `PlaceholderResolverAPI` | PAPI 占位符解析 | 不解析 PAPI 占位符 |
+| `CrossServerAPI` | 跨服聊天转发 | 不启用跨服功能 |
+
+### TooltipDataCapable 联动
+
+当 Tooltip 模块可用时，Chat 模块会将客户端采集的动态 tooltip 文本行注入物品 NBT Lore，使 ArcartX 客户端 UI 能显示 TACZ 枪属性和 Apotheosis affix 等内容：
+
+```java
+service.setTooltipDataProvider(() -> getCapability(TooltipDataCapable.class));
+```
+
+```java
+if (tooltipDataProvider != null) {
+    TooltipDataCapable tooltipCap = tooltipDataProvider.get();
+    if (tooltipCap != null) {
+        List<String> tooltipLines = tooltipCap.getTooltipLines(sender, itemStack);
+        if (tooltipLines != null && !tooltipLines.isEmpty()) {
+            itemForSerialization = tooltipCap.injectLore(itemStack, tooltipLines);
+        }
+    }
+}
+```
+
+## 跨服转发
+
+### 跨服通道
+
+Chat 模块通过 `CrossServerAPI` 打开跨服通道，实现多服聊天同步：
+
+```java
+crossServerChannel = crossServer.openChannel(
+    "chat",
+    configuration.crossServer(),
+    delivery -> handleRemotePayload(delivery.payload())
+);
+```
+
+| 配置 | 说明 |
+|---|---|
+| 通道名 | `chat` |
+| 配置来源 | `ArcartXChat.yml` 的 `cross-server.enabled` |
+| 消息格式 | yml 字符串（`ChatEnvelopeCodec` 编码） |
+
+### 跨服消息处理流程
+
+```
+本地消息发送 → 构建 ChatEnvelope → ChatEnvelopeCodec.encode → yml 字符串
+  → crossServerChannel.publish → 其他节点接收
+  → ChatEnvelopeCodec.decode → handleRemoteEnvelope
+  → dedupeKey 去重 → 查找频道 → 分发
+    → 私聊消息 → deliverPrivateEnvelope（本地目标玩家）
+    → 频道消息 → deliverPublicEnvelope（按权限 / 忽略列表过滤）
+```
+
+### 跨服去重
+
+跨服消息通过 `dedupeKey`（`originNodeId:messageId`）去重，避免同一消息被多个节点重复处理：
+
+```java
+private boolean rememberEnvelope(String key) {
+    // TTL 15 秒，超时自动清理
+    return processedEnvelopeKeys.putIfAbsent(key, System.currentTimeMillis()) == null;
+}
+```
+
+:::info
+跨服转发需要宿主 `config.yml` 的 `cross-server` 节配置 Redis 或 Proxy 后端。频道需配置 `cross-server: true` 才会跨服传输。
+:::
+
+## 数据库表结构
+
+Chat 模块使用 4 张数据库表存储玩家数据，支持 SQLite 与 MySQL 两种后端：
+
+### chat_player_states（玩家状态表）
+
+| 字段 | SQLite 类型 | MySQL 类型 | 说明 |
+|---|---|---|---|
+| `player_uuid` | TEXT PRIMARY KEY | VARCHAR(36) PRIMARY KEY | 玩家 UUID |
+| `current_channel_id` | TEXT NOT NULL | VARCHAR(64) NOT NULL | 当前频道 ID |
+| `accepts_private_messages` | INTEGER DEFAULT 1 | BOOLEAN DEFAULT TRUE | 是否接受私聊 |
+| `accepts_mentions` | INTEGER DEFAULT 1 | BOOLEAN DEFAULT TRUE | 是否接受提及 |
+| `social_spy_enabled` | INTEGER DEFAULT 0 | BOOLEAN DEFAULT FALSE | 是否启用社交监听 |
+| `updated_at` | INTEGER NOT NULL | BIGINT NOT NULL | 状态更新时间（毫秒时间戳） |
+
+### chat_ignored_players（忽略列表表）
+
+| 字段 | SQLite 类型 | MySQL 类型 | 说明 |
+|---|---|---|---|
+| `player_uuid` | TEXT NOT NULL | VARCHAR(36) NOT NULL | 玩家 UUID |
+| `ignored_uuid` | TEXT NOT NULL | VARCHAR(36) NOT NULL | 被忽略玩家 UUID |
+| PRIMARY KEY | `(player_uuid, ignored_uuid)` | `(player_uuid, ignored_uuid)` | 联合主键 |
+
+### chat_player_mutes（禁言记录表）
+
+| 字段 | SQLite 类型 | MySQL 类型 | 说明 |
+|---|---|---|---|
+| `player_uuid` | TEXT PRIMARY KEY | VARCHAR(36) PRIMARY KEY | 被禁言玩家 UUID |
+| `muted_by` | TEXT NOT NULL | VARCHAR(64) NOT NULL | 执行禁言的操作者名称 |
+| `reason` | TEXT NOT NULL | VARCHAR(255) NOT NULL | 禁言原因 |
+| `created_at` | INTEGER NOT NULL | BIGINT NOT NULL | 禁言创建时间（毫秒时间戳） |
+| `expires_at` | INTEGER | BIGINT NULL | 禁言过期时间（毫秒时间戳），NULL 表示永久 |
+
+### chat_player_profiles（玩家档案表）
+
+| 字段 | SQLite 类型 | MySQL 类型 | 说明 |
+|---|---|---|---|
+| `player_uuid` | TEXT PRIMARY KEY | VARCHAR(36) PRIMARY KEY | 玩家 UUID |
+| `last_known_name` | TEXT NOT NULL | VARCHAR(64) NOT NULL | 最近已知名称 |
+| `last_known_name_lower` | TEXT NOT NULL | VARCHAR(64) NOT NULL | 名称小写（用于不区分大小写查询） |
+| `last_seen_at` | INTEGER NOT NULL | BIGINT NOT NULL | 最后在线时间（毫秒时间戳） |
+| `last_server` | TEXT NOT NULL | VARCHAR(64) NOT NULL | 最后所在服务器 ID |
+| INDEX | `idx_chat_profiles_name` (last_known_name_lower) | 同左 | 名称查询索引 |
+
+:::tip
+`chat_player_profiles` 表用于跨服场景下按名称查找玩家 UUID。玩家加入 / 退出时自动更新档案。`findProfileByName` 通过 `last_known_name_lower` 索引实现不区分大小写的快速查询。
+:::
+
+## 模块集成
+
+### 与 Essentials 模块集成
+
+Essentials 模块可通过 `ChatMutable` Capability 委托禁言操作：
+
+| 集成点 | 说明 |
+|---|---|
+| 禁言命令 | Essentials 的 `/mute` 命令可委托给 Chat 模块的 `mutePlayer` |
+| 解除禁言 | Essentials 的 `/unmute` 命令可委托给 Chat 模块的 `unmutePlayer` |
+| 禁言查询 | Essentials 可通过 `isMuted` 查询玩家禁言状态 |
+| 禁言列表 | Essentials 可通过 `listMutes` 获取所有活跃禁言记录 |
+
+### 与 Tooltip 模块集成
+
+Tooltip 模块提供 `TooltipDataCapable` Capability，Chat 模块在物品展示时注入动态 tooltip Lore：
+
+| 集成点 | 说明 |
+|---|---|
+| 物品展示 | `[item]` 触发时，从 Tooltip 模块获取物品的动态 tooltip 文本行 |
+| Lore 注入 | 将 tooltip 文本行注入物品 NBT，使客户端 UI 显示完整物品信息 |
+| 兼容性 | 支持 TACZ 枪属性、Apotheosis affix 等动态 tooltip 内容 |
+
+### 与 Tab 模块集成
+
+Tab 模块提供 `TabRefreshable` Capability，Chat 模块在以下操作后刷新 Tab 显示：
+
+| 触发场景 | 刷新标识 |
+|---|---|
+| 频道切换 | `chat-channel` |
+| 私聊接收开关变更 | `chat-toggle-private` |
+| 提及接收开关变更 | `chat-toggle-mentions` |
+| 社交监听开关变更 | `chat-social-spy` / `chat-admin-spy` |
+| 忽略 / 取消忽略 | `chat-ignore` / `chat-unignore` |
+| 禁言 / 解除禁言 | `chat-muted` / `chat-unmuted` |
+| 私聊发送 / 回复 | `chat-msg` / `chat-reply` / `chat-msg-target` / `chat-remote-msg` |
+
+### 与 EventBus 模块集成
+
+其他模块可监听 `axs.chat.chat_message_sent` 事件实现联动：
+
+```java
+// 示例：监听聊天消息事件，触发任务进度
+eventBus.subscribe("axs.chat.chat_message_sent", (player, payload) -> {
+    String channelId = payload.get("channel_id");
+    String type = payload.get("type");
+    // 在指定频道发言触发任务进度
+    if ("global".equals(channelId)) {
+        questService.progress(player, "global_chat");
+    }
+});
+```
+
+:::tip
+EventBus 事件的 `type` 字段当前值为 `channel`（频道消息）。私聊消息不发布 EventBus 事件。
+:::

@@ -1,0 +1,11 @@
+{
+    "title":  "开发者指南",
+    "pages":  [
+                  "index",
+                  "module-development",
+                  "module-signature",
+                  "using-third-party-modules",
+                  "capability-guide"
+              ]
+}
+

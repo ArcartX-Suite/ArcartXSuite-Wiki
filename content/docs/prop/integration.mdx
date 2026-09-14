@@ -1,0 +1,175 @@
+---
+title: 联动
+description: Prop 模块 EventBus 事件、属性桥接能力、跨服支持与模块集成
+---
+
+# 联动
+
+## EventBus 事件
+
+Prop 模块通过 `EventBusCapability` 发布道具使用事件，其他模块可订阅该主题实现联动。
+
+### 发布的事件
+
+| 主题 | 触发时机 | Payload |
+|------|----------|---------|
+| `axs.prop.prop_used` | 玩家成功使用道具后（效果执行完毕） | `Map<String, String>`，含 `prop_id` 字段 |
+
+```yaml
+# Payload 结构
+prop_id: "技能/火球术"  # 道具 ID（小写归一化）
+```
+
+> 事件仅在道具使用**成功**后发布（通过全部检查、效果执行完毕）。冷却中、无权限、条件不满足等情况不会发布事件。
+
+### 订阅示例
+
+其他模块可在 `startService()` 中订阅 `axs.prop.prop_used` 主题：
+
+```java
+EventBusCapability eventBus = getCapability(EventBusCapability.class);
+if (eventBus != null && eventBus.hasPublisher("axs.prop.prop_used")) {
+    eventBus.subscribe("axs.prop.prop_used", event -> {
+        String propId = event.payload().get("prop_id");
+        Player player = event.player();
+        // 自定义联动逻辑
+    });
+}
+```
+
+### 发布者注册
+
+Prop 模块在 `PropModule.publishedTopics()` 中声明了 `axs.prop.prop_used` 主题，宿主启动时自动注册为发布者。其他模块可通过 `eventBus.hasPublisher("axs.prop.prop_used")` 检测是否可订阅。
+
+## 属性桥接能力
+
+Prop 模块通过宿主 `AttributeBridgeRegistry` 获取三套属性插件的桥接实例，实现临时属性加成。每个桥接独立初始化，对应插件未安装时 `available()` 返回 `false`，调用为空操作。
+
+### AttributePlus
+
+| 项 | 说明 |
+|------|------|
+| 桥接接口 | `AttributePlusBridge` |
+| 效果类型 | `ap` |
+| 来源 ID 格式 | `ArcartXProp_<道具显示名>` |
+| 持续时间 | 道具 `Duration` 秒，到期后自动移除来源 |
+| 服务类 | `PropAttributePlusService` |
+
+AttributePlus 效果将属性行列表（如 `物理伤害:10`）作为来源添加到玩家的属性数据中。来源 ID 由道具显示名生成（非字母数字字符替换为 `_` 并转小写）。玩家下线时自动清除全部活跃来源。
+
+### MythicLib
+
+| 项 | 说明 |
+|------|------|
+| 桥接接口 | `MythicLibBridge` |
+| 效果类型 | `ml` / `mythiclib` |
+| Modifier 键格式 | `<source-prefix>_<道具ID>_<属性ID>` |
+| 持续时间 | 道具 `Duration` 秒，到期后自动关闭 modifier |
+| 服务类 | `PropMythicLibService` |
+
+MythicLib 效果通过 `PropMythicLibEffectParser` 解析为 `PropMythicLibEffect`（`statId` + `value`），再由 `PropMythicLibModifierPlanner` 按属性 ID 聚合（同属性值累加）后生成 `PropMythicLibModifierSpec` 列表。仅处理已注册的属性，未注册的属性会记录一次性警告并跳过。
+
+> `source-prefix` 在 `ArcartXProp.yml` 的 `mythiclib.source-prefix` 中配置，默认 `AXS_PROP`。属性 ID 会通过 `MythicLibStatKeyNormalizer` 归一化。
+
+### Symphony
+
+| 项 | 说明 |
+|------|------|
+| 桥接接口 | `SymphonyBridge` |
+| 效果类型 | `sy` / `symphony` |
+| 来源键格式 | `AXS_PROP_<道具ID>_<属性ID>` |
+| 持续时间 | 道具 `Duration` 秒，到期后自动移除并重新计算 |
+| 服务类 | `PropSymphonyService` |
+
+Symphony 效果支持百分比修饰（payload 以 `%` 结尾时启用）。属性修改后立即调用 `bridge.recalculate()` 重新计算玩家属性。玩家下线时自动清除全部活跃属性并重新计算。
+
+### 属性桥接状态查询
+
+`PropService` 提供以下方法查询各属性桥接的挂钩状态，可通过 `/axs prop status` 命令查看：
+
+| 方法 | 说明 |
+|------|------|
+| `attributePlusHooked()` | AttributePlus 是否已挂钩 |
+| `mythicLibHooked()` | MythicLib 是否已挂钩 |
+| `symphonyHooked()` | Symphony 是否已挂钩 |
+
+## 跨服支持
+
+Prop 模块为纯内存运行模块，**不涉及持久化存储**，因此没有数据库表和跨服数据迁移需求。
+
+| 项 | 说明 |
+|------|------|
+| 存储模式 | 无持久化存储 |
+| 数据库表 | 无 |
+| 跨服迁移 | 不适用 |
+| 玩家数据清除 | 不适用 |
+
+> 道具定义存储在 YAML 文件中，按键绑定通过客户端 MOD 管理，冷却通过客户端标签系统管理。各子服独立加载道具定义，无需跨服同步。
+
+## 模块集成
+
+### 宿主基础设施
+
+Prop 模块依赖以下宿主提供的基础设施：
+
+| 基础设施 | 来源 | 用途 |
+|----------|------|------|
+| `PropBridgeAPI` | `context.propBridge()` | 客户端按键绑定、额外槽位、物品 PDC、冷却标签 |
+| `AttributeBridgeRegistry` | `context.attributeBridge()` | 获取 AttributePlus / MythicLib / Symphony 桥接 |
+| `EventBusCapability` | `getCapability()` | 发布 `axs.prop.prop_used` 事件 |
+| `VanillaItemNameBridge` | `context.vanillaItemNameBridge()` | 解析物品显示名用于提示消息 |
+| `MessageProvider` | `messages()` | 管理命令的本地化消息 |
+| `AxsScheduler` | 宿主调度器 | 延迟同步槽位、属性移除定时任务 |
+
+### 客户端初始化回调
+
+Prop 模块注册了 `ClientInitializedHandler`，在玩家客户端初始化完成时延迟 1 tick 同步槽位数据，确保客户端额外槽位与服务端状态一致。
+
+### 事件监听
+
+`PropService` 实现了 Bukkit `Listener`，监听以下事件：
+
+| 事件 | 处理逻辑 |
+|------|----------|
+| `PlayerJoinEvent` | 延迟 1 tick 同步全部已配置槽位 |
+| `PlayerQuitEvent` | 清除 MythicLib / Symphony / AttributePlus 的活跃属性状态 |
+| `PlayerInteractEvent` | 右键空气或方块时触发手持道具使用，取消原版交互 |
+
+### 与其他模块的联动
+
+| 联动模块 | 联动方式 |
+|----------|----------|
+| AttributePlus | 通过 `ap` 效果附加临时属性词条，`Duration` 秒后自动移除 |
+| MythicLib | 通过 `ml` / `mythiclib` 效果附加临时属性 modifier，`Duration` 秒后自动关闭 |
+| Symphony | 通过 `sy` / `symphony` 效果附加临时属性修改，`Duration` 秒后自动移除并重新计算 |
+| PlaceholderAPI | 道具 `conditions` 列表中使用 PAPI 变量进行使用条件判断 |
+| 任意订阅模块 | 订阅 `axs.prop.prop_used` 事件，获取玩家使用道具的通知 |
+
+### 典型联动场景
+
+#### 与 QQBot 模块联动
+
+QQBot 模块可订阅 `axs.prop.prop_used` 事件，将道具使用通知推送到 QQ 群：
+
+```java
+eventBus.subscribe("axs.prop.prop_used", event -> {
+    String propId = event.payload().get("prop_id");
+    qqBot.sendToAllGroups("[道具] " + event.player().getName() + " 使用了 " + propId);
+});
+```
+
+#### 与 QuestGPS 模块联动
+
+QuestGPS 模块可订阅 `axs.prop.prop_used` 事件，将道具使用作为任务完成条件：
+
+```java
+eventBus.subscribe("axs.prop.prop_used", event -> {
+    questService.checkProgress(event.player(), "prop_used", event.payload().get("prop_id"));
+});
+```
+
+## 延伸阅读
+
+- [条件系统](/docs/guide/conditions) — 使用条件的完整语法
+- [物品库匹配](/docs/guide/item-sources) — 统一物品来源系统
+- [图标系统](/docs/guide/icons) — UI 图标配置

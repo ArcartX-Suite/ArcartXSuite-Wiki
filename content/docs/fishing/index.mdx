@@ -1,0 +1,178 @@
+---
+title: 概览
+description: Fishing 钓鱼系统功能概览
+---
+
+# Fishing 钓鱼系统
+
+## 模块简介
+
+Fishing 是 ArcartXSuite 的钓鱼小游戏模块，采用星露谷风格的绿条追踪玩法。玩家甩竿后鱼咬钩，原版钓鱼事件被取消并进入 ArcartX UI 小游戏界面。玩家需用鼠标按住/松开控制绿条上下移动，持续追踪鱼的位置积累进度至 100% 即为捕获成功。
+
+模块包含多水域生态、鱼类/宝藏/饵料/鱼竿定义、天赋树、赛季等级与经验、疲惫值、日/周/赛季任务、鱼类图鉴、赛季结算等完整系统，是一个功能完备的钓鱼玩法套件。
+
+- **模块 ID**：`fishing`
+- **版本**：1.4.4
+- **配置版本**：5
+- **源码主类**：`xuanmo.arcartxsuite.fishing.FishingModule`
+
+## 功能特性
+
+| 功能 | 说明 |
+| --- | --- |
+| 星露谷风格小游戏 | 绿条物理（重力/点击力/阻尼/反弹）、鱼行为模式（7 种）、多阶段行为、逃离机制、连续命中加成 |
+| 多水域生态 | 通过多边形选区定义水域，每个水域有独立的鱼类池、宝藏池、难度修正公式、等级限制与饵料倍率 |
+| 鱼类定义 | 稀有度（4 级）、尺寸范围、售价、经验、季节/天气/时段限制、行为模式、多阶段行为、条件掉落、出现条件 |
+| 宝藏系统 | 独立宝藏池，支持原版/MythicMobs/NeigeItems/Overture/MMOItems 物品 |
+| 饵料系统 | 鱼类吸引倍率、宝藏概率加成、鱼竿耐久加成、饵料队列管理、默认饵料自动使用 |
+| 鱼竿系统 | 宝藏概率加成、绿条高度加成、小游戏时长加成、经验倍率、等级限制、ItemMatcher 物品识别 |
+| 天赋树 | 赛季天赋点（每级 1 点），点亮节点获得钓鱼加成（30+ 种效果类型） |
+| 赛季系统 | 赛季等级与经验成长曲线（ARIA 表达式自定义），赛季结束时重置等级/经验/天赋，永久数据保留 |
+| 疲惫值系统 | 每钓一条鱼增加疲惫值，影响钓鱼效率分段（4 档），高疲惫值可触发特殊鱼类 |
+| 任务系统 | 日/周/赛季任务池，支持事件条件与增量策略 |
+| 鱼类图鉴 | 记录已捕获鱼种，支持收藏进度、最大尺寸记录与最爱鱼类 |
+| 赛季结算 | 赛季结束时按等级档位发放结算奖励 |
+| 跨服数据同步 | 捕获记录等数据可跨服同步（Redis/Proxy 双后端） |
+| 接管原版钓鱼 | 可配置 `replace-vanilla` 替换原版钓鱼事件 |
+| 鱼类出售 | `/fishing sell` 出售手中鱼类，`/fishing sell all` 批量出售背包鱼类 |
+
+## 依赖表
+
+| 依赖 | 类型 | 说明 |
+| --- | --- | --- |
+| ArcartX 客户端 MOD | 硬依赖 | 提供 UI 渲染与 PacketBridge，小游戏通过 ArcartX UI 呈现 |
+| PlaceholderAPI | 外部依赖 | 提供 PlaceholderAPI 占位符（`%axsfishing_*%`） |
+
+物品库为可选功能，鱼类/宝藏/饵料/鱼竿的 `item.source` 按需依赖对应插件：
+
+| 物品来源 | 对应插件 |
+| --- | --- |
+| `mythic` | MythicMobs |
+| `neige` | NeigeItems |
+| `overture` | Overture |
+| `mmoitems` | MMOItems |
+
+## 钓鱼机制详解
+
+### 流程概览
+
+```
+玩家甩竿 → 原版 PlayerFishEvent (BITE 状态)
+  → FishingListener 拦截事件
+  → consumeBaitOnBite() 消耗饵料队列头部 1 个饵料
+  → startMinigame() 启动小游戏
+    → 解析水域（多边形选区匹配）
+    → 检查水域权限/等级限制
+    → 检测饵料（队列头部 → 默认饵料）
+    → 检测鱼竿（ItemMatcher → PDC 标签）
+    → 获取鱼池（水域 fishes 列表）
+    → selectFishFromPool() 加权随机选鱼
+    → 疲惫值特殊鱼替换（疲惫值 > 90 时有概率）
+    → 应用水域难度公式（ARIA 表达式）
+    → 创建 FishingSession + FishingMinigame
+    → 打开 ArcartX UI 小游戏界面
+  → 取消原版钓鱼事件
+
+小游戏进行中（每 tick）:
+  → 更新鱼位置（FishBehaviorEngine 按行为类型计算位移）
+  → 驱赶机制（鱼在绿条内有概率逃离）
+  → 更新绿条物理（重力/点击力/阻尼/反弹/法向力）
+  → 判定鱼是否在绿条内（含判定容错 + 边缘宽恕期）
+  → 进度计算（gain/drain 曲线 + 等级修正 + 天赋 + 疲惫 + streak）
+  → 发送更新包到客户端
+  → 进度 ≥ 1.0 = 成功 / 超时 = 失败
+
+捕获成功:
+  → handleSuccess() 处理奖励
+  → 计算经验（钓竿倍率 × 天赋加成 × 完美加成）
+  → 更新图鉴（首次捕获标记）
+  → 给予鱼物品（PDC 标记）
+  → 检查宝藏（概率 = 基础 + 饵料加成 + 鱼竿加成）
+  → 给予货币奖励（单个 + 多货币列表）
+  → 给予额外掉落（条件掉落）
+  → 执行命令奖励
+  → 增加疲惫值
+  → 保存赛季/永久数据
+  → 跨服同步捕获记录
+  → 发射 EventBus 事件 + EventPacket Signal
+  → 里程碑检测（称号授予）
+  → 设置钓鱼冷却
+```
+
+### 甩竿与咬钩
+
+当 `fishing.replace-vanilla` 为 `true` 时，模块拦截原版 `PlayerFishEvent`。在鱼咬钩（`BITE` 状态）时即启动小游戏，而非等待玩家右键收杆。启动前会消耗饵料队列头部 1 个饵料。
+
+### 小游戏物理模型
+
+小游戏在一个 644 像素高的轨道上进行。鱼图标和绿条在轨道内上下移动，位置以 `[0, 1]` 归一化。
+
+**绿条物理**（玩家控制）：
+
+| 参数 | 说明 |
+| --- | --- |
+| `bar-gravity` | 未按住鼠标时绿条受到的力（正数 → 向上浮） |
+| `bar-click-force` | 按住鼠标时绿条受到的力（负数 → 向下移） |
+| `bar-force-multiplier` | 力缩放系数，越大绿条响应越灵敏 |
+| `bar-damping` | 速度阻尼（0-1），越接近 1 惯性越大 |
+| `bar-bounce-damping` | 边界反弹阻尼（0-1） |
+
+绿条物理包含：持续力（重力/点击力）+ 速度阻尼 + 边界法向力 + 反弹。法向力防止绿条被钉在底部/顶部。
+
+**绿条高度**：基础高度 + 玩家等级加成 + 鱼竿加成 + 天赋加成，受难度缩减。绿条越大越容易覆盖鱼。
+
+**鱼物理**（自动移动）：由 `FishBehaviorEngine` 按行为类型计算位移，包含边界反弹和驱赶机制。
+
+### 进度系统
+
+进度从 0% 开始，满 100% = 钓成功，超时 = 失败。进度不会因归零而失败（0 是下限）。
+
+- **gain**（鱼在绿条内时进度增长）：使用 ARIA 表达式自定义公式，可访问 `global.progress`、`global.base_rate`、`global.level`、`global.difficulty` 变量
+- **drain**（鱼在绿条外时进度衰减）：同样使用 ARIA 表达式
+- **等级修正**：等级越高 gain 越快、drain 越慢（各 scale 独立控制）
+- **天赋加成**：天赋可提升 gain 速率、降低 drain 速率
+- **疲惫效率**：效率系数 > 1 时 gain↑ drain↓，< 1 时 gain↓ drain↑
+- **连续命中加成（streak）**：连续在绿条内每达到 `streak-threshold` ticks，gain 系数递增 `streak-bonus-per-step`，上限 `streak-max-bonus`
+
+### 驱赶机制
+
+鱼在绿条内时有概率迅速逃离，增加操作难度：
+
+- **逃离概率** = `flee-base-chance + (难度/100) × flee-chance-per-difficulty`，受等级修正和天赋减免
+- **逃离速度** = `flee-base-speed + (难度/100) × flee-speed-per-difficulty`，受等级修正和天赋减免
+- **逃离持续时间**：随机取 `[flee-min-duration, flee-max-duration)` ticks
+- **逃离检查间隔**：非逃离状态下每隔 `[flee-check-min-interval, flee-check-max-interval)` ticks 检查一次
+- **逃离冷却**：逃离结束后 `[flee-cooldown-min, flee-cooldown-max)` ticks 内不会再次触发
+
+### 判定容错
+
+- **判定半径（HIT_TOLERANCE）**：鱼中心在绿条边缘外 0.05 范围内仍算命中（匹配鱼图标视觉尺寸）
+- **边缘宽恕期（GRACE_TICKS）**：鱼刚离开判定范围后 3 ticks 内仍算命中（避免边缘频繁进出）
+
+### 完美捕获
+
+全程鱼未离开过绿条（含容错期）即为完美捕获。完美捕获时：
+- 经验额外 ×1.5（固定，不受配置影响）
+- 货币奖励 × `perfect-bonus-multiplier`
+- 可触发条件掉落（`condition: "perfect"`）
+
+## 鱼类稀有度体系
+
+| 稀有度 | 权重乘数 | 说明 |
+| --- | --- | --- |
+| `COMMON` | 1.0 | 常见，出现概率最高 |
+| `UNCOMMON` | 0.6 | 不常见 |
+| `RARE` | 0.4 | 稀有 |
+| `LEGENDARY` | 0.1 | 传说级，出现概率极低 |
+
+稀有度权重乘数参与鱼池的加权随机选择：`权重 = rarity.weightMultiplier() × 饵料吸引倍率 × 鱼饵偏好倍率 × 水域饵料倍率`。
+
+## 下一步
+
+- [配置](/docs/fishing/configuration) — 主配置文件详解
+- [鱼类配置](/docs/fishing/fishes) — 鱼类定义、稀有度与奖励
+- [鱼竿配置](/docs/fishing/rods) — 鱼竿系统配置
+- [鱼饵配置](/docs/fishing/baits) — 鱼饵系统配置
+- [钓鱼区域](/docs/fishing/pools) — 钓鱼池与区域配置
+- [命令与占位符](/docs/fishing/commands) — 命令、权限与 PAPI 占位符
+- [联动](/docs/fishing/integration) — 跨模块联动与 Capability

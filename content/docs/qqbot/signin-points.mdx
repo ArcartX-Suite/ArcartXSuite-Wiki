@@ -1,0 +1,401 @@
+---
+title: 签到积分与群管理
+description: 签到打卡、积分系统、兑换商店、红包、转账、活跃度排行、监控告警、定时消息、群管理与黑名单
+---
+
+# 签到积分与群管理
+
+QQBot 模块内置完整的签到积分体系，包含每日签到、连续签到加成、积分兑换商店、拼手气红包、积分转账和群活跃度排行。同时提供服务器监控告警、定时消息推送等运维功能，以及群管理（踢人/封禁/黑名单）等管理工具。
+
+## 签到打卡
+
+群成员每日签到获得积分，连续签到有额外加成。
+
+### 积分计算公式
+
+```
+签到积分 = base-points + min((连续天数 - 1) * streak-bonus, max-streak-bonus)
+```
+
+| 参数 | 配置字段 | 默认值 | 范围 |
+|---|---|---|---|
+| 基础积分 | `signin.base-points` | 10 | 0-100000 |
+| 连续加成 | `signin.streak-bonus` | 2 | 0-100000 |
+| 加成上限 | `signin.max-streak-bonus` | 50 | 0-1000000 |
+
+### 连续签到判定
+
+- 查询上次签到记录的日期
+- 若上次签到日期为昨天，连续天数 +1
+- 若上次签到日期为今天（重复签到），返回已签到提示
+- 若上次签到日期非昨天，连续天数重置为 1
+
+### 签到指令
+
+| 指令 | 说明 |
+|---|---|
+| `#签到` | 每日签到 |
+| `#打卡` | 签到别名（可配置多个） |
+
+```yaml
+signin:
+  enabled: true
+  base-points: 10
+  streak-bonus: 2
+  max-streak-bonus: 50
+  sign-prefix: "#签到"
+  aliases:
+    - "#打卡"
+```
+
+> 签到记录存储在 `axs_qqbot_signin` 表中，联合主键 `(qq_id, sign_date)` 防止重复签到。签到数据跨服同步。
+
+## 积分系统
+
+### 积分账户
+
+每个 QQ 号对应一个积分账户，记录余额、累计获得和累计消费。
+
+| 字段 | 说明 |
+|---|---|
+| `balance` | 当前余额 |
+| `total_earned` | 累计获得 |
+| `total_spent` | 累计消费 |
+
+> 积分操作通过原子 upsert 实现。增加积分时正增量计入 `total_earned`，扣减积分计入 `total_spent`。余额不足时扣减失败，不修改余额。
+
+### 积分查询
+
+| 指令 | 说明 |
+|---|---|
+| `#积分` | 查询积分余额、累计获得和消费 |
+
+返回格式：`你的积分: {balance}\n累计获得 {earned}，已消费 {spent}`
+
+### 积分排行榜
+
+| 指令 | 说明 |
+|---|---|
+| `#积分榜` | 积分排行榜 Top10（自定义指令 builtin-id: `points-leaderboard`） |
+
+排行榜按余额降序排列，显示玩家名（通过绑定关系解析）和积分。
+
+## 积分兑换商店
+
+群成员可用积分兑换奖品，奖品通过 Mail 模块以邮件形式发放给绑定玩家。
+
+### 兑换流程
+
+1. 查找奖品配置（按 ID 匹配，忽略大小写）
+2. 校验是否需要绑定（`require-bind`）
+3. 检查每日限购（`limit-per-day`）
+4. 余额检查
+5. 原子扣分（余额不足返回 false）
+6. 通过 `MailDispatchable` 发送邮件预设
+7. 邮件发放失败则退款
+8. 记录兑换流水
+
+### 奖品配置
+
+```yaml
+prizes:
+  - id: "diamond"
+    name: "钻石礼包"
+    cost: 100
+    mail:
+      presets:
+        - "qqbot_diamond"
+    description: "10 颗钻石"
+    limit-per-day: 1
+    require-bind: true
+    discount-rate: 1.0
+    discount-until: 0
+```
+
+| 字段 | 类型 | 说明 |
+|---|---|---|
+| `id` | string | 奖品 ID（兑换时使用） |
+| `name` | string | 奖品名称 |
+| `cost` | int | 兑换所需积分 |
+| `mail.presets` | list(string) | 邮件预设 ID 列表（对应 Mail 模块预设） |
+| `description` | string | 奖品描述 |
+| `limit-per-day` | int | 每日兑换上限（0=不限） |
+| `require-bind` | boolean | 是否需要先绑定游戏账号 |
+| `discount-rate` | double | 折扣比例（0.8=8折），1.0 表示不折扣 |
+| `discount-until` | long | 折扣截止 unix 时间戳（毫秒），0=无折扣 |
+
+> 折扣期间实际价格 = `max(1, ceil(cost * discount-rate))`。兑换成功消息会提示当前处于折扣期及原价。
+
+### 兑换指令
+
+| 指令 | 说明 |
+|---|---|
+| `#商店` | 查看积分兑换商店列表 |
+| `#兑换 <奖品编号>` | 兑换奖品（通过邮件发放） |
+
+> 兑换奖品需要 Mail 模块已安装并正常运行。邮件发放失败时积分自动退还，并在日志中记录。
+
+## 拼手气红包
+
+群成员可用积分发红包，其他成员可抢红包。
+
+### 发红包
+
+| 指令 | 用法 | 说明 |
+|---|---|---|
+| `#红包` | `#红包 <总积分> <份数>` | 发拼手气红包 |
+
+校验规则：
+- 总积分和份数必须大于 0
+- 份数不能大于总积分（每人至少 1 积分）
+- 扣减发送者积分，创建红包记录
+
+### 抢红包
+
+| 指令 | 说明 |
+|---|---|
+| `#抢红包` | 抢当前群未过期的红包 |
+
+领取结果：
+- `> 0`：抢到积分（显示金额和剩余份数）
+- `-1`：手慢了，红包已被抢完
+- `-2`：已经抢过这个红包
+- `-3`：红包已过期或不存在
+
+### 红包过期退款
+
+模块每小时检查过期红包，将未领完的剩余积分退还给发送者。过期时间为创建后 24 小时。
+
+> 红包数据存储在 `axs_qqbot_red_packets` 和 `axs_qqbot_red_packet_claims` 两张表中，支持跨服抢红包。
+
+## 积分转账
+
+群成员之间可互相转账积分。
+
+| 指令 | 用法 | 说明 |
+|---|---|---|
+| `#转账` | `#转账 <QQ号> <数量>` | 向其他群成员转账积分 |
+
+校验规则：
+- 转账数量必须大于 0
+- 不能转账给自己
+- 接收方必须已绑定游戏账号（有积分账户记录）
+- 先扣减发送者积分，再增加接收者积分
+
+> 转账采用先扣后加的顺序，扣减失败（余额不足）则不执行增加。
+
+## 群活跃度排行
+
+按群发言次数统计本周或本月活跃度排行。
+
+| 指令 | 用法 | 说明 |
+|---|---|---|
+| `#活跃排行` | `#活跃排行 [week\|month]` | 查看本周/本月活跃度排行 |
+
+### 统计逻辑
+
+- 每条群消息（非指令）触发 `recordActivity(qqId, groupId, today)`
+- 活跃度按 `(qq_id, group_id, activity_date)` 联合主键累加
+- 排行查询按日期范围统计发言次数，降序排列
+
+| 模式 | 日期范围 |
+|---|---|
+| `week` / `本周` | 本周一至今天 |
+| `month` / 默认 | 本月1日至今天 |
+
+> 活跃度数据存储在 `axs_qqbot_activity` 表中，跨服统计。
+
+## 周结算排行榜
+
+`QQBotWeeklyRankService` 每周日 23:59 自动推送积分 Top10 到所有群。
+
+| 特性 | 说明 |
+|---|---|
+| 触发时间 | 每周日 23:59（服务器时区） |
+| 推送内容 | 积分排行榜 Top10（玩家名 + 积分） |
+| 推送目标 | 所有已配置群 |
+| 重新调度 | 触发后自动调度下周（7 天后） |
+
+> 周结算排行榜仅在 `signin.enabled: true` 时启动。首次调度计算到下周日 23:59 的延迟。
+
+## 服务器监控告警
+
+`QQBotMonitorService` 周期性检测 TPS 与内存占用，超过阈值时推送告警到指定群。
+
+### 配置
+
+```yaml
+monitor:
+  enabled: false
+  tps-threshold: 15.0
+  memory-threshold-percent: 90
+  check-interval-seconds: 60
+  cooldown-seconds: 300
+  alarm-groups: []
+  tps-alarm-format: "⚠ 服务器告警\nTPS 过低: {tps}（阈值 {threshold}）"
+  memory-alarm-format: "⚠ 服务器告警\n内存占用过高: {used}MB/{max}MB ({percent}%)"
+```
+
+| 字段 | 类型 | 默认值 | 说明 |
+|---|---|---|---|
+| `enabled` | boolean | `false` | 是否启用监控告警 |
+| `tps-threshold` | double | `15.0` | TPS 低于此值触发告警（范围 0.0-20.0） |
+| `memory-threshold-percent` | int | `90` | 内存占用百分比阈值（范围 1-100） |
+| `check-interval-seconds` | int | `60` | 检测间隔（秒，范围 5-86400） |
+| `cooldown-seconds` | int | `300` | 同类告警冷却（秒） |
+| `alarm-groups` | list(long) | `[]` | 接收告警的群号（留空=所有已配置群） |
+
+### 告警格式占位符
+
+| 占位符 | 说明 | 适用 |
+|---|---|---|
+| `{tps}` | 当前 TPS（1分钟，保留 2 位小数） | tps-alarm-format |
+| `{threshold}` | TPS 阈值 | tps-alarm-format |
+| `{used}` | 已用内存（MB） | memory-alarm-format |
+| `{max}` | 最大内存（MB） | memory-alarm-format |
+| `{percent}` | 内存占用百分比 | memory-alarm-format |
+
+> TPS 读取在主线程执行（更安全），通过 Paper `Bukkit.getTPS()` 或 NMS `recentTps` 反射获取。TPS 和内存告警各自独立计算冷却。
+
+## 定时消息
+
+`QQBotScheduledMessageService` 支持固定间隔和每日定时两种模式推送消息到群。
+
+### 配置
+
+```yaml
+scheduled-messages:
+  - id: "online_report"
+    mode: "interval"
+    interval-seconds: 21600
+    message: "📊 当前在线人数: {online}/{max}"
+    target-groups: []
+  - id: "daily_signin_reminder"
+    mode: "daily"
+    daily-time: "12:00"
+    message: "🎁 别忘了发送 #签到 领取今日积分哦~"
+    target-groups: []
+```
+
+| 字段 | 类型 | 说明 |
+|---|---|---|
+| `id` | string | 消息 ID（唯一） |
+| `mode` | string | `interval`（固定间隔）/ `daily`（每日定时） |
+| `interval-seconds` | int | 间隔秒数（仅 `interval` 模式） |
+| `daily-time` | string | 每日触发时间 HH:mm（仅 `daily` 模式） |
+| `message` | string | 消息内容 |
+| `target-groups` | list(long) | 目标群（留空=所有已配置群） |
+
+### 定时消息占位符
+
+| 占位符 | 说明 |
+|---|---|
+| `{online}` | 当前在线人数 |
+| `{max}` | 最大人数 |
+| `{tps}` | 当前 TPS（保留 1 位小数） |
+
+> 定时消息每秒检查一次（20 tick）。interval 模式初始化起点为当前时间，避免启动瞬间全部触发。daily 模式按日期去重，每天只触发一次。
+
+## 群管理（Moderation）
+
+管理员可在群内踢出或封禁玩家，并支持 QQ 禁言同步游戏封禁。
+
+### 踢人与封禁
+
+```yaml
+moderation:
+  enabled: false
+  kick-prefix: "#踢"
+  ban-prefix: "#封禁"
+  kick-command: "kick {name} {reason}"
+  ban-command: "ban {name} {reason}"
+```
+
+| 指令 | 用法 | 说明 |
+|---|---|---|
+| `#踢` | `#踢 <玩家名> [原因]` | 踢出玩家 |
+| `#封禁` | `#封禁 <玩家名> [原因]` | 封禁玩家 |
+
+> 命令模板中 `{name}` 替换为玩家名，`{reason}` 替换为原因。命令通过 `SafeCommandExecutor` 安全执行。
+
+### QQ 禁言同步封禁
+
+当 QQ 群内禁言某成员时，若该成员绑定了游戏账号，自动在游戏内封禁对应玩家。
+
+```yaml
+moderation:
+  sync-ban:
+    enabled: false
+    command: "tempban {name} {duration} {reason}"
+    use-duration: true
+    reason: "QQ群禁言同步"
+```
+
+| 字段 | 说明 |
+|---|---|
+| `command` | 同步封禁命令模板 |
+| `use-duration` | 是否按 QQ 禁言时长设置游戏封禁时长 |
+| `reason` | 同步封禁原因 |
+
+> 禁言时长转换为分钟字符串（如 `10m`），至少 1 分钟。`{duration}` 占位符替换为分钟格式。仅处理 `ban` 子类型（解除禁言 `lift_ban` 不触发同步）。
+
+## 黑名单
+
+列入黑名单的 QQ 号将被完全禁止使用机器人的所有功能：指令处理、消息同步、入群欢迎、签到积分、自动回复等。
+
+### 黑名单来源
+
+| 来源 | 说明 |
+|---|---|
+| 配置静态黑名单 | `blacklist.qq-list` 中的 QQ 号 |
+| 数据库动态黑名单 | 通过群指令或 `/axs qqbot admin blacklist` 添加 |
+
+### 配置
+
+```yaml
+blacklist:
+  enabled: false
+  qq-list:
+    - 987654321
+  add-prefix: "#黑名单添加"
+  remove-prefix: "#黑名单移除"
+  list-prefix: "#黑名单列表"
+```
+
+### 群内黑名单指令
+
+| 指令 | 用法 | 权限 | 说明 |
+|---|---|---|---|
+| `#黑名单添加` | `#黑名单添加 <QQ号\|玩家名>` | 群管理/群主或管理员 | 将 QQ 加入黑名单 |
+| `#黑名单移除` | `#黑名单移除 <QQ号\|玩家名>` | 群管理/群主或管理员 | 将 QQ 移出黑名单 |
+| `#黑名单列表` | `#黑名单列表` | 群管理/群主或管理员 | 查看黑名单列表 |
+
+> 输入玩家名时自动通过绑定关系解析 QQ 号。黑名单拦截在消息处理流水线的最前端，黑名单 QQ 的所有事件均被丢弃。
+
+### 管理员黑名单命令
+
+通过 `/axs qqbot admin blacklist` 管理数据库动态黑名单：
+
+| 子命令 | 用法 | 说明 |
+|---|---|---|
+| `add` | `blacklist add <QQ号>` | 将 QQ 加入黑名单 |
+| `remove` | `blacklist remove <QQ号>` | 将 QQ 移出黑名单 |
+| `list` | `blacklist list` | 查看黑名单列表（含配置静态 + 数据库动态） |
+
+> 黑名单数据存储在 `axs_qqbot_blacklist` 表中，支持跨服同步。
+
+## 数据库表结构总览
+
+签到积分与群管理相关数据使用以下数据表：
+
+| 表名 | 说明 |
+|---|---|
+| `axs_qqbot_points` | 积分账户表 |
+| `axs_qqbot_signin` | 签到记录表 |
+| `axs_qqbot_redeem_log` | 兑换流水表 |
+| `axs_qqbot_blacklist` | 黑名单表 |
+| `axs_qqbot_red_packets` | 红包表 |
+| `axs_qqbot_red_packet_claims` | 红包领取记录表 |
+| `axs_qqbot_activity` | 群活跃度表 |
+
+> 所有数据表支持 SQLite 和 MySQL 双方言，通过 `AbstractModuleRepository` 基类自动适配。共享存储模式下所有服务器共享同一数据库，实现跨服同步。物品来源配置参考 [物品来源指南](/docs/guide/item-sources)。

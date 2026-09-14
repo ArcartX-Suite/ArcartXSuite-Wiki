@@ -1,0 +1,358 @@
+---
+title: 扫描模式
+description: 扫描模式扫描算法、过滤引擎、物品合并、状态机与拾取流程详解
+---
+
+# 扫描模式
+
+> **付费模块**
+
+扫描模式（`settings.mode: scanner`）是 Pickup 模块的核心交互模式。该模式禁用原版自动拾取，周期性扫描玩家附近掉落物，经五维过滤引擎筛选后推送到客户端 HUD 面板，玩家通过按键打开透明交互菜单，使用鼠标点击或滚轮切换选中并拾取目标物品。本文深入解析扫描算法、过滤引擎、物品合并、HUD 状态机与拾取流程的内部实现。
+
+## 扫描算法
+
+### 周期扫描任务
+
+服务启动时，`LootScannerService.start()` 注册 `EntityPickupItemEvent` 监听器并启动周期扫描任务。扫描间隔由 `scanner.scan-interval-ticks` 控制（默认 5 ticks = 250ms），扫描半径由 `scanner.scan-radius` 控制（默认 5.0 格）。
+
+```yaml
+scanner:
+  scan-radius: 5.0
+  scan-interval-ticks: 5
+  max-display: 8
+  pickup-delay-ticks: 40
+```
+
+每个扫描 tick 执行以下流程：
+
+1. 遍历所有在线玩家，对每位玩家调用 `scanForPlayer`
+2. 调用 `player.getNearbyEntities(radius, radius, radius)` 获取附近实体
+3. 过滤出 `Item` 类型实体，排除已死亡或无效实体
+4. 检查掉落物的 `pickupDelay` 是否超过 `pickup-delay-ticks`（防止刚扔出的物品立即被扫描）
+5. 每个掉落物经 `LootFilterEngine.shouldDisplay` 五维过滤
+6. 通过过滤的物品构造 `LootEntry`（含实体 UUID、材质名、显示名、数量、物品 JSON）
+7. 达到 `max-display` 上限后停止扫描
+
+### 掉落物延迟过滤
+
+```java
+if (itemEntity.getPickupDelay() > pickupDelayTicks) {
+    continue;
+}
+```
+
+掉落物实体自带 `pickupDelay` 属性（原版机制，物品落地后一段时间内不可拾取）。扫描模式复用此属性作为"落地延迟"——只有当掉落物的 `pickupDelay` 降至配置的 `pickup-delay-ticks` 以下时，才会在面板中显示。默认值 40 ticks（2 秒），防止玩家刚扔出的物品立即出现在拾取面板。
+
+### 变化检测与增量推送
+
+为避免无意义的重复推送，`scanForPlayer` 在每次扫描后调用 `entriesChanged` 对比新旧列表：
+
+```java
+private boolean entriesChanged(List<LootEntry> oldList, List<LootEntry> newList) {
+    if (oldList.size() != newList.size()) return true;
+    for (int i = 0; i < oldList.size(); i++) {
+        LootEntry a = oldList.get(i);
+        LootEntry b = newList.get(i);
+        if (!a.entityUuid.equals(b.entityUuid) || a.amount != b.amount) {
+            return true;
+        }
+    }
+    return false;
+}
+```
+
+仅当列表大小变化、或同一位置的实体 UUID / 数量发生变化时，才发送 `update` 包到客户端。这显著减少了高频扫描下的网络开销。
+
+> 对比维度为实体 UUID 与堆叠数量，不比较物品 JSON（JSON 序列化开销较大，且同一实体的 JSON 不会变化）。
+
+## 五维过滤引擎
+
+`LootFilterEngine` 是扫描模式的核心过滤组件，按固定顺序依次检查每个掉落物的五个维度。任一维度不通过则该物品不会出现在面板中。
+
+### 过滤顺序与规则
+
+| 顺序 | 维度 | 配置路径 | 判定规则 |
+| --- | --- | --- | --- |
+| 1 | 最小数量 | `filter.min-amount` | `itemStack.getAmount() < min-amount` 则过滤 |
+| 2 | 材质过滤 | `filter.material-blacklist` / `filter.material-whitelist` | `blacklist` 模式：命中黑名单则过滤；`whitelist` 模式：白名单非空时未命中则过滤 |
+| 3 | 名称正则 | `filter.name-blacklist.name-regex` | 命中任一正则则过滤 |
+| 4 | Lore 正则 | `filter.lore-blacklist.lore-regex` / `filter.lore-whitelist.lore-regex` | 黑名单命中则过滤；白名单非空时未命中则过滤 |
+| 5 | NBT 键 | `filter.nbt-blacklist.nbt-keys` / `filter.nbt-whitelist.nbt-keys` | 黑名单命中则过滤；白名单非空时未命中则过滤 |
+
+### 材质过滤模式
+
+材质过滤由 `filter.mode` 控制，支持两种模式：
+
+| 模式 | 配置值 | 行为 |
+| --- | --- | --- |
+| 黑名单 | `blacklist` | 命中 `material-blacklist` 的物品不显示，其余全部显示 |
+| 白名单 | `whitelist` | 仅显示命中 `material-whitelist` 的物品；白名单为空时全部显示 |
+
+```yaml
+filter:
+  mode: blacklist
+  material-blacklist:
+    material-ids:
+      - DIRT
+      - COBBLESTONE
+      - GRAVEL
+      - SAND
+      - NETHERRACK
+      - COBBLED_DEEPSLATE
+  material-whitelist:
+    material-ids: []
+```
+
+> 白名单模式下设为空列表（`[]`）等同于不启用白名单——所有物品均显示。这是 `emptyMatcher()` 检查的结果：白名单 matcher 为空时跳过白名单判定。
+
+### 名称与 Lore 正则过滤
+
+名称黑名单与 Lore 黑名单均使用正则表达式匹配。Lore 过滤检查物品 Lore 的**任意一行**，只要有一行匹配正则即视为命中。
+
+```yaml
+filter:
+  name-blacklist:
+    name-regex:
+      - ".*垃圾.*"
+  lore-blacklist:
+    lore-regex:
+      - ".*已绑定.*"
+  lore-whitelist:
+    lore-regex:
+      - ".*稀有.*"
+```
+
+Lore 白名单为可选维度：配置为空时不启用；配置后物品 Lore 中必须至少有一行匹配白名单正则才显示。
+
+### NBT 键过滤
+
+NBT 键过滤支持嵌套路径（如 `custom.trash`），检查物品 NBT 中是否包含指定键。
+
+```yaml
+filter:
+  nbt-blacklist:
+    nbt-keys:
+      - "custom.trash"
+  nbt-whitelist:
+    nbt-keys: []
+```
+
+> 过滤配置基于 `ItemMatcher` 体系加载，材质匹配使用 `material-ids`，名称/Lore 使用正则表达式，NBT 使用键路径匹配。详见 [物品匹配条件](/docs/guide/conditions) 与 [物品来源](/docs/guide/item-sources)。
+
+## 物品合并
+
+当 `scanner.merge-same-items` 启用时（默认 `true`），扫描结果中相同材质 + 相同显示名的物品会合并为一条，数量累加。
+
+```java
+private List<LootEntry> mergeEntries(List<LootEntry> entries) {
+    Map<String, LootEntry> merged = new LinkedHashMap<>();
+    for (LootEntry entry : entries) {
+        String key = entry.material + ":" + entry.displayName;
+        LootEntry existing = merged.get(key);
+        if (existing != null) {
+            merged.put(key, new LootEntry(
+                existing.entityUuid, existing.material,
+                existing.displayName, existing.amount + entry.amount,
+                existing.itemJson
+            ));
+        } else {
+            merged.put(key, entry);
+        }
+    }
+    return new ArrayList<>(merged.values());
+}
+```
+
+| 合并规则 | 说明 |
+| --- | --- |
+| 合并键 | `材质名:显示名`（如 `DIAMOND:钻石`） |
+| 保留实体 | 合并后保留第一个实体的 UUID（拾取时通过此 UUID 查找实体） |
+| 数量累加 | 合并条目的 `amount` 为各实体数量之和 |
+| 物品 JSON | 保留第一个实体的 JSON（用于图标渲染） |
+
+> 合并后拾取时，服务端通过保留的 UUID 查找对应实体，仅拾取该实体的物品。合并仅影响显示，不影响实际拾取的实体。
+
+## HUD 状态机
+
+`LootScannerService` 维护四组玩家状态集合，构成扫描模式的状态机：
+
+| 状态集合 | 类型 | 说明 |
+| --- | --- | --- |
+| `playerStates` | `Map<UUID, PlayerLootState>` | 每位玩家的掉落物列表与选中索引 |
+| `hudOpenPlayers` | `Set<UUID>` | HUD 已成功打开的玩家（常驻 HUD） |
+| `menuOpenPlayers` | `Set<UUID>` | 交互菜单当前已打开的玩家 |
+| `disabledPlayers` | `Set<UUID>` | 手动关闭拾取功能的玩家 |
+
+### 玩家掉落物状态
+
+```java
+private static class PlayerLootState {
+    List<LootEntry> visibleItems = new ArrayList<>();
+    int selectedIndex = 0;
+}
+```
+
+| 字段 | 说明 |
+| --- | --- |
+| `visibleItems` | 当前可见的掉落物条目列表，由扫描任务实时更新 |
+| `selectedIndex` | 当前选中项索引（0-based），滚轮切换时循环移动 |
+
+### HUD 生命周期
+
+| 事件 | 操作 |
+| --- | --- |
+| 服务启动 | 延迟 20 ticks 后为所有在线玩家打开 HUD |
+| 客户端初始化完成 | `onClientInitialized` → `openHudForPlayer` |
+| 玩家退出 | 从 `playerStates`、`hudOpenPlayers`、`menuOpenPlayers` 移除 |
+| 手动关闭 | 关闭 HUD 与菜单，从 `hudOpenPlayers` 移除，加入 `disabledPlayers` |
+| 手动开启 | 从 `disabledPlayers` 移除，重新打开 HUD |
+| 服务关闭 | 关闭所有玩家的 HUD，清空全部状态集合 |
+
+> 客户端初始化完成是 HUD 就绪的可靠信号。`PlayerJoinEvent` 时客户端尚未就绪，`openUi` 发的包无法被处理，因此扫描模式不监听 `PlayerJoinEvent`，而是通过 `ClientInitializedHandler` 回调打开 HUD。
+
+## 拾取流程
+
+### 交互菜单打开
+
+1. 玩家按交互键，宿主 `KeybindService` 路由到 Pickup 模块注册的回调（优先级 10）
+2. `handleInteractKeyFromHost` 校验：服务活跃、玩家在线、拾取功能开启、菜单未打开、附近有可拾取物品
+3. 校验通过后发送 `open_interact` 包到客户端 `loot_panel` HUD
+4. 客户端执行 `Screen.open('AXS:loot_interact')` 打开透明交互菜单
+5. 玩家加入 `menuOpenPlayers` 集合
+
+### 拾取执行
+
+`handlePick` 方法处理拾取操作，支持按选中索引或指定索引拾取：
+
+```java
+private void handlePick(Player player, int targetIndex) {
+    PlayerLootState state = playerStates.get(player.getUniqueId());
+    int selectedIndex = targetIndex >= 0 ? targetIndex : state.selectedIndex;
+    LootEntry entry = state.visibleItems.get(selectedIndex);
+    Item itemEntity = findItemEntity(player, entry.entityUuid);
+    // ... 拾取逻辑
+}
+```
+
+拾取流程按以下顺序执行：
+
+| 步骤 | 操作 | 说明 |
+| --- | --- | --- |
+| 1 | 查找实体 | 通过 `entry.entityUuid` 在玩家附近 `radius + 1` 范围内查找掉落物实体 |
+| 2 | 实体校验 | 实体已死亡或无效时从列表移除并更新面板 |
+| 3 | 仓库入库 | `warehouse-auto-deposit` 启用时优先调用 `WarehouseAutoDepositable.depositToPersonalWarehouse` |
+| 4 | 背包放入 | 仓库剩余数量（或全部数量）放入玩家背包 |
+| 5 | 背包满处理 | `leftover` 非空时更新地面实体数量并提示 `hints.inventory-full` |
+| 6 | 移除实体 | 全部放入背包后移除掉落物实体 |
+| 7 | 列表更新 | 从 `visibleItems` 移除已拾取条目，修正 `selectedIndex` |
+| 8 | 推送更新 | 发送 `update` 包到客户端刷新面板 |
+
+### 仓库自动入库
+
+当 `scanner.warehouse-auto-deposit` 启用且 Warehouse 模块提供 `WarehouseAutoDepositable` Capability 时，拾取优先存入仓库：
+
+```java
+WarehouseAutoDepositable.DepositResult result =
+    warehouseAutoDepositable.depositToPersonalWarehouse(player, stack);
+long storedInWarehouse = Math.max(0L, result.storedAmount());
+int remainingForInventory = Math.max(0, depositResult.remainingAmount());
+```
+
+| `DepositResult` 字段 | 类型 | 说明 |
+| --- | --- | --- |
+| `success` | `boolean` | 是否存入成功 |
+| `storedAmount` | `long` | 已存入仓库的数量 |
+| `remainingAmount` | `int` | 剩余未存入数量（放入玩家背包） |
+| `message` | `String` | 提示消息 |
+
+| 场景 | 处理方式 |
+| --- | --- |
+| 仓库存入全部 | 移除掉落物实体，发送 `hints.warehouse-stored` 提示 |
+| 仓库存入部分 | 剩余放入背包，发送 `hints.warehouse-stored` 提示 |
+| 仓库不可用 | 全部放入背包（跳过仓库步骤） |
+| 背包满 | 更新地面实体数量，发送 `hints.inventory-full` 提示 |
+
+> 仓库联动依赖 Warehouse 模块注册的 `WarehouseAutoDepositable` Capability，通过 `getCapability()` 延迟查找。详见 [联动](/docs/pickup/integration)。
+
+### 选中切换
+
+滚轮切换由客户端 `loot_panel` HUD 的 `wheel` 触发器捕获，回包通知服务端：
+
+```yaml
+# loot_panel.yml wheel 触发器
+wheel: |-
+  if(var.count > 0 && !var.menuOpen){
+    if(self.wheelValue > 0){
+      var.selectedIndex = var.selectedIndex - 1
+      if(var.selectedIndex < 0){ var.selectedIndex = var.count - 1 }
+      Packet.send('pickup', 'scroll_up')
+    }
+    if(self.wheelValue < 0){
+      var.selectedIndex = var.selectedIndex + 1
+      if(var.selectedIndex >= var.count){ var.selectedIndex = 0 }
+      Packet.send('pickup', 'scroll_down')
+    }
+  }
+```
+
+服务端 `handleScroll` 同步更新选中索引并发送轻量 `select` 包（仅含 `selectedIndex`），避免全量 `update` 的网络开销。选中索引到顶/底时循环环绕。
+
+> `var.menuOpen` 守卫确保交互菜单打开时滚轮事件不触发拾取面板的选中切换，避免双发。
+
+## 自动拾取拦截
+
+当 `scanner.disable-auto-pickup` 启用时（默认 `true`），`LootScannerService` 注册 `EntityPickupItemEvent` 监听器（`LOW` 优先级），取消所有未手动关闭拾取功能的玩家的自动拾取行为：
+
+```java
+@EventHandler(priority = EventPriority.LOW, ignoreCancelled = true)
+public void onEntityPickupItem(EntityPickupItemEvent event) {
+    if (!active || !configuration.scanner().disableAutoPickup()) return;
+    if (!(event.getEntity() instanceof Player player)) return;
+    if (disabledPlayers.contains(player.getUniqueId())) return;
+    event.setCancelled(true);
+}
+```
+
+| 条件 | 行为 |
+| --- | --- |
+| `disable-auto-pickup` 为 `false` | 不拦截，玩家正常自动拾取 |
+| 玩家在 `disabledPlayers` 中 | 不拦截（玩家已手动关闭拾取功能） |
+| 其他情况 | 取消事件，禁止自动拾取 |
+
+> 拦截优先级为 `LOW`，低于 Warehouse 模块的 `LOWEST` 优先级。若 Warehouse 取消事件（自动入库），本监听器因 `ignoreCancelled = true` 不会重复处理。
+
+## 菜单自动关闭
+
+当扫描发现玩家周围无掉落物时，若交互菜单仍处于打开状态，服务端自动关闭菜单：
+
+```java
+if (entries.isEmpty() && menuOpenPlayers.contains(playerId)) {
+    menuOpenPlayers.remove(playerId);
+    packetBridge.closeUi(player, interactUiId);
+    packetBridge.sendPacket(player, uiId, "menu_closed", Map.of());
+}
+```
+
+| 触发条件 | 操作 |
+| --- | --- |
+| 扫描结果为空且菜单已打开 | 关闭 `loot_interact` 菜单，发送 `menu_closed` 包恢复 HUD 交互 |
+
+> `menu_closed` 包通知 `loot_panel` HUD 将 `var.menuOpen` 置为 `false`，恢复滚轮与点击的交互能力。
+
+## 实体查找
+
+拾取时通过 `findItemEntity` 在玩家附近 `radius + 1` 范围内查找对应 UUID 的掉落物实体：
+
+```java
+private Item findItemEntity(Player player, UUID entityUuid) {
+    double radius = configuration.scanner().scanRadius();
+    for (Entity entity : player.getNearbyEntities(radius + 1, radius + 1, radius + 1)) {
+        if (entity.getUniqueId().equals(entityUuid) && entity instanceof Item item) {
+            return item;
+        }
+    }
+    return null;
+}
+```
+
+查找范围比扫描半径大 1 格，补偿玩家在扫描间隔内移动导致的实体位置偏差。实体未找到或已死亡时，从面板列表中移除该条目。

@@ -1,0 +1,257 @@
+---
+title: 配置
+description: RGB 模块配置文件与条目定义详解
+---
+
+# 配置
+
+RGB 模块的配置文件位于 `plugins/ArcartX-Suite/modules/rgb/ArcartXRGB.yml`，条目定义位于 `entries/` 目录。修改后执行 `/axs rgb reload` 即可热重载。
+
+## 主配置文件 (ArcartXRGB.yml)
+
+### 顶层字段
+
+| 字段 | 类型 | 默认值 | 说明 |
+|---|---|---|---|
+| `config-version` | int | `1` | 配置版本号（请勿手动修改，用于自动升级） |
+| `settings.debug` | boolean | `false` | 是否输出调试日志（递归引用检测等） |
+| `entries-directory` | string | `entries` | 渐变色条目目录路径（相对模块数据目录） |
+
+### 完整主配置示例
+
+```yaml
+# 配置版本号（请勿手动修改）
+config-version: 1
+
+settings:
+  # 是否输出调试日志。
+  debug: false
+
+# 渐变色条目目录，路径相对模块数据目录。
+# 目录下每个 *.yml 文件可包含多个条目，根键即为条目 ID。
+# 同一个文件中可放多个 RGB 定义，不需要每条单独一个文件。
+entries-directory: "entries"
+```
+
+## 条目目录结构
+
+条目目录（默认 `entries/`）下的每个 `.yml` 文件可以包含多个渐变色条目定义。模块按文件名排序依次加载，每个文件的根键即为条目 ID。
+
+```
+plugins/ArcartX-Suite/modules/rgb/
+├── ArcartXRGB.yml          # 主配置
+└── entries/                # 条目目录
+    ├── default.yml          # 默认条目（首次启动自动生成）
+    ├── chat.yml             # 自定义聊天渐变色
+    └── tab.yml              # 自定义 TAB 渐变色
+```
+
+:::tip
+同一个文件中可以放置任意数量的 RGB 定义，不需要每条单独一个文件。建议把同一业务相关的渐变色定义放在一个文件里统一管理。
+:::
+
+## 条目字段
+
+每个条目的根键即为条目 ID（entryId），不区分大小写。占位符格式为 `%axsrgb_<entryId>%`。
+
+| 字段 | 类型 | 默认值 | 说明 |
+|---|---|---|---|
+| `enabled` | boolean | `true` | 是否启用该条目 |
+| `text` | string | `""` | 原始文本，支持 PlaceholderAPI 变量（如 `%player_name%`） |
+| `gradient-colors` | list | - | 渐变色列表（HEX 颜色），按顺序从左到右渲染 |
+| `shine` | boolean | `false` | 是否启用扫光效果 |
+| `switch-interval-ticks` | long | `2` | 颜色切换 / 扫光动画间隔（tick），值越小动画越快；设为 `0` 显示静态渐变 |
+| `shine-width` | int | `2` | 扫光高亮区域的宽度（字符数，最小 1） |
+| `shine-color` | string | `#FFFFFF` | 扫光高亮颜色（HEX 格式，必须用引号包裹） |
+| `shine-strength` | double | `0.55` | 扫光强度（`0.0` ~ `1.0`），越高高亮部分越明显 |
+
+### 字段详解
+
+#### text
+
+原始文本，支持 PlaceholderAPI 变量。渲染时会先按目标玩家解析其中的 PAPI 占位符，再叠加 RGB 渐变效果。
+
+```yaml
+text: "欢迎来到 ArcartX，%player_name%"
+```
+
+:::caution
+`text` 中可以嵌套 `%axsrgb_<otherId>%` 引用其他条目，但不能形成循环引用（如 a 引用 b、b 引用 a）。检测到递归时渲染结果为空串。
+:::
+
+#### gradient-colors
+
+渐变色列表，每个颜色必须用引号包裹（否则 YAML 会把 `#` 解析为注释）。支持三种颜色格式：
+
+| 格式 | 示例 | 说明 |
+|---|---|---|
+| `#RRGGBB` | `"#FF7A18"` | 标准十六进制（推荐） |
+| `§#RRGGBB` | `"§#FF7A18"` | 带 ArcartX 颜色码前缀 |
+| `RRGGBB` | `"FF7A18"` | 纯十六进制（无 `#`） |
+
+```yaml
+gradient-colors:
+  - "#FF7A18"
+  - "#FFD64D"
+  - "#7FE7FF"
+```
+
+:::caution
+颜色值**必须加引号**！不加引号时 `#` 会被 YAML 解析为行内注释，导致颜色值丢失。例如 `- #FF7A18` 会被解析为空值，模块会输出警告日志。
+:::
+
+#### shine
+
+是否启用扫光效果。设为 `false` 时仅显示静态渐变（或 `switch-interval-ticks > 0` 时的滚动渐变），无高亮光带。
+
+#### switch-interval-ticks
+
+动画帧切换间隔，单位为 tick（1 tick = 50ms = 0.05s）。
+
+| 值 | 效果 |
+|---|---|
+| `0` | 静态渐变，无动画（扫光停在文本中间位置） |
+| `1` | 每 50ms 切换一帧（最快，可能闪烁） |
+| `2` | 每 100ms 切换一帧（推荐，流畅） |
+| `3` | 每 150ms 切换一帧（适中） |
+| `10` | 每 500ms 切换一帧（慢速） |
+
+#### shine-width
+
+扫光高亮区域覆盖的字符数，最小为 1。值越大，高亮光带越宽。
+
+#### shine-color
+
+扫光高亮颜色，HEX 格式，必须用引号包裹。通常使用白色 `#FFFFFF` 使高亮部分变亮。
+
+#### shine-strength
+
+扫光强度，范围 `0.0` ~ `1.0`，自动夹取。
+
+| 值 | 效果 |
+|---|---|
+| `0.0` | 无扫光效果（等同于 `shine: false`） |
+| `0.3` | 轻微高亮 |
+| `0.55` | 默认强度，自然高亮 |
+| `1.0` | 最强高亮，高亮部分完全变为 `shine-color` |
+
+## 条目状态判定
+
+条目是否处于活动状态（`active`）需同时满足以下条件：
+
+| 条件 | 说明 |
+|---|---|
+| `enabled: true` | 条目已启用 |
+| `text` 非空白 | 文本内容不为空且不全是空白字符 |
+| `gradient-colors` 非空 | 至少有一个有效颜色 |
+
+任一条件不满足时，占位符返回空串。
+
+## 完整条目示例
+
+### 静态渐变（无扫光）
+
+```yaml
+momo:
+  enabled: true
+  text: "多请墨大师喝奶茶，谢谢"
+  gradient-colors:
+    - "#6A5CFF"
+    - "#FF6B9D"
+  shine: false
+  switch-interval-ticks: 3
+  shine-width: 2
+  shine-color: "#FFFFFF"
+  shine-strength: 0.55
+```
+
+### 动态渐变 + 扫光
+
+```yaml
+welcome:
+  enabled: true
+  text: "欢迎来到 ArcartX，%player_name%"
+  gradient-colors:
+    - "#FF7A18"
+    - "#FFD64D"
+    - "#7FE7FF"
+  shine: true
+  switch-interval-ticks: 2
+  shine-width: 2
+  shine-color: "#FFFFFF"
+  shine-strength: 0.55
+```
+
+### 多色渐变（五色彩虹）
+
+```yaml
+rainbow:
+  enabled: true
+  text: "ArcartX Suite RGB Module"
+  gradient-colors:
+    - "#FF0000"
+    - "#FFA500"
+    - "#FFFF00"
+    - "#00FF00"
+    - "#00BFFF"
+  shine: true
+  switch-interval-ticks: 2
+  shine-width: 3
+  shine-color: "#FFFFFF"
+  shine-strength: 0.7
+```
+
+### 单文件多条目
+
+```yaml
+# entries/chat.yml
+chat-prefix:
+  enabled: true
+  text: "%player_name%"
+  gradient-colors:
+    - "#FF6B6B"
+    - "#FFD93D"
+  shine: false
+  switch-interval-ticks: 0
+  shine-width: 2
+  shine-color: "#FFFFFF"
+  shine-strength: 0.55
+
+chat-suffix:
+  enabled: true
+  text: "[VIP]"
+  gradient-colors:
+    - "#FFD700"
+    - "#FFA500"
+  shine: true
+  switch-interval-ticks: 2
+  shine-width: 1
+  shine-color: "#FFFFFF"
+  shine-strength: 0.6
+```
+
+## 默认条目
+
+首次启动时，若 `entries/` 目录为空，模块自动导出 `entries/default.yml`，包含两个示例条目：
+
+| 条目 ID | 文本 | 渐变色 | 扫光 |
+|---|---|---|---|
+| `welcome` | `欢迎来到 ArcartX，%player_name%` | `#FF7A18` → `#FFD64D` → `#7FE7FF` | 开启 |
+| `momo` | `多请墨大师喝奶茶，谢谢` | `#6A5CFF` → `#FF6B9D` | 关闭 |
+
+## 配置诊断
+
+模块在加载条目时会输出诊断日志，帮助排查常见配置问题：
+
+| 场景 | 日志内容 | 解决方案 |
+|---|---|---|
+| `gradient-colors` 列表项全部无效 | `gradient-colors 列表包含 N 项但全部无效` | 检查颜色值是否加了引号 |
+| `gradient-colors` 键不存在 | `未配置 gradient-colors 字段` | 添加 `gradient-colors` 列表 |
+| `gradient-colors` 列表为空 | `gradient-colors 列表为空` | 添加至少一个颜色值 |
+| 单个颜色值无效 | `gradient-colors 含有无效颜色: <值>` | 检查颜色格式是否为 6 位十六进制 |
+| `shine-color` 无效 | `shine-color 无效，已回退默认值` | 检查 `shine-color` 格式 |
+| `entries` 目录为空 | `entries 目录为空或不存在，未加载任何 RGB 条目` | 检查目录路径和文件内容 |
+
+:::tip
+开启 `settings.debug: true` 后，递归引用检测会输出额外警告日志，帮助排查条目间的循环引用问题。
+:::

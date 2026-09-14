@@ -1,0 +1,265 @@
+---
+title: 配置
+description: Conversation 模块配置文件详解与示例
+---
+
+# 配置
+
+## 配置文件
+
+模块主配置文件为 `ArcartXConversation.yml`，消息文件为 `messages.yml`，均位于 `data/conversation/` 目录。电影序列定义文件位于 `data/conversation/cinematics/` 目录。
+
+### 主配置（`ArcartXConversation.yml`）
+
+#### debug 节
+
+| 配置项 | 类型 | 默认值 | 说明 |
+| --- | --- | --- | --- |
+| `debug.enabled` | boolean | `false` | 是否输出对话桥接调试日志（收发包、生命周期、状态摘要） |
+
+#### theme 节
+
+| 配置项 | 类型 | 默认值 | 说明 |
+| --- | --- | --- | --- |
+| `theme.name` | string | `ArcartXConversation` | 注册到 Chemdah ConversationTheme 的主题名 |
+
+#### ui 节
+
+| 配置项 | 类型 | 默认值 | 说明 |
+| --- | --- | --- | --- |
+| `ui.packet-id` | string | `AXS_CONVERSATION` | 客户端通信标识，HUD 菜单与交互回包都通过此标识通信 |
+| `ui.dialog-ui-id` | string/list | `AXS:conversation_dialog` | 主对话 Menu 的 UI ID，支持字符串或列表（多 UI 同时发包） |
+| `ui.selector-ui-id` | string/list | `AXS:conversation_selector` | NPC 选择器 HUD 的 UI ID，支持列表格式 |
+| `ui.letterbox-ui-id` | string/list | `AXS:conversation_letterbox` | 电影序列 letterbox 黑边 UI ID |
+| `ui.register-ui-on-enable` | boolean | `true` | 启用 / 重载时是否自动向 ArcartX 注册 UI 文件 |
+| `ui.overwrite-ui-files` | boolean | `false` | 是否强制覆盖已存在的 UI 文件 |
+
+> `dialog-ui-id` / `selector-ui-id` / `letterbox-ui-id` 均支持字符串或列表格式。列表格式时同一个 payload 会同时发送给多个 UI。
+
+#### interaction 节
+
+| 配置项 | 类型 | 默认值 | 范围 | 说明 |
+| --- | --- | --- | --- | --- |
+| `interaction.enabled` | boolean | `true` | — | 是否启用附近 NPC 扫描与快捷键交互 |
+| `interaction.scan-range` | double | `6.0` | 1.0 ~ 128.0 | 扫描附近可交互 NPC 的范围（方块） |
+| `interaction.scan-period-ticks` | long | `10` | 1 ~ 200 | 扫描周期（tick） |
+| `interaction.selector-sticky-ms` | long | `1500` | ≥ 0 | NPC 离开范围后选择器保持显示的延迟（毫秒） |
+| `interaction.open-cooldown-ms` | long | `350` | 0 ~ 60000 | 打开对话的冷却时间（毫秒） |
+| `interaction.reply-debounce-ms` | long | `250` | ≥ 0 | 回复确认防抖间隔（毫秒） |
+| `interaction.suppress-reopen-ms` | long | `500` | ≥ 0 | 回复后抑制选择器重新打开的时长（毫秒） |
+
+#### cinematic 节
+
+| 配置项 | 类型 | 默认值 | 说明 |
+| --- | --- | --- | --- |
+| `cinematic.enabled` | boolean | `true` | 是否启用电影序列功能 |
+
+### NPC 外观配置（`npc-appearances`）
+
+模块启动 / 重载时自动为指定名称的 Adyeshach NPC 设置 ArcartX 模型与动画。每条配置支持两种动画模式：
+
+| 配置项 | 类型 | 默认值 | 必填 | 说明 |
+| --- | --- | --- | --- | --- |
+| `npc` | string | — | 是 | NPC 显示名（displayName / customName）或 Adyeshach ID，忽略大小写 |
+| `model` | string | — | 是 | ArcartX 模型 ID |
+| `scale` | double | `1.0` | 否 | 模型缩放比例 |
+| `state` | string | — | 模式 A | 动画状态名称（如 `idle`） |
+| `animation` | string | — | 是 | 动画名称 |
+| `animation-speed` | double | `0.0` | 模式 B | 播放速度，大于 0 时启用一次性播放模式 |
+| `transition-time` | int | `5` | 否 | 过渡时间（毫秒），模式 B 使用 |
+| `keep-time` | long | `-1` | 否 | 持续时间（毫秒），`-1` 表示播放完整动画，模式 B 使用 |
+
+> **模式 A（持久默认状态）**：填写 `state` + `animation`，不填 `animation-speed`，调用 `setDefaultState(state, animation)`。
+>
+> **模式 B（一次性播放）**：填写 `animation` + `animation-speed`（> 0），调用 `playAnimation(animation, speed, transitionTime, keepTime)`，此时 `state` 字段被忽略。
+
+## 配置示例
+
+### 完整主配置
+
+```yaml
+config-version: 2
+
+debug:
+  enabled: false
+
+theme:
+  name: ArcartXConversation
+
+ui:
+  packet-id: "AXS_CONVERSATION"
+  dialog-ui-id: "AXS:conversation_dialog"
+  selector-ui-id: "AXS:conversation_selector"
+  letterbox-ui-id: "AXS:conversation_letterbox"
+  register-ui-on-enable: true
+  overwrite-ui-files: false
+
+interaction:
+  enabled: true
+  scan-range: 6.0
+  scan-period-ticks: 10
+  selector-sticky-ms: 1500
+  open-cooldown-ms: 350
+  reply-debounce-ms: 250
+  suppress-reopen-ms: 500
+
+cinematic:
+  enabled: true
+```
+
+### 多 UI 配置示例
+
+```yaml
+ui:
+  packet-id: "AXS_CONVERSATION"
+  dialog-ui-id:
+    - "AXS:conversation_dialog"
+    - "AXS:conversation_dialog_alt"
+  selector-ui-id:
+    - "AXS:conversation_selector"
+    - "AXS:conversation_selector_alt"
+  letterbox-ui-id: "AXS:conversation_letterbox"
+  register-ui-on-enable: true
+  overwrite-ui-files: false
+```
+
+### NPC 外观配置示例
+
+```yaml
+npc-appearances:
+  # 模式 A：持久默认动画
+  - npc: "村长老王"
+    model: npc_village_elder
+    scale: 1.0
+    state: idle
+    animation: idle_loop
+  # 模式 B：一次性播放（带速度）
+  - npc: "铁匠张三"
+    model: npc_blacksmith
+    scale: 1.0
+    animation: hammer_swing
+    animation-speed: 1.5
+    transition-time: 100
+    keep-time: -1
+```
+
+## 电影序列配置
+
+电影序列定义文件存放于 `data/conversation/cinematics/*.yml`，每个文件可包含 `cinematic.cinematics` 或顶层 `cinematics` 节。模块按文件名排序加载并合并，后加载文件中同 ID 的序列会覆盖先前的。
+
+### 序列字段
+
+| 配置项 | 类型 | 说明 |
+| --- | --- | --- |
+| `name` | string | 序列显示名（默认取序列 ID） |
+| `actions` | list | 动作列表，按顺序执行 |
+| `actions[].type` | string | 动作类型 |
+| `actions[].delay-after-ms` | long | 该动作执行后等待的毫秒数（默认 0） |
+
+### 动作类型
+
+| 类型 | 说明 | 关键字段 |
+| --- | --- | --- |
+| `teleport` | 传送玩家到指定坐标 | `world`, `x`, `y`, `z`, `yaw`, `pitch` |
+| `camera_path` | 沿路径平滑插值传送（模拟摄像机移动） | `world`, `duration-ms`, `ticks-per-frame`, `points` |
+| `title` | 显示原版标题 / 副标题 | `title`, `subtitle`, `fade-in`, `stay`, `fade-out` |
+| `action_bar` | 显示原版 Action Bar 消息 | `message` |
+| `wait` | 纯等待（利用 `delay-after-ms`） | — |
+| `sound` | 播放原版音效 | `sound`, `world`, `x`, `y`, `z`, `volume`, `pitch`, `at-player` |
+| `game_mode` | 切换游戏模式 | `mode`（SURVIVAL / CREATIVE / ADVENTURE / SPECTATOR） |
+| `npc_animation` | 对 Adyeshach NPC 播放动画 | `npc`, `animation`, `speed`, `transition-time`, `keep-time` |
+| `npc_model` | 对 Adyeshach NPC 设置模型 | `npc`, `model`, `scale` |
+| `message` | 发送聊天消息 | `message` |
+| `command` | 执行命令 | `command`, `as-console`（`{player}` 替换为玩家名） |
+| `speed` | 设置行走 / 飞行速度 | `walk-speed`, `fly-speed` |
+| `lock_movement` | 锁定 / 解锁玩家移动（设置速度为 0） | `locked` |
+| `subtitle` | 播放 Announcer 字幕组（需 Announcer 模块） | `group-id` |
+| `ui_packet` | 发送包到 ArcartX 客户端 UI | `ui-id`, `handler`, `payload` |
+| `arcartx_sound` | 播放 ArcartX 资源包自定义音效 | `resource-path`, `category`, `at-player`, `pitch`, `keep-time-ms` |
+
+### 电影序列示例
+
+```yaml
+cinematic:
+  cinematics:
+    intro:
+      name: "开场动画"
+      actions:
+        - type: lock_movement
+          locked: true
+          delay-after-ms: 0
+        - type: title
+          title: "&6第一章"
+          subtitle: "&7新的开始"
+          fade-in: 10
+          stay: 60
+          fade-out: 10
+          delay-after-ms: 2000
+        - type: camera_path
+          world: world
+          duration-ms: 5000
+          ticks-per-frame: 2
+          points:
+            - { x: 100, y: 70, z: 200, yaw: 0, pitch: 30 }
+            - { x: 110, y: 75, z: 210, yaw: 45, pitch: 20 }
+            - { x: 120, y: 80, z: 220, yaw: 90, pitch: 10 }
+          delay-after-ms: 1000
+        - type: npc_animation
+          npc: "村长老王"
+          animation: wave
+          speed: 1.0
+          transition-time: 5
+          keep-time: -1
+          delay-after-ms: 2000
+        - type: lock_movement
+          locked: false
+          delay-after-ms: 0
+```
+
+### ArcartX 动作示例
+
+```yaml
+cinematic:
+  cinematics:
+    arcartx_demo:
+      name: "ArcartX 动作演示"
+      actions:
+        - type: subtitle
+          group-id: intro_subtitle
+          delay-after-ms: 3000
+        - type: ui_packet
+          ui-id: AXS:custom_hud
+          handler: show_title
+          payload:
+            text: "过场动画"
+            color: gold
+          delay-after-ms: 2000
+        - type: arcartx_sound
+          resource-path: sounds/cinematic_intro.ogg
+          category: master
+          at-player: true
+          pitch: 1.0
+          keep-time-ms: 5000
+          delay-after-ms: 1000
+```
+
+## 配置迁移
+
+模块支持配置版本自动迁移。当前配置版本为 2，v1 → v2 迁移将 UI 配置从 `client` / `cinematic` 嵌套节抽离到统一 `ui` 节：
+
+| v1 路径 | v2 路径 |
+| --- | --- |
+| `client.packet-id` | `ui.packet-id` |
+| `client.dialog-ui-id` | `ui.dialog-ui-id` |
+| `client.selector-ui-id` | `ui.selector-ui-id` |
+| `client.register-ui-on-enable` | `ui.register-ui-on-enable` |
+| `client.overwrite-ui-files` | `ui.overwrite-ui-files` |
+| `cinematic.letterbox-ui-id` | `ui.letterbox-ui-id` |
+
+> 迁移由模块自动执行，`config-version` 不要手动修改。
+
+## 相关文档
+
+- [概览](/docs/conversation) — 模块功能与对话机制
+- [命令与占位符](/docs/conversation/commands) — 管理命令、权限、UI 通讯包结构
+- [联动](/docs/conversation/integration) — Capability、电影序列动作、模块联动

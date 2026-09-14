@@ -1,0 +1,15 @@
+{
+  "title": "QQBot 群服互联",
+  "description": "QQ 群服互联插件，OneBot 11 双向消息同步、QQ-游戏账号绑定",
+  "color": "#5b8def",
+  "pages": [
+    "index",
+    "onebot-connection",
+    "message-sync",
+    "binding-whitelist",
+    "signin-points",
+    "configuration",
+    "commands",
+    "integration"
+  ]
+}

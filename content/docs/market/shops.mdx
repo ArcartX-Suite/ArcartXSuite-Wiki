@@ -1,0 +1,401 @@
+---
+title: 商店系统
+description: Market 商店配置与商品管理
+---
+
+# 商店系统
+
+Market 的商店系统包含 **系统商店** 和 **回收商店** 两个子系统。系统商店允许管理员通过 YAML 文件定义商品，玩家使用货币购买；回收商店允许玩家将物品出售给系统换取货币。
+
+## 系统商店
+
+### 商店文件结构
+
+每个 `.yml` 文件定义一个独立的商店，文件名（不含扩展名）即为商店 ID。文件放置在 `<模块数据目录>/shops/` 目录下，模块启动时递归扫描加载。
+
+首次启动时若 `shops` 目录为空，会自动导出示例文件 `example_shop.yml`。
+
+### 商店基础字段
+
+| 字段 | 类型 | 说明 |
+|---|---|---|
+| `display-name` | string | 商店在 UI 中显示的名称（支持 `&` 颜色码） |
+| `icon` | section | 商店图标定义，详见 [图标配置](/docs/guide/icons) |
+| `permission` | string | 查看此商店所需的权限（空字符串表示无限制） |
+| `tags` | list | 分类标签（用于 UI 筛选） |
+| `items` | section | 商品列表，每个键为商品唯一标识 |
+
+### 商品配置
+
+每个商品在 `items` 节下以唯一键定义，支持以下字段：
+
+| 字段 | 类型 | 默认值 | 说明 |
+|---|---|---|---|
+| `type` | string | `item` | 商品类型：`item`（物品商品）或 `command`（指令商品） |
+| `item` | section | - | 物品定义（`item` 类型必填） |
+| `item.source` | string | `minecraft` | 物品来源 |
+| `item.id` | string | - | 物品 ID |
+| `item.nbt` | string | - | 原版物品 NBT 数据（SNBT 格式） |
+| `icon` | section | - | 商品图标（省略时用 `item` 生成的物品当图标），详见 [图标配置](/docs/guide/icons) |
+| `display-name` | string | 物品 ID | 商店 UI 货架展示的名称 |
+| `buy-price` | double | `0` | 玩家购买价格（0 = 不可购买） |
+| `sell-price` | double | `0` | 玩家出售给商店的价格（0 = 不可出售） |
+| `currency` | string | 商店默认货币 | 货币类型 |
+| `stock-mode` | string | `unlimited` | 库存模式 |
+| `stock-amount` | int | `0` | 库存数量（`unlimited` 模式下无效） |
+| `limit-per-player` | int | `0` | 每个玩家的购买上限（0 = 无限制） |
+| `limit-reset` | string | `never` | 限购重置周期 |
+| `discount` | map | - | 折扣配置（权限节点 → 折扣比例） |
+| `conditions` | section | - | 上架条件 |
+| `reward-commands` | list | - | 奖励指令（`command` 类型必填） |
+
+### 物品来源 (item.source)
+
+| 来源 | item.id 格式 | 说明 |
+|---|---|---|
+| `minecraft` | Bukkit Material 名 | 原版 Minecraft 物品 |
+| `mythic` | MythicMobs 内部名称 | MythicMobs 自定义物品 |
+| `neige` | NeigeItems 物品 ID | NeigeItems 自定义物品 |
+| `overture` | Overture 物品 ID | Overture 自定义物品 |
+| `mmoitems` | `TYPE;ID` | MMOItems 物品（如 `ARMOR;STEEL_HELMET`） |
+
+详见 [物品来源](/docs/guide/item-sources)。
+
+### 库存模式 (stock-mode)
+
+| 模式 | 说明 |
+|---|---|
+| `unlimited` | 无限库存，可无限购买 |
+| `global` | 全服共享库存，所有玩家共用同一库存量 |
+| `per-player` | 每个玩家独立库存，互不影响 |
+
+### 限购重置周期 (limit-reset)
+
+| 值 | 说明 |
+|---|---|
+| `daily` | 每日重置（服务器时间 00:00） |
+| `weekly` | 每周重置（周一 00:00） |
+| `monthly` | 每月重置（1 日 00:00） |
+| `never` | 从不重置（终身限购） |
+
+### 折扣系统
+
+折扣按权限节点配置，拥有对应权限的玩家购买时享受折扣。若同时拥有多个折扣权限，取**最低折扣值**（即最大优惠）。
+
+```yaml
+discount:
+  "axsmarket.vip": 0.9    # VIP 9 折
+  "axsmarket.mvp": 0.8    # MVP 8 折
+```
+
+### 指令商品
+
+指令商品不发放物品，只在扣款成功后由控制台执行奖励命令。支持以下占位符：
+
+| 占位符 | 说明 |
+|---|---|
+| `{player}` | 玩家名（已做安全校验） |
+| `{uuid}` | 玩家 UUID |
+| `{amount}` | 购买数量 |
+
+```yaml
+command_reward:
+  type: "command"
+  icon:
+    material: "NETHER_STAR"
+    name: "&d指令奖励"
+  display-name: "&d指令奖励"
+  buy-price: 100
+  currency: "money"
+  reward-commands:
+    - "give {player} diamond {amount}"
+    - "say 恭喜 {player} 获得指令奖励"
+```
+
+### 购买流程
+
+1. 玩家打开商店 UI，选择商品并输入购买数量
+2. 服务端校验数量（1~2304，防止整数溢出）
+3. 检查限购记录（`long` 运算防止 `int` 溢出绕过）
+4. 检查库存（`global` 模式原子扣减，`per-player` 模式独立扣减）
+5. 计算价格（含折扣，全程 `BigDecimal` 避免浮点误差）
+6. 扣款（`CurrencyBridge.withdraw`）
+7. 生成物品（`ShopItemFactory.create`）
+8. 放入背包，溢出部分按比例退款 + 恢复库存
+9. 更新限购记录 + 跨服广播
+10. 记录成交量（动态策略调价依据）
+
+:::tip 安全保障
+- 负价格会被强制设为 0，防止"购买反而获得货币"
+- 背包空间不足时仅购买能容纳的数量，多余款项按比例退还
+- 物品生成失败时全额退款 + 恢复库存
+:::
+
+### 货币支持
+
+系统商店支持多货币，每个商品可独立指定 `currency` 字段。货币 ID 由 CurrencyBridgeAPI 统一管理，支持 Vault、PlayerPoints、Xconomy、Rondo 等多种经济系统。
+
+商品未指定 `currency` 时，使用 `shop.default-currency` 作为 fallback。
+
+## 动态价格策略
+
+动态商品策略通过 `shop.dynamic` 配置节定义，支持三种策略类型。策略状态持久化到数据库，跨服同步，并通过 EventBus 发布事件。
+
+### random-refresh（随机刷新 / 神秘商人）
+
+从候选商品池中按权重随机抽选 N 个商品上架，可配置是否下架旧随机商品。
+
+```yaml
+shop:
+  dynamic:
+    enabled: true
+    strategies:
+      mystery_merchant:
+        type: "random-refresh"
+        shop-id: "example_shop"
+        schedule:
+          cron: "0 0 */6 * * ?"    # 每 6 小时触发
+        probability: 0.5            # 触发概率（0-1）
+        max-items: 5                # 每次刷新上架商品数
+        remove-old: true            # 刷新时是否下架旧随机商品
+        pool:                       # 候选商品池
+          rare_sword:
+            item:
+              source: "mythic"
+              id: "RareSword"
+            display-name: "&e稀有之剑"
+            buy-price: 5000
+            sell-price: 0
+            currency: "money"
+            weight: 1               # 权重（越大越容易被抽中）
+            stock-mode: "unlimited"
+            stock-amount: 0
+            limit-per-player: 1
+            limit-reset: "never"
+          common_potion:
+            item:
+              source: "minecraft"
+              id: "POTION"
+              nbt: "{Potion:'minecraft:healing'}"
+            display-name: "&a治疗药水"
+            buy-price: 100
+            sell-price: 0
+            currency: "money"
+            weight: 10
+            stock-mode: "unlimited"
+```
+
+### price-float（价格浮动）
+
+按 `random-walk` 或 `supply-demand` 模式动态调整商品价格乘数。
+
+| 模式 | 说明 |
+|---|---|
+| `random-walk` | 每次触发在基准价上下随机波动（±volatility），乘数限制在 [min, max] 范围 |
+| `supply-demand` | 根据成交量调价：买的人多则涨价、少则降价；无成交时向 1.0 回归 |
+
+```yaml
+shop:
+  dynamic:
+    enabled: true
+    strategies:
+      price_fluctuation:
+        type: "price-float"
+        shop-id: "example_shop"
+        schedule:
+          cron: "0 */30 * * * ?"   # 每 30 分钟触发
+        float-mode: "supply-demand" # 或 "random-walk"
+        volatility: 0.2             # 波动幅度（0.2 = ±20%）
+        min-multiplier: 0.5          # 最低价格乘数
+        max-multiplier: 2.0          # 最高价格乘数
+```
+
+### scheduled-swap（定时换货）
+
+按多个商品集轮换上架，每次触发切换到下一个集。
+
+```yaml
+shop:
+  dynamic:
+    enabled: true
+    strategies:
+      weekly_rotation:
+        type: "scheduled-swap"
+        shop-id: "example_shop"
+        schedule:
+          cron: "0 0 0 ? * MON"     # 每周一 0 点触发
+        item-sets:
+          set_a:                     # 商品集 A
+            item1:
+              item:
+                source: "minecraft"
+                id: "DIAMOND"
+              display-name: "&b钻石"
+              buy-price: 500
+              sell-price: 100
+              currency: "money"
+              weight: 1
+              stock-mode: "unlimited"
+          set_b:                     # 商品集 B
+            item1:
+              item:
+                source: "minecraft"
+                id: "EMERALD"
+              display-name: "&a绿宝石"
+              buy-price: 300
+              sell-price: 60
+              currency: "money"
+              weight: 1
+              stock-mode: "unlimited"
+```
+
+## 回收商店
+
+### 回收表文件结构
+
+每个 `.yml` 文件定义一张独立的回收表，文件放置在 `<模块数据目录>/recycle/` 目录下。首次启动时若目录为空，会自动导出 `default_recycle.yml`。
+
+### 回收条目字段
+
+| 字段 | 类型 | 说明 |
+|---|---|---|
+| `source` | string | 物品来源（同商店 `item.source`） |
+| `item-id` | string | 物品标识（格式与商店配置一致） |
+| `price` | double | 回收单价（每个物品获得的货币数量） |
+| `currency` | string | 货币类型（覆盖默认货币） |
+
+### 回收价格计算
+
+```
+最终回收价格 = 基础价格 × 玩家匹配的最高权限倍率
+```
+
+例如：圆石 `price=1`，VIP 倍率 1.2，MVP 倍率 1.5 → MVP 玩家每个圆石获得 1.5。
+
+### 自动回收
+
+当 `recycle.allow-auto-recycle: true` 且玩家拥有 `axsmarket.autorecycle` 权限时，玩家拾取物品时自动检测并回收：
+
+1. 监听 `EntityPickupItemEvent`
+2. 检查物品是否在回收表中
+3. 取消拾取事件，直接回收并给钱
+4. 发送反馈消息
+
+### 批量回收
+
+当 `recycle.batch-recycle-enabled: true` 时，玩家可通过 `/market recycle all` 或 UI 一键回收背包中所有可回收物品（仅扫描主背包 0-35 格，不回收装备栏）。
+
+## 商店示例
+
+```yaml
+# <模块数据目录>/shops/example_shop.yml
+display-name: "&6综合商店"
+icon:
+  material: "DIAMOND"
+permission: ""
+tags: ["综合", "基础"]
+
+items:
+  # 原版物品（无限库存）
+  diamond_sword:
+    item:
+      source: "minecraft"
+      id: "DIAMOND_SWORD"
+    icon:
+      material: "DIAMOND_SWORD"
+      name: "&b锋利的钻石剑"
+      lore:
+        - "&7示例商品图标"
+    display-name: "&b钻石剑"
+    buy-price: 500
+    sell-price: 100
+    currency: "money"
+    stock-mode: "unlimited"
+    limit-per-player: 0
+    limit-reset: "never"
+    discount:
+      "axsmarket.vip": 0.9
+      "axsmarket.mvp": 0.8
+
+  # 原版物品（每人每日限量）
+  healing_potion:
+    item:
+      source: "minecraft"
+      id: "POTION"
+      nbt: "{Potion:'minecraft:strong_healing'}"
+    display-name: "&d强效治疗药水"
+    buy-price: 50
+    sell-price: 10
+    currency: "money"
+    stock-mode: "per-player"
+    stock-amount: 64
+    limit-per-player: 128
+    limit-reset: "daily"
+    discount: {}
+
+  # MythicMobs 物品（全服限量，周限购）
+  mythic_weapon:
+    item:
+      source: "mythic"
+      id: "ExampleMythicSword"
+    display-name: "&6传说之剑"
+    buy-price: 10000
+    sell-price: 0
+    currency: "points"
+    stock-mode: "global"
+    stock-amount: 5
+    limit-per-player: 1
+    limit-reset: "weekly"
+    discount: {}
+    conditions:
+      permission: "axsmarket.shop.legendary"
+      min-level: 30
+
+  # 指令商品
+  command_reward:
+    type: "command"
+    icon:
+      material: "NETHER_STAR"
+      name: "&d指令奖励"
+    display-name: "&d指令奖励"
+    buy-price: 100
+    sell-price: 0
+    currency: "money"
+    reward-commands:
+      - "give {player} diamond {amount}"
+      - "say 恭喜 {player} 获得指令奖励"
+    stock-mode: "unlimited"
+```
+
+## 回收表示例
+
+```yaml
+# <模块数据目录>/recycle/default_recycle.yml
+display-name: "&a默认回收表"
+
+entries:
+  cobblestone:
+    source: "minecraft"
+    item-id: "COBBLESTONE"
+    price: 1
+    currency: "money"
+
+  iron_ingot:
+    source: "minecraft"
+    item-id: "IRON_INGOT"
+    price: 10
+    currency: "money"
+
+  diamond:
+    source: "minecraft"
+    item-id: "DIAMOND"
+    price: 100
+    currency: "money"
+
+  # MythicMobs 物品回收
+  mythic_drop:
+    source: "mythic"
+    item-id: "CommonDrop"
+    price: 50
+    currency: "points"
+```

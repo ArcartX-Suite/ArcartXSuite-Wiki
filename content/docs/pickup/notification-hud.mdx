@@ -1,0 +1,372 @@
+---
+title: 通知模式 HUD
+description: 通知模式 HUD 模板动态生成、Aria 变量生命周期、条目队列机制与 HUD 打开流程详解
+---
+
+# 通知模式 HUD
+
+> **付费模块**
+
+通知模式（`settings.mode: notification`）是 Pickup 模块的轻量拾取提示模式。玩家正常拾取地面掉落物时，HUD 以滚动队列展示最近 N 条拾取记录，每条包含物品图标、名称与数量，超时后自动消失。本文深入解析 HUD 模板的动态生成机制、Aria 变量生命周期、条目队列滚动逻辑、HUD 打开与待发队列刷写流程。
+
+## HUD 模板动态生成
+
+### PickupHudTemplateWriter
+
+通知模式的 UI 文件 `pickup_hud.yml` 并非静态资源，而是由 `PickupHudTemplateWriter` 在模块启动时根据 `notification.max-visible` 与 `notification.entry-ttl-ms` 两个配置参数**动态生成**。
+
+```java
+public static void write(File target, int maxVisible, long entryTtlMs) throws IOException {
+    Files.writeString(target.toPath(), build(maxVisible, entryTtlMs), StandardCharsets.UTF_8);
+}
+```
+
+| 生成参数 | 配置路径 | 默认值 | 影响 |
+| --- | --- | --- | --- |
+| `maxVisible` | `notification.max-visible` | `4` | 生成 `maxVisible` 个条目控件，每个含背景、图标槽位与文字 |
+| `entryTtlMs` | `notification.entry-ttl-ms` | `3000` | 写入 `action.load` 的 `var.entryTtlMs` 变量，控制条目超时隐藏 |
+
+### 生成触发条件
+
+```java
+private File exportPickupUiFile(PickupModuleConfiguration config) throws IOException {
+    File target = new File(pluginDataFolder, "ui/pickup_hud.yml");
+    if (!target.exists() || config.ui().overwriteUiFiles()) {
+        PickupHudTemplateWriter.write(target, config.maxVisible(), config.entryTtlMs());
+    }
+    return target;
+}
+```
+
+| 条件 | 行为 |
+| --- | --- |
+| 文件不存在 | 生成新文件 |
+| `ui.overwrite-ui-files` 为 `true` | 强制覆盖重新生成 |
+| 文件已存在且 `overwrite-ui-files` 为 `false` | 保留旧文件，不重新生成 |
+
+> 修改 `max-visible` 或 `entry-ttl-ms` 后，需开启 `ui.overwrite-ui-files` 或手动删除 `ui/pickup_hud.yml` 才能重新生成。否则 HUD 仍使用旧参数的模板。
+
+### 模板签名
+
+生成的文件首行包含版本签名，用于识别模板参数：
+
+```yaml
+# AXS pickup_hud; version=6; maxVisible=4; ttlMs=3000
+```
+
+| 签名字段 | 说明 |
+| --- | --- |
+| `version` | 模板格式版本（当前为 6） |
+| `maxVisible` | 生成时的最大显示条数 |
+| `ttlMs` | 生成时的条目存活时间（毫秒） |
+
+## Aria 变量生命周期
+
+### 条目变量结构
+
+每个条目由 5 个 Aria 变量组成，索引从 1 到 `maxVisible`：
+
+| 变量 | 类型 | 说明 |
+| --- | --- | --- |
+| `entry{N}Visible` | `boolean` | 条目是否可见 |
+| `entry{N}CreatedAt` | `long` | 条目创建时间戳（毫秒） |
+| `entry{N}Amount` | `int` | 物品堆叠数量 |
+| `entry{N}ItemJson` | `String` | 物品 JSON 序列化数据（用于 `setItemIcon` 渲染） |
+| `entry{N}IconDirty` | `boolean` | 图标是否需要刷新 |
+
+### 初始化（action.load）
+
+HUD 加载时执行 `action.load`，初始化所有条目变量：
+
+```yaml
+action:
+  load: |-
+    var.entryTtlMs = 3000
+    var.now = 0
+    var.entry1Visible = false
+    var.entry1CreatedAt = 0
+    var.entry1Amount = 0
+    var.entry1ItemJson = none
+    var.entry1IconDirty = false
+    # entry2 ~ entry4 同理
+```
+
+| 变量 | 初始值 | 说明 |
+| --- | --- | --- |
+| `entryTtlMs` | 配置的 `entry-ttl-ms` 值 | 条目存活时间阈值 |
+| `now` | `0` | 当前时间戳，由 `tick` 每帧更新 |
+| `entry{N}Visible` | `false` | 初始全部隐藏 |
+| `entry{N}CreatedAt` | `0` | 创建时间戳归零 |
+| `entry{N}Amount` | `0` | 数量归零 |
+| `entry{N}ItemJson` | `none` | 特殊值，表示无物品 |
+| `entry{N}IconDirty` | `false` | 无需刷新图标 |
+
+> `none` 是 Aria 中的特殊空值标记，`setItemIcon` 调用前需检查 `ItemJson != none` 以避免空指针。
+
+### 条目滚动（packetHandler.pick）
+
+收到服务端 `pick` 包时，`packetHandler.pick` 将新条目插入队列首位，旧条目依次下移：
+
+```yaml
+packetHandler:
+  pick: |-
+    var.now = Time.currentTime()
+    # 旧条目依次下移（entry4 <- entry3 <- entry2 <- entry1）
+    var.entry4Visible = var.entry3Visible
+    var.entry4CreatedAt = var.entry3CreatedAt
+    var.entry4Amount = var.entry3Amount
+    var.entry4ItemJson = var.entry3ItemJson
+    var.entry4IconDirty = true
+    # 新条目写入 entry1
+    var.entry1Visible = true
+    var.entry1CreatedAt = var.now
+    var.entry1Amount = packet['amount']
+    var.entry1ItemJson = packet['itemJson']
+    var.entry1IconDirty = true
+```
+
+滚动逻辑按从高到低的顺序赋值（`maxVisible` → 2），确保下移过程中不会覆盖尚未读取的值：
+
+| 步骤 | 操作 | 说明 |
+| --- | --- | --- |
+| 1 | `entry{N} = entry{N-1}`（N 从 maxVisible 到 2） | 旧条目依次下移，最旧的条目被挤出 |
+| 2 | `entry1.Visible = true` | 新条目标记为可见 |
+| 3 | `entry1.CreatedAt = now` | 记录创建时间 |
+| 4 | `entry1.Amount = packet['amount']` | 写入拾取数量 |
+| 5 | `entry1.ItemJson = packet['itemJson']` | 写入物品 JSON |
+| 6 | `entry{N}.IconDirty = true` | 标记需要刷新图标 |
+
+> 下移赋值从最高索引开始（`entry4 ← entry3`，`entry3 ← entry2`，`entry2 ← entry1`），避免从低到高赋值时数据被提前覆盖。
+
+### 超时隐藏（action.tick）
+
+HUD `tick` 动作每帧执行，检查各条目是否超过 `entryTtlMs` 存活时间：
+
+```yaml
+action:
+  tick: |-
+    var.now = Time.currentTime()
+    if(var.entry1Visible && (var.now - var.entry1CreatedAt) >= var.entryTtlMs){
+      var.entry1Visible = false
+    }
+    # entry2 ~ entry4 同理
+```
+
+| 条件 | 操作 |
+| --- | --- |
+| `entry{N}.Visible == true` 且 `now - entry{N}.CreatedAt >= entryTtlMs` | 将 `entry{N}.Visible` 置为 `false` |
+
+超时后条目隐藏，但变量数据保留。下次拾取时该位置会被新条目覆盖。
+
+### 图标刷新（action.tick）
+
+`tick` 动作同时处理图标刷新，通过 `IconDirty` 标记避免每帧重复调用 `setItemIcon`：
+
+```yaml
+tick: |-
+  if(var.entry1IconDirty){
+    if(var.entry1ItemJson != none){
+      val.pickup_slot_1.setItemIcon(var.entry1ItemJson)
+    }
+    var.entry1IconDirty = false
+  }
+  # entry2 ~ entry4 同理
+```
+
+| 条件 | 操作 |
+| --- | --- |
+| `entry{N}.IconDirty == true` 且 `entry{N}.ItemJson != none` | 调用 `setItemIcon` 设置图标，清除 `IconDirty` |
+| `entry{N}.IconDirty == true` 且 `entry{N}.ItemJson == none` | 仅清除 `IconDirty`（无物品不渲染图标） |
+
+> `IconDirty` 标记机制确保图标仅在数据变化时刷新，而非每帧重复渲染，降低客户端性能开销。详见 [UI 图标](/docs/guide/icons)。
+
+## HUD 布局结构
+
+生成的 HUD 布局固定为右下角纵向排列，由 `PickupHudTemplateWriter` 硬编码生成：
+
+```yaml
+controls:
+  自适应全局布局:
+    type: Adaptive
+    attribute:
+      point: ~stretch_all
+      width: 1920
+      height: 1080
+    children:
+      拾取纵向布局:
+        type: VStack
+        attribute:
+          point: ~bottom_right
+          x: -300
+          y: -120
+          spaceBetween: 8
+        children:
+          拾取条目1:
+            type: Canvas
+            # ...
+```
+
+| 布局元素 | 类型 | 说明 |
+| --- | --- | --- |
+| 自适应全局布局 | `Adaptive` | 1920×1080 画布，自适应缩放 |
+| 拾取纵向布局 | `VStack` | 右下角锚点，纵向排列条目，间距 8 |
+| `拾取条目{N}` | `Canvas` | 单个条目容器，宽度自适应文字，高度 60 |
+
+每个条目包含三个子控件：
+
+| 子控件 | 类型 | 说明 |
+| --- | --- | --- |
+| 背景 | `Texture` | 毛玻璃材质（`Frosted:30`）+ 圆角描边，`visible` 绑定 `entry{N}Visible` |
+| 图标 | `Slot` | 物品图标槽位（`slotType: ~Icon`），`visible` 绑定 `entry{N}ItemJson != none` |
+| 文字 | `Text` | 物品名 + 数量，格式为 `物品名 &fx 数量` |
+
+> 文字内容通过 Aria 表达式动态计算：`val.pickup_slot_{N}.getSlotItemStack().getName() + ' &fx' + var.entry{N}Amount.round()`。`&f` 为 Minecraft 颜色码，`round()` 确保数量为整数。
+
+## HUD 打开与待发队列
+
+### 打开流程
+
+通知模式下，`PickupService` 负责管理 HUD 的打开与拾取通知推送。HUD 打开采用延迟确认机制：
+
+| 步骤 | 操作 | 延迟 |
+| --- | --- | --- |
+| 1 | 服务启动，延迟打开所有在线玩家 HUD | `PREOPEN_DELAY_TICKS`（5 ticks） |
+| 2 | 二次兜底重试 | `PREOPEN_DELAY_TICKS + OPEN_CONFIRM_DELAY_TICKS`（45 ticks） |
+| 3 | 客户端初始化完成回调 | `onClientInitialized` → `ensureUiOpen` |
+| 4 | `openUi` 返回 `true` | 延迟 `OPEN_CONFIRM_DELAY_TICKS`（40 ticks）后标记为已打开 |
+| 5 | 标记已打开 | 刷写待发队列 `flushPendingPickups` |
+
+```java
+private boolean ensureUiOpen(Player player) {
+    boolean opened = bridge.openUi(player, uiId);
+    if (opened) {
+        AxsScheduler.runTaskLater(plugin, () -> handleUiOpened(player), OPEN_CONFIRM_DELAY_TICKS);
+        return true;
+    }
+    return false;
+}
+```
+
+> 不依赖客户端回调确认，`openUi` 返回 `true` 即视为服务端已下发打开指令。延迟 40 ticks 后将玩家标记为已打开，给客户端足够时间完成 HUD 渲染。`onClientInitialized` 会兜底重试。
+
+### 待发队列机制
+
+拾取事件发生时，若玩家 HUD 尚未打开（`openedPlayers` 不含该玩家），payload 会排入待发队列，待 HUD 打开确认后统一刷写：
+
+```java
+private final Map<UUID, Deque<Map<String, Object>>> pendingPickups = new ConcurrentHashMap<>();
+```
+
+| 场景 | 操作 |
+| --- | --- |
+| HUD 已打开 | 延迟 1 tick 发送 `pick` 包（`OPENED_PACKET_DELAY_TICKS`） |
+| HUD 未打开 | payload 排入 `pendingPickups` 队列，调用 `ensureUiOpen` 打开 HUD |
+| HUD 打开确认 | `handleUiOpened` → `flushPendingPickups`，队列中所有 payload 依次延迟发送 |
+| `openUi` 失败 | 从队列移除该 payload，记录失败日志 |
+
+```java
+private void flushPendingPickups(Player player) {
+    Deque<Map<String, Object>> queue = pendingPickups.remove(player.getUniqueId());
+    if (queue == null || queue.isEmpty()) return;
+    long delay = OPENED_PACKET_DELAY_TICKS;
+    while (!queue.isEmpty()) {
+        scheduleSend(player, queue.removeFirst(), delay++);
+    }
+}
+```
+
+> 队列中多条 payload 依次延迟发送（1 tick、2 ticks、3 ticks...），确保客户端按顺序处理，避免 HUD 刚打开时包丢失。
+
+### 拾取事件监听
+
+`PickupService` 以 `HIGHEST` 优先级监听 `EntityPickupItemEvent`（`ignoreCancelled = true`）：
+
+```java
+@EventHandler(priority = EventPriority.HIGHEST, ignoreCancelled = true)
+public void onEntityPickupItem(EntityPickupItemEvent event) {
+    if (!(event.getEntity() instanceof Player player) || !player.isOnline()) return;
+    if (disabledPlayers.contains(player.getUniqueId())) return;
+    ItemStack itemStack = event.getItem().getItemStack();
+    Map<String, Object> payload = new LinkedHashMap<>();
+    payload.put("itemJson", itemStackBridge.itemToJson(itemStack).orElse(""));
+    payload.put("amount", itemStack.getAmount());
+    // 推送 HUD 通知 + 发布 EventBus 事件
+}
+```
+
+| 事件优先级 | `HIGHEST` | 确保在大多数其他插件之后执行，拾取未被取消时才推送通知 |
+| --- | --- | --- |
+| `ignoreCancelled` | `true` | 事件被取消（如 Warehouse 自动入库）时不触发 |
+
+> 若 Warehouse 模块以 `LOWEST` 优先级取消了事件（自动入库），本监听器因 `ignoreCancelled = true` 不会触发。此时 Warehouse 通过 `PickupNotifiable.notifyPickup` 主动补发 HUD 提示。
+
+## PickupNotifiable 补发机制
+
+通知模式下，`PickupModule` 注册 `PickupNotifiable` Capability，供 Warehouse 等模块在自动入库后补发 HUD 提示：
+
+```java
+registerCapability(PickupNotifiable.class, new PickupNotifiable() {
+    @Override
+    public boolean isNotificationActive(UUID playerId) {
+        return notificationService != null && notificationService.isEnabled(playerId);
+    }
+    @Override
+    public boolean notifyPickup(Player player, ItemStack itemStack, int amount) {
+        return notificationService != null && notificationService.notifyPickup(player, itemStack, amount);
+    }
+});
+```
+
+| 方法 | 说明 |
+| --- | --- |
+| `isNotificationActive(UUID)` | 查询玩家拾取通知是否活跃（服务已启动且玩家未手动关闭） |
+| `notifyPickup(Player, ItemStack, int)` | 主动推送一条拾取通知到 HUD，返回 `true` 表示已排入推送流程 |
+
+`notifyPickup` 内部复用 `PickupService` 的推送逻辑：HUD 已打开时延迟 1 tick 发送，未打开时排入待发队列并触发 `ensureUiOpen`。
+
+### 补发场景流程
+
+| 步骤 | 操作 |
+| --- | --- |
+| 1 | 玩家走近掉落物，触发 `EntityPickupItemEvent` |
+| 2 | Warehouse 监听（`LOWEST` 优先级），调用 `depositToPersonalWarehouse` 自动入库 |
+| 3 | Warehouse 取消 `EntityPickupItemEvent` |
+| 4 | Pickup 监听器因 `ignoreCancelled = true` 不触发 |
+| 5 | Warehouse 获取 `PickupNotifiable` Capability，调用 `notifyPickup` 补发 HUD 提示 |
+| 6 | `PickupService.notifyPickup` 将物品 JSON + 数量推送到 HUD |
+
+> 补发机制确保仓库自动入库时玩家仍能看到拾取通知，体验与手动拾取一致。详见 [联动](/docs/pickup/integration)。
+
+## EventBus 事件发布
+
+通知模式下，拾取事件同时通过 EventBus 发布 `axs.pickup.item_pickup` 事件，供其他模块订阅：
+
+```java
+private void publishPickupEvent(Player player, ItemStack itemStack) {
+    EventBusCapability eventBus = eventBusProvider.get();
+    if (eventBus == null) return;
+    Map<String, String> eventPayload = new HashMap<>();
+    eventPayload.put("material", itemStack.getType().name());
+    eventPayload.put("amount", String.valueOf(itemStack.getAmount()));
+    eventBus.publish("axs.pickup.item_pickup", player, eventPayload);
+}
+```
+
+| Payload 字段 | 类型 | 说明 |
+| --- | --- | --- |
+| `material` | `String` | 物品材质 ID（如 `DIAMOND`） |
+| `amount` | `String` | 拾取数量（字符串形式） |
+
+> 事件仅在通知模式且拾取未被取消时发布。扫描模式下拾取由服务端主动执行（非 `EntityPickupItemEvent` 触发），不发布此事件。详见 [联动](/docs/pickup/integration)。
+
+## 玩家开关管理
+
+通知模式支持玩家通过 `/pickup` 命令开关个人拾取通知功能：
+
+| 操作 | 行为 |
+| --- | --- |
+| 关闭 | 立即关闭 HUD，从 `openedPlayers` 移除，清理待发队列，加入 `disabledPlayers` |
+| 开启 | 从 `disabledPlayers` 移除，立即调用 `ensureUiOpen` 重新打开 HUD |
+| 切换 | 根据当前状态自动判断开启或关闭 |
+
+> 关闭时待发队列（`pendingPickups`）中的 payload 会被清空，避免重新开启后推送过期通知。

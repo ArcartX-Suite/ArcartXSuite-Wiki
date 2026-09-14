@@ -1,0 +1,170 @@
+---
+title: 命令与占位符
+description: Conversation 模块命令、权限与 UI 通讯包
+---
+
+# 命令与占位符
+
+## 命令与权限
+
+所有命令通过宿主 `/axs conversation <action>` 路由，权限统一为 `arcartxsuite.admin`。
+
+### 通用命令
+
+| 命令 | 权限 | 说明 |
+| --- | --- | --- |
+| `/axs conversation help` | `arcartxsuite.admin` | 查看可用子命令 |
+| `/axs conversation status` | `arcartxsuite.admin` | 查看模块运行状态 |
+| `/axs reload conversation` | `arcartxsuite.admin` | 重载 Conversation 模块 |
+
+### Adyeshach NPC 命令
+
+| 命令 | 权限 | 说明 |
+| --- | --- | --- |
+| `/axs conversation adyeshach setModel <名称> <modelID> <scale>` | `arcartxsuite.admin` | 为指定 NPC 设置 ArcartX 模型与缩放 |
+| `/axs conversation adyeshach setAnimation <名称> <state> <animName>` | `arcartxsuite.admin` | 为指定 NPC 设置持久默认动画状态 |
+| `/axs conversation adyeshach playAnimation <名称> <动画名> <速度> [过渡ms] [持续ms]` | `arcartxsuite.admin` | 为指定 NPC 一次性播放动画 |
+
+> `playAnimation` 的 `过渡ms` 默认 5，`持续ms` 默认 -1（播放完整动画）。速度必须为正数。
+
+### 电影序列命令
+
+| 命令 | 权限 | 说明 |
+| --- | --- | --- |
+| `/axs conversation cinematic play <序列ID> [玩家名]` | `arcartxsuite.admin` | 播放指定电影序列（控制台执行需指定玩家名） |
+| `/axs conversation cinematic stop` | `arcartxsuite.admin` | 停止自己当前播放的电影序列 |
+| `/axs conversation cinematic list` | `arcartxsuite.admin` | 列出所有已定义的电影序列 |
+
+### status 命令输出
+
+`/axs conversation status` 输出以下状态项：
+
+| 状态项 | 说明 |
+| --- | --- |
+| 交互增强 | 是否启用附近 NPC 扫描与快捷键交互 |
+| NPC 桥接 | Adyeshach NPC 桥接是否就绪 |
+| 按键事件 | 宿主按键事件是否就绪 |
+| Selector UI | 选择器 UI 是否就绪 |
+| 对话中 | 当前活跃对话数量 |
+| 电影序列播放中 | 当前正在播放的电影序列数量 |
+| 降级原因 | 交互增强未启用时的降级原因（selector UI / KeyBindRegistry / ClientKeyPressEvent / Adyeshach NPC 反射 / Chemdah Adyeshach opener） |
+
+## PlaceholderAPI
+
+本模块无独立 PlaceholderAPI 占位符输出。对话文本通常由 Chemdah 或任务系统生成，模块不主动解析 `%...%` 变量。
+
+## UI 通讯包
+
+模块通过 `PacketBridgeAPI` 向客户端 UI 发送数据包，客户端通过 `Packet.send` 回包。所有包使用配置的 `ui.packet-id`（默认 `AXS_CONVERSATION`）作为通信标识。
+
+### 对话 UI（`conversation_dialog`）
+
+对话 UI 为 Menu 类型，负责展示 NPC 名称、对话正文与回复列表。
+
+#### 服务端 → 客户端：sync 包
+
+| 字段 | 类型 | 说明 |
+| --- | --- | --- |
+| `token` | string | 会话令牌，用于回包验证 |
+| `packetId` | string | 通信标识，用于 `Packet.send` 回包 |
+| `speakerName` | string | 说话人名称（NPC 名） |
+| `messageLines` | `List<String>` | 对话正文文本行列表 |
+| `hintText` | string | 底部提示文字 |
+| `canReply` | boolean | 是否允许玩家回复 |
+| `selectedReplyId` | string | 当前选中的回复 ID |
+| `selectedReplyIndex` | int | 当前选中的回复索引 |
+| `replyCount` | int | 可选回复总数 |
+| `replyScrollRatio` | double | 回复列表滚动比例（0.0 ~ 1.0） |
+| `replyRows` | `Map<String, Map<String, Object>>` | 回复行数据字典 |
+
+#### replyRows 单行字段
+
+| 字段 | 类型 | 说明 |
+| --- | --- | --- |
+| `id` | string | 回复 ID |
+| `text` | string | 回复显示文本 |
+| `replyType` | string | 回复类型（`talk` / `close` / 其他） |
+| `selected` | boolean | 是否当前选中 |
+| `index` | int | 回复序号（0-based） |
+
+#### 服务端 → 客户端：close 包
+
+| 字段 | 类型 | 说明 |
+| --- | --- | --- |
+| `packetId` | string | 通信标识（可能为 none） |
+
+#### 客户端 → 服务端：回包
+
+回包格式为 `action, token, targetId` 三元素列表：
+
+| action | targetId | 说明 |
+| --- | --- | --- |
+| `select_reply` | 回复 ID | 选中某条回复（不触发执行） |
+| `confirm_reply` | 回复 ID | 确认选择某条回复，触发 Chemdah 回复执行 |
+| `cancel` | `dialog` | 取消当前对话，关闭会话 |
+
+> 对话 UI 支持键盘 1-9 直接发送 `confirm_reply`，也支持鼠标悬停选中后左键点击发送。
+
+### 选择器 UI（`conversation_selector`）
+
+选择器 UI 为 HUD 类型，负责展示附近可触发对话的 NPC 列表。
+
+#### 服务端 → 客户端：sync 包
+
+| 字段 | 类型 | 说明 |
+| --- | --- | --- |
+| `token` | string | 会话令牌 |
+| `packetId` | string | 通信标识 |
+| `title` | string | 选择器标题（"附近对话"） |
+| `hintText` | string | 操作提示文字 |
+| `selectedNpcId` | string | 当前选中的 NPC ID |
+| `selectedNpcIndex` | int | 当前选中的 NPC 索引 |
+| `npcCount` | int | 可对话 NPC 总数 |
+| `npcScrollRatio` | double | 列表滚动比例（0.0 ~ 1.0） |
+| `npcRows` | `Map<String, Map<String, Object>>` | NPC 行数据字典 |
+| `maxNpcCount` | int | NPC 行模板最大复制数 |
+
+#### npcRows 单行字段
+
+| 字段 | 类型 | 说明 |
+| --- | --- | --- |
+| `id` | string | NPC ID |
+| `text` | string | NPC 显示名 |
+| `distanceText` | string | 距离文本（如 `6.0m`） |
+| `selected` | boolean | 是否当前选中 |
+| `index` | int | NPC 序号（0-based） |
+
+#### 客户端 → 服务端：回包
+
+| action | targetId | 说明 |
+| --- | --- | --- |
+| `select_npc` | NPC ID | 选中某个 NPC（不打开对话） |
+| `confirm_npc` | NPC ID | 确认选择 NPC，打开对话 |
+| `navigate_npc` | `prev` / `next` | 向上 / 向下导航选择 |
+| `cancel` | `selector` | 关闭选择器 |
+
+### Letterbox UI（`conversation_letterbox`）
+
+Letterbox 为 HUD 类型，电影序列播放时在屏幕上下显示黑边。
+
+#### 服务端 → 客户端：sync 包
+
+| 字段 | 类型 | 说明 |
+| --- | --- | --- |
+| `visible` | boolean | 是否显示黑边（true = 播放电影序列，false = 隐藏） |
+
+#### 服务端 → 客户端：close 包
+
+无包字段，隐藏黑边并关闭 UI。
+
+> Letterbox UI 不接收客户端回包。播放时通过 `hide` 列表隐藏原版 HUD 与自定义 HUD，保留 `title_text` 供序列中 `title` 动作使用。
+
+## Token 校验机制
+
+服务端维护一个 generation 计数器，每次模块重载 / 重置时递增。发送给客户端的 sync 包携带 `token`（generation 的字符串形式），客户端回包必须携带相同的 `token` 才会被服务端接受。这确保了过期包（如模块重载前的旧包）不会被误处理。
+
+## 相关文档
+
+- [概览](/docs/conversation) — 模块功能与对话机制
+- [配置](/docs/conversation/configuration) — 主配置文件、NPC 外观、电影序列配置
+- [联动](/docs/conversation/integration) — Capability、按键路由、模块联动

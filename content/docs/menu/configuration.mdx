@@ -1,0 +1,228 @@
+---
+title: 配置
+description: 配置文件详解与示例
+---
+
+## 配置文件
+
+主配置 `ArcartXMenu.yml`（配置版本 2）：
+
+| 配置项 | 类型 | 默认值 | 说明 |
+| --- | --- | --- | --- |
+| `debug.enabled` | boolean | `false` | 是否输出调试日志 |
+| `ui.panel-ui-id` | string | `AXS:menu_panel` | 面板布局 UI 的 ID |
+| `ui.esc-ui-id` | string | `AXS:menu_esc` | ESC 布局 UI 的 ID |
+| `ui.packet-id` | string | `AXS_MENU` | 客户端通信包标识符 |
+| `ui.register-ui-on-enable` | boolean | `true` | 启动时是否自动注册 UI |
+| `ui.overwrite-ui-files` | boolean | `false` | 是否强制覆盖用户已修改的 UI 文件 |
+| `client.esc-menu-id` | string | `esc_main` | ESC 暂停界面绑定的默认菜单 ID（layout 为 esc 的菜单定义） |
+| `settings.menus-directory` | string | `menus` | 菜单定义文件目录（相对模块数据目录） |
+| `settings.default-layout` | string | `panel` | 默认布局模式（panel / esc） |
+| `settings.columns` | int | `2` | 默认每行按钮列数 |
+| `settings.buttons-per-page` | int | `12` | 每页最大按钮数量 |
+| `settings.click-cooldown-ms` | int | `300` | 按钮点击冷却时间（毫秒） |
+| `settings.close-on-action` | boolean | `true` | 点击按钮执行动作后是否自动关闭菜单 |
+| `settings.notify-open-failed` | boolean | `true` | 打开菜单失败时是否向玩家发送提示 |
+| `settings.item-binds` | list | 见下 | 全局物品绑定（跨菜单） |
+
+菜单定义文件位于 `menus/` 目录，每个 `.yml` 文件定义一个或多个菜单。菜单级字段：
+
+| 字段 | 类型 | 必填 | 说明 |
+| --- | --- | --- | --- |
+| `id` | string | 是 | 菜单唯一标识，用于 `open:` 引用与命令注册 |
+| `title` | string | 是 | 菜单标题，支持颜色代码与 MiniMessage |
+| `layout` | string | 是 | 布局模式：`panel` / `esc` |
+| `columns` | int | 是 | 每行按钮列数 |
+| `buttons-per-page` | int | 是 | 每页最大按钮数量 |
+| `permission` | string | 否 | 打开菜单所需权限，留空无限制 |
+| `match-esc` | boolean | 否 | 仅 esc 布局，是否拦截 ESC 键替代原版暂停界面 |
+| `open-requirements` | list | 否 | 打开前置条件（PlaceholderAPI 表达式或 `aria:` 脚本） |
+| `open-actions` | list | 否 | 打开菜单时执行的动作 |
+| `close-actions` | list | 否 | 关闭菜单时执行的动作 |
+| `commands` | list | 否 | 注册为游戏命令的别名列表 |
+| `command-regex` | list | 否 | 命令正则匹配列表 |
+| `item-binds` | list | 否 | 物品绑定列表 |
+| `pages` | list | 是 | 页面定义列表 |
+| `footer-buttons` | map | 否 | esc 布局专属，底部固定按钮 |
+
+按钮字段：
+
+| 字段 | 类型 | 必填 | 说明 |
+| --- | --- | --- | --- |
+| `text` | string | 是 | 按钮显示文字 |
+| `order` | int | 是 | 排列顺序（从 0 开始，越小越靠前） |
+| `permission` | string | 否 | 按钮级权限，无权限的玩家看不到此按钮 |
+| `icon` | map | 否 | 按钮图标配置（仅 panel/esc 有效） |
+| `use-conditions` | list | 否 | 按钮显示条件，不满足时可显示 `deny-message` |
+| `requirements` | list | 否 | 按钮硬性前置条件，不满足时按钮完全隐藏 |
+| `deny-message` | string | 否 | `use-conditions` 不满足时的提示消息 |
+| `deny-actions` | list | 否 | `use-conditions` 不满足时执行的动作 |
+| `actions` | list | 是 | 点击按钮执行的动作列表 |
+
+动作类型（`actions` / `open-actions` / `close-actions` 中使用）：
+
+| 动作关键字 | 说明 |
+| --- | --- |
+| `command: &lt;命令>` | 以玩家身份执行命令 |
+| `chat: &lt;消息>` | 以玩家身份发送聊天消息（`/` 开头为命令） |
+| `connect: &lt;服务器名>` | 通过 BungeeCord Plugin Messaging 切换子服 |
+| `console: &lt;命令>` | 以控制台身份执行命令 |
+| `op: &lt;命令>` | 以玩家身份临时给予 OP 执行，用完自动收回 |
+| `message: &lt;消息>` | 向玩家发送聊天消息（支持颜色代码） |
+| `sound: &lt;音效名>\|&lt;音量>\|&lt;音调>` | 播放音效 |
+| `close` | 关闭当前菜单 |
+| `open: &lt;菜单id>` | 打开另一个菜单 |
+| `page: &lt;页面id>` | 切换到同菜单内的另一页 |
+| `signal: &lt;名称>` | 触发 EventPacket command-signal 信号 |
+| `signal: &lt;名称>\|键=值` | 触发信号并传递变量 |
+| `aria: &lt;脚本>` | 执行 Aria 脚本（注入 AXS player 门面到 `global.` 命名空间） |
+| `js: &lt;脚本>` | 执行 JavaScript（注入 player 门面与 Bukkit，需 classpath 有 JS 引擎） |
+| `delay: &lt;tick>` | 延迟 N tick 后执行后续动作（1 tick = 50ms） |
+
+图标 `icon` 支持的来源：
+
+| 来源 | 字段 | 说明 |
+| --- | --- | --- |
+| 原版物品 | `material` | Minecraft 物品 ID |
+| 物品库 | `source` + `id` | `neigeitems` / `mythicmobs` / `overture` |
+| MMOItems | `source: mmoitems` + `mmo-type` + `mmo-id` | 需类型与 ID 两段定位 |
+| ArcartX 贴图 | `texture` / `texture-url` / `nbt` | 写入 NBT 渲染自定义贴图 |
+| 直接 NBT | `json` | 直接提供物品 NBT JSON |
+
+## 配置示例
+
+以下为 `menus/example.yml` 的精简示例，演示面板布局、多页、按钮动作与物品库图标：
+
+```yaml
+id: example
+title: "&f&l服务器菜单"
+layout: panel
+columns: 4
+buttons-per-page: 64
+permission: ""
+open-requirements: []
+open-actions:
+  - "message: &a欢迎打开示例菜单！"
+close-actions: []
+commands:
+  - "examplemenu"
+command-regex:
+  - "example(?:menu)?"
+item-binds:
+  - material: COMPASS
+    name-contains: "功能菜单"
+    action: RIGHT_CLICK
+pages:
+  - id: main
+    title: "&f功能"
+    buttons:
+      warehouse:
+        text: "&f仓库系统"
+        order: 0
+        permission: "arcartxsuite.warehouse.use"
+        icon:
+          material: CHEST
+          name: "&f仓库"
+        actions:
+          - "close"
+          - "delay: 10"
+          - "command: warehouse open"
+      rewards:
+        text: "&f在线奖励"
+        order: 2
+        use-conditions:
+          - "%player_level% >= 5"
+        deny-message: "&c需要达到 5 级才能领取在线奖励"
+        actions:
+          - "close"
+          - "delay: 10"
+          - "command: onlinerewards open"
+      teleport:
+        text: "&f传送菜单"
+        order: 5
+        actions:
+          - "open: teleport"
+      next_page:
+        text: "&f更多功能 »"
+        order: 7
+        actions:
+          - "page: page2"
+  - id: page2
+    title: "&f更多"
+    buttons:
+      script_demo:
+        text: "&f脚本动作示例"
+        order: 2
+        use-conditions:
+          - "aria: global.player.getLevel() >= 30 && global.player.hasPermission('menu.vip')"
+        deny-message: "&c需要 30 级且拥有 menu.vip 权限"
+        actions:
+          - "aria: if (global.player.hasPermission('rank.mvp')) { global.player.command('warp mvp') } elif (global.player.papiNumber('%vault_eco_balance%') >= 1000) { global.player.console('eco take %player_name% 1000'); global.player.command('warp vip') } else { global.player.msg('&c权限/余额不足') }"
+          - "close"
+---
+id: teleport
+title: "&f&l传送"
+layout: panel
+columns: 2
+buttons-per-page: 6
+pages:
+  - id: main
+    title: "&f传送点"
+    buttons:
+      spawn:
+        text: "&f出生点"
+        order: 0
+        icon:
+          material: COMPASS
+          name: "&a出生点"
+        actions:
+          - "close"
+          - "delay: 10"
+          - "command: spawn"
+```
+
+以下为 `menus/esc_main.yml` 的 ESC 暂停界面替换示例：
+
+```yaml
+id: esc_main
+title: "&f&l菜单"
+layout: esc
+columns: 2
+buttons-per-page: 64
+permission: ""
+match-esc: true
+open-requirements: []
+pages:
+  - id: main
+    title: "&f菜单"
+    buttons:
+      shop:
+        text: "&f商城"
+        order: 0
+        actions:
+          - "close"
+          - "delay: 10"
+          - "command: market shop"
+      warehouse:
+        text: "&f仓库系统"
+        order: 1
+        actions:
+          - "close"
+          - "delay: 10"
+          - "command: warehouse open"
+      example:
+        text: "&f功能菜单"
+        order: 7
+        actions:
+          - "open: example"
+          - "close"
+footer-buttons:
+  options:
+    text: "&f游戏选项"
+    order: 0
+    client-action: "options"
+  quit:
+    text: "&f退出游戏"
+    order: 1
+    client-action: "quit"
+```

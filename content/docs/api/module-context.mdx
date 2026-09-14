@@ -1,0 +1,136 @@
+---
+title: ModuleContext
+description: ModuleContext 接口及其子接口的完整方法参考——桥接、存储、安全、资源、注册等全部可用能力。
+---
+
+# ModuleContext
+
+`ModuleContext` 是宿主提供给每个模块的上下文接口。模块通过此接口获取基础设施能力（桥接、文件、UI 注册、事件、命令等），而无需直接引用宿主插件主类。
+
+在 `onEnable(ModuleContext context)` 时注入，模块应将其保存为成员变量。
+
+## 接口拆分
+
+`ModuleContext` 按 ISP 原则拆分为多个职责子接口，模块可按需依赖窄接口：
+
+| 子接口 | 职责 |
+|--------|------|
+| `InfrastructureContext` | 基础设施（plugin/logger/dataFolder） |
+| `BridgeContext` | 桥接（UI/Packet/Item/经济/属性/脚本） |
+| `SecurityContext` | 安全（包频率限制/账号识别/跨服） |
+| `StorageContext` | 存储（统一数据源管理器） |
+| `ResourceContext` | 资源（Jar 资源读取/导出/UI 绑定） |
+| `RegistrationContext` | 注册（事件/命令/按键/PAPI/Capability） |
+
+## 基础设施（InfrastructureContext）
+
+| 方法 | 返回类型 | 说明 |
+|------|----------|------|
+| `plugin()` | `JavaPlugin` | 宿主插件实例（用于注册事件、调度 BukkitTask） |
+| `logger()` | `Logger` | 带模块前缀的 Logger |
+| `dataFolder()` | `File` | 模块私有数据目录（`plugins/ArcartXSuite/data/&lt;moduleId>/`） |
+| `uiFolder()` | `File` | UI 文件输出目录（`plugins/ArcartXSuite/ui/`） |
+| `pluginDataFolder()` | `File` | 宿主插件数据目录（`plugins/ArcartXSuite/`） |
+
+## 桥接 API（BridgeContext）
+
+所有桥接在 ArcartX 未安装时返回 `null`（标注 `@Nullable` 的方法）。
+
+| 方法 | 返回类型 | 稳定性 | 说明 |
+|------|----------|--------|------|
+| `packetBridge()` | `@Nullable PacketBridgeAPI` | `@Stable` | UI/Packet 桥接 |
+| `clientBridge()` | `@Nullable ClientBridgeAPI` | `@Stable` | 客户端桥接（伤害飘字、变量下发） |
+| `itemStackBridge()` | `@Nullable ItemBridgeAPI` | `@Stable` | ItemStack 序列化 |
+| `itemSourceRegistry()` | `ItemSourceRegistry` | `@Stable` | 全局物品来源注册表 |
+| `itemRewardDispatcher()` | `ItemRewardDispatcher` | `@Stable` | 物品奖励发放器 |
+| `pendingRewardService()` | `PendingRewardService` | `@Stable` | 待领取奖励服务 |
+| `vanillaItemNameBridge()` | `VanillaItemNameBridge` | `@Stable` | 原版物品中文名称解析 |
+| `contentModerator()` | `ContentModerator` | `@Stable` | 内容审核（敏感词过滤） |
+| `itemMatcher()` | `ItemMatcherAPI` | `@Stable` | 全局物品匹配器 |
+| `currencyManager()` | `CurrencyBridgeAPI` | `@Stable` | 全局货币管理器 |
+| `rondoBridge()` | `RondoBridge` | `@Stable` | Rondo 经济系统桥接 |
+| `attributeBridge()` | `AttributeBridgeRegistry` | `@Stable` | 属性桥接注册表 |
+| `ariaBridge()` | `AriaBridge` | `@Stable` | Aria 脚本桥接 |
+| `scriptConditionEvaluator()` | `ScriptConditionEvaluator` | `@Stable` | 统一条件评估器 |
+| `taczActive()` | `boolean` | `@Stable` | TACZ 兼容桥接是否已激活 |
+| `worldTextureBridge()` | `@Nullable WorldTextureBridgeAPI` | `@Internal` | 世界文字贴图桥接 |
+| `createWaypointBridge()` | `WaypointBridgeAPI` | `@Internal` | 创建路标桥接实例 |
+| `createAdyeshachNpcBridge()` | `AdyeshachNpcBridgeAPI` | `@Internal` | 创建 NPC 桥接实例 |
+| `createSoundPlayerBridge()` | `SoundPlayerBridgeAPI` | `@Internal` | 创建音效播放器桥接实例 |
+| `scheduler()` | `SchedulerAPI` | `@Stable` | 统一调度 API |
+
+```java
+PacketBridgeAPI bridge = context.packetBridge();
+if (bridge != null && bridge.isAvailable()) {
+    bridge.openUi(player, "my_ui");
+    bridge.sendPacket(player, "my_ui", "update", Map.of("key", "value"));
+}
+```
+
+详见[桥接 API 参考](./bridge-api)。
+
+## 安全（SecurityContext）
+
+| 方法 | 返回类型 | 稳定性 | 说明 |
+|------|----------|--------|------|
+| `packetGuard()` | `@Nullable PacketGuardAPI` | `@Stable` | 客户端包频率限制 |
+| `accountTypeService()` | `AccountTypeService` | `@Stable` | 统一账号识别服务 |
+| `crossServer()` | `CrossServerAPI` | `@Stable` | 统一跨服 API（永不为 null） |
+
+详见[跨服 API](./cross-server-api)。
+
+## 存储（StorageContext）
+
+| 方法 | 返回类型 | 稳定性 | 说明 |
+|------|----------|--------|------|
+| `storageManager()` | `StorageManager` | `@Stable` | 统一数据源管理器（HikariCP 连接池复用） |
+
+```java
+StorageManager storage = context.storageManager();
+DataSource ds = storage.dataSource("mydb");
+```
+
+## 资源（ResourceContext）
+
+| 方法 | 返回类型 | 说明 |
+|------|----------|------|
+| `openResource(path, loader)` | `InputStream` | 从模块 Jar 读取资源 |
+| `exportResource(path, target, overwrite)` | `void` | 导出模块内置资源到目标文件 |
+| `exportConfigResource(path, targetRelative, overwrite, loader)` | `File` | 从模块 Jar 导出配置到宿主数据目录 |
+| `exportUiResource(path, relativeUiPath, overwrite, loader)` | `File` | 从模块 Jar 导出 UI 到 `ui/` 目录 |
+| `prepareUiBinding(moduleName, uiId, register, uiFile)` | `UiBinding` | 准备 ArcartX UI 绑定 |
+| `unregisterUi(registeredUiId)` | `void` | 注销 ArcartX UI |
+| `hasPlugin(pluginName)` | `boolean` | 检查外部 Bukkit 插件是否已安装 |
+
+## 注册（RegistrationContext）
+
+| 方法 | 返回类型 | 说明 |
+|------|----------|------|
+| `registerListener(listener)` | `void` | 注册 Bukkit 事件监听器 |
+| `unregisterListeners()` | `void` | 注销本模块所有监听器 |
+| `registerCommand(name, executor)` | `void` | 延迟绑定玩家命令 |
+| `placeholderResolver()` | `PlaceholderResolverAPI` | PAPI 解析器 |
+| `expansionRegistry()` | `PlaceholderExpansionRegistry` | PAPI 扩展注册表 |
+| `registerClientPacketHandler(handler)` | `void` | 注册客户端包处理器 |
+| `registerClientPacketHandler(handler, priority)` | `void` | 带优先级注册 |
+| `registerClientPacketHandler(handler, priority, packetId, guardModule)` | `void` | 带 PacketGuard 注册 |
+| `registerClientInitializedHandler(handler)` | `void` | 注册客户端初始化回调 |
+| `registerKeybindHandler(keyName, priority, handler)` | `void` | 注册按键事件处理器 |
+| `registerCapability(type, impl)` | `void` | 注册跨模块能力 |
+| `getCapability(type)` | `@Nullable T` | 查找跨模块能力 |
+| `propBridge()` | `@Nullable PropBridgeAPI` | Prop 桥接 |
+
+### Capability 跨模块通信
+
+```java
+// 提供方：注册能力
+context.registerCapability(TitleGrantable.class, titleService);
+
+// 使用方：查找能力（务必判空）
+TitleGrantable title = context.getCapability(TitleGrantable.class);
+if (title != null) {
+    title.giveTitle(player.getUniqueId(), "hero", "7d", "MyModule");
+}
+```
+
+模块 `onDisable` 时宿主自动注销其注册的所有 Capability。详见 [Capability API](./capability)。

@@ -1,0 +1,344 @@
+---
+title: 聊天格式化
+description: Chat 模板渲染、变量替换、自定义组件、物品展示与消息换行机制
+---
+
+# 聊天格式化
+
+> **付费模块**
+
+Chat 模块的消息格式化系统由 `ChatFormatSupport` 工具类提供，负责将频道格式模板渲染为最终消息文本，并处理物品展示、颜色转义、消息换行等增强功能。
+
+## 模板渲染
+
+### 渲染流程
+
+`ChatFormatSupport.renderTemplate()` 是格式化的核心方法，按以下顺序处理模板字符串：
+
+1. **变量替换** — 将 `{变量名}` 占位符替换为实际值
+2. **PAPI 解析** — 通过 `PlaceholderResolverAPI` 解析 PlaceholderAPI 占位符
+3. **颜色转义** — 将 `&` 颜色代码转为 Minecraft 颜色代码（`§`）
+
+```java
+public static String renderTemplate(
+    Player player,
+    String template,
+    Map<String, String> variables,
+    PlaceholderResolverAPI placeholderResolver
+) {
+    String rendered = template == null ? "" : template;
+    if (variables != null) {
+        for (Map.Entry<String, String> entry : variables.entrySet()) {
+            rendered = rendered.replace("{" + entry.getKey() + "}", nullToEmpty(entry.getValue()));
+        }
+    }
+    if (player != null && placeholderResolver != null) {
+        rendered = placeholderResolver.applyPlaceholders(player, rendered);
+    }
+    return translateColors(rendered);
+}
+```
+
+:::tip
+模板渲染支持 PlaceholderAPI 占位符，渲染时按聊天上下文（发送者玩家）解析 PAPI。详见 [/docs/guide/conditions](/docs/guide/conditions)。
+:::
+
+### 格式模板变量
+
+`ChatFormatSupport.baseVariables()` 构建基础变量映射，所有格式模板均可使用：
+
+| 变量 | 说明 | 示例 |
+|---|---|---|
+| `{channel}` | 频道显示名称 | `全服` |
+| `{player_name}` | 发送者名称 | `Steve` |
+| `{player_display_name}` | 发送者显示名称 | `Steve` |
+| `{target_name}` | 私聊目标名称（非私聊为空） | `Alex` |
+| `{message}` | 消息内容 | `你好，一起去挖矿吗？` |
+
+### 物品展示变量
+
+物品展示格式（`function.item.format`）使用独立的变量集：
+
+| 变量 | 说明 | 示例 |
+|---|---|---|
+| `{item_name}` | 物品名称（通过 `VanillaItemNameBridge` 解析） | `钻石剑` |
+| `{item_amount}` | 物品数量 | `1` |
+| `{item_material}` | 物品材质键 | `minecraft:diamond_sword` |
+
+:::info
+物品名称解析优先使用 `VanillaItemNameBridge`（支持原版中文名），不可用时回退到物品自定义名称，再回退到材质键格式化名称。详见 [/docs/guide/item-sources](/docs/guide/item-sources)。
+:::
+
+## 颜色代码
+
+`ChatFormatSupport.translateColors()` 将 `&` 颜色代码转为 Minecraft 颜色代码：
+
+```java
+public static String translateColors(String text) {
+    return ChatColor.translateAlternateColorCodes('&', nullToEmpty(text));
+}
+```
+
+支持的标准颜色代码：
+
+| 代码 | 颜色 | 代码 | 颜色 |
+|---|---|---|---|
+| `&0` | 黑色 | `&a` | 绿色 |
+| `&1` | 深蓝 | `&b` | 青色 |
+| `&2` | 深绿 | `&c` | 红色 |
+| `&3` | 深青 | `&d` | 粉色 |
+| `&4` | 深红 | `&e` | 黄色 |
+| `&5` | 紫色 | `&f` | 白色 |
+| `&6` | 金色 | `&r` | 重置 |
+| `&7` | 灰色 | `&k` | 随机字符 |
+| `&8` | 深灰 | `&l` | 粗体 |
+| `&9` | 蓝色 | `&o` | 斜体 |
+| `&n` | 下划线 | `&m` | 删除线 |
+
+## 自定义组件
+
+自定义组件通过正则匹配聊天消息中的特定文本并替换为自定义内容，可实现表情符号、关键词高亮等扩展功能。
+
+### 配置结构
+
+`function.custom-components` 是一个动态节，用户可自由增删条目：
+
+```yaml
+function:
+  custom-components:
+    star:
+      enabled: true
+      pattern: ":star:"
+      replacement: "★"
+    heart:
+      enabled: true
+      pattern: ":heart:"
+      replacement: "❤"
+    highlight:
+      enabled: true
+      pattern: "(?i)important"
+      replacement: "&c[重要]&r"
+```
+
+| 字段 | 类型 | 说明 |
+|---|---|---|
+| `enabled` | `boolean` | 是否启用此组件 |
+| `pattern` | `string` | 匹配正则表达式（Java 正则语法） |
+| `replacement` | `string` | 替换文本（支持 `&` 颜色码） |
+
+### 替换流程
+
+自定义组件在消息分发流程中、敏感词过滤之前应用：
+
+```java
+private String applyCustomComponents(String message) {
+    String current = message == null ? "" : message;
+    for (ChatCustomComponent component : configuration.functions().customComponents()) {
+        Matcher matcher = component.pattern().matcher(current);
+        current = matcher.replaceAll(component.replacement());
+    }
+    return current;
+}
+```
+
+:::caution
+`pattern` 必须是合法的 Java 正则表达式。非法正则会在加载时被跳过并输出警告日志 `ArcartXChat 自定义组件 '<id>' 正则非法，已跳过`。`replacement` 中的 `$` 和 `\` 具有特殊含义（反向引用），如需字面量请使用 `Matcher.quoteReplacement()` 转义。
+:::
+
+:::info
+自定义组件按配置顺序依次应用，前一个组件的替换结果会作为后一个组件的输入。因此组件顺序可能影响最终结果。
+:::
+
+## 物品展示
+
+物品展示功能允许玩家在聊天中展示手持物品，通过 `[item]` 占位标记触发（可自定义 `function.item.token`）。
+
+### 处理流程
+
+`processContent()` 方法在消息分发时处理物品展示：
+
+```java
+if (configuration.functions().itemEnabled() && current.contains(configuration.functions().itemToken())) {
+    itemPreview = buildItemPreview(sender);
+    if (itemPreview == null) {
+        current = current.replace(
+            configuration.functions().itemToken(),
+            ChatFormatSupport.translateColors(configuration.functions().itemFailedFormat())
+        );
+    } else {
+        current = current.replace(configuration.functions().itemToken(), ChatFormatSupport.ITEM_MARKER);
+    }
+}
+```
+
+| 场景 | 处理方式 |
+|---|---|
+| 手持物品有效 | 将 `[item]` 替换为内部标记 `__AXS_CHAT_ITEM__`，构建 `ChatItemPreview` |
+| 手持空气或无效 | 将 `[item]` 替换为 `failed-format` 配置的文本（如 `&c[物品不可用]`） |
+| 功能未启用 | 不处理，`[item]` 作为普通文本发送 |
+
+### 物品预览构建
+
+`buildItemPreview()` 方法采集手持物品信息并序列化：
+
+| 步骤 | 说明 |
+|---|---|
+| 获取手持物品 | `sender.getInventory().getItemInMainHand()` |
+| Tooltip Lore 注入 | 若 `TooltipDataCapable` 可用，将动态 tooltip 文本行注入物品 NBT Lore |
+| 物品序列化 | `itemStackBridge.itemToJson()` 将物品转为 JSON |
+| 名称解析 | `resolveItemName()` 通过 `VanillaItemNameBridge` 解析物品名称 |
+| 展示文本渲染 | `renderTemplate()` 渲染 `item.format` 模板 |
+
+### ChatItemPreview 数据结构
+
+| 字段 | 类型 | 说明 |
+|---|---|---|
+| `itemJson` | `String` | ArcartX 客户端可识别的物品 JSON |
+| `displayText` | `String` | 物品展示文本（如 `&b[钻石剑 x1]`） |
+| `materialKey` | `String` | 物品材质键（如 `minecraft:diamond_sword`） |
+| `amount` | `int` | 物品数量 |
+
+### BungeeCord 组件构建
+
+`ChatFormatSupport.buildComponents()` 将渲染后文本构建为 BungeeCord 聊天组件数组，处理物品标记的悬浮提示：
+
+```java
+if (itemPreview == null || !renderedText.contains(ITEM_MARKER)) {
+    return TextComponent.fromLegacyText(renderedText.replace(ITEM_MARKER, ""));
+}
+String[] parts = renderedText.split(ITEM_MARKER, -1);
+// 逐段构建组件，在物品标记位置插入带 HoverEvent 的物品组件
+```
+
+物品组件添加 `HoverEvent.Action.SHOW_ITEM` 悬浮事件，玩家鼠标悬停时可预览物品：
+
+```java
+HoverEvent hoverEvent = new HoverEvent(
+    HoverEvent.Action.SHOW_ITEM,
+    new Item(itemPreview.materialKey(), itemPreview.amount(), tag)
+);
+```
+
+:::tip
+物品展示功能通过 `ItemBridgeAPI` 序列化物品为 JSON，并支持 `TooltipDataCapable` 注入动态 tooltip Lore（如 TACZ 枪属性、Apotheosis affix）。详见 [/docs/guide/item-sources](/docs/guide/item-sources)。
+:::
+
+## 消息换行
+
+聊天卡片中的消息文本需要按配置的行宽自动换行。换行算法位于 `ChatService` 中，使用 `ChatCardConfiguration` 的宽度参数。
+
+### 宽度参数
+
+| 字段 | 默认值 | 说明 |
+|---|---|---|
+| `cards.char-width-full` | `31` | 全角字符（中文等）占位宽度（像素） |
+| `cards.char-width-half` | `18` | 半角字符（英文/数字等）占位宽度（像素） |
+| `cards.max-line-width` | `750` | 文字区最大宽度（超过此值自动换行） |
+
+### 文本宽度测量
+
+`measureTextWidth()` 逐字符累加宽度，跳过颜色代码：
+
+```java
+static int measureTextWidth(String text, int charWidthFull, int charWidthHalf) {
+    int width = 0;
+    for (int i = 0; i < text.length(); i++) {
+        char c = text.charAt(i);
+        if ((c == '§' || c == '&') && i + 1 < text.length()) {
+            i++; // 跳过颜色代码的第二个字符
+            continue;
+        }
+        width += isFullWidth(c) ? charWidthFull : charWidthHalf;
+    }
+    return width;
+}
+```
+
+全角字符判定：Unicode 码点 `>= \u2E80` 的字符视为全角（涵盖中日韩文字、全角标点等）。
+
+### 换行算法
+
+`wrapText()` 按最大行宽换行，换行时保留当前生效的颜色代码，确保每行开头颜色连续：
+
+```java
+static List<String> wrapText(String text, int maxLineWidth, int charWidthFull, int charWidthHalf) {
+    List<String> lines = new ArrayList<>();
+    StringBuilder currentLine = new StringBuilder();
+    int currentWidth = 0;
+    String lastColor = "";
+    for (int i = 0; i < text.length(); i++) {
+        char c = text.charAt(i);
+        if ((c == '§' || c == '&') && i + 1 < text.length()) {
+            lastColor = String.valueOf(c) + text.charAt(i + 1);
+            currentLine.append(c).append(text.charAt(i + 1));
+            i++;
+            continue;
+        }
+        int cw = isFullWidth(c) ? charWidthFull : charWidthHalf;
+        if (currentWidth + cw > maxLineWidth && currentLine.length() > 0) {
+            lines.add(currentLine.toString());
+            currentLine = new StringBuilder(lastColor); // 新行以当前颜色开头
+            currentWidth = 0;
+        }
+        currentLine.append(c);
+        currentWidth += cw;
+    }
+    if (currentLine.length() > 0) lines.add(currentLine.toString());
+    return lines.isEmpty() ? List.of("") : lines;
+}
+```
+
+:::info
+换行后的文本通过 `msg0`、`msg1`、... `msg9` 字段推送到聊天卡片。卡片宽度与高度由 UI 侧根据 Text 控件实际渲染尺寸自适应。详见 [/docs/guide/icons](/docs/guide/icons)。
+:::
+
+## 重复消息检测
+
+`ChatFormatSupport.normalizeForDuplicateCheck()` 将消息规范化用于重复检测：
+
+```java
+public static String normalizeForDuplicateCheck(String message) {
+    return ChatColor.stripColor(translateColors(message == null ? "" : message))
+        .trim()
+        .replaceAll("\\s+", " ")
+        .toLowerCase(Locale.ROOT);
+}
+```
+
+| 处理步骤 | 说明 |
+|---|---|
+| 颜色代码转义 | `translateColors` 将 `&` 转为 `§` |
+| 去除颜色代码 | `ChatColor.stripColor` 移除所有 `§` 颜色代码 |
+| 压缩空白 | 多个空白字符合并为单个空格 |
+| 转小写 | 不区分大小写比较 |
+
+:::tip
+重复检测窗口由 `settings.duplicate-window-millis` 配置（默认 4000 毫秒）。设为 0 可关闭重复检测。详见管理与审核文档。
+:::
+
+## 纯文本输出
+
+`ChatFormatSupport.plainText()` 将渲染后文本转为纯文本，用于控制台输出等不需要颜色和物品组件的场景：
+
+```java
+public static String plainText(String renderedText, ChatItemPreview itemPreview) {
+    String resolved = itemPreview == null
+        ? renderedText
+        : renderedText.replace(ITEM_MARKER, itemPreview.displayText());
+    return ChatColor.stripColor(resolved);
+}
+```
+
+| 处理步骤 | 说明 |
+|---|---|
+| 物品标记替换 | 将 `__AXS_CHAT_ITEM__` 替换为物品展示文本 |
+| 颜色代码去除 | `ChatColor.stripColor` 移除所有颜色代码 |
+
+控制台输出使用 `console-format` 模板渲染后，再通过 `plainText()` 转为纯文本：
+
+```java
+private void sendConsole(String consoleText, ChatItemPreview itemPreview) {
+    CommandSender console = Bukkit.getConsoleSender();
+    console.sendMessage(ChatColor.stripColor(ChatFormatSupport.plainText(consoleText, itemPreview)));
+}
+```

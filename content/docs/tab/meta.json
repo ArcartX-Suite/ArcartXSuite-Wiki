@@ -1,0 +1,14 @@
+{
+  "title": "Tab 在线列表",
+  "description": "自定义 Tab 列表面板，支持多视图、排序、分组、分页、跨服聚合与视觉风格。",
+  "color": "#67e8f9",
+  "pages": [
+    "index",
+    "configuration",
+    "sorting-filtering",
+    "visual-style",
+    "cross-server",
+    "commands",
+    "integration"
+  ]
+}

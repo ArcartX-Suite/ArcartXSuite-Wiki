@@ -1,0 +1,310 @@
+---
+title: 攻击目标 HUD
+description: EntityTargetHudService 目标追踪、黑名单过滤、Boss 联动与显示模板
+---
+
+# 攻击目标 HUD
+
+> **付费模块**（消费额度满 ¥150 获得授权）
+
+攻击目标 HUD 子系统是 EntityTracker 的独立功能模块，**不依赖 MythicMobs**。它监听玩家攻击任意 `LivingEntity` 的事件，在超时时间内向攻击者显示目标实体的血量、类型、距离等信息。即使未安装 MythicMobs，此功能也可独立运行。
+
+## 架构概览
+
+```
+EntityTargetHudService（核心服务，实现 Listener）
+  ├── EntityTargetHudConfiguration（配置）
+  ├── EntityTargetStateResolver（状态解析器）
+  ├── EntityTargetSnapshot（目标快照）
+  ├── TrackedTarget（追踪记录：目标 UUID + 最后攻击时间）
+  └── shouldIgnoreTarget()（过滤判断）
+```
+
+## 追踪触发
+
+### 伤害事件监听
+
+`EntityTargetHudService` 监听 `EntityDamageByEntityEvent`（优先级 `MONITOR`，忽略已取消的事件），当玩家攻击任意 `LivingEntity` 时触发追踪：
+
+```
+玩家攻击 LivingEntity
+  → EntityDamageByEntityEvent（MONITOR 优先级）
+  → CombatEventSupport.resolvePlayerAttacker() 解析实际攻击者
+  → 检查攻击者有效性（在线、非死亡、非自我攻击）
+  → 解析目标的 MythicMob ID 和 EntityType
+  → shouldIgnoreTarget() 过滤检查
+  → 通过过滤：记录 TrackedTarget（目标 UUID + 当前时间戳）
+  → 立即刷新该玩家的目标 HUD
+  → 未通过过滤：清除该玩家的目标 HUD
+```
+
+### 攻击者解析
+
+`CombatEventSupport.resolvePlayerAttacker()` 支持以下攻击方式：
+
+| 攻击方式 | 解析逻辑 |
+|---|---|
+| 近战攻击 | 直接从 `event.getDamager()` 获取 |
+| 投射物 | 从 `Projectile.getShooter()` 解析实际射击者 |
+| 属性插件 | 通过 `AttributeBridgeRegistry` 的伤害事件解析 |
+
+> 如果攻击者不是玩家、攻击者已下线、攻击者已死亡、或攻击者攻击的是自己，则不触发追踪。
+
+## 过滤机制
+
+`shouldIgnoreTarget()` 方法按以下优先级判断目标是否应被忽略：
+
+### 黑名单过滤
+
+通过 `attack-target.settings.blacklist` 配置，可排除特定实体不显示目标 HUD：
+
+```yaml
+attack-target:
+  settings:
+    blacklist:
+      mythic-mob-ids:
+        - "TrainingDummy"    # MythicMob ID 黑名单（大小写不敏感）
+        - "DecorativeBoss"
+      entity-types:
+        - "ARMOR_STAND"       # Bukkit EntityType 黑名单
+        - "PLAYER"            # 不显示玩家目标
+```
+
+| 黑名单类型 | 配置字段 | 匹配方式 | 说明 |
+|---|---|---|---|
+| MythicMob ID | `mythic-mob-ids` | 大小写不敏感，经 `normalizeMythicMobId()` 标准化 | 命中后该 MythicMob 不显示目标 HUD |
+| EntityType | `entity-types` | 经 `normalizeEntityType()` 标准化 | 命中后该实体类型不显示目标 HUD |
+
+> 黑名单匹配使用 `EntityCombatMetadata` 的标准化方法，确保不同大小写和格式的 ID 都能正确匹配。
+
+### Boss 联动过滤
+
+当 `attack-target.settings.entitytracker-link.ignore-configured-bosses` 为 `true`（默认）时，已被 EntityTracker Boss 追踪子系统追踪的 Boss 不会触发目标 HUD，避免两个 HUD 同时显示同一个实体：
+
+```yaml
+attack-target:
+  settings:
+    entitytracker-link:
+      ignore-configured-bosses: true
+```
+
+联动过滤的判断逻辑：
+
+| 判断条件 | 说明 |
+|---|---|
+| `trackedBossLookup.test(entityUuid)` | 通过 `BossTrackerService.isTrackedConfiguredBoss()` 检查实体 UUID 是否为活跃的已追踪 Boss |
+| `BossDefinition.enabled()` | 通过 MythicMob ID 在 `PluginConfiguration.findBoss()` 中查找配置，若 `enabled: true` 则过滤 |
+
+> 两个条件任一命中即过滤。第一个条件通过实体 UUID 精确匹配活跃会话，第二个条件通过 MythicMob ID 匹配配置定义（即使 Boss 尚未生成会话）。
+
+## 刷新与超时
+
+### 定时刷新
+
+`EntityTargetHudService` 通过定时任务（`refresh-interval-ticks`）刷新所有追踪中的玩家目标 HUD：
+
+```
+定时刷新循环（每 refresh-interval-ticks）
+  → 遍历所有 trackedTargets 中的玩家
+  → 对每个玩家执行 refreshViewer()
+  → 解析目标实体（存活、同世界、距离 ≤ max-view-distance）
+  → 检查超时（lastHitAgoMs > target-timeout-ms）
+  → 构建 EntityTargetSnapshot
+  → 渲染 title-format / subtitle-format
+  → 首次：openUiAll + sendPacketToAll("init")
+  → 后续：sendPacketToAll("update")
+  → 超时/无效：closeViewer（sendPacketToAll("close") + closeUiAll）
+```
+
+### 超时机制
+
+| 配置字段 | 默认值 | 说明 |
+|---|---|---|
+| `target-timeout-ms` | `3000`（3 秒） | 超过此时间未再次攻击目标则关闭 HUD，最小 250ms |
+| `max-view-distance` | `48.0` | 超出此距离不显示目标 HUD |
+
+超时计算基于 `TrackedTarget.lastHitAtMillis()` 和当前时间戳的差值。每次玩家攻击目标时，`lastHitAtMillis` 会被更新为当前时间，从而延长 HUD 显示时间。
+
+### 关闭时机
+
+以下情况会关闭玩家的目标 HUD：
+
+| 触发条件 | 处理 |
+|---|---|
+| 超时 | `refreshViewer()` 检测到 `lastHitAgoMs > target-timeout-ms`，关闭 HUD |
+| 目标死亡/无效 | `refreshViewer()` 解析目标实体失败，关闭 HUD |
+| 目标超出距离 | `refreshViewer()` 检测到距离超过 `max-view-distance`，关闭 HUD |
+| 目标被黑名单/Boss 联动过滤 | `refreshViewer()` 检测到过滤命中，关闭 HUD |
+| 玩家退出 | `onPlayerQuit()` 清除追踪并关闭 HUD |
+| 玩家死亡 | `onPlayerDeath()` 清除追踪并关闭 HUD |
+
+## 目标快照
+
+`EntityTargetStateResolver.resolve()` 构建包含目标完整信息的 `EntityTargetSnapshot`：
+
+### 解析条件
+
+在构建快照前，解析器会检查以下条件，任一不满足则返回空（不显示 HUD）：
+
+| 条件 | 说明 |
+|---|---|
+| 攻击者在线 | `attacker.isOnline() && !attacker.isDead()` |
+| 目标存活 | `!target.isDead() && target.isValid()` |
+| 同一世界 | `attackerWorld.getUID().equals(targetWorld.getUID())` |
+| 未超时 | `lastHitAgoMs <= targetTimeoutMs` |
+| 距离范围内 | `distanceSquared <= maxViewDistance²` |
+
+### 快照字段
+
+`EntityTargetSnapshot` 包含以下字段：
+
+| 字段 | 类型 | 说明 |
+|---|---|---|
+| `title` | `String` | 渲染后的标题文本 |
+| `subtitle` | `String` | 渲染后的副标题文本 |
+| `health` | `double` | 当前血量 |
+| `maxHealth` | `double` | 最大血量 |
+| `healthText` | `String` | 血量显示文本（格式化） |
+| `maxHealthText` | `String` | 最大血量显示文本 |
+| `healthPercent` | `double` | 血量百分比（0-100） |
+| `healthPercentText` | `String` | 血量百分比文本 |
+| `progress` | `double` | 血量进度（0-1） |
+| `distance` | `int` | 距离（方块） |
+| `distanceText` | `String` | 距离文本（如 `32m`） |
+| `displayName` | `String` | 目标显示名称 |
+| `entityUuid` | `String` | 目标实体 UUID |
+| `world` | `String` | 所在世界名称 |
+| `x` / `y` / `z` | `int` | 坐标 |
+| `entityType` | `String` | 实体类型标识 |
+| `entityTypeName` | `String` | 实体类型显示名称 |
+| `mythicMobId` | `String` | MythicMob ID（非 MythicMob 时为空） |
+| `playerTarget` | `boolean` | 目标是否为玩家 |
+| `lastHitAgoMs` | `long` | 距上次攻击的毫秒数 |
+| `timeoutMs` | `long` | 超时毫秒数 |
+
+### 血量解析
+
+目标血量解析优先级与 Boss 追踪子系统一致：
+
+| 优先级 | 来源 | 说明 |
+|---|---|---|
+| 1 | MythicMobs `ActiveMob` | 通过 `EntityCombatMetadata.resolveActiveMob()` 获取 |
+| 2 | Bukkit 实体属性 | `EntityCombatMetadata.resolveMaxHealth()` / `resolveCurrentHealth()` |
+
+> 即使未安装 MythicMobs，`EntityCombatMetadata` 也能通过 Bukkit API 正确解析原版实体的血量。
+
+## 显示模板
+
+`title-format` 和 `subtitle-format` 支持 `{}` 包裹的占位符和 `&` 颜色代码：
+
+```yaml
+attack-target:
+  settings:
+    title-format: "&c{display_name}"
+    subtitle-format: "&7{entity_type_name} &8| &c{health}/{max_health} &8| &f{distance_text}"
+```
+
+### 可用占位符
+
+| 占位符 | 说明 |
+|---|---|
+| `{display_name}` | 目标显示名称 |
+| `{health}` / `{health_text}` | 当前血量（文本） |
+| `{max_health}` / `{max_health_text}` | 最大血量（文本） |
+| `{health_percent}` / `{health_percent_text}` | 血量百分比 |
+| `{progress}` / `{progress_text}` | 血量进度（0-1） |
+| `{distance}` / `{distance_text}` | 距离 |
+| `{entity_uuid}` | 目标实体 UUID |
+| `{entity_type}` | 实体类型标识 |
+| `{entity_type_name}` | 实体类型显示名称 |
+| `{mythic_mob_id}` | MythicMob ID |
+| `{is_player_target}` | 目标是否为玩家 |
+| `{world}` | 所在世界 |
+| `{x}` / `{y}` / `{z}` | 坐标 |
+| `{last_hit_ago_ms}` | 距上次攻击的毫秒数 |
+| `{timeout_ms}` | 超时毫秒数 |
+
+> 模板渲染通过 `EntityTargetSnapshot.withRenderedTexts()` 完成，支持 `\n` 换行符。
+
+## UI 数据包
+
+`EntityTargetSnapshot.toPacket()` 构建的 UI 数据包字段：
+
+```yaml
+# init / update 数据包字段
+title: "&c骷髅"
+subtitle: "&7SKELETON &8| &c20/20 &8| &f15m"
+health: 20.0
+maxHealth: 20.0
+healthText: "20"
+maxHealthText: "20"
+healthPercent: 100.0
+healthPercentText: "100"
+progress: 1.0
+distance: 15
+distanceText: "15m"
+displayName: "骷髅"
+entityUuid: "xxxxxxxx-xxxx-xxxx-xxxx-xxxxxxxxxxxx"
+world: "world"
+x: 100
+y: 64
+z: 200
+entityType: "SKELETON"
+entityTypeName: "骷髅"
+mythicMobId: ""
+isPlayerTarget: false
+lastHitAgoMs: 500
+timeoutMs: 3000
+```
+
+### 数据包事件
+
+| 事件 | Packet Handler | 说明 |
+|---|---|---|
+| 玩家首次攻击目标 | `init` | 打开 UI 并发送完整数据包 |
+| 定时刷新 | `update` | 更新目标数据 |
+| 超时 / 玩家退出 / 玩家死亡 | `close` | 关闭目标 HUD（空 payload） |
+
+> 目标 HUD 支持多 UI ID 同时发包，在配置中将 `target-ui-id` 设为列表即可。
+
+## 调试模式
+
+开启调试模式后，`EntityTargetHudService` 会输出每次发包的详细日志：
+
+```yaml
+attack-target:
+  settings:
+    debug: true
+```
+
+日志格式：
+
+```
+EntityTracker target-hud 发包 -> player=Steve | handler=init | success=true | payload={...}
+```
+
+> 调试模式仅影响日志输出，不影响功能行为。生产环境建议关闭。
+
+## PlaceholderAPI 集成
+
+攻击目标 HUD 通过 `EntityTrackerPlaceholderExpansion` 提供以 `target_` 为前缀的占位符，供其他插件和显示组件使用：
+
+| 占位符 | 说明 |
+|---|---|
+| `%axsentitytracker_has_target%` | 是否有当前攻击目标 |
+| `%axsentitytracker_target_title%` | 目标 HUD 标题 |
+| `%axsentitytracker_target_subtitle%` | 目标 HUD 副标题 |
+| `%axsentitytracker_target_display_name%` | 目标显示名称 |
+| `%axsentitytracker_target_health%` | 目标血量 |
+| `%axsentitytracker_target_max_health%` | 目标最大血量 |
+| `%axsentitytracker_target_health_percent%` | 目标血量百分比 |
+| `%axsentitytracker_target_distance%` | 与目标距离 |
+| `%axsentitytracker_target_entity_type%` | 目标实体类型 |
+| `%axsentitytracker_target_entity_type_name%` | 目标实体类型名称 |
+| `%axsentitytracker_target_mythic_mob_id%` | 目标 MythicMob ID |
+| `%axsentitytracker_target_is_player_target%` | 目标是否为玩家 |
+| `%axsentitytracker_target_world%` | 目标所在世界 |
+| `%axsentitytracker_target_active_count%` | 当前活跃目标追踪数 |
+| `%axsentitytracker_target_viewer_count%` | 当前目标 HUD 观察者数 |
+
+> 占位符通过 `resolveViewerTargetSnapshot()` 只读解析，不会修改追踪状态或发送数据包。

@@ -1,0 +1,122 @@
+---
+title: 概览
+description: Map 地图模块功能概览
+---
+# Map 地图
+
+## 模块简介
+
+Map 是 ArcartXSuite 的地图模块，通过 ArcartX UI 客户端提供全屏地图菜单和小地图 HUD，支持多世界地图纹理渲染、锚点解锁与传送、玩家自定义路径点、导航追踪与路径标记，以及外部模块（如 QuestGPS）注入的临时导航目标。
+
+模块本身不实现地图渲染——地图画面的实际绘制由 Arcart-Suite-Map 客户端 mod 负责。Map 模块负责管理世界配置、锚点定义、路径点持久化、导航状态，并通过 Packet 将地图快照数据推送到 ArcartX UI 客户端，客户端 UI 再通过 Aria `use()` 调用 mod 的 `MapRenderer` 完成渲染。
+
+## 功能特性
+
+| 特性 | 说明 |
+|---|---|
+| 全屏大地图 | ArcartX UI 驱动的全屏地图菜单，支持世界切换、缩放、锚点/路径点/外部目标列表与详情面板 |
+| 小地图 HUD | 右上角常驻小地图 HUD，实时显示玩家位置、朝向和导航追踪状态 |
+| 多世界支持 | 每个世界独立配置地图纹理、图片尺寸、像素偏移、缩放比例和 HUD 尺寸 |
+| 锚点系统 | 可配置锚点，支持货币 + 物品解锁费用、传送费用、权限控制与排序 |
+| 锚点传送 | 已解锁锚点可消耗货币传送到指定坐标，支持多货币和多物品消耗 |
+| 玩家路径点 | 玩家可在已配置世界中创建自定义路径点，按权限设置数量上限 |
+| 导航追踪 | 追踪锚点/路径点/外部目标，通过 ArcartX Waypoint 创建客户端路标导航 |
+| 路径标记 | 可选 Adyeshach 导航标记模型，沿导航路径放置标记实体 |
+| 默认解锁 | 拥有指定权限的玩家进服时自动解锁对应锚点 |
+| 按键绑定 | 支持自定义按键打开地图菜单和切换小地图 HUD |
+| 外部目标 | 通过 `MapNavigable` Capability 供 QuestGPS 等模块注入临时导航目标 |
+| 入服 HUD | 玩家进服后可自动显示小地图 HUD，支持延迟 tick 配置 |
+| 数据持久化 | 锚点解锁记录与玩家路径点持久化到 SQLite/MySQL，支持共享存储与自建存储 |
+| 玩家数据清除 | 注册 `PlayerDataPurgeable` Capability，支持 `/axs purge` 统一清理 |
+| 数据库迁移 | 注册 `DatabaseMigratable` Capability，支持跨源数据库迁移 |
+
+## 依赖
+
+| 依赖类型 | 名称 | 说明 |
+|---|---|---|
+| 核心 | ArcartX | UI 渲染框架，提供 UI 注册、Packet 通讯、按键绑定 |
+| 客户端 mod | Arcart-Suite-Map | 地图画面渲染客户端 mod，UI 通过 Aria `use()` 调用其 `MapRenderer` |
+| 外部软依赖 | Vault | 锚点解锁/传送货币消耗（通过 CurrencyBridge） |
+| 外部软依赖 | Adyeshach | 导航标记模型渲染（不可用时关闭标记功能，路标导航仍可用） |
+| ArcartX 模块（可选） | QuestGPS | 通过 `MapNavigable` 向地图注入任务导航目标 |
+| ArcartX 能力（可选） | ArcartX Waypoint | 路标导航，不可用时导航功能不可用 |
+
+> 模块本身仅依赖 ArcartX 核心。Vault、Adyeshach、QuestGPS 等不存在时对应功能自动降级或跳过。
+
+## 地图渲染机制
+
+### 数据流架构
+
+```
+ArcartXMap.yml 配置 ──→ MapService ──→ MapSnapshotBuilder ──→ UI Packet ──→ ArcartX 客户端
+  (worlds/anchors)      (状态管理)       (快照构建)          (init/update)    (UI + MapRenderer)
+```
+
+### 渲染流程
+
+1. **服务端**：`MapService` 维护每个在线玩家的视图状态（选中世界/锚点/路径点/外部目标）、导航状态和外部目标列表
+2. **快照构建**：`MapSnapshotBuilder` 将世界、锚点、路径点、外部目标、视图状态和导航状态组装为菜单快照（`MenuSnapshot`）和 HUD 快照（`HudSnapshot`）
+3. **Packet 推送**：服务端通过 `PacketBridgeAPI` 将快照以 `init`/`update` 包推送到客户端 UI
+4. **客户端 UI**：UI 的 `packetHandler` 接收快照数据并赋值给 UI 变量，驱动列表渲染和详情面板
+5. **客户端 mod 渲染**：UI 的 `tick` 触发器每帧通过 Aria `use()` 调用 `MapRenderer.setRegion()` 传递地图渲染区的屏幕坐标，mod 在 `ArcartXLayerRenderEvent` 事件中渲染地图画面、玩家箭头和标点图标
+6. **标点同步**：`packetHandler` 处理完数据后调用 `syncMarkers()` 函数，通过 `MapRenderer.clearMarkers()` / `addMarker()` 将锚点、路径点、外部目标的世界坐标同步给 mod
+
+### 菜单快照
+
+菜单快照包含以下数据：
+
+| 数据组 | 说明 |
+|---|---|
+| 世界列表 | 所有已配置世界，含 ID、显示名、纹理路径、是否选中 |
+| 锚点列表 | 当前选中世界下的锚点，含坐标、解锁状态、费用文本、选中/追踪状态 |
+| 路径点列表 | 当前选中世界下的玩家自定义路径点，含坐标、选中/追踪状态 |
+| 外部目标列表 | 当前选中世界下的外部导航目标，含来源、坐标、选中/追踪状态 |
+| 详情面板 | 选中目标的详情（类型、ID、标题、描述、解锁状态、可操作按钮） |
+| 导航状态 | 当前追踪文本、是否显示清除追踪按钮 |
+
+### HUD 快照
+
+HUD 快照包含以下数据：
+
+| 数据组 | 说明 |
+|---|---|
+| 可见性 | HUD 是否可见 |
+| 世界信息 | 当前世界 ID、纹理路径、图片宽高 |
+| 玩家位置 | 裁剪后的玩家像素 X/Z 坐标、朝向角 |
+| 缩放参数 | HUD 缩放比例、HUD 尺寸 |
+| 导航状态 | 当前追踪文本 |
+
+### 坐标映射
+
+地图模块通过世界配置的 `pixel-offset-x` / `pixel-offset-z` 和 `image-width` / `image-height` 将游戏世界坐标映射到地图纹理像素坐标：
+
+- **像素 X** = `玩家X + pixelOffsetX`，裁剪到 `[0, imageWidth]` 范围
+- **像素 Z** = `玩家Z + pixelOffsetZ`，裁剪到 `[0, imageHeight]` 范围
+
+客户端 mod 根据像素坐标在地图纹理上定位玩家箭头和标点图标。
+
+## UI 界面
+
+Map 模块注册两个 ArcartX UI 界面：
+
+| UI | 资源路径 | 用途 |
+|---|---|---|
+| 地图菜单 | `arcartx/ui/map_menu.yml` → `ui/map_menu.yml` | 全屏地图菜单，世界列表 + 地图渲染区 + 锚点/路径点/外部目标列表 + 详情面板 |
+| 小地图 HUD | `arcartx/ui/map_hud.yml` → `ui/map_hud.yml` | 右上角常驻小地图，显示地图画面、玩家坐标和导航追踪状态 |
+
+> UI ID 可通过 `ui.menu-ui-id` / `ui.hud-ui-id` 配置项自定义。`ui.overwrite-ui-files: true` 时模块启动会覆盖用户已修改的 UI 文件。
+
+## 配置版本与迁移
+
+| 当前版本 | 说明 |
+|---|---|
+| 3 | `storage.mode` 重命名为 `storage.shared`，值从 `sqlite`/`mysql` 映射为 `true`/`false` |
+
+模块内置配置迁移脚本，自动将旧版本配置升级到当前版本。迁移历史：
+
+| 版本 | 迁移内容 |
+|---|---|
+| 1 → 2 | `client` 节的 UI 配置字段整体迁移到统一 `ui` 节 |
+| 2 → 3 | `storage.mode` 重命名为 `storage.shared`，值从 `sqlite`/`mysql` 映射为 `true`/`false` |
+
+> 配置版本号由 `config-version` 字段管理，不要手动修改。

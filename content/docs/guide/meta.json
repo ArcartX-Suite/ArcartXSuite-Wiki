@@ -1,0 +1,20 @@
+{
+  "title": "服主指南",
+  "pages": [
+    "index",
+    "installation",
+    "module-enablement",
+    "first-run",
+    "commands",
+    "placeholders",
+    "conditions",
+    "item-sources",
+    "icons",
+    "currencies",
+    "config-management",
+    "multi-ui",
+    "cross-server-setup",
+    "proxy-usage",
+    "cloud-modules"
+  ]
+}

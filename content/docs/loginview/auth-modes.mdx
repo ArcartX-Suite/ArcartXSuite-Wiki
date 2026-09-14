@@ -1,0 +1,360 @@
+---
+title: 认证模式与 AuthMe 迁移
+description: standalone 与 authme 双认证模式详解、AuthMe 桥接机制、数据迁移流程与哈希兼容性
+---
+
+# 认证模式与 AuthMe 迁移
+
+LoginView 支持两种认证模式，通过 `auth.mode` 配置项切换。`standalone` 模式使用 AXS 自有账户库，`authme` 模式将认证操作委托给 AuthMe 插件。此外，`standalone` 模式支持从 AuthMe 数据库迁移历史账户，实现平滑过渡。
+
+## 认证模式总览
+
+|| 模式 | 配置值 | 账户存储 | 密码哈希 | AuthMe 依赖 | Session 持久化 |
+|---|---|---|---|---|---|
+| 独立模式 | `standalone` | AXS `accounts` 表 | `AXS_PBKDF2_SHA256` | 不需要 | 支持（`sessions` 表） |
+| 兼容模式 | `authme` | AuthMe 数据库 | AuthMe 配置的算法 | 必需 | 由 AuthMe 管理 |
+
+:::caution
+`auth.mode=authme` 时必须安装 AuthMe 插件且插件已启用，否则 LoginView 模块不加载。`standalone` 模式完全独立运行，不需要 AuthMe。
+:::
+
+## standalone 独立模式
+
+### 注册流程
+
+standalone 模式下，玩家注册时 LoginView 使用 `LoginViewPasswordHasher` 对密码进行 PBKDF2-SHA256 哈希后存入 `accounts` 表：
+
+```
+玩家点击注册 → 客户端回传 register action
+  → 服务端校验密码长度（min-password-length ~ max-password-length）
+  → 校验两次密码一致
+  → 校验未已注册（repository.exists）
+  → 生成 PBKDF2 哈希（18 万次迭代 + 16 字节随机盐）
+  → 写入 accounts 表（hash_algorithm = AXS_PBKDF2_SHA256, migrated = 0）
+  → 加入 authenticatedPlayers → 发送成功 result → 关闭 UI
+  → 派发 first_register 信号 → 发布 EventBus 事件
+```
+
+### 登录流程
+
+standalone 模式下的密码登录验证流程：
+
+```
+玩家点击登录 → 客户端回传 login action
+  → 服务端校验密码长度
+  → 查询 accounts 表（repository.find）
+  → 使用 passwordHasher.verify 校验密码
+    → 哈希算法由 account.hashAlgorithm() 决定
+    → 支持 AXS_PBKDF2_SHA256 / AUTHME_BCRYPT / AUTHME_BCRYPT2Y / AUTHME_SHA256
+  → 验证成功：
+    → 加入 authenticatedPlayers
+    → 更新 last_ip / last_login_at
+    → 若 migrated=1 且 rehash-migrated-password-on-login=true：
+      → 重写密码哈希为 AXS_PBKDF2_SHA256，migrated 重置为 0
+    → 派发 login_success 信号
+  → 验证失败：
+    → 记录失败次数 → 达到 max-attempts 踢出
+```
+
+:::tip
+迁移账户（`migrated=1`）首次登录成功后自动重写哈希为 `AXS_PBKDF2_SHA256`，此后完全脱离 AuthMe 哈希验证。详见下文 [迁移后重哈希机制](#迁移后重哈希机制)。
+:::
+
+### 改密流程
+
+standalone 模式下修改密码需要验证旧密码：
+
+```java
+LoginViewAccount account = repository.find(player.getName()).orElse(null);
+if (account == null || !passwordHasher.verify(oldPassword, account.passwordHash(), account.hashAlgorithm())) {
+    sendResult(player, color(configuration.messages().wrongPassword()), false);
+    return;
+}
+repository.updatePassword(player.getName(), passwordHasher.hash(newPassword), LoginViewPasswordHasher.AXS_ALGORITHM);
+```
+
+改密后新哈希始终使用 `AXS_PBKDF2_SHA256` 算法，`migrated` 标记重置为 `0`。
+
+## authme 兼容模式
+
+### AuthMeBridge 桥接器
+
+`authme` 模式下，LoginView 通过 `AuthMeBridge` 封装对 AuthMe `AuthMeApi` 的安全调用。桥接器在模块启动时初始化：
+
+```java
+public boolean initialize() {
+    Plugin authMe = Bukkit.getPluginManager().getPlugin("AuthMe");
+    if (authMe == null || !authMe.isEnabled()) {
+        return false;
+    }
+    try {
+        api = fr.xephi.authme.api.v3.AuthMeApi.getInstance();
+        return api != null;
+    } catch (Exception | LinkageError exception) {
+        api = null;
+        return false;
+    }
+}
+```
+
+桥接器所有方法均捕获 `Exception | LinkageError`，在 AuthMe 不可用时统一降级返回 `false`，确保 LoginView 不会因 AuthMe 异常而崩溃。
+
+### 桥接方法映射
+
+|| LoginView 操作 | AuthMeBridge 方法 | AuthMeApi 调用 | 说明 |
+|---|---|---|---|
+| 登录验证 | `checkPassword(name, password)` | `api.checkPassword(name, password)` | 校验明文密码与 AuthMe 存储的哈希 |
+| 注册检查 | `isRegistered(name)` | `api.isRegistered(name)` | 判断玩家是否已在 AuthMe 注册 |
+| 注册账号 | `registerPlayer(name, password)` | `api.registerPlayer(name, password)` | 在 AuthMe 中注册新玩家 |
+| 强制登录 | `forceLogin(player)` | `api.forceLogin(player)` | 跳过密码校验标记为已登录 |
+| 修改密码 | `changePassword(name, password)` | `api.changePassword(name, password)` | 修改 AuthMe 中的密码 |
+| 登录状态 | `isAuthenticated(player)` | `api.isAuthenticated(player)` | 判断是否已完成 AuthMe 登录 |
+
+### authme 模式登录流程
+
+```
+玩家点击登录 → 客户端回传 login action
+  → AuthMeBridge.available() 检查
+  → AuthMeBridge.isRegistered(name) 检查
+  → AuthMeBridge.checkPassword(name, password) 校验密码
+  → AuthMeBridge.forceLogin(player) 标记已登录
+  → 发送成功 result → 派发 login_success 信号
+```
+
+:::info
+`authme` 模式下密码哈希、账户存储、Session 管理均由 AuthMe 负责，LoginView 仅提供 UI 界面和操作转发。`reset-password` 命令在此模式下不可用，需使用 AuthMe 自带命令。
+:::
+
+## AuthMe 数据迁移
+
+### 迁移概述
+
+`standalone` 模式下，LoginView 支持从 AuthMe 数据库导入历史账户哈希。迁移由 `AuthMeMigrationService` 实现，通过 JDBC 直连 AuthMe 源数据库，读取账户记录并写入 AXS `accounts` 表。
+
+迁移过程只复制密码哈希，不保存明文密码。导入后账户标记 `migrated=1`，首次登录成功后可自动重写为 AXS 哈希。
+
+### 迁移配置
+
+迁移配置位于 `ArcartXLoginView.yml` 的 `authme-migration` 节：
+
+```yaml
+authme-migration:
+  source:
+    # SQLite 示例
+    jdbc-url: jdbc:sqlite:plugins/AuthMe/AuthMe.db
+    # MySQL 示例
+    # jdbc-url: jdbc:mysql://127.0.0.1:3306/authme?useUnicode=true&characterEncoding=utf8&useSSL=false&serverTimezone=Asia/Shanghai
+    username: ''
+    password: ''
+    table: authme
+  columns:
+    name: username
+    real-name: realname
+    password: password
+    salt: salt
+    last-ip: ip
+    last-login: lastlogin
+    registration-date: regdate
+    registration-ip: regip
+    email: email
+  imported-hash-algorithm: AUTHME_BCRYPT
+  batch-size: 200
+```
+
+### 列映射
+
+`AuthMeMigrationService` 通过列映射将 AuthMe 表字段转换为 AXS 账户字段：
+
+|| 配置字段 | 默认值 | AXS 字段 | 说明 |
+|---|---|---|---|
+| `columns.name` | `username` | `lower_name` / `real_name` | 玩家名（自动转小写作为主键） |
+| `columns.real-name` | `realname` | `real_name` | 原始用户名（保留大小写） |
+| `columns.password` | `password` | `password_hash` | 密码哈希值 |
+| `columns.email` | `email` | `email` | 邮箱 |
+| `columns.registration-ip` | `regip` | `registration_ip` | 注册 IP |
+| `columns.last-ip` | `ip` | `last_ip` | 最后登录 IP |
+| `columns.registration-date` | `regdate` | `registered_at` | 注册时间戳 |
+| `columns.last-login` | `lastlogin` | `last_login_at` | 最后登录时间戳 |
+
+:::info
+列名配置会经过 `sanitizeIdentifier` 清洗，防止 SQL 注入。若 AuthMe 使用了非默认列名，需在配置中修改对应映射。
+:::
+
+### 迁移 SQL
+
+`AuthMeMigrationService` 构建动态 SELECT 语句从源数据库读取数据：
+
+```sql
+SELECT username AS player_name,
+       realname AS real_name,
+       password AS password_hash,
+       email,
+       regip AS registration_ip,
+       ip AS last_ip,
+       regdate AS registered_at,
+       lastlogin AS last_login_at
+FROM authme
+```
+
+导入时使用 `UPSERT` 语法（SQLite `ON CONFLICT` / MySQL `ON DUPLICATE KEY`），避免重复导入冲突：
+
+```sql
+-- SQLite
+INSERT INTO AXS_loginview_accounts (lower_name, real_name, password_hash, hash_algorithm, ...)
+VALUES (?, ?, ?, ?, ...)
+ON CONFLICT(lower_name) DO UPDATE SET real_name = excluded.real_name, password_hash = excluded.password_hash, ...
+
+-- MySQL
+INSERT INTO AXS_loginview_accounts (lower_name, real_name, password_hash, hash_algorithm, ...)
+VALUES (?, ?, ?, ?, ...)
+ON DUPLICATE KEY UPDATE real_name = VALUES(real_name), password_hash = VALUES(password_hash), ...
+```
+
+### 迁移命令
+
+```bash
+# 预览模式（只扫描不导入）
+/axs loginview migrate-authme dry-run
+
+# 执行迁移
+/axs loginview migrate-authme
+```
+
+迁移结果输出格式：
+
+```
+AuthMe 迁移完成: 扫描 256，可导入 240，跳过 16
+```
+
+|| 结果字段 | 说明 |
+|---|---|
+| 扫描数 | AuthMe 源表中的总记录数 |
+| 导入数 | 成功导入或可导入的记录数（含空名/空哈希跳过后的有效记录） |
+| 跳过数 | 因玩家名或密码哈希为空而跳过的记录数 |
+
+:::tip
+迁移过程中每 `batch-size` 条记录会向命令发送者上报进度，便于监控大批量迁移。
+:::
+
+### 迁移后安全操作
+
+执行 `/axs loginview migration-commands` 查看迁移后的安全操作提示：
+
+```
+1. 先执行 /axs loginview migrate-authme dry-run 预览数量
+2. 确认无误后执行 /axs loginview migrate-authme
+3. 玩家首次用旧密码登录成功后，可自动重写为 AXS hash
+4. 完成验证后再停用 AuthMe，避免玩家无法登录
+```
+
+## 哈希算法兼容性
+
+### 支持的算法
+
+`LoginViewPasswordHasher` 支持三种哈希算法的验证，新注册统一使用 PBKDF2：
+
+|| 算法标识 | 用途 | 哈希格式 | 验证方式 |
+|---|---|---|---|
+| `AXS_PBKDF2_SHA256` | 新注册 / 改密 / 重哈希 | `迭代次数$Base64盐$Base64派生密钥` | PBKDF2WithHmacSHA256 重新派生比对 |
+| `AUTHME_BCRYPT` | AuthMe 迁移导入 | BCrypt 哈希字符串 | `BCrypt.verifyer().verify()` |
+| `AUTHME_BCRYPT2Y` | AuthMe 迁移导入 | BCrypt 2y 格式 | `BCrypt.verifyer().verify()` |
+| `AUTHME_SHA256` | AuthMe 迁移导入 | `$SHA$盐$双重SHA256哈希` | `sha256(sha256(password) + salt)` 比对 |
+
+### PBKDF2 哈希格式
+
+新注册账号的密码哈希格式为：
+
+```
+180000$<Base64编码的16字节盐>$<Base64编码的256位派生密钥>
+```
+
+|| 组成部分 | 说明 |
+|---|---|
+| `180000` | PBKDF2 迭代次数 |
+| Base64 盐 | 16 字节 `SecureRandom` 随机生成的盐值 |
+| Base64 派生密钥 | PBKDF2WithHmacSHA256 派生的 256 位密钥 |
+
+验证时解析存储哈希中的迭代次数和盐，使用相同参数重新派生密钥，通过 `MessageDigest.isEqual` 常量时间比对：
+
+```java
+private boolean verifyAXS(String password, String storedHash) {
+    String[] parts = storedHash.split("\\$");
+    int iterations = Integer.parseInt(parts[0]);
+    byte[] salt = Base64.getDecoder().decode(parts[1]);
+    byte[] expected = Base64.getDecoder().decode(parts[2]);
+    byte[] actual = derive(password, salt, iterations);
+    return MessageDigest.isEqual(expected, actual);
+}
+```
+
+### AuthMe SHA-256 验证
+
+AuthMe 的 SHA-256 哈希格式为 `$SHA$salt$hash`，其中 `hash = sha256(sha256(password) + salt)`：
+
+```java
+private boolean verifyAuthMeSha256(String password, String storedHash) {
+    String[] parts = storedHash.split("\\$");
+    String salt = parts[2];
+    String computed = "$SHA$" + salt + "$" + sha256(sha256(password) + salt);
+    return MessageDigest.isEqual(
+        computed.getBytes(StandardCharsets.UTF_8),
+        storedHash.getBytes(StandardCharsets.UTF_8));
+}
+```
+
+:::warning
+不支持的哈希算法不会自动破解。若 AuthMe 使用了非上述三种算法，请先在 AuthMe 侧转换为支持的算法，或让玩家通过 `reset-password` 命令重置密码。
+:::
+
+## 迁移后重哈希机制
+
+### 工作原理
+
+迁移导入的账户 `migrated=1`，密码哈希仍为 AuthMe 格式。当 `security.rehash-migrated-password-on-login: true`（默认）时，玩家首次用旧密码登录成功后自动重写哈希：
+
+```java
+if (account.migrated() && configuration.security().rehashMigratedPasswordOnLogin()) {
+    repository.updatePassword(player.getName(),
+        passwordHasher.hash(password),
+        LoginViewPasswordHasher.AXS_ALGORITHM);
+}
+```
+
+`updatePassword` 同时将 `migrated` 重置为 `0`，此后该账户完全使用 AXS PBKDF2 哈希验证，不再依赖 AuthMe 算法。
+
+### 重哈希流程
+
+```
+迁移账户登录 → passwordHasher.verify(password, hash, AUTHME_BCRYPT)
+  → 验证成功 → 更新 last_ip / last_login_at
+  → migrated=1 且 rehash-migrated-password-on-login=true
+  → passwordHasher.hash(password) 生成新 PBKDF2 哈希
+  → repository.updatePassword 写入新哈希 + AXS_PBKDF2_SHA256 + migrated=0
+  → 后续登录直接走 AXS_PBKDF2_SHA256 验证
+```
+
+|| 配置 | 说明 |
+|---|---|
+| `rehash-migrated-password-on-login: true` | 迁移账户首次登录后自动重写为 AXS 哈希（推荐） |
+| `rehash-migrated-password-on-login: false` | 迁移账户保持 AuthMe 哈希，每次登录使用对应算法验证 |
+
+:::tip
+推荐保持 `rehash-migrated-password-on-login: true`，迁移完成后所有账户逐步转为 AXS 哈希，可安全停用 AuthMe。若设为 `false`，迁移账户将永久依赖 AuthMe 哈希算法验证。
+:::
+
+## 模式选择建议
+
+|| 场景 | 推荐模式 | 原因 |
+|---|---|---|
+| 全新服务器，无 AuthMe 历史 | `standalone` | 无需额外依赖，PBKDF2 安全性更高 |
+| 已有 AuthMe，希望逐步迁移 | `standalone` + 迁移 | 导入历史数据后逐步重哈希，最终停用 AuthMe |
+| 已有 AuthMe，不想迁移数据 | `authme` | 保留现有认证体系，仅升级 UI 体验 |
+| 需要密码重置功能 | `standalone` | `reset-password` 命令仅 standalone 可用 |
+| 需要跨服 Session | `standalone` | Session 持久化仅 standalone 模式支持 |
+
+## 相关页面
+
+- [配置](/docs/loginview/configuration) — `auth.mode`、`authme-migration` 配置字段详解
+- [命令与占位符](/docs/loginview/commands) — `migrate-authme`、`reset-password` 命令用法
+- [联动](/docs/loginview/integration) — AuthMe 插件集成、数据库表结构
+- [安全策略与会话管理](/docs/loginview/security) — 密码哈希算法、Session 持久化、锁定策略

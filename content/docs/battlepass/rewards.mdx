@@ -1,0 +1,510 @@
+---
+title: 奖励系统
+description: BattlePass 等级奖励与赛季结算奖励
+---
+
+# 奖励系统
+
+BattlePass 奖励分为两类：**等级奖励**（玩家达到指定等级后主动领取）和**赛季结算奖励**（赛季结束时按等级阈值自动发放）。两类奖励都支持 item / command / currency / mail 四种奖励类型。
+
+## 等级奖励结构
+
+等级奖励在 `rewards.yml` 中配置，每个等级可配置 FREE / PREMIUM / DELUXE 三个档位的奖励：
+
+```yaml
+rewards:
+  "<奖励唯一标识>":
+    level: <达到该等级可领取>
+    free:           # 免费档奖励
+      type: item
+      icon: ...
+      item: ...
+    premium:        # 高级档奖励（结构同 free）
+      ...
+    deluxe:         # 典藏档奖励（结构同 free）
+      ...
+```
+
+> 配置文件顶层可直接写奖励（无需 `rewards:` 包裹），也支持 `rewards:` 节包裹两种写法。
+
+### 领取规则
+
+- 玩家等级 ≥ 奖励 `level` 时可领取
+- FREE 档：所有玩家可领取
+- PREMIUM 档：需解锁 PREMIUM 或 DELUXE 档位
+- DELUXE 档：需解锁 DELUXE 档位
+- 每个奖励只能领取一次（通过 `claimedRewards` 集合记录）
+- 支持一键领取所有已解锁等级的可领奖励
+
+## 奖励类型详解
+
+### item 物品奖励
+
+通过 `ItemSourceRegistry` 生成物品并统一发放。发放流程：放入背包 → 背包满转邮件 → 无邮件则掉落。离线玩家上线后补发。
+
+| 字段 | 类型 | 说明 |
+|---|---|---|
+| `type` | string | 固定为 `item` |
+| `icon` | section | UI 显示图标（IconDefinition 结构） |
+| `item` | section | 发放的物品定义（IconDefinition 结构） |
+
+`item` 字段支持的物品来源（`source`）：
+
+| source | 说明 | id 格式 |
+|---|---|---|
+| `minecraft` | 原版物品 | 材质名（如 `DIAMOND`） |
+| `mythic` | MythicMobs 物品 | MythicMobs 内部物品名 |
+| `neige` | NeigeItems 物品 | NeigeItems 物品 ID |
+| `overture` | Overture 物品 | Overture 物品 ID |
+| `mmoitems` | MMOItems 物品 | MMOItems 物品 ID |
+
+`item` 支持与 `icon` 相同的全部 IconDefinition 字段（`source` / `id` / `amount` / `name` / `lore` / `custom-model-data` / `glow` / `texture` / `texture-url` / `nbt` / `skull-texture` / `color` / `json` 等），详见 [图标配置](/docs/guide/icons)。
+
+```yaml
+free:
+  type: item
+  icon:
+    material: DIAMOND
+    name: "&b钻石 x1"
+    amount: 1
+  item:
+    source: minecraft
+    id: DIAMOND
+    amount: 1
+
+# MythicMobs 物品
+premium:
+  type: item
+  icon:
+    source: mythic
+    id: "MythicRareGem"
+    name: "&6MythicMobs 稀有宝石 x1"
+    amount: 1
+  item:
+    source: mythic
+    id: "MythicRareGem"
+    amount: 1
+```
+
+### command 命令奖励
+
+以控制台身份执行命令列表，支持 `{player}` 和 `{uuid}` 占位符。
+
+| 字段 | 类型 | 说明 |
+|---|---|---|
+| `type` | string | 固定为 `command` |
+| `icon` | section | UI 显示图标 |
+| `commands` | list | 要执行的命令列表 |
+
+```yaml
+premium:
+  type: command
+  icon:
+    material: REDSTONE_BLOCK
+    name: "&6红石块 x4 + 经验 x500"
+    amount: 4
+  commands:
+    - "give {player} redstone_block 4"
+    - "xp give {player} 500"
+```
+
+> `{player}` 会被替换为玩家名（经过安全校验），`{uuid}` 替换为玩家 UUID。命令以 `/` 开头时自动去除前导 `/`。
+
+### currency 货币奖励
+
+向玩家发放指定货币，通过 `CurrencyBridgeAPI` 执行。
+
+| 字段 | 类型 | 说明 |
+|---|---|---|
+| `type` | string | 固定为 `currency` |
+| `icon` | section | UI 显示图标 |
+| `currency` | string | 货币 ID（如 `money` / `points`） |
+| `amount` | double | 发放数量 |
+
+```yaml
+free:
+  type: currency
+  icon:
+    material: GOLD_INGOT
+    name: "&e金币 x100"
+    amount: 1
+  currency: "money"
+  amount: 100
+
+deluxe:
+  type: currency
+  icon:
+    material: EMERALD
+    name: "&5点券 x20"
+    amount: 20
+  currency: "points"
+  amount: 20
+```
+
+> 货币 ID 需在宿主 `config.yml` 的 `currencies` 节中配置。货币桥接不可用时奖励发放失败并记录警告。
+
+### mail 邮件奖励
+
+通过 Mail 模块发送邮件，支持预设模式和直接模式。Mail 模块不可用时降级为直接发放物品或执行命令。
+
+| 字段 | 类型 | 说明 |
+|---|---|---|
+| `type` | string | 固定为 `mail` |
+| `icon` | section | UI 显示图标 |
+| `mail.presets` | list | 邮件预设 ID 列表（预设模式） |
+| `mail-subject` | string | 邮件主题（直接模式） |
+| `mail-body` | string | 邮件正文（直接模式） |
+| `item` | section | 邮件附件物品（直接模式，IconDefinition 结构） |
+
+**预设模式**（使用 Mail 模块中预先配置的邮件预设）：
+
+```yaml
+free:
+  type: mail
+  icon:
+    material: EMERALD
+    name: "&a绿宝石 x2（邮件预设）"
+    amount: 2
+  mail:
+    presets:
+      - "battlepass_level_10_free"
+```
+
+**直接模式**（直接配置邮件主题、正文和附件物品）：
+
+```yaml
+premium:
+  type: mail
+  icon:
+    material: ENCHANTED_GOLDEN_APPLE
+    name: "&6附金苹果 x1（邮件附件）"
+    amount: 1
+  mail-subject: "战令 10 级奖励（高级档）"
+  mail-body: "恭喜达到战令 10 级！请查收附金苹果作为高级档奖励。"
+  item:
+    source: minecraft
+    id: ENCHANTED_GOLDEN_APPLE
+    amount: 1
+```
+
+**降级规则**（Mail 模块不可用时）：
+
+| 模式 | 降级行为 |
+|---|---|
+| 预设模式 | 降级为执行命令（`commands` 字段） |
+| 直接模式有物品 | 降级为直接发放物品（在线放入背包，离线跳过） |
+| 直接模式无物品 | 降级为执行命令 |
+
+## 奖励图标配置
+
+每个奖励的 `icon` 字段用于 UI 面板中显示奖励图标，使用 IconDefinition 结构。完整字段详见 [图标配置](/docs/guide/icons)。
+
+| 字段 | 类型 | 说明 |
+|---|---|---|
+| `material` | string | 原版材质名（如 `DIAMOND`） |
+| `source` + `id` | string | 外部物品库图标（`mythic` / `neige` / `overture` / `mmoitems`） |
+| `name` | string | 图标悬浮名称（支持 `&` 颜色码） |
+| `amount` | int | 图标显示数量（默认 1，大于 1 时图标右下角显示数字） |
+| `lore` | list | 图标描述（列表） |
+| `custom-model-data` | int | 自定义模型数据 |
+| `glow` | boolean | 是否附魔发光 |
+| `texture` | string | ArcartX 自定义贴图（写入 icon NBT） |
+| `texture-url` | string | 贴图 URL（写入 url NBT） |
+| `nbt` | string | 自定义 NBT（键值对或 SNBT 字符串） |
+
+```yaml
+icon:
+  material: NETHERITE_INGOT
+  name: "&5下界合金锭 x2 + 专属称号"
+  amount: 2
+  glow: true
+  lore:
+    - "&7典藏档 10 级奖励"
+    - "&7含稀有物品 + 专属称号权限"
+```
+
+## 赛季结算奖励
+
+赛季结算奖励在 `season-rewards.yml` 中配置，按等级阈值（`min-level`）发放。与等级奖励不同，结算奖励在赛季结束时自动发放，无需玩家手动领取。
+
+### 配置结构
+
+```yaml
+rewards:
+  "<结算奖励唯一标识>":
+    min-level: <达到该等级才发放>
+    free:           # 免费档结算奖励（结构同 rewards.yml）
+      ...
+    premium:        # 高级档结算奖励
+      ...
+    deluxe:         # 典藏档结算奖励
+      ...
+```
+
+### 结算触发时机
+
+| 触发方式 | 说明 |
+|---|---|
+| 自动结算 | 赛季结束日期到期后，定时任务检测并自动结算 |
+| 手动结算 | 管理员执行 `/axs battlepass settle` 手动触发 |
+
+### 结算逻辑
+
+结算分两步执行：
+
+1. **发放未领取的等级奖励**：玩家达到等级但未领取的 rewards.yml 奖励，按档位自动发放
+2. **发放赛季结算奖励**：按 `min-level` 阈值发放 season-rewards.yml 中的奖励
+
+### 发放方式
+
+| 玩家状态 | 发放方式 |
+|---|---|
+| 在线 | 直接发放（通过 BattlePassRewardDispatcher） |
+| 离线 | 暂存到统一 PendingRewardService，玩家上线时自动补发 |
+
+> 离线玩家的 mail 类型奖励尝试通过邮件直接发送；其他类型暂存到 PendingRewardService。
+
+### 档位降级规则
+
+结算奖励按玩家档位发放，DELUXE 档位可降级领取低档奖励：
+
+| 玩家档位 | 发放规则 |
+|---|---|
+| DELUXE | 优先取 deluxe 档奖励，无则取 premium，再无则取 free |
+| PREMIUM | 优先取 premium 档奖励，无则取 free |
+| FREE | 取 free 档奖励 |
+
+### 防重复机制
+
+- 通过 `bp_season_settlement` 表记录已结算赛季，重启后不会重复结算
+- 结算奖励使用 `settlement_<settlementId>_<tier>` 作为领取记录 key，防止补发时重复
+
+## 奖励领取流程
+
+### 玩家主动领取
+
+1. 玩家通过 `/bp claim <等级>` 或 UI 面板发起领取
+2. 系统检查玩家等级是否达到指定等级
+3. 系统检查玩家档位是否可领取该档位奖励
+4. 系统检查是否已领取过（通过 `claimedRewards` 集合）
+5. 通过 BattlePassRewardDispatcher 发放奖励
+6. 记录领取状态并异步落盘
+
+### 一键领取
+
+- `/bp claim` UI 中的"一键领取"按钮，或通过 Packet `claim_all` action
+- 遍历所有已解锁等级中当前可领的全部档位奖励
+- 按等级升序、档位升序依次发放
+
+### 领取结果
+
+| 结果 | 说明 |
+|---|---|
+| `SUCCESS` | 成功领取 |
+| `LEVEL_NOT_REACHED` | 尚未达到该等级 |
+| `ALREADY_CLAIMED` | 该等级奖励已领取 |
+| `NOT_FOUND` | 该等级没有可领取的奖励 |
+
+## 完整奖励配置示例
+
+```yaml
+# ─── 1 级：item 类型（原版物品）───
+"1":
+  level: 1
+  free:
+    type: item
+    icon:
+      material: DIAMOND
+      name: "&b钻石 x1"
+      amount: 1
+    item:
+      source: minecraft
+      id: DIAMOND
+      amount: 1
+  premium:
+    type: item
+    icon:
+      material: DIAMOND
+      name: "&6钻石 x5"
+      amount: 5
+    item:
+      source: minecraft
+      id: DIAMOND
+      amount: 5
+  deluxe:
+    type: item
+    icon:
+      material: DIAMOND
+      name: "&5钻石 x8"
+      amount: 8
+    item:
+      source: minecraft
+      id: DIAMOND
+      amount: 8
+
+# ─── 5 级：currency 类型（货币发放）───
+"5":
+  level: 5
+  free:
+    type: currency
+    icon:
+      material: GOLD_INGOT
+      name: "&e金币 x100"
+      amount: 1
+    currency: "money"
+    amount: 100
+  premium:
+    type: currency
+    icon:
+      material: GOLD_BLOCK
+      name: "&6金币 x500"
+      amount: 1
+    currency: "money"
+    amount: 500
+  deluxe:
+    type: currency
+    icon:
+      material: EMERALD
+      name: "&5点券 x20"
+      amount: 20
+    currency: "points"
+    amount: 20
+
+# ─── 8 级：command 类型（多条命令）───
+"8":
+  level: 8
+  free:
+    type: command
+    icon:
+      material: REDSTONE
+      name: "&c红石 x16"
+      amount: 16
+    commands:
+      - "give {player} redstone 16"
+  premium:
+    type: command
+    icon:
+      material: REDSTONE_BLOCK
+      name: "&6红石块 x4 + 经验 x500"
+      amount: 4
+    commands:
+      - "give {player} redstone_block 4"
+      - "xp give {player} 500"
+
+# ─── 10 级：mail 类型 + command 类型 ───
+"10":
+  level: 10
+  free:
+    type: mail
+    icon:
+      material: EMERALD
+      name: "&a绿宝石 x2（邮件预设）"
+      amount: 2
+    mail:
+      presets:
+        - "battlepass_level_10_free"
+  premium:
+    type: mail
+    icon:
+      material: ENCHANTED_GOLDEN_APPLE
+      name: "&6附金苹果 x1（邮件附件）"
+      amount: 1
+    mail-subject: "战令 10 级奖励（高级档）"
+    mail-body: "恭喜达到战令 10 级！请查收附金苹果作为高级档奖励。"
+    item:
+      source: minecraft
+      id: ENCHANTED_GOLDEN_APPLE
+      amount: 1
+  deluxe:
+    type: command
+    icon:
+      material: NETHERITE_INGOT
+      name: "&5下界合金锭 x2 + 专属称号"
+      amount: 2
+      glow: true
+    commands:
+      - "give {player} netherite_ingot 2"
+      - "lp user {player} permission set axs.title.battlepass10"
+```
+
+## 赛季结算奖励配置示例
+
+```yaml
+rewards:
+  # 参与奖（min-level: 1）— 所有玩家
+  "settlement-participation":
+    min-level: 1
+    free:
+      type: currency
+      icon:
+        material: GOLD_INGOT
+        name: "&e参与奖 &7- &f100 金币"
+        amount: 1
+      currency: "money"
+      amount: 100
+    premium:
+      type: currency
+      icon:
+        material: GOLD_INGOT
+        name: "&e参与奖 &7- &f200 金币"
+        amount: 2
+      currency: "money"
+      amount: 200
+    deluxe:
+      type: currency
+      icon:
+        material: GOLD_BLOCK
+        name: "&e参与奖 &7- &f500 金币"
+        amount: 1
+      currency: "money"
+      amount: 500
+
+  # 里程碑 25 级 — item + currency
+  "settlement-milestone-25":
+    min-level: 25
+    free:
+      type: item
+      icon:
+        material: DIAMOND
+        name: "&b里程碑奖励 &7- &f钻石 x5"
+        amount: 5
+      item:
+        source: minecraft
+        id: DIAMOND
+        amount: 5
+    deluxe:
+      type: currency
+      icon:
+        material: EMERALD
+        name: "&b里程碑奖励 &7- &f50 点券"
+        amount: 50
+      currency: "points"
+      amount: 50
+
+  # 满级 100 级 — 混合类型
+  "settlement-max":
+    min-level: 100
+    free:
+      type: mail
+      icon:
+        material: DRAGON_EGG
+        name: "&c满级奖励 &7- &f龙蛋 x1（邮件）"
+        amount: 1
+      mail-subject: "战令满级奖励"
+      mail-body: "恭喜您在赛季中达到满级！请查收龙蛋作为终极奖励。"
+      item:
+        source: minecraft
+        id: DRAGON_EGG
+        amount: 1
+    deluxe:
+      type: command
+      icon:
+        material: DRAGON_HEAD
+        name: "&c满级奖励 &7- &f龙首 + 钻石 x64 + 专属称号"
+        amount: 1
+        glow: true
+      commands:
+        - "give {player} dragon_head 1"
+        - "give {player} diamond 64"
+        - "lp user {player} permission set axs.title.legendary"
+```

@@ -1,0 +1,428 @@
+---
+title: "奖品投递与兑换商店"
+description: "奖品投递方式（DIRECT/COMMAND/MAIL）、ItemRewardDispatcher 发放链、待领取队列、消耗扣除回滚与积分兑换商店详解"
+---
+
+> **付费模块**：Lottery 为付费模块，需通过 ArcartXSuite 云端下发获取。模块依赖本体 ArcartX-Suite 运行，不可独立使用。
+
+## 概述
+
+Lottery 模块的奖品投递由 `PrizeDistributor` 统一管理，兑换商店由 `LotteryService.exchange` 处理。核心机制包括：
+
+- **三种投递方式**：直接发放（DIRECT）、命令执行（COMMAND）、邮件发放（MAIL）
+- **发放兜底链**：DIRECT 投递通过 `ItemRewardDispatcher` 实现背包满→邮件→暂存的兜底
+- **待领取队列**：投递失败的物品入队 `pending_claim` 表，玩家上线自动领取
+- **消耗扣除与回滚**：多资源消耗原子扣除，失败时按快照回滚
+- **兑换商店**：积分/物品/货币兑换奖品，支持限购次数
+
+本页详解 `PrizeDistributor` 与 `LotteryService` 的投递与兑换逻辑。配置字段详见 [配置](/docs/lottery/configuration)，联动 API 详见 [联动](/docs/lottery/integration)。
+
+## 奖品投递方式
+
+`PoolItem.delivery` 决定奖品的投递方式，`PrizeDistributor.distribute` 按类型分发：
+
+```java
+public DistributionResult distribute(Player player, PoolItem item) {
+    DistributionResult result = switch (item.delivery()) {
+        case DIRECT -> giveDirectItem(player, item);
+        case COMMAND -> executeCommands(player, item);
+        case MAIL -> sendMail(player, item);
+    };
+    if (result.success()) executeExtraCommands(player, item);
+    return result;
+}
+```
+
+| 投递方式 | 配置值 | 说明 |
+|---|---|---|
+| 直接发放 | `DIRECT` | 生成物品通过 `ItemRewardDispatcher` 发放 |
+| 命令执行 | `COMMAND` | 执行 `commands` 列表，不发放物品 |
+| 邮件发放 | `MAIL` | 通过 `MailDispatchable` 发送邮件预设 |
+
+> 投递成功后，`extra-commands` 列表中的附加命令始终执行（不论投递方式）。
+
+### DIRECT 直接发放
+
+`giveDirectItem` 生成物品后通过 `ItemRewardDispatcher.dispatchItem` 发放：
+
+```java
+private DistributionResult giveDirectItem(Player player, PoolItem item) {
+    ItemStack stack = generateItem(item, player);
+    if (stack == null) return DistributionResult.failure(null, "物品生成失败");
+    DispatchOptions options = DispatchOptions.builder("lottery")
+        .sourceDetail("prize:" + item.key())
+        .overflowMailSubject("抽奖奖励溢出物品")
+        .overflowMailBody("您的背包已满，抽奖奖励物品通过邮件补发。")
+        .overflowMailSenderName("抽奖")
+        .build();
+    DispatchResult result = itemRewardDispatcher.dispatchItem(player, stack, options);
+    // ...
+}
+```
+
+`ItemRewardDispatcher` 的发放兜底链：
+
+| 步骤 | 条件 | 结果 |
+|---|---|---|
+| 1 | 背包有空间 | 直接放入背包 |
+| 2 | 背包满，邮件可用 | 转邮件补发 |
+| 3 | 背包满，邮件不可用 | 暂存待发放（Pending） |
+| 4 | 以上均失败 | 掉落地面（最终兜底） |
+
+`DistributionResult` 根据发放结果区分三种成功状态：
+
+| 状态 | 条件 | 玩家消息 |
+|---|---|---|
+| `success` | 物品放入背包 | 无额外消息 |
+| `mailSent` | 背包满转邮件 | `common.mail-sent` |
+| `pendingSaved` | 暂存待发放 | `common.pending-saved` |
+
+### COMMAND 命令执行
+
+`executeCommands` 逐条执行 `commands` 列表中的命令：
+
+```java
+private boolean dispatchCommand(Player player, PoolItem item, String command) {
+    String processed = command.replace("{player}", validatePlayerName(player.getName()))
+        .replace("{uuid}", player.getUniqueId().toString())
+        .replace("{amount}", Integer.toString(item.amount()))
+        .replace("{item}", item.name());
+    String normalized = processed.startsWith("/") ? processed.substring(1) : processed;
+    if (Bukkit.isPrimaryThread()) {
+        return Bukkit.dispatchCommand(Bukkit.getConsoleSender(), normalized);
+    }
+    AxsScheduler.runTask(plugin, () -> Bukkit.dispatchCommand(Bukkit.getConsoleSender(), normalized));
+    return true;
+}
+```
+
+| 占位符 | 替换值 | 说明 |
+|---|---|---|
+| `{player}` | 玩家名（经 `CommandSanitizer` 校验） | 防注入处理 |
+| `{uuid}` | 玩家 UUID | |
+| `{amount}` | 物品数量 | `PoolItem.amount` |
+| `{item}` | 物品名称 | `PoolItem.name` |
+
+| 执行环境 | 处理方式 |
+|---|---|
+| 主线程 | 直接执行 `Bukkit.dispatchCommand` |
+| 异步线程 | 调度到主线程执行（`AxsScheduler.runTask`） |
+
+> COMMAND 投递不生成物品，因此无需配置 `item.source` 与 `item.id`。命令以控制台身份执行。
+
+### MAIL 邮件发放
+
+`sendMail` 通过 `MailDispatchable` Capability 发送邮件预设：
+
+```java
+private DistributionResult sendMail(Player player, PoolItem item) {
+    if (item.mailPresets() == null || item.mailPresets().isEmpty()) {
+        return DistributionResult.failure(null, "缺少 mail.presets");
+    }
+    boolean allSuccess = MailPresetHelper.dispatchPresets(
+        mailSupplier, player.getName(), item.mailPresets(), "lottery", logger);
+    if (allSuccess) return DistributionResult.mailSent(null);
+    return DistributionResult.failure(null, "邮件发送失败");
+}
+```
+
+| 条件 | 结果 |
+|---|---|
+| `mail.presets` 为空 | 失败：`缺少 mail.presets` |
+| 邮件模块未安装 | 失败：`邮件能力不可用` |
+| 邮件发送成功 | `mailSent`（不携带物品，奖励来自邮件预设） |
+| 邮件发送失败 | 失败：`邮件发送失败`（不入队，避免与邮件预设不一致） |
+
+> MAIL 投递失败时不入队待领取队列，因为实际奖励内容来自邮件预设而非物品序列化数据。
+
+## 物品生成
+
+`PrizeDistributor.generateItem` 委托 `ItemSourceRegistry` 统一生成物品：
+
+```java
+public ItemStack generateItem(PoolItem item, Player player) {
+    if (item.id() == null || item.id().isBlank()) return null;
+    return itemSourceRegistry.generateItem(item.source(), item.id(), item.amount(), item.nbt(), player);
+}
+```
+
+| `item.source` | 生成方式 |
+|---|---|
+| `minecraft` | 原版物品，`item.id` 为材质名 |
+| `mythicmobs` | MythicMobs 物品，`item.id` 为内部 ID |
+| `neigeitems` | NeigeItems 物品，`item.id` 为内部 ID |
+| `overture` | Overture 物品，`item.id` 为内部 ID |
+| `mmoitems` | MMOItems 物品，`item.id` 为 `TYPE;ID` 格式 |
+
+物品来源详情详见 [物品来源](/docs/guide/item-sources)。
+
+## 待领取队列
+
+投递失败的物品通过 `LotteryService.distributeOrEnqueue` 入队待领取：
+
+### 入队逻辑
+
+```java
+private void distributeOrEnqueue(Player player, String poolId, PoolItem item) {
+    DistributionResult outcome = distributor.distribute(player, item);
+    if (outcome.success()) { /* 发送成功消息 */ return; }
+    String itemData = distributor.toItemJson(outcome.item());
+    String metadata = item.key() + "|" + item.name() + "|" + item.delivery().name();
+    if (!itemData.isBlank()) {
+        long claimId = repository.enqueuePendingClaim(uuid, poolId, metadata, itemData);
+        // 发送 common.pending-claim-enqueued 消息
+    } else if (item.delivery() != DeliveryType.COMMAND) {
+        // 无法序列化的非命令奖励：入队空数据 + 记录严重日志
+    } else {
+        // 命令奖励失败：仅记录日志，不入队
+    }
+}
+```
+
+| 投递失败场景 | 处理方式 |
+|---|---|
+| 物品可序列化（`itemData` 非空） | 入队 `pending_claim` 表 |
+| 物品不可序列化且非 COMMAND | 入队空数据 + 严重日志 |
+| COMMAND 投递失败 | 仅记录日志，不入队 |
+
+### 领取机制
+
+`claimPending` 在玩家上线或执行 `/lottery claim` 时触发：
+
+```java
+public int claimPending(Player player) {
+    List<PendingClaim> pending = repository.getPendingClaims(player.getUniqueId());
+    for (PendingClaim claim : pending) {
+        ItemStack stack = ItemSerializer.deserialize(Base64.decode(claim.itemData()));
+        DispatchResult result = itemRewardDispatcher.dispatchItem(player, stack, options);
+        if (!result.success()) break;  // 背包满则停止领取
+        repository.markPendingClaimClaimed(claim.id());
+        claimed++;
+    }
+    return claimed;
+}
+```
+
+| 领取条件 | 说明 |
+|---|---|
+| `itemData` 为空 | 跳过该记录 |
+| 反序列化失败 | 记录警告，跳过 |
+| 发放失败（背包满） | 停止领取，剩余记录保留 |
+| 发放成功 | 标记 `claimed = true` |
+
+> 玩家上线时 `PlayerJoinEvent` 自动触发 `claimPending`，无需手动执行命令。
+
+## 消耗扣除与回滚
+
+### 多资源消耗
+
+`LotteryService.deductCostTransaction` 支持单次抽奖同时消耗多种资源：
+
+| 资源类型 | `type` | 扣除方式 | 余额检查 |
+|---|---|---|---|
+| 货币 | `CURRENCY` | `bridge.withdraw(player, amount)` | `bridge.balance(player) >= amount` |
+| 物品 | `ITEM` | 遍历背包移除匹配物品 | `countInventory(player, matcher) >= amount` |
+| 积分 | `POINT` | `repository.subtractPoints(uuid, id, amount)` | `repository.getPoint(uuid, id) >= amount` |
+
+### 扣除流程
+
+```java
+private CostTransaction deductCostTransaction(Player player, CostConfig cost, int multiplier) {
+    // 1. 选取消耗条目（single 或 ten）
+    // 2. 按十连倍数调整 amount
+    // 3. 合并相同 key 的条目，检查余额
+    // 4. 逐条扣除，物品类型先快照背包
+    // 5. 任一条目失败则回滚已扣除的条目
+}
+```
+
+| 步骤 | 说明 |
+|---|---|
+| 余额预检 | 全部条目余额检查通过后才实际扣除 |
+| 物品快照 | ITEM 类型扣除前快照背包匹配物品 |
+| 原子性 | 任一条目扣除失败，已扣除的全部回滚 |
+
+### 回滚机制
+
+`rollbackCost` 按扣除的逆序回滚：
+
+| 资源类型 | 回滚方式 |
+|---|---|
+| `POINT` | `repository.addPoints(uuid, id, amount)` |
+| `ITEM` | 按快照恢复物品，溢出部分入队 `pending_claim` |
+| `CURRENCY` | `bridge.deposit(player, amount)` |
+
+物品回滚时，恢复的物品优先放入背包，背包满的溢出部分通过 `enqueuePendingClaim` 入队（`poolId = "rollback"`）：
+
+```java
+private void restoreItemSnapshots(Player player, List<ItemStack> snapshots, int amount) {
+    int remaining = amount;
+    for (ItemStack snapshot : snapshots) {
+        if (remaining <= 0) break;
+        ItemStack restored = snapshot.clone();
+        restored.setAmount(Math.min(restored.getAmount(), remaining));
+        remaining -= restored.getAmount();
+        Map<Integer, ItemStack> leftovers = player.getInventory().addItem(restored);
+        enqueueOverflowItems(player, leftovers.values());
+    }
+}
+```
+
+> 同一 `costKey` 的物品条目只回滚一次（通过 `restoredItems` Set 去重），回滚总量按 `itemAmounts` 汇总。
+
+## 积分产出
+
+`LotteryService.awardPoints` 每次抽奖后按积分定义累积积分：
+
+```java
+private void awardPoints(Player player, PoolDefinition pool, List<PoolItem> items) {
+    for (PointDefinition point : pool.points().values()) {
+        long amount = point.perPull();  // 每抽固定产出
+        for (PoolItem item : items) {
+            String rarity = item.rarity();
+            if (pool.gacha() != null) {
+                rarity = Integer.toString(describeGachaItem(pool, item).star());
+            }
+            amount += point.rarityRewards().getOrDefault(rarity, 0);
+        }
+        if (amount > 0) repository.addPoints(player.getUniqueId(), point.id(), amount);
+    }
+}
+```
+
+| 奖池类型 | 稀有度 key | 说明 |
+|---|---|---|
+| GACHA | 星级（`3` / `4` / `5`） | 由 `describeGachaItem` 推断星级 |
+| CASE | 稀有度名称（如 `COMMON` / `RARE`） | 使用物品自身的 `rarity` 字段 |
+
+| 积分产出来源 | 计算方式 |
+|---|---|
+| `per-pull` | 每次抽取固定产出（与结果无关） |
+| `rarity` | 按每个中奖物品的稀有度/星级查表累加 |
+
+> 积分余额按 `id` 在所有奖池间共享，跨奖池累积。
+
+## 兑换商店
+
+### 兑换流程
+
+`LotteryService.exchange` 处理兑换购买：
+
+```java
+public boolean exchange(Player player, String itemId) {
+    ExchangeShopItem item = configuration.exchangeItems().get(itemId);
+    // 1. 检查商品存在
+    // 2. 检查限购次数
+    // 3. 预增兑换计数（乐观锁）
+    // 4. 扣除消耗
+    // 5. 发放奖励
+    // 6. 失败时回滚消耗与兑换计数
+}
+```
+
+| 步骤 | 失败处理 |
+|---|---|
+| 商品不存在 | 返回 `common.exchange-not-found` |
+| 已达限购上限 | 返回 `common.exchange-limit` |
+| 预增计数失败 | 返回 `common.exchange-failed` |
+| 消耗扣除失败 | 回滚兑换计数 |
+| 奖励发放异常 | 回滚消耗 + 回滚兑换计数 |
+
+### 限购机制
+
+| `limit` 值 | 说明 |
+|---|---|
+| `0` | 无限制 |
+| `> 0` | 每人最多可兑换 `limit` 次 |
+
+兑换计数通过 `repository.incrementExchangeCount` / `decrementExchangeCount` 管理，存储在 `exchange` 表中。
+
+### 兑换消耗
+
+兑换消耗复用 `CostConfig` 机制，支持配置节写法与直接列表写法：
+
+```yaml
+# 配置节写法
+cost:
+  single:
+    - type: POINT
+      id: "stardust"
+      amount: 10
+
+# 直接列表写法
+cost:
+  - type: POINT
+    id: "stardust"
+    amount: 10
+```
+
+> 兑换只取 `single` 列表作为消耗条目，`ten` 列表无意义。兑换消耗的扣除与回滚复用抽奖的 `deductCostTransaction` 逻辑。
+
+### 兑换奖励
+
+兑换奖励为 `PoolItem` 结构，与奖池奖品相同，支持全部投递方式（DIRECT / COMMAND / MAIL）：
+
+```yaml
+reward:
+  name: "祈愿凭证"
+  item:
+    source: minecraft
+    id: "minecraft:amethyst_shard"
+  delivery: DIRECT
+  amount: 1
+```
+
+奖励发放通过 `distributeOrEnqueue` 处理，与抽奖奖品投递逻辑一致（含待领取入队兜底）。
+
+## 并发安全
+
+`LotteryService` 通过每玩家 `ReentrantLock` 保证抽奖与兑换的并发安全：
+
+```java
+private final ConcurrentHashMap<UUID, ReentrantLock> playerLocks = new ConcurrentHashMap<>();
+
+public GachaResult pullGacha(Player player, String poolId, int count) {
+    ReentrantLock lock = playerLocks.computeIfAbsent(player.getUniqueId(), ignored -> new ReentrantLock());
+    if (!lock.tryLock()) {
+        sendMessage(player, "common.lock-busy");
+        return new GachaResult(List.of(), PlayerGachaState.empty(...), false, false);
+    }
+    try {
+        return pullGachaLocked(player, poolId, count);
+    } finally {
+        unlock(player, lock);
+    }
+}
+```
+
+| 操作 | 锁行为 |
+|---|---|
+| 抽卡 / 开箱 / 批量开箱 | `tryLock`，获取失败返回 `common.lock-busy` |
+| 兑换购买 | 同上（通过 `deductCostTransaction` 内部无锁，由调用方保证） |
+| 玩家退出 | `removePlayerLock` 清理未锁定的锁实例 |
+
+> `tryLock` 非阻塞获取，避免并发请求堆积。锁在 `finally` 中释放，并在玩家退出时清理。
+
+## UI Packet 数据
+
+兑换商店通过 `LotteryPacketHandler.exchange` 推送数据到 UI：
+
+| 数据字段 | 说明 |
+|---|---|
+| `pointBalanceRows` | 全部积分余额列表（去重） |
+| `exchangeRows` | 兑换商品列表（含消耗、限购、已兑换次数） |
+| `exchangeIconJson<N>` | 商品图标 JSON（itemJson 分离模式） |
+| `pointIconJson<N>` | 积分图标 JSON |
+
+兑换购买通过 `exchange_buy` 动作触发，携带 `action_token` 防抖。详见 [命令与占位符](/docs/lottery/commands)。
+
+## 相关文档
+
+- [概览](/docs/lottery) — 模块功能概览
+- [配置](/docs/lottery/configuration) — 兑换商店配置与奖品配置
+- [命令与占位符](/docs/lottery/commands) — `claim` 命令与兑换 Packet
+- [联动](/docs/lottery/integration) — `ItemRewardDispatcher` / `MailDispatchable` / `CurrencyBridgeAPI` 联动
+- [GACHA 保底与概率](/docs/lottery/gacha-pity) — GACHA 抽卡引擎详解
+- [CASE 开箱机制](/docs/lottery/case-opening) — CASE 开箱引擎与动画
+- [物品来源](/docs/guide/item-sources) — 物品来源支持列表
+- [图标](/docs/guide/icons) — 图标配置写法

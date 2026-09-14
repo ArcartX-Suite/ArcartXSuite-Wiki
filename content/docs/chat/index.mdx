@@ -1,0 +1,185 @@
+---
+title: 概览
+description: Chat 全频道聊天系统功能概览
+---
+
+# Chat 全频道聊天
+
+## 模块简介
+
+Chat 是 ArcartXSuite 的全频道聊天系统，提供 **频道聊天**、**私聊回复**、**禁言管理**、**社交监听**、**提及通知**、**物品展示** 六合一聊天体验。模块通过 ArcartX 聊天卡片渲染提及、私聊、系统提示与物品预览，支持多频道定义、权限控制、跨服转发、敏感词过滤等高级功能。
+
+| 属性 | 值 |
+|---|---|
+| 模块 ID | `chat` |
+| 版本 | 1.4.4 |
+| 主类 | `xuanmo.arcartxsuite.chat.ChatModule` |
+| 配置文件 | `ArcartXChat.yml` |
+| 消息文件 | `messages.yml` |
+| 配置版本号 | 2 |
+| 外部依赖 | PlaceholderAPI（可选） |
+| 模块依赖 | 无（本体内置 API 即可运行） |
+
+## 功能特性
+
+| 特性 | 说明 |
+|---|---|
+| 多频道系统 | 通过 `chat/channels/` 目录定义频道，支持 normal / global / private / staff 四种模式 |
+| 频道切换 | 玩家可随时切换当前所在频道，支持权限控制与 Tab 刷新 |
+| 私聊与回复 | `/msg` 私聊指定玩家、`/reply` 回复最近一次私聊，自动记录回复目标 |
+| 禁言管理 | 支持临时禁言（秒/分/时/天）与永久禁言，含禁言原因与操作者记录 |
+| 社交监听 | 管理员可开启 SocialSpy 监听全服私聊，支持权限节点控制 |
+| 忽略列表 | 玩家可忽略指定玩家的消息，忽略关系双向生效（对方发消息你收不到） |
+| 提及功能 | `@玩家名` 提及识别，通过聊天卡片高亮提示被提及者；支持 `@all` 全员提及 |
+| @补全 HUD | 聊天栏输入 `@` 后自动弹出在线玩家候选列表，点击补全玩家名 |
+| 物品展示 | `[item]` 占位标记展示手持物品，支持 Tooltip 动态 Lore 注入 |
+| 自定义组件 | 通过正则匹配替换消息文本，实现表情符号、关键词高亮等扩展 |
+| 跨服转发 | 频道可配置 `cross-server: true`，通过 Redis / Proxy 通道跨服同步消息 |
+| 聊天卡片 | 提及、私聊、系统提示、物品预览均通过 ArcartX 聊天卡片渲染 |
+| 敏感词过滤 | 已迁移至宿主 `config.yml` 的 `moderation` 节，模块内配置仅向后兼容 |
+| 发言冷却 | 可配置连续发言冷却时间与重复消息判定窗口 |
+| Paper 兼容 | 自动检测 Paper `AsyncChatEvent` 并优先使用，兼容 Spigot / Mohist / Arclight |
+| 强制接管 | `force-takeover` 模式可强制接管其他聊天插件的消息广播 |
+| 数据迁移 | 支持数据库迁移（`DatabaseMigratable`）与玩家数据清理（`PlayerDataPurgeable`） |
+
+## 依赖
+
+| 依赖类型 | 名称 | 必需 | 说明 |
+|---|---|---|---|
+| 模块依赖 | 无 | - | Chat 不依赖其他模块即可运行 |
+| 外部依赖 | PlaceholderAPI | 否 | 注册 `%axschat_xxx%` 占位符，频道格式与卡片文本可解析 PAPI |
+| 宿主能力 | EventBusCapability | 否 | 发布 `axs.chat.chat_message_sent` 事件供其他模块监听 |
+| 宿主能力 | TabRefreshable | 否 | 频道切换 / 开关变更后刷新 Tab 显示 |
+| 宿主能力 | TooltipDataCapable | 否 | 物品展示时注入动态 tooltip Lore（TACZ 枪属性、Apotheosis affix 等） |
+| 宿主能力 | ChatCardSendable | 否 | 注册为 Capability 提供方，其他模块可发送聊天卡片 |
+| 宿主能力 | ChatMutable | 否 | 注册为 Capability 提供方，Essentials 等模块可委托禁言操作 |
+| 宿主能力 | PlayerDataPurgeable | 否 | 支持玩家数据清理 |
+| 宿主能力 | DatabaseMigratable | 否 | 支持数据库迁移 |
+| 宿主桥接 | ContentModerator | 否 | 敏感词过滤桥接，未提供时使用 NoopContentModerator（原样放行） |
+| 宿主桥接 | PacketBridgeAPI | 是 | 聊天卡片发送、UI 包通信 |
+| 宿主桥接 | ItemBridgeAPI | 是 | 物品 JSON 序列化（物品展示） |
+| 宿主桥接 | VanillaItemNameBridge | 否 | 原版物品名称解析 |
+| 宿主桥接 | PlaceholderResolverAPI | 否 | PAPI 占位符解析 |
+| 宿主配置 | CrossServer | 否 | 跨服聊天转发（Redis + Proxy 双后端） |
+| 宿主配置 | Storage | 否 | 共享存储模式时使用本体统一数据源 |
+
+## 频道机制
+
+Chat 模块的核心是 **频道（Channel）** 系统。每个频道是一个独立的聊天空间，由 `chat/channels/` 目录下的 yml 文件定义。
+
+### 频道模式
+
+| 模式 | 值 | 说明 | 典型场景 |
+|---|---|---|---|
+| 普通 | `normal` | 本地或全图广播，支持 `range` 距离限制 | 默认聊天频道 |
+| 全局 | `global` | 全服频道，默认开启跨服同步 | 公共聊天 / 跨服广播 |
+| 私聊 | `private` | 私聊频道，`/msg` 与 `/reply` 复用此频道格式 | 一对一私聊 |
+| 管理 | `staff` | 管理员频道，仅限有权限的玩家发送与接收 | 值班 / 内部沟通 |
+
+### 频道配置字段
+
+| 字段 | 类型 | 默认值 | 说明 |
+|---|---|---|---|
+| `enabled` | boolean | `true` | 是否启用此频道 |
+| `display-name` | string | 文件名 | UI / 消息中显示的频道名 |
+| `mode` | string | `normal` | 频道模式：`normal` / `global` / `private` / `staff` |
+| `send-permission` | string | `""` | 发送所需权限，空串表示无限制 |
+| `receive-permission` | string | 继承 `send-permission` | 接收所需权限 |
+| `cross-server` | boolean | `mode` 为 global/staff 时默认 `true` | 是否跨服传输 |
+| `range` | double | `0` | 本地聊天半径（0 表示全图），仅 normal 模式生效 |
+| `format` | string | `&7[{channel}] &f{player_name}&7: &r{message}` | 常规消息格式模板 |
+| `console-format` | string | `[{channel}] {player_name}: {message}` | 控制台消息格式模板 |
+| `sender-format` | string | `&d[私聊 -> {target_name}] ...` | 私聊发送者视角格式模板 |
+| `recipient-format` | string | `&d[私聊 <- {player_name}] ...` | 私聊接收者视角格式模板 |
+| `spy-format` | string | `&5[监听 {player_name} -> {target_name}] ...` | 监听视角格式模板 |
+
+### 格式模板变量
+
+格式模板中可使用以下变量占位符，渲染时自动替换：
+
+| 变量 | 说明 |
+|---|---|
+| `{channel}` | 频道显示名称 |
+| `{player_name}` | 发送者名称 |
+| `{player_display_name}` | 发送者显示名称 |
+| `{target_name}` | 私聊目标名称 |
+| `{message}` | 消息内容 |
+
+:::tip
+格式模板还支持 PlaceholderAPI 占位符，渲染时会按聊天上下文解析 PAPI。详见 [/docs/guide/conditions](/docs/guide/conditions)。
+:::
+
+### 频道加载机制
+
+1. 模块启动时读取 `ArcartXChat.yml` 的 `channels-directory` 字段（默认 `chat/channels`）
+2. 扫描该目录下所有 `.yml` 文件，按文件名排序后逐个加载
+3. 文件名（去掉 `.yml` 后缀）即为频道 ID，自动转为小写
+4. `enabled: false` 的频道会被跳过
+5. 若默认频道 ID 不存在，自动回退到首个有效频道
+6. 首次启动时自动释放 `Normal.yml`、`Global.yml`、`Private.yml`、`Staff.yml` 四个默认频道
+
+### 消息分发流程
+
+```
+玩家发送消息 → 拦截 AsyncPlayerChatEvent / Paper AsyncChatEvent
+  → 取消原版事件 → 获取玩家当前频道
+  → 频道模式为 PRIVATE → 复用私聊逻辑（replyTargets）
+  → 频道模式为 NORMAL/GLOBAL/STAFF → 频道消息分发
+    → 校验发送权限 → 校验禁言状态 → 校验冷却 / 重复消息
+    → 应用自定义组件替换 → ContentModerator 敏感词过滤
+    → 解析 @提及 → 处理 [item] 物品展示
+    → 渲染格式模板（PAPI 解析）
+    → 构建 ChatEnvelope 信封
+    → 本地分发（按权限 / 忽略列表 / range 距离过滤接收者）
+    → 跨服转发（channel.cross-server && crossServerActive）
+    → 发布 EventBus 事件
+```
+
+### 跨服消息信封
+
+跨服传输的消息通过 `ChatEnvelope` 封装，使用 `ChatEnvelopeCodec` 编码为 yml 字符串后通过 `CrossServerChannel` 传输：
+
+| 字段 | 说明 |
+|---|---|
+| `messageId` | 消息唯一 ID（UUID） |
+| `originNodeId` | 消息来源节点 ID |
+| `serverId` | 消息来源服务器 ID |
+| `channelId` | 频道 ID |
+| `senderUuid` / `senderName` / `senderDisplayName` | 发送者信息 |
+| `targetUuid` / `targetName` | 私聊目标信息（非私聊为空） |
+| `renderedText` / `renderedTargetText` / `renderedSpyText` | 渲染后文本 |
+| `consoleText` | 控制台输出文本 |
+| `privateMessage` / `staffMessage` | 消息类型标记 |
+| `mentionAll` / `mentionedNames` | 提及信息 |
+| `itemPreview` | 物品预览信息 |
+| `rawMessage` | 原始消息文本 |
+
+:::info
+跨服消息通过 `dedupeKey`（`originNodeId:messageId`）去重，避免同一消息被多个节点重复处理。信封 TTL 为 15 秒，超时自动清理。
+:::
+
+## 聊天卡片
+
+Chat 模块通过 ArcartX 聊天卡片渲染特殊消息类型。卡片定义文件位于 `chat_card/` 目录，首次启动自动释放。
+
+| 卡片 ID | 用途 | 触发场景 |
+|---|---|---|
+| `axs_chat_mention` | @提及通知卡片 | 玩家在聊天中被 `@提及` 时 |
+| `axs_chat_private` | 私聊通知卡片 | 收到或发送私聊消息时 |
+| `axs_chat_system` | 系统提示卡片 | 禁言提示、敏感词拦截等系统通知 |
+| `axs_item_preview` | 物品预览卡片 | 玩家在聊天中使用 `[item]` 时 |
+
+卡片配置中可使用 `self.parent.data['字段名']` 读取服务端推送的数据。卡片宽度与高度由 UI 侧根据 Text 控件实际渲染尺寸自适应。详见 [/docs/guide/icons](/docs/guide/icons)。
+
+## @补全 HUD
+
+当 `function.mention.enabled: true` 时，模块会注册一个 HUD 形式的 @补全界面（`axs_chat_completion`），挂载在原版聊天栏上：
+
+- 玩家在聊天栏输入 `@` 后，根据已输入的部分玩家名前缀匹配在线玩家
+- 最多显示 8 个候选条目，点击后自动补全玩家名
+- 服务端通过 `updatePlayers` 包推送在线玩家列表
+- 同时通过 Paper API（`addCustomChatCompletions`）或 NMS 发包注册 `@玩家名` 补全条目
+
+:::tip
+@补全功能兼容 Paper / Purpur（API 方式）和 Spigot / Mohist / Arclight（NMS 发包方式），自动选择可用策略。
+:::

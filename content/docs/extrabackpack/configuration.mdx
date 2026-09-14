@@ -1,0 +1,294 @@
+---
+title: 配置
+description: ExtraBackpack 配置文件详解
+---
+
+# ExtraBackpack 配置
+
+配置文件位于 `plugins/ArcartX-Suite/data/extrabackpack/ArcartXExtraBackpack.yml`，修改后执行 `/axs extrabackpack reload` 生效。
+
+当前配置版本（`config-version`）为 **2**，模块支持自动迁移（1→2）。
+
+## 主配置字段表
+
+### settings 节
+
+| 字段 | 类型 | 默认值 | 说明 |
+| --- | --- | --- | --- |
+| `debug` | boolean | `false` | 是否输出调试日志 |
+
+### ui 节
+
+| 字段 | 类型 | 默认值 | 说明 |
+| --- | --- | --- | --- |
+| `register-ui-on-enable` | boolean | `true` | 启动时是否自动注册背包 UI 到 ArcartX |
+| `overwrite-ui-files` | boolean | `false` | 是否强制覆盖用户已修改的 UI 文件 |
+
+> `register-ui-on-enable` 设为 `false` 时，模块仅导出 UI 文件但不注册到 ArcartX，玩家打开物品栏时不会看到额外背包界面。适用于仅使用 `ExtraBackpackAccess` Capability 而不需要 UI 的场景。
+
+### storage 节
+
+| 字段 | 类型 | 默认值 | 说明 |
+| --- | --- | --- | --- |
+| `shared` | boolean | `true` | 是否使用本体共享数据源（推荐）。`true` 时忽略下方所有字段 |
+| `mode` | string | `sqlite` | 自建模式存储引擎：`sqlite` 或 `mysql`（仅 `shared: false` 时生效） |
+| `sqlite.file` | string | `extrabackpack.db` | SQLite 文件名（相对模块数据目录） |
+| `mysql.host` | string | `127.0.0.1` | MySQL 主机地址 |
+| `mysql.port` | int | `3306` | MySQL 端口 |
+| `mysql.database` | string | `arcartxsuite` | MySQL 数据库名 |
+| `mysql.username` | string | `root` | MySQL 用户名 |
+| `mysql.password` | string | `""` | MySQL 密码 |
+| `mysql.table-prefix` | string | `axs_extrabackpack_` | MySQL 表名前缀 |
+| `pool-size` | int | `4` | JDBC 连接池大小（SQLite 建议 1），范围 1-100 |
+
+> **向后兼容**：如果 `shared` 字段不存在但 `mode=mysql`，自动视为 `shared: false`。
+
+> **迁移提示**：配置版本 1→2 的迁移会自动将旧的 `storage.mode`（`sqlite`/`mysql`）重映射为 `storage.shared`（`true`/`false`）。
+
+### extra-backpack 节
+
+| 字段 | 类型 | 默认值 | 说明 |
+| --- | --- | --- | --- |
+| `enabled` | boolean | `false` | 是否启用额外背包功能 |
+| `categories` | map | `{}` | 分类页定义，键名即分类 ID（自动小写归一化） |
+
+> `enabled: true` 但 `categories` 为空时，模块会输出警告日志且功能不会生效。
+
+### categories 分类字段表
+
+每个分类页的配置字段：
+
+| 字段 | 类型 | 默认值 | 说明 |
+| --- | --- | --- | --- |
+| `display-name` | string | 分类 ID | 分类显示名称（显示在 UI 标签上） |
+| `priority` | int | 当前分类序号 | 分类排序优先级，数值越小越靠前 |
+| `default` | boolean | `false` | 是否为兜底分类（未匹配其他分类的物品归入此处） |
+| `slots.initial` | int | `9` | 初始槽位数量（最小 0） |
+| `slots.max` | int | `initial` | 最大槽位上限（不小于 `initial`） |
+| `price.currency` | string | `""` | 购买槽位使用的货币 ID（如 `points`、`vault`） |
+| `price.per-slot` | decimal | `0` | 每个槽位的升级金额 |
+| `match.nbt.path` | string | `""` | NBT 匹配路径（如 `pdc:arcartx:item_category`、`material`、`lore`） |
+| `match.nbt.values` | list | `[]` | 匹配的标签值列表，物品标签值在此列表中则归入该分类 |
+
+> `price.currency` 为空或 `price.per-slot <= 0` 时，该分类不可扩容。
+
+> 向后兼容：`slots.initial` 也可写为 `initial-slots`，`slots.max` 也可写为 `max-slots`；`match.nbt.path` 也可写为 `nbt.path`，`match.nbt.values` 也可写为 `nbt.values`。
+
+## 完整配置示例
+
+### 基础配置（共享存储 + 三分类）
+
+```yaml
+config-version: 2
+
+settings:
+  debug: false
+
+ui:
+  register-ui-on-enable: true
+  overwrite-ui-files: false
+
+storage:
+  shared: true
+
+extra-backpack:
+  enabled: true
+  categories:
+    equipment:
+      display-name: "装备"
+      priority: 10
+      slots:
+        initial: 9
+        max: 27
+      price:
+        currency: "points"
+        per-slot: 100
+      match:
+        nbt:
+          path: "pdc:arcartx:item_category"
+          values: ["equipment", "weapon", "armor"]
+    material:
+      display-name: "材料"
+      priority: 20
+      slots:
+        initial: 9
+        max: 27
+      price:
+        currency: "points"
+        per-slot: 80
+      match:
+        nbt:
+          path: "pdc:arcartx:item_category"
+          values: ["material"]
+    other:
+      display-name: "杂物"
+      priority: 9999
+      default: true
+      slots:
+        initial: 9
+        max: 27
+      price:
+        currency: "points"
+        per-slot: 60
+```
+
+### 自建 MySQL 存储配置
+
+```yaml
+config-version: 2
+
+settings:
+  debug: false
+
+ui:
+  register-ui-on-enable: true
+  overwrite-ui-files: false
+
+storage:
+  shared: false
+  mode: "mysql"
+  mysql:
+    host: "127.0.0.1"
+    port: 3306
+    database: "arcartxsuite"
+    username: "root"
+    password: ""
+    table-prefix: "axs_extrabackpack_"
+  pool-size: 4
+
+extra-backpack:
+  enabled: true
+  categories:
+    equipment:
+      display-name: "装备"
+      priority: 10
+      slots:
+        initial: 9
+        max: 54
+      price:
+        currency: "vault"
+        per-slot: 500.0
+      match:
+        nbt:
+          path: "pdc:arcartx:item_category"
+          values: ["equipment", "weapon", "armor"]
+    misc:
+      display-name: "杂物"
+      priority: 9999
+      default: true
+      slots:
+        initial: 18
+        max: 54
+```
+
+### Lore 匹配配置
+
+```yaml
+extra-backpack:
+  enabled: true
+  categories:
+    quest_item:
+      display-name: "任务物品"
+      priority: 5
+      slots:
+        initial: 9
+        max: 18
+      match:
+        nbt:
+          path: "lore"
+          values: ["任务物品", "不可丢弃"]
+    consumable:
+      display-name: "消耗品"
+      priority: 15
+      slots:
+        initial: 9
+        max: 36
+      price:
+        currency: "points"
+        per-slot: 50
+      match:
+        nbt:
+          path: "material"
+          values: ["potion", "golden_apple", "enchanted_golden_apple"]
+    fallback:
+      display-name: "其他"
+      priority: 9999
+      default: true
+      slots:
+        initial: 9
+        max: 27
+```
+
+### 仅 Capability 模式（不注册 UI）
+
+```yaml
+config-version: 2
+
+settings:
+  debug: false
+
+ui:
+  register-ui-on-enable: false
+  overwrite-ui-files: false
+
+storage:
+  shared: true
+
+extra-backpack:
+  enabled: true
+  categories:
+    default:
+      display-name: "默认"
+      priority: 0
+      default: true
+      slots:
+        initial: 27
+        max: 54
+```
+
+> 此配置下模块仅提供 `ExtraBackpackAccess` Capability 供其他模块调用，不替换原版物品栏界面。
+
+## 配置校验规则
+
+模块在启动时通过 `ModuleConfig` 声明以下校验规则：
+
+| 校验路径 | 类型 | 规则 |
+| --- | --- | --- |
+| `storage.shared` | boolean | 必填 |
+| `storage.pool-size` | int | 范围 1-100 |
+| `settings.debug` | boolean | 可选 |
+| `ui.register-ui-on-enable` | boolean | 可选 |
+| `ui.overwrite-ui-files` | boolean | 可选 |
+| `extra-backpack.enabled` | boolean | 可选 |
+
+> 配置诊断由宿主统一执行，诊断报告写入 `plugins/ArcartX-Suite/diagnosis/` 目录。关于配置诊断的通用知识，参考 [物品来源](/docs/guide/item-sources)。
+
+## 消息文件
+
+消息文件位于 `plugins/ArcartX-Suite/data/extrabackpack/messages.yml`，支持 `{0}`、`{1}` 等位置参数：
+
+| 消息键 | 默认文本 | 参数 |
+| --- | --- | --- |
+| `extra-backpack.disabled` | `&c额外背包功能未启用。` | - |
+| `extra-backpack.operation-failed` | `操作失败，请查看控制台。` | - |
+| `extra-backpack.ui-required` | `请先打开额外背包界面。` | - |
+| `extra-backpack.action-token-invalid` | `&c操作令牌无效，请刷新额外背包界面后重试。` | - |
+| `extra-backpack.page-full` | `&c该分类页已满，部分物品未能存入。` | - |
+| `extra-backpack.buy-invalid` | `&c请输入有效的购买数量。` | - |
+| `extra-backpack.buy-not-configured` | `&c该分类页未配置槽位价格，无法购买。` | - |
+| `extra-backpack.buy-maxed` | `&c该分类页槽位已达上限。` | - |
+| `extra-backpack.buy-success` | `&a已购买 {0} 个槽位，当前容量 {1} 格。` | `{0}`=购买数量，`{1}`=新容量 |
+| `extra-backpack.buy-hint` | `&f每个槽位 {0}，剩余可购买 {1} 个` | `{0}`=单价，`{1}`=剩余可购买数 |
+| `extra-backpack.unknown-currency` | `&c未知货币。` | - |
+| `extra-backpack.no-available-slot` | `&c无可用额外槽位。` | - |
+| `extra-backpack.item-changed` | `&c物品已发生变化，请刷新后重试。` | - |
+| `extra-backpack.destroy-unavailable` | `&c销毁功能暂不可用（未启用二级密码）。` | - |
+| `extra-backpack.destroy-confirm` | `&e请确认销毁该物品。` | - |
+| `extra-backpack.destroy-password-required` | `&c需要二级密码验证。` | - |
+| `extra-backpack.password-set-required` | `&e请先在界面中设置二级密码。` | - |
+| `extra-backpack.password-set-success` | `&a二级密码设置成功。` | - |
+| `extra-backpack.password-set-failed` | `&c二级密码设置失败，请检查旧密码或新密码。` | - |
+| `extra-backpack.password-unlocked` | `&a二级密码解锁成功。` | - |
+| `extra-backpack.password-wrong` | `&c二级密码错误。` | - |
+| `extra-backpack.password-cleared` | `&a二级密码已清除。` | - |
+| `extra-backpack.destroy-success` | `&a物品已销毁。` | - |

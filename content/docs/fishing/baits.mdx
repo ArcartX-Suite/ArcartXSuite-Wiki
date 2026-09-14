@@ -1,0 +1,165 @@
+---
+title: 鱼饵配置
+description: Fishing 鱼饵系统配置
+---
+
+# 鱼饵配置
+
+鱼饵定义文件位于 `plugins/ArcartXSuite/data/fishing/baits/` 目录下，每个 `.yml` 文件定义一种鱼饵。
+
+## 鱼饵工作原理
+
+鱼饵物品由外部物品库（NeigeItems/MythicMobs 等）生成，配置文件仅用于**识别物品**和**设置效果**。
+
+### 饵料队列系统
+
+玩家拥有一个饵料队列（存储在数据库 `axs_fishing_bait_queue` 表中），通过 ArcartX UI 饵料管理界面操作：
+
+1. **放入饵料**（`put_bait`）：从背包指定槽位将饵料物品放入队列指定槽位
+2. **取出饵料**（`take_bait`）：从队列槽位取出饵料返还到背包
+3. **交换槽位**（`swap_bait`）：交换队列中两个槽位的饵料（调整优先级）
+
+饵料槽位数量 = 基础 1 个 + 天赋 `bait_slot_bonus` 加成。
+
+### 饵料消耗机制
+
+- **鱼咬钩时**消耗队列头部（`slot_index` 最小）1 个饵料
+- 队列为空时使用默认饵料（`default: true` 的饵料）
+- 无默认饵料时不消耗饵料，但仍可正常钓鱼
+
+### 饵料效果
+
+| 效果 | 说明 |
+| --- | --- |
+| 鱼类吸引倍率 | 影响特定鱼种的出现概率（`fish-attract-modifiers`） |
+| 宝藏概率加成 | 额外增加宝藏出现概率（`treasure-chance-boost`） |
+| 鱼竿耐久度加成 | 降低鱼竿耐久度消耗（`max-durability-bonus`） |
+
+## 鱼饵定义字段
+
+| 字段 | 类型 | 默认值 | 说明 |
+| --- | --- | --- | --- |
+| `id` | string | 文件名 | 鱼饵唯一标识符 |
+| `display-name` | string | id | 显示名称 |
+| `item` | map | `minecraft:string` | UI 图标显示用物品（[IconDefinition](/docs/guide/icons) 格式） |
+| `match` | map | - | 物品匹配规则（[ItemMatcher](/docs/guide/conditions) 标准格式） |
+| `default` | boolean | `false` | 是否为默认饵料（玩家无饵料时自动使用） |
+| `fish-attract-modifiers` | map | - | 鱼类吸引倍率映射（鱼种 ID → 修正系数） |
+| `treasure-chance-boost` | double | `0.0` | 宝藏概率额外加成 |
+| `max-durability-bonus` | int | `0` | 鱼竿最大耐久度加成 |
+
+### fish-attract-modifiers
+
+`fish-attract-modifiers` 是一个映射，key 为鱼种 ID，value 为吸引倍率：
+
+- `1.0` = 无影响（默认）
+- `> 1.0` = 提高该鱼种出现概率
+- `< 1.0` = 降低该鱼种出现概率
+
+未列出的鱼种默认倍率为 `1.0`。
+
+### match 物品匹配规则
+
+与鱼竿的 `match` 块格式相同，详见 [鱼竿配置](/docs/fishing/rods#match-物品匹配规则)。
+
+## 鱼饵使用机制
+
+### 选鱼时的权重计算
+
+当玩家使用饵料钓鱼时，鱼池中每条候选鱼的权重计算：
+
+```
+权重 = rarity.weightMultiplier()
+     × 饵料吸引倍率（bait.fishAttractModifiers[fishId]，默认 1.0）
+     × 鱼饵偏好倍率（fish.baitPreferences[baitId].multiplier，若配置）
+     × 水域饵料倍率（water.baitMultipliers[baitId]，若配置）
+```
+
+### 宝藏概率计算
+
+```
+最终宝藏概率 = fishing.treasure-chance
+             + 饵料 treasure-chance-boost
+             + 鱼竿 treasure-chance-bonus
+```
+
+结果 clamp 到 [0, 1]。
+
+## 鱼饵配置示例
+
+### 默认饵料（蚯蚓）
+
+```yaml
+id: "worm"
+display-name: "蚯蚓"
+item:
+  source: minecraft
+  id: string
+match:
+  material-ids: [string]
+default: true
+fish-attract-modifiers:
+  catfish: 2.0
+  sea_bass: 1.5
+treasure-chance-boost: 0.02
+max-durability-bonus: 0
+```
+
+### 高级饵料（玉米粒）
+
+```yaml
+id: "corn"
+display-name: "玉米粒"
+item:
+  source: minecraft
+  id: wheat_seeds
+match:
+  material-ids: [wheat_seeds]
+default: false
+fish-attract-modifiers:
+  legendary_carp: 2.5
+  catfish: 1.8
+treasure-chance-boost: 0.05
+max-durability-bonus: 0
+```
+
+### 使用 NeigeItems 物品的饵料
+
+```yaml
+id: "golden_bait"
+display-name: "&6金饵料"
+item:
+  source: neige
+  id: golden_bait_item
+match:
+  neige-item-ids: [golden_bait_item]
+default: false
+fish-attract-modifiers:
+  legendary_carp: 3.0
+  salmon: 1.5
+treasure-chance-boost: 0.10
+max-durability-bonus: 10
+```
+
+## 饵料与鱼类的联动
+
+鱼类定义中的 `bait-preferences` 字段可指定饵料对该鱼的出现概率倍率，与饵料的 `fish-attract-modifiers` 叠加生效：
+
+```yaml
+# 鱼类定义中的饵料偏好
+bait-preferences:
+  worm_pref:
+    bait-id: "worm"
+    multiplier: 0.5        # 蚯蚓降低出现概率
+  special_bait:
+    bait-id: "golden_bait"
+    multiplier: 3.0        # 金饵料大幅提高出现概率
+```
+
+```yaml
+# 饵料定义中的吸引倍率
+fish-attract-modifiers:
+  legendary_carp: 3.0     # 金饵料对传说鲤鱼吸引 3 倍
+```
+
+当使用金饵料钓传说鲤鱼时，最终权重 = `rarity.weightMultiplier() × 3.0（饵料吸引）× 3.0（鱼饵偏好）× 水域饵料倍率`。

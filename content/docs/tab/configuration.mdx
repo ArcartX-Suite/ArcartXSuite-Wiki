@@ -1,0 +1,359 @@
+---
+title: 配置
+description: Tab 模块完整配置字段说明与示例
+---
+
+# 配置
+
+Tab 模块的配置分为主配置文件 `ArcartXTab.yml` 和 Tab 定义文件（`tabs/` 目录下每个 `.yml`）。
+
+- 主配置文件路径：`plugins/ArcartXSuite/data/tab/ArcartXTab.yml`
+- Tab 定义目录：`plugins/ArcartXSuite/data/tab/tabs/`
+- 消息文件路径：`plugins/ArcartXSuite/data/tab/messages.yml`
+
+> 修改配置后执行 `/axs reload tab` 生效。配置诊断规则会在重载时自动校验，报告写入 `diagnosis/` 目录。
+
+## 主配置 ArcartXTab.yml
+
+### settings 节
+
+| 字段 | 类型 | 默认值 | 说明 |
+|---|---|---|---|
+| `refresh-interval-ticks` | `int` | `20` | 服务端刷新间隔（ticks，20 ticks = 1 秒），周期扫描在线玩家并推送列表 |
+| `batch.window-ticks` | `int` | `0` | 跨服快照广播节流窗口（ticks），0 表示禁用节流。建议设为 `refresh-interval-ticks` |
+| `leave-grace-ms` | `long` | `0` | 退服宽限期（毫秒），玩家退服后在跨服快照中保留虚拟条目，避免跨服跳传闪烁。0 表示禁用 |
+| `debug` | `boolean` | `false` | 是否开启调试日志（输出刷新 / 排序 / 发包等详细信息） |
+| `register-ui-on-enable` | `boolean` | `true` | 插件启动 / 重载时是否自动注册随模块内置的 Tab UI |
+| `overwrite-ui-file` | `boolean` | `false` | 是否强制覆盖 `plugins/ArcartXSuite/ui/tab.yml` 等内置 UI 文件 |
+| `server-id` | `String` | `default` | 当前服务端节点标识，跨服同步时用于区分不同服务端 |
+| `cross-server` | `boolean` | `false` | 跨服玩家列表全局默认开关，每个 Tab 定义可用 `cross-server` 覆盖 |
+| `stale-snapshot-ms` | `long` | `30000` | 远程服务端快照过期时间（毫秒），超过此时间未收到新快照的远程节点条目将被移除。最小 5000 |
+
+### settings.style 节
+
+视觉风格配置不修改 pack 渲染逻辑，仅通过 PAPI 占位符暴露状态给 pack 使用。
+
+#### pvp-highlight
+
+| 字段 | 类型 | 默认值 | 说明 |
+|---|---|---|---|
+| `enabled` | `boolean` | `false` | 是否启用 PVP 高亮 |
+| `window-ms` | `long` | `5000` | PVP 高亮有效窗口（毫秒），玩家最近一次参与 PVP 后在此窗口内视为 PVP 状态 |
+| `color` | `String` | `&c` | PVP 高亮颜色，通过 `%axstab_pvp_color%` 输出 |
+
+#### vanish-grey
+
+| 字段 | 类型 | 默认值 | 说明 |
+|---|---|---|---|
+| `enabled` | `boolean` | `false` | 是否启用隐身灰化 |
+| `color` | `String` | `&7` | 隐身灰色颜色，通过 `%axstab_vanish_color%` 输出 |
+
+#### ping-icon
+
+| 字段 | 类型 | 默认值 | 说明 |
+|---|---|---|---|
+| `enabled` | `boolean` | `false` | 是否启用延迟图标 |
+| `tiers` | `List<Map>` | 见下 | 延迟档位列表，按 `max-ms` 升序匹配，通过 `%axstab_ping_icon%` 输出 |
+
+`tiers` 每个元素的字段：
+
+| 字段 | 类型 | 说明 |
+|---|---|---|
+| `max-ms` | `int` | 延迟上限（毫秒），玩家 ping `<=` 此值时匹配此档位 |
+| `icon` | `String` | 匹配时输出的图标文本 |
+
+默认 tiers 配置：
+
+```yaml
+style:
+  ping-icon:
+    enabled: false
+    tiers:
+      - { max-ms: 80,   icon: "&a▮▮▮▮" }
+      - { max-ms: 160,  icon: "&e▮▮▮▯" }
+      - { max-ms: 300,  icon: "&6▮▮▯▯" }
+      - { max-ms: 9999, icon: "&c▮▯▯▯" }
+```
+
+### settings.privacy 节
+
+隐私脱敏仅影响 `%axstab_uuid%` 与 `%axstab_ip%` 占位符。
+
+| 字段 | 类型 | 默认值 | 说明 |
+|---|---|---|---|
+| `hide-uuid` | `boolean` | `false` | 隐藏 UUID（截断为前 8 位 + `...`） |
+| `hide-ip` | `boolean` | `false` | 隐藏 IP（最后一段替换为 `***`） |
+
+### settings.debug-tools 节
+
+| 字段 | 类型 | 默认值 | 说明 |
+|---|---|---|---|
+| `dry-run` | `boolean` | `false` | 渲染流程跑全（过滤 / 排序 / 置顶 / 分组 / 分页 / PAPI 解析），但不真正发包给客户端。仅在 `debug: true` 时记录跳过日志 |
+
+### cross-server 节
+
+跨服连接参数见宿主 `plugins/ArcartXSuite/config.yml` 的 `cross-server` 节。
+
+| 字段 | 类型 | 默认值 | 说明 |
+|---|---|---|---|
+| `enabled` | `boolean` | `false` | 是否启用跨服玩家列表聚合（需宿主 cross-server 配置支持） |
+
+### tabs-directory
+
+| 字段 | 类型 | 默认值 | 说明 |
+|---|---|---|---|
+| `tabs-directory` | `String` | `tabs` | Tab 定义目录，路径相对模块数据目录 |
+
+## Tab 定义文件
+
+`tabs/` 目录下每个 `.yml` 文件为一个 Tab 定义，文件名（去掉 `.yml`）即为定义 ID。
+
+### 基础字段
+
+| 字段 | 类型 | 默认值 | 说明 |
+|---|---|---|---|
+| `enabled` | `boolean` | `true` | 是否启用此 Tab 定义 |
+| `ui-targets` | `List<Map>` | - | UI 发包目标列表，同一个 payload 可同时发给多个 UI |
+| `ui-id` | `String` | - | 旧格式：单个 UI ID（向后兼容，等价于 `ui-targets` 单元素） |
+| `packet-handler` | `String` | - | 旧格式：UI 端接收包的 handler 名称 |
+| `client-refresh-packet-id` | `String` | `TAB` | 客户端回包请求刷新的 Packet ID，留空则关闭客户端刷新入口 |
+| `client-refresh-action` | `String` | `update` | 客户端回包请求刷新的 action 名称 |
+| `max-entries` | `int` | `-1` | 最大条目数，`-1` 表示不限制 |
+| `omit-blank-values` | `boolean` | `false` | pack 渲染结果为空字符串时是否跳过该玩家 |
+| `cross-server` | `Boolean` | `null` | 是否启用跨服聚合，`null` 时使用全局 `settings.cross-server` |
+| `view` | `String` | `default` | 视图名称，玩家通过 `/axstab view` 切换，只有 view 匹配时才推送 |
+| `pack` | `Object` | - | 打包模板，支持字符串 / 列表 / 字典三种形态 |
+
+#### ui-targets 元素字段
+
+| 字段 | 类型 | 说明 |
+|---|---|---|
+| `ui-id` | `String` | 对应的 UI ID（如 `AXS:tab`） |
+| `packet-handler` | `String` | UI 端接收包的 handler 名称 |
+
+### 客户端刷新防护
+
+`client-refresh-guard` 节配置客户端主动刷新的频率限制。
+
+| 字段 | 类型 | 默认值 | 说明 |
+|---|---|---|---|
+| `enabled` | `boolean` | `true` | 是否启用频率限制 |
+| `window-ms` | `long` | `1500` | 时间窗口（毫秒），在此窗口内最多允许 `max-hits` 次请求 |
+| `max-hits` | `int` | `1` | 时间窗口内最大允许请求次数 |
+| `mode` | `String` | `silent` | 超限模式：`silent` 静默丢弃 / `notify` 提示玩家。`punish` 不支持，自动降级为 `notify` |
+| `notify-message` | `String` | `&cTAB 刷新过快，请稍后再试。` | 超限提示消息（`mode: notify` 时生效） |
+| `notify-cooldown-ms` | `long` | `3000` | 超限提示消息冷却时间（毫秒） |
+
+### 排序 sort-keys
+
+`sort-keys` 为多键复合排序列表，按列表顺序优先级递减。每个元素的字段：
+
+| 字段 | 类型 | 默认值 | 说明 |
+|---|---|---|---|
+| `mode` | `String` | `name` | 排序模式：`name` 按玩家名 / `prem` 按权限组 / `papi` 按 PAPI 变量 |
+| `key` | `String` | - | PAPI 模式的占位符表达式（如 `%player_level%`），也支持别名 `papi-key` |
+| `numeric` | `boolean` | `false` | PAPI 模式是否数字排序，支持别名 `papi-numeric` |
+| `prem-group` | `List<String>` | `["default"]` | prem 模式的优先级列表，未列出的玩家归 `default`，支持别名 `prem-group` |
+| `order` | `String` | `asc` | 排序方向：`asc` 升序 / `desc` 降序，也支持 `descending: true` |
+
+> 旧字段 `sort-mode` / `sort-papi-key` / `sort-papi-numeric` / `sort-prem-group` / `sort-descending` 仍然向后兼容，会自动构造为单元素 `sort-keys`。
+
+### 过滤器 filters
+
+| 字段 | 类型 | 默认值 | 说明 |
+|---|---|---|---|
+| `hide-vanished` | `boolean` | `false` | 自动隐藏隐身玩家（兼容 Essentials / SuperVanish / PremiumVanish 与 Bukkit `vanished` metadata） |
+| `include` | `List<Map>` | `[]` | 包含规则列表，OR 关系（任一命中保留） |
+| `exclude` | `List<Map>` | `[]` | 排除规则列表，OR 关系（任一命中剔除） |
+
+过滤规则元素字段：
+
+| 字段 | 类型 | 说明 |
+|---|---|---|
+| `papi` | `String` | PAPI 表达式（如 `%player_world%`），非空时按 PAPI 判定 |
+| `equals` | `String` | PAPI 渲染结果的期望值（忽略大小写），留空时只判断 PAPI 结果非空 |
+| `permission` | `String` | 权限节点，非空时按权限判定 |
+| `invert` | `boolean` | `true` 时反转匹配结果 |
+
+> 同一规则只生效一种判定：`papi` 非空时按 PAPI 判定，否则按 `permission` 判定。
+
+### 置顶 / 置底 pinned
+
+| 字段 | 类型 | 默认值 | 说明 |
+|---|---|---|---|
+| `top` | `List<Map>` | `[]` | 置顶规则列表，命中者排在所有 middle 之前 |
+| `bottom` | `List<Map>` | `[]` | 置底规则列表，命中者排在所有 middle 之后 |
+
+> 三个分桶（top / middle / bottom）各自再用 `sort-keys` 内部排序。规则字段与过滤器相同（`papi` + `equals` 或 `permission`，支持 `invert`）。
+
+### 分组 grouping
+
+| 字段 | 类型 | 默认值 | 说明 |
+|---|---|---|---|
+| `enabled` | `boolean` | `false` | 是否启用分组 |
+| `group-by-papi` | `String` | - | 分组依据的 PAPI 表达式（如 `%vault_primary_group%`） |
+| `group-order` | `List<String>` | `[]` | 分组输出顺序，未列出的组按 `include-unordered` 控制 |
+| `include-unordered` | `boolean` | `true` | 未在 `group-order` 中列出的组是否仍输出 |
+| `header-pack` | `Object` | - | 每组前的头部模板，`{group}` 会被替换为组键，同样支持 PAPI |
+
+> 仅 list / string 形态的 pack 支持分组；map 形态会自动退化为不分组并打印警告。
+
+### 分页 pagination
+
+| 字段 | 类型 | 默认值 | 说明 |
+|---|---|---|---|
+| `enabled` | `boolean` | `false` | 是否启用分页 |
+| `page-size` | `int` | `80` | 每页行数 |
+| `packet-id` | `String` | `TAB_PAGE` | 翻页 Packet ID |
+| `next-action` | `String` | `next` | 翻到下一页的 action |
+| `prev-action` | `String` | `prev` | 翻到上一页的 action |
+| `set-action` | `String` | `set` | 设置指定页码的 action（需附带页码参数） |
+
+### 跨服聚合 aggregate
+
+| 字段 | 类型 | 默认值 | 说明 |
+|---|---|---|---|
+| `enabled` | `boolean` | `false` | 是否启用聚合模式（仅 `cross-server: true` 时生效） |
+| `line-pack` | `Object` | - | 每行渲染模板，支持 `{server-id}` / `{server-display}` / `{server-online}` 占位符及完整 PAPI |
+
+> 聚合模式下 Tab 不展开玩家列表，每个服务器（含本服与每个远程节点）只占一行，常用于大区 BungeeCord / Velocity 网络的"服务器总览"视图。
+
+## 完整配置示例
+
+### 最简配置（基础在线列表）
+
+```yaml
+# ArcartXTab.yml
+settings:
+  refresh-interval-ticks: 20
+  server-id: "survival"
+  cross-server: false
+tabs-directory: "tabs"
+```
+
+```yaml
+# tabs/online-tab.yml
+enabled: true
+ui-targets:
+  - ui-id: "AXS:tab"
+    packet-handler: "tab"
+sort-keys:
+  - { mode: name }
+pack: "%axstitle_display% %player_name%"
+```
+
+### 多键排序 + 过滤 + 置顶
+
+```yaml
+# tabs/ranked.yml
+enabled: true
+ui-targets:
+  - ui-id: "AXS:tab-rich"
+    packet-handler: "tab"
+max-entries: 80
+sort-keys:
+  - { mode: prem, prem-group: [admin, vip3, vip2, vip1, default] }
+  - { mode: papi, key: "%player_level%", numeric: true, order: desc }
+  - { mode: name }
+filters:
+  hide-vanished: true
+  exclude:
+    - { permission: "axs.tab.hide" }
+    - { papi: "%player_gamemode%", equals: "SPECTATOR" }
+pinned:
+  top:
+    - { permission: "axs.tab.pin-top" }
+pack:
+  uuid: "{player_uuid}"
+  name: "%axstab_pvp_color%%axstab_vanish_color%%player_name%"
+  ping: "%axstab_ping_icon%"
+  health: "%player_health%"
+```
+
+### 分组 + 分页
+
+```yaml
+# tabs/grouped.yml
+enabled: true
+ui-targets:
+  - ui-id: "AXS:tab"
+    packet-handler: "tab"
+sort-keys:
+  - { mode: name }
+grouping:
+  enabled: true
+  group-by-papi: "%vault_primary_group%"
+  group-order: ["admin", "vip3", "vip2", "vip1", "default"]
+  include-unordered: true
+  header-pack: "&6=== {group} ==="
+pagination:
+  enabled: true
+  page-size: 60
+pack: "%axstitle_display% %player_name%"
+```
+
+### 跨服聚合（服务器总览）
+
+```yaml
+# ArcartXTab.yml
+settings:
+  refresh-interval-ticks: 20
+  server-id: "lobby-01"
+  cross-server: true
+  stale-snapshot-ms: 30000
+  leave-grace-ms: 2000
+cross-server:
+  enabled: true
+```
+
+```yaml
+# tabs/overview.yml
+enabled: true
+ui-targets:
+  - ui-id: "AXS:tab"
+    packet-handler: "tab"
+cross-server: true
+aggregate:
+  enabled: true
+  line-pack: "&b{server-display} &7- &f{server-online} 人在线"
+pack: "{server-id}"
+```
+
+### 竞技场红蓝双队
+
+```yaml
+# tabs/arena.yml
+enabled: true
+ui-targets:
+  - ui-id: "AXS:tab-arena"
+    packet-handler: "tab"
+sort-keys:
+  - { mode: papi, key: "%player_scoreboardteam%" }
+  - { mode: name }
+pack:
+  team: "%player_scoreboardteam%"
+  uuid: "{player_uuid}"
+  name: "%axstab_pvp_color%%axstab_vanish_color%%player_name%"
+  status: "%axstab_pvp%"
+  health: "%player_health%/%player_max_health%"
+```
+
+## 内置变量
+
+pack 中可直接使用的花括号内置变量（无需 PAPI，由 `buildValues()` 直接替换）：
+
+| 变量 | 说明 |
+|---|---|
+| `{player_name}` | 玩家名称 |
+| `{player_display_name}` | 玩家显示名 |
+| `{player_uuid}` | 玩家 UUID |
+| `{player_world}` | 玩家所在世界 |
+| `{player_x}` | 玩家 X 坐标（方块） |
+| `{player_y}` | 玩家 Y 坐标（方块） |
+| `{player_z}` | 玩家 Z 坐标（方块） |
+| `{player_health}` | 玩家当前血量 |
+| `{player_max_health}` | 玩家最大血量 |
+| `{player_ping}` | 玩家延迟（ms） |
+| `{player_group}` | 玩家权限组（Vault / LuckPerms / Scoreboard Team 依次尝试） |
+
+> 条件系统配置详见 [条件系统](/docs/guide/conditions)，物品来源配置详见 [物品库匹配](/docs/guide/item-sources)，图标配置详见 [图标配置](/docs/guide/icons)。

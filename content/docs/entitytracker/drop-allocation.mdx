@@ -1,0 +1,394 @@
+---
+title: 掉落分配与跨服排行
+description: Boss 掉落记录、DKP/ROLL/优先级分配、跨服 Boss 排行与击杀记录同步
+---
+
+# 掉落分配与跨服排行
+
+> **付费模块**（消费额度满 ¥150 获得授权）
+
+EntityTracker 的新功能子系统在 Boss 伤害排名的基础上扩展了三大进阶功能：Boss 掉落记录、掉落分配（DKP / ROLL / 优先级 / 手动）和跨服 Boss 排行。这些功能需要数据库支持，通过 `new-features` 配置节统一管理。
+
+## 架构概览
+
+```
+新功能子系统
+  ├── BossKillRecordingService（击杀记录与掉落统计）
+  │     ├── BossKillRecordDao（击杀记录 DAO）
+  │     └── BossDropStatisticsDao（掉落统计 DAO）
+  ├── DropAllocationService（掉落分配）
+  │     ├── DropAllocationRecordDao（分配记录 DAO）
+  │     └── PlayerDkpDao（DKP 积分 DAO）
+  ├── EntityTrackerCrossServerService（跨服同步）
+  │     └── CrossServerChannel（跨服通道）
+  ├── CrossServerRankingCacheService（排行缓存）
+  │     └── CrossServerBossRankingDao（跨服排行 DAO）
+  └── EntityTrackerNewFeaturesSettings（总配置）
+        ├── DropRecordingSettings
+        ├── DropAllocationSettings
+        └── CrossServerRankingSettings
+```
+
+## 功能开关与依赖
+
+三个新功能通过 `new-features` 配置节独立开关，均需要数据库支持：
+
+```yaml
+new-features:
+  drop-recording:
+    enabled: true       # Boss 掉落记录
+  drop-allocation:
+    enabled: true       # 掉落分配
+  cross-server-ranking:
+    enabled: false      # 跨服 Boss 排行
+```
+
+| 功能 | 配置节 | 依赖条件 | 数据库表 |
+|---|---|---|---|
+| 掉落记录 | `drop-recording` | 数据库可用 | `boss_kill_records`、`boss_drop_statistics` |
+| 掉落分配 | `drop-allocation` | 数据库可用 | `drop_allocation_records`、`roll_participation_records`、`player_dkp` |
+| 跨服排行 | `cross-server-ranking` | 数据库可用 + 跨服通道启用 | `player_boss_best_damage`、`cross_server_boss_rankings` |
+
+> `EntityTrackerNewFeaturesSettings.needsDatabase()` 判断是否有任一新功能启用。当数据库不可用（`dataSource()` 返回 null）时，所有新功能子服务不会初始化。
+
+## Boss 掉落记录
+
+### 功能说明
+
+`BossKillRecordingService` 在 Boss 死亡时记录击杀信息和掉落物品，支持统计分析和自动清理。
+
+### 配置
+
+```yaml
+new-features:
+  drop-recording:
+    enabled: true
+    retention-days: 30              # 数据保留天数，超过自动清理（最小 1）
+    enable-statistics: true         # 是否启用掉落统计
+    statistics-update-interval: 300 # 统计更新间隔秒数（最小 30）
+```
+
+| 字段 | 类型 | 默认值 | 说明 |
+|---|---|---|---|
+| `enabled` | `boolean` | `true` | 是否启用掉落记录 |
+| `retention-days` | `int` | `30` | 数据保留天数，超过此天数的记录自动清理 |
+| `enable-statistics` | `boolean` | `true` | 是否启用掉落统计 |
+| `statistics-update-interval` | `int` | `300` | 统计更新间隔（秒） |
+
+### 记录内容
+
+每次 Boss 死亡时，`BossKillRecordingService.recordBossDeath()` 记录以下信息：
+
+| 记录字段 | 类型 | 说明 |
+|---|---|---|
+| `bossId` | `String` | MythicMob ID |
+| `bossDisplayName` | `String` | Boss 显示名称 |
+| `killTime` | `LocalDateTime` | 击杀时间 |
+| `participants` | `String`（JSON） | 参与者列表（UUID、名称、伤害） |
+| `drops` | `String`（JSON） | 掉落物品列表（物品 ID、显示名、数量） |
+| `totalDamage` | `double` | 总伤害 |
+| `location` | `String` | 击杀位置（世界、坐标） |
+| `serverName` | `String` | 服务器节点 ID |
+
+### 自动清理
+
+`BossKillRecordingService.purgeOldRecords()` 在服务启动时执行，删除超过 `retention-days` 天数的击杀记录和掉落统计。
+
+### EventBus 发布
+
+当掉落记录或掉落分配启用时，`BossKillRecordingService` 通过宿主 EventBus 发布 `axs.entitytracker.boss_kill` 事件主题，供其他模块订阅：
+
+```yaml
+# 事件主题
+axs.entitytracker.boss_kill
+# 触发时机：Boss 死亡结算完成
+# 包含数据：Boss ID、显示名、参与者、伤害数据、结算记录等
+```
+
+> 事件条件配置详见 [/docs/guide/conditions](/docs/guide/conditions)。
+
+## 掉落分配系统
+
+### 分配模式
+
+`DropAllocationService` 支持四种掉落分配模式，通过 `default-mode` 配置：
+
+| 模式 | 配置值 | 说明 | 获胜逻辑 |
+|---|---|---|---|
+| ROLL | `roll` | 随机分配 | 每个参与者随机一个值，最大者获胜 |
+| DKP | `dkp` | 积分竞拍 | DKP 积分最高者获胜 |
+| 优先级 | `priority` | 职业/品质优先 | 按职业优先级排序，最优先者获胜 |
+| 手动 | `manual` | 手动分配 | 仅记录掉落，不自动分配 |
+
+### 分配流程
+
+```
+Boss 死亡
+  → BossKillRecordingService.recordBossDeath()
+  → 记录击杀信息和掉落物品
+  → DropAllocationService.allocateAfterKill()
+  → 构建参与者列表（从结算记录中提取达标玩家）
+  → 发放 DKP 积分（若 DKP 启用）
+  → 遍历每个掉落物品：
+    → 按 default-mode 分配
+    → 记录分配结果到数据库
+    → 发放物品给获胜者
+    → 广播分配结果
+```
+
+### ROLL 模式
+
+```yaml
+new-features:
+  drop-allocation:
+    default-mode: "roll"
+    roll:
+      enabled: true
+      timeout-seconds: 30     # ROLL 超时时间（秒，最小 5）
+      roll-range: "1-100"     # ROLL 数值范围
+      allow-pass: true         # 是否允许放弃
+```
+
+| 字段 | 类型 | 默认值 | 说明 |
+|---|---|---|---|
+| `enabled` | `boolean` | `true` | 是否启用 ROLL 模式 |
+| `timeout-seconds` | `int` | `30` | ROLL 超时时间（秒） |
+| `roll-range` | `String` | `"1-100"` | ROLL 数值范围（`min-max` 格式） |
+| `allow-pass` | `boolean` | `true` | 是否允许放弃（pass） |
+
+ROLL 分配逻辑：每个参与者随机生成一个 `[rollMin, rollMax]` 范围内的整数，最大者获胜。获胜者和所有参与者的 ROLL 值均记录到 `roll_participation_records` 表。
+
+### DKP 模式
+
+```yaml
+new-features:
+  drop-allocation:
+    default-mode: "dkp"
+    dkp:
+      enabled: true
+      base-earn-points: 10       # Boss 击杀基础积分
+      rank-bonus-points:          # 伤害排名额外积分
+        1: 20
+        2: 15
+        3: 10
+        4: 5
+        5: 3
+```
+
+| 字段 | 类型 | 默认值 | 说明 |
+|---|---|---|---|
+| `enabled` | `boolean` | `true` | 是否启用 DKP 模式 |
+| `base-earn-points` | `int` | `10` | Boss 击杀基础积分 |
+| `rank-bonus-points` | `Map<int, int>` | `{1: 20, 2: 15, ...}` | 伤害排名额外积分 |
+
+DKP 分配逻辑：
+
+1. **积分发放**：每次 Boss 击杀后，所有达标参与者获得 `base-earn-points + rank-bonus-points[rank]` 积分
+2. **物品分配**：DKP 积分最高的参与者获得掉落物品
+3. **积分记录**：积分变动通过 `PlayerDkpDao.addPoints()` 记录到 `player_dkp` 表
+
+### 优先级模式
+
+```yaml
+new-features:
+  drop-allocation:
+    default-mode: "priority"
+    priority:
+      enabled: true
+      class-priority:           # 职业优先级（数值越小越优先）
+        tank: 1
+        healer: 2
+        dps: 3
+      quality-priority:        # 装备品质优先级
+        legendary: 1
+        epic: 2
+        rare: 3
+        common: 4
+```
+
+| 字段 | 类型 | 默认值 | 说明 |
+|---|---|---|---|
+| `enabled` | `boolean` | `true` | 是否启用优先级模式 |
+| `class-priority` | `Map<String, int>` | `{tank: 1, healer: 2, dps: 3}` | 职业优先级 |
+| `quality-priority` | `Map<String, int>` | `{legendary: 1, ...}` | 装备品质优先级 |
+
+优先级分配逻辑：按 `class-priority` 中的职业优先级排序参与者，优先级数值最小者获胜。
+
+### 手动模式
+
+```yaml
+new-features:
+  drop-allocation:
+    default-mode: "manual"
+```
+
+手动模式仅记录掉落物品到 `drop_allocation_records` 表，不自动分配，由管理员手动处理。
+
+### 物品发放
+
+所有分配模式的物品发放统一通过 `ItemRewardDispatcher` 处理：
+
+```
+发放物品 → 尝试放入背包 → 背包满 → 尝试发送邮件 → 无邮件 → 掉落地面
+```
+
+> 物品来源支持 `minecraft` / `mythic` / `neige` / `overture` / `mmoitems`，详见 [/docs/guide/item-sources](/docs/guide/item-sources)。
+
+## 跨服 Boss 排行
+
+### 启用条件
+
+跨服 Boss 排行需要同时满足以下条件：
+
+| 条件 | 配置位置 | 说明 |
+|---|---|---|
+| 跨服通道启用 | 宿主 `config.yml` 的 `cross-server` 节 | Redis / Proxy 连接配置 |
+| 模块跨服开关 | `cross-server.enabled` | 模块级跨服通道开关 |
+| 排行功能启用 | `new-features.cross-server-ranking.enabled` | 排行功能开关 |
+
+```yaml
+# 模块配置
+cross-server:
+  enabled: true
+
+new-features:
+  cross-server-ranking:
+    enabled: true
+    update-interval: 60
+    ranking-types:
+      - "best_damage"
+      - "boss_damage"
+      - "kills"
+      - "participate"
+      - "server"
+    max-entries: 50
+```
+
+### 排行类型
+
+`CrossServerRankingSettings` 定义五种排行类型：
+
+| 类型 | 常量 | 说明 |
+|---|---|---|
+| `best_damage` | `TYPE_BEST_DAMAGE` | 玩家 Boss 最高伤害记录 |
+| `boss_damage` | `TYPE_BOSS_DAMAGE` | Boss 伤害排行 |
+| `kills` | `TYPE_KILLS` | Boss 击杀次数排行 |
+| `participate` | `TYPE_PARTICIPATE` | 参与度排行 |
+| `server` | `TYPE_SERVER` | 服务器维度排行 |
+
+### 同步流程
+
+```
+Boss 死亡结算
+  → BossTrackerService.onDeath()
+  → 生成 BossDamageSettlementRecord
+  → EntityTrackerCrossServerService.publishSettlement()
+    → 遍历结算条目
+    → 写入本地 player_boss_best_damage 表
+    → 若伤害为该玩家历史最高，通过 CrossServer Channel 广播
+  → 其他服收到广播
+    → EntityTrackerCrossServerService.handlePayload()
+    → mergeBestDamage() 合并至本地数据库
+    → 若更新了最高伤害，请求排行榜缓存刷新
+```
+
+### 跨服通道
+
+| 属性 | 说明 |
+|---|---|
+| 通道名称 | `entitytracker` |
+| 通道配置 | 宿主 `config.yml` 的 `cross-server` 节（Redis / Proxy 双后端） |
+| 模块开关 | `cross-server.enabled` |
+
+### 广播数据类型
+
+| 类型 | 说明 |
+|---|---|
+| `best_damage` | 玩家 Boss 最高伤害记录 |
+| `kill_record` | Boss 击杀记录 |
+
+### 排行缓存
+
+`CrossServerRankingCacheService` 维护跨服排行的本地缓存，定时刷新排行数据：
+
+| 配置字段 | 默认值 | 说明 |
+|---|---|---|
+| `update-interval` | `60` | 排行榜更新间隔（秒，最小 15） |
+| `max-entries` | `50` | 排行榜最大记录条数（最小 1） |
+
+> 跨服排行数据存储在 `cross_server_boss_rankings` 表中，按排行类型索引。
+
+## 跨服击杀记录
+
+Boss 击杀记录同样支持跨服同步。当 Boss 死亡时，`BossKillRecordingService` 记录击杀信息（包含参与者、掉落物、位置等），并通过 `EntityTrackerCrossServerService.publishKillRecord()` 广播至其他服。其他服通过 `mergeKillRecord()` 合并至本地记录。
+
+```
+Boss 死亡
+  → BossKillRecordingService.recordBossDeath()
+  → 写入本地 boss_kill_records 表
+  → EntityTrackerCrossServerService.publishKillRecord()
+  → 其他服收到广播
+  → mergeKillRecord() 合并至本地记录
+```
+
+## 数据库表结构
+
+### 核心业务表
+
+| 表名 | 说明 |
+|---|---|
+| `boss_kill_records` | Boss 击杀记录（Boss ID、击杀时间、参与者、掉落物、总伤害、位置） |
+| `boss_drop_statistics` | Boss 掉落统计（Boss ID、物品 ID、掉落次数、掉落率） |
+| `player_boss_best_damage` | 玩家 Boss 最高伤害记录（玩家 UUID、Boss ID、最高伤害、服务器名） |
+| `cross_server_boss_rankings` | 跨服 Boss 排行缓存（排行类型、Boss ID、排行数据 JSON） |
+
+### DKP 系统表
+
+| 表名 | 说明 |
+|---|---|
+| `player_dkp` | 玩家 DKP 积分（总积分、获得积分、消耗积分） |
+| `dkp_transaction_records` | DKP 交易记录（交易类型、积分数、原因、关联击杀 ID） |
+
+### 掉落分配表
+
+| 表名 | 说明 |
+|---|---|
+| `drop_allocation_records` | 掉落分配记录（击杀 ID、物品 ID、分配类型、获胜者、消耗积分、ROLL 值） |
+| `roll_participation_records` | ROLL 参与记录（分配记录 ID、玩家、ROLL 类型、ROLL 值） |
+
+### 主要索引
+
+| 索引名 | 表 | 说明 |
+|---|---|---|
+| `idx_boss_kill_records_boss_time` | `boss_kill_records` | 按 Boss ID + 击杀时间查询 |
+| `idx_player_boss_best_damage_boss` | `player_boss_best_damage` | 按 Boss ID + 伤害降序查询 |
+| `idx_player_boss_best_damage_player` | `player_boss_best_damage` | 按玩家 + 伤害降序查询 |
+| `idx_cross_server_rankings_type` | `cross_server_boss_rankings` | 按排行类型查询 |
+
+## 存储配置
+
+EntityTracker 支持两种存储模式：
+
+```yaml
+storage:
+  shared: true    # 共享存储模式（推荐），复用本体数据源
+  # shared: false  # 自建独立连接池
+  # mode: "sqlite"
+  # sqlite:
+  #   file: "entitytracker.db"
+  # pool-size: 5
+  # mysql:
+  #   host: "localhost"
+  #   port: 3306
+  #   database: "arcartxsuite"
+  #   username: "root"
+  #   password: ""
+  #   table-prefix: ""
+```
+
+| 模式 | 配置 | 说明 |
+|---|---|---|
+| 共享存储（推荐） | `storage.shared: true` | 复用宿主统一数据源，连接由本体管控 |
+| 独立存储 | `storage.shared: false` | 自建独立 HikariCP 连接池，支持 SQLite 或 MySQL |
+
+> 推荐使用 `shared: true`（默认值），数据库连接由本体统一管控，性能更好。存储层配置与迁移详见宿主存储文档。

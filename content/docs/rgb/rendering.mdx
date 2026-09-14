@@ -1,0 +1,402 @@
+---
+title: 渲染算法
+description: RGB 模块渐变插值、扫光叠加与动画步进的核心渲染算法详解
+---
+
+# 渲染算法
+
+> **付费模块**
+
+本页深入解析 RGB 模块的核心渲染算法，包括逐字符渐变插值、调色板滚动、扫光高亮叠加与动画步进计算。理解这些算法有助于精确调参、排查渲染异常，以及通过 `ArcartRgbRenderer` 静态 API 实现自定义渲染。
+
+## 渲染总览
+
+`ArcartRgbRenderer` 是无状态静态工具类，所有渲染入口最终汇聚到 `renderText` 方法。完整渲染管线如下：
+
+```
+输入: text, shine, colors, animationStep, options
+  │
+  ├─ 1. 空值保护：text 为空或调色板为空 → 原样返回
+  ├─ 2. codePoints 转换：String → int[]（按 Unicode 码点拆分）
+  ├─ 3. 调色板偏移：paletteShift = floorMod(animationStep, paletteSize)
+  ├─ 4. 扫光中心：shineCenter = resolveShineCenter(...)
+  │
+  └─ 逐字符循环 (index = 0 .. codePoints.length - 1)
+       │
+       ├─ 5. 位置归一化: position = index / (length - 1)
+       ├─ 6. 渐变取色:   color = resolveGradientColor(palette, position, paletteShift)
+       ├─ 7. 扫光叠加:   若 shine，按距离计算 falloff 并 blend shineColor
+       ├─ 8. 输出颜色码: color.arcartCode() → "§#RRGGBB"
+       └─ 9. 追加字符:   appendCodePoint(codePoints[index])
+  │
+  └─ 末尾追加 §r 重置颜色
+```
+
+## 逐字符拆分（codePoint）
+
+渲染器使用 Java 的 `String.codePoints()` 将文本按 **Unicode 码点**（而非 `char`）拆分。这一点对包含 emoji、CJK 扩展字符等代理对（surrogate pair）字符至关重要——一个 emoji 在 `char` 层面占 2 个 `char`，但在 codePoint 层面只算 1 个字符，渐变颜色会正确分配到该 emoji 上。
+
+```java
+int[] codePoints = actualText.codePoints().toArray();
+```
+
+| 拆分方式 | 文本 `😀A` | 说明 |
+|---|---|---|
+| `char[]`（错误） | 2 个代理 `char` + 1 个 `A` = 3 个单元 | emoji 被拆成两半，颜色分配错乱 |
+| `int[] codePoints`（实际） | 1 个码点 `😀` + 1 个码点 `A` = 2 个单元 | emoji 作为整体获得一个颜色 |
+
+:::tip
+渐变颜色的"字符数"指的是 codePoint 数量，不是 `String.length()`。例如 `欢迎😀` 的渐变长度为 3，而非 `String.length()` 返回的 4。
+:::
+
+## 渐变颜色插值
+
+### 位置归一化
+
+对于 N 个字符的文本，第 `index` 个字符的位置 `position` 归一化到 `[0.0, 1.0]`：
+
+```java
+double position = codePoints.length == 1
+    ? 0.0D
+    : (double) index / (double) (codePoints.length - 1);
+```
+
+| 字符数 | index=0 | index=1 | index=2 | index=3 |
+|---|---|---|---|---|
+| 1 | `0.0` | - | - | - |
+| 2 | `0.0` | `1.0` | - | - |
+| 3 | `0.0` | `0.5` | `1.0` | - |
+| 4 | `0.0` | `0.333` | `0.667` | `1.0` |
+
+:::info
+单字符文本固定 `position = 0.0`，避免除以零。此时取调色板第一个颜色（经偏移后）。
+:::
+
+### 调色板映射
+
+`position` 映射到调色板（M 个颜色）的浮点索引：
+
+```java
+double scaled = Math.max(0.0D, Math.min(1.0D, position)) * (palette.size() - 1);
+int leftIndex = (int) Math.floor(scaled);
+int rightIndex = Math.min(palette.size() - 1, leftIndex + 1);
+double progress = scaled - leftIndex;
+```
+
+- `leftIndex` / `rightIndex`：相邻两个调色板颜色的索引
+- `progress`：`[0.0, 1.0)` 的小数部分，决定两色之间的插值权重
+
+### 调色板偏移（滚动）
+
+动画模式下，调色板整体偏移 `paletteShift`，使颜色随时间滚动：
+
+```java
+int paletteShift = palette.isEmpty() ? 0 : (int) Math.floorMod(animationStep, palette.size());
+```
+
+取色时对索引取模回绕：
+
+```java
+ArcartRgbColor left = palette.get(Math.floorMod(leftIndex + paletteShift, palette.size()));
+ArcartRgbColor right = palette.get(Math.floorMod(rightIndex + paletteShift, palette.size()));
+```
+
+`Math.floorMod` 保证负数也正确回绕（虽然此处均为非负，但语义上等价于 `(x % size + size) % size`）。
+
+### 线性插值（lerp）
+
+两色之间按 `progress` 线性插值，逐通道（R/G/B）混合：
+
+```java
+public static ArcartRgbColor lerp(ArcartRgbColor start, ArcartRgbColor end, double progress) {
+    double clamped = clamp(progress);  // NaN → 0.0，夹取到 [0, 1]
+    return new ArcartRgbColor(
+        blendChannel(start.red, end.red, clamped),
+        blendChannel(start.green, end.green, clamped),
+        blendChannel(start.blue, end.blue, clamped)
+    );
+}
+
+private static int blendChannel(int start, int end, double progress) {
+    return (int) Math.round(start + (end - start) * progress);
+}
+```
+
+| progress | start | end | 结果 |
+|---|---|---|---|
+| `0.0` | `#FF0000` | `#0000FF` | `#FF0000`（纯 start） |
+| `0.5` | `#FF0000` | `#0000FF` | `#7F007F`（紫色） |
+| `1.0` | `#FF0000` | `#0000FF` | `#0000FF`（纯 end） |
+
+:::caution
+插值使用 `Math.round` 而非直接截断，减少累积误差。例如 `(255 + 0) * 0.5 = 127.5`，`round` 得 `128`，比截断的 `127` 更接近真实中间值。
+:::
+
+### 插值示例
+
+文本 `ArcartX`（7 字符），调色板 `["#FF7A18", "#FFD64D", "#7FE7FF"]`（3 色），`paletteShift = 0`：
+
+| index | 字符 | position | scaled | leftIndex | rightIndex | progress | 颜色 |
+|---|---|---|---|---|---|---|---|
+| 0 | `A` | `0.000` | `0.000` | 0 | 1 | `0.000` | `#FF7A18` |
+| 1 | `r` | `0.167` | `0.333` | 0 | 1 | `0.333` | `#FF9C2B` |
+| 2 | `c` | `0.333` | `0.667` | 0 | 1 | `0.667` | `#FFBA3E` |
+| 3 | `a` | `0.500` | `1.000` | 1 | 2 | `0.000` | `#FFD64D` |
+| 4 | `r` | `0.667` | `1.333` | 1 | 2 | `0.333` | `#C0DE6D` |
+| 5 | `t` | `0.833` | `1.667` | 1 | 2 | `0.667` | `#8FE6AE` |
+| 6 | `X` | `1.000` | `2.000` | 2 | 2 | `0.000` | `#7FE7FF` |
+
+## 扫光效果
+
+扫光（Shine）是在渐变颜色之上叠加一层移动的高亮光带，模拟"光从左扫到右"的视觉效果。
+
+### 扫光中心位置
+
+扫光中心 `shineCenter` 随动画步数在文本范围内循环移动：
+
+```java
+private static int resolveShineCenter(int textLength, boolean shine, ArcartRgbRenderOptions options, long animationStep) {
+    if (!shine) {
+        return Integer.MIN_VALUE;  // 关闭扫光时设为极小值，所有距离都超出宽度
+    }
+    if (options.switchIntervalTicks() <= 0L) {
+        return textLength / 2;  // 静态模式：扫光停在文本中间
+    }
+    int travelLength = textLength + options.shineWidth() * 2;
+    return (int) Math.floorMod(animationStep, Math.max(1, travelLength)) - options.shineWidth();
+}
+```
+
+| 模式 | shineCenter | 效果 |
+|---|---|---|
+| `shine: false` | `Integer.MIN_VALUE` | 所有字符距离极远，无扫光 |
+| `shine: true` + `switch-interval-ticks: 0` | `textLength / 2` | 静态高亮停在文本中间 |
+| `shine: true` + `switch-interval-ticks > 0` | 随步数循环移动 | 扫光从左到右循环移动 |
+
+移动范围：扫光中心从 `-shineWidth` 移动到 `textLength + shineWidth - 1`，总行程 `travelLength = textLength + shineWidth * 2`。减去 `shineWidth` 是为了让光带从文本左边缘外开始、到右边缘外结束，形成完整掠过效果。
+
+### 扫光强度衰减
+
+每个字符与扫光中心的距离 `distance` 越近，高亮强度越高，呈线性衰减：
+
+```java
+private static double resolveShineAmount(int index, int shineCenter, int shineWidth, double shineStrength) {
+    int distance = Math.abs(index - shineCenter);
+    if (distance > shineWidth) {
+        return 0.0D;  // 超出宽度，无高亮
+    }
+    double falloff = 1.0D - ((double) distance / (shineWidth + 1.0D));
+    return Math.max(0.0D, Math.min(1.0D, falloff * shineStrength));
+}
+```
+
+衰减公式：`falloff = 1.0 - distance / (shineWidth + 1.0)`，再乘以 `shineStrength` 并夹取到 `[0, 1]`。
+
+| shineWidth=2, shineStrength=0.55 | distance=0 | distance=1 | distance=2 | distance=3 |
+|---|---|---|---|---|
+| falloff | `1.000` | `0.667` | `0.333` | 超出宽度 |
+| shineAmount | `0.550` | `0.367` | `0.183` | `0.000` |
+
+:::tip
+`shineWidth + 1.0` 而非 `shineWidth` 是为了让中心字符的 falloff 严格为 `1.0`（`1 - 0/(2+1) = 1.0`），同时边缘字符仍有非零高亮。
+:::
+
+### 扫光颜色混合
+
+高亮颜色 `shineColor` 按 `shineAmount` 混合到该字符的渐变颜色上：
+
+```java
+if (shine) {
+    double shineAmount = resolveShineAmount(index, shineCenter, options.shineWidth(), options.shineStrength());
+    if (shineAmount > 0.0D) {
+        color = color.blend(actualOptions.shineColor(), shineAmount);
+    }
+}
+```
+
+`blend` 本质是 `lerp(this, target, amount)`，即从当前渐变色向扫光色线性过渡：
+
+```java
+public ArcartRgbColor blend(ArcartRgbColor target, double amount) {
+    return lerp(this, target, amount);
+}
+```
+
+| shineAmount | 渐变色 | shineColor | 混合结果 | 说明 |
+|---|---|---|---|---|
+| `0.0` | `#FF7A18` | `#FFFFFF` | `#FF7A18` | 无变化 |
+| `0.55` | `#FF7A18` | `#FFFFFF` | `#FFB68C` | 偏亮 |
+| `1.0` | `#FF7A18` | `#FFFFFF` | `#FFFFFF` | 完全变为扫光色 |
+
+## 动画步进
+
+### 步数计算
+
+动画步数 `animationStep` 由 `switch-interval-ticks` 和当前系统时间共同决定：
+
+```java
+static long resolveAnimationStep(ArcartRgbEntry entry, long currentTimeMillis) {
+    if (entry == null || entry.switchIntervalTicks() <= 0L) {
+        return 0L;  // 静态模式
+    }
+    long intervalMillis = entry.switchIntervalTicks() * 50L;  // 1 tick = 50ms
+    if (intervalMillis <= 0L) {
+        return 0L;
+    }
+    return Math.max(0L, currentTimeMillis / intervalMillis);
+}
+```
+
+| switch-interval-ticks | intervalMillis | 每 N ms 切换一帧 | 效果 |
+|---|---|---|---|
+| `0` | - | 静态 | 步数恒为 0，渐变和扫光均不移动 |
+| `1` | `50` | 50ms | 最快（可能闪烁） |
+| `2` | `100` | 100ms | 推荐，流畅 |
+| `3` | `150` | 150ms | 适中 |
+| `10` | `500` | 500ms | 慢速 |
+
+### 步数的作用
+
+`animationStep` 同时驱动两个动画维度：
+
+| 维度 | 计算方式 | 说明 |
+|---|---|---|
+| 调色板滚动 | `paletteShift = floorMod(animationStep, paletteSize)` | 调色板整体偏移，颜色从左向右滚动 |
+| 扫光移动 | `shineCenter = floorMod(animationStep, travelLength) - shineWidth` | 扫光中心从左到右循环移动 |
+
+:::info
+调色板滚动周期 = `paletteSize` 步；扫光移动周期 = `textLength + shineWidth * 2` 步。两者周期通常不同，形成视觉上不重复的动画效果。
+:::
+
+### 时间换算示例
+
+`switch-interval-ticks: 2`，文本 7 字符，`shineWidth: 2`，调色板 3 色：
+
+| 时间 (ms) | animationStep | paletteShift | shineCenter | 说明 |
+|---|---|---|---|---|
+| 0 | 0 | 0 | `-2` | 扫光在文本左侧外 |
+| 100 | 1 | 1 | `-1` | 调色板偏移 1，扫光接近左边缘 |
+| 200 | 2 | 2 | `0` | 调色板偏移 2，扫光到达首字符 |
+| 300 | 3 | 0 | `1` | 调色板回绕，扫光移到第 2 字符 |
+| 700 | 7 | 1 | `5` | 扫光接近右边缘 |
+| 1000 | 10 | 1 | `-2`（回绕） | 扫光完成一轮（travelLength=11） |
+
+## ArcartX 颜色码输出
+
+每个字符渲染后输出 `§#RRGGBB` 前缀 + 字符本身，末尾追加 `§r` 重置：
+
+```java
+builder.append(color.arcartCode()).appendCodePoint(codePoints[index]);
+// ...
+builder.append("§r");
+```
+
+`arcartCode()` 返回 `§#` + 大写十六进制：
+
+```java
+public String arcartCode() {
+    return "§#" + hex();
+}
+
+public String hex() {
+    return String.format(Locale.ROOT, "%02X%02X%02X", red, green, blue);
+}
+```
+
+渲染输出示例（文本 `Hi`，两色渐变）：
+
+```
+§#FF7A18H§#7FE7FFi§r
+```
+
+:::caution
+颜色码 `§#RRGGBB` 由 ArcartX 客户端模组解析。未安装客户端的玩家会看到原始的 `§#FF7A18` 文本，功能不受影响但无颜色效果。
+:::
+
+## 边界情况处理
+
+渲染器对各种边界情况做了防御性处理，确保任意输入下不会抛异常：
+
+| 场景 | 处理方式 | 返回值 |
+|---|---|---|
+| `entry` 为 null | 直接返回 | `""` |
+| `entry.active()` 为 false | 直接返回 | `""` |
+| `text` 为 null | 转为 `""` | `""` |
+| `colors` 为 null | 转为空列表 | 原始 text |
+| text 为空串 | 直接返回 | `""` |
+| 调色板为空 | 直接返回 | 原始 text |
+| `options` 为 null | 使用默认选项 | 正常渲染 |
+| 单字符文本 | `position = 0.0` | 取首色 |
+| 单色调色板 | 直接返回该色 | 全文同色 |
+| `progress` 为 NaN | `clamp` 转为 `0.0` | 取 start 色 |
+| `shineStrength` 超范围 | 构造时夹取到 `[0, 1]` | 正常渲染 |
+| `shineWidth < 1` | 构造时夹取到 `1` | 最小宽度 1 |
+| `switchIntervalTicks < 0` | 构造时夹取到 `0` | 静态模式 |
+
+## 渲染选项默认值
+
+当 `options` 为 null 时，`renderText` 使用内置默认值：
+
+```java
+ArcartRgbRenderOptions actualOptions = options == null
+    ? new ArcartRgbRenderOptions(0L, 2, new ArcartRgbColor(255, 255, 255), 0.55D)
+    : options;
+```
+
+| 参数 | 默认值 | 说明 |
+|---|---|---|
+| `switchIntervalTicks` | `0` | 静态模式 |
+| `shineWidth` | `2` | 扫光宽度 2 字符 |
+| `shineColor` | `#FFFFFF` | 白色扫光 |
+| `shineStrength` | `0.55` | 默认强度 |
+
+## 自定义渲染
+
+`ArcartRgbRenderer` 为静态无状态类，可脱离条目配置直接调用，实现自定义渲染场景（如动态生成文本、运行时拼接调色板）。
+
+### 按时间戳渲染
+
+```java
+List<ArcartRgbColor> colors = List.of(
+    ArcartRgbColor.parse("#FF7A18"),
+    ArcartRgbColor.parse("#FFD64D"),
+    ArcartRgbColor.parse("#7FE7FF")
+);
+ArcartRgbRenderOptions options = new ArcartRgbRenderOptions(
+    2L,                              // switchIntervalTicks
+    2,                               // shineWidth
+    ArcartRgbColor.parse("#FFFFFF"), // shineColor
+    0.55                             // shineStrength
+);
+String rendered = ArcartRgbRenderer.renderTextAtTime(
+    "Hello ArcartX",
+    true,
+    colors,
+    System.currentTimeMillis(),
+    options
+);
+```
+
+### 按指定步数渲染
+
+```java
+// 渲染第 5 帧（用于截图、预览等固定帧场景）
+String frame5 = ArcartRgbRenderer.renderText(
+    "Hello ArcartX",
+    true,
+    colors,
+    5L,
+    options
+);
+```
+
+:::tip
+`renderText` 接受显式 `animationStep`，适合需要精确控制帧的场景（如预览、测试）。`renderTextAtTime` / `renderAtTime` 接受时间戳，内部自动换算步数，适合实时渲染场景。
+:::
+
+## 相关页面
+
+- [概览](/docs/rgb) — 模块功能概览与渲染流程简介
+- [配置](/docs/rgb/configuration) — 条目字段与渐变色定义
+- [命令与占位符](/docs/rgb/commands) — PAPI 占位符与条目引用
+- [联动](/docs/rgb/integration) — `ArcartRgbRenderer` / `ArcartRgbColor` 静态 API

@@ -1,0 +1,360 @@
+---
+title: 配置
+description: QuestGPS 配置文件详解
+---
+
+# 配置
+
+QuestGPS 的配置文件为 `ArcartXQuestGPS.yml`，位于模块数据目录下。任务定义文件位于 `quests/` 子目录。
+
+## 主配置字段表
+
+### debug
+
+| 字段 | 类型 | 默认值 | 说明 |
+|---|---|---|---|
+| `debug.enabled` | `boolean` | `false` | 开启开发者调试日志 |
+
+### ui
+
+| 字段 | 类型 | 默认值 | 说明 |
+|---|---|---|---|
+| `ui.menu-ui-id` | `String` 或 `List<String>` | `"AXS:questgps_menu"` | 任务菜单 UI ID，支持列表多 UI 同时发包 |
+| `ui.guide-ui-id` | `String` 或 `List<String>` | `"AXS:questgps_guide"` | 导航引导 HUD UI ID，支持列表 |
+| `ui.packet-id` | `String` | `"AXS_QUESTGPS"` | 客户端↔服务端 Packet 标识符 |
+| `ui.register-ui-on-enable` | `boolean` | `true` | 模块启动时是否注册 UI |
+| `ui.overwrite-ui-files` | `boolean` | `false` | 是否覆盖已释放的 UI 文件 |
+
+### presentation
+
+| 字段 | 类型 | 默认值 | 说明 |
+|---|---|---|---|
+| `presentation.source` | `String` | `"chemdah"` | UI 展示数据来源：`chemdah`（读 Chemdah）或 `overlay`（读 YAML），全局二选一无链式回退 |
+
+> 已废弃字段：`name-source`、`description-source`、`task-text-source`、`task-description-source`、`rewards-source`，请改用 `presentation.source`。
+
+### category
+
+| 字段 | 类型 | 默认值 | 说明 |
+|---|---|---|---|
+| `category.source` | `String` | `"chemdah"` | 分类数据来源：`chemdah`（meta.type）或 `overlay`（quests/*.yml 的 category），全局二选一 |
+| `category.fallback.enabled` | `boolean` | `true` | 未匹配分类的任务是否归入兜底分类 |
+| `category.fallback.id` | `String` | `"uncategorized"` | 兜底分类 ID |
+| `category.fallback.display-name` | `String` | `"未分类"` | 兜底分类显示名 |
+| `category.fallback.sort-order` | `int` | `1000` | 兜底分类排序值 |
+
+> 已废弃字段：`category.id-prefix-rules`，分类仅由 `category.source` 指定的一种数据源决定。
+
+### discovery
+
+| 字段 | 类型 | 默认值 | 说明 |
+|---|---|---|---|
+| `discovery.mode` | `String` | `"overlay"` | 任务列表发现模式：`overlay`（白名单）或 `auto`（扫描全部 Chemdah 模板） |
+
+### categories
+
+自定义分类注册表，每个分类的配置：
+
+| 字段 | 类型 | 默认值 | 说明 |
+|---|---|---|---|
+| `categories.<id>.display-name` | `String` | `<id>` | 分类 Tab 显示名 |
+| `categories.<id>.sort-order` | `int` | `300` | 排序值，越小越靠前 |
+
+> 删除 `categories` 段可关闭分类 Tab 功能。分类 ID 统一小写处理。
+
+### navigation
+
+| 字段 | 类型 | 默认值 | 说明 |
+|---|---|---|---|
+| `navigation.enabled` | `boolean` | `true` | 是否启用导航功能 |
+| `navigation.waypoint-style-id` | `String` | `"default"` | ArcartX waypoint 路标样式 ID |
+| `navigation.quest-id-prefix` | `String` | `"AXS-questgps-"` | 路标 ID 前缀 |
+| `navigation.remove-on-finish` | `boolean` | `true` | 任务完成后自动移除导航 |
+| `navigation.mode` | `String` | `"hybrid"` | 导航坐标来源：`chemdah` / `overlay` / `hybrid` |
+
+### navigation.marker
+
+导航标记模型配置（Adyeshach 私有实体 + ArcartX 模型）：
+
+| 字段 | 类型 | 默认值 | 说明 |
+|---|---|---|---|
+| `navigation.marker.enabled` | `boolean` | `true` | 是否启用导航标记 |
+| `navigation.marker.model-id` | `String` | `"nav_beacon"` | ArcartX 模型 ID |
+| `navigation.marker.scale` | `double` | `1.0` | 模型缩放比例 |
+| `navigation.marker.default-state` | `String` | `"idle"` | 模型默认状态名称 |
+| `navigation.marker.animation` | `String` | `"rotate"` | 循环播放的动画名称 |
+| `navigation.marker.y-offset` | `double` | `2.0` | 模型相对导航目标的 Y 轴偏移 |
+| `navigation.marker.path-interval` | `double` | `3.0` | 路径标记间距（方块数） |
+| `navigation.marker.path-max-markers` | `int` | `20` | 路径标记最大数量 |
+| `navigation.marker.path-update-ticks` | `int` | `10` | 路径更新间隔（tick，20=1秒） |
+| `navigation.marker.path-max-distance` | `double` | `64.0` | 路径最大渲染距离（方块数） |
+| `navigation.marker.path-max-iterations` | `int` | `2000` | A* 寻路最大迭代次数（100-50000） |
+
+### database
+
+为 Chemdah 免费版提供 MySQL 存储支持：
+
+| 字段 | 类型 | 默认值 | 说明 |
+|---|---|---|---|
+| `database.enabled` | `boolean` | `false` | `true` 时由 QuestGPS 为 Chemdah 注册 MySQL 存储 |
+| `database.load-in-join-event` | `boolean` | `true` | 玩家进服时加载 Chemdah 档案 |
+| `database.release-in-quit-event` | `boolean` | `true` | 玩家退服时释放档案 |
+| `database.disable-auto-save` | `boolean` | `false` | `false` 允许 Chemdah 定时自动保存 |
+| `database.disable-auto-create-table` | `boolean` | `false` | `false` 首次使用时自动建表 |
+
+> 大多数服：Chemdah `config.yml` 用 `database.use=LOCAL` → 保持 `enabled: false`。要用 MySQL：Chemdah 设 `database.use=SQL`，此处 `enabled: true`。
+
+### gate
+
+主线门禁配置，`required-mainline-quest-ids` 为空时整段门禁关闭：
+
+| 字段 | 类型 | 默认值 | 说明 |
+|---|---|---|---|
+| `gate.required-mainline-quest-ids` | `List<String>` | `[]` | 须完成的 Chemdah 任务 ID（全部完成才过关） |
+| `gate.blocked-categories` | `List<String>` | `["side", "encounter"]` | 未过关时锁定的分类 ID |
+| `gate.blocked-command-prefixes` | `List<String>` | `["warp", "rtp", "shop"]` | 未过关时拦截的命令前缀（不含 `/`） |
+| `gate.blocked-module-entries` | `List<String>` | `[]` | 未过关时锁定的模块入口 ID |
+| `gate.blocked-event-rule-ids` | `List<String>` | `[]` | 未过关时不触发的 EventPacket 规则 ID |
+| `gate.deny-message` | `String` | `"&c你需要先完成必要主线任务。"` | 拦截提示消息 |
+| `gate.deny-chat-card` | `String` | `""` | 可选，ArcartX 聊天卡片 ID |
+| `gate.deny-subtitle` | `String` | `""` | 可选，ArcartX-Suite announcer 字幕组 ID |
+
+### quests-directory
+
+| 字段 | 类型 | 默认值 | 说明 |
+|---|---|---|---|
+| `quests-directory` | `String` | `"quests"` | 任务定义目录，相对模块数据目录 |
+
+## 任务定义配置
+
+任务定义文件位于 `quests/` 目录，每个 `*.yml` 文件可包含多个任务，根键即为任务 ID（对应 Chemdah `Template.getId()`）。
+
+### 任务级字段
+
+| 字段 | 类型 | 默认值 | 说明 |
+|---|---|---|---|
+| `enabled` | `boolean` | `true` | `false` 时不进任务菜单（overlay 白名单模式） |
+| `sort-order` | `int` | `0` | 菜单排序，越小越靠前 |
+| `allow-abandon` | `boolean` | `false` | 是否显示「放弃」按钮 |
+| `category` | `String` | — | 仅 `category.source=overlay` 时必填，须与 `categories` 段 ID 一致 |
+| `display-name-override` | `String` | `""` | 仅 `presentation.source=overlay` 时生效 |
+| `description` | `String` 或 `List<String>` | `[]` | 任务描述，支持多行 |
+| `required-mainline` | `List<String>` | `[]` | 接取前须完成的主线 Chemdah ID 列表 |
+| `presentation.source` | `String` | — | 单任务覆盖全局 `presentation.source`：`chemdah` 或 `overlay` |
+
+### hooks（任务生命周期信号桥接）
+
+| 字段 | 类型 | 说明 |
+|---|---|---|
+| `hooks.triggered` | `List<String>` | 任务出现在菜单/被 offer 时派发的信号名列表 |
+| `hooks.accepted` | `List<String>` | Chemdah 接取成功时派发的信号名列表 |
+| `hooks.abandoned` | `List<String>` | 任务放弃/失败时派发的信号名列表 |
+| `hooks.completed` | `List<String>` | 任务完成时派发的信号名列表 |
+| `hooks.track-changed` | `List<String>` | 开始/取消导航追踪时派发的信号名列表 |
+
+### navigation（任务级导航）
+
+| 字段 | 类型 | 默认值 | 说明 |
+|---|---|---|---|
+| `navigation.enabled` | `boolean` | `true` | 是否启用此任务的导航 |
+| `navigation.point.world` | `String` | — | 世界名（为空则不创建导航点） |
+| `navigation.point.x` | `double` | — | X 坐标 |
+| `navigation.point.y` | `double` | — | Y 坐标 |
+| `navigation.point.z` | `double` | — | Z 坐标 |
+| `navigation.point.title` | `String` | `""` | 路标标题 |
+| `navigation.point.style-id` | `String` | `""` | 路标样式 ID（覆盖全局 `waypoint-style-id`） |
+| `navigation.point.map-label` | `String` | `""` | 同步到 AXMap 的标签 |
+
+## 目标配置
+
+`tasks` 段的 key 为 Chemdah 子目标 ID（常为 `"0"`、`"1"`…）：
+
+| 字段 | 类型 | 默认值 | 说明 |
+|---|---|---|---|
+| `tasks.<id>.display-text` | `String` | `""` | 目标显示文案（仅 `presentation.source=overlay` 时生效） |
+| `tasks.<id>.description` | `String` 或 `List<String>` | `[]` | 目标描述 |
+| `tasks.<id>.sort-order` | `int` | `0` | 目标排序 |
+| `tasks.<id>.navigation.world` | `String` | — | 子目标独立导航点世界 |
+| `tasks.<id>.navigation.x` | `double` | — | X 坐标 |
+| `tasks.<id>.navigation.y` | `double` | — | Y 坐标 |
+| `tasks.<id>.navigation.z` | `double` | — | Z 坐标 |
+| `tasks.<id>.navigation.title` | `String` | `""` | 路标标题 |
+| `tasks.<id>.navigation.style-id` | `String` | `""` | 路标样式 ID |
+| `tasks.<id>.navigation.map-label` | `String` | `""` | AXMap 标签 |
+
+> 子目标导航点会覆盖任务级 `navigation.point`。hybrid 模式下 Chemdah tracker 坐标优先。
+
+## 奖励配置
+
+`rewards` 为列表，每个奖励的字段：
+
+| 字段 | 类型 | 默认值 | 说明 |
+|---|---|---|---|
+| `type` | `String` | `"text"` | 奖励类型（见下表） |
+| `amount` | `int` | `1` | 数量 |
+| `display-name` | `String` | `""` | 显示名 |
+| `lore` | `List<String>` | `[]` | Lore 描述 |
+| `text` | `String` | `""` | 文本描述（type=text 时显示） |
+| `fallback-material` | `String` | `""` | 物品解析失败时的回退材质 |
+
+### 奖励类型
+
+| 类型 | 特有字段 | 说明 |
+|---|---|---|
+| `neigeitems` | `neige-item-id` | NeigeItems 物品预览 |
+| `mythicmobs` / `mythicitems` | `mythic-item-id` 或 `mythicmobs-item-id` 或 `item-id` | MythicMobs 物品预览 |
+| `overture` | `overture-item-id` 或 `overture-id` | Overture 物品预览 |
+| `mmoitems` | `type-id`（或 `mmo-type`/`mmoitems-type`）+ `id`（或 `mmo-id`/`mmoitems-id`） | MMOItems 物品预览 |
+| `material` / `itemstack` | `material` | 原版材质物品预览 |
+| `title` | `title-id`、`duration`（默认 `permanent`）、`level`、`tier` | 称号奖励预览 |
+| `text` | — | 纯文本奖励（实际由 Chemdah agent 发放） |
+
+> 奖励预览仅用于 UI 展示，不执行发放。实际发奖由 Chemdah agent（kether 脚本）执行。
+
+## 完整配置示例
+
+```yaml
+# 配置文件版本号（用于迁移脚本识别版本，勿手动修改）
+config-version: 2
+
+debug:
+  enabled: false
+
+ui:
+  menu-ui-id: "AXS:questgps_menu"
+  guide-ui-id: "AXS:questgps_guide"
+  packet-id: "AXS_QUESTGPS"
+  register-ui-on-enable: true
+  overwrite-ui-files: false
+
+presentation:
+  source: chemdah
+
+category:
+  source: chemdah
+  fallback:
+    enabled: true
+    id: "uncategorized"
+    display-name: "未分类"
+    sort-order: 1000
+
+discovery:
+  mode: auto
+
+categories:
+  mainline:
+    display-name: "主线"
+    sort-order: 0
+  side:
+    display-name: "支线"
+    sort-order: 100
+  encounter:
+    display-name: "奇遇"
+    sort-order: 200
+
+navigation:
+  enabled: true
+  waypoint-style-id: "default"
+  quest-id-prefix: "AXS-questgps-"
+  remove-on-finish: true
+  mode: hybrid
+  marker:
+    enabled: true
+    model-id: "waypoint"
+    scale: 1.0
+    default-state: "idle"
+    animation: "rotate"
+    y-offset: 0.0
+    path-interval: 3.0
+    path-max-markers: 20
+    path-update-ticks: 10
+    path-max-distance: 64
+    path-max-iterations: 2000
+
+database:
+  enabled: false
+  load-in-join-event: true
+  release-in-quit-event: true
+  disable-auto-save: false
+  disable-auto-create-table: false
+
+gate:
+  required-mainline-quest-ids: []
+  blocked-categories:
+    - side
+    - encounter
+  blocked-command-prefixes:
+    - "warp"
+    - "rtp"
+    - "shop"
+  blocked-module-entries: []
+  blocked-event-rule-ids: []
+  deny-message: "&c你需要先完成必要主线任务。"
+  deny-chat-card: ""
+  deny-subtitle: ""
+
+quests-directory: "quests"
+```
+
+### 任务定义示例（overlay 展示 + 奖励预览）
+
+```yaml
+example_daily_quest:
+  enabled: true
+  sort-order: 10
+  allow-abandon: true
+  required-mainline: []
+  category: daily
+  display-name-override: "采集药草"
+  description:
+    - "&7在野外采集 10 株药草。"
+  presentation:
+    source: overlay
+  hooks:
+    triggered:
+      - "questgps_quest_triggered"
+    accepted:
+      - "questgps_quest_accepted"
+    completed:
+      - "questgps_quest_completed"
+  rewards:
+    - type: neigeitems
+      neige-item-id: "herb_bundle"
+      amount: 10
+      display-name: "&a药草捆"
+      fallback-material: "WHEAT"
+    - type: material
+      material: "GOLD_INGOT"
+      amount: 3
+      display-name: "&e金币"
+    - type: title
+      title-id: "herbalist"
+      duration: "permanent"
+      display-name: "&e称号: 采药人"
+    - type: text
+      display-name: "&a经验"
+      text: "&7实际由 Chemdah agent 发放"
+  navigation:
+    enabled: true
+    point:
+      world: "world"
+      x: 100
+      y: 70
+      z: -50
+      title: "药草产地"
+      style-id: "default"
+      map-label: "日常目标"
+  tasks:
+    "0":
+      sort-order: 10
+      navigation:
+        world: "world"
+        x: 105
+        y: 70
+        z: -48
+        title: "药草采集点"
+        style-id: "default"
+        map-label: "日常目标"
+```
+
+> 奖励物品解析使用 ArcartX 的 `IconResolver`，支持原版材质和外部物品库（NeigeItems/MythicMobs/Overture/MMOItems），详见 [/docs/guide/icons](/docs/guide/icons) 和 [/docs/guide/item-sources](/docs/guide/item-sources)。

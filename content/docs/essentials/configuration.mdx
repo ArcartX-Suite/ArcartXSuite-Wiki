@@ -1,0 +1,352 @@
+---
+title: 配置
+description: Essentials 模块配置文件详解与完整示例
+---
+
+## 配置文件概览
+
+Essentials 模块使用两个配置文件：
+
+| 文件 | 说明 | 重载命令 |
+|------|------|----------|
+| `ArcartXEssentials.yml` | 主配置文件，包含全部功能开关与参数 | `/axs reload essentials` |
+| `messages.yml` | 消息模板文件，包含命令提示与错误消息 | `/axs reload essentials` |
+
+配置文件位于 `plugins/ArcartX-Suite/modules/essentials/` 目录下。模块启动时自动从 Jar 中导出默认配置，并在升级时通过迁移脚本（`migrations/` 目录）自动升级配置版本号。
+
+## 主配置字段
+
+### 顶层字段
+
+| 配置项 | 类型 | 默认值 | 说明 |
+|--------|------|--------|------|
+| `config-version` | `int` | `3` | 配置版本号（请勿手动修改，模块自动迁移） |
+| `debug` | `boolean` | `false` | 是否输出调试日志 |
+| `command-aliases` | `map<string, string>` | 见下文 | 命令简写别名映射（别名 → action） |
+
+### 玩家管理（`player` 节）
+
+| 配置项 | 类型 | 默认值 | 说明 |
+|--------|------|--------|------|
+| `player.default-fly-speed` | `int` | `1` | 默认飞行速度倍率（1-10，自动限幅） |
+| `player.default-walk-speed` | `int` | `1` | 默认行走速度倍率（1-10，自动限幅） |
+| `player.afk-timeout` | `int` | `300` | AFK 自动检测超时（秒，0=禁用自动检测） |
+| `player.afk-kick-timeout` | `int` | `0` | AFK 后额外超时踢出（秒，0=不踢出） |
+| `player.vanish-hide-quit-message` | `boolean` | `true` | 隐身时是否隐藏退出消息 |
+| `player.vanish-hide-join-message` | `boolean` | `true` | 隐身时是否隐藏加入消息 |
+
+### 传送系统（`teleport` 节）
+
+| 配置项 | 类型 | 默认值 | 说明 |
+|--------|------|--------|------|
+| `teleport.tpa-timeout` | `int` | `60` | TPA 请求自动过期时间（秒，最小 10） |
+| `teleport.teleport-delay` | `int` | `3` | 传送预热延迟（秒，0=即时传送） |
+| `teleport.cancel-on-move` | `boolean` | `true` | 预热期间移动是否取消传送 |
+| `teleport.max-homes` | `int` | `3` | 每玩家可设置家数量上限（最小 1，可被权限覆盖） |
+| `teleport.back-stack-size` | `int` | `5` | `/back` 返回位置栈最大深度（最小 1） |
+| `teleport.safe-teleport` | `boolean` | `true` | 是否启用安全传送（自动寻找无碰撞位置） |
+
+> 家数量上限支持权限覆盖：拥有 `axs.essentials.homes.<数字>` 权限的玩家可突破配置上限，模块从大到小遍历权限节点取最高值。
+
+### 世界管理（`world` 节）
+
+| 配置项 | 类型 | 默认值 | 说明 |
+|--------|------|--------|------|
+| `world.allowed-worlds` | `list<string>` | `[]` | 允许 `/time` 和 `/weather` 生效的世界名称列表，空列表表示所有世界 |
+
+### 安全管理（`moderation` 节）
+
+| 配置项 | 类型 | 默认值 | 说明 |
+|--------|------|--------|------|
+| `moderation.ban-message` | `string` | `&c你已被服务器封禁。\n&7原因: {reason}\n&7到期: {expiry}` | 封禁踢出消息（支持 `&` 颜色码与占位符） |
+| `moderation.kick-message` | `string` | `&c你已被踢出服务器。\n&7原因: {reason}` | 踢出消息 |
+| `moderation.mute-message` | `string` | `&c你已被禁言，无法发送消息。\n&7到期: {expiry}` | 禁言消息（发给被禁言玩家） |
+| `moderation.max-warnings-before-ban` | `int` | `5` | 触发自动封禁的累计警告数（0=不自动封禁） |
+| `moderation.warning-expire-days` | `int` | `30` | 警告记录过期天数（0=永不过期） |
+
+> 消息占位符：`{reason}` 封禁原因、`{expiry}` 到期时间（永久封禁显示"永久"）、`{player}` 玩家名、`{operator}` 操作者。
+
+### 交互动作（`interaction` 节）
+
+| 配置项 | 类型 | 默认值 | 说明 |
+|--------|------|--------|------|
+| `interaction.sit-on-stairs` | `boolean` | `true` | 右键点击楼梯是否自动坐下 |
+| `interaction.sit-on-slabs` | `boolean` | `false` | 右键点击半砖是否自动坐下 |
+
+### 存储配置（`storage` 节）
+
+| 配置项 | 类型 | 默认值 | 说明 |
+|--------|------|--------|------|
+| `storage.shared` | `boolean` | `true` | 是否使用共享存储模式（true=共享本体数据源） |
+| `storage.mode` | `string` | `sqlite` | 存储模式（`sqlite` / `mysql`，仅 `shared: false` 时生效） |
+| `storage.sqlite.file` | `string` | `essentials.db` | SQLite 数据库文件名（仅 `shared: false` + SQLite 模式） |
+| `storage.pool-size` | `int` | `4` | JDBC 连接池大小（仅 `shared: false`） |
+| `storage.mysql.host` | `string` | `localhost` | MySQL 主机地址 |
+| `storage.mysql.port` | `int` | `3306` | MySQL 端口 |
+| `storage.mysql.database` | `string` | `arcartxsuite` | MySQL 数据库名 |
+| `storage.mysql.username` | `string` | `root` | MySQL 用户名 |
+| `storage.mysql.password` | `string` | — | MySQL 密码 |
+| `storage.mysql.table-prefix` | `string` | `axs_ess_` | 数据表前缀 |
+
+> **共享模式**（推荐）：`shared: true` 时模块复用本体 `config.yml` 的 `storage` 节，仅需配置 `table-prefix`。连接池由本体统一管控，性能最优。
+>
+> **自建模式**：`shared: false` 时模块自建独立 HikariCP 连接池，需完整配置 `mysql` 或 `sqlite` 节。向后兼容：若 `shared` 字段不存在但 `mode=mysql`，自动视为 `shared: false`。
+
+### 一键砍树（`tree-capitator` 节）
+
+| 配置项 | 类型 | 默认值 | 说明 |
+|--------|------|--------|------|
+| `tree-capitator.enabled` | `boolean` | `true` | 是否启用一键砍树 |
+| `tree-capitator.permission` | `string` | `axs.essentials.treecap` | 所需权限节点（留空=无需权限） |
+| `tree-capitator.max-blocks` | `int` | `128` | 最大连锁砍伐方块数 |
+| `tree-capitator.require-axe` | `boolean` | `true` | 是否需要手持斧头触发 |
+| `tree-capitator.require-sneak` | `boolean` | `false` | 是否需要潜行触发 |
+| `tree-capitator.consume-durability` | `boolean` | `true` | 是否消耗工具耐久（按砍伐方块数） |
+| `tree-capitator.log-types` | `list<string>` | `[]` | 支持的原木类型（留空=所有原木，使用 `Tag.LOGS`） |
+| `tree-capitator.break-leaves` | `boolean` | `true` | 是否同时破坏附近树叶 |
+| `tree-capitator.leaf-radius` | `int` | `4` | 树叶搜索范围（原木周围半径格数） |
+
+### 背包操作（`inv-actions` 节）
+
+| 配置项 | 类型 | 默认值 | 说明 |
+|--------|------|--------|------|
+| `inv-actions.auto-replant.enabled` | `boolean` | `true` | 是否启用自动补种 |
+| `inv-actions.auto-replant.permission` | `string` | `axs.essentials.replant` | 所需权限 |
+| `inv-actions.auto-replant.crops` | `list<string>` | `[WHEAT, CARROTS, POTATOES, BEETROOTS, NETHER_WART]` | 支持的作物类型 |
+| `inv-actions.inventory-sort.enabled` | `boolean` | `true` | 是否启用背包整理 |
+| `inv-actions.inventory-sort.permission` | `string` | `axs.essentials.sort` | 所需权限 |
+| `inv-actions.inventory-sort.sort-mode` | `string` | `type` | 排序方式：`type`（按类型）/ `name`（按名称）/ `amount`（按数量） |
+| `inv-actions.auto-tool.enabled` | `boolean` | `true` | 是否启用自动工具切换 |
+| `inv-actions.auto-tool.permission` | `string` | `axs.essentials.autotool` | 所需权限 |
+| `inv-actions.auto-tool.switch-on-break` | `boolean` | `true` | 破坏方块时自动切换到最佳工具 |
+
+## 消息配置（`messages` 节）
+
+`messages` 节包含全部玩家可见消息模板，支持 `&` 颜色代码与 `{占位符}` 变量替换。所有字段均提供默认中文值，可在 `ArcartXEssentials.yml` 中覆盖。
+
+| 消息键 | 默认值 | 占位符 |
+|--------|--------|--------|
+| `fly-enabled` | `&a飞行模式已开启。` | — |
+| `fly-disabled` | `&c飞行模式已关闭。` | — |
+| `god-enabled` | `&a无敌模式已开启。` | — |
+| `god-disabled` | `&c无敌模式已关闭。` | — |
+| `heal` | `&a你的生命值已恢复。` | — |
+| `feed` | `&a你的饥饿值已恢复。` | — |
+| `speed-set` | `&a速度已设置为 {speed}。` | `{speed}` |
+| `afk-enter` | `&7{player} 已进入挂机状态。` | `{player}` |
+| `afk-leave` | `&7{player} 已退出挂机状态。` | `{player}` |
+| `vanish-enabled` | `&a你已隐身。` | — |
+| `vanish-disabled` | `&c你已取消隐身。` | — |
+| `home-set` | `&a家 &f{name} &a已设置。` | `{name}` |
+| `home-deleted` | `&c家 &f{name} &c已删除。` | `{name}` |
+| `home-not-found` | `&c家 &f{name} &c不存在。` | `{name}` |
+| `home-limit` | `&c你的家数量已达上限 ({max})。` | `{max}` |
+| `home-teleported` | `&a已传送到家 &f{name}&a。` | `{name}` |
+| `warp-set` | `&a传送点 &f{name} &a已设置。` | `{name}` |
+| `warp-deleted` | `&c传送点 &f{name} &c已删除。` | `{name}` |
+| `warp-not-found` | `&c传送点 &f{name} &c不存在。` | `{name}` |
+| `warp-teleported` | `&a已传送到 &f{name}&a。` | `{name}` |
+| `spawn-set` | `&a出生点已设置。` | — |
+| `spawn-teleported` | `&a已传送到出生点。` | — |
+| `tpa-sent` | `&a传送请求已发送给 &f{player}&a。` | `{player}` |
+| `tpa-received` | `&f{player} &a请求传送到你的位置。` | `{player}` |
+| `tpa-here-received` | `&f{player} &a请求你传送到 TA 的位置。` | `{player}` |
+| `tpa-accepted` | `&a传送请求已接受。` | — |
+| `tpa-denied` | `&c传送请求已拒绝。` | — |
+| `tpa-expired` | `&c传送请求已过期。` | — |
+| `tpa-no-pending` | `&c没有待处理的传送请求。` | — |
+| `teleport-cancelled` | `&c传送已取消（你移动了）。` | — |
+| `teleport-warmup` | `&7传送中... &f{seconds} &7秒后到达，请勿移动。` | `{seconds}` |
+| `back-teleported` | `&a已传送回上次位置。` | — |
+| `back-none` | `&c没有可返回的位置。` | — |
+| `repair-success` | `&a物品已修复。` | — |
+| `repair-nothing` | `&c手中没有可修复的物品。` | — |
+| `hat-success` | `&a物品已戴在头上。` | — |
+| `hat-nothing` | `&c手中没有物品。` | — |
+| `nick-set` | `&a昵称已设置为 &f{nick}&a。` | `{nick}` |
+| `nick-reset` | `&a昵称已重置。` | — |
+| `sit-down` | `&7你坐下了。` | — |
+| `lay-down` | `&7你躺下了。` | — |
+| `lay-up` | `&7你站起来了。` | — |
+| `time-set` | `&a世界 &f{world} &a的时间已设置为 &f{time}&a。` | `{world}`、`{time}` |
+| `weather-set` | `&a世界 &f{world} &a的天气已设置为 &f{weather}&a。` | `{world}`、`{weather}` |
+| `player-not-found` | `&c玩家 &f{player} &c不在线。` | `{player}` |
+| `no-permission` | `&c你没有权限执行此操作。` | — |
+| `ban-broadcast` | `&c{player} 已被 {operator} 封禁。原因: {reason}` | `{player}`、`{operator}`、`{reason}` |
+| `mute-broadcast` | `&c{player} 已被 {operator} 禁言。原因: {reason}` | `{player}`、`{operator}`、`{reason}` |
+| `kick-broadcast` | `&c{player} 已被 {operator} 踢出。原因: {reason}` | `{player}`、`{operator}`、`{reason}` |
+| `warn-broadcast` | `&e{player} 收到来自 {operator} 的警告。原因: {reason}` | `{player}`、`{operator}`、`{reason}` |
+| `unban-success` | `&a已解封 &f{player}&a。` | `{player}` |
+| `unmute-success` | `&a已解除 &f{player} &a的禁言。` | `{player}` |
+| `sort-done` | `&a背包已整理。` | — |
+| `tree-felled` | `&a一键砍树! 共砍落 {count} 个原木方块。` | `{count}` |
+| `replant-enabled` | `&a自动补种已开启。` | — |
+| `replant-disabled` | `&c自动补种已关闭。` | — |
+| `autotool-enabled` | `&a自动切换工具已开启。` | — |
+| `autotool-disabled` | `&c自动切换工具已关闭。` | — |
+
+## 配置版本迁移
+
+模块内置迁移脚本，在配置版本号低于当前版本时自动执行：
+
+| 迁移 | 说明 |
+|------|------|
+| `1 → 2` | `storage.sqlite-file` 重命名为 `storage.sqlite.file`，统一嵌套结构 |
+| `2 → 3` | `storage.mode` 重命名为 `storage.shared`，值从 `sqlite`/`mysql` 映射为 `true`/`false` |
+
+## 完整配置示例
+
+```yaml
+# 配置版本号（请勿手动修改）
+config-version: 3
+
+debug: false
+
+# 命令简写别名（别名 → /essentials <action>）
+command-aliases:
+  fly: fly
+  god: god
+  gm: gamemode
+  heal: heal
+  feed: feed
+  tp: tp
+  top: top
+  back: back
+  home: home
+  sethome: sethome
+  delhome: delhome
+  warp: warp
+  setwarp: setwarp
+  delwarp: delwarp
+  spawn: spawn
+  setspawn: setspawn
+  tpa: tpa
+  tpahere: tpahere
+  tpaccept: tpaccept
+  tpdeny: tpdeny
+  tppos: tppos
+  vanish: vanish
+  afk: afk
+  hat: hat
+  repair: repair
+  enderchest: enderchest
+  workbench: workbench
+  anvil: anvil
+  trash: trash
+  nick: nick
+  seen: seen
+  inv: inv
+  sit: sit
+  lay: lay
+  sort: sort
+  speed: speed
+  time: time
+  weather: weather
+  ban: ban
+  tempban: tempban
+  unban: unban
+  mute: mute
+  tempmute: tempmute
+  unmute: unmute
+  kick: kick
+  warn: warn
+  sudo: sudo
+
+# 玩家管理
+player:
+  default-fly-speed: 1
+  default-walk-speed: 1
+  afk-timeout: 300
+  afk-kick-timeout: 0
+  vanish-hide-quit-message: true
+  vanish-hide-join-message: true
+
+# 传送系统
+teleport:
+  tpa-timeout: 60
+  teleport-delay: 3
+  cancel-on-move: true
+  max-homes: 3
+  back-stack-size: 5
+  safe-teleport: true
+
+# 世界管理
+world:
+  allowed-worlds: []
+
+# 安全管理
+moderation:
+  ban-message: '&c你已被服务器封禁。\n&7原因: {reason}\n&7到期: {expiry}'
+  kick-message: '&c你已被踢出服务器。\n&7原因: {reason}'
+  mute-message: '&c你已被禁言，无法发送消息。\n&7到期: {expiry}'
+  max-warnings-before-ban: 5
+  warning-expire-days: 30
+
+# 交互动作
+interaction:
+  sit-on-stairs: true
+  sit-on-slabs: false
+
+# 存储（共享模式，推荐）
+storage:
+  shared: true
+
+# 一键砍树
+tree-capitator:
+  enabled: true
+  permission: "axs.essentials.treecap"
+  max-blocks: 128
+  require-axe: true
+  require-sneak: false
+  consume-durability: true
+  log-types: []
+  break-leaves: true
+  leaf-radius: 4
+
+# 背包操作
+inv-actions:
+  auto-replant:
+    enabled: true
+    permission: "axs.essentials.replant"
+    crops:
+      - WHEAT
+      - CARROTS
+      - POTATOES
+      - BEETROOTS
+      - NETHER_WART
+  inventory-sort:
+    enabled: true
+    permission: "axs.essentials.sort"
+    sort-mode: type
+  auto-tool:
+    enabled: true
+    permission: "axs.essentials.autotool"
+    switch-on-break: true
+```
+
+### 自建 MySQL 存储示例
+
+```yaml
+storage:
+  shared: false
+  mode: mysql
+  pool-size: 4
+  mysql:
+    host: "127.0.0.1"
+    port: 3306
+    database: "arcartxsuite"
+    username: "root"
+    password: "your_password"
+    table-prefix: "axs_ess_"
+```
+
+### 自建 SQLite 存储示例
+
+```yaml
+storage:
+  shared: false
+  mode: sqlite
+  pool-size: 4
+  sqlite:
+    file: "essentials.db"
+```

@@ -1,0 +1,13 @@
+{
+  "title": "Prop 快捷道具",
+  "description": "快捷道具栏，客户端按键绑定临时属性加成",
+  "color": "#06b6d4",
+  "pages": [
+    "index",
+    "configuration",
+    "effects",
+    "keybinds",
+    "commands",
+    "integration"
+  ]
+}

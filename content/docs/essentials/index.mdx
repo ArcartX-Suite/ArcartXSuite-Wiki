@@ -1,0 +1,112 @@
+---
+title: 概览
+description: Essentials 基础工具模块 — 玩家管理、传送系统、世界管理、安全管理、背包操作与 UI 菜单
+---
+
+## 模块简介
+
+Essentials 是 ArcartXSuite 的基础工具模块，提供服务器日常运营所需的全部常用功能：玩家状态管理（飞行、无敌、治疗、饱食、速度、隐身、AFK）、传送系统（家、传送点、出生点、TPA、返回、坐标传送）、世界控制（时间、天气）、安全管理（封禁、禁言、踢出、警告、强制执行）、交互动作（坐下、躺下）以及背包操作（一键砍树、自动补种、背包整理、自动工具切换）。
+
+模块通过 `EssentialsModule` 主类统一管理生命周期，内部拆分为四个独立服务层（`PlayerManagementService`、`TeleportService`、`TreeCapitatorService`、`InventoryActionsService`），各服务职责清晰、可独立启停。数据持久化由 `EssentialsRepository` 统一处理，支持 SQLite 与 MySQL 双方言，并兼容本体共享存储与模块自建存储两种模式。
+
+模块同时提供两个 ArcartX UI 界面：玩家工具菜单（`/essentials menu`）与管理员后台面板（`/essentials admin`），通过 PacketBridge 实现服务端与客户端的双向数据交互。
+
+## 功能特性
+
+| 分类 | 功能 | 说明 |
+|------|------|------|
+| 玩家管理 | 飞行 / 无敌 | 切换飞行与无敌模式，支持对其他玩家操作 |
+| 玩家管理 | 治疗 / 饱食 | 恢复生命值与饥饿值，清除着火状态 |
+| 玩家管理 | 速度控制 | 设置飞行 / 行走速度（1-10） |
+| 玩家管理 | 游戏模式 | 切换生存 / 创造 / 冒险 / 旁观模式 |
+| 玩家管理 | 隐身 | Vanish 隐身，对无权限玩家隐藏，可选隐藏进出服消息 |
+| 玩家管理 | AFK 挂机 | 自动检测挂机，可选超时踢出，支持手动切换 |
+| 玩家管理 | 昵称 | 设置 / 重置自定义昵称，持久化存储 |
+| 玩家管理 | 物品修复 | 修复主手物品耐久度 |
+| 玩家管理 | 戴帽 | 将主手物品戴到头盔槽 |
+| 玩家管理 | 容器打开 | 末影箱、工作台、铁砧、垃圾桶 |
+| 玩家管理 | 背包查看 | 查看其他在线玩家背包，实时同步修改 |
+| 传送系统 | 家系统 | 设置 / 删除 / 传送到家，支持权限覆盖上限 |
+| 传送系统 | 传送点 | 设置 / 删除 / 传送到公共传送点 |
+| 传送系统 | 出生点 | 设置 / 传送到服务器出生点 |
+| 传送系统 | TPA | tpa / tpahere / tpaccept / tpdeny 传送请求 |
+| 传送系统 | 返回 | `/back` 返回上次位置，支持多级返回栈 |
+| 传送系统 | 直接传送 | `/tp`、`/top`、`/tppos` 坐标传送 |
+| 传送系统 | 安全传送 | 自动寻找无碰撞位置，传送预热与移动取消 |
+| 世界管理 | 时间控制 | day / night / noon / midnight / set 自定义值 |
+| 世界管理 | 天气控制 | clear / rain / thunder |
+| 安全管理 | 封禁 | ban / tempban / unban，支持 IP 记录 |
+| 安全管理 | 禁言 | mute / tempmute / unmute（依赖 Chat 模块） |
+| 安全管理 | 踢出 / 警告 | kick / warn，警告达阈值自动封禁 |
+| 安全管理 | 强制执行 | sudo 强制玩家执行命令 |
+| 交互动作 | 坐下 / 躺下 | sit / lay 姿势，基于 ArmorStand 与 sleep API |
+| 背包操作 | 一键砍树 | TreeCapitator 连锁砍伐原木与树叶 |
+| 背包操作 | 自动补种 | 收获成熟作物后自动消耗种子补种 |
+| 背包操作 | 背包整理 | 按类型 / 名称 / 数量排序，合并同类 |
+| 背包操作 | 自动工具 | 破坏方块时自动切换到最佳工具 |
+| UI 菜单 | 玩家工具 | ArcartX UI 五页面菜单（首页 / 家 / 传送点 / TPA / 设置） |
+| UI 菜单 | 管理面板 | ArcartX UI 管理后台（玩家 / 封禁 / 禁言 / 传送点 / 世界） |
+| 其他 | 命令别名 | 注册独立顶层命令（如 `/fly`、`/home`），转发到 `/essentials` |
+
+## 依赖关系
+
+| 依赖 | 类型 | 说明 |
+|------|------|------|
+| ArcartXSuite 本体 | 硬依赖 | 提供模块框架、存储管理、PacketBridge、PacketGuard 等 API |
+| PlaceholderAPI | 外部依赖 | 提供 PlaceholderAPI 占位符注册与解析 |
+| ArcartX 客户端 | 可选 | UI 菜单与管理面板需要客户端支持 |
+| Chat 模块 | 可选 | 禁言 / 解禁功能依赖 `ChatMutable` 能力 |
+
+## 核心机制
+
+### 服务架构
+
+Essentials 模块内部由四个独立服务层组成，各服务在 `startService()` 阶段按顺序初始化，在 `stopService()` 阶段按逆序关闭：
+
+| 服务 | 职责 | 事件监听 |
+|------|------|----------|
+| `PlayerManagementService` | 飞行、无敌、治疗、饱食、游戏模式、速度、隐身、AFK、返回栈、修复、帽子、容器、背包查看 | `PlayerMoveEvent`、`PlayerQuitEvent`、`EntityDamageEvent`、`InventoryClickEvent` 等 |
+| `TeleportService` | 家、传送点、出生点、TPA、返回、坐标传送、延迟传送 | `PlayerMoveEvent`、`PlayerQuitEvent` |
+| `TreeCapitatorService` | 一键砍树连锁破坏 | `BlockBreakEvent` |
+| `InventoryActionsService` | 自动补种、背包整理、自动工具切换 | `BlockBreakEvent`、`PlayerInteractEvent` |
+
+### 存储模式
+
+模块支持两种存储模式，通过 `storage.shared` 配置项控制：
+
+- **共享模式**（`shared: true`，默认推荐）：复用本体 `config.yml` 的 `storage` 节配置，模块只需指定表前缀（`axs_ess_`），连接池由本体统一管控，性能最优。
+- **自建模式**（`shared: false`）：模块自建独立 HikariCP 连接池，支持 SQLite 或 MySQL，适合需要独立数据库的场景。
+
+### 命令分发
+
+所有功能通过 `/essentials <action>` 或 `/ess <action>` 命令访问。同时支持在配置中定义命令简写别名（`command-aliases` 节），将独立顶层命令（如 `/fly`）转发到对应的 `/essentials <action>` 子命令。命令分发由 `EssentialsCommandDelegate` 统一处理，包含权限校验、参数校验与 Tab 补全。
+
+### UI 交互
+
+模块注册两个 ArcartX UI 界面，通过 `PacketBridge` 实现服务端推送与客户端回包：
+
+| UI | 打开命令 | Packet ID | 说明 |
+|----|----------|-----------|------|
+| 玩家工具菜单 | `/essentials menu` | `AXS_ESS_MENU` | 首页 / 家 / 传送点 / TPA / 设置 |
+| 管理员后台 | `/essentials admin` | `AXS_ESS_ADMIN` | 玩家 / 封禁 / 禁言 / 传送点 / 世界 |
+
+UI 配置文件位于模块资源目录 `arcartx/ui/` 下，模块启动时自动导出到数据目录并注册。客户端通过 `Packet.send(packetId, action, ...)` 发送操作指令，服务端 `ClientPacketHandler` 接收并处理后推送更新数据。
+
+### 跨模块能力
+
+模块注册以下 Capability 供其他模块查询：
+
+| Capability | 说明 |
+|------------|------|
+| `EssentialsQueryable` | 查询玩家 AFK / 隐身 / 禁言 / 昵称 / 飞行 / 无敌状态 |
+| `PlayerDataPurgeable` | 清除指定玩家或全部玩家数据 |
+| `DatabaseMigratable` | 数据库跨源迁移 |
+
+同时通过 `getCapability` 延迟获取其他模块能力：
+
+| Capability | 来源 | 用途 |
+|------------|------|------|
+| `TabRefreshable` | Tab 模块 | AFK / 隐身状态变化时刷新 Tab 列表 |
+| `ChatMutable` | Chat 模块 | 禁言 / 解禁玩家，查询禁言列表 |
+
+> 更多关于条件评估、物品来源与图标配置，请参考 [条件系统](/docs/guide/conditions)、[物品来源](/docs/guide/item-sources) 与 [图标配置](/docs/guide/icons)。

@@ -1,0 +1,531 @@
+---
+title: 触发器详解
+description: EventPacket 18 种触发器类型的工作机制、配置方式与使用示例
+---
+
+> **付费模块**
+
+## 概述
+
+EventPacket 模块的核心是"触发器 → 规则匹配 → 动作链执行"的事件包机制。触发器定义了规则被激活的时机，由 `EventPacketTrigger` 枚举统一管理，共 **18 种**触发器类型。触发器按来源可分为五大类：玩家生命周期、PAPI 占位符、击杀计数、命令信号与客户端回包、Chemdah 任务事件、脚本表达式。
+
+所有触发器配置值均通过 `EventPacketTrigger.parse()` 解析，支持大小写不敏感和下划线/连字符互换。部分触发器还支持别名兼容（如 `placeholder-increase` 映射到 `papi-increase`）。
+
+## 触发器分类总览
+
+| 分类 | 触发器 | 配置值 | 信号过滤 | 依赖 |
+|---|---|---|---|---|
+| 玩家生命周期 | 玩家加入 | `join` | 否 | 无 |
+| 玩家生命周期 | 首次加入 | `first-join` | 否 | 无 |
+| 玩家生命周期 | 玩家退出 | `quit` | 否 | 无 |
+| PAPI 占位符 | PAPI 增加 | `papi-increase` | 否 | PlaceholderAPI |
+| PAPI 占位符 | PAPI 减少 | `papi-decrease` | 否 | PlaceholderAPI |
+| PAPI 占位符 | PAPI 阈值 | `placeholder-threshold` | 否 | PlaceholderAPI |
+| 击杀计数 | 击杀计数 | `mob-kill-count` | 否 | 无 |
+| 命令信号 | 命令信号 | `command-signal` | 是 | 无 |
+| 命令信号 | 客户端回包 | `client-packet` | 是 | ArcartX 客户端 |
+| Chemdah 任务 | 任务接受 | `quest-accept` | 是 | Chemdah |
+| Chemdah 任务 | 任务完成 | `quest-complete` | 是 | Chemdah |
+| Chemdah 任务 | 任务失败 | `quest-fail` | 是 | Chemdah |
+| Chemdah 任务 | 目标完成 | `objective-complete` | 是 | Chemdah |
+| Chemdah 任务 | 目标继续 | `objective-continue` | 是 | Chemdah |
+| Chemdah 任务 | 目标重启 | `objective-restart` | 是 | Chemdah |
+| Chemdah 任务 | 等级变化 | `chemdah-level-change` | 是 | Chemdah |
+| 脚本表达式 | JS 脚本 | `script-js` | 否 | 无 |
+| 脚本表达式 | Aria 脚本 | `script-aria` | 否 | 无 |
+
+> `signalFilterable()` 方法返回 `true` 的触发器支持按 `signal` 字段过滤。`command-signal` 和所有 Chemdah 触发器属于此类。
+
+## 玩家生命周期触发器
+
+玩家生命周期触发器由 `PlayerEventPacketListener` 监听 Bukkit 原生事件并桥接到分发系统。
+
+### join — 玩家加入
+
+玩家加入服务器时触发，监听 `PlayerJoinEvent`（`EventPriority.MONITOR`）。
+
+```yaml
+welcome_player:
+  enabled: true
+  trigger: join
+  repeatable: false
+  actions:
+    - type: subtitle.play
+      group-id: "welcome"
+    - type: command.dispatch
+      executor: console
+      command: "say {player_name} 加入了服务器"
+```
+
+### first-join — 首次加入
+
+玩家**首次**加入服务器时触发。通过 `Player.hasPlayedBefore()` 判断，仅在玩家无历史记录时额外触发。
+
+```yaml
+first_join_gift:
+  enabled: true
+  trigger: first-join
+  repeatable: false
+  actions:
+    - type: subtitle.play
+      group-id: "quest_intro"
+    - type: chat.card
+      card-id: "quest_offer"
+      data:
+        quest: "main/example_quest"
+        title: "初入岛屿"
+    - type: questgps.offer
+      quest-id: "main/example_quest"
+      open-menu: true
+    - type: mail.send
+      preset-id: "new_player"
+```
+
+### quit — 玩家退出
+
+玩家退出服务器时触发，监听 `PlayerQuitEvent`。退出时同时清理分发服务中的冷却缓存和 PAPI 监听器中的玩家状态。
+
+```yaml
+quit_save_reminder:
+  enabled: true
+  trigger: quit
+  repeatable: true
+  actions:
+    - type: command.dispatch
+      executor: console
+      command: "say {player_name} 已离线"
+```
+
+> `quit` 触发器的 `ui-packet` 动作可向退出的玩家自身发包（`canDispatchTo` 逻辑允许退出玩家在 `QUIT` 触发器中接收包），但向其他在线玩家发包需确保接收者仍在线。
+
+## PAPI 占位符触发器
+
+PAPI 触发器由 `PapiWatcherService` 通过定时任务轮询实现。轮询间隔由 `settings.refresh-interval-ticks` 配置（默认 20 tick = 1 秒）。每次轮询时，服务读取每个在线玩家指定占位符的当前值，与上次缓存值对比，按触发条件判定是否分发规则。
+
+### 工作原理
+
+```
+轮询周期 (refresh-interval-ticks)
+  │
+  ├─ 读取占位符当前值 (PlaceholderResolverAPI)
+  ├─ 与上次缓存值对比 (lastValues)
+  ├─ 解析为 BigDecimal 数值
+  ├─ 按触发器类型判定:
+  │    ├─ papi-increase    → 新值 > 旧值
+  │    ├─ papi-decrease    → 新值 < 旧值
+  │    └─ placeholder-threshold → 旧值 < 阈值 且 新值 >= 阈值
+  └─ 满足条件 → 分发规则
+```
+
+### papi-increase — PAPI 数值增加
+
+指定 PAPI 占位符的**数值**增加时触发。占位符值必须能解析为数字（支持逗号分隔符，如 `1,234`）。
+
+```yaml
+level_up_notify:
+  enabled: true
+  trigger: papi-increase
+  placeholder: "%player_level%"
+  require-non-empty: true
+  repeatable: true
+  cooldown: "5s"
+  actions:
+    - type: subtitle.play
+      group-id: "level_up"
+```
+
+### papi-decrease — PAPI 数值减少
+
+指定 PAPI 占位符的**数值**减少时触发。
+
+```yaml
+health_decrease_warning:
+  enabled: true
+  trigger: papi-decrease
+  placeholder: "%player_health%"
+  require-non-empty: true
+  repeatable: true
+  cooldown: "10s"
+  actions:
+    - type: subtitle.play
+      group-id: "low_health_warning"
+```
+
+### placeholder-threshold — PAPI 阈值
+
+指定 PAPI 占位符的数值**从低于阈值变为达到或超过阈值**时触发。仅在跨越阈值的上升沿触发，不会在持续高于阈值时重复触发。
+
+```yaml
+power_threshold_offer_side:
+  enabled: true
+  trigger: placeholder-threshold
+  placeholder: "%player_level%"
+  threshold: 10
+  require-non-empty: true
+  repeatable: false
+  actions:
+    - type: questgps.offer
+      quest-id: "side/example_side"
+      open-menu: false
+    - type: chat.card
+      card-id: "quest_unlock"
+      data:
+        quest: "side/example_side"
+        level: "{new_number}"
+```
+
+### PAPI 触发器可用变量
+
+| 变量 | 说明 |
+|---|---|
+| `{placeholder}` | 监听的 PAPI 占位符表达式 |
+| `{old_value}` | 占位符旧值（字符串形式） |
+| `{new_value}` | 占位符新值（字符串形式） |
+| `{old_number}` | 旧数值（BigDecimal 去尾零字符串） |
+| `{new_number}` | 新数值 |
+| `{delta_number}` | 数值变化量（`new_number - old_number`） |
+| `{change_direction}` | 变化方向：`increase` / `decrease` |
+
+### require-non-empty 配置
+
+`require-non-empty: true` 时，占位符值为空或空白不会触发规则。建议在监听可能返回空值的占位符时启用此选项，避免首次轮询时误触发。
+
+> 未安装 PlaceholderAPI 时，PAPI 触发器不会生效，模块启动时输出警告日志。数值解析失败时（占位符返回非数字文本），规则跳过并在 debug 模式下输出日志。
+
+## 击杀计数触发器
+
+击杀计数触发器由 `PlayerEventPacketListener.onEntityDeath()` 监听 `EntityDeathEvent`，将击杀记录传递给 `PapiWatcherService.recordMobKill()` 处理。
+
+### 工作原理
+
+```
+实体死亡 (EntityDeathEvent)
+  │
+  ├─ 获取击杀者 (entity.getKiller())
+  ├─ 解析实体元数据:
+  │    ├─ 实体类型 (EntityCombatMetadata.resolveEntityType)
+  │    └─ MythicMob ID (EntityCombatMetadata.resolveMythicMobId)
+  ├─ 遍历 mob-kill-count 规则:
+  │    ├─ 世界过滤 (rule.worlds)
+  │    ├─ 实体类型过滤 (rule.entityTypes)
+  │    ├─ MythicMob ID 过滤 (rule.mythicMobIds)
+  │    ├─ 读取当前击杀数 (内存缓存 → 数据库)
+  │    ├─ 击杀数 +1 并持久化
+  │    ├─ 判断是否达到 requiredCount
+  │    └─ 达到 → 分发规则
+  └─ repeatable 规则触发后重置计数为 0
+```
+
+### 配置示例
+
+```yaml
+kill_zombie_trigger_encounter:
+  enabled: true
+  trigger: mob-kill-count
+  count: 10
+  repeatable: false
+  worlds:
+    - "world"
+  entity-types:
+    - "ZOMBIE"
+  mythic-mob-ids: []
+  actions:
+    - type: questgps.offer
+      quest-id: "encounter/example_rare"
+      open-menu: true
+    - type: subtitle.play
+      group-id: "encounter_trigger"
+```
+
+### 过滤字段
+
+| 字段 | 类型 | 说明 |
+|---|---|---|
+| `count` | int | 目标击杀数，默认 1，最小 1 |
+| `worlds` | list | 限制生效的世界名集合（小写），空 = 不限制 |
+| `entity-types` | list | 限制生效的实体类型集合（`EntityType` 枚举名，如 `ZOMBIE`） |
+| `mythic-mob-ids` | list | 限制生效的 MythicMob ID 集合（小写），空 = 不匹配 MM |
+
+> 击杀进度持久化到 `eventpacket_kill_progress` 表，跨会话保留。`repeatable: true` 规则在达到目标后重置计数为 0，可再次累计触发。详见 [联动](/docs/eventpacket/integration#数据库表)。
+
+### 击杀计数可用变量
+
+| 变量 | 说明 |
+|---|---|
+| `{rule_id}` | 触发的规则 ID |
+| `{kill_count}` | 当前累计击杀数 |
+| `{required_count}` | 目标击杀数 |
+| `{mob_world}` | 击杀所在世界名 |
+| `{mob_entity_type}` | 实体类型 |
+| `{mythic_mob_id}` | MythicMob ID（非 MM 怪物为空） |
+
+## 命令信号与客户端回包触发器
+
+### command-signal — 命令信号
+
+命令信号触发器是最灵活的触发方式，由管理命令 `/axs eventpacket fire` 或其他模块通过 `SignalDispatchable` Capability 发送信号触发。
+
+```yaml
+command_signal_accept_mainline:
+  enabled: true
+  trigger: command-signal
+  signal: "accept_mainline"
+  repeatable: true
+  cooldown: "5s"
+  actions:
+    - type: questgps.accept
+      quest-id: "{quest-id}"
+    - type: command.dispatch
+      executor: console
+      command: "say {player_name} accepted {quest-id}"
+```
+
+`signal` 字段必须与发送方指定的信号名一致。发送信号时可附带变量（`key=value` 格式），在动作中通过 `{key}` 引用。
+
+```bash
+# 手动发送信号
+/axs eventpacket fire accept_mainline Steve quest-id=main/tutorial
+
+# 其他模块通过 Capability 发送
+SignalDispatchable dispatcher = getCapability(SignalDispatchable.class);
+dispatcher.dispatchSignal("accept_mainline", player, Map.of("quest-id", "main/tutorial"));
+```
+
+> 详见 [命令与占位符](/docs/eventpacket/commands#fire-子命令) 和 [联动](/docs/eventpacket/integration#signaldispatchable-capability)。
+
+### client-packet — 客户端回包
+
+客户端回包触发器由 ArcartX 客户端 MOD 通过 `Packet.send(packetId, presetId, ...args)` 发包触发。模块在 `EventPacketModule.createPacketHandlerSpec()` 中注册统一包处理器，按 `packetId` 和 `presetId` 匹配预设规则。
+
+```yaml
+# packet-command-presets/example.yml
+give_item:
+  type: op
+  permission: "eventpacket.preset.give"
+  cooldown: 5s
+  allow-args: true
+  args-pattern: "[A-Z_0-9]{1,64}"
+  commands:
+    - give <player> <arg1> <arg2>
+```
+
+客户端调用示例：
+
+```javascript
+// 客户端 ARIA 脚本
+Packet.send('ArcartXEventPacket', 'give_item', 'DIAMOND_SWORD', '1')
+```
+
+### 客户端回包安全机制
+
+| 机制 | 说明 |
+|---|---|
+| 权限门槛 | `permission` 字段，通过 `player.hasPermission` 检测 |
+| 冷却控制 | `cooldown` 字段，支持 `5s`/`1m`/`1h`/`1d` |
+| 参数校验 | `allow-args: true` 时按 `args-pattern` 正则校验每个参数 |
+| 命令黑名单 | `CommandSanitizer` 拦截 `op`/`deop`/`stop`/`luckperms` 等致命命令 |
+| PacketGuard | 路由层统一限流，管理命令 `run` 可绕过（`bypass=true`） |
+
+> 客户端回包预设的 `type` 仅支持 `op`/`console`/`player` 三种，其他值在加载时跳过并输出警告。详见 [命令与占位符](/docs/eventpacket/commands#客户端回包预设)。
+
+### 客户端回包可用变量
+
+| 变量 | 说明 |
+|---|---|
+| `{preset_id}` | 触发的预设 ID |
+| `{arg1}` / `{arg2}` ... | 客户端透传的参数（按 data 顺序） |
+
+## Chemdah 任务触发器
+
+Chemdah 触发器由 `ChemdahEventBridge` 通过反射注册事件监听器实现。桥接器在模块启动时检测 Chemdah 插件是否存在，存在且有 Chemdah 触发器规则时自动注册。
+
+### 桥接机制
+
+Chemdah 事件类继承 TabooLib `BukkitProxyEvent`，共享同一个 `HandlerList`。桥接器通过 `EventExecutor` 注册监听后，所有 `BukkitProxyEvent` 子类事件都会触发回调，因此严格按运行时类型过滤（`e.getClass() != eventClass`），避免误触发。
+
+### 任务生命周期触发器
+
+| 触发器 | Chemdah 事件 | signal 过滤 | 注入变量 |
+|---|---|---|---|
+| `quest-accept` | `QuestEvents$Accept$Post` | 任务 ID | `{quest_id}` |
+| `quest-complete` | `QuestEvents$Complete$Post` | 任务 ID | `{quest_id}` |
+| `quest-fail` | `QuestEvents$Fail$Post` | 任务 ID | `{quest_id}` |
+
+```yaml
+# 玩家接受任务时播放字幕
+chemdah_quest_accepted:
+  enabled: true
+  trigger: quest-accept
+  # signal 留空匹配所有任务；填任务 ID 限定特定任务
+  # signal: "main/tutorial"
+  repeatable: true
+  cooldown: "3s"
+  actions:
+    - type: subtitle.play
+      group-id: "quest_accepted"
+    - type: ui-packet
+      ui-id: "任务通知UI"
+      packet-handler: "questAccepted"
+      recipients:
+        - self
+      pack:
+        player: "{player_name}"
+        quest_id: "{quest_id}"
+```
+
+```yaml
+# 玩家完成特定任务时发放奖励
+chemdah_quest_completed_reward:
+  enabled: true
+  trigger: quest-complete
+  signal: "main/tutorial"
+  repeatable: false
+  actions:
+    - type: title.give
+      title-id: "quest_master"
+      duration: "permanent"
+    - type: mail.send
+      preset-id: "quest_complete_reward"
+    - type: subtitle.play
+      group-id: "quest_completed"
+```
+
+### 目标事件触发器
+
+| 触发器 | Chemdah 事件 | signal 过滤 | 注入变量 |
+|---|---|---|---|
+| `objective-complete` | `ObjectiveEvents$Complete$Post` | `quest_id` 或 `objective_name` | `{quest_id}`、`{task_id}`、`{objective_type}`、`{objective_name}` |
+| `objective-continue` | `ObjectiveEvents$Continue$Post` | `quest_id` 或 `objective_name` | 同上 |
+| `objective-restart` | `ObjectiveEvents$Restart$Post` | `quest_id` 或 `objective_name` | 同上 |
+
+```yaml
+# 目标完成时发送 UI 通知
+chemdah_objective_completed:
+  enabled: true
+  trigger: objective-complete
+  repeatable: true
+  cooldown: "1s"
+  actions:
+    - type: ui-packet
+      ui-id: "任务进度UI"
+      packet-handler: "objectiveComplete"
+      recipients:
+        - self
+      pack:
+        quest_id: "{quest_id}"
+        task_id: "{task_id}"
+        objective_type: "{objective_type}"
+        objective_name: "{objective_name}"
+```
+
+```yaml
+# 仅当 "player kill" 类型的目标完成时触发
+chemdah_kill_objective_done:
+  enabled: true
+  trigger: objective-complete
+  signal: "player kill"
+  repeatable: true
+  cooldown: "3s"
+  actions:
+    - type: subtitle.play
+      group-id: "kill_objective_done"
+```
+
+> Objective 触发器的 `signal` 字段同时支持 `quest_id` 和 `objective_name` 过滤。分发时先匹配 `{signal}`，不匹配时再尝试匹配 `{objective_name}`。
+
+### 等级变化触发器
+
+| 触发器 | Chemdah 事件 | signal 过滤 | 注入变量 |
+|---|---|---|---|
+| `chemdah-level-change` | `PlayerEvents$LevelChange` | 等级选项 ID | `{level_option}`、`{old_level}`、`{new_level}`、`{old_experience}`、`{new_experience}`、`{level_delta}` |
+
+```yaml
+# Chemdah 等级提升时庆祝
+chemdah_level_up_celebrate:
+  enabled: true
+  trigger: chemdah-level-change
+  # signal 可指定等级选项 ID，如 "adventure" 仅匹配冒险等级
+  # signal: "adventure"
+  repeatable: true
+  cooldown: "5s"
+  conditions:
+    - "{new_level} > {old_level}"
+  actions:
+    - type: subtitle.play
+      group-id: "level_up"
+    - type: command.dispatch
+      executor: console
+      command: "say {player_name} 的 {level_option} 等级提升到了 {new_level} 级！"
+```
+
+> 等级变化触发器的 `conditions` 支持 EventPacket 上下文变量（`{..}` 语法），可在条件中比较上下文变量。`{level_delta}` 为 `new_level - old_level`，降级时为负值。条件系统详见 [条件系统](/docs/guide/conditions)。
+
+## 脚本触发器
+
+脚本触发器由 `PapiWatcherService.tickScriptTriggers()` 在轮询周期内评估脚本表达式。脚本返回 `true` 时触发规则，仅在从 `false` 变为 `true` 的**上升沿**触发，持续返回 `true` 不会重复触发。
+
+### script-js — JavaScript 脚本
+
+```yaml
+js_low_health_alert:
+  enabled: true
+  trigger: script-js
+  repeatable: true
+  cooldown: "30s"
+  script: |
+    player.getHealth() / player.getMaxHealth() < 0.25
+  actions:
+    - type: subtitle.play
+      group-id: "low_health_warning"
+```
+
+JavaScript 表达式中 `player` 变量直接注入 Bukkit `Player` 对象。脚本通过 `ScriptConditionKind.JS` 引擎评估。
+
+### script-aria — Aria 脚本
+
+```yaml
+aria_high_altitude:
+  enabled: true
+  trigger: script-aria
+  repeatable: true
+  cooldown: "1m"
+  script: |
+    playerY = global.player.getLocation().getY()
+    playerY > 200
+  actions:
+    - type: subtitle.play
+      group-id: "high_altitude"
+    - type: command.dispatch
+      executor: console
+      command: "say {player_name} 飞到了 Y={script_result} 的高空！"
+```
+
+Aria 表达式中 `player` 门面注入到 `global.` 命名空间，需用 `global.player` 访问。脚本通过 `ScriptConditionKind.ARIA` 引擎评估。
+
+### 脚本触发器可用变量
+
+| 变量 | 说明 |
+|---|---|
+| `{rule_id}` | 触发的规则 ID |
+| `{script_result}` | 脚本结果（固定为 `true`） |
+
+> 脚本评估异常时跳过该玩家本轮评估，debug 模式下输出 `FINE` 级别日志。脚本触发器仅在有 `scriptTrigger()` 规则时启动 `PapiWatcherService`。详见 [条件系统](/docs/guide/conditions)。
+
+## 触发器启动条件
+
+模块启动时根据规则配置按需启动服务，避免不必要的资源消耗：
+
+| 服务 | 启动条件 |
+|---|---|
+| `PapiWatcherService` | 存在 PAPI 触发器规则且 PlaceholderAPI 已安装，或存在击杀计数规则，或存在脚本触发器规则 |
+| `ChemdahEventBridge` | 存在 Chemdah 触发器规则且 Chemdah 插件已安装 |
+
+> 缺少依赖时对应触发器不生效，启动时输出警告日志但不影响其他触发器正常运行。
+
+## 相关页面
+
+- [动作详解](/docs/eventpacket/actions) — 13 种动作类型的参数与使用方式
+- [定时服务](/docs/eventpacket/services) — 实体清理、定时命令与 PAPI 监听服务
+- [配置](/docs/eventpacket/configuration) — 规则字段表与完整配置示例
+- [命令与占位符](/docs/eventpacket/commands) — 管理命令、权限与上下文变量
+- [联动](/docs/eventpacket/integration) — Capability、数据库表与模块集成

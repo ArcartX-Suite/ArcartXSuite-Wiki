@@ -1,0 +1,115 @@
+---
+title: 概览
+description: EventPacket 事件引擎功能概览
+---
+# EventPacket 事件引擎
+
+## 模块简介
+
+EventPacket 是 ArcartXSuite 的通用事件触发与动作链模块，提供 **18 种触发器** 与 **13 种动作** 的自由组合能力。模块以"规则"为核心抽象：每条规则定义一个触发条件和一个动作链，当触发条件满足时按顺序执行动作。触发器覆盖玩家进退服、PAPI 占位符数值变化、击杀计数、命令信号、客户端回包、Chemdah 任务事件以及 JS/Aria 脚本；动作涵盖任务导航、字幕播放、聊天卡片、称号发放、命令派发、UI 数据包、邮件发送、QQ 广播、战斗特效等。模块还内置实体清理（ClearLag）和定时命令两个独立子系统，可通过单模块满足服务器大部分自动化事件需求。
+
+| 属性 | 值 |
+|---|---|
+| 模块 ID | `eventpacket` |
+| 版本 | 1.4.4 |
+| 主类 | `xuanmo.arcartxsuite.eventpacket.EventPacketModule` |
+| 配置文件 | `ArcartXEventPacket.yml` |
+| 消息文件 | `messages.yml` |
+| 外部依赖 | PlaceholderAPI（可选） |
+| 模块依赖 | 无（本体内置 API 即可运行） |
+| 配置版本 | 2 |
+| 数据库表前缀 | `axs_eventpacket_`（共享模式无前缀） |
+
+## 功能特性
+
+| 特性 | 说明 |
+|---|---|
+| 18 种触发器 | join、first-join、quit、papi-increase、papi-decrease、placeholder-threshold、mob-kill-count、command-signal、client-packet、quest-accept、quest-complete、quest-fail、objective-complete、objective-continue、objective-restart、chemdah-level-change、script-js、script-aria |
+| 13 种动作 | questgps.offer、questgps.accept、questgps.open、questgps.track、subtitle.play、chat.card、title.give、command.dispatch、ui-packet、mail.send、qq-broadcast、announcer.play、combateffect.play |
+| 条件过滤 | 支持 PAPI 条件和上下文变量条件（`%placeholder% operator value`，支持 `==`/`!=`/`>=`/`<=`/`>`/`<`/`contains`/`regex`），详见 [条件系统](/docs/guide/conditions) |
+| 重复与冷却 | 默认每玩家只触发一次，`repeatable: true` 可重复触发，支持 `cooldown`（如 `5s`/`1m`/`2h`/`1d`） |
+| 变量替换 | 动作参数支持 `{player_name}`、`{player_uuid}`、`{world}`、`{trigger}`、`{placeholder}`、`{old_value}`、`{new_value}`、`{signal}` 等上下文变量 |
+| 客户端回包 | 客户端通过 `Packet.send` 回包触发服务端命令执行，支持权限、冷却、参数正则校验 |
+| 实体清理 | 内置 ClearLag 功能，定时清理掉落物/怪物/动物，支持警告倒计时和白名单 |
+| 定时命令 | 可定义多个定时任务，支持日历触发（hourly/daily/weekly）和固定间隔两种模式 |
+| 账号变量 | 注入宿主统一账号识别服务，规则可使用 `{account_type}`、`{account_type_display}`、`{account_premium}` 变量 |
+| 数据持久化 | 击杀进度和规则触发状态持久化到数据库，支持共享模式和自建模式 |
+| 数据迁移 | 支持 `DatabaseMigratable` 能力，可通过 `/axs migrate` 跨源数据库迁移 |
+| 数据清理 | 支持 `PlayerDataPurgeable` 能力，可通过 `/axs purge` 统一清理玩家数据 |
+
+## 依赖
+
+| 依赖类型 | 名称 | 必需 | 说明 |
+|---|---|---|---|
+| 模块依赖 | ArcartXSuite 本体 | 是 | 提供核心 API、存储管理、Capability 注册、PacketBridge、脚本条件引擎等基础设施 |
+| 外部可选 | PlaceholderAPI | 否 | PAPI 触发器（papi-increase/decrease/threshold）和 PAPI 条件需要；不安装时这部分触发器不生效 |
+| 外部可选 | Chemdah | 否 | Chemdah 任务事件触发器（quest-*/objective-*/chemdah-level-change）需要；不安装时这部分触发器不生效 |
+
+## 事件包机制
+
+EventPacket 的核心是"规则 → 触发 → 动作链"的事件包机制。整个流程由以下组件协作完成：
+
+```
+触发源                    触发器                    分发服务                    动作执行
+───────                  ──────                   ──────                    ──────
+玩家进退服      ──→   JOIN / FIRST_JOIN / QUIT
+PAPI 占位符变化  ──→   papi-increase / decrease / threshold    ┌──────────────┐
+击杀怪物        ──→   mob-kill-count                 │              │   questgps.offer
+命令信号        ──→   command-signal                 │  EventPacket  │   subtitle.play
+客户端回包      ──→   client-packet          ──→     │  Dispatch     │ → chat.card
+Chemdah 任务    ──→   quest-*/objective-*             │  Service     │   title.give
+脚本表达式      ──→   script-js / script-aria         │              │   command.dispatch
+                                            │              │   ui-packet
+                                            │              │   mail.send
+                 信号过滤 → 条件评估 →          │              │   qq-broadcast
+                 重复/冷却检查 → 执行            └──────────────┘   combateffect.play
+```
+
+### 触发流程
+
+1. **触发源产生事件**：玩家进退服、PAPI 占位符轮询检测到变化、实体死亡记录击杀、管理命令发送信号、客户端发送回包、Chemdah 任务事件或脚本表达式返回 true
+2. **构建上下文**：触发器将触发信息封装为 `EventPacketContext`，包含玩家快照、触发类型、占位符值、信号名、动态变量等
+3. **规则匹配**：`EventPacketDispatchService` 遍历所有规则，按触发器类型、信号名、世界/实体过滤条件筛选匹配的规则
+4. **条件评估**：使用 ScriptCondition 引擎评估规则的 `conditions` 列表，全部满足才继续
+5. **重复与冷却检查**：非 `repeatable` 规则每玩家只触发一次（持久化到数据库）；`cooldown` 内不重复触发
+6. **动作执行**：按顺序执行规则的动作链，单个动作失败不会中断后续动作；全部失败时不记录为已触发
+
+### 规则定义方式
+
+规则通过 YAML 文件定义，存放在 `data/eventpacket/rules/` 目录下。每个 `.yml` 文件的根键即为规则 ID，可包含多条规则。模块首次启动时自动生成 `rules/examples.yml` 示例文件。
+
+```yaml
+# rules/my_rules.yml
+my_rule_id:
+  enabled: true
+  trigger: join
+  repeatable: false
+  actions:
+    - type: subtitle.play
+      group-id: "welcome"
+    - type: command.dispatch
+      executor: console
+      command: "say {player_name} 加入了服务器"
+```
+
+### 客户端回包预设
+
+客户端回包预设是特殊的规则类型（`trigger: client-packet`），定义在 `data/eventpacket/packet-command-presets/` 目录或主配置的 `packet-command.presets` 节中。客户端通过 `Packet.send(packetId, presetId, ...args)` 触发服务端命令执行，支持权限门槛、冷却、参数正则校验等安全机制。
+
+```yaml
+# packet-command-presets/example.yml
+give_item:
+  type: op
+  permission: "eventpacket.preset.give"
+  cooldown: 5s
+  allow-args: true
+  args-pattern: "[A-Z_0-9]{1,64}"
+  commands:
+    - give <player> <arg1> <arg2>
+```
+
+## 相关页面
+
+- [配置](/docs/eventpacket/configuration) — 主配置字段表、规则配置、完整示例
+- [命令与占位符](/docs/eventpacket/commands) — 管理命令、权限、PAPI 占位符、客户端回包
+- [联动](/docs/eventpacket/integration) — EventBus 事件、Capability、数据库表、模块集成

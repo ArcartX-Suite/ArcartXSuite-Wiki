@@ -1,0 +1,419 @@
+---
+title: 伤害排名与结算奖励
+description: BossDamageRankingTracker 伤害追踪、伤害门槛、死亡结算与排行榜定时奖励
+---
+
+# 伤害排名与结算奖励
+
+> **付费模块**（消费额度满 ¥150 获得授权）
+
+EntityTracker 的伤害排名系统在 Boss 生命周期内实时追踪玩家伤害，在 Boss 死亡时按排名发放即时奖励，并支持按周/月周期发放排行榜定时奖励。奖励动作支持物品、命令、消息、邮件、信号五种类型，变量替换后还会经过 PlaceholderAPI 二次解析。
+
+## 架构概览
+
+```
+伤害排名系统
+  ├── BossDamageRankingTracker（实时伤害追踪）
+  │     ├── DamageThreshold（伤害门槛过滤）
+  │     └── BossDamageRankingSnapshot（排名快照）
+  ├── BossDamageSettlementService（死亡结算服务）
+  │     ├── BossDamageSettlementRecord（结算记录）
+  │     └── RewardActionExecutor（奖励执行器）
+  ├── BossDamageRankingRewardsSettings（即时奖励配置）
+  ├── BossRankingRewardsSettings（定时奖励配置）
+  │     ├── weekly（周奖励）
+  │     └── monthly（月奖励）
+  └── RankingRewardService / RankingRewardScheduler（定时奖励服务与调度器）
+```
+
+## 伤害排名追踪
+
+### 实时追踪
+
+`BossDamageRankingTracker` 在 `BossSession` 创建时初始化，持有 `BossDamageRankingSettings` 配置。当玩家攻击 Boss 时，`BossSession.recordDamage()` 将伤害数据传入追踪器：
+
+| 记录方法 | 数据 | 说明 |
+|---|---|---|
+| `recordDamage(UUID, name, amount)` | 玩家 UUID、玩家名、伤害值 | 记录玩家对 Boss 造成的伤害 |
+| `recordTakenDamage(UUID, name, amount)` | 玩家 UUID、玩家名、伤害值 | 记录 Boss 对玩家造成的伤害 |
+
+### 排名快照
+
+`BossDamageRankingTracker.snapshot()` 生成 `BossDamageRankingSnapshot`，包含：
+
+| 字段 | 类型 | 说明 |
+|---|---|---|
+| `enabled` | `boolean` | 是否启用伤害排名 |
+| `participantCount` | `int` | 伤害参与总人数（含未达标） |
+| `trackedPlayerCount` | `int` | 上榜人数（达标人数） |
+| `totalDamage` | `double` | 所有参与者总伤害 |
+| `entryLimit` | `int` | 最大排名条目数（`max-entries`） |
+| `entries` | `List<BossDamageRankingEntry>` | 排名条目列表（按伤害降序） |
+
+每个 `BossDamageRankingEntry` 包含：
+
+| 字段 | 类型 | 说明 |
+|---|---|---|
+| `playerName` | `String` | 玩家名 |
+| `playerUuid` | `UUID` | 玩家 UUID |
+| `rank` | `int` | 排名（从 1 开始，0 表示未上榜） |
+| `qualified` | `boolean` | 是否达标（通过伤害门槛） |
+| `damage` | `double` | 伤害值 |
+| `damagePercent` | `double` | 伤害百分比（占总伤害） |
+| `takenDamage` | `double` | 承受伤害值 |
+
+## 伤害门槛
+
+`DamageThreshold` 控制玩家伤害是否足以参与排名，通过 Boss 配置文件的 `damage-ranking.min-damage` 字段设置：
+
+| 模式 | 配置示例 | `Mode` 枚举 | 判断逻辑 |
+|---|---|---|---|
+| 百分比（默认） | `"1%"` | `PERCENTAGE` | 伤害 ≥ Boss 最大血量 × 百分比 |
+| 绝对值 | `"1000"` | `ABSOLUTE` | 伤害 ≥ 固定值 |
+| 任意 | 留空或无法解析 | `ANY` | 任何伤害均可参与 |
+
+### 解析规则
+
+`DamageThreshold.parse()` 的解析逻辑：
+
+```yaml
+# 百分比模式：以 % 结尾
+min-damage: "1%"     # 伤害 ≥ maxHealth * 0.01
+
+# 绝对值模式：纯数字
+min-damage: "1000"   # 伤害 ≥ 1000
+
+# 任意模式：留空或无法解析
+min-damage: ""       # 任何伤害均可参与
+```
+
+| 输入 | 解析结果 | 说明 |
+|---|---|---|
+| `"1%"` | `PERCENTAGE(0.01)` | 百分比模式，1% |
+| `"1000"` | `ABSOLUTE(1000.0)` | 绝对值模式，1000 |
+| `""` | `PERCENTAGE(0.01)` | 空值回退到默认（1%） |
+| `"abc"` | `ANY(0.0)` | 无法解析时为任意模式 |
+| `"-5"` | `ANY(0.0)` | 负值时为任意模式 |
+
+### 门槛判断
+
+`DamageThreshold.passes(damage, referenceValue)` 方法判断伤害是否通过门槛：
+
+| 模式 | 判断逻辑 |
+|---|---|
+| `ANY` | `damage > 0` 即通过 |
+| `ABSOLUTE` | `damage >= value` |
+| `PERCENTAGE` | `damage >= max(0, referenceValue) * value` |
+
+> `referenceValue` 为 Boss 最大血量，百分比门槛基于最大血量计算，而非当前血量。
+
+## 死亡结算
+
+### 结算流程
+
+当 Boss 死亡时，`BossTrackerService.onDeath()` 调用 `BossDamageSettlementService.settle()` 执行结算：
+
+```
+Boss 死亡（MythicMobDeathEvent）
+  → BossDamageSettlementService.settle(session, entity)
+  → session.markSettled()（确保只结算一次）
+  → 生成 BossDamageSettlementRecord（含结算 ID、Boss 信息、排名快照）
+  → 遍历排名条目，按名次发放即时奖励（rewards）
+  → 缓存结算记录（settlementsById）
+  → 更新玩家最近结算记录（lastSettlementByPlayer）
+  → 返回结算记录给 BossTrackerService
+```
+
+### 结算记录
+
+`BossDamageSettlementRecord` 包含：
+
+| 字段 | 类型 | 说明 |
+|---|---|---|
+| `settlementId` | `String` | 结算唯一 ID（递增数字） |
+| `bossId` | `String` | MythicMob ID |
+| `bossDisplayName` | `String` | Boss 显示名称 |
+| `entityUuid` | `UUID` | Boss 实体 UUID |
+| `maxHealth` | `double` | Boss 最大血量 |
+| `spawnedAt` | `long` | 生成时间戳 |
+| `settledAt` | `long` | 结算时间戳 |
+| `entries` | `List<BossDamageSettlementEntry>` | 各名次结算条目 |
+| `rewards` | `BossDamageRankingRewardsSettings` | 奖励配置 |
+
+每个 `BossDamageSettlementEntry` 记录单个玩家的结算信息：
+
+| 字段 | 类型 | 说明 |
+|---|---|---|
+| `rank` | `int` | 排名 |
+| `playerUuid` | `UUID` | 玩家 UUID |
+| `playerName` | `String` | 玩家名 |
+| `damage` | `double` | 伤害值 |
+| `damagePercent` | `double` | 伤害百分比 |
+| `takenDamage` | `double` | 承受伤害 |
+| `qualified` | `boolean` | 是否达标 |
+| `rewarded` | `boolean` | 是否已发放奖励 |
+
+### 结算缓存
+
+结算服务维护两个缓存：
+
+| 缓存 | 类型 | 容量 | 说明 |
+|---|---|---|---|
+| `settlementsById` | `Map<String, BossDamageSettlementRecord>` | 100 条 | 按结算 ID 索引，供管理命令查询 |
+| `lastSettlementByPlayer` | `Map<UUID, BossDamagePlayerSettlementView>` | 无限 | 按玩家 UUID 索引，供 PAPI 占位符查询 |
+
+> `settlementsById` 超过 100 条时会移除最早的记录（LRU 策略）。
+
+## 即时奖励
+
+即时奖励在 Boss 死亡结算时发放，通过 Boss 配置文件的 `damage-ranking.rewards` 配置：
+
+```yaml
+damage-ranking:
+  rewards:
+    enabled: false          # 是否启用即时奖励
+    ranks:                  # 名次到奖励的映射
+      1:
+        actions:
+          - type: item
+            source: neige
+            id: "legendary_sword"
+            amount: 1
+          - type: command
+            command: "points give {player} 100"
+          - type: message
+            target: "player"
+            text: "&6你在 {boss_display_name} 伤害排名第 {rank} 名，获得奖励。"
+      2:
+        actions:
+          - type: command
+            command: "points give {player} 50"
+```
+
+> 即时奖励只在 Boss 死亡结算时发放。Boss 重载、消失或服务器停机不会触发即时奖励。
+
+## 排行榜定时奖励
+
+排行榜定时奖励独立于即时死亡结算，按周/月周期发放，通过 Boss 配置文件的 `damage-ranking.ranking-rewards` 配置：
+
+```yaml
+damage-ranking:
+  ranking-rewards:
+    weekly:                 # 周奖励
+      enabled: false
+      ranks:
+        1:
+          actions:
+            - type: command
+              command: "points give {player} 100"
+            - type: message
+              target: "broadcast"
+              text: "&6&l恭喜 {player} 获得本周 {boss_display_name} 伤害冠军！"
+    monthly:                # 月奖励
+      enabled: false
+      ranks:
+        1:
+          actions:
+            - type: command
+              command: "points give {player} 500"
+```
+
+### 调度配置
+
+全局调度设置在主配置文件的 `new-features.ranking-rewards.schedule` 中：
+
+```yaml
+new-features:
+  ranking-rewards:
+    schedule:
+      weekly:
+        enabled: true
+        day-of-week: "MONDAY"    # MONDAY ~ SUNDAY
+        hour: 0
+        minute: 0
+      monthly:
+        enabled: true
+        day-of-month: 1
+        hour: 0
+        minute: 0
+    timezone: "Asia/Shanghai"
+    reward-settings:
+      auto-distribute: true
+      max-retry-count: 3
+      retry-interval-minutes: 30
+      broadcast-rewards: true
+      detailed-logging: true
+```
+
+| 调度字段 | 说明 |
+|---|---|
+| `weekly.enabled` | 是否启用周奖励调度 |
+| `weekly.day-of-week` | 周奖励执行日（`MONDAY` ~ `SUNDAY`） |
+| `weekly.hour` / `weekly.minute` | 执行时间 |
+| `monthly.enabled` | 是否启用月奖励调度 |
+| `monthly.day-of-month` | 月奖励执行日（1-31） |
+| `monthly.hour` / `monthly.minute` | 执行时间 |
+| `timezone` | 时区（默认 `Asia/Shanghai`） |
+
+### 发放设置
+
+| 字段 | 默认值 | 说明 |
+|---|---|---|
+| `auto-distribute` | `true` | 是否自动发放奖励 |
+| `max-retry-count` | `3` | 发放失败重试次数 |
+| `retry-interval-minutes` | `30` | 重试间隔（分钟） |
+| `broadcast-rewards` | `true` | 是否广播奖励发放结果 |
+| `detailed-logging` | `true` | 是否记录详细日志 |
+
+### 排行数据来源
+
+排行榜定时奖励的排行数据从数据库 `player_boss_best_damage` 表查询，而非实时伤害追踪。每个周期结束时，`RankingRewardService` 遍历所有 Boss 配置，查询该周期内各玩家的最高伤害记录，按名次发放奖励。
+
+## 奖励动作类型
+
+`BossDamageRewardAction` 定义五种奖励动作类型，通过 `BossDamageRewardActionType` 枚举区分：
+
+| 类型 | 配置值 | 必填字段 | 说明 |
+|---|---|---|---|
+| 物品 | `item` | `source`、`id`、`amount` | 通过 `ItemSourceRegistry` 发放物品 |
+| 命令 | `command` | `command` | 以控制台身份执行命令 |
+| 消息 | `message` | `target`、`text` | 发送消息到指定目标 |
+| 邮件 | `mail` | `text` 或 `preset-id` | 通过 `MailDispatchable` 发送邮件 |
+| 信号 | `signal` | `signal` | 派发信号 |
+
+### 物品奖励
+
+```yaml
+- type: item
+  source: neige           # minecraft / mythic / neige / overture / mmoitems
+  id: "legendary_sword"    # 物品来源 ID
+  amount: 1                # 数量（至少 1）
+  nbt: "{Custom:1b}"      # 自定义 NBT（仅 minecraft 源有效，可选）
+```
+
+| 字段 | 类型 | 说明 |
+|---|---|---|
+| `source` | `String` | 物品来源：`minecraft` / `mythic` / `neige` / `overture` / `mmoitems` |
+| `id` | `String` | 物品来源 ID |
+| `amount` | `int` | 数量（至少 1） |
+| `nbt` | `String` | 自定义 NBT（SNBT 格式，仅 `minecraft` 源有效） |
+
+> 物品发放统一由 `ItemRewardDispatcher` 处理：放入背包 → 背包满转邮件 → 无邮件则掉落。物品来源详见 [/docs/guide/item-sources](/docs/guide/item-sources)。
+
+### 命令奖励
+
+```yaml
+- type: command
+  command: "points give {player} 100"
+```
+
+以控制台身份执行命令，支持变量替换和 PlaceholderAPI 二次解析。
+
+### 消息奖励
+
+```yaml
+- type: message
+  target: "player"       # player / broadcast / console
+  text: "&6你在 {boss_display_name} 伤害排名第 {rank} 名。"
+```
+
+| `target` 值 | 说明 |
+|---|---|
+| `player` | 发送给获奖玩家 |
+| `broadcast` | 全服广播 |
+| `console` | 输出到控制台 |
+
+### 邮件奖励
+
+```yaml
+- type: mail
+  text: "&6您在 {boss_display_name} 伤害排名第 {rank} 名，获得奖励。"
+  # 或使用预设
+  preset-id: "boss_reward_template"
+```
+
+> 邮件奖励需要 Mail 模块可用（`MailDispatchable` Capability）。若 Mail 模块不可用，邮件奖励动作会被跳过。
+
+### 信号奖励
+
+```yaml
+- type: signal
+  signal: "boss_kill_reward"
+```
+
+通过 `signalDispatcher` 派发信号，供其他系统监听处理。
+
+## 变量替换
+
+奖励动作中的 `command`、`text` 等字段支持变量替换，替换流程：
+
+```
+原始文本 → 内置变量替换（{player}、{rank} 等）→ PlaceholderAPI 二次解析（%vault_eco_balance% 等）
+```
+
+### 可用变量
+
+| 变量 | 说明 |
+|---|---|
+| `{player}` / `{player_name}` / `{player_uuid}` / `{player_display_name}` | 获奖玩家信息 |
+| `{boss_id}` / `{boss_display_name}` / `{entity_uuid}` | Boss 信息 |
+| `{rank}` / `{rank_text}` | 排名 |
+| `{damage}` / `{damage_percent}` / `{taken_damage}` | 伤害数据 |
+| `{total_damage}` / `{participant_count}` / `{tracked_player_count}` | 统计数据 |
+| `{top_N_name}` / `{top_N_damage}` / `{top_N_damage_percent}` / `{top_N_taken_damage}` | 排行榜字段（N = 1 ~ max-entries） |
+
+> 内置变量替换通过正则匹配 `{([a-zA-Z0-9_]+)}` 完成，替换后文本会再走一次 `PlaceholderResolverAPI` 解析。条件判断详见 [/docs/guide/conditions](/docs/guide/conditions)。
+
+## 奖励补发
+
+管理命令 `/axs entitytracker reissue <settlementId> <rank> [玩家名]` 可补发指定结算中指定名次的奖励：
+
+```yaml
+# 补发结算 ID 为 5 的第 1 名奖励
+/axs entitytracker reissue 5 1
+
+# 补发结算 ID 为 5 的第 1 名奖励给指定玩家
+/axs entitytracker reissue 5 1 Steve
+```
+
+补发通过 `BossDamageSettlementService.reissueReward()` 执行，会重新解析奖励配置并执行所有动作。
+
+## 结算占位符
+
+以 `last_` 为前缀的 PAPI 占位符返回玩家最近一次 Boss 死亡结算的数据：
+
+| 占位符 | 说明 |
+|---|---|
+| `%axsentitytracker_last_settlement_id%` | 结算 ID |
+| `%axsentitytracker_last_boss_id%` | Boss MythicMob ID |
+| `%axsentitytracker_last_boss_display_name%` | Boss 显示名称 |
+| `%axsentitytracker_last_participant_count%` | 参与人数 |
+| `%axsentitytracker_last_total_damage%` | 总伤害 |
+| `%axsentitytracker_last_rank%` | 玩家排名 |
+| `%axsentitytracker_last_rank_text%` | 玩家排名文本 |
+| `%axsentitytracker_last_damage%` | 玩家伤害 |
+| `%axsentitytracker_last_damage_percent%` | 玩家伤害百分比 |
+| `%axsentitytracker_last_taken_damage%` | 玩家承受伤害 |
+| `%axsentitytracker_last_rewarded%` | 玩家是否已领奖 |
+| `%axsentitytracker_last_top_1_name%` | 结算第 1 名玩家名 |
+| `%axsentitytracker_last_top_1_damage%` | 结算第 1 名伤害值 |
+
+> 占位符通过 `BossDamageSettlementPlaceholderContext` 解析，数据来源于 `lastSettlementByPlayer` 缓存。
+
+## UI 交互
+
+排行榜奖励系统通过独立 Packet ID `AXS_ENTITY_TRACKER_REWARD` 与三个 UI 交互：
+
+| UI 文件 | Action | 说明 |
+|---|---|---|
+| `ranking_rewards.yml` | `list-configs` | 列出奖励配置（按周/月筛选） |
+| `ranking_rewards.yml` | `scheduler-status` | 查询调度器状态 |
+| `ranking_rewards.yml` | `manual-distribute` | 手动触发奖励发放 |
+| `ranking_rewards.yml` | `toggle` | 切换奖励配置启用状态 |
+| `ranking_rewards.yml` | `open-manage` | 打开管理界面 |
+| `reward_editor.yml` | `save-config` | 保存奖励配置 |
+| `reward_history.yml` | `open-history` | 打开历史界面 |
+| `reward_history.yml` | `history-list` | 获取发放历史列表（支持筛选与分页） |
+| `reward_history.yml` | `retry` | 重试失败的奖励发放 |
+
+> UI 图标配置详见 [/docs/guide/icons](/docs/guide/icons)。

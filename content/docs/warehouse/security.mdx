@@ -1,0 +1,298 @@
+---
+title: 安全与自动化
+description: 二级密码、物品黑名单、展示柜与自动入库详解
+---
+
+# 安全与自动化
+
+Warehouse 模块提供多层安全保障与自动化功能：二级密码保护敏感操作、物品黑名单拦截非法物品、展示柜公开展示仓库内容、自动拾取入库。
+
+## 二级密码
+
+### 功能说明
+
+二级密码是 Warehouse 模块的安全核心，由 ArcartXSuite 核心统一管理（`SecondaryPasswordAccess` 能力）。以下操作要求二级密码已解锁：
+
+| 操作类型 | 要求解锁的 action |
+| --- | --- |
+| 存入物品 | `deposit_slot`、`deposit_all_backpack` |
+| 取出物品 | `withdraw`、`withdraw_all` |
+| 银行提现 | `bank_withdraw` |
+| 领取定期 | `fixed_claim` |
+| 仓库升级 | `warehouse_upgrade` |
+| 共享仓库管理 | `shared_create`、`shared_delete`、`shared_invite`、`shared_remove`、`shared_transfer` |
+
+### 密码配置
+
+```yaml
+security:
+  min-length: 4
+  max-length: 32
+  unlock-session-ms: 600000
+  allow-admin-password-reveal: false
+  admin-reveal-secret: ""
+```
+
+| 字段 | 类型 | 默认值 | 说明 |
+| --- | --- | --- | --- |
+| `min-length` | int | `4` | 二级密码最小长度，范围 3-32 |
+| `max-length` | int | `32` | 二级密码最大长度，范围 4-64 |
+| `unlock-session-ms` | long | `600000` | 解锁后会话有效时长（毫秒，600000 = 10 分钟），最小 10000 |
+| `allow-admin-password-reveal` | boolean | `false` | 是否允许管理员查看玩家二级密码 |
+| `admin-reveal-secret` | string | `""` | 管理员查看密码所需的密钥 |
+
+### 密码操作
+
+二级密码通过 UI 操作，对应以下 action：
+
+| action | 说明 | 所需 UI |
+| --- | --- | --- |
+| `password_unlock` | 验证密码并解锁会话 | storage / manage / bank |
+| `password_set` | 设置或修改密码 | storage / manage / bank |
+| `password_lock` | 主动锁定会话 | storage / manage / bank |
+
+### 会话机制
+
+- 解锁后，在 `unlock-session-ms` 时间内所有操作无需再次输入密码
+- 会话过期后，下次敏感操作会再次要求解锁
+- 玩家可通过 `password_lock` action 主动锁定会话
+- 密码设置成功后自动解锁会话
+
+### 密码长度校验
+
+设置密码时，系统校验长度在 `min-length` ~ `max-length` 范围内：
+
+```java
+if (trimmed.length() < minLen || trimmed.length() > maxLen) {
+    sendMessage(player, false, message("player.password-length", minLen, maxLen));
+    return;
+}
+```
+
+## 物品黑名单
+
+### 功能说明
+
+黑名单用于拦截不可存入仓库的物品。物品存入时（包括手动存入和自动拾取），系统通过 `ItemMatcher` 校验，命中任意一条规则即拒绝存入。
+
+### 黑名单配置
+
+```yaml
+blacklist:
+  material-ids: []
+  mythic-item-ids: []
+  neige-item-ids: []
+  overture-item-ids: []
+  kinds: []
+  name-contains:
+    - "绑定不可存"
+  lore-contains:
+    - "不可存入仓库"
+  name-regex: []
+  lore-regex: []
+  nbt-keys: []
+```
+
+### 匹配规则
+
+| 规则字段 | 类型 | 说明 |
+| --- | --- | --- |
+| `material-ids` | `List<string>` | 按原版 Material ID 拦截，如 `["BEDROCK", "COMMAND_BLOCK"]` |
+| `mythic-item-ids` | `List<string>` | 按 MythicMobs 物品 ID 拦截 |
+| `neige-item-ids` | `List<string>` | 按 NeigeItems 物品 ID 拦截 |
+| `overture-item-ids` | `List<string>` | 按 Overture 物品 ID 拦截 |
+| `kinds` | `List<string>` | 按物品种类（kind）拦截 |
+| `name-contains` | `List<string>` | 物品显示名包含任意关键词即拦截 |
+| `lore-contains` | `List<string>` | 物品 Lore 包含任意关键词即拦截 |
+| `name-regex` | `List<string>` | 物品显示名匹配任意正则即拦截 |
+| `lore-regex` | `List<string>` | 物品 Lore 匹配任意正则即拦截 |
+| `nbt-keys` | `List<string>` | 物品 PDC 或原始 NMS NBT 中存在任意 key 即拦截 |
+
+### 黑名单匹配时机
+
+黑名单在以下场景进行检查：
+
+| 场景 | 检查方式 |
+| --- | --- |
+| 手动存入单格 | `depositSlot()` → `itemMatcherSupport.matches(configuration.blacklist(), stack)` |
+| 一键存入背包 | `depositAllBackpack()` 逐格检查，命中黑名单的物品跳过并计数 |
+| 自动拾取入库 | `depositStack()` 内部检查 |
+| 核心存入逻辑 | `depositStack()` 开头检查 `itemMatcherSupport.matches` |
+
+> 黑名单匹配使用 `ItemMatcherAPI`，支持多种物品来源的匹配。详见 [物品来源](/docs/guide/item-sources)。
+
+### 一键存入的黑名单处理
+
+一键存入背包时，黑名单命中的物品不会被存入但也不会报错，而是跳过并统计：
+
+```
+已从背包存入 {totalStored} 件物品，共 {changedSlots} 格，跳过 {skippedBlacklisted} 格禁存物品，{failedSlots} 格未能存入。
+```
+
+## 展示柜
+
+### 功能说明
+
+展示柜允许玩家将仓库中的物品展示到聊天频道，供其他玩家查看。支持两种展示方式：
+
+| 展示方式 | 条件 | 说明 |
+| --- | --- | --- |
+| ArcartX 聊天卡片 | 配置了 `card-id` | 通过 `packetBridge.sendChatCard()` 发送结构化卡片 |
+| 可点击聊天消息 | 未配置 `card-id` | 发送带 ClickEvent 和 HoverEvent 的聊天消息 |
+
+### 展示柜配置
+
+```yaml
+showcase:
+  enabled: true
+  cooldown-seconds: 60
+  max-items: 9
+  card-id: ""
+  permission: "arcartxsuite.warehouse.showcase"
+```
+
+| 字段 | 类型 | 默认值 | 说明 |
+| --- | --- | --- | --- |
+| `enabled` | boolean | `true` | 是否启用展示柜功能 |
+| `cooldown-seconds` | int | `60` | 每次展示后的冷却时间（秒），最小 5 |
+| `max-items` | int | `9` | 单次展示卡片中最多显示的物品数量，最小 1 |
+| `card-id` | string | `""` | ArcartX 聊天卡片 ID，留空则使用内置聊天消息 |
+| `permission` | string | `arcartxsuite.warehouse.showcase` | 使用展示柜所需的权限节点 |
+
+### 展示流程
+
+1. 玩家执行 `/warehouse showcase` 或在 UI 中发送 `showcase` action
+2. 校验功能已启用且玩家有权限
+3. 检查冷却时间（`showcaseCooldowns` 记录上次展示时间戳）
+4. 收集可展示的仓库：
+   - 个人仓库中 `showcaseEnabled = true` 的仓库
+   - 玩家为 owner 且 `showcaseEnabled = true` 的共享仓库
+5. 发送展示内容到全服
+
+### 仓库展示开关
+
+每个仓库（个人和共享）都有独立的展示开关，由仓库所有者控制：
+
+| 操作 | action | 说明 |
+| --- | --- | --- |
+| 切换个人仓库展示 | `personal_showcase_toggle` | 仅自己可操作 |
+| 切换共享仓库展示 | `shared_showcase_toggle` | 仅 owner 可操作 |
+
+### 预览功能
+
+其他玩家点击展示消息后，执行 `/wh spreview <UUID> <warehouseId>` 以只读模式预览仓库。预览模式限制：
+
+- 仅支持翻页、分类切换、搜索、排序和槽位选择
+- 禁止存取、切换仓库、编辑等操作
+- 仅展示 `showcaseEnabled = true` 的仓库
+
+## 自动入库
+
+### 功能说明
+
+自动入库在玩家拾取物品时自动将物品存入第一个个人仓库，无需手动操作。
+
+### 自动入库配置
+
+全局默认配置在 `pickup` 节：
+
+```yaml
+pickup:
+  auto-store-on-pickup: true
+  auto-store-mythic-loot: false
+  notify-on-auto-store: true
+```
+
+| 字段 | 类型 | 默认值 | 说明 |
+| --- | --- | --- | --- |
+| `auto-store-on-pickup` | boolean | `true` | 拾取时是否自动存入仓库 |
+| `auto-store-mythic-loot` | boolean | `true` | 是否自动存入 MythicMobs 掉落物 |
+| `notify-on-auto-store` | boolean | `true` | 自动存入时是否通知玩家 |
+
+### 玩家个人设置
+
+玩家可在仓库管理界面（`AXS:warehouse_manage`）中覆盖全局默认设置。个人设置持久化到 `warehouse_player_settings` 表，服务器重启后保持。
+
+| action | 说明 |
+| --- | --- |
+| `toggle_auto_pickup` | 切换自动入库开关 |
+| `toggle_auto_mythic` | 切换自动存储怪物战利品开关 |
+| `toggle_auto_notify` | 切换入库通知开关 |
+
+### 自动入库流程
+
+自动入库由 `onEntityPickupItem` 事件监听器处理（`EventPriority.LOWEST`）：
+
+1. 检查拾取者是否为在线玩家
+2. 如果 Pickup 扫描模式已接管该玩家拾取流程，跳过自动入库
+3. 从 `ViewState` 读取玩家的自动入库设置（优先使用数据库持久化值，而非全局配置默认值）
+4. 如果自动入库关闭，跳过
+5. 调用 `depositStack()` 将物品存入第一个个人仓库
+6. 根据存入结果更新掉落物：
+   - 全部存入：取消拾取事件并移除掉落物
+   - 部分存入：更新掉落物数量为剩余数量
+   - 存入失败：不干预拾取
+7. 发送通知（聊天栏 + HUD）
+
+### 通知双通道
+
+自动入库成功后，通知通过两个独立通道发送：
+
+| 通道 | 控制开关 | 说明 |
+| --- | --- | --- |
+| 聊天栏 | 玩家个人设置 `autoNotify` | 发送聊天消息提示存入数量 |
+| HUD | Pickup 模块的 `isNotificationActive` | 通过 `PickupNotifiable.notifyPickup()` 推送 HUD |
+
+> 两个通道独立工作，互不影响。聊天栏由 Warehouse 自身的 notify 开关控制，HUD 由 Pickup 模块的 toggle 控制。
+
+### Pickup 拦截器
+
+如果 Pickup 模块的扫描模式已接管玩家拾取流程，自动入库会自动跳过，让扫描面板正常展示掉落物。玩家在扫描面板中按键交互后，再通过 `WarehouseAutoDepositable` 能力存入仓库。
+
+### 外部模块调用
+
+Warehouse 模块注册了 `WarehouseAutoDepositable` 能力，供 Pickup 等外部模块调用：
+
+```java
+registerCapability(WarehouseAutoDepositable.class,
+    (player, itemStack) -> service.depositToPersonalWarehouse(player, itemStack));
+```
+
+`depositToPersonalWarehouse()` 方法将物品存入玩家第一个个人仓库，返回 `DepositResult`（包含成功状态、存入数量、剩余数量和消息）。
+
+## 玩家设置持久化
+
+### warehouse_player_settings 表
+
+| 列名 | 类型 | 说明 |
+| --- | --- | --- |
+| `player_uuid` | `VARCHAR(36)` | 玩家 UUID（主键） |
+| `auto_pickup` | `BOOLEAN` | 自动入库开关 |
+| `auto_mythic` | `BOOLEAN` | 自动存储怪物战利品开关 |
+| `auto_notify` | `BOOLEAN` | 入库通知开关 |
+| `updated_at` | `BIGINT` | 更新时间戳 |
+
+### 设置加载优先级
+
+玩家 ViewState 初始化时，设置加载优先级为：
+
+1. 从 `warehouse_player_settings` 表加载持久化设置
+2. 如果无记录，回退到 `pickup` 节的全局默认值
+
+```java
+boolean autoPickup = configuration.pickup().autoStoreOnPickup();
+var settings = repository.loadPlayerSettings(player.getUniqueId());
+if (settings.isPresent()) {
+    autoPickup = settings.get().autoPickup();
+}
+```
+
+> 这确保服务器重启后玩家的个人设置不会丢失，不会回退到全局默认值。
+
+## 相关文档
+
+- [配置](/docs/warehouse/configuration) — 安全与拾取完整配置字段
+- [命令与占位符](/docs/warehouse/commands) — 展示柜命令与权限
+- [物品来源](/docs/guide/item-sources) — ItemMatcher 匹配规则与物品库桥接
+- [条件系统](/docs/guide/conditions) — 黑名单条件匹配语法
+- [图标系统](/docs/guide/icons) — 聊天卡片图标配置

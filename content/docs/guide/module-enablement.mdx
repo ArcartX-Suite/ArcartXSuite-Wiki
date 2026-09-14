@@ -1,0 +1,123 @@
+---
+title: 模块启用
+description: config.yml 中 modules 配置、enabled 开关、热加载与热卸载
+---
+
+# 模块启用
+
+ArcartX-Suite 的 `config.yml` 负责模块启用开关：
+
+```yaml
+modules:
+  announcer:
+    enabled: true
+  warehouse:
+    enabled: true
+```
+
+所有模块统一受 `config.yml` 的 `modules.&lt;module>.enabled` 控制，设为 `true` 后即可加载。
+
+## 模块列表
+
+ArcartX-Suite 提供 29 个模块，按授权方式分为免费模块、付费模块与福利模块。
+
+### 免费模块
+
+服务器绑定云端后自动装备，无需额外购买：
+
+| 模块 ID | 说明 |
+|---------|------|
+| `rgb` | RGB 渐变文本渲染 |
+| `pickup` | 自定义拾取动画与效果 |
+| `announcer` | 公告 / 字幕轮播系统 |
+| `loginview` | ArcartX UI 登录界面 |
+| `onlinerewards` | 在线奖励 / 签到系统 |
+| `combateffect` | 战斗特效包（击中/暴击/击杀） |
+| `eventpacket` | 事件包分发引擎 |
+| `prop` | 快捷道具栏 |
+| `essentials` | 基础工具（传送/管控/一键砍树） |
+| `regions` | 区域保护（40+ 标志） |
+| `afkreward` | 挂机奖励 |
+| `tooltip` | 物品提示桥接（TACZ/Apotheosis tooltip 采集） |
+
+### 付费模块
+
+需在云端平台购买授权后装备：
+
+| 模块 ID | 说明 |
+|---------|------|
+| `title` | 称号系统（属性联动） |
+| `conversation` | NPC 对话引擎 |
+| `mail` | 邮件系统 |
+| `warehouse` | 仓库系统 |
+| `questgps` | 任务导航系统 |
+| `map` | 大地图 / 锚点系统 |
+| `market` | 全球市场（商店 + 拍卖行 + 回收） |
+| `qqbot` | QQ 群服互联（OneBot 11 协议） |
+| `menu` | 通用菜单框架 |
+| `fishing` | 钓鱼小游戏 |
+| `lottery` | 抽奖系统 |
+| `battlepass` | 战斗通行证 |
+
+### 福利模块
+
+按累计消费在云端平台领取授权份额：
+
+| 模块 ID | 说明 | 领取条件 |
+|---------|------|----------|
+| `chat` | 全频道聊天系统 | 任意消费可领 5 份额 |
+| `vanilla` | 原版界面替换（工作台/熔炉 UI 化） | 任意消费可领 5 份额 |
+| `tab` | 自定义 Tab 列表面板 | 消费满 100 可领 5 份额 |
+| `extrabackpack` | 扩展背包（多分类额外槽位） | 消费满 100 可领 5 份额 |
+| `entitytracker` | Boss / 目标追踪面板 | 消费满 200 可领 5 份额 |
+
+## 热加载 / 热卸载
+
+ArcartX-Suite 支持在不重启服务端的情况下动态加载或卸载模块。
+
+### 热加载
+
+```bash
+/axs load <模块名>
+```
+
+从 `modules/` 目录扫描指定 id 的 jar，执行实例化并调用 `onEnable`。适用于首次部署新模块或重新启用已卸载的模块。
+
+### 热卸载
+
+```bash
+/axs unload <模块名>
+```
+
+执行 `onDisable` 清理资源，移除命令/包/能力注册，关闭 ClassLoader 释放 jar 文件句柄。若有其他模块依赖它，则会被拒绝并提示依赖列表。
+
+### 重载
+
+```bash
+/axs reload all        # 重载本体配置 + 全部模块
+/axs reload <模块名>    # 仅重载指定模块
+```
+
+`reload all` 会先热重载本体 `config.yml` 及可安全热重载的子系统，再重载全部模块。以下配置需重启服务器才能生效：
+
+- 数据源切换（`storage`）
+- 跨服后端（`cross-server`）
+- 二级密码存储（`secondary-password`）
+- 多方认证（`auth`）
+- ArcartX 桥接（`tacz-compat`）
+- 聊天签名绕过（`chat-sign-bypass`）
+
+## 与 reload 的区别
+
+| 操作 | load/unload | reload |
+|------|-------------|--------|
+| ClassLoader | 创建/关闭新的 | 复用现有的 |
+| 资源释放 | 完全释放 jar 句柄 | 仅重置状态 |
+| 依赖检查 | unload 时检查反向依赖 | 不检查 |
+| 适用场景 | 动态插拔、版本更新 | 配置刷新、状态重置 |
+
+## 已知约束
+
+- UI 残留：ArcartX UI 不支持显式注销，卸载后旧 UI 仍由 ArcartX 持有，但包处理器已断开
+- Capability 清理：模块需在 `onDisable` 中自行清理注册的 capabilities
+- 依赖顺序：卸载时需按依赖关系手动处理，系统不会自动卸载依赖模块

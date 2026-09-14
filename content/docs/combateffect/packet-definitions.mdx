@@ -1,0 +1,418 @@
+---
+title: 包定义系统
+description: CombatEffect 包定义系统详解：触发器、接收者、条件、冷却、变量替换与手动触发 API
+---
+
+# 包定义系统
+
+> **付费模块**
+
+包定义（PacketDefinition）是 CombatEffect 模块的核心引擎。每个包定义描述了一次特效触发的完整规则——何时触发、发给谁、发什么内容、多久冷却一次。模块启动时从 `packets/` 目录批量加载所有 `*.yml` 文件，每个文件的根键即为包 ID。
+
+## 架构概览
+
+```yaml
+# 包定义加载流程
+ArcartXCombatEffect.yml
+  └─ kill-effect.packets-directory: "packets"
+      └─ packets/*.yml（按文件名字母序加载）
+          └─ 每个根键 = 一个 PacketDefinition
+              ├─ triggers: 触发器列表
+              ├─ recipients: 接收者列表
+              ├─ ui-id + packet-handler: 目标 UI
+              ├─ conditions: 触发条件
+              ├─ cooldown: 冷却时间
+              └─ pack: 发包内容模板
+```
+
+| 源码类 | 职责 |
+|---|---|
+| `CombatEffectPacketConfiguration` | 从目录批量加载包定义，管理黑名单与实体战斗开关 |
+| `PacketDefinition` | 不可变 record，封装单个包定义的全部字段与匹配逻辑 |
+| `PacketTrigger` | 触发器类型枚举（8 种） |
+| `PacketRecipient` | 接收者类型枚举（attacker / target） |
+| `CombatPacketContext` | 战斗上下文，封装攻击者、目标、伤害值等，负责占位符渲染 |
+| `CombatEffectPacketService` | 事件监听与包分发服务，含冷却管理与手动触发 API |
+
+## 触发器类型
+
+模块支持 8 种触发器，每种对应不同的战斗事件或交互行为。`trigger` 字段为单值写法，`triggers` 字段为列表写法，两者可混用。
+
+| 触发器 | 配置值 | 触发时机 | 监听事件 | 条件字段 |
+|---|---|---|---|---|
+| 击杀 | `kill` | 玩家击杀活体实体时 | `EntityDeathEvent` / `TaczGunKillEvent` | 无 |
+| 攻击 | `attack` | 玩家攻击活体实体时 | `EntityDamageByEntityEvent` | 无 |
+| 死亡 | `death` | 玩家即将死亡进入缓冲期时 | `DeathBufferService` 内部触发 | 无 |
+| 连击 | `combo` | 连击计数达到条件时 | `ComboTrackerService` 内部触发 | `combo-min` / `combo-max` / `combo-repeat` |
+| 手动 | `manual` | 仅通过命令或 API 触发 | 无事件监听 | 无 |
+| 按键 | `keybind` | ArcartX 按键按下/释放时 | `ClientKeyPressEvent` 等 | `key-name` / `key-action` / `key-type` |
+| 状态 | `state` | Chronos 状态进入/离开时 | `PlayerEnterStateEvent` / `PlayerLeaveStateEvent` | `state-id` / `state-action` / `controller-id` |
+| 控制器 | `controller` | Chronos 控制器切换时 | `PlayerControllerChangeEvent` | `controller-id` |
+
+> `kill` 触发器同时监听 Bukkit 原生 `EntityDeathEvent` 与 `TaczGunKillEvent`。TACZ 击杀不保证 `LivingEntity.getKiller()` 返回枪手，因此必须通过独立事件准确获取击杀者。
+
+### 触发器匹配逻辑
+
+每种触发器在 `PacketDefinition` 中有独立的匹配方法，只有匹配成功的包定义才会被分发：
+
+| 触发器 | 匹配方法 | 匹配条件 |
+|---|---|---|
+| `combo` | `matchesCombo(int comboCount)` | triggers 含 COMBO + comboCount 在 `combo-min`~`combo-max` 范围内 + repeat 逻辑 |
+| `keybind` | `matchesKeybind(String keyName, boolean isPress, String keyType)` | triggers 含 KEYBIND + keyName 通配符匹配 + keyType 匹配 + action 匹配 |
+| `state` | `matchesState(String stateId, boolean isEnter, String controllerId)` | triggers 含 STATE + stateId 通配符匹配 + controllerId 可选匹配 + action 匹配 |
+| `controller` | `matchesController(String controllerId)` | triggers 含 CONTROLLER + controllerId 通配符匹配（空则匹配所有） |
+| `kill` / `attack` / `death` | triggers 列表包含对应枚举即可 | 无额外条件 |
+
+### 通配符匹配
+
+`key-name`、`state-id`、`controller-id` 字段支持 `*` 通配符，匹配逻辑为大小写不敏感的正则转换：
+
+| 模式 | 匹配示例 | 不匹配示例 |
+|---|---|---|
+| `attack_*` | `attack_1`、`attack_combo` | `attack`、`skill_1` |
+| `*` | 任意非 null 字符串 | `null` |
+| `狂暴` | `狂暴` | `狂暴_2`、`RAGE` |
+| `skill_*` | `skill_1`、`skill_ultimate` | `attack_1` |
+
+> 通配符仅支持 `*`（匹配任意字符序列），不支持 `?` 等其他正则语法。模式中的 `.` 会被转义为字面量。
+
+## 接收者解析
+
+每个包定义可指定一个或多个接收者。模块根据触发场景从攻击者和目标中解析出实际接收玩家。
+
+| 接收者 | 配置值 | 解析逻辑 | 说明 |
+|---|---|---|---|
+| 攻击者 | `attacker` / `killer` | 直接返回 attacker 玩家 | 按键/状态触发时为触发的玩家自身 |
+| 目标 | `target` | 目标为玩家时返回，否则返回 `null` | 仅 PVP 场景有效，非玩家目标自动跳过 |
+
+```java
+// PacketRecipient.resolve() 的解析逻辑
+public Player resolve(Player attacker, LivingEntity target) {
+    return switch (this) {
+        case ATTACKER -> attacker;
+        case TARGET -> target instanceof Player p ? p : null;
+    };
+}
+```
+
+> 接收者列表为空时默认为 `["attacker"]`。同一包定义可同时指定 `attacker` 和 `target`，在 PVP 场景下双方都会收到特效包。
+
+## 条件系统
+
+`conditions` 节为不同触发器提供细粒度的触发条件控制。条件字段按触发器类型分组，互不干扰。
+
+### combo 条件
+
+| 条件字段 | 类型 | 默认值 | 说明 |
+|---|---|---|---|
+| `combo-min` | int | `0` | 最低连击数（含），到达时触发 |
+| `combo-max` | int | `2147483647` | 最高连击数（含），超出后不再触发 |
+| `combo-repeat` | boolean | `false` | `true` 在范围内每击触发；`false` 仅达到 `combo-min` 时触发一次 |
+
+`combo-repeat` 的触发逻辑：
+
+| `combo-repeat` | `combo-min` | 触发时机 |
+|---|---|---|
+| `false` | `> 0` | 仅当 `comboCount == combo-min` 时触发一次 |
+| `false` | `= 0` | 每一击都触发（min=0 时 repeat 逻辑不生效） |
+| `true` | 任意 | `combo-min`~`combo-max` 范围内每一击都触发 |
+
+### keybind 条件
+
+| 条件字段 | 类型 | 默认值 | 说明 |
+|---|---|---|---|
+| `key-name` | string | — | 按键名称，支持 `*` 通配符（如 `attack_*`） |
+| `key-action` | string | `press` | `press` / `release` / `both` |
+| `key-type` | string | `client` | `client` / `simple` / `group` |
+
+按键类型对应 ArcartX 客户端三种按键事件：
+
+| 按键类型 | 配置值 | 监听事件 | 说明 |
+|---|---|---|---|
+| 客户端按键 | `client` | `ClientKeyPressEvent` / `ClientKeyReleaseEvent` | ArcartX 标准按键绑定 |
+| 简易按键 | `simple` | `ClientSimpleKeyPressEvent` / `ClientSimpleKeyReleaseEvent` | 轻量按键 |
+| 按键组 | `group` | `ClientKeyGroupPressEvent` | 按键组按下事件 |
+
+### state / controller 条件
+
+| 条件字段 | 类型 | 默认值 | 说明 |
+|---|---|---|---|
+| `state-id` | string | — | 状态 ID，支持 `*` 通配符 |
+| `state-action` | string | `enter` | `enter` / `leave` / `both` |
+| `controller-id` | string | — | 控制器 ID 过滤（可选），支持 `*` 通配符 |
+
+> `state-action` 映射：`enter` 对应 `press`，`leave` 对应 `release`，`both` 匹配任意动作。`controller-id` 为空或未设置时不做控制器过滤。
+
+## 冷却系统
+
+每个包定义可配置独立冷却时间（毫秒）。冷却以 `包ID:玩家UUID` 为 key 存储在 `ConcurrentHashMap` 中，同一玩家在冷却内不会重复收到此包。
+
+```yaml
+# 500ms 冷却 — 同一玩家 500ms 内不会重复收到此包
+attack-effect:
+  trigger: attack
+  cooldown: 500
+```
+
+| 冷却行为 | 说明 |
+|---|---|
+| 冷却 key | `packetId:playerUUID` |
+| 存储位置 | `CombatEffectPacketService.cooldownMap`（内存 `ConcurrentHashMap`） |
+| 冷却检查 | 发包前检查 `isOnCooldown()`，过期自动清理 |
+| 冷却设置 | 发包成功后设置 `setCooldown()`，时间为 `now + cooldownMs` |
+| 玩家退出 | `PlayerQuitEvent` 自动清理该玩家所有冷却 key |
+| `cooldown: 0` | 无冷却，每次触发都发送 |
+
+> 冷却仅在包发送成功后才设置。如果 `packetBridge.sendPacket()` 返回 `false`，不会设置冷却，下一帧仍可重试。
+
+## 变量替换
+
+包内容（`pack`）中的字符串值支持变量替换。`CombatPacketContext.renderPayload()` 方法遍历模板 Map，将字符串值中的占位符替换为实际战斗数据。
+
+### 按触发器分组的内置变量
+
+| 触发器 | 可用变量 |
+|---|---|
+| `kill` / `attack` | `{attacker}` `{target}` `{target_name}` `{damage}` `{mythic_mob_id}` `{entity_type}` `{recipient}` |
+| `death` | `{attacker}` `{target}` `{damage}` `{death_message}` `{recipient}` |
+| `combo` | `{combo_count}` `{player}` `{attacker}` |
+| `keybind` | `{player}` `{key_name}` |
+| `state` | `{player}` `{state_id}` `{controller_id}` |
+| `controller` | `{player}` `{controller_id}` |
+| 手动触发 | `{recipient}` `{player}` + 自定义 `k=v` 变量 |
+
+### 变量替换示例
+
+```yaml
+# kill 触发器变量替换
+kill-effect:
+  trigger: kill
+  pack:
+    killer: "{attacker}"        # → "Steve"
+    victim: "{target}"          # → "Zombie"（玩家目标为玩家名，非玩家为实体类型名）
+    target_name: "{target_name}" # → 自定义名称或实体类型名
+    damage: "{damage}"          # → "15.5"（格式化为 1 位小数）
+    mythic_id: "{mythic_mob_id}" # → "Boss_001"（无则为空字符串）
+    entity: "{entity_type}"     # → "ZOMBIE"
+    receiver: "{recipient}"      # → 接收者玩家名
+```
+
+> `{target}` 对玩家目标返回玩家名，对非玩家目标返回实体类型名（如 `ZOMBIE`）。`{target_name}` 优先返回自定义名称，无自定义名称时返回实体类型名。`{damage}` 格式化为 `%.1f`（1 位小数）。
+
+## pack 模板格式
+
+`pack` 字段支持三种写法，由 `CombatEffectPacketConfiguration.parsePacketDefinition()` 解析：
+
+| 写法 | YAML 格式 | 渲染结果 | 适用场景 |
+|---|---|---|---|
+| 字符串 | `pack: ""` | `""` | 无附加数据，仅触发 UI handler |
+| 列表 | `pack: ["a", "b"]` | `List<Object>` | 有序数据 |
+| 字典 | `pack: {key: value}` | `Map<String, Object>` | 键值对数据（最常用） |
+
+```yaml
+# 字典模式（最常用）
+pack:
+  combo_count: "{combo_count}"
+  player: "{player}"
+
+# 字符串模式（无附加数据）
+pack: ""
+
+# 列表模式
+pack:
+  - "{attacker}"
+  - "{target}"
+```
+
+> 字典模式中，值为字符串时进行变量替换；值为非字符串（数字、布尔、列表）时原样保留。模板为空时 `renderPayload()` 返回空 Map。
+
+## 手动触发 API
+
+除事件自动触发外，模块提供两种手动触发方式，通过命令和 Capability 接口均可调用。
+
+### triggerPacketById
+
+按包 ID 触发已注册的包定义，绕过事件匹配，直接发给指定玩家。支持附加变量合并到模板渲染。
+
+```java
+// CombatEffectPacketService.triggerPacketById()
+public boolean triggerPacketById(String packetId, Player recipient, Map<String, String> variables)
+```
+
+| 参数 | 类型 | 说明 |
+|---|---|---|
+| `packetId` | `String` | 包定义 ID |
+| `recipient` | `Player` | 目标玩家 |
+| `variables` | `Map<String, String>` | 额外变量（合并到 pack 模板渲染），可为 `null` |
+
+手动触发的变量替换逻辑与事件触发略有不同：`{recipient}` 和 `{player}` 替换为目标玩家名，附加变量的 `{key}` 替换为对应值。
+
+### triggerDirect
+
+直接向玩家发送 UI 包，完全绕过包定义系统。
+
+```java
+// CombatEffectPacketService.triggerDirect()
+public boolean triggerDirect(String uiId, String packetHandler, Player recipient, Object payload)
+```
+
+| 参数 | 类型 | 说明 |
+|---|---|---|
+| `uiId` | `String` | 目标 UI ID |
+| `packetHandler` | `String` | UI 中的 handler 名称 |
+| `recipient` | `Player` | 目标玩家 |
+| `payload` | `Object` | 发包内容（`null` 时使用空 Map） |
+
+> 手动触发 API 同时通过 `CombatEffectTriggerable` Capability 暴露给其他模块，参考 [联动文档](/docs/combateffect/integration#capability-注册)。
+
+## 实体战斗过滤
+
+包分发前，`CombatEffectPacketConfiguration.shouldProcessTarget()` 会检查目标是否应被处理：
+
+```java
+// 过滤逻辑
+public boolean shouldProcessTarget(boolean isPlayer, String mythicMobId, EntityType entityType) {
+    if (!entityCombatEnabled) return false;
+    if (isPlayer && !includePlayers) return false;
+    if (!isPlayer && !includeNonPlayerLiving) return false;
+    if (mythicMobId != null && !mythicMobId.isBlank() && blacklistedMythicMobIds.contains(mythicMobId)) return false;
+    if (entityType != null && blacklistedEntityTypes.contains(entityType)) return false;
+    return true;
+}
+```
+
+| 过滤规则 | 配置字段 | 说明 |
+|---|---|---|
+| 实体战斗总开关 | `entity-combat.enabled` | `false` 时所有目标都不处理 |
+| 玩家目标 | `entity-combat.include-players` | `false` 时 PVP 目标不处理 |
+| 非玩家目标 | `entity-combat.include-non-player-living` | `false` 时怪物/动物不处理 |
+| MythicMob 黑名单 | `blacklist.mythic-mob-ids` | 大小写不敏感，命中则跳过 |
+| 实体类型黑名单 | `blacklist.entity-types` | Bukkit `EntityType` 枚举名，如 `ZOMBIE` |
+
+> 黑名单仅影响 `kill` 和 `attack` 触发器的包分发。`combo`、`keybind`、`state`、`controller` 触发器不经过实体战斗过滤。
+
+## 包定义完整示例
+
+```yaml
+# packets/default.yml
+
+# 击杀特效 — 玩家击杀活体实体时向攻击者发送
+kill-effect:
+  enabled: true
+  trigger: kill
+  ui-id: "AXS:combat_kill_effect"
+  packet-handler: "kill"
+  recipients:
+    - killer
+  pack: ""
+
+# 命中特效 — 500ms 冷却防止刷屏
+attack-effect:
+  enabled: false
+  trigger: attack
+  ui-id: "AXS:combat_kill_effect"
+  packet-handler: "attack"
+  recipients:
+    - attacker
+  cooldown: 500
+  pack: ""
+
+# 连击 5 — 达到 5 连击时触发一次
+combo-5:
+  enabled: true
+  trigger: combo
+  ui-id: "AXS:combo_effect"
+  packet-handler: "combo"
+  recipients:
+    - attacker
+  conditions:
+    combo-min: 5
+    combo-max: 2147483647
+    combo-repeat: false
+  pack:
+    combo_count: "{combo_count}"
+
+# 连击 10 — 里程碑特效
+combo-10:
+  enabled: true
+  trigger: combo
+  ui-id: "AXS:combo_effect"
+  packet-handler: "combo_milestone"
+  recipients:
+    - attacker
+  conditions:
+    combo-min: 10
+    combo-max: 2147483647
+    combo-repeat: false
+  pack:
+    combo_count: "{combo_count}"
+
+# 死亡缓冲 — 发给被击杀的玩家
+death-buffer-victim:
+  enabled: true
+  trigger: death
+  ui-id: "AXS:death_buffer"
+  packet-handler: "death"
+  recipients:
+    - target
+  pack:
+    killer: "{attacker}"
+    victim: "{target}"
+
+# 按键触发 — 按下 attack_* 按键时触发，1 秒冷却
+skill-burst:
+  enabled: true
+  trigger: keybind
+  ui-id: "AXS:combat_kill_effect"
+  packet-handler: "attack"
+  recipients:
+    - attacker
+  conditions:
+    key-name: "attack_*"
+    key-action: "press"
+    key-type: "client"
+  cooldown: 1000
+  pack:
+    player: "{player}"
+    key_name: "{key_name}"
+
+# 状态触发 — 进入 "狂暴" 状态时触发
+berserk-effect:
+  enabled: true
+  trigger: state
+  ui-id: "AXS:combat_kill_effect"
+  packet-handler: "attack"
+  recipients:
+    - attacker
+  conditions:
+    state-id: "狂暴"
+    state-action: "enter"
+  pack:
+    player: "{player}"
+    state_id: "{state_id}"
+
+# 控制器触发 — 切换到 "弓箭手" 控制器时触发
+archer-mode:
+  enabled: true
+  trigger: controller
+  ui-id: "AXS:combat_kill_effect"
+  packet-handler: "attack"
+  recipients:
+    - attacker
+  conditions:
+    controller-id: "弓箭手"
+  pack:
+    player: "{player}"
+    controller_id: "{controller_id}"
+```
+
+## 相关文档
+
+- [概览](/docs/combateffect) — 模块功能与战斗特效机制
+- [配置](/docs/combateffect/configuration) — 完整配置字段表与示例
+- [命令与占位符](/docs/combateffect/commands) — 命令、权限、UI 包通讯
+- [联动](/docs/combateffect/integration) — EventBus 事件、Capability、跨模块联动
+- [伤害飘字系统](/docs/combateffect/damage-display) — 伤害/治疗飘字子系统详解
+- [连击追踪与触发器](/docs/combateffect/combo-and-triggers) — 连击、死亡缓冲、按键/状态触发器详解
+- [条件系统](/docs/guide/conditions) — 统一条件系统配置指南
+- [图标配置](/docs/guide/icons) — 统一图标系统配置指南

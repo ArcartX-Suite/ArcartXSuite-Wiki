@@ -1,0 +1,182 @@
+---
+title: 联动
+description: Pickup 跨模块联动、Capability 与 EventBus
+---
+
+# 联动
+
+## EventBus 事件
+
+Pickup 模块通过 EventBus 发布事件，供其他模块订阅。模块在 `publishedTopics()` 中注册了以下主题：
+
+| 事件主题 | 触发时机 | Payload 字段 |
+| --- | --- | --- |
+| `axs.pickup.item_pickup` | 通知模式下玩家拾取地面掉落物时 | `material`（材质 ID）、`amount`（数量） |
+
+### 事件发布流程
+
+1. 玩家拾取地面掉落物，触发 `EntityPickupItemEvent`（`HIGHEST` 优先级，`ignoreCancelled = true`）
+2. `PickupService.onEntityPickupItem` 监听事件，构造 HUD payload 并推送通知
+3. 同步通过 `EventBusCapability` 发布 `axs.pickup.item_pickup` 事件，payload 包含物品材质名称与拾取数量
+4. 其他模块可通过 EventBus 订阅此事件实现联动（如任务系统统计拾取量、成就系统触发解锁等）
+
+```java
+// 示例：其他模块订阅 pickup 拾取事件
+eventBus.subscribe("axs.pickup.item_pickup", (player, payload) -> {
+    String material = payload.get("material");
+    int amount = Integer.parseInt(payload.get("amount"));
+    // 处理拾取事件...
+});
+```
+
+> 事件仅在通知模式且拾取未被取消时发布。扫描模式下拾取由服务端主动执行（非 `EntityPickupItemEvent` 触发），不发布此事件。若 Warehouse 模块以 `LOWEST` 优先级取消了事件（自动入库），本模块因 `ignoreCancelled = true` 不会触发，事件不会发布。
+
+## Capability 注册
+
+Pickup 模块根据工作模式注册不同的 Capability，供其他模块通过 `getCapability()` 获取。
+
+### PickupNotifiable（通知模式）
+
+通知模式下注册，提供拾取通知推送接口，供 Warehouse 等模块在自动入库后补发 HUD 提示。
+
+```java
+public interface PickupNotifiable {
+    boolean isNotificationActive(UUID playerId);
+    boolean notifyPickup(Player player, ItemStack itemStack, int amount);
+}
+```
+
+| 方法 | 说明 |
+| --- | --- |
+| `isNotificationActive(UUID)` | 查询玩家拾取通知是否处于活跃状态（服务已启动且玩家未手动关闭） |
+| `notifyPickup(Player, ItemStack, int)` | 主动推送一条拾取通知到玩家 HUD，返回 `true` 表示已排入推送流程 |
+
+**补发场景**：Warehouse 模块在 `LOWEST` 优先级取消了 `EntityPickupItemEvent`（自动入库），本模块监听器因 `ignoreCancelled = true` 不会触发。Warehouse 通过此接口补发 HUD 提示，确保玩家看到入库通知。
+
+### PickupInterceptor（扫描模式）
+
+扫描模式下注册，提供拾取拦截状态查询接口，让 Warehouse 等模块知道扫描模式已接管拾取流程。
+
+```java
+public interface PickupInterceptor {
+    boolean isPickupIntercepted(UUID playerId);
+}
+```
+
+| 方法 | 说明 |
+| --- | --- |
+| `isPickupIntercepted(UUID)` | 查询玩家的拾取是否已被扫描模式拦截（服务已启动且玩家未手动关闭） |
+
+> Warehouse 模块获取此 Capability 后，在自动入库场景下可判断是否需要拦截原版拾取事件，避免与扫描模式的拦截逻辑冲突。
+
+## Capability 依赖
+
+Pickup 模块通过 `getCapability()` 获取其他模块提供的 Capability：
+
+| Capability | 提供方 | 用途 | 获取方式 |
+| --- | --- | --- | --- |
+| `EventBusCapability` | 核心 | 发布 `axs.pickup.item_pickup` 事件 | `getCapability(EventBusCapability.class)` |
+| `WarehouseAutoDepositable` | Warehouse | 扫描模式拾取后自动存入仓库 | `getCapability(WarehouseAutoDepositable.class)` |
+
+### WarehouseAutoDepositable 调用
+
+扫描模式下，当 `scanner.warehouse-auto-deposit` 启用时，`LootScannerService.handlePick` 在拾取物品前优先调用 Warehouse 自动入库接口：
+
+```java
+WarehouseAutoDepositable depositable = warehouseAutoDepositableSupplier.get();
+if (depositable != null) {
+    DepositResult result = depositable.depositToPersonalWarehouse(player, stack);
+    long storedInWarehouse = result.storedAmount();
+    int remainingForInventory = result.remainingAmount();
+    // 仓库存入后剩余部分放入背包
+}
+```
+
+| `DepositResult` 字段 | 说明 |
+| --- | --- |
+| `success` | 是否存入成功 |
+| `storedAmount` | 已存入仓库的数量 |
+| `remainingAmount` | 剩余未存入数量（放入玩家背包） |
+| `message` | 提示消息 |
+
+> 仓库存入全部数量时直接移除掉落物实体；部分存入时剩余数量放入背包；背包满时物品保留在地面并提示玩家。
+
+## 宿主按键系统集成
+
+扫描模式下，Pickup 模块通过 `registerKeybindHandler` 注册宿主全局按键回调：
+
+| 配置 | 值 | 说明 |
+| --- | --- | --- |
+| 按键名 | `scanner.keybind.name`（默认 `AXS_PICKUP_PICK`） | 须与宿主 `config.yml` 的 `keybinds` 节中注册的按键 name 一致 |
+| 优先级 | `10` | 拾取优先于对话（对话模块优先级较低） |
+| 回调 | `LootScannerService.handleInteractKeyFromHost` | 服务端校验通过后发送 `open_interact` 包打开交互菜单 |
+
+**按键处理流程**：
+
+1. 玩家按交互键，宿主 `KeybindService` 路由到 Pickup 模块注册的回调
+2. `handleInteractKeyFromHost` 校验玩家拾取功能是否开启、附近是否有可拾取物品
+3. 校验通过后发送 `open_interact` 包到客户端 `loot_panel` HUD
+4. 客户端执行 `Screen.open('AXS:loot_interact')` 打开透明交互菜单
+5. 玩家在菜单中点击或滚轮操作，客户端回包通知服务端执行拾取或切换选中
+
+> 按键注册/alias 路由完全由宿主 `KeybindService` 处理，客户端无需知道按键 name。`scanner.keybind.name` 留空时默认使用 `AXS_INTERACT`（宿主全局交互键，与对话模块共享）。
+
+## 数据存储
+
+Pickup 模块为纯内存模块，**不使用数据库**。所有状态（玩家开关、HUD 打开状态、掉落物列表、选中索引）均保存在内存中，模块重载或服务器重启后重置。
+
+| 状态 | 存储位置 | 生命周期 |
+| --- | --- | --- |
+| 玩家拾取开关 | `disabledPlayers` 集合（`Set<UUID>`） | 模块运行期间，重载/重启后重置 |
+| HUD 打开状态 | `hudOpenPlayers` / `openedPlayers` 集合 | 玩家在线期间，退出/重载后清理 |
+| 菜单打开状态 | `menuOpenPlayers` 集合 | 菜单关闭/玩家退出时清理 |
+| 掉落物列表 | `playerStates` 映射（`Map<UUID, PlayerLootState>`） | 实时扫描更新，玩家退出时清理 |
+| 待发通知队列 | `pendingPickups` 映射（通知模式） | HUD 打开后 flush，玩家退出时清理 |
+
+> 因无持久化存储，Pickup 模块不参与 `/axs purge` 和 `/axs migrate`，不注册 `PlayerDataPurgeable` 和 `DatabaseMigratable` Capability。
+
+## 跨服说明
+
+Pickup 模块为单服运行模块，不涉及跨服同步。所有拾取逻辑、HUD 推送、扫描任务均在本地子服执行，不通过 CrossServer 通道通信。
+
+| 场景 | 跨服行为 |
+| --- | --- |
+| 玩家切换子服 | HUD 关闭，新子服重新打开（若模块已启用） |
+| 扫描模式掉落物 | 仅扫描当前子服的掉落物实体 |
+| 仓库自动入库 | 调用当前子服的 Warehouse 模块 |
+| EventBus 事件 | 仅在当前子服发布，不跨服广播 |
+
+## 与其他模块联动
+
+| 联动模块 | 机制 | 说明 |
+| --- | --- | --- |
+| Warehouse | `WarehouseAutoDepositable` Capability | 扫描模式拾取后自动存入仓库，剩余部分放入背包 |
+| Warehouse | `PickupNotifiable` Capability | 通知模式 HUD 推送，仓库自动入库后补发拾取提示 |
+| Warehouse | `PickupInterceptor` Capability | 扫描模式注册拾取拦截器，仓库据此判断是否需要拦截原版拾取事件 |
+| Conversation | 宿主按键系统 | 对话选择器面板悬停时自动禁用拾取点击，避免误触（通过按键优先级控制） |
+| 核心 | `EventBusCapability` | 发布 `axs.pickup.item_pickup` 事件供其他模块订阅 |
+| 核心 | 宿主按键系统 | 扫描模式注册全局按键回调（优先级 10，拾取优先于对话） |
+
+### 与 Warehouse 模块联动
+
+**通知模式**：
+
+1. 玩家拾取物品触发 `EntityPickupItemEvent`
+2. Warehouse 监听事件（`LOWEST` 优先级），检查玩家自动入库设置
+3. Warehouse 调用 `depositToPersonalWarehouse` 存入仓库，取消原版拾取事件
+4. 本模块监听器因 `ignoreCancelled = true` 不触发
+5. Warehouse 通过 `PickupNotifiable.notifyPickup` 主动补发 HUD 提示
+
+**扫描模式**：
+
+1. 玩家在交互菜单中点击拾取
+2. `LootScannerService.handlePick` 检查 `warehouse-auto-deposit` 配置
+3. 若启用，调用 `WarehouseAutoDepositable.depositToPersonalWarehouse` 存入仓库
+4. 仓库存入全部数量时移除掉落物实体，部分存入时剩余放入背包
+5. 存入成功后发送 `hints.warehouse-stored` 提示消息
+
+### 与 Conversation 模块联动
+
+扫描模式下，Pickup 模块注册宿主全局按键回调（优先级 10），拾取按键优先于对话按键。当对话选择器面板悬停时，对话模块通过按键优先级机制确保对话交互优先处理，避免拾取菜单误触打开。
+
+> 按键优先级由宿主 `KeybindService` 统一管理，`registerKeybindHandler` 的第二个参数为优先级（数值越小优先级越高）。Pickup 注册优先级为 10，对话模块注册优先级较低。

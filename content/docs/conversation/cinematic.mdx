@@ -1,0 +1,385 @@
+---
+title: 电影序列
+description: Conversation 模块电影序列（Cinematic）系统详解：动作类型、序列回放、玩家状态快照与 Letterbox 黑边
+---
+
+# 电影序列
+
+> **付费模块**
+
+电影序列（Cinematic）是 Conversation 模块内置的过场动画回放引擎，可编排一系列动作（传送、摄像机移动、标题、音效、NPC 动画、字幕等）按顺序对玩家播放。播放时自动显示 letterbox 黑边 UI 营造沉浸感，结束后恢复玩家状态。
+
+## 架构概览
+
+电影序列由 7 个核心类组成，位于 `cinematic` 包下：
+
+| 类 | 职责 |
+| --- | --- |
+| `CinematicService` | 回放引擎，管理会话、玩家状态快照 / 恢复、letterbox 显示 / 隐藏 |
+| `CinematicConfiguration` | 配置解析，从 `data/conversation/cinematics/*.yml` 加载并合并序列 |
+| `CinematicSequence` | 序列定义（record），包含 id、name、有序动作列表 |
+| `CinematicAction` | 动作抽象基类，定义 `execute()` 与 `delayAfterMs()` |
+| `CinematicActions` | 15 种内置动作类型的集合（静态内部类） |
+| `CinematicActionContext` | 动作执行上下文（record），封装所有可用桥接 |
+
+### 回放流程
+
+```
+/axs conversation cinematic play <序列ID>
+  → CinematicService.play(player, sequenceId)
+  → 查找 CinematicSequence（找不到则返回 false）
+  → 检查是否已有活跃会话（同一玩家不可并发播放）
+  → PlayerSnapshot.capture(player) 捕获当前状态
+  → 创建 CinematicSession 并存入 activeSessions
+  → showLetterbox(player) 显示黑边 UI
+  → scheduleNextAction(player, session, 0) 开始调度第一个动作
+  → 每个动作执行后按 delayAfterMs 等待，再调度下一个
+  → 全部动作完成 / 玩家退出 / 强制停止
+  → restorePlayer(player, snapshot) 恢复状态
+  → hideLetterbox(player) 隐藏黑边 UI
+```
+
+## 序列定义
+
+### 文件加载
+
+序列定义文件存放于 `data/conversation/cinematics/*.yml`，模块启动 / 重载时扫描该目录下所有 `.yml` 文件并合并：
+
+- 每个文件可包含 `cinematic.cinematics` 或顶层 `cinematics` 节
+- 文件按文件名排序加载，后加载文件中同 ID 的序列会覆盖先前的
+- 解析失败的序列会被跳过（不影响其他序列加载）
+
+### 序列字段
+
+| 字段 | 类型 | 说明 |
+| --- | --- | --- |
+| `name` | string | 序列显示名（默认取序列 ID） |
+| `actions` | list | 动作列表，按顺序执行 |
+
+```yaml
+cinematic:
+  cinematics:
+    intro:
+      name: "开场动画"
+      actions:
+        - type: lock_movement
+          locked: true
+          delay-after-ms: 0
+        - type: title
+          title: "&6第一章"
+          subtitle: "&7新的开始"
+          fade-in: 10
+          stay: 60
+          fade-out: 10
+          delay-after-ms: 2000
+```
+
+## 动作类型
+
+### 动作基类
+
+每个动作继承 `CinematicAction`，核心契约：
+
+| 方法 | 说明 |
+| --- | --- |
+| `execute(Player, CinematicActionContext)` | 在主线程执行此动作 |
+| `delayAfterMs()` | 动作结束后等待的毫秒数（构造时已 clamp 到 ≥ 0） |
+| `type()` | 动作类型标识，用于配置解析和调试日志 |
+
+> `delay-after-ms` 是每个动作执行**完毕后**的等待时间，而非执行前的延迟。`wait` 动作本身不执行任何操作，完全依赖 `delay-after-ms` 实现等待。
+
+### 全部动作类型
+
+| 类型 | 说明 | 依赖桥接 | 关键字段 |
+| --- | --- | --- | --- |
+| `teleport` | 传送玩家到指定坐标 | Bukkit API | `world`, `x`, `y`, `z`, `yaw`, `pitch` |
+| `camera_path` | 沿路径平滑插值传送（模拟摄像机移动） | Bukkit API | `world`, `duration-ms`, `ticks-per-frame`, `points` |
+| `title` | 显示原版标题 / 副标题 | Bukkit API | `title`, `subtitle`, `fade-in`, `stay`, `fade-out` |
+| `action_bar` | 显示原版 Action Bar 消息 | Bukkit API | `message` |
+| `wait` | 纯等待 | — | — |
+| `sound` | 播放原版音效 | Bukkit API | `sound`, `world`, `x`, `y`, `z`, `volume`, `pitch`, `at-player` |
+| `game_mode` | 切换游戏模式 | Bukkit API | `mode`（`SURVIVAL` / `CREATIVE` / `ADVENTURE` / `SPECTATOR`） |
+| `npc_animation` | 对 Adyeshach NPC 播放动画 | `AdyeshachNpcBridgeAPI` | `npc`, `animation`, `speed`, `transition-time`, `keep-time` |
+| `npc_model` | 对 Adyeshach NPC 设置模型 | `AdyeshachNpcBridgeAPI` | `npc`, `model`, `scale` |
+| `message` | 发送聊天消息 | Bukkit API | `message` |
+| `command` | 执行命令 | Bukkit API | `command`, `as-console`（`{player}` 替换为玩家名） |
+| `speed` | 设置行走 / 飞行速度 | Bukkit API | `walk-speed`, `fly-speed` |
+| `lock_movement` | 锁定 / 解锁玩家移动 | Bukkit API | `locked` |
+| `subtitle` | 播放 Announcer 字幕组 | `SubtitlePlayable` | `group-id` |
+| `ui_packet` | 发送包到 ArcartX 客户端 UI | `PacketBridgeAPI` | `ui-id`, `handler`, `payload` |
+| `arcartx_sound` | 播放 ArcartX 资源包自定义音效 | `SoundPlayerBridgeAPI` | `resource-path`, `category`, `at-player`, `pitch`, `keep-time-ms` |
+
+### 动作执行上下文
+
+`CinematicActionContext` 是一个 record，封装所有动作可访问的桥接：
+
+| 字段 | 类型 | 说明 |
+| --- | --- | --- |
+| `npcBridge` | `AdyeshachNpcBridgeAPI` | NPC 桥接，`npc_animation` / `npc_model` 动作使用 |
+| `packetBridge` | `PacketBridgeAPI` | 包桥接，`ui_packet` 动作使用 |
+| `soundPlayer` | `SoundPlayerBridgeAPI` | 音效桥接，`arcartx_sound` 动作使用 |
+| `subtitlePlayable` | `SubtitlePlayable` | 字幕能力，`subtitle` 动作使用 |
+
+> 各桥接可能为 null（对应模块 / 能力未安装），动作内部会检查并跳过。`CinematicActionContext` 在 `CinematicService` 构造时创建一次，所有动作共享同一实例。
+
+## 动作详解
+
+### teleport
+
+传送玩家到指定坐标。`world` 找不到时回退到玩家当前世界。`yaw` / `pitch` 为可选字段，未填写时保持默认值 0。
+
+```yaml
+- type: teleport
+  world: world
+  x: 100.5
+  y: 70
+  z: 200.5
+  yaw: 90
+  pitch: 0
+  delay-after-ms: 500
+```
+
+### camera_path
+
+沿路径点平滑插值传送，模拟摄像机移动。通过 `AxsScheduler.runTaskLater` 按帧调度，每帧将玩家传送到插值后的位置。
+
+| 字段 | 类型 | 默认值 | 说明 |
+| --- | --- | --- | --- |
+| `world` | string | `world` | 世界名 |
+| `duration-ms` | long | `3000` | 总时长（毫秒），最小 50 |
+| `ticks-per-frame` | int | `2` | 每帧间隔（tick），最小 1 |
+| `points` | list | — | 路径点列表，至少 2 个点 |
+
+每个路径点支持 5 个坐标分量：
+
+| 分量 | 说明 |
+| --- | --- |
+| `x` | X 坐标 |
+| `y` | Y 坐标 |
+| `z` | Z 坐标 |
+| `yaw` | 偏航角（可选，默认 0） |
+| `pitch` | 俯仰角（可选，默认 0） |
+
+> 插值算法为线性插值（`lerp`），按 `progress * (points.size() - 1)` 计算当前段，在相邻两点间线性插值。`totalFrames = durationMs / (ticksPerFrame * 50)`，帧数不足 1 时取 1。
+
+```yaml
+- type: camera_path
+  world: world
+  duration-ms: 5000
+  ticks-per-frame: 2
+  points:
+    - { x: 100, y: 70, z: 200, yaw: 0, pitch: 30 }
+    - { x: 110, y: 75, z: 210, yaw: 45, pitch: 20 }
+    - { x: 120, y: 80, z: 220, yaw: 90, pitch: 10 }
+  delay-after-ms: 1000
+```
+
+### title
+
+显示原版标题 / 副标题，参数对应 `Player.sendTitle(fadeIn, stay, fadeOut)`。
+
+| 字段 | 类型 | 默认值 | 说明 |
+| --- | --- | --- | --- |
+| `title` | string | `""` | 主标题 |
+| `subtitle` | string | `""` | 副标题 |
+| `fade-in` | int | `10` | 淡入时间（tick） |
+| `stay` | int | `60` | 停留时间（tick） |
+| `fade-out` | int | `10` | 淡出时间（tick） |
+
+### sound
+
+播放原版音效。`at-player: true` 时在玩家当前位置播放，`false` 时在指定坐标播放。`sound` 字段先尝试 `Sound.valueOf` 枚举匹配，匹配失败时降级为字符串音效名播放。
+
+| 字段 | 类型 | 默认值 | 说明 |
+| --- | --- | --- | --- |
+| `sound` | string | — | 音效名 |
+| `world` | string | `world` | 世界名（`at-player: false` 时使用） |
+| `x` / `y` / `z` | double | `0` | 坐标（`at-player: false` 时使用） |
+| `volume` | float | `1.0` | 音量 |
+| `pitch` | float | `1.0` | 音调 |
+| `at-player` | boolean | `true` | 是否在玩家位置播放 |
+
+### game_mode
+
+切换玩家游戏模式。`mode` 字段解析为 `GameMode` 枚举，解析失败时默认 `SPECTATOR`。
+
+```yaml
+- type: game_mode
+  mode: SPECTATOR
+  delay-after-ms: 0
+```
+
+### npc_animation
+
+对 Adyeshach NPC 播放动画。通过 `npcBridge.findByName(npc)` 查找 NPC，找到后调用 `npcBridge.applyAnimation(npc, animation, speed, transitionTime, keepTime)`。
+
+| 字段 | 类型 | 默认值 | 说明 |
+| --- | --- | --- | --- |
+| `npc` | string | — | NPC 名称 |
+| `animation` | string | — | 动画名称 |
+| `speed` | double | `1.0` | 播放速度 |
+| `transition-time` | int | `5` | 过渡时间（毫秒） |
+| `keep-time` | long | `-1` | 持续时间（毫秒），`-1` 表示播放完整 |
+
+> NPC 桥接不可用或 NPC 未找到时动作静默跳过。
+
+### npc_model
+
+对 Adyeshach NPC 设置模型。通过 `npcBridge.findByName(npc)` 查找后调用 `npcBridge.applyModel(npc, modelId, scale)`。
+
+| 字段 | 类型 | 默认值 | 说明 |
+| --- | --- | --- | --- |
+| `npc` | string | — | NPC 名称 |
+| `model` | string | — | 模型 ID |
+| `scale` | double | `1.0` | 缩放比例 |
+
+### command
+
+执行命令。`as-console: true` 时以控制台身份执行（`Bukkit.dispatchCommand`），`false` 时以玩家身份执行（`player.performCommand`）。`{player}` 会被替换为经过 `CommandSanitizer.validatePlayerName` 清理的玩家名。
+
+```yaml
+- type: command
+  command: "say 电影序列开始！"
+  as-console: true
+  delay-after-ms: 1000
+```
+
+### speed
+
+设置玩家行走 / 飞行速度。`walk-speed` / `fly-speed` 均为可选，未填写时跳过对应设置。
+
+| 字段 | 类型 | 默认值 | 说明 |
+| --- | --- | --- | --- |
+| `walk-speed` | float | — | 行走速度（0.0 ~ 1.0） |
+| `fly-speed` | float | — | 飞行速度（0.0 ~ 1.0） |
+
+### lock_movement
+
+锁定 / 解锁玩家移动。锁定时将行走 / 飞行速度设为 0，解锁时恢复默认值（行走 0.2，飞行 0.1）。
+
+```yaml
+- type: lock_movement
+  locked: true
+  delay-after-ms: 0
+```
+
+### subtitle
+
+播放 Announcer 字幕组（打字机效果）。通过 `SubtitlePlayable.playGroup(player, groupId)` 播放。该能力由 Announcer 模块提供，未安装时 `subtitlePlayable` 为 null，动作自动跳过。
+
+```yaml
+- type: subtitle
+  group-id: intro_subtitle
+  delay-after-ms: 3000
+```
+
+### ui_packet
+
+发送包到 ArcartX 客户端 UI。通过 `packetBridge.sendPacket(player, uiId, handler, payload)` 发送自定义 HUD / 标题等。
+
+| 字段 | 类型 | 说明 |
+| --- | --- | --- |
+| `ui-id` | string | 目标 UI ID |
+| `handler` | string | UI 包处理器名 |
+| `payload` | map | 任意键值对载荷 |
+
+> `ui-id` 或 `handler` 为空时动作被解析为 null 并跳过。
+
+```yaml
+- type: ui_packet
+  ui-id: AXS:custom_hud
+  handler: show_title
+  payload:
+    text: "过场动画"
+    color: gold
+  delay-after-ms: 2000
+```
+
+### arcartx_sound
+
+播放 ArcartX 资源包自定义音效。`at-player: true` 时调用 `playSoundForSelf`，`false` 时调用 `playSoundForPlayer` 在指定坐标播放。
+
+| 字段 | 类型 | 默认值 | 说明 |
+| --- | --- | --- | --- |
+| `resource-path` | string | — | 资源路径（必填，为空则跳过） |
+| `category` | string | `master` | 音效分类 |
+| `world` | string | `world` | 世界名（`at-player: false` 时使用） |
+| `x` / `y` / `z` | double | `0` | 坐标 |
+| `dist-or-roll` | int | `16` | 距离 / 滚动参数 |
+| `pitch` | double | `1.0` | 音调 |
+| `keep-time-ms` | int | `5000` | 持续时间（毫秒） |
+| `at-player` | boolean | `true` | 是否在玩家位置播放 |
+
+## 玩家状态快照
+
+电影序列播放前通过 `PlayerSnapshot.capture(player)` 捕获玩家状态，结束后通过 `restorePlayer(player, snapshot)` 恢复：
+
+| 快照字段 | 捕获方式 | 恢复方式 |
+| --- | --- | --- |
+| `gameMode` | `player.getGameMode()` | `player.setGameMode()` |
+| `walkSpeed` | `player.getWalkSpeed()` | `player.setWalkSpeed()` |
+| `flySpeed` | `player.getFlySpeed()` | `player.setFlySpeed()` |
+| `allowFlight` | `player.getAllowFlight()` | `player.setAllowFlight()` |
+| `isFlying` | `player.isFlying()` | `player.setFlying()` |
+| `location` | `player.getLocation().clone()` | `player.teleport()` |
+
+> 玩家退出（`PlayerQuitEvent`）或序列被强制停止（`stop()`）时同样触发状态恢复。恢复失败时记录警告日志但不中断流程。
+
+## Letterbox 黑边 UI
+
+电影序列播放时自动显示 letterbox 黑边 UI，结束后隐藏：
+
+| 阶段 | 操作 | 包字段 |
+| --- | --- | --- |
+| 播放开始 | `showLetterbox()` → `openUiAll` + `sync` 包 | `visible: true` |
+| 播放结束 | `hideLetterbox()` → `close` 包 + `closeUiAll` | `visible: false` |
+
+> Letterbox UI ID 由 `ui.letterbox-ui-id` 配置，支持字符串或列表格式。UI 不接收客户端回包。播放时通过 `hide` 列表隐藏原版 HUD 与自定义 HUD，保留 `title_text` 供序列中 `title` 动作使用。
+
+## 会话管理
+
+### CinematicSession
+
+每个正在播放的玩家对应一个 `CinematicSession`，存储于 `activeSessions`（`ConcurrentMap<UUID, CinematicSession>`）：
+
+| 字段 | 说明 |
+| --- | --- |
+| `sessionId` | 全局递增会话 ID（`AtomicLong`） |
+| `playerId` | 玩家 UUID |
+| `sequence` | 序列定义 |
+| `snapshot` | 玩家状态快照 |
+| `cancelled` | 是否已取消（volatile） |
+| `pendingTask` | 当前待执行任务（volatile） |
+
+> 同一玩家不可并发播放多个序列。`play()` 检查 `activeSessions` 中已有该玩家时直接返回 false。
+
+### 动作调度
+
+`scheduleNextAction(player, session, actionIndex)` 递归调度动作：
+
+1. 检查玩家在线且会话未取消
+2. 检查 `actionIndex` 是否超出动作总数（超出则 `finishSession`）
+3. 在主线程执行当前动作（`action.execute`）
+4. 按 `delayAfterMs` 计算等待 tick（`Math.max(1, delayMs / 50)`）
+5. 调度下一个动作（`scheduleNextAction(player, session, actionIndex + 1)`）
+
+> 动作执行失败时记录警告日志，但不中断序列。`camera_path` 等异步动作的实际完成时间可能长于 `delayAfterMs`，`estimatedDurationMs()` 仅用于预估。
+
+## 调试
+
+启用 `debug.enabled: true` 后，`CinematicService` 输出以下调试日志：
+
+| 事件 | 日志内容 |
+| --- | --- |
+| 开始播放 | 序列 ID、玩家名、动作数 |
+| 执行动作 | 动作序号 / 总数、类型、玩家名、delayAfter |
+| 停止播放 | 玩家名 |
+| 播放完成 | 玩家名 |
+
+## 相关文档
+
+- [概览](/docs/conversation) — 模块功能与对话机制
+- [配置](/docs/conversation/configuration) — 主配置文件、电影序列配置详解
+- [命令与占位符](/docs/conversation/commands) — 电影序列管理命令
+- [联动](/docs/conversation/integration) — 电影序列动作桥接依赖
+- [条件系统](/docs/guide/conditions) — Chemdah 对话触发条件配置

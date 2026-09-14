@@ -1,0 +1,203 @@
+---
+title: 概览
+description: CombatEffect 战斗特效模块功能概览，击杀/连击/伤害飘字/死亡缓冲
+---
+# CombatEffect 战斗特效
+
+## 模块简介
+
+CombatEffect 是 ArcartXSuite 的战斗特效模块，为服务器提供完整的战斗可视化体系。模块监听玩家攻击、击杀、死亡等战斗事件，通过 ArcartX UI 客户端包向玩家发送自定义特效包，同时将伤害与治疗事件桥接到 ArcartX 数字飘字显示系统。
+
+模块由五个子模块组成，各子模块可独立开关：
+
+- **击杀/攻击特效**（`kill-effect`）：监听击杀与攻击事件，向攻击者发送 UI 包触发 HUD 动画
+- **连击追踪**（`combo-tracker`）：追踪连续攻击次数，支持里程碑特效与客户端实时同步
+- **死亡缓冲**（`death-buffer`）：拦截致死伤害，在真正死亡前给玩家一个可视化缓冲期
+- **伤害飘字**（`digis-display`）：将伤害与治疗事件桥接到 ArcartX 数字飘字，支持四插件属性来源自动检测
+- **按键/状态触发器**（`keybind-trigger` / `state-trigger`）：通过按键和 Chronos 状态触发自定义特效包
+
+所有特效均通过 ArcartX UI 客户端渲染，服务端仅负责事件监听与包分发，不涉及任何服务端菜单或 BossBar。
+
+## 功能特性
+
+| 特性 | 说明 |
+|---|---|
+| 击杀特效 | 玩家击杀活体实体时向攻击者发送击杀特效包，HUD 显示击杀贴图与计数 |
+| 攻击特效 | 玩家攻击活体实体时触发命中特效，高频事件支持冷却控制 |
+| 黑名单过滤 | 支持 MythicMob ID 黑名单与 Bukkit EntityType 黑名单 |
+| 实体战斗过滤 | 可选处理玩家目标与非玩家活体实体，保持旧版 PVP 行为 |
+| 连击追踪 | 追踪连续攻击次数，超时自动重置，支持 Chronos 状态事件或 Bukkit 攻击事件作为来源 |
+| 目标锁定 | 可选切换攻击目标时重置连击，适用于 Boss 战场景 |
+| 客户端同步 | 实时同步连击数到 ArcartX 客户端服务器变量 `{server.combo_count}` |
+| 里程碑触发 | 连击达到指定数量时触发特效包，支持单次触发与重复触发两种模式 |
+| 死亡缓冲 | 拦截致死伤害，延迟真正死亡，期间播放 Shader / 相机 / Chronos 死亡动作 |
+| 视觉效果 | 支持 ArcartX Shader（灰度/模糊）、第三人称视角、预设相机 |
+| Chronos 集成 | 缓冲期间强制玩家进入指定 Chronos 状态，连击追踪支持 Chronos 状态组过滤 |
+| 四插件属性来源 | MythicLib/MMOItems → CraneAttribute → AttributePlus → Symphony → Bukkit 原版，自动按优先级选择 |
+| 多类型飘字 | 原始伤害、PVP 伤害、暴击、闪避、元素克制（优势/劣势）六种飘字样式 |
+| 治疗飘字 | 原版治疗与 MythicMobs 技能治疗，支持精确模式（扣除溢出） |
+| 伤害合并 | 短时间内的多段伤害合并为一次飘字，减少高频发包 |
+| 最小阈值 | 低于阈值的伤害不显示，避免微量数字刷屏 |
+| 来源回退 | 指定伤害来源不可用时自动回退到下一个可用来源 |
+| 按键触发 | 监听 ArcartX 按键事件（client / simple / group），按下/释放均可触发特效 |
+| 状态触发 | 监听 Chronos 状态进入/离开与控制器切换事件，支持通配符匹配 |
+| 冷却控制 | 每个包定义可配置独立冷却时间，同一玩家在冷却内不会重复收到此包 |
+| 手动触发 | 支持通过命令或 API 手动触发任意包定义，绕过事件匹配 |
+| EventBus 发布 | 击杀、伤害、死亡事件自动发布到 ArcartXSuite EventBus，供其他模块订阅 |
+
+## 依赖
+
+| 依赖类型 | 名称 | 说明 |
+|---|---|---|
+| 外部硬依赖 | ArcartX | UI 渲染、伤害飘字显示、客户端包通讯 |
+| 外部软依赖 | ArcartX_Chronos_Plugin | 连击追踪状态事件、死亡缓冲状态集成、状态/控制器触发器 |
+| 可选属性插件 | MythicLib / MMOItems | MythicLib 属性伤害飘字 |
+| 可选属性插件 | CraneAttribute | CraneAttribute 属性伤害飘字 |
+| 可选属性插件 | AttributePlus | AttributePlus 属性伤害飘字 |
+| 可选属性插件 | Symphony | Symphony 元素/暴击伤害飘字（唯一提供暴击/闪避/克制标记） |
+| 可选插件 | MythicMobs / MythicBukkit | MythicMobs 技能治疗飘字 |
+| 可选插件 | TACZ | TACZ 枪械伤害与击杀事件（内置事件桥接，无需额外安装） |
+
+> 模块本身不硬依赖任何 ArcartX 模块。属性插件按功能选用，未安装时自动降级到 Bukkit 原版伤害事件。Chronos 未安装时连击追踪回退到 Bukkit 攻击事件，状态/控制器触发器不启用。
+
+## 战斗特效机制
+
+### 包定义系统
+
+CombatEffect 的核心是**包定义**（PacketDefinition）系统。每个包定义描述了一次特效触发的完整规则：
+
+```yaml
+# packets/default.yml 中的包定义示例
+kill-effect:
+  enabled: true                    # 是否启用
+  trigger: kill                    # 触发器类型
+  ui-id: "AXS:combat_kill_effect"  # 目标 ArcartX UI ID
+  packet-handler: "kill"           # UI 中的 packetHandler 名称
+  recipients:                      # 接收者列表
+    - attacker                     # 攻击者
+  cooldown: 500                    # 冷却时间（毫秒）
+  pack:                            # 发包内容（支持变量替换）
+    combo_count: "{combo_count}"
+```
+
+### 触发器类型
+
+模块支持 8 种触发器，每种对应不同的战斗事件或交互行为：
+
+| 触发器 | 配置值 | 触发时机 | 条件字段 |
+|---|---|---|---|
+| 击杀 | `kill` | 玩家击杀活体实体时 | 无 |
+| 攻击 | `attack` | 玩家攻击活体实体时 | 无 |
+| 死亡 | `death` | 玩家即将死亡进入缓冲期时 | 无 |
+| 连击 | `combo` | 连击计数达到条件时 | `combo-min` / `combo-max` / `combo-repeat` |
+| 手动 | `manual` | 仅通过命令或 API 触发 | 无 |
+| 按键 | `keybind` | ArcartX 按键按下/释放时 | `key-name` / `key-action` / `key-type` |
+| 状态 | `state` | Chronos 状态进入/离开时 | `state-id` / `state-action` / `controller-id` |
+| 控制器 | `controller` | Chronos 控制器切换时 | `controller-id` |
+
+### 接收者类型
+
+每个包定义可指定一个或多个接收者，模块根据触发场景解析实际接收玩家：
+
+| 接收者 | 配置值 | 说明 |
+|---|---|---|
+| 攻击者 | `attacker` / `killer` | 攻击者或击杀者（按键/状态触发时为触发的玩家） |
+| 目标 | `target` | 受害者（仅当目标为玩家时可接收） |
+
+### 变量替换
+
+包内容（`pack`）中的字符串支持变量替换，不同触发器提供不同的内置变量：
+
+| 触发器 | 可用变量 |
+|---|---|
+| `kill` / `attack` | `{attacker}` `{target}` `{target_name}` `{damage}` `{mythic_mob_id}` `{entity_type}` `{recipient}` |
+| `death` | `{attacker}` `{target}` `{damage}` `{death_message}` `{recipient}` |
+| `combo` | `{combo_count}` `{player}` `{attacker}` |
+| `keybind` | `{player}` `{key_name}` |
+| `state` | `{player}` `{state_id}` `{controller_id}` |
+| `controller` | `{player}` `{controller_id}` |
+| 手动触发 | `{recipient}` `{player}` + 自定义 `k=v` 变量 |
+
+### 伤害来源解析
+
+伤害飘字子系统支持 6 种伤害来源模式，`auto` 模式按优先级自动检测：
+
+```yaml
+digis-display:
+  damage-display:
+    source:
+      mode: "auto"       # auto / mythiclib / craneattribute / attributeplus / symphony / bukkit
+      fallback: true     # 指定来源不可用时是否回退
+```
+
+优先级顺序（`auto` 模式）：
+
+1. **MythicLib / MMOItems** — MythicLib 结算后的玩家对实体伤害
+2. **CraneAttribute** — CraneAttribute 结算后的玩家对实体伤害
+3. **AttributePlus** — AttributePlus 伤害事件
+4. **Symphony** — Symphony 元素/暴击伤害
+5. **Bukkit** — 原版伤害事件（含 Projectile 弓箭/三叉戟）
+
+> 暴击/闪避/克制飘字为全局配置，当前仅 Symphony 能在伤害事件中提供这些标记。其他属性插件触发时自动降级为普通伤害飘字。优先级：闪避 > 暴击 > 克制 > 普通伤害。
+
+### 连击追踪流程
+
+```yaml
+combo-tracker:
+  enabled: true
+  source: "auto"           # auto: Chronos 优先，否则回退 Bukkit
+  timeout: 2000            # 超时重置（毫秒）
+  sync-variable: true      # 同步到客户端变量
+  variable-name: "combo_count"
+  per-target: false        # 切换目标是否重置
+```
+
+连击追踪支持两种来源：
+
+- **Chronos**：监听 `PlayerEnterStateEvent`，当状态组匹配 `chronos-groups` 时累加连击
+- **Bukkit**：监听 `EntityDamageByEntityEvent`，基于时间窗口累加连击
+
+每次连击累加后，模块会：
+
+1. 检查是否超过超时时间，超时则重置为 1
+2. 检查 `per-target` 模式，切换目标则重置
+3. 同步连击数到客户端服务器变量
+4. 遍历所有 `trigger: combo` 的包定义，检查 `combo-min` / `combo-max` / `combo-repeat` 条件
+5. 匹配则向接收者发送 UI 包
+
+### 死亡缓冲流程
+
+```yaml
+death-buffer:
+  enabled: true
+  duration: 3000           # 缓冲持续时间（毫秒）
+  visuals:
+    shader: ""             # ArcartX Shader 名称
+    third-person-camera: true
+    camera-preset: ""      # 预设相机 ID
+    chronos:
+      enabled: false
+      state-id: "死亡"
+  block-auto-respawn: true
+  world-blacklist: []
+```
+
+死亡缓冲在 `EntityDamageEvent` 的 `HIGHEST` 优先级拦截致死伤害：
+
+1. 检测伤害是否致死（`healthAfter <= 0`）
+2. 取消伤害事件，进入缓冲状态
+3. 冻结玩家（无敌、移速归零、血量设为 0.001）
+4. 应用视觉效果（Shader、第三人称、预设相机、Chronos 状态）
+5. 发送 `trigger: death` 的包定义
+6. 调度延迟任务，缓冲结束后执行真正死亡（`setHealth(0)`）
+
+> 玩家退出时自动清理缓冲状态。`PlayerDeathEvent` 作为安全网兜底，防止其他插件绕过伤害拦截。
+
+## 相关文档
+
+- [配置](/docs/combateffect/configuration) — 完整配置字段表与示例
+- [命令与占位符](/docs/combateffect/commands) — 命令、权限、UI 包通讯
+- [联动](/docs/combateffect/integration) — EventBus 事件、Capability、跨模块联动
+- [条件系统](/docs/guide/conditions) — 统一条件系统配置指南
+- [物品库匹配](/docs/guide/item-sources) — 统一物品来源系统
+- [图标配置](/docs/guide/icons) — 统一图标系统配置指南

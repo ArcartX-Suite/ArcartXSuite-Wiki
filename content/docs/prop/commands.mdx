@@ -1,0 +1,120 @@
+---
+title: 命令与占位符
+description: Prop 模块管理命令、权限节点、PlaceholderAPI 占位符与客户端 UI 数据包
+---
+
+# 命令与占位符
+
+## 命令
+
+Prop 模块通过宿主通用命令 `/axs` 提供管理功能。命令 ID 为 `prop`，子命令通过 `args[1]` 指定。
+
+### 玩家命令
+
+Prop 模块没有独立的玩家命令。玩家通过以下方式使用道具：
+
+| 方式 | 说明 |
+|------|------|
+| 手持右键 | 将物品绑定为道具后，手持右键空气或方块即可触发 |
+| 客户端按键 | 在 ArcartX 客户端按键设置中绑定按键，按下即触发对应槽位的道具 |
+
+### 管理命令
+
+| 命令 | 权限 | 说明 |
+|------|------|------|
+| `/axs prop help` | `arcartxsuite.admin` | 查看可用子命令列表 |
+| `/axs prop status` | `arcartxsuite.admin` | 查看模块运行状态（道具数、按键数、属性桥接状态） |
+| `/axs prop set <道具ID>` | `arcartxsuite.admin` | 将玩家主手物品绑定为指定道具 |
+
+> `/axs prop set` 只能由玩家执行。执行时主手必须持有真实物品（非空气），道具 ID 必须已存在于 `data/prop/props/` 目录中。
+
+### 宿主通用命令
+
+| 命令 | 说明 |
+|------|------|
+| `/axs reload prop` | 重载 Prop 模块（宿主通用重载命令） |
+
+> 重载会重新读取配置文件、按键映射、语言文件和道具定义，并重新注册按键绑定。
+
+## 权限
+
+| 权限节点 | 默认 | 说明 |
+|----------|------|------|
+| `arcartxsuite.admin` | OP | 访问 `/axs prop` 管理命令 |
+| `<道具定义中的 permission>` | 自定义 | 道具使用权限，在道具 YAML 的 `permission` 字段配置 |
+
+> 道具的 `permission` 字段留空时表示无权限限制。配置后玩家必须拥有该权限节点才能使用对应道具。
+
+## PlaceholderAPI
+
+Prop 模块**没有独立的 PlaceholderAPI 占位符输出**。道具效果主要通过权限、物品、命令、属性和内部上下文执行，不涉及 PAPI 占位符注册。
+
+PlaceholderAPI 在 Prop 模块中的角色是作为**条件解析器**——道具定义的 `conditions` 列表中可使用 PAPI 变量进行使用条件判断，例如 `%player_level% >= 10`。
+
+详细条件语法请参考 [条件系统](/docs/guide/conditions)。
+
+## 客户端 UI 数据包
+
+Prop 模块依赖 ArcartX 客户端 MOD 提供的桥接能力（`PropBridgeAPI`），通过客户端数据包实现按键绑定、额外槽位和物品持久化。模块本身不直接发送 UI 数据包，所有客户端交互通过宿主桥接层完成。
+
+### 按键绑定注册
+
+模块启动时通过 `PropBridgeAPI.registerClientKeyBind()` 注册按键绑定：
+
+| 参数 | 说明 |
+|------|------|
+| `bindingId` | 绑定唯一标识（来自 `key.yml` 的顶层键名） |
+| `category` | 按键分类名（来自 `key.yml` 的 `category` 字段） |
+| `defaultKey` | 默认按键（来自 `key.yml` 的 `defaultKey` 字段） |
+| `onPress` | 按下回调，切换到主线程执行 `handleKeyPress()` |
+
+注册成功后，玩家在 ArcartX 客户端按键设置中可以看到对应分类和按键，可以自行修改绑定。
+
+### 额外槽位操作
+
+通过 `PropPlayerHandle` 操作客户端额外槽位：
+
+| 方法 | 说明 |
+|------|------|
+| `getSlotItemStack(slotId)` | 读取指定额外槽位的物品 |
+| `setSlotItemStack(slotId, itemStack)` | 设置指定额外槽位的物品 |
+| `removeSlotItemStackOnlyClient(prefix, recursive)` | 仅客户端移除指定前缀的槽位物品 |
+| `syncSlotCacheToClient()` | 同步槽位缓存到客户端 |
+
+> 按键触发使用道具后，若物品被消耗或冷却标签变更，模块会调用 `syncSlotCacheToClient()` 同步槽位状态到客户端，确保客户端显示与服务端一致。
+
+### 物品持久化
+
+通过 `PropBridgeAPI` 在物品 PDC（PersistentDataContainer）中读写道具 ID：
+
+| 方法 | 说明 |
+|------|------|
+| `writePropId(itemStack, propId)` | 将道具 ID 写入物品 PDC，返回新物品栈 |
+| `getPersistentPropId(itemStack)` | 从物品 PDC 读取持久化道具 ID |
+| `setCooldownTag(itemStack, group)` | 设置物品的冷却组标签 |
+| `getCooldownTag(itemStack)` | 读取物品的冷却组标签 |
+
+### 冷却管理
+
+冷却通过客户端标签系统管理，按冷却组共享：
+
+| 方法 | 说明 |
+|------|------|
+| `setTagCooldown(tag, millis)` | 设置标签冷却（毫秒） |
+| `getTagCooldown(tag)` | 获取标签冷却剩余时间（毫秒） |
+
+> 冷却存储在客户端标签中，玩家重新上线后会从客户端同步冷却状态。按键触发时若冷却未结束，会同步槽位缓存到客户端以保持显示一致。
+
+## 槽位同步时机
+
+模块在以下时机同步玩家槽位数据：
+
+| 时机 | 方法 | 说明 |
+|------|------|------|
+| 玩家加入服务器 | `onPlayerJoin` | 延迟 1 tick 同步全部已配置槽位 |
+| 客户端初始化完成 | `handleClientInitialized` | 延迟 1 tick 同步全部已配置槽位 |
+| 按键触发使用后 | `handleUse` | 同步槽位缓存到客户端 |
+| 按键触发冷却中 | `handleUse` | 同步槽位缓存到客户端 |
+| 模块启动时 | `syncOnlinePlayers` | 对所有在线玩家延迟 1 tick 同步 |
+
+> 槽位同步会检查每个已配置槽位的物品，解析道具 ID 并同步冷却组标签，确保物品状态与服务端定义一致。

@@ -1,0 +1,498 @@
+---
+title: 任务系统
+description: BattlePass 任务模板、条件、增量策略详解
+---
+
+# 任务系统
+
+BattlePass 任务系统是战令经验的核心来源。任务模板按周期分为每日、每周、赛季三类，从任务池中按权重随机分配给玩家。每个任务通过事件触发驱动进度更新，支持条件过滤和增量策略。
+
+## 任务模板字段
+
+每个任务模板在 `tasks/daily.yml`、`tasks/weekly.yml`、`tasks/season.yml` 中定义，字段如下：
+
+| 字段 | 类型 | 默认值 | 说明 |
+|---|---|---|---|
+| `task-id` | string | YAML key | 任务唯一标识（不填时使用 YAML 节点 key） |
+| `display-name` | string | YAML key | 任务显示名称 |
+| `description` | string | `""` | 任务描述 |
+| `difficulty` | string | `"easy"` | 任务难度（`easy` / `normal` / `hard`） |
+| `event-topic` | string | `""` | ArcartX EventBus 主题（业务语义事件） |
+| `bukkit-event` | section | 无 | 原版 Bukkit 事件降级配置 |
+| `required-count` | int | `1` | 完成所需次数（必须 `>` 0） |
+| `base-xp-reward` | int | `0` | 基础 XP 奖励（兼容旧字段 `xp-reward`） |
+| `difficulty-multiplier` | float | 难度对应倍率 | 难度倍率（覆盖难度默认倍率，必须 `>` 0） |
+| `conditions` | list / section | `[]` | 触发条件列表 |
+| `increment-strategy` | section | `fixed 1` | 进度增量策略 |
+| `weight` | int | `1` | 任务分配权重（必须 `>` 0） |
+| `limits` | section | 无限制 | 触发频率限制 |
+
+### bukkit-event 降级配置
+
+| 字段 | 类型 | 说明 |
+|---|---|---|
+| `event-classes` | list | Bukkit 事件全类名列表（支持多个事件类，任一触发即计入） |
+| `event-class` | string | 单个事件类名（兼容旧格式，优先使用 `event-classes`） |
+| `payload-fields` | section | payload 提取规则：key = payload 字段名，value = 表达式或原始 payload key |
+
+### limits 触发限制
+
+| 字段 | 类型 | 默认值 | 说明 |
+|---|---|---|---|
+| `limits.cooldown-ms` | long | `0` | 同一玩家同一任务两次计入之间的最小间隔（毫秒），0 表示不限制 |
+| `limits.max-per-day` | int | `0` | 单个自然日最多计入次数，0 表示不限制 |
+
+> 触发限制状态仅保存在内存中，不持久化。服务重启后冷却和自然日计数会清零。
+
+## 事件触发源
+
+任务支持双事件源声明，引擎启动时自动检测选择：
+
+### 选择优先级
+
+1. **有 `event-topic` 且 EventBus 已有发布者** → 使用 EventBus 订阅
+2. **有 `bukkit-event`** → 使用 Bukkit 原版事件监听器（无论 `event-topic` 是否存在）
+3. **有 `event-topic` 但无发布者且无 `bukkit-event`** → 跳过（任务不会触发）
+4. **两者都没有** → 跳过
+
+### event-topic（ArcartX EventBus）
+
+`event-topic` 用于订阅其他 ArcartX 模块发布的业务语义事件。这些事件没有单个 Bukkit 事件能直接表达，如登录成功、钓鱼成功、Boss 击杀、拍卖成交等。
+
+常用事件主题：
+
+| 事件主题 | 发布模块 | payload 字段 |
+|---|---|---|
+| `axs.loginview.login_success` | loginview | — |
+| `axs.fishing.success` | fishing | — |
+| `axs.fishing.perfect` | fishing | — |
+| `axs.fishing.treasure` | fishing | — |
+| `axs.entitytracker.boss_kill` | entitytracker | — |
+| `axs.questgps.quest_completed` | questgps | `quest_id`, `quest_name` |
+| `axs.currency.spent` | 宿主核心 | `currency_id`, `amount` |
+| `axs.chat.chat_message_sent` | chat | — |
+| `axs.prop.prop_used` | prop | — |
+| `axs.warehouse.item_deposited` | warehouse | `amount` |
+| `axs.regions.region_change` | regions | `type` |
+| `axs.afkreward.reward_claimed` | afkreward | — |
+| `market.listing_created` | market | — |
+
+### bukkit-event（原版 Bukkit 事件）
+
+`bukkit-event` 用于有直接对应 Bukkit 事件的场景。引擎内置支持以下事件类：
+
+| 事件类 | payload 字段 |
+|---|---|
+| `EntityDeathEvent` | `entityType`, `entityName`, `world` |
+| `EntityDamageByEntityEvent` | `attacker`, `targetType`, `targetName`, `damage`, `world` |
+| `PlayerJoinEvent` | `world` |
+| `EntityPickupItemEvent` / `PlayerPickupItemEvent` | `material`, `amount`, `world` |
+| `PlayerFishEvent` | `fishType`, `state`, `world` |
+| `BlockBreakEvent` | `material`, `world` |
+| `BlockPlaceEvent` | `material`, `world` |
+| `CraftItemEvent` | `material`, `amount`, `world` |
+| `PlayerItemConsumeEvent` | `material`, `world` |
+| `PlayerDeathEvent` | `deathCause`, `world` |
+| `TaczGunKillEvent` | `entityType`, `entityName`, `world` |
+| `TaczGunDamageEvent` | `attacker`, `targetType`, `targetName`, `damage`, `world` |
+| `MythicMobDeathEvent` | `entityType`, `entityName`, `mythicMobId`, `world` |
+| `PlayerShearEntityEvent` | `entityType`, `entityName`, `world` |
+| `EntityTameEvent` | `entityType`, `entityName`, `world` |
+| `EntityBreedEvent` | `entityType`, `motherType`, `fatherType`, `world` |
+| `PlayerBucketFillEvent` | `bucket`, `material`, `world` |
+| `EnchantItemEvent` | `material`, `cost`, `world` |
+| `PlayerBedEnterEvent` | `world` |
+| `ProjectileHitEvent` | `projectileType`, `hitEntity`, `hitBlock`, `world` |
+| `PlayerLevelChangeEvent` | `oldLevel`, `newLevel`, `world` |
+| `PlayerAdvancementDoneEvent` | `advancement`, `world` |
+| `PlayerItemBreakEvent` | `material`, `world` |
+| `PlayerHarvestBlockEvent` | `material`, `world` |
+
+> TACZ 枪械事件（`TaczGunKillEvent` / `TaczGunDamageEvent`）是 ArcartXSuite 自定义事件，用于准确追踪枪械击杀和伤害（TACZ 伤害不触发 `EntityDamageByEntityEvent`）。
+
+> MythicMobs 事件为可选依赖，仅在 MythicMobs / MythicBukkit 插件安装时生效。
+
+## 条件系统
+
+任务通过 `conditions` 字段配置触发条件，事件到达时所有条件必须满足才会计入进度。条件支持列表形式和 section 形式两种写法。
+
+### 条件类型
+
+| 类型 | 标识 | 说明 |
+|---|---|---|
+| 事件载荷条件 | `event_payload` | 检查事件 payload 中的键值 |
+| 玩家状态条件 | `player_state` | 检查玩家当前状态 |
+| 组合条件 | `any_of` / `all_of` / `not` | 组合多个子条件 |
+
+每个条件还支持 `negate: true` 字段对结果取反。
+
+### EventPayloadCondition 事件载荷条件
+
+检查事件 payload 中的键值是否满足指定操作符条件。
+
+| 字段 | 类型 | 必填 | 说明 |
+|---|---|---|---|
+| `type` | string | 是 | 固定为 `event_payload` |
+| `key` | string | 是 | payload 中要检查的键名 |
+| `operator` | string | 是 | 比较操作符 |
+| `value` | string | 否 | 目标比较值 |
+| `values` | list | 否 | 集合比较的目标值列表（`in` / `not_in` 操作符使用） |
+| `ignore-case` | boolean | 否 | 是否忽略大小写（默认 false） |
+
+支持的操作符：
+
+| 操作符 | 别名 | 说明 |
+|---|---|---|
+| `equals` | `==` | 相等 |
+| `equals_ignore_case` | — | 忽略大小写相等 |
+| `not_equals` | `!=` | 不等 |
+| `contains` | — | 包含子串 |
+| `not_contains` | — | 不包含子串 |
+| `starts_with` | — | 以指定值开头 |
+| `ends_with` | — | 以指定值结尾 |
+| `regex` | — | 正则匹配 |
+| `greater_than` | `>` | 大于（数值比较） |
+| `greater_or_equal` | `>=` | 大于等于（数值比较） |
+| `less_than` | `<` | 小于（数值比较） |
+| `less_or_equal` | `<=` | 小于等于（数值比较） |
+| `in` | — | 值在集合中 |
+| `not_in` | — | 值不在集合中 |
+| `exists` | — | payload 中存在该 key |
+| `missing` | — | payload 中不存在该 key |
+
+> `exists` 和 `missing` 操作符只判断 key 是否存在，`value` 留空即可。
+
+### PlayerStateCondition 玩家状态条件
+
+检查玩家当前状态是否匹配。
+
+| 字段 | 类型 | 必填 | 说明 |
+|---|---|---|---|
+| `type` | string | 是 | 固定为 `player_state` |
+| `state-type` | string | 是 | 状态类型 |
+| `state-id` | string | 是 | 目标状态标识 |
+
+支持的状态类型：
+
+| state-type | 说明 | state-id 示例 |
+|---|---|---|
+| `chronos` | Chronos 时间状态 | `day` / `night` |
+| `region` | 区域（从 payload 的 `region_id` 读取） | `spawn` / `arena` |
+| `world` | 世界名 | `world` / `world_nether` |
+| `permission` | 权限节点 | `axs.vip` |
+| `gamemode` | 游戏模式 | `SURVIVAL` / `CREATIVE` |
+| `world_environment` | 世界环境 | `NORMAL` / `NETHER` / `THE_END` |
+
+### 组合条件
+
+| 类型 | 说明 |
+|---|---|
+| `any_of` | 任一子条件满足即通过 |
+| `all_of` | 全部子条件满足才通过 |
+| `not` | 全部子条件满足的结果取反 |
+
+组合条件通过 `conditions` 子节定义子条件列表，最大嵌套深度为 5 层。
+
+### 条件配置示例
+
+```yaml
+# 列表形式（推荐）
+conditions:
+  - type: event_payload
+    key: entityType
+    operator: equals
+    value: ZOMBIE
+  - type: event_payload
+    key: material
+    operator: in
+    values:
+      - WHEAT
+      - CARROTS
+      - POTATOES
+  - type: player_state
+    state-type: world
+    state-id: world
+  - type: event_payload
+    key: hitEntity
+    operator: exists
+    value: ""
+
+# 组合条件
+conditions:
+  - type: any_of
+    conditions:
+      - type: event_payload
+        key: entityType
+        operator: equals
+        value: ZOMBIE
+      - type: event_payload
+        key: entityType
+        operator: equals
+        value: SKELETON
+
+# 取反条件
+conditions:
+  - type: event_payload
+    key: entityType
+    operator: not_equals
+    value: CREEPER
+    negate: true
+```
+
+## 增量策略
+
+增量策略决定每次事件触发时任务进度增加多少。通过 `increment-strategy` 字段配置。
+
+### FixedIncrementStrategy 固定增量
+
+每次事件触发返回固定增量值。
+
+| 字段 | 类型 | 默认值 | 说明 |
+|---|---|---|---|
+| `type` | string | `"fixed"` | 固定为 `fixed` |
+| `value` | int | `1` | 固定增量值（必须 `>` 0，自动限制为不小于 1） |
+
+```yaml
+increment-strategy:
+  type: fixed
+  value: 1
+```
+
+### PayloadValueStrategy 载荷值增量
+
+从事件 payload 中读取指定键的值，乘以 scale 后四舍五入，再按 min-per-event 和 max-per-event 夹取。
+
+| 字段 | 类型 | 默认值 | 说明 |
+|---|---|---|---|
+| `type` | string | — | 固定为 `payload_value` |
+| `payload-key` | string | `""` | payload 中要读取的键名 |
+| `scale` | double | `1.0` | 载荷值倍率（必须 ≥ 0） |
+| `max-per-event` | int | `0` | 单次最大增量，0 表示不限制 |
+| `min-per-event` | int | `0` | 单次最小增量 |
+
+计算公式：
+
+```
+增量 = max(min-per-event, min(round(payload[payload-key] × scale), max-per-event))
+```
+
+> 如果 payload 中缺少指定 key 或值无法解析为数字，返回 0（不计入进度）。
+
+```yaml
+# 累计伤害任务：每次伤害事件按伤害值计入进度，单次最多 200
+increment-strategy:
+  type: payload_value
+  payload-key: damage
+  max-per-event: 200
+  scale: 1.0
+
+# 累计消费任务：每次消费按金额计入，单次最多 500
+increment-strategy:
+  type: payload_value
+  payload-key: amount
+  max-per-event: 500
+  scale: 1.0
+```
+
+## 任务分配规则
+
+### 每日任务
+
+- **重置时机**：每天 0:00（自然日变更），由定时任务检测 `lastDailyResetDate` 是否与当前日期一致
+- **分配方式**：从 `tasks/daily.yml` 任务池按 `weight` 加权随机抽取 `daily-count` 个
+- **重置操作**：删除旧每日任务实例 → 重新分配 → 更新 `lastDailyResetDate`
+
+### 每周任务
+
+- **重置时机**：每 7 天，由定时任务检测 `lastWeeklyResetDate` 距当前日期 ≥ 7 天
+- **分配方式**：从 `tasks/weekly.yml` 任务池按 `weight` 加权随机抽取 `weekly-count` 个
+- **重置操作**：删除旧每周任务实例 → 重新分配 → 更新 `lastWeeklyResetDate` 和 `currentWeekNumber`（递增）
+
+### 赛季任务
+
+- **重置时机**：赛季期间不重置
+- **分配方式**：所有赛季任务模板全部分配给玩家（不抽取）
+- **首次加载**：玩家首次获取任务实例时，自动创建所有赛季任务的实例
+
+> 赛季时间窗口外（`start-date` 之前或 `end-date` 之后）不会累积任务进度。
+
+## 任务文件示例
+
+### daily.yml 示例
+
+```yaml
+# 每日登录（EventBus 优先 + Bukkit 降级）
+daily-login:
+  display-name: "每日登录"
+  description: "每天登录游戏即可获得奖励"
+  difficulty: easy
+  event-topic: "axs.loginview.login_success"
+  bukkit-event:
+    event-class: "org.bukkit.event.player.PlayerJoinEvent"
+  required-count: 1
+  base-xp-reward: 100
+  conditions: []
+  increment-strategy:
+    type: fixed
+    value: 1
+  limits:
+    max-per-day: 1
+  weight: 5
+
+# 击杀僵尸（condition 匹配 entityType）
+daily-kill-zombie:
+  display-name: "击杀僵尸"
+  description: "在主世界击杀20个僵尸"
+  difficulty: normal
+  bukkit-event:
+    event-classes:
+      - "org.bukkit.event.entity.EntityDeathEvent"
+      - "xuanmo.arcartxsuite.api.event.TaczGunKillEvent"
+  required-count: 20
+  base-xp-reward: 150
+  conditions:
+    - type: event_payload
+      key: entityType
+      operator: equals
+      value: ZOMBIE
+  increment-strategy:
+    type: fixed
+    value: 1
+  weight: 3
+
+# 累计造成伤害（payload_value 增量策略）
+daily-damage-dealt:
+  display-name: "战斗训练"
+  description: "对生物累计造成500点伤害"
+  difficulty: normal
+  bukkit-event:
+    event-classes:
+      - "org.bukkit.event.entity.EntityDamageByEntityEvent"
+      - "xuanmo.arcartxsuite.api.event.TaczGunDamageEvent"
+  required-count: 500
+  base-xp-reward: 180
+  conditions: []
+  increment-strategy:
+    type: payload_value
+    payload-key: damage
+    max-per-event: 200
+    scale: 1.0
+  weight: 2
+
+# 收获农作物（in 操作符匹配多种 material）
+daily-farm-break:
+  display-name: "农夫"
+  description: "收获20个农作物"
+  difficulty: easy
+  bukkit-event:
+    event-class: "org.bukkit.event.block.BlockBreakEvent"
+  required-count: 20
+  base-xp-reward: 100
+  conditions:
+    - type: event_payload
+      key: material
+      operator: in
+      values:
+        - WHEAT
+        - CARROTS
+        - POTATOES
+        - BEETROOTS
+  increment-strategy:
+    type: fixed
+    value: 1
+  weight: 3
+```
+
+### weekly.yml 示例
+
+```yaml
+# 累计消费货币（EventBus + condition + payload_value）
+weekly-spend-1000:
+  display-name: "消费达人"
+  description: "本周累计消费1000金币"
+  difficulty: normal
+  event-topic: "axs.currency.spent"
+  required-count: 1000
+  base-xp-reward: 400
+  conditions:
+    - type: event_payload
+      key: currency_id
+      operator: equals
+      value: money
+  increment-strategy:
+    type: payload_value
+    payload-key: amount
+    max-per-event: 500
+    scale: 1.0
+  weight: 2
+
+# 区域探索（condition 匹配 type=enter）
+weekly-region-explore:
+  display-name: "探险家"
+  description: "本周进入10个不同区域（需 regions 模块）"
+  difficulty: normal
+  event-topic: "axs.regions.region_change"
+  required-count: 10
+  base-xp-reward: 450
+  conditions:
+    - type: event_payload
+      key: type
+      operator: equals
+      value: enter
+  increment-strategy:
+    type: fixed
+    value: 1
+  weight: 2
+```
+
+### season.yml 示例
+
+```yaml
+# 千人斩（赛季大目标）
+season-kill-1000:
+  display-name: "千人斩"
+  description: "本赛季累计击杀1000个生物"
+  difficulty: hard
+  bukkit-event:
+    event-classes:
+      - "org.bukkit.event.entity.EntityDeathEvent"
+      - "xuanmo.arcartxsuite.api.event.TaczGunKillEvent"
+  required-count: 1000
+  base-xp-reward: 2000
+  conditions: []
+  increment-strategy:
+    type: fixed
+    value: 1
+
+# 赛季累计登录（limits 防刷）
+season-login-30:
+  display-name: "坚持不懈"
+  description: "本赛季累计登录30天"
+  difficulty: normal
+  event-topic: "axs.loginview.login_success"
+  bukkit-event:
+    event-class: "org.bukkit.event.player.PlayerJoinEvent"
+  required-count: 30
+  base-xp-reward: 3000
+  conditions: []
+  increment-strategy:
+    type: fixed
+    value: 1
+  limits:
+    max-per-day: 1
+```
+
+## 任务配置校验
+
+模块启动时对任务配置进行校验，发现问题时输出警告日志：
+
+| 校验项 | 处理方式 |
+|---|---|
+| `required-count` ≤ 0 | 回退为 1 |
+| `base-xp-reward` `<` 0 | 回退为 0 |
+| `difficulty` 值非法 | 回退为 EASY |
+| `difficulty-multiplier` ≤ 0 | 回退为难度默认倍率 |
+| `weight` ≤ 0 | 回退为 1 |
+| 既无 `event-topic` 也无 `bukkit-event` | 警告：任务永远不会触发 |
+| `task-id` 重复 | 丢弃后出现的任务 |
+| 增量策略类型未知 | 回退为 `fixed 1` |

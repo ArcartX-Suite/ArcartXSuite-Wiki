@@ -1,0 +1,304 @@
+---
+title: 联动
+description: BattlePass 跨模块联动与 Capability
+---
+
+# 联动
+
+BattlePass 模块通过 ArcartXSuite 的 EventBus、Capability 和跨服同步机制与其他模块联动。模块本身不硬依赖任何 ArcartX 模块，所有联动均为可选的运行时行为。
+
+## EventBus 事件订阅
+
+BattlePass 任务引擎通过 `EventBusCapability` 订阅其他模块发布的事件主题。引擎启动时（延迟 1 tick，确保所有模块的 `publishedTopics()` 已注册）为每个任务模板检测事件源：
+
+1. 调用 `eventBus.hasPublisher(topic)` 查询该主题是否有发布者
+2. 有发布者 → 订阅 EventBus，事件到达时驱动任务进度
+3. 无发布者 → 检查是否配置了 `bukkit-event` 降级
+4. 有 `bukkit-event` → 注册原版 Bukkit 事件监听器
+5. 都没有 → 跳过该任务
+
+### 订阅流程
+
+```
+任务模板 → event-topic → hasPublisher(topic)?
+  ├─ 是 → EventBus.subscribe(topic, callback) → 事件到达 → handleEvent()
+  └─ 否 → bukkit-event 存在?
+       ├─ 是 → 注册 BukkitEventSourceListener → 事件到达 → handleEvent()
+       └─ 否 → 跳过任务
+```
+
+### handleEvent 处理流程
+
+每次事件到达时：
+
+1. 检查引擎是否活跃
+2. 调用 `task.matchesConditions(player, payload)` 检查条件
+3. 调用 `task.calculateIncrement(player, payload)` 计算增量
+4. 调用 `triggerLimiter.tryAcquire()` 检查触发限制
+5. 调用 `service.updateTaskProgress()` 更新进度
+6. 任务完成时计算 XP 奖励并更新玩家进度
+
+## 常用事件主题列表
+
+以下是从其他 ArcartX 模块发布的事件主题，可直接在任务的 `event-topic` 字段中使用：
+
+| 事件主题 | 发布模块 | payload 字段 | 说明 |
+|---|---|---|---|
+| `axs.loginview.login_success` | loginview | — | 登录成功（密码验证通过后触发） |
+| `axs.fishing.success` | fishing | — | 钓鱼成功 |
+| `axs.fishing.perfect` | fishing | — | 完美钓鱼 |
+| `axs.fishing.treasure` | fishing | — | 钓到宝藏 |
+| `axs.entitytracker.boss_kill` | entitytracker | — | Boss 击杀 |
+| `axs.questgps.quest_completed` | questgps | `quest_id`, `quest_name` | 任务完成（需 Chemdah 插件） |
+| `axs.currency.spent` | 宿主核心 | `currency_id`, `amount` | 货币消费 |
+| `axs.chat.chat_message_sent` | chat | — | 发送聊天消息 |
+| `axs.prop.prop_used` | prop | — | 使用快捷道具 |
+| `axs.warehouse.item_deposited` | warehouse | `amount` | 仓库存入材料 |
+| `axs.regions.region_change` | regions | `type`（`enter` / `exit`） | 区域变更 |
+| `axs.afkreward.reward_claimed` | afkreward | — | 领取挂机奖励 |
+| `market.listing_created` | market | — | 市场上架交易 |
+
+> 事件主题无需硬编码映射，引擎通过 `EventBusCapability.hasPublisher()` 动态检测发布者是否存在。
+
+## Capability 注册
+
+BattlePass 模块注册了两个跨模块能力：
+
+### DatabaseMigratable
+
+注册 `DatabaseMigratable` 能力，支持存储切换时数据迁移。
+
+| 方法 | 说明 |
+|---|---|
+| `moduleId()` | 返回 `"battlepass"` |
+| `migrateDatabase(target, overwrite)` | 将数据迁移到目标存储描述符 |
+| `currentDescriptor()` | 返回当前存储描述符 |
+
+### PlayerDataPurgeable
+
+注册 `PlayerDataPurgeable` 能力，支持玩家数据清理。
+
+| 方法 | 说明 |
+|---|---|
+| `moduleId()` | 返回 `"battlepass"` |
+| `purgePlayerData(playerUuid)` | 清理指定玩家的战令数据，返回清理数量 |
+| `purgeAllPlayerData()` | 清理所有玩家的战令数据，返回清理数量 |
+
+## 跨服同步配置
+
+BattlePass 支持跨子服数据同步，通过 `cross-server` 配置控制：
+
+```yaml
+cross-server:
+  enabled: false
+  sync-fields:
+    - "progress"        # 战令等级与经验进度
+    - "task-progress"   # 任务完成进度
+    - "claimed-rewards"  # 已领取的奖励记录
+```
+
+跨服同步依赖宿主的 `CrossServerAPI`（Redis + BungeeCord/Velocity Forward 双后端），配置在宿主 `config.yml` 的 `cross-server` 节。
+
+| 同步字段 | 说明 |
+|---|---|
+| `progress` | 玩家等级、经验、档位、重置日期等进度数据 |
+| `task-progress` | 任务实例的当前进度和完成状态 |
+| `claimed-rewards` | 已领取的奖励 ID 集合 |
+
+## 数据库表结构
+
+BattlePass 使用 5 张数据表，表名前缀为 `bp_`（共享存储模式）或配置的 `table-prefix`（自建存储模式）。
+
+### bp_player_progress 玩家进度表
+
+| 列名 | 类型 | 说明 |
+|---|---|---|
+| `player_uuid` | TEXT / VARCHAR(36) | 玩家 UUID |
+| `season_id` | TEXT / VARCHAR(64) | 赛季 ID |
+| `current_level` | INTEGER / INT | 当前等级（默认 1） |
+| `current_xp` | INTEGER / INT | 当前等级内经验（默认 0） |
+| `pass_tier` | TEXT / VARCHAR(16) | 档位（`FREE` / `PREMIUM` / `DELUXE`，默认 `FREE`） |
+| `unlocked_premium` | INTEGER / TINYINT(1) | 是否解锁高级（兼容字段，默认 0） |
+| `last_daily_reset_date` | TEXT / DATE | 上次每日重置日期 |
+| `last_weekly_reset_date` | TEXT / DATE | 上次每周重置日期 |
+| `current_week_number` | INTEGER / INT | 当前周序号（默认 1） |
+
+主键：`(player_uuid, season_id)`
+
+### bp_task_progress 任务进度表
+
+| 列名 | 类型 | 说明 |
+|---|---|---|
+| `player_uuid` | TEXT / VARCHAR(36) | 玩家 UUID |
+| `season_id` | TEXT / VARCHAR(64) | 赛季 ID |
+| `task_id` | TEXT / VARCHAR(64) | 任务模板 ID |
+| `completed_count` | INTEGER / INT | 完成次数（默认 0） |
+| `last_update` | TEXT / TIMESTAMP | 最后更新时间 |
+
+主键：`(player_uuid, season_id, task_id)`
+
+### bp_claimed_rewards 奖励领取记录表
+
+| 列名 | 类型 | 说明 |
+|---|---|---|
+| `player_uuid` | TEXT / VARCHAR(36) | 玩家 UUID |
+| `season_id` | TEXT / VARCHAR(64) | 赛季 ID |
+| `reward_id` | TEXT / VARCHAR(64) | 奖励 ID |
+| `claimed_at` | TEXT / TIMESTAMP | 领取时间 |
+
+主键：`(player_uuid, season_id, reward_id)`
+
+### bp_player_tasks 玩家任务实例表
+
+| 列名 | 类型 | 说明 |
+|---|---|---|
+| `player_uuid` | TEXT / VARCHAR(36) | 玩家 UUID |
+| `season_id` | TEXT / VARCHAR(64) | 赛季 ID |
+| `instance_id` | TEXT / VARCHAR(128) | 实例 ID（UUID + 分类 + 模板 ID + 日期） |
+| `template_id` | TEXT / VARCHAR(64) | 任务模板 ID |
+| `category` | TEXT / VARCHAR(16) | 任务分类（`DAILY` / `WEEKLY` / `SEASON`） |
+| `target_count` | INTEGER / INT | 完成所需次数（默认 1） |
+| `current_progress` | INTEGER / INT | 当前进度（默认 0） |
+| `completed` | INTEGER / TINYINT(1) | 是否完成（默认 0） |
+| `assigned_date` | TEXT / DATE | 分配日期 |
+| `week_number` | INTEGER / INT | 所属周序号（默认 0） |
+
+主键：`(player_uuid, season_id, instance_id)`
+
+### bp_season_settlement 赛季结算记录表
+
+| 列名 | 类型 | 说明 |
+|---|---|---|
+| `season_id` | TEXT / VARCHAR(64) | 赛季 ID |
+| `settled_at` | TEXT / TIMESTAMP | 结算时间 |
+
+主键：`season_id`
+
+## 与其他模块联动示例
+
+### CombatEffect / TACZ 枪械联动
+
+BattlePass 内置支持 TACZ 枪械事件（`TaczGunKillEvent` / `TaczGunDamageEvent`），无需 CombatEffect 模块即可追踪枪械击杀和伤害。在任务中配置 `bukkit-event` 即可：
+
+```yaml
+daily-kill-any:
+  display-name: "日常狩猎"
+  description: "击杀10个任意生物"
+  difficulty: easy
+  bukkit-event:
+    event-classes:
+      - "org.bukkit.event.entity.EntityDeathEvent"
+      - "xuanmo.arcartxsuite.api.event.TaczGunKillEvent"
+  required-count: 10
+  base-xp-reward: 120
+  increment-strategy:
+    type: fixed
+    value: 1
+  weight: 4
+```
+
+> 同时配置 `EntityDeathEvent` 和 `TaczGunKillEvent` 可覆盖原版击杀和枪械击杀两种场景，payload 结构一致（`entityType` / `entityName`），下游任务无需区分伤害来源。
+
+### OnlineRewards / AFKReward 联动
+
+通过订阅 `axs.afkreward.reward_claimed` 事件主题，追踪玩家领取挂机奖励行为：
+
+```yaml
+season-afk-30:
+  display-name: "挂机专家"
+  description: "本赛季累计领取30次挂机奖励（需 afkreward 模块）"
+  difficulty: easy
+  event-topic: "axs.afkreward.reward_claimed"
+  required-count: 30
+  base-xp-reward: 1500
+  increment-strategy:
+    type: fixed
+    value: 1
+```
+
+### QuestGPS / Chemdah 联动
+
+通过订阅 `axs.questgps.quest_completed` 事件主题，追踪玩家完成 Chemdah 任务。payload 包含 `quest_id` 和 `quest_name`，可通过 condition 匹配特定任务：
+
+```yaml
+# 完成任意任务
+daily-quest-complete:
+  display-name: "任务达人"
+  description: "完成3个日常任务"
+  difficulty: normal
+  event-topic: "axs.questgps.quest_completed"
+  required-count: 3
+  base-xp-reward: 150
+  increment-strategy:
+    type: fixed
+    value: 1
+  weight: 3
+
+# 完成特定任务（condition 匹配 quest_id）
+daily-quest-specific:
+  display-name: "主线先锋"
+  description: "完成指定主线任务"
+  difficulty: hard
+  event-topic: "axs.questgps.quest_completed"
+  required-count: 1
+  base-xp-reward: 300
+  conditions:
+    - type: event_payload
+      key: quest_id
+      operator: equals
+      value: "example_mainline_quest"
+  increment-strategy:
+    type: fixed
+    value: 1
+  weight: 1
+```
+
+### MythicMobs 联动
+
+BattlePass 内置 MythicMobs 事件监听器（`MythicMobEventListener`），在 MythicMobs / MythicBukkit 插件安装时自动注册。payload 包含 `mythicMobId` 字段，可通过 condition 精确匹配特定 MythicMobs 怪物：
+
+```yaml
+daily-mythic-kill-specific:
+  display-name: "骸骨骑士猎手"
+  description: "击杀3个骸骨骑士（MythicMobs: SkeletalKnight）"
+  difficulty: hard
+  bukkit-event:
+    event-class: "io.lumine.mythic.bukkit.events.MythicMobDeathEvent"
+  required-count: 3
+  base-xp-reward: 250
+  conditions:
+    - type: event_payload
+      key: mythicMobId
+      operator: equals
+      value: "SkeletalKnight"
+  increment-strategy:
+    type: fixed
+    value: 1
+  weight: 1
+```
+
+> MythicMobs 为可选依赖，未安装时相关任务不会触发，控制台会输出警告。
+
+## 数据缓存与持久化
+
+### 缓存策略
+
+- 玩家进度和任务实例缓存在内存中（`ConcurrentHashMap`）
+- 进服时异步预热缓存（`PlayerJoinEvent` → `preload`）
+- 退服时异步落盘并驱逐缓存（`PlayerQuitEvent` → `handleQuit`）
+
+### 持久化策略
+
+| 操作 | 持久化时机 |
+|---|---|
+| 进度变更 | 关键操作后立即异步落盘（`persistProgressAsync`） |
+| 任务进度变更 | 定时异步落盘（每 300 tick ≈ 15 秒） |
+| 奖励领取 | 领取后立即异步落盘（`persistClaimAsync`） |
+| 退服 | 异步落盘全部脏数据 |
+
+### 加载失败处理
+
+- DB 加载失败时短暂等待后重试一次（500ms）
+- 重试仍失败时标记为 `failedLoads`，返回空进度但不缓存
+- `flushDirtyProgress` 跳过 `failedLoads` 中的玩家，避免空数据覆盖 DB 真实数据
+- UI 推送层检测 `isLoadFailed` 并自动重试（最多 3 次，间隔 1 秒）

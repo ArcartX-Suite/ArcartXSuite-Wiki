@@ -1,0 +1,176 @@
+---
+title: 命令与占位符
+description: Warehouse 命令、权限与 PlaceholderAPI 占位符
+---
+
+# 命令与占位符
+
+## 玩家命令
+
+玩家命令绑定到 `/warehouse`（别名 `/wh`），需持有 `arcartxsuite.warehouse.use` 权限。
+
+| 命令 | 说明 | 权限 |
+| --- | --- | --- |
+| `/warehouse` | 打开仓库主界面（等同于 `open`） | `arcartxsuite.warehouse.use` |
+| `/warehouse open` | 打开仓库存取界面 | `arcartxsuite.warehouse.use` |
+| `/warehouse help` | 显示帮助信息 | `arcartxsuite.warehouse.use` |
+| `/warehouse showcase` | 展示当前仓库物品到聊天卡片 | `arcartxsuite.warehouse.showcase` |
+| `/warehouse preview <玩家名或UUID> [仓库ID]` | 以只读模式预览他人仓库 | `arcartxsuite.warehouse.admin` |
+| `/warehouse spreview <玩家名或UUID> [仓库ID]` | 静默预览他人仓库（无提示消息） | `arcartxsuite.warehouse.admin` |
+| `/warehouse transfer confirm <sharedId>` | 确认接收共享仓库转让 | `arcartxsuite.warehouse.use` |
+| `/warehouse transfer reject <sharedId>` | 拒绝共享仓库转让 | `arcartxsuite.warehouse.use` |
+
+### 命令详解
+
+**`/warehouse open`**
+
+打开仓库存取界面。首次打开时自动初始化玩家拥有的默认仓库（`default-owned: true` 的仓库）。如果当前仓库无效，自动回退到第一个个人仓库。
+
+**`/warehouse preview <玩家名或UUID> [仓库ID]`**
+
+以只读模式预览目标玩家的仓库。预览模式下仅支持翻页、分类切换、搜索、排序和槽位选择，禁止存取与切换仓库。`仓库ID` 留空时预览默认个人仓库；如果指定的仓库 ID 不在 `warehouses` 配置中，则视为共享仓库预览。
+
+**`/warehouse transfer confirm <sharedId>`**
+
+确认接收共享仓库转让。转让发起后，目标玩家会收到通知，需在 `transfer-confirm-expire-hours`（默认 24 小时）内执行此命令确认。确认后所有权转移，原所有者变为成员。
+
+**`/warehouse transfer reject <sharedId>`**
+
+拒绝共享仓库转让。转让记录删除，仓库所有权不变。
+
+## 管理员命令
+
+管理员命令通过 `/axs warehouse <action>` 执行，需持有 `arcartxsuite.warehouse.admin` 权限。
+
+| 命令 | 说明 |
+| --- | --- |
+| `/axs warehouse help` | 显示管理命令帮助 |
+| `/axs warehouse status` | 查看模块运行状态 |
+| `/axs warehouse open <玩家>` | 为在线玩家打开仓库 |
+| `/axs warehouse info <玩家>` | 查看玩家仓库概览 |
+| `/axs warehouse view <玩家> <仓库ID>` | 查看玩家指定仓库的物品详情 |
+| `/axs warehouse delete <玩家> <仓库ID> confirm` | 删除玩家指定仓库（需 confirm 确认） |
+| `/axs warehouse bank <玩家> <货币ID> <set\|add\|take> <金额>` | 管理玩家银行余额 |
+
+### 命令详解
+
+**`/axs warehouse status`**
+
+显示模块运行状态，包括：缓存玩家数、货币列表、跨服编辑锁状态、活跃共享锁数量。
+
+**`/axs warehouse open <玩家>`**
+
+强制为指定在线玩家打开仓库界面。目标玩家必须在线。
+
+**`/axs warehouse info <玩家>`**
+
+异步生成玩家仓库概览，包括个人仓库列表、共享仓库列表、银行余额、定期存款等。
+
+**`/axs warehouse view <玩家> <仓库ID>`**
+
+查看玩家指定仓库的物品详情，列出所有槽位的物品名称与数量。支持离线玩家（需曾进服）。
+
+**`/axs warehouse delete <玩家> <仓库ID> confirm`**
+
+删除玩家指定的个人仓库及其全部槽位数据。必须附加 `confirm` 参数以防止误操作。操作在数据库事务中执行。
+
+**`/axs warehouse bank <玩家> <货币ID> <set|add|take> <金额>`**
+
+管理玩家银行余额：
+- `set`：直接设置余额为指定金额
+- `add`：增加指定金额
+- `take`：扣减指定金额（不低于 0）
+
+## 权限节点表
+
+| 权限节点 | 默认 | 说明 |
+| --- | --- | --- |
+| `arcartxsuite.warehouse.use` | op | 使用 `/warehouse` 命令与打开仓库 |
+| `arcartxsuite.warehouse.admin` | op | 使用 `/axs warehouse` 管理命令与预览他人仓库 |
+| `arcartxsuite.warehouse.showcase` | op | 使用展示柜功能 |
+| `ArcartXSuite.warehouse.shared.vip` | op | 共享仓库 VIP 权限组（可配置更多共享仓库与成员上限） |
+| `ArcartXSuite.warehouse.bank.vip` | op | 购买 VIP 定期存款产品的权限（示例配置中的 `money_vip_7d` 产品） |
+
+> 仓库定义中的 `permission` 字段和定期存款产品中的 `permission` 字段可自定义权限节点，玩家需持有对应权限才能拥有该仓库或购买该产品。
+
+## PAPI 占位符表
+
+Warehouse 模块注册 PlaceholderAPI 扩展，前缀为 `%axswarehouse_*%`。占位符标识符为 `axswarehouse`，支持 `persist()`（PAPI 重载后保持注册）。
+
+| 占位符 | 返回值 | 说明 |
+| --- | --- | --- |
+| `%axswarehouse_total_items%` | 数字 | 玩家所有仓库的物品总数量 |
+| `%axswarehouse_personal_used%` | 数字 | 玩家个人仓库已使用槽位数 |
+| `%axswarehouse_personal_capacity%` | 数字 | 玩家个人仓库总容量 |
+| `%axswarehouse_shared_owned_count%` | 数字 | 玩家拥有的共享仓库数量 |
+| `%axswarehouse_shared_joined_count%` | 数字 | 玩家加入的共享仓库数量（含自己拥有的） |
+| `%axswarehouse_category_<分类ID>_amount%` | 数字 | 玩家指定分类的物品数量（如 `%axswarehouse_category_equipment_amount%`） |
+| `%axswarehouse_bank_balance_<货币ID>%` | 数字 | 玩家银行指定货币的活期余额（如 `%axswarehouse_bank_balance_money%`） |
+| `%axswarehouse_bank_fixed_active_<货币ID>%` | 数字 | 玩家指定货币的未到期定期存款数量 |
+| `%axswarehouse_bank_fixed_matured_<货币ID>%` | 数字 | 玩家指定货币的已到期可领取定期存款数量 |
+
+> 占位符参数不区分大小写，会自动转为小写匹配。服务未启动时返回 `0`，玩家无效时返回空串。
+
+## UI Packet 触发
+
+所有仓库 UI 操作通过客户端 Packet（包 ID `AXS_WAREHOUSE`）触发，`data[0]` 为 action 名称。服务端 `WarehouseService.handleClientPacket` 方法处理所有 action。
+
+### 存取界面 Action
+
+| Action | 参数 | 说明 |
+| --- | --- | --- |
+| `open` / `storage` | - | 打开存取界面 |
+| `manage` | - | 打开管理界面 |
+| `bank` | - | 打开银行界面 |
+| `refresh` | - | 刷新当前界面（重新签发 action token） |
+| `page` | `<页码>` | 切换页码 |
+| `category` | `<分类ID>` | 切换分类筛选（`all` 表示全部） |
+| `search` | `<关键词>` | 搜索物品（支持拼音/首字母） |
+| `sort` | `<排序方案ID>` | 切换排序方案 |
+| `select` | `<槽位号>` | 选中指定槽位 |
+| `warehouse` | `<仓库ID>` | 切换个人仓库 |
+| `shared` | `<共享仓库ID>` | 切换到共享仓库 |
+| `shared_mode` | `<readonly\|edit>` | 切换共享仓库模式 |
+| `warehouse_upgrade` | - | 升级当前仓库 |
+| `deposit_slot` | `<背包槽位>` `<数量>` | 从背包指定槽位存入物品 |
+| `deposit_all_backpack` | - | 存入背包全部可存物品 |
+| `withdraw` | `<槽位号>` `<数量>` | 从仓库取出指定数量物品 |
+| `withdraw_all` | `<槽位号>` | 取出指定槽位全部物品 |
+| `showcase` | - | 展示当前仓库物品 |
+| `close` | - | 关闭界面 |
+
+### 管理界面 Action
+
+| Action | 参数 | 说明 |
+| --- | --- | --- |
+| `shared_create` | `<名称>` | 创建共享仓库 |
+| `shared_rename` | `<共享ID>` `<新名称>` | 重命名共享仓库 |
+| `shared_showcase_toggle` | `<共享ID>` | 切换共享仓库展示开关 |
+| `personal_rename` | `<仓库ID>` `<新名称>` | 重命名个人仓库 |
+| `personal_showcase_toggle` | `<仓库ID>` | 切换个人仓库展示开关 |
+| `shared_delete` | `<共享ID>` `<二级密码>` | 删除共享仓库 |
+| `shared_invite` | `<共享ID>` `<玩家名>` `[角色]` | 邀请成员（默认角色 member） |
+| `shared_remove` | `<共享ID>` `<玩家名>` | 移除成员 |
+| `shared_transfer` | `<共享ID>` `<目标玩家名>` | 发起所有权转让 |
+| `shared_transfer_confirm` | `<共享ID>` | 确认接收转让 |
+| `shared_transfer_reject` | `<共享ID>` | 拒绝转让 |
+| `password_unlock` | `<密码>` | 解锁二级密码 |
+| `password_set` | `<密码>` | 设置二级密码 |
+| `password_lock` | - | 锁定二级密码会话 |
+| `toggle_auto_pickup` | - | 切换自动入库开关 |
+| `toggle_auto_mythic` | - | 切换怪物战利品自动存储开关 |
+| `toggle_auto_notify` | - | 切换入库通知开关 |
+
+### 银行界面 Action
+
+| Action | 参数 | 说明 |
+| --- | --- | --- |
+| `bank_deposit` | `<货币ID>` `<金额>` | 存入银行 |
+| `bank_withdraw` | `<货币ID>` `<金额>` | 从银行取出 |
+| `select_currency` | `<货币ID>` | 切换当前选中货币 |
+| `fixed_create` | `<产品ID>` `<金额>` | 购买定期存款 |
+| `fixed_claim` | `<存款ID>` | 领取到期定期存款本息 |
+
+### Action Token 机制
+
+每个 UI 界面在打开时签发唯一的 action token，客户端每次操作需携带有效 token。token 用于防止重放攻击与并发冲突。模块重载后 token 会清空，服务端在 `start()` 后延迟 1 秒自动为仍打开的 UI 重新签发 token。玩家遇到 token 失效时可通过 `refresh` action 手动恢复。

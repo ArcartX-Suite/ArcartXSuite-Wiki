@@ -1,0 +1,377 @@
+---
+title: "CASE 开箱机制与动画"
+description: "CASE 开箱稀有度权重抽取、物品加权随机、箱子物品识别、钥匙消耗与滚动动画带生成详解"
+---
+
+> **付费模块**：Lottery 为付费模块，需通过 ArcartXSuite 云端下发获取。模块依赖本体 ArcartX-Suite 运行，不可独立使用。
+
+## 概述
+
+CASE 开箱引擎（`CaseOpeningEngine`）实现 CS:GO 风格的开箱抽奖，核心机制包括：
+
+- **稀有度加权**：按稀有度 `base-weight` 加权随机选择稀有度
+- **物品加权**：选定稀有度内按物品 `weight` 加权随机选取
+- **箱子物品识别**：手持匹配物品右键触发开箱 UI
+- **钥匙消耗**：可选的钥匙消耗机制（`requires-key`）
+- **滚动动画**：50 个伪随机物品填满动画带，中奖物品固定在第 39 个位置
+
+本页详解 `CaseOpeningEngine` 与 `LotteryPacketHandler` 的开箱逻辑。配置字段详见 [配置](/docs/lottery/configuration)，机制概览详见 [概览](/docs/lottery)。
+
+## 稀有度配置
+
+CASE 奖池的稀有度由 `case` 节的 `rarity-settings` 定义，`CasePoolConfig.RaritySetting` record 承载每个稀有度的设定：
+
+| 字段 | 配置路径 | 类型 | 说明 |
+|---|---|---|---|
+| `color` | `rarity-settings.<name>.color` | `String` | 显示颜色代码（如 `&f`） |
+| `baseWeight` | `rarity-settings.<name>.base-weight` | `int` | 基础权重，必须为正数 |
+
+### 稀有度配置示例
+
+```yaml
+case:
+  rarity-settings:
+    COMMON:
+      color: "&f"
+      base-weight: 15625
+    UNCOMMON:
+      color: "&b"
+      base-weight: 3125
+    RARE:
+      color: "&9"
+      base-weight: 625
+    EPIC:
+      color: "&5"
+      base-weight: 125
+    LEGENDARY:
+      color: "&d"
+      base-weight: 25
+    MYTHIC:
+      color: "&c"
+      base-weight: 5
+    SPECIAL:
+      color: "&6"
+      base-weight: 2
+```
+
+### 加载校验规则
+
+`CasePoolConfig.load` 在加载时执行以下校验：
+
+| 校验项 | 失败处理 |
+|---|---|
+| 物品列表为空 | 抛出异常：`CASE 奖池没有可用奖品` |
+| 稀有度配置为空 | 抛出异常：`CASE 奖池没有包含奖品的有效稀有度` |
+| `base-weight <= 0` | 抛出异常：`base-weight 必须为正数` |
+| 稀有度无对应物品 | 记录警告并从抽取表移除该稀有度 |
+| 物品 `rarity` 不匹配任何稀有度 | 记录警告，该物品无法被抽出 |
+
+> 稀有度名称大小写不敏感，加载时统一转为大写存储。物品的 `rarity` 字段与稀有度名称匹配时也忽略大小写。
+
+## 开箱抽奖流程
+
+`CaseOpeningEngine.openCase(caseConfig)` 执行一次开箱，分两步加权随机：
+
+### 1. 稀有度加权随机
+
+`weightedRarity(raritySettings)` 按各稀有度的 `base-weight` 加权随机选择一个稀有度：
+
+```java
+private String weightedRarity(Map<String, RaritySetting> raritySettings) {
+    int totalWeight = raritySettings.values().stream()
+        .mapToInt(RaritySetting::baseWeight).sum();
+    int roll = ThreadLocalRandom.current().nextInt(totalWeight);
+    int current = 0;
+    for (Map.Entry<String, RaritySetting> entry : raritySettings.entrySet()) {
+        current += entry.getValue().baseWeight();
+        if (roll < current) return entry.getKey();
+    }
+    return raritySettings.keySet().iterator().next();
+}
+```
+
+| 边界情况 | 处理方式 |
+|---|---|
+| 稀有度映射为空 | 返回 `COMMON` |
+| 总权重 `<= 0` | 返回第一个稀有度 |
+
+### 2. 物品加权随机
+
+选定稀有度后，`indicesByRarity` 筛选该稀有度的所有物品索引，`weightedRandomIndex` 在其中按 `weight` 加权随机：
+
+```java
+private int weightedRandomIndex(List<PoolItem> items, List<Integer> indices) {
+    int totalWeight = 0;
+    for (int idx : indices) {
+        totalWeight += items.get(idx).weight();
+    }
+    int roll = ThreadLocalRandom.current().nextInt(totalWeight);
+    int current = 0;
+    for (int idx : indices) {
+        current += items.get(idx).weight();
+        if (roll < current) return idx;
+    }
+    return indices.get(indices.size() - 1);
+}
+```
+
+| 边界情况 | 处理方式 |
+|---|---|
+| 该稀有度无物品 | 返回 `CaseResult(null, rarity, -1)`（开箱失败） |
+| 物品仅 1 件 | 直接返回该物品索引 |
+| 总权重 `<=` 0 | 均匀随机选取 |
+
+### 开箱结果
+
+`CaseResult` record 承载开箱结果：
+
+| 字段 | 类型 | 说明 |
+|---|---|---|
+| `item` | `PoolItem` | 选中物品，无匹配时为 `null` |
+| `rarity` | `String` | 选中稀有度名称 |
+| `slot` | `int` | 选中物品在列表中的位置（1-based），无匹配时为 `-1` |
+
+## 批量开箱
+
+`openCaseBatch(caseConfig, count)` 循环调用 `openCase` 执行指定次数开箱：
+
+```java
+public List<CaseResult> openCaseBatch(CasePoolConfig caseConfig, int count) {
+    List<CaseResult> results = new ArrayList<>();
+    for (int i = 0; i < count; i++) {
+        results.add(openCase(caseConfig));
+    }
+    return results;
+}
+```
+
+批量开箱每次独立抽取，稀有度与物品互不影响。十连开箱（`count = 10`）在 `LotteryService.openCaseBatchLocked` 中一次性扣除十连费用后逐个开箱。
+
+## 箱子物品与钥匙
+
+### 箱子物品定义（case-item）
+
+`CaseItemDefinition` record 定义玩家手持触发开箱 UI 的物品：
+
+| 字段 | 配置路径 | 类型 | 说明 |
+|---|---|---|---|
+| `matcher` | `case-item.matcher` | `ItemMatcher` | 识别手持箱子物品的匹配器 |
+| `amount` | `case-item.amount` | `int` | 单次开箱消耗的箱子数量 |
+| `displayName` | `case-item.display-name` | `String` | UI 显示名称，默认 `箱子` |
+| `icon` | `case-item.icon` | `IconDefinition` | UI 图标 |
+
+物品匹配器写法详见 [条件系统](/docs/guide/conditions)，图标写法详见 [图标](/docs/guide/icons)。
+
+### 钥匙机制（requires-key）
+
+`requires-key` 控制开箱是否额外消耗钥匙：
+
+| `requires-key` | 消耗构成 |
+|---|---|
+| `true` | 箱子（`case-item`）+ 钥匙（`cost` 配置） |
+| `false` | 仅箱子（`case-item`） |
+
+`LotteryService.buildEffectiveCaseCost` 构建实际消耗：
+
+```java
+private CostConfig buildEffectiveCaseCost(PoolDefinition poolDef) {
+    if (poolDef.caseItem() == null) return poolDef.cost();  // 向后兼容
+    // 箱子消耗条目
+    singleEntries.add(new CostEntry(ITEM, "", caseItem.amount(), ...));
+    tenEntries.add(new CostEntry(ITEM, "", caseItem.amount() * 10, ...));
+    // 钥匙消耗条目（仅有锁时）
+    if (poolDef.requiresKey()) {
+        singleEntries.addAll(poolDef.cost().single());
+        tenEntries.addAll(poolDef.cost().ten());
+    }
+    return new CostConfig(singleEntries, tenEntries);
+}
+```
+
+| 场景 | 单抽消耗 | 十连消耗 |
+|---|---|---|
+| 有锁（`requires-key: true`） | 1 箱子 + 1 钥匙 | 10 箱子 + 10 钥匙 |
+| 无锁（`requires-key: false`） | 1 箱子 | 10 箱子 |
+| 无 `case-item`（向后兼容） | `cost.single` | `cost.ten` |
+
+### 右键触发开箱
+
+`LotteryModule` 监听 `PlayerInteractEvent`，玩家右键空气或方块时匹配手持物品：
+
+```java
+@EventHandler
+public void onInteract(PlayerInteractEvent event) {
+    if (event.getAction() != Action.RIGHT_CLICK_AIR
+        && event.getAction() != Action.RIGHT_CLICK_BLOCK) return;
+    PoolDefinition pool = service.findCasePoolByItem(player, item);
+    if (pool == null) return;
+    event.setCancelled(true);
+    packetHandler.openPoolUi(player, pool.id());
+}
+```
+
+`findCasePoolByItem` 遍历所有已启用的 CASE 奖池，用 `case-item.matcher` 匹配手持物品，返回第一个匹配的奖池。
+
+| 匹配条件 | 说明 |
+|---|---|
+| 奖池 `enabled = true` | 未启用的奖池不参与匹配 |
+| 奖池 `type = CASE` | 仅 CASE 类型奖池支持右键开启 |
+| `case-item != null` | 未配置 `case-item` 的奖池不参与匹配 |
+| `itemMatcher.matches(matcher, item)` | 物品匹配器校验通过 |
+
+## 滚动动画带生成
+
+单次开箱结果通过 `LotteryPacketHandler.fillAnimationItems` 生成 50 个伪随机物品填满动画带：
+
+### 动画带参数
+
+| 参数 | 值 | 说明 |
+|---|---|---|
+| 动画物品数量 | `50` | 填满动画带的物品总数 |
+| 中奖物品位置 | `39`（1-based） | 对应 `animWinnerSlot = 39` |
+| 中奖物品索引 | `38`（0-based） | 代码中使用 `winnerSlot = 38` |
+
+### 生成逻辑
+
+```java
+private void fillAnimationItems(Player player, Map<String, Object> payload,
+        PoolItem winner, String rarity) {
+    int animCount = 50;
+    int winnerSlot = 38;
+    PoolItem prev = null;
+    for (int i = 0; i < animCount; i++) {
+        PoolItem picked;
+        if (i == winnerSlot && winner != null) {
+            picked = winner;  // 第 39 个位置放中奖物品
+        } else {
+            picked = randomItemExcept(poolItems, prev, rng);  // 随机选，避免与上一个相同
+        }
+        payload.put("animItemJson" + (i + 1), poolItemJson(player, picked));
+        prev = picked;
+    }
+    payload.put("animWinnerSlot", winnerSlot + 1);
+}
+```
+
+### 防重复逻辑
+
+`randomItemExcept` 确保动画带中不出现连续相同的物品：
+
+```java
+private PoolItem randomItemExcept(List<PoolItem> items, PoolItem exclude, Random rng) {
+    PoolItem picked = items.get(rng.nextInt(items.size()));
+    if (picked == exclude) {
+        // 最多重试 5 次
+        for (int attempt = 0; attempt < 5 && picked == exclude; attempt++) {
+            picked = items.get(rng.nextInt(items.size()));
+        }
+        // 仍相同则遍历找第一个不同的
+        if (picked == exclude) {
+            for (PoolItem candidate : items) {
+                if (candidate != exclude) return candidate;
+            }
+        }
+    }
+    return picked;
+}
+```
+
+| 物品列表长度 | 选取方式 |
+|---|---|
+| 0 | 返回 `null` |
+| 1 | 直接返回唯一物品（无法避免重复） |
+| `>`1 | 随机选取，最多重试 5 次避免与上一个相同 |
+
+### 十连动画
+
+十连开箱（`sendCaseBatch`）选最高稀有度的中奖物品作为动画停止位置展示：
+
+```java
+PoolItem batchWinner = null;
+String batchWinnerRarity = "";
+for (CaseResult r : results) {
+    if (r == null || r.item() == null) continue;
+    if (batchWinner == null || rarityRank(r.rarity()) > rarityRank(batchWinnerRarity)) {
+        batchWinner = r.item();
+        batchWinnerRarity = r.rarity();
+    }
+}
+fillAnimationItems(player, payload, batchWinner, batchWinnerRarity);
+```
+
+`rarityRank` 为稀有度定义排序权重（数值越大越稀有）：
+
+| 稀有度 | 排序权重 |
+|---|---|
+| `COMMON` | 1 |
+| `UNCOMMON` | 2 |
+| `RARE` | 3 |
+| `EPIC` | 4 |
+| `LEGENDARY` | 5 |
+| `MYTHIC` | 6 |
+| `SPECIAL` | 7 |
+| 其他 | 0 |
+
+## 开箱状态记录
+
+`PlayerCaseState` record 记录玩家在某个 CASE 奖池的开箱状态：
+
+| 字段 | 类型 | 说明 |
+|---|---|---|
+| `playerUuid` | `UUID` | 玩家 UUID |
+| `poolId` | `String` | 奖池 ID |
+| `openCount` | `int` | 累计开箱次数 |
+| `lastOpenTime` | `long` | 上次开箱时间戳（毫秒） |
+
+每次开箱后 `openCount` 累加，`lastOpenTime` 更新为当前时间。开箱状态不参与抽奖概率计算，仅用于统计与占位符展示。
+
+## UI 预览物品
+
+`LotteryPacketHandler.updateCase` 向 UI 推送奖池预览物品，最多展示 45 个：
+
+```java
+private static final int CASE_PREVIEW_SLOT_LIMIT = 45;
+// ...
+for (int i = 0; i < poolItems.size() && i < CASE_PREVIEW_SLOT_LIMIT; i++) {
+    PoolItem item = poolItems.get(i);
+    // 构建 name / rarity / itemJson
+}
+payload.put("itemCount", Math.min(poolItems.size(), CASE_PREVIEW_SLOT_LIMIT));
+```
+
+| 限制 | 说明 |
+|---|---|
+| 预览上限 | 45 个物品 |
+| 超出部分 | 不推送到 UI，但仍参与抽奖 |
+
+## 开箱日志
+
+每次开箱成功后异步记录日志（`LotteryService.openCaseLocked`）：
+
+```java
+plugin.getServer().getScheduler().runTaskAsynchronously(plugin, () ->
+    repository.logCaseOpen(player.getUniqueId(), poolId,
+        result.item().key(), result.rarity()));
+```
+
+日志记录内容：
+
+| 字段 | 说明 |
+|---|---|
+| 玩家 UUID | 记录开箱玩家 |
+| 奖池 ID | 记录开箱奖池 |
+| 物品 ID | 中奖物品的 `key` |
+| 稀有度 | 中奖物品的稀有度名称 |
+
+批量开箱时逐条记录每次开箱结果。日志通过 `getCaseHistory` 查询，UI 历史页最多展示 20 条。
+
+## 相关文档
+
+- [概览](/docs/lottery) — 模块功能概览
+- [配置](/docs/lottery/configuration) — CASE 奖池配置字段
+- [命令与占位符](/docs/lottery/commands) — 开箱 UI Packet 与 `opens` 占位符
+- [联动](/docs/lottery/integration) — 数据库表结构（`case_state` / `case_log`）
+- [GACHA 保底与概率](/docs/lottery/gacha-pity) — GACHA 抽卡引擎详解
+- [奖品投递与兑换](/docs/lottery/prize-delivery) — 奖品发放与兑换商店
+- [条件系统](/docs/guide/conditions) — 物品匹配器写法
+- [图标](/docs/guide/icons) — 图标配置写法

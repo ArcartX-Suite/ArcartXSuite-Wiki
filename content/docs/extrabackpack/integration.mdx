@@ -1,0 +1,230 @@
+---
+title: 联动
+description: ExtraBackpack 跨模块联动与 Capability
+---
+
+# 联动
+
+## EventBus 事件
+
+ExtraBackpack 模块当前**不发布** EventBus 事件。模块专注于背包存取 UI 与 `ExtraBackpackAccess` Capability 提供，不通过 EventBus 向其他模块广播操作事件。
+
+如需监听额外背包的存取行为，其他模块可通过 `ExtraBackpackAccess` Capability 主动查询背包快照（`snapshot()`），对比前后差异实现事件感知。
+
+## Capability 注册
+
+ExtraBackpack 模块注册以下 Capability，供其他模块通过 `getCapability()` 获取：
+
+### ExtraBackpackAccess
+
+提供额外背包的编程访问接口，支持查询快照、存入物品、取出物品，无需打开 UI。
+
+```java
+public interface ExtraBackpackAccess {
+    boolean isAvailable(@NotNull Player player);
+    @NotNull Snapshot snapshot(@NotNull Player player);
+    @NotNull DepositResult deposit(@NotNull Player player, @NotNull ItemStack itemStack);
+    @NotNull WithdrawResult withdraw(
+        @NotNull Player player,
+        @NotNull String categoryId,
+        int slot,
+        int amount
+    );
+}
+```
+
+#### isAvailable
+
+| 参数 | 说明 |
+| --- | --- |
+| `player` | 目标玩家 |
+
+返回 `true` 表示额外背包已启用且玩家在线。
+
+#### snapshot
+
+返回玩家所有分类页的快照，包含容量、已用槽位与物品列表。
+
+| 返回值字段 | 类型 | 说明 |
+| --- | --- | --- |
+| `available` | boolean | 背包是否可用 |
+| `categories` | `List<CategorySnapshot>` | 各分类页快照列表 |
+
+`CategorySnapshot` 字段：
+
+| 字段 | 类型 | 说明 |
+| --- | --- | --- |
+| `categoryId` | string | 分类 ID |
+| `capacity` | long | 当前容量（槽位数） |
+| `used` | long | 已使用槽位数 |
+| `slots` | `List<SlotSnapshot>` | 已占用的槽位列表 |
+
+`SlotSnapshot` 字段：
+
+| 字段 | 类型 | 说明 |
+| --- | --- | --- |
+| `slot` | int | 槽位序号 |
+| `itemStack` | `ItemStack` | 物品副本（已 clone） |
+
+#### deposit
+
+将物品存入玩家额外背包，按 NBT 匹配规则自动归类。
+
+| 参数 | 说明 |
+| --- | --- |
+| `player` | 目标玩家 |
+| `itemStack` | 待存入物品（会被 clone，不会修改原对象） |
+
+| 返回值字段 | 类型 | 说明 |
+| --- | --- | --- |
+| `success` | boolean | 是否存入成功 |
+| `storedAmount` | long | 已存入数量 |
+| `remainingAmount` | int | 剩余未存入数量 |
+| `message` | string | 提示消息（成功时为空） |
+
+存入逻辑：物品按 NBT 匹配规则确定分类，在对应分类页中先合并到相同物品槽位，再写入空闲槽位。放不下的部分返回 `remainingAmount`。
+
+#### withdraw
+
+从指定分类页的指定槽位取出物品。
+
+| 参数 | 说明 |
+| --- | --- |
+| `player` | 目标玩家 |
+| `categoryId` | 分类 ID |
+| `slot` | 槽位序号 |
+| `amount` | 取出数量 |
+
+| 返回值字段 | 类型 | 说明 |
+| --- | --- | --- |
+| `success` | boolean | 是否取出成功 |
+| `takenAmount` | int | 实际取出数量 |
+| `itemStack` | `ItemStack` | 取出的物品（失败时为 `null`） |
+| `message` | string | 提示消息 |
+
+> `deposit` 与 `withdraw` 方法内部使用玩家级互斥锁（`playerLock`），确保同一玩家的操作串行执行，避免并发竞态。
+
+### PlayerDataPurgeable
+
+支持 `/axs purge` 按玩家清除额外背包数据。
+
+| 方法 | 说明 |
+| --- | --- |
+| `purgePlayerData(UUID)` | 删除指定玩家的容量记录与槽位记录，返回删除行数 |
+| `purgeAllPlayerData()` | 删除全部玩家的数据，返回删除行数 |
+
+涉及的表：`extra_backpack_capacity`、`extra_backpack_slots`。
+
+### DatabaseMigratable
+
+支持 `/axs migrate` 跨数据库源迁移额外背包数据。
+
+| 方法 | 说明 |
+| --- | --- |
+| `migrateDatabase(StorageDescriptor, boolean)` | 将数据迁移到目标数据源，`overwrite` 控制是否覆盖已有数据 |
+| `currentDescriptor()` | 返回当前存储描述符 |
+
+## 跨服同步
+
+ExtraBackpack 模块本身不实现跨服同步逻辑。当使用共享存储模式（`storage.shared: true`）且本体配置 MySQL 数据源时，多个子服共享同一数据库，玩家在不同子服的额外背包数据自动同步（通过数据库共享）。
+
+| 模式 | 配置 | 跨服行为 |
+| --- | --- | --- |
+| 共享模式 | `shared: true` + 本体 MySQL | 多子服共享数据库，数据自动同步 |
+| 自建模式 | `shared: false` + `mode: mysql` | 模块独立连接池，需各子服配置相同 MySQL 实例 |
+| 自建模式 | `shared: false` + `mode: sqlite` | 各子服独立 SQLite 文件，数据不互通 |
+
+> 内存态背包在玩家退出时持久化到数据库。玩家在子服 A 退出后，在子服 B 上线时会从数据库重新加载，实现跨服数据同步。
+
+## 数据库表结构
+
+### extra_backpack_capacity
+
+扩展背包容量表，记录每位玩家在每个分类下的当前容量。
+
+| 列名 | 类型 | 说明 |
+| --- | --- | --- |
+| `player_uuid` | VARCHAR(36) | 玩家 UUID |
+| `category_id` | VARCHAR(64) | 分类标识 |
+| `capacity` | BIGINT | 当前容量（槽位数） |
+| `updated_at` | BIGINT | 更新时间戳（毫秒） |
+
+主键：`(player_uuid, category_id)`
+
+写入使用 upsert 语法：SQLite `ON CONFLICT DO UPDATE` / MySQL `ON DUPLICATE KEY UPDATE`。
+
+### extra_backpack_slots
+
+扩展背包槽位物品表，记录每位玩家在每个分类下各槽位的物品数据。
+
+| 列名 | 类型 | 说明 |
+| --- | --- | --- |
+| `player_uuid` | VARCHAR(36) | 玩家 UUID |
+| `category_id` | VARCHAR(64) | 分类标识 |
+| `slot` | INTEGER | 槽位序号（从 0 开始） |
+| `item_data` | LONGTEXT | Base64 序列化物品数据 |
+| `updated_at` | BIGINT | 更新时间戳（毫秒） |
+
+主键：`(player_uuid, category_id, slot)`。索引：`idx_extra_backpack_slots_player (player_uuid, category_id, slot)`。
+
+保存策略：以事务方式先删除该玩家全部槽位记录，再批量插入新记录。失败时回滚。
+
+## 与其他模块联动
+
+| 联动模块 | 机制 | 说明 |
+| --- | --- | --- |
+| Warehouse | `ExtraBackpackAccess` Capability | Warehouse 可选获取额外背包访问能力，用于额外槽位背包物品交互（`softdepends: [warehouse]`） |
+| 核心 | `SecondaryPasswordAccess` Capability | ExtraBackpack 获取核心二级密码服务，销毁原版背包物品时验证二级密码 |
+| 核心 | `CurrencyBridgeAPI` | 扩容扣费依赖核心货币桥接，支持 Vault/PlayerPoints/XConomy 等 |
+| 核心 | `PacketBridgeAPI` | UI 注册、打开、关闭、Packet 收发均通过核心 PacketBridge |
+| 核心 | `ItemBridgeAPI` | 物品序列化为 JSON 格式用于 UI 图标渲染 |
+| 核心 | `PacketGuardAPI` | 客户端包安全校验 |
+| 核心 | `VanillaItemNameBridge` | 原版物品材质中文名翻译，用于 `material` 路径匹配 |
+| 核心 | `PlayerDataPurgeable` | 支持 `/axs purge` 清除玩家额外背包数据 |
+| 核心 | `DatabaseMigratable` | 支持 `/axs migrate` 跨数据库源迁移 |
+
+### 与核心二级密码联动
+
+ExtraBackpack 的二级密码由核心统一管理（`SecondaryPasswordAccess` Capability），不由模块自行存储密码。销毁原版背包物品的流程：
+
+1. 玩家在原版标签页右键物品，选择"销毁"
+2. 弹出销毁确认框，点击"确认"
+3. 服务端检查二级密码状态：
+   - 未设置密码 → 弹出"设置二级密码"面板
+   - 已设置但未解锁 → 弹出"解锁二级密码"面板
+   - 已解锁 → 直接销毁
+4. 密码验证通过后，删除原版背包指定槽位的物品
+5. 销毁完成后轮换 action token
+
+> 二级密码的设置、解锁、清除操作均在 UI 面板内完成，无需命令。密码验证通过后，若有待销毁的槽位，自动执行销毁。
+
+### 与 Warehouse 模块联动
+
+ExtraBackpack 在 `module.yml` 中声明 `softdepends: [warehouse]`，表示 Warehouse 模块可选依赖 ExtraBackpack。当两个模块同时启用时：
+
+- Warehouse 可通过 `getCapability(ExtraBackpackAccess.class)` 获取额外背包访问接口
+- Warehouse 的自动入库功能可将物品存入额外背包（按分类匹配规则）
+- ExtraBackpack 的 `deposit` 方法可被 Warehouse 调用，实现拾取物品自动归类
+
+> 若 ExtraBackpack 未启用或 `enabled: false`，`ExtraBackpackAccess.isAvailable()` 返回 `false`，Warehouse 降级为无额外背包模式。
+
+### 与货币系统联动
+
+扩容扣费通过核心 `CurrencyBridgeAPI` 统一桥接，支持多种货币插件：
+
+| 货币 ID | 对应插件 | 说明 |
+| --- | --- | --- |
+| `vault` | Vault + 经济插件 | 通过 Vault 桥接的任意经济插件 |
+| `points` | PlayerPoints | PlayerPoints 点券系统 |
+| 自定义 ID | XConomy 等 | 由本体 `config.yml` 的 `currencies` 节定义 |
+
+扩容流程：
+
+1. 玩家在 UI 输入购买数量
+2. 服务端计算总价（`per-slot * amount`）
+3. 通过 `CurrencyBridgeAPI` 扣费
+4. 扣费成功后更新容量并重建该页数组
+5. 扣费失败时提示余额不足
+6. 数据库写入失败时自动退款
+
+> 关于物品来源与货币配置的通用知识，参考 [物品来源](/docs/guide/item-sources)。

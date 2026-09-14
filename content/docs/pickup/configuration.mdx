@@ -1,0 +1,312 @@
+---
+title: 配置
+description: Pickup 配置文件详解与示例
+---
+
+# 配置
+
+## 配置文件概览
+
+Pickup 模块的配置文件为 `ArcartXPickup.yml`，位于 `data/pickup/config.yml`（由 `configSpec()` 声明 `configFileName` 为 `ArcartXPickup.yml`）。消息文件为 `messages.yml`。修改后执行 `/axs reload pickup` 生效。
+
+当前配置版本为 `3`，版本号字段路径为 `config-version`。配置版本低于 3 时启动自动迁移。
+
+## 主配置字段表
+
+### settings 节
+
+| 配置项 | 类型 | 默认值 | 校验规则 | 说明 |
+| --- | --- | --- | --- | --- |
+| `settings.debug` | boolean | `false` | — | 是否输出调试日志，包含发包详情、HUD 打开状态、拾取流程诊断 |
+| `settings.mode` | string | `notification` | 枚举：`notification` / `scanner` | 工作模式，不区分大小写，非 `scanner` 一律视为 `notification` |
+
+### ui 节
+
+统一管理所有 UI ID 与注册行为，从 `notification` / `scanner` 嵌套节抽离（配置版本 2→3 迁移）。
+
+| 配置项 | 类型 | 默认值 | 说明 |
+| --- | --- | --- | --- |
+| `ui.notification-ui-id` | string | `AXS:pickup_hud` | 通知模式目标 HUD 的 UI ID |
+| `ui.scanner-ui-id` | string | `AXS:loot_panel` | 扫描模式目标 HUD 的 UI ID |
+| `ui.interact-ui-id` | string | `AXS:loot_interact` | 扫描模式交互菜单的 UI ID（按键打开的透明菜单） |
+| `ui.register-ui-on-enable` | boolean | `true` | 插件启动/重载时是否自动注册 UI |
+| `ui.overwrite-ui-files` | boolean | `false` | 是否强制覆盖 UI 文件（通知模式 `pickup_hud.yml` 按配置动态生成；扫描模式 `loot_panel.yml` / `loot_interact.yml` 按资源导出） |
+
+### notification 节（通知模式配置）
+
+| 配置项 | 类型 | 默认值 | 校验规则 | 说明 |
+| --- | --- | --- | --- | --- |
+| `notification.max-visible` | int | `4` | 范围 1~16 | 同时最多显示的提示条数，超出后旧提示向上挤出 |
+| `notification.entry-ttl-ms` | long | `3000` | 范围 500~30000 | 每条提示在 HUD 上存活时间（毫秒），超时自动隐藏 |
+
+> `notification.max-visible` 与 `notification.entry-ttl-ms` 决定 `pickup_hud.yml` 的生成参数。修改后需开启 `ui.overwrite-ui-files` 或删除 `ui/pickup_hud.yml` 以重新生成。
+
+### scanner 节（扫描模式配置）
+
+| 配置项 | 类型 | 默认值 | 校验规则 | 说明 |
+| --- | --- | --- | --- | --- |
+| `scanner.scan-radius` | double | `5.0` | 范围 1.0~32.0 | 扫描附近掉落物的半径（格） |
+| `scanner.scan-interval-ticks` | int | `5` | 范围 1~100 | 扫描间隔（ticks，5 = 250ms） |
+| `scanner.max-display` | int | `8` | 范围 1~16 | 面板最多显示的物品数 |
+| `scanner.disable-auto-pickup` | boolean | `true` | — | 是否禁用自动拾取（玩家靠近掉落物时不会自动吸入背包） |
+| `scanner.warehouse-auto-deposit` | boolean | `false` | — | 拾取后是否尝试存入仓库（需 Warehouse 模块启用） |
+| `scanner.pickup-delay-ticks` | int | `40` | — | 物品落地后多久开始显示在面板（ticks，防止刚扔出的物品立即被扫描） |
+| `scanner.merge-same-items` | boolean | `true` | — | 同类物品是否合并显示（相同材质+名称合并数量） |
+| `scanner.keybind.name` | string | `AXS_PICKUP_PICK` | — | 拾取按键注册名，须与宿主 `config.yml` 的 `keybinds` 节中注册的按键 name 一致 |
+
+> `scanner.keybind.name` 留空时默认使用 `AXS_INTERACT`（宿主全局交互键，与对话模块共享，拾取优先级更高）。若想用独立按键，填 `AXS_PICKUP_PICK`（宿主 `config.yml` 的 `keybinds.pickup-pick` 注册的专用键）。无论填哪个，对应按键都必须在宿主 `config.yml` 的 `keybinds` 节中注册，否则按键无法触发。
+
+### filter 节（过滤系统，仅扫描模式生效）
+
+| 配置项 | 类型 | 默认值 | 说明 |
+| --- | --- | --- | --- |
+| `filter.mode` | string | `blacklist` | 过滤模式：`blacklist`（名单内不显示）或 `whitelist`（只显示名单内） |
+| `filter.min-amount` | int | `1` | 最小堆叠数量，低于此值的掉落物不显示 |
+
+#### 材质过滤
+
+| 配置项 | 类型 | 默认值 | 说明 |
+| --- | --- | --- | --- |
+| `filter.material-blacklist.material-ids` | list | `[DIRT, COBBLESTONE, GRAVEL, SAND, NETHERRACK, COBBLED_DEEPSLATE]` | 材质黑名单（`mode=blacklist` 时，匹配到的掉落物不显示） |
+| `filter.material-whitelist.material-ids` | list | `[]` | 材质白名单（`mode=whitelist` 时，只有匹配到的掉落物才显示；非空时启用） |
+
+#### 名称过滤
+
+| 配置项 | 类型 | 默认值 | 说明 |
+| --- | --- | --- | --- |
+| `filter.name-blacklist.name-regex` | list | `[]` | 名称黑名单正则，匹配到的不显示 |
+
+#### Lore 过滤
+
+| 配置项 | 类型 | 默认值 | 说明 |
+| --- | --- | --- | --- |
+| `filter.lore-blacklist.lore-regex` | list | `[]` | Lore 黑名单正则，物品 Lore 中任意一行匹配到则不显示 |
+| `filter.lore-whitelist.lore-regex` | list | `[]` | Lore 白名单正则（非空时启用，物品 Lore 中必须至少有一行匹配才显示） |
+
+#### NBT 键过滤
+
+| 配置项 | 类型 | 默认值 | 说明 |
+| --- | --- | --- | --- |
+| `filter.nbt-blacklist.nbt-keys` | list | `[]` | NBT 键黑名单，物品 NBT 中包含指定键则不显示（支持嵌套路径如 `custom.trash`） |
+| `filter.nbt-whitelist.nbt-keys` | list | `[]` | NBT 键白名单（非空时启用，物品 NBT 中必须包含至少一个指定键才显示） |
+
+> 五维过滤按顺序依次检查：最小数量 → 材质黑/白名单 → 名称正则 → Lore 正则 → NBT 键。白名单规则仅在配置非空时生效。过滤配置基于 `ItemMatcher` 体系，详见 [物品匹配条件](/docs/guide/conditions)。
+
+## 校验规则
+
+模块在 `configSpec()` 中声明了以下 `ValidationRule`，配置诊断引擎会自动校验：
+
+| 路径 | 类型 | 约束 | 说明 |
+| --- | --- | --- | --- |
+| `notification.max-visible` | INT | 范围 1~16 | 超出范围记 `VALUE_OUT_OF_RANGE`（WARN） |
+| `notification.entry-ttl-ms` | INT | 范围 500~30000 | 超出范围记 `VALUE_OUT_OF_RANGE`（WARN） |
+| `scanner.scan-radius` | DOUBLE | 范围 1.0~32.0 | 超出范围记 `VALUE_OUT_OF_RANGE`（WARN） |
+| `scanner.scan-interval-ticks` | INT | 范围 1~100 | 超出范围记 `VALUE_OUT_OF_RANGE`（WARN） |
+| `scanner.max-display` | INT | 范围 1~16 | 超出范围记 `VALUE_OUT_OF_RANGE`（WARN） |
+
+> 类型不匹配时引擎会尝试自动转换（如 `"10"` → INT 10），转换成功记 `TYPE_MISMATCH`（WARN）并修正值，转换失败记 `TYPE_MISMATCH`（ERROR）。详见 [配置管理](/docs/guide/config-management)。
+
+## 配置版本迁移
+
+| 迁移 | 操作 | 说明 |
+| --- | --- | --- |
+| 1 → 2 | `remove scanner.keybind.default-key` | 移除从未被代码使用的废弃字段 |
+| 2 → 3 | `move` × 7 | 将 `notification.ui-id` / `scanner.ui-id` / `scanner.interact-ui-id` 等 UI 配置从嵌套节移到统一 `ui` 顶层节，`register-ui-on-enable` 与 `overwrite-ui-file`（单数）合并为 `ui.register-ui-on-enable` 与 `ui.overwrite-ui-files`（复数） |
+
+## 完整配置示例
+
+### 通知模式
+
+```yaml
+config-version: 3
+
+settings:
+  debug: false
+  mode: notification
+
+ui:
+  notification-ui-id: "AXS:pickup_hud"
+  scanner-ui-id: "AXS:loot_panel"
+  interact-ui-id: "AXS:loot_interact"
+  register-ui-on-enable: true
+  overwrite-ui-files: false
+
+notification:
+  max-visible: 4
+  entry-ttl-ms: 3000
+
+scanner:
+  scan-radius: 5.0
+  scan-interval-ticks: 5
+  max-display: 8
+  disable-auto-pickup: true
+  warehouse-auto-deposit: false
+  pickup-delay-ticks: 40
+  merge-same-items: true
+  keybind:
+    name: AXS_PICKUP_PICK
+
+filter:
+  mode: blacklist
+  material-blacklist:
+    material-ids:
+      - DIRT
+      - COBBLESTONE
+      - GRAVEL
+      - SAND
+      - NETHERRACK
+      - COBBLED_DEEPSLATE
+  material-whitelist:
+    material-ids: []
+  name-blacklist:
+    name-regex: []
+  lore-blacklist:
+    lore-regex: []
+  lore-whitelist:
+    lore-regex: []
+  nbt-blacklist:
+    nbt-keys: []
+  nbt-whitelist:
+    nbt-keys: []
+  min-amount: 1
+```
+
+### 扫描模式（带仓库联动）
+
+```yaml
+config-version: 3
+
+settings:
+  debug: false
+  mode: scanner
+
+ui:
+  notification-ui-id: "AXS:pickup_hud"
+  scanner-ui-id: "AXS:loot_panel"
+  interact-ui-id: "AXS:loot_interact"
+  register-ui-on-enable: true
+  overwrite-ui-files: false
+
+notification:
+  max-visible: 6
+  entry-ttl-ms: 5000
+
+scanner:
+  scan-radius: 8.0
+  scan-interval-ticks: 10
+  max-display: 8
+  disable-auto-pickup: true
+  warehouse-auto-deposit: true
+  pickup-delay-ticks: 60
+  merge-same-items: true
+  keybind:
+    name: AXS_PICKUP_PICK
+
+filter:
+  mode: whitelist
+  material-blacklist:
+    material-ids: []
+  material-whitelist:
+    material-ids:
+      - DIAMOND
+      - EMERALD
+      - NETHERITE_INGOT
+      - ANCIENT_DEBRIS
+  name-blacklist:
+    name-regex:
+      - ".*垃圾.*"
+  lore-blacklist:
+    lore-regex: []
+  lore-whitelist:
+    lore-regex: []
+  nbt-blacklist:
+    nbt-keys:
+      - "custom.trash"
+  nbt-whitelist:
+    nbt-keys: []
+  min-amount: 1
+```
+
+### 扫描模式（白名单 + Lore 过滤）
+
+```yaml
+config-version: 3
+
+settings:
+  debug: true
+  mode: scanner
+
+ui:
+  notification-ui-id: "AXS:pickup_hud"
+  scanner-ui-id: "AXS:loot_panel"
+  interact-ui-id: "AXS:loot_interact"
+  register-ui-on-enable: true
+  overwrite-ui-files: true
+
+notification:
+  max-visible: 4
+  entry-ttl-ms: 3000
+
+scanner:
+  scan-radius: 5.0
+  scan-interval-ticks: 5
+  max-display: 8
+  disable-auto-pickup: true
+  warehouse-auto-deposit: false
+  pickup-delay-ticks: 40
+  merge-same-items: true
+  keybind:
+    name: AXS_INTERACT
+
+filter:
+  mode: blacklist
+  material-blacklist:
+    material-ids:
+      - DIRT
+      - COBBLESTONE
+      - GRAVEL
+      - SAND
+      - NETHERRACK
+      - COBBLED_DEEPSLATE
+  material-whitelist:
+    material-ids: []
+  name-blacklist:
+    name-regex: []
+  lore-blacklist:
+    lore-regex:
+      - ".*已绑定.*"
+  lore-whitelist:
+    lore-regex:
+      - ".*稀有.*"
+  nbt-blacklist:
+    nbt-keys: []
+  nbt-whitelist:
+    nbt-keys: []
+  min-amount: 1
+```
+
+## 消息文件
+
+消息文件 `messages.yml` 支持颜色码（`&` 前缀）与 `{0}` `{1}` 占位符。修改后执行 `/axs reload pickup` 生效。
+
+| 消息键 | 说明 |
+| --- | --- |
+| `prefix` | 通用消息前缀 |
+| `player-only` | 非玩家执行命令时的提示 |
+| `no-permission` | 无权限提示 |
+| `module-disabled` | 模块未启用提示 |
+| `toggle.enabled` | 拾取功能已开启 |
+| `toggle.disabled` | 拾取功能已关闭 |
+| `status.title` | 状态查询标题 |
+| `status.mode` | 当前模式（参数 `{0}` 为模式名称） |
+| `status.state` | 功能状态（参数 `{0}` 为状态标签） |
+| `mode.scanner` | 扫描模式名称 |
+| `mode.notification` | 通知模式名称 |
+| `state.on` | 已开启标签 |
+| `state.off` | 已关闭标签 |
+| `player.help.title` | 帮助标题 |
+| `player.help.on` | `/pickup on` 帮助 |
+| `player.help.off` | `/pickup off` 帮助 |
+| `player.help.status` | `/pickup status` 帮助 |
+| `hints.warehouse-stored` | 仓库存储提示（参数 `{0}` 为数量） |
+| `hints.inventory-full` | 背包空间不足提示 |
