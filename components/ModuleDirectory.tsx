@@ -4,25 +4,11 @@ import Link from 'next/link';
 import { useState, useMemo } from 'react';
 import { modules, categoryLabels, categoryColors, type ModuleInfo } from '@/lib/modules';
 
+type FilterCategory = 'all' | ModuleInfo['category'];
+
 export function ModuleDirectory() {
   const [query, setQuery] = useState('');
-  const [activeTag, setActiveTag] = useState<string | null>(null);
-
-  const allTags = useMemo(() => {
-    const map = new Map<string, number>();
-    for (const m of modules) {
-      for (const t of m.tags) {
-        map.set(t, (map.get(t) ?? 0) + 1);
-      }
-    }
-    return Array.from(map, ([label, count]) => ({ label, count }));
-  }, []);
-
-  const primaryLabels = ['免费', '付费', '福利', 'UI', '跨服', 'HUD'];
-  const primaryTags = primaryLabels
-    .map((label) => allTags.find((t) => t.label === label))
-    .filter((t): t is NonNullable<typeof t> => Boolean(t));
-  const moreTags = allTags.filter((t) => !primaryLabels.includes(t.label));
+  const [activeCategory, setActiveCategory] = useState<FilterCategory>('all');
 
   const filtered = useMemo(() => {
     const q = query.trim().toLowerCase();
@@ -33,15 +19,24 @@ export function ModuleDirectory() {
           m.name.toLowerCase().includes(q) ||
           m.displayName.toLowerCase().includes(q) ||
           m.description.toLowerCase().includes(q);
-        const hitTag = !activeTag || m.tags.includes(activeTag);
-        return hitQuery && hitTag;
+        const hitCategory = activeCategory === 'all' || m.category === activeCategory;
+        return hitQuery && hitCategory;
       })
       .sort((a, b) => a.name.localeCompare(b.name, 'en', { sensitivity: 'base' }));
-  }, [query, activeTag]);
+  }, [query, activeCategory]);
+
+  const categoryChips: { key: FilterCategory; label: string; count: number }[] = [
+    { key: 'all', label: '全部', count: modules.length },
+    ...(['free', 'paid', 'bonus'] as const).map((key) => ({
+      key,
+      label: categoryLabels[key],
+      count: modules.filter((m) => m.category === key).length,
+    })),
+  ];
 
   return (
     <div>
-      {/* 搜索 + 标签筛选 */}
+      {/* 搜索 + 分类筛选 */}
       <div className="mb-8 rounded-2xl border border-white/[0.08] bg-white/[0.04] p-4 backdrop-blur-md">
         <div className="flex flex-col gap-3 sm:flex-row sm:items-center">
           <label className="relative block w-full sm:max-w-md">
@@ -71,37 +66,15 @@ export function ModuleDirectory() {
         </div>
 
         <div className="mt-3 flex flex-wrap items-center gap-2 border-t border-white/[0.06] pt-3">
-          <FilterChip label="全部" active={activeTag === null} onClick={() => setActiveTag(null)} />
-          {primaryTags.map((tag) => (
+          {categoryChips.map((chip) => (
             <FilterChip
-              key={tag.label}
-              label={tag.label}
-              count={tag.count}
-              active={activeTag === tag.label}
-              onClick={() => setActiveTag(tag.label)}
+              key={chip.key}
+              label={chip.label}
+              count={chip.count}
+              active={activeCategory === chip.key}
+              onClick={() => setActiveCategory(chip.key)}
             />
           ))}
-          {moreTags.length > 0 && (
-            <details className="group">
-              <summary className="inline-flex cursor-pointer list-none items-center gap-1.5 rounded-full border border-white/[0.08] px-3 py-1.5 text-xs font-medium text-neutral-400 transition-colors hover:border-[#9b8cd8]/30 hover:text-neutral-200">
-                更多 · {moreTags.length}
-                <svg className="h-3.5 w-3.5 transition-transform group-open:rotate-180" viewBox="0 0 24 24" fill="none" stroke="currentColor">
-                  <path d="m6 9 6 6 6-6" strokeWidth={2} strokeLinecap="round" strokeLinejoin="round" />
-                </svg>
-              </summary>
-              <div className="mt-2 flex flex-wrap gap-2 rounded-xl border border-white/[0.08] bg-white/[0.04] p-3 backdrop-blur-md">
-                {moreTags.map((tag) => (
-                  <FilterChip
-                    key={tag.label}
-                    label={tag.label}
-                    count={tag.count}
-                    active={activeTag === tag.label}
-                    onClick={() => setActiveTag(tag.label)}
-                  />
-                ))}
-              </div>
-            </details>
-          )}
         </div>
       </div>
 
@@ -186,16 +159,6 @@ function ModuleCard({ module: m }: { module: ModuleInfo }) {
         <p className="mt-3 text-sm leading-relaxed text-neutral-400">
           {m.description}
         </p>
-        <div className="mt-4 flex flex-wrap gap-1.5">
-          {m.tags.map((tag) => (
-            <span
-              key={tag}
-              className="rounded-md bg-white/[0.04] px-2 py-0.5 text-[10px] font-medium text-neutral-500"
-            >
-              {tag}
-            </span>
-          ))}
-        </div>
       </div>
     </Link>
   );
