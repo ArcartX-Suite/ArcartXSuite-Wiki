@@ -338,7 +338,7 @@ tick() 轮询周期
 | 缓存 | 类型 | 说明 |
 |---|---|---|
 | `lastValues` | `Map<String, Map<UUID, String>>` | 每个规则每个玩家的上次占位符值 |
-| `mobKillCounts` | `ConcurrentHashMap<String, Integer>` | 击杀计数缓存（key: `uuid|ruleId`） |
+| `mobKillCounts` | `ConcurrentHashMap<String, Integer>` | 击杀计数缓存（key: `uuid\|ruleId`） |
 | `scriptLastState` | `ConcurrentMap<String, Map<UUID, Boolean>>` | 每个规则每个玩家的上次脚本状态 |
 
 > 每次轮询时自动清理离线玩家的缓存（`state.keySet().removeIf(uuid -> !onlinePlayerIds.contains(uuid))`），避免内存泄漏。玩家退出时 `PlayerEventPacketListener` 调用 `watcherService.clearPlayer()` 主动清理。

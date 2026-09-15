@@ -9,7 +9,7 @@ LoginView 支持两种认证模式，通过 `auth.mode` 配置项切换。`stand
 
 ## 认证模式总览
 
-|| 模式 | 配置值 | 账户存储 | 密码哈希 | AuthMe 依赖 | Session 持久化 |
+| 模式 | 配置值 | 账户存储 | 密码哈希 | AuthMe 依赖 | Session 持久化 |
 |---|---|---|---|---|---|
 | 独立模式 | `standalone` | AXS `accounts` 表 | `AXS_PBKDF2_SHA256` | 不需要 | 支持（`sessions` 表） |
 | 兼容模式 | `authme` | AuthMe 数据库 | AuthMe 配置的算法 | 必需 | 由 AuthMe 管理 |
@@ -101,7 +101,7 @@ public boolean initialize() {
 
 ### 桥接方法映射
 
-|| LoginView 操作 | AuthMeBridge 方法 | AuthMeApi 调用 | 说明 |
+| LoginView 操作 | AuthMeBridge 方法 | AuthMeApi 调用 | 说明 |
 |---|---|---|---|
 | 登录验证 | `checkPassword(name, password)` | `api.checkPassword(name, password)` | 校验明文密码与 AuthMe 存储的哈希 |
 | 注册检查 | `isRegistered(name)` | `api.isRegistered(name)` | 判断玩家是否已在 AuthMe 注册 |
@@ -165,7 +165,7 @@ authme-migration:
 
 `AuthMeMigrationService` 通过列映射将 AuthMe 表字段转换为 AXS 账户字段：
 
-|| 配置字段 | 默认值 | AXS 字段 | 说明 |
+| 配置字段 | 默认值 | AXS 字段 | 说明 |
 |---|---|---|---|
 | `columns.name` | `username` | `lower_name` / `real_name` | 玩家名（自动转小写作为主键） |
 | `columns.real-name` | `realname` | `real_name` | 原始用户名（保留大小写） |
@@ -226,7 +226,7 @@ ON DUPLICATE KEY UPDATE real_name = VALUES(real_name), password_hash = VALUES(pa
 AuthMe 迁移完成: 扫描 256，可导入 240，跳过 16
 ```
 
-|| 结果字段 | 说明 |
+| 结果字段 | 说明 |
 |---|---|
 | 扫描数 | AuthMe 源表中的总记录数 |
 | 导入数 | 成功导入或可导入的记录数（含空名/空哈希跳过后的有效记录） |
@@ -253,7 +253,7 @@ AuthMe 迁移完成: 扫描 256，可导入 240，跳过 16
 
 `LoginViewPasswordHasher` 支持三种哈希算法的验证，新注册统一使用 PBKDF2：
 
-|| 算法标识 | 用途 | 哈希格式 | 验证方式 |
+| 算法标识 | 用途 | 哈希格式 | 验证方式 |
 |---|---|---|---|
 | `AXS_PBKDF2_SHA256` | 新注册 / 改密 / 重哈希 | `迭代次数$Base64盐$Base64派生密钥` | PBKDF2WithHmacSHA256 重新派生比对 |
 | `AUTHME_BCRYPT` | AuthMe 迁移导入 | BCrypt 哈希字符串 | `BCrypt.verifyer().verify()` |
@@ -268,7 +268,7 @@ AuthMe 迁移完成: 扫描 256，可导入 240，跳过 16
 180000$<Base64编码的16字节盐>$<Base64编码的256位派生密钥>
 ```
 
-|| 组成部分 | 说明 |
+| 组成部分 | 说明 |
 |---|---|
 | `180000` | PBKDF2 迭代次数 |
 | Base64 盐 | 16 字节 `SecureRandom` 随机生成的盐值 |
@@ -333,7 +333,7 @@ if (account.migrated() && configuration.security().rehashMigratedPasswordOnLogin
   → 后续登录直接走 AXS_PBKDF2_SHA256 验证
 ```
 
-|| 配置 | 说明 |
+| 配置 | 说明 |
 |---|---|
 | `rehash-migrated-password-on-login: true` | 迁移账户首次登录后自动重写为 AXS 哈希（推荐） |
 | `rehash-migrated-password-on-login: false` | 迁移账户保持 AuthMe 哈希，每次登录使用对应算法验证 |
@@ -344,7 +344,7 @@ if (account.migrated() && configuration.security().rehashMigratedPasswordOnLogin
 
 ## 模式选择建议
 
-|| 场景 | 推荐模式 | 原因 |
+| 场景 | 推荐模式 | 原因 |
 |---|---|---|
 | 全新服务器，无 AuthMe 历史 | `standalone` | 无需额外依赖，PBKDF2 安全性更高 |
 | 已有 AuthMe，希望逐步迁移 | `standalone` + 迁移 | 导入历史数据后逐步重哈希，最终停用 AuthMe |

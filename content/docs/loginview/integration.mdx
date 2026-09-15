@@ -13,13 +13,13 @@ LoginView 模块通过 `EventBusCapability` 发布登录成功事件，其他模
 
 ### 发布的事件
 
-|| 事件 Topic | 触发时机 | Payload |
+| 事件 Topic | 触发时机 | Payload |
 |---|---|---|
 | `axs.loginview.login_success` | 玩家登录成功（密码登录、注册自动登录、免密进入） | `auth_mode`（认证模式）、`account_type`（账号类型 ID） |
 
 ### Payload 字段
 
-|| 字段 | 类型 | 说明 |
+| 字段 | 类型 | 说明 |
 |---|---|---|
 | `auth_mode` | string | 认证模式：`standalone` 或 `authme` |
 | `account_type` | string | 账号类型 ID：`microsoft` / `littleskin` / `offline` |
@@ -63,7 +63,7 @@ protected List<String> publishedTopics() {
 
 LoginView 还通过 `SignalDispatchable` 派发信号，可供 QuestGPS、条件触发器等模块监听。
 
-|| 信号 | 触发时机 | 变量 |
+| 信号 | 触发时机 | 变量 |
 |---|---|---|
 | `login_success` | 密码登录成功 | `auth_mode`、`account_type`、`account_type_display` |
 | `first_register` | 注册成功并自动登录 | `auth_mode`、`account_type`、`account_type_display` |
@@ -71,7 +71,7 @@ LoginView 还通过 `SignalDispatchable` 派发信号，可供 QuestGPS、条件
 
 ### 信号变量
 
-|| 变量 | 说明 |
+| 变量 | 说明 |
 |---|---|
 | `auth_mode` | 认证模式：`standalone` 或 `authme` |
 | `account_type` | 账号类型 ID：`microsoft` / `littleskin` / `offline` |
@@ -89,7 +89,7 @@ LoginView 模块注册了以下 Capability，供宿主及其他模块调用：
 
 支持数据库迁移，供本体存储管理模块在切换存储后端时调用。
 
-|| 方法 | 返回值 | 说明 |
+| 方法 | 返回值 | 说明 |
 |---|---|---|
 | `moduleId()` | `String` | 返回 `loginview` |
 | `migrateDatabase(target, overwrite)` | `MigrationResult` | 将当前数据迁移到目标存储描述符 |
@@ -111,7 +111,7 @@ registerCapability(DatabaseMigratable.class, new DatabaseMigratable() {
 
 支持玩家数据清理，供宿主管理面板或 GDPR 合规工具调用。
 
-|| 方法 | 返回值 | 说明 |
+| 方法 | 返回值 | 说明 |
 |---|---|---|
 | `moduleId()` | `String` | 返回 `loginview` |
 | `purgePlayerData(uuid)` | `int` | 删除指定玩家的数据，返回删除行数；失败返回 -1 |
@@ -125,7 +125,7 @@ LoginView 使用 `lower_name`（小写用户名）作为账户主键，不支持
 
 LoginView 运行时通过 `getCapability` 延迟查找以下宿主能力：
 
-|| 能力 | 用途 | 缺失时行为 |
+| 能力 | 用途 | 缺失时行为 |
 |---|---|---|
 | `SignalDispatchable` | 登录/注册/免登成功后派发信号 | 信号派发为空操作 |
 | `EventBusCapability` | 发布 `axs.loginview.login_success` 事件 | 事件发布为空操作 |
@@ -135,7 +135,7 @@ LoginView 运行时通过 `getCapability` 延迟查找以下宿主能力：
 
 LoginView 依赖以下宿主服务，在 `startService` 中注入：
 
-|| 服务 | 用途 |
+| 服务 | 用途 |
 |---|---|
 | `AccountTypeService` | 统一账号类型识别（微软/LittleSkin/离线），决定玩家走密码登录还是免密进入 |
 | `PacketBridgeAPI` | ArcartX UI 数据包通信（打开 UI、发送 init/result/close 包） |
@@ -168,7 +168,7 @@ LoginView 使用两张表存储账户和会话数据，表名前缀由 `storage.
 
 存储玩家登录账户信息。
 
-|| 列名 | 类型 | 说明 |
+| 列名 | 类型 | 说明 |
 |---|---|---|
 | `lower_name` | `VARCHAR(64)` | 小写用户名（主键，用于唯一索引） |
 | `real_name` | `VARCHAR(64)` | 原始用户名（保留大小写） |
@@ -190,7 +190,7 @@ LoginView 使用两张表存储账户和会话数据，表名前缀由 `storage.
 
 存储登录会话，用于免密自动登录。
 
-|| 列名 | 类型 | 说明 |
+| 列名 | 类型 | 说明 |
 |---|---|---|
 | `uuid` | `VARCHAR(36)` | 玩家 UUID（主键） |
 | `player_name` | `VARCHAR(64)` | 玩家名 |
@@ -225,7 +225,7 @@ LoginView 通过 `AuthMeBridge` 桥接 AuthMe 插件：
 
 LoginView 依赖宿主 `AccountTypeService` 判定玩家账号类型：
 
-|| 账号类型 | ID | 展示名 | 免密 | 说明 |
+| 账号类型 | ID | 展示名 | 免密 | 说明 |
 |---|---|---|---|---|
 | 微软正版 | `microsoft` | 微软正版 | 是 | 玩家名在 Mojang 正版数据库存在 |
 | LittleSkin | `littleskin` | LittleSkin | 是 | 通过 authlib-injector 认证 |

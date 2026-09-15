@@ -11,14 +11,14 @@ LoginView 模块的配置文件位于 `plugins/ArcartX-Suite/data/loginview/conf
 
 ## 全局设置
 
-|| 字段 | 类型 | 默认值 | 说明 |
+| 字段 | 类型 | 默认值 | 说明 |
 |---|---|---|---|
 | `config-version` | int | `3` | 配置版本号（请勿手动修改） |
 | `debug` | boolean | `false` | 是否输出 LoginView 模块调试日志 |
 
 ## auth 认证配置
 
-|| 字段 | 类型 | 默认值 | 说明 |
+| 字段 | 类型 | 默认值 | 说明 |
 |---|---|---|---|
 | `auth.mode` | string | `standalone` | 认证模式：`standalone`（独立账户库）或 `authme`（委托 AuthMe API） |
 | `auth.bypass-welcome.message` | string | `&a身份已验证，欢迎回来。` | 正版/LittleSkin 玩家绕过登录后的欢迎消息 |
@@ -31,7 +31,7 @@ LoginView 模块的配置文件位于 `plugins/ArcartX-Suite/data/loginview/conf
 
 控制微软/LittleSkin 账号是否强制绑定 QQ 才能进入游戏。需 qqbot 模块同时加载才能生效。
 
-|| 字段 | 类型 | 默认值 | 说明 |
+| 字段 | 类型 | 默认值 | 说明 |
 |---|---|---|---|
 | `qq-binding.enabled` | boolean | `true` | 是否启用 QQ 绑定流程 |
 | `qq-binding.microsoft-require-bind` | boolean | `false` | 微软正版账号是否需要绑定 QQ 才能进入游戏 |
@@ -50,7 +50,7 @@ qq-binding:
 
 ## ui 界面配置
 
-|| 字段 | 类型 | 默认值 | 说明 |
+| 字段 | 类型 | 默认值 | 说明 |
 |---|---|---|---|
 | `ui.ui-id` | string | `AXS:login_view` | 登录 UI 的 ArcartX 注册 ID |
 | `ui.packet-id` | string | `AXS_loginview` | 客户端回包 ID，用于接收输入框内容 |
@@ -70,7 +70,7 @@ qq-binding:
 
 ## terms-of-service 服务条款配置
 
-|| 字段 | 类型 | 默认值 | 说明 |
+| 字段 | 类型 | 默认值 | 说明 |
 |---|---|---|---|
 | `terms-of-service.enabled` | boolean | `true` | 是否强制玩家在登录前查阅并同意服务器服规 |
 
@@ -78,7 +78,7 @@ qq-binding:
 
 登录成功后是否将玩家传送到指定出生点（主城）。也可使用 `/axs loginview set-spawn` 命令以当前位置自动设置。
 
-|| 字段 | 类型 | 默认值 | 说明 |
+| 字段 | 类型 | 默认值 | 说明 |
 |---|---|---|---|
 | `spawn-on-login.enabled` | boolean | `false` | 是否启用登录后传送 |
 | `spawn-on-login.world` | string | `world` | 目标世界名 |
@@ -90,7 +90,7 @@ qq-binding:
 
 ## security 安全策略配置
 
-|| 字段 | 类型 | 默认值 | 说明 |
+| 字段 | 类型 | 默认值 | 说明 |
 |---|---|---|---|
 | `security.min-password-length` | int | `6` | 密码最小长度，范围 1~64 |
 | `security.max-password-length` | int | `64` | 密码最大长度，范围 8~128 |
@@ -110,7 +110,7 @@ qq-binding:
 
 ## storage 数据存储配置
 
-|| 字段 | 类型 | 默认值 | 说明 |
+| 字段 | 类型 | 默认值 | 说明 |
 |---|---|---|---|
 | `storage.shared` | boolean | `true` | `true` 共享存储模式（推荐），使用本体统一数据源；`false` 自建独立连接池 |
 | `storage.mode` | string | `sqlite` | 自建模式存储类型：`sqlite` 或 `mysql`（仅 `shared: false` 时生效） |
@@ -131,7 +131,7 @@ qq-binding:
 
 仅当 `auth.mode=standalone` 且需要从 AuthMe 导入历史数据时使用。
 
-|| 字段 | 类型 | 默认值 | 说明 |
+| 字段 | 类型 | 默认值 | 说明 |
 |---|---|---|---|
 | `authme-migration.source.jdbc-url` | string | `jdbc:sqlite:plugins/AuthMe/AuthMe.db` | 源数据库 JDBC 连接地址 |
 | `authme-migration.source.username` | string | - | 源数据库用户名 |
@@ -151,7 +151,7 @@ qq-binding:
 
 ### 支持的导入哈希算法
 
-|| 算法标识 | 说明 |
+| 算法标识 | 说明 |
 |---|---|
 | `AUTHME_BCRYPT` | AuthMe 默认 BCrypt 哈希 |
 | `AUTHME_BCRYPT2Y` | BCrypt 2y 格式哈希 |
@@ -268,7 +268,7 @@ storage:
 
 ## 配置版本迁移历史
 
-|| 版本 | 迁移内容 |
+| 版本 | 迁移内容 |
 |---|---|
 | 1 → 2 | `storage.table-prefix` 移入 `storage.mysql.table-prefix`，统一嵌套结构 |
 | 2 → 3 | `storage.mode` 重命名为 `storage.shared`，值从 `sqlite`/`mysql` 映射为 `true`/`false` |

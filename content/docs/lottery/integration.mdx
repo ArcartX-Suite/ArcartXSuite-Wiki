@@ -153,7 +153,7 @@ Lottery 模块使用 `JdbcLotteryRepository` 管理以下表，表名前缀默�
 | `id` | `INTEGER AUTOINCREMENT` | `BIGINT AUTO_INCREMENT` | 记录 ID |
 | `player_uuid` | `TEXT` | `VARCHAR(36)` | 玩家 UUID |
 | `pool_id` | `TEXT` | `VARCHAR(64)` | 奖池 ID（回滚时为 `rollback`） |
-| `item_metadata` | `TEXT` | `TEXT` | 奖品元数据（`key|name|delivery`） |
+| `item_metadata` | `TEXT` | `TEXT` | 奖品元数据（`key\|name\|delivery`） |
 | `item_data` | `TEXT` | `LONGTEXT` | 序列化物品数据（Base64） |
 | `created_time` | `INTEGER` | `BIGINT` | 创建时间戳（毫秒） |
 | `claimed` | `INTEGER` | `BOOLEAN` | 是否已领取 |

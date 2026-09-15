@@ -11,7 +11,7 @@ LoginView 模块通过 `/axs loginview` 子命令提供管理功能，并通过 
 
 所有命令通过 `/axs loginview <action>` 调用，需要 `arcartxsuite.admin` 权限。
 
-|| 命令 | 说明 | 权限 |
+| 命令 | 说明 | 权限 |
 |---|---|---|
 | `/axs loginview help` | 显示 LoginView 模块命令帮助 | `arcartxsuite.admin` |
 | `/axs loginview status` | 查看登录模块运行状态 | `arcartxsuite.admin` |
@@ -153,7 +153,7 @@ AuthMe 迁移完成: 扫描 256，可导入 240，跳过 16
 
 LoginView 注册了标识为 `axsloginview` 的 PlaceholderAPI 扩展，提供账号类型查询。需安装 PlaceholderAPI 插件。
 
-|| 占位符 | 返回值 | 说明 |
+| 占位符 | 返回值 | 说明 |
 |---|---|---|
 | `%axsloginview_account_type%` | `microsoft` / `littleskin` / `offline` | 玩家账号类型 ID |
 | `%axsloginview_account_type_display%` | `微软正版` / `LittleSkin` / `离线` | 账号类型中文展示名 |
@@ -177,7 +177,7 @@ LoginView 通过 ArcartX UI（Aria）的 `packet-id` 通道与客户端通信。
 
 服务端打开 UI 时发送，携带界面初始化数据，客户端据此渲染对应类型的登录界面。
 
-|| 字段 | 类型 | 说明 |
+| 字段 | 类型 | 说明 |
 |---|---|---|
 | `packetId` | string | 客户端回包 ID（`AXS_loginview`），用于 `Packet.send` 回传 |
 | `type` | string | 界面类型：`login` / `register` / `change` / `bypass` / `bypass_unbound` |
@@ -200,7 +200,7 @@ LoginView 通过 ArcartX UI（Aria）的 `packet-id` 通道与客户端通信。
 
 操作完成后发送，携带成功/失败消息。
 
-|| 字段 | 类型 | 说明 |
+| 字段 | 类型 | 说明 |
 |---|---|---|
 | `success` | boolean | 操作是否成功 |
 | `message` | string | 操作结果消息文本 |
@@ -209,7 +209,7 @@ LoginView 通过 ArcartX UI（Aria）的 `packet-id` 通道与客户端通信。
 
 登录成功后关闭 UI 时发送。
 
-|| 字段 | 类型 | 说明 |
+| 字段 | 类型 | 说明 |
 |---|---|---|
 | `message` | string | 关闭时的结果消息 |
 
@@ -217,7 +217,7 @@ LoginView 通过 ArcartX UI（Aria）的 `packet-id` 通道与客户端通信。
 
 客户端通过 `Packet.send(packetId, action, ...args)` 回传数据，服务端在 `handleClientPacket` 中处理。
 
-|| action | 参数 | 说明 |
+| action | 参数 | 说明 |
 |---|---|---|
 | `login` | `password`, `agreed` | 登录：密码 + 是否同意服规 |
 | `register` | `password`, `confirmPassword`, `agreed` | 注册：密码 + 确认密码 + 是否同意服规 |
@@ -234,7 +234,7 @@ LoginView 通过 ArcartX UI（Aria）的 `packet-id` 通道与客户端通信。
 
 LoginView 内置两套 UI 风格，通过 `ui.ui-file` 配置切换：
 
-|| UI 文件 | 风格 | 说明 |
+| UI 文件 | 风格 | 说明 |
 |---|---|---|
 | `login_view.yml` | 紧凑面板 | 居中面板布局，680×360，含登录/注册/改密/免登/绑定/服规全部界面 |
 | `login_view_menu.yml` | 纯色块主菜单 | 左侧功能栏 + 右侧装饰，430px 侧栏，适合大屏服务器 |

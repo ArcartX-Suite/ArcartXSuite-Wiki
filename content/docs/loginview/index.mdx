@@ -9,7 +9,7 @@ description: LoginView 登录界面模块功能概览
 
 LoginView 是 Suite 的 UI 登录认证模块，通过 ArcartX UI（Aria）在客户端渲染登录、注册、改密界面，取代传统聊天栏输入密码的方式。模块支持 **standalone**（独立账户库）与 **authme**（委托 AuthMe API）两种认证模式，内置 AuthMe 数据迁移能力，并与宿主账号类型识别服务（`AccountTypeService`）深度集成，自动识别微软正版 / LittleSkin / 离线账号，为正版玩家提供免密登录体验。
 
-|| 属性 | 值 |
+| 属性 | 值 |
 |---|---|---|
 | 模块 ID | `loginview` |
 | 版本 | 1.4.4 |
@@ -22,7 +22,7 @@ LoginView 是 Suite 的 UI 登录认证模块，通过 ArcartX UI（Aria）在�
 
 ## 功能特性
 
-|| 特性 | 说明 |
+| 特性 | 说明 |
 |---|---|---|
 | 双认证模式 | `standalone` 使用 AXS 独立账户库（PBKDF2 哈希）；`authme` 委托 AuthMe API 做注册、登录、改密 |
 | ArcartX UI 面板 | 客户端渲染登录/注册/改密界面，内置紧凑面板与纯色块主菜单两种 UI 风格 |
@@ -42,7 +42,7 @@ LoginView 是 Suite 的 UI 登录认证模块，通过 ArcartX UI（Aria）在�
 
 ## 依赖
 
-|| 依赖类型 | 名称 | 必需 | 说明 |
+| 依赖类型 | 名称 | 必需 | 说明 |
 |---|---|---|---|
 | 模块依赖 | 无 | - | LoginView 不依赖其他模块即可运行 |
 | 外部软依赖 | AuthMe | 否 | `auth.mode=authme` 或 `migrate-authme` 命令时需要；standalone 模式不需要 |
@@ -69,7 +69,7 @@ LoginView 支持两种认证模式，通过 `auth.mode` 配置项切换：
 
 将注册、登录、改密等操作委托给 AuthMe 插件的 `AuthMeApi`，LoginView 仅提供 ArcartX UI 登录界面。适用于已安装 AuthMe 且希望保留现有认证体系的服主。AuthMe 缺失时模块不加载。
 
-|| 对比项 | standalone | authme |
+| 对比项 | standalone | authme |
 |---|---|---|
 | 账户存储 | AXS 独立账户库（`accounts` 表） | AuthMe 数据库 |
 | 密码哈希 | PBKDF2-SHA256（180000 次迭代） | AuthMe 配置的哈希算法 |
@@ -86,7 +86,7 @@ LoginView 的登录流程围绕 ArcartX UI 数据包通信展开，服务端与�
 
 服务端根据玩家账号类型和注册状态，向客户端发送 `init` 包决定显示哪种界面：
 
-|| 界面类型 | `type` 值 | 触发条件 | 说明 |
+| 界面类型 | `type` 值 | 触发条件 | 说明 |
 |---|---|---|---|
 | 登录 | `login` | 离线账号且已注册 | 显示密码输入框与登录按钮 |
 | 注册 | `register` | 离线账号且未注册 | 显示密码 + 确认密码输入框与注册按钮 |
@@ -113,7 +113,7 @@ LoginView 的登录流程围绕 ArcartX UI 数据包通信展开，服务端与�
 
 未通过认证的玩家会受到以下限制（均可配置开关）：
 
-|| 锁定项 | 配置字段 | 默认值 | 说明 |
+| 锁定项 | 配置字段 | 默认值 | 说明 |
 |---|---|---|---|
 | 移动 | `security.lock-movement` | `true` | 阻止玩家移动（同方块内移动允许） |
 | 聊天 | `security.lock-chat` | `true` | 取消聊天事件 |
