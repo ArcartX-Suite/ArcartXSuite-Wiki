@@ -7,7 +7,7 @@ description: Warehouse 配置文件详解
 
 配置文件位于 `plugins/ArcartX-Suite/modules/ArcartXWarehouse.yml`，修改后执行 `/axs reload warehouse` 生效。
 
-当前配置版本（`config-version`）为 **3**，模块支持自动迁移（0→1、1→2、2→3）。
+当前配置版本（`config-version`）为 **4**，模块支持自动迁移（0→1、1→2、2→3、3→4）。
 
 ## 主配置字段表
 
@@ -68,11 +68,15 @@ description: Warehouse 配置文件详解
 
 | 字段 | 类型 | 默认值 | 说明 |
 | --- | --- | --- | --- |
-| `auto-store-on-pickup` | boolean | `true` | 拾取时是否自动存入仓库 |
-| `auto-store-mythic-loot` | boolean | `false` | 是否自动存入 MythicMobs 掉落物 |
-| `notify-on-auto-store` | boolean | `true` | 自动存入时是否通知玩家 |
+| `enabled` | boolean | `true` | 服务器总开关：关闭后全服自动入库功能失效，玩家个人开关不生效，管理界面隐藏整个拾取开关组 |
+| `auto-store-on-pickup` | boolean | `true` | 拾取时是否自动存入仓库（玩家个人设置的默认值） |
+| `auto-store-mythic-loot` | boolean | `false` | 是否自动存入 MythicMobs 自定义掉落物（玩家个人设置的默认值） |
+| `mythic-loot-enabled` | boolean | `true` | 服务器开关：是否允许 MythicMobs 自定义掉落物自动入库（关闭后管理界面隐藏"怪物战利品"开关） |
+| `notify-on-auto-store` | boolean | `true` | 自动存入时是否通知玩家（玩家个人设置的默认值） |
 
 > 玩家可在管理 UI 中单独开关自己的自动入库设置，个人设置存储在 `warehouse_player_settings` 表，优先于全局默认值。
+>
+> `enabled` 与 `mythic-loot-enabled` 为**服务器级开关**，优先级高于玩家个人设置：关闭时对应功能全服失效，管理界面同时隐藏对应开关，玩家无法在 UI 中看到或切换它。
 
 ### search 节
 
@@ -265,7 +269,7 @@ blacklist:
 ## 完整配置示例
 
 ```yaml
-config-version: 2
+config-version: 4
 settings:
   debug: false
   flush-interval-ticks: 100
@@ -294,8 +298,10 @@ security:
   admin-reveal-secret: ""
 
 pickup:
+  enabled: true
   auto-store-on-pickup: true
   auto-store-mythic-loot: false
+  mythic-loot-enabled: true
   notify-on-auto-store: true
 
 search:

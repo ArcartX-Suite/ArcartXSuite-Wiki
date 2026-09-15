@@ -198,16 +198,20 @@ showcase:
 
 ```yaml
 pickup:
+  enabled: true
   auto-store-on-pickup: true
   auto-store-mythic-loot: false
+  mythic-loot-enabled: true
   notify-on-auto-store: true
 ```
 
 | 字段 | 类型 | 默认值 | 说明 |
 | --- | --- | --- | --- |
-| `auto-store-on-pickup` | boolean | `true` | 拾取时是否自动存入仓库 |
-| `auto-store-mythic-loot` | boolean | `true` | 是否自动存入 MythicMobs 掉落物 |
-| `notify-on-auto-store` | boolean | `true` | 自动存入时是否通知玩家 |
+| `enabled` | boolean | `true` | 服务器总开关：关闭后全服自动入库功能失效 |
+| `auto-store-on-pickup` | boolean | `true` | 拾取时是否自动存入仓库（玩家个人设置的默认值） |
+| `auto-store-mythic-loot` | boolean | `true` | 是否自动存入 MythicMobs 自定义掉落物（玩家个人设置的默认值） |
+| `mythic-loot-enabled` | boolean | `true` | 服务器开关：是否允许 MythicMobs 自定义掉落物自动入库 |
+| `notify-on-auto-store` | boolean | `true` | 自动存入时是否通知玩家（玩家个人设置的默认值） |
 
 ### 玩家个人设置
 
@@ -219,15 +223,20 @@ pickup:
 | `toggle_auto_mythic` | 切换自动存储怪物战利品开关 |
 | `toggle_auto_notify` | 切换入库通知开关 |
 
+> 服务器开关会隐藏对应 UI 开关：`pickup.enabled=false` 时隐藏整个拾取开关组并显示"服务器未开启"提示；`mythic-loot-enabled=false` 时仅隐藏"怪物战利品"开关，其余开关宽度自动收拢。
+
 ### 自动入库流程
 
 自动入库由 `onEntityPickupItem` 事件监听器处理（`EventPriority.LOWEST`）：
 
 1. 检查拾取者是否为在线玩家
-2. 如果 Pickup 扫描模式已接管该玩家拾取流程，跳过自动入库
-3. 从 `ViewState` 读取玩家的自动入库设置（优先使用数据库持久化值，而非全局配置默认值）
-4. 如果自动入库关闭，跳过
-5. 调用 `depositStack()` 将物品存入第一个个人仓库
+2. 检查服务器总开关 `pickup.enabled`，关闭则跳过自动入库
+3. 如果 Pickup 扫描模式已接管该玩家拾取流程，跳过自动入库
+4. 从 `ViewState` 读取玩家的自动入库设置（优先使用数据库持久化值，而非全局配置默认值）
+5. 按物品类型分流判定：
+   - **MythicMobs 自定义掉落物**（`isMythicItem` 判定）：走战利品通道，需 `mythic-loot-enabled`（服务器）与玩家 `auto_mythic` 开关同时开启，否则跳过
+   - **普通物品**：需玩家 `auto_pickup` 开关开启，否则跳过
+6. 调用 `depositStack()` 将物品存入第一个个人仓库
 6. 根据存入结果更新掉落物：
    - 全部存入：取消拾取事件并移除掉落物
    - 部分存入：更新掉落物数量为剩余数量
@@ -259,6 +268,8 @@ registerCapability(WarehouseAutoDepositable.class,
 ```
 
 `depositToPersonalWarehouse()` 方法将物品存入玩家第一个个人仓库，返回 `DepositResult`（包含成功状态、存入数量、剩余数量和消息）。
+
+> 该接口同样受服务器级开关约束：`pickup.enabled=false` 时直接拒绝存入；MythicMobs 自定义物品在 `mythic-loot-enabled=false` 时也会被拒绝，防止外部模块绕过服务器限制。玩家个人开关不作用于该接口（外部模块的拾取为玩家主动行为）。
 
 ## 玩家设置持久化
 

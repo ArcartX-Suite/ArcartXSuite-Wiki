@@ -18,7 +18,7 @@ Warehouse 模块通过 EventBus 发布事件，供其他模块订阅。模块在
 当物品通过以下方式存入个人仓库时触发事件：
 
 1. **UI 手动存入**：玩家在存取界面通过 `deposit_slot` / `deposit_all_backpack` 操作
-2. **自动入库**：拾取物品时自动存入（需开启 `auto-store-on-pickup`）
+2. **自动入库**：拾取物品时自动存入（需服务器开启 `pickup.enabled` 且玩家开启自动入库）
 3. **外部模块调用**：通过 `WarehouseAutoDepositable` Capability 调用自动入库
 
 事件通过 `EventBusCapability` 发布，payload 包含物品材质名称与存入数量。其他模块可通过 EventBus 订阅此事件实现联动（如任务系统统计入库量、成就系统触发解锁等）。
@@ -58,7 +58,7 @@ public interface WarehouseAutoDepositable {
 | `remainingAmount` | 剩余未存入数量 |
 | `message` | 提示消息 |
 
-存入逻辑：物品经黑名单校验后，存入玩家第一个个人仓库，相同物品自动堆叠。存入成功后发布 `axs.warehouse.item_deposited` 事件。
+存入逻辑：先经服务器级开关校验（`pickup.enabled` 关闭时直接拒绝；MythicMobs 自定义物品还需 `mythic-loot-enabled` 开启），再经黑名单校验后存入玩家第一个个人仓库，相同物品自动堆叠。存入成功后发布 `axs.warehouse.item_deposited` 事件。
 
 ### PlayerDataPurgeable
 
@@ -291,7 +291,7 @@ public interface WarehouseAutoDepositable {
 4. 存入成功后取消原版拾取事件，并通过 `PickupNotifiable` 通知玩家
 5. 存入失败时物品保留在地面或背包
 
-> MythicMobs 掉落物需额外开启 `auto-store-mythic-loot` 才会自动入库。
+> MythicMobs 自定义掉落物走战利品通道：需服务器开启 `pickup.mythic-loot-enabled` 且玩家开启"怪物战利品"开关（`auto_mythic`）才会自动入库；普通物品只需玩家开启"自动入库"。服务器关闭 `pickup.enabled` 时所有自动入库失效。
 
 ### 与核心二级密码联动
 
