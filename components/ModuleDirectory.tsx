@@ -1,165 +1,294 @@
 'use client';
 
 import Link from 'next/link';
-import { useState, useMemo } from 'react';
-import { modules, categoryLabels, categoryColors, type ModuleInfo } from '@/lib/modules';
+import { useEffect, useMemo, useRef, useState, type CSSProperties } from 'react';
+import { modules, type ModuleInfo } from '@/lib/modules';
 
 type FilterCategory = 'all' | ModuleInfo['category'];
+type CatKey = 'free' | 'paid' | 'bonus';
+
+const CATS: { key: FilterCategory; label: string }[] = [
+  { key: 'all', label: '全部乐章' },
+  { key: 'free', label: '序曲 · 免费' },
+  { key: 'paid', label: '华彩 · 付费' },
+  { key: 'bonus', label: '彩蛋 · 福利' },
+];
+
+const MOV: Record<CatKey, string> = { free: 'I', paid: 'II', bonus: 'III' };
+const CAT_LABEL: Record<CatKey, string> = {
+  free: '序曲 · 免费模块',
+  paid: '华彩 · 付费模块',
+  bonus: '彩蛋 · 福利模块',
+};
+const CAT_TAG: Record<CatKey, string> = { free: '免费', paid: '付费', bonus: '福利' };
+const GROUP_KEYS: CatKey[] = ['free', 'paid', 'bonus'];
+
+const mcVar = (color: string) => ({ '--mc': color }) as CSSProperties;
+
+/** 轮播切换：大长方形专辑卡 */
+function Carousel({ items, autoplay, noOffset }: { items: ModuleInfo[]; autoplay: boolean; noOffset: number }) {
+  const [idx, setIdx] = useState(0);
+  const wrapRef = useRef<HTMLDivElement>(null);
+  const trackRef = useRef<HTMLDivElement>(null);
+  const timerRef = useRef<ReturnType<typeof setInterval> | null>(null);
+  const lastWheelRef = useRef(0);
+  const total = items.length;
+
+  // 数据变化（筛选/搜索）时回到第一张
+  useEffect(() => {
+    setIdx(0);
+  }, [items]);
+
+  const step = () => {
+    const track = trackRef.current;
+    const first = track?.firstElementChild as HTMLElement | null;
+    return first ? first.getBoundingClientRect().width + 24 : 0;
+  };
+
+  // 平移
+  useEffect(() => {
+    const track = trackRef.current;
+    if (track && total > 0) track.style.transform = `translateX(${-idx * step()}px)`;
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [idx, total]);
+
+  // 窗口缩放后重算
+  useEffect(() => {
+    const onResize = () => {
+      const track = trackRef.current;
+      if (track && total > 0) track.style.transform = `translateX(${-idx * step()}px)`;
+    };
+    window.addEventListener('resize', onResize);
+    return () => window.removeEventListener('resize', onResize);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [idx, total]);
+
+  const stop = () => {
+    if (timerRef.current) {
+      clearInterval(timerRef.current);
+      timerRef.current = null;
+    }
+  };
+
+  const play = () => {
+    if (!autoplay || total <= 1 || timerRef.current) return;
+    timerRef.current = setInterval(() => setIdx((i) => (i + 1) % total), 5000);
+  };
+
+  useEffect(() => {
+    play();
+    return stop;
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [autoplay, total]);
+
+  // 滚轮切换（原生 wheel，非 passive，可 preventDefault）
+  useEffect(() => {
+    const wrap = wrapRef.current;
+    if (!wrap) return;
+    const onWheel = (e: WheelEvent) => {
+      if (Math.abs(e.deltaY) < 8) return;
+      e.preventDefault();
+      const now = Date.now();
+      if (now - lastWheelRef.current < 600) return;
+      lastWheelRef.current = now;
+      setIdx((i) => (i + (e.deltaY > 0 ? 1 : -1) + total) % total);
+    };
+    wrap.addEventListener('wheel', onWheel, { passive: false });
+    return () => wrap.removeEventListener('wheel', onWheel);
+  }, [total]);
+
+  if (total <= 1) {
+    return (
+      <div className="carousel">
+        <div className="c-track" ref={trackRef}>
+          {items.map((m) => (
+            <CoverCard key={m.slug} m={m} no={noOffset + 1} />
+          ))}
+        </div>
+      </div>
+    );
+  }
+
+  return (
+    <div className="carousel" ref={wrapRef} onMouseEnter={stop} onMouseLeave={play}>
+      <button type="button" className="c-nav prev" aria-label="上一张" onClick={() => setIdx((i) => (i - 1 + total) % total)}>
+        ‹
+      </button>
+      <div className="c-track" ref={trackRef}>
+        {items.map((m, i) => (
+          <CoverCard key={m.slug} m={m} no={noOffset + i + 1} />
+        ))}
+      </div>
+      <button type="button" className="c-nav next" aria-label="下一张" onClick={() => setIdx((i) => (i + 1) % total)}>
+        ›
+      </button>
+      <span className="c-counter">
+        <b>{idx + 1}</b> / {total}
+      </span>
+    </div>
+  );
+}
+
+function CoverCard({ m, no }: { m: ModuleInfo; no: number }) {
+  return (
+    <Link href={`/docs/${m.slug}`} className="c-card" style={mcVar(m.color)}>
+      <div className="c-art">
+        <span className="no">{String(no).padStart(2, '0')}</span>
+        <span className="nm">{m.displayName}</span>
+      </div>
+      <div className="c-body">
+        <div className="meta">
+          <span>{m.name}</span>
+          <span className={`tag ${m.category}`}>{CAT_TAG[m.category]}</span>
+        </div>
+        <h4>{m.displayName}</h4>
+        <p>{m.description}</p>
+        <span className="go">查看文档 →</span>
+      </div>
+    </Link>
+  );
+}
+
+function CompactCard({ m, no }: { m: ModuleInfo; no: number }) {
+  return (
+    <Link href={`/docs/${m.slug}`} className="g-card" style={mcVar(m.color)}>
+      <span className="g-art">{String(no).padStart(2, '0')}</span>
+      <span className="g-body">
+        <span className="row1">
+          <b>{m.displayName}</b>
+          <span className={`tag ${m.category}`} style={{ marginLeft: 'auto' }}>
+            {CAT_TAG[m.category]}
+          </span>
+        </span>
+        <span className="g-desc">{m.description}</span>
+      </span>
+    </Link>
+  );
+}
 
 export function ModuleDirectory() {
   const [query, setQuery] = useState('');
-  const [activeCategory, setActiveCategory] = useState<FilterCategory>('all');
+  const [cat, setCat] = useState<FilterCategory>('all');
+  const [expanded, setExpanded] = useState<Record<CatKey, boolean>>({
+    free: false,
+    paid: false,
+    bonus: false,
+  });
 
-  const filtered = useMemo(() => {
-    const q = query.trim().toLowerCase();
-    return modules
-      .filter((m) => {
+  const q = query.trim().toLowerCase();
+  const searching = q.length > 0;
+
+  const filtered = useMemo(
+    () =>
+      modules.filter((m) => {
+        const hitCat = cat === 'all' || m.category === cat;
         const hitQuery =
           !q ||
           m.name.toLowerCase().includes(q) ||
           m.displayName.toLowerCase().includes(q) ||
           m.description.toLowerCase().includes(q);
-        const hitCategory = activeCategory === 'all' || m.category === activeCategory;
-        return hitQuery && hitCategory;
-      })
-      .sort((a, b) => a.name.localeCompare(b.name, 'en', { sensitivity: 'base' }));
-  }, [query, activeCategory]);
+        return hitCat && hitQuery;
+      }),
+    [cat, q],
+  );
 
-  const categoryChips: { key: FilterCategory; label: string; count: number }[] = [
-    { key: 'all', label: '全部', count: modules.length },
-    ...(['free', 'paid', 'bonus'] as const).map((key) => ({
-      key,
-      label: categoryLabels[key],
-      count: modules.filter((m) => m.category === key).length,
-    })),
-  ];
+  const groups = useMemo(() => {
+    const g: Partial<Record<CatKey, ModuleInfo[]>> = {};
+    filtered.forEach((m) => {
+      (g[m.category] ??= []).push(m);
+    });
+    return g;
+  }, [filtered]);
+
+  const allExpanded = GROUP_KEYS.every((k) => expanded[k]);
+  const groupKeys = GROUP_KEYS.filter((k) => (groups[k]?.length ?? 0) > 0);
+
+  // 全局曲目编号：按渲染顺序累计偏移（免费 01-12 / 付费 13-24 / 彩蛋 25-29）
+  let running = 0;
 
   return (
     <div>
-      {/* 搜索 + 分类筛选 */}
-      <div className="mb-8 rounded-2xl border border-white/[0.08] bg-white/[0.04] p-4 backdrop-blur-md">
-        <div className="flex flex-col gap-3 sm:flex-row sm:items-center">
-          <label className="relative block w-full sm:max-w-md">
-            <span className="sr-only">搜索模块</span>
-            <svg
-              className="pointer-events-none absolute left-3.5 top-1/2 h-4 w-4 -translate-y-1/2 text-neutral-500"
-              viewBox="0 0 24 24"
-              fill="none"
-              stroke="currentColor"
-              aria-hidden
+      <div className="home-chips">
+        {CATS.map((c) => {
+          const n = c.key === 'all' ? modules.length : modules.filter((m) => m.category === c.key).length;
+          return (
+            <button
+              key={c.key}
+              type="button"
+              className={`home-chip ${cat === c.key ? 'on' : ''}`}
+              aria-pressed={cat === c.key}
+              onClick={() => setCat(c.key)}
             >
-              <circle cx="11" cy="11" r="7" strokeWidth={2} />
-              <path d="M21 21l-4.3-4.3" strokeWidth={2} strokeLinecap="round" />
-            </svg>
-            <input
-              type="search"
-              value={query}
-              onChange={(e) => setQuery(e.target.value)}
-              placeholder="搜索模块名称或功能…"
-              maxLength={40}
-              className="h-11 w-full rounded-xl border border-white/[0.08] bg-white/[0.03] pl-10 pr-4 text-sm text-neutral-200 outline-none transition-colors placeholder:text-neutral-500 focus:border-[#9b8cd8]/40 focus:ring-2 focus:ring-[#9b8cd8]/10"
-            />
-          </label>
-          <p className="text-xs text-neutral-500" aria-live="polite">
-            显示 <span className="font-semibold tabular-nums text-[#9b8cd8]">{filtered.length}</span> / {modules.length} 个模块
-          </p>
-        </div>
-
-        <div className="mt-3 flex flex-wrap items-center gap-2 border-t border-white/[0.06] pt-3">
-          {categoryChips.map((chip) => (
-            <FilterChip
-              key={chip.key}
-              label={chip.label}
-              count={chip.count}
-              active={activeCategory === chip.key}
-              onClick={() => setActiveCategory(chip.key)}
-            />
-          ))}
-        </div>
+              {c.label} {n}
+            </button>
+          );
+        })}
       </div>
 
-      {/* 模块卡片网格 */}
-      {filtered.length > 0 ? (
-        <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4">
-          {filtered.map((m) => (
-            <ModuleCard key={m.slug} module={m} />
-          ))}
-        </div>
-      ) : (
-        <div className="rounded-2xl border border-white/[0.08] p-12 text-center text-sm text-neutral-500">
-          没有匹配的模块，换个关键词或筛选试试。
-        </div>
-      )}
-    </div>
-  );
-}
+      <div className="home-search">
+        <input
+          type="search"
+          value={query}
+          onChange={(e) => setQuery(e.target.value)}
+          placeholder="搜索乐章名或功能…"
+          maxLength={40}
+        />
+      </div>
 
-function FilterChip({
-  label,
-  count,
-  active,
-  onClick,
-}: {
-  label: string;
-  count?: number;
-  active: boolean;
-  onClick: () => void;
-}) {
-  return (
-    <button
-      type="button"
-      onClick={onClick}
-      aria-pressed={active}
-      className={`inline-flex shrink-0 items-center gap-1.5 rounded-full border px-3 py-1.5 text-xs font-medium transition-colors ${
-        active
-          ? 'border-[#6750a4] bg-[#6750a4] text-white'
-          : 'border-white/[0.08] text-neutral-400 hover:border-[#9b8cd8]/30 hover:text-neutral-200'
-      }`}
-    >
-      {label}
-      {count !== undefined && (
-        <span className={`tabular-nums ${active ? 'text-white/70' : 'text-neutral-400'}`}>
-          {count}
-        </span>
-      )}
-    </button>
-  );
-}
-
-function ModuleCard({ module: m }: { module: ModuleInfo }) {
-  return (
-    <Link
-      href={`/docs/${m.slug}`}
-      className="group relative block overflow-hidden rounded-xl border border-white/[0.08] bg-white/[0.04] p-5 backdrop-blur-md transition-all duration-300 hover:-translate-y-1 hover:border-[#9b8cd8]/30 hover:bg-white/[0.07] hover:shadow-xl hover:shadow-[#6750a4]/10"
-    >
-      {/* 左侧色条 */}
-      <div
-        className="absolute inset-y-0 left-0 w-[3px] transition-all duration-300 group-hover:w-1"
-        style={{ backgroundColor: m.color }}
-      />
-      <div className="relative pl-2">
-        <div className="flex items-start justify-between">
-          <div>
-            <h3 className="text-base font-semibold text-neutral-100 transition-colors group-hover:text-[#9b8cd8]">
-              {m.displayName}
-            </h3>
-            <p className="mt-0.5 text-xs text-neutral-500">{m.name}</p>
-          </div>
-          <span
-            className="rounded-full border px-2 py-0.5 text-[10px] font-semibold"
-            style={{
-              borderColor: `${categoryColors[m.category]}30`,
-              backgroundColor: `${categoryColors[m.category]}10`,
-              color: categoryColors[m.category],
+      {!searching && (
+        <div style={{ display: 'flex', justifyContent: 'center', marginBottom: 48 }}>
+          <button
+            type="button"
+            className="home-toggle"
+            onClick={() => {
+              const next = !allExpanded;
+              setExpanded({ free: next, paid: next, bonus: next });
             }}
           >
-            {categoryLabels[m.category]}
-          </span>
+            {allExpanded ? '全部收起 ↑' : '全部展开 ↓'}
+          </button>
         </div>
-        <p className="mt-3 text-sm leading-relaxed text-neutral-400">
-          {m.description}
-        </p>
-      </div>
-    </Link>
+      )}
+
+      {filtered.length === 0 ? (
+        <div className="home-empty">没有匹配的乐章，换个关键词试试。</div>
+      ) : (
+        groupKeys.map((key) => {
+          const items = groups[key]!;
+          const offset = running;
+          running += items.length;
+          const isExpanded = searching || expanded[key];
+          return (
+            <div key={key} className="home-cat-block">
+              <div className="home-cat-head">
+                <div className="home-cat-title">
+                  <span className="home-mov">movement {MOV[key]}</span>
+                  <h3>{CAT_LABEL[key]}</h3>
+                  <span className="cnt">{items.length} 首</span>
+                </div>
+                {!searching && (
+                  <button
+                    type="button"
+                    className="home-toggle"
+                    onClick={() => setExpanded((s) => ({ ...s, [key]: !s[key] }))}
+                  >
+                    {isExpanded ? '收起 ↑' : '全部展开 ↓'}
+                  </button>
+                )}
+              </div>
+              {isExpanded ? (
+                <div className="home-grid">
+                  {items.map((m, i) => (
+                    <CompactCard key={m.slug} m={m} no={offset + i + 1} />
+                  ))}
+                </div>
+              ) : (
+                <Carousel items={items} autoplay noOffset={offset} />
+              )}
+            </div>
+          );
+        })
+      )}
+    </div>
   );
 }

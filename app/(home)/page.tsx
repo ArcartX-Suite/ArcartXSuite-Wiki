@@ -1,115 +1,117 @@
 import Link from 'next/link';
 import { ModuleDirectory } from '@/components/ModuleDirectory';
-import { HomeBackground } from '@/components/HomeBackground';
-import { HeroSubtagline } from '@/components/HeroSubtagline';
+import { modules } from '@/lib/modules';
+import stats from '@/lib/stats.json';
 
-const heroActions = [
-  { text: '快速开始', href: '/docs/guide', variant: 'brand' as const },
-  { text: '模块开发', href: '/docs/developer', variant: 'alt' as const },
-];
-
-const stats = [
-  { number: '29', label: '乐章' },
+const heroStats = [
+  { number: String(modules.length), unit: '乐章', caption: '即插即用模块' },
+  { number: String(stats.uiComponents), unit: '个 UI', caption: '模块内置 UI 组件' },
+  { number: '1', unit: '主调', caption: '唯一硬依赖：ArcartX' },
 ];
 
 export default function HomePage() {
   return (
-    <main className="relative text-neutral-200">
-      <HomeBackground />
+    <main className="home-page">
+
+      {/* ============ 导航 ============ */}
+      <header className="home-header">
+        <div className="home-nav">
+          <Link href="/" className="home-logo">
+            <span className="home-logo-mark">♪</span>SUITE
+          </Link>
+          <nav className="home-nav-links" aria-label="主导航">
+            <a href="#modules">曲目</a>
+            <Link href="/docs/guide">文档</Link>
+            <Link href="/docs/developer">开发者</Link>
+            <a href="https://github.com/ArcartX-Suite" target="_blank" rel="noopener noreferrer">
+              GitHub
+            </a>
+          </nav>
+          <div className="home-nav-right">
+            <Link href="/docs/guide" className="home-btn home-btn-brand">
+              开始演奏
+            </Link>
+          </div>
+        </div>
+      </header>
 
       {/* ============ Hero ============ */}
-      <section className="relative z-10 px-6 pt-28 pb-12 md:pt-36 md:pb-16 lg:px-12">
-        <div className="mx-auto max-w-4xl">
-          <h1 className="bg-gradient-to-r from-white via-[#bfc6ff] to-[#22d3ee] bg-clip-text text-4xl font-black leading-[1.15] tracking-tight text-transparent drop-shadow-[0_0_60px_rgba(91,110,251,0.25)] md:text-6xl">
-            Suite
+      <section className="home-hero">
+        <svg
+          className="home-wave"
+          viewBox="0 0 1200 260"
+          preserveAspectRatio="none"
+          aria-hidden="true"
+        >
+          <defs>
+            <linearGradient id="homeWaveGrad" x1="0" y1="0" x2="1" y2="0">
+              <stop offset="0" stopColor="#c4a86a" stopOpacity="0" />
+              <stop offset="0.35" stopColor="#c4a86a" />
+              <stop offset="0.65" stopColor="#e0be78" />
+              <stop offset="1" stopColor="#e0be78" stopOpacity="0" />
+            </linearGradient>
+          </defs>
+          <path d="M0,190 C120,120 240,60 360,90 S600,210 720,140 S1000,40 1200,110" />
+          <path d="M0,190 C120,150 240,110 360,130 S600,210 720,170 S1000,90 1200,140" opacity="0.6" />
+        </svg>
+
+        <div className="relative mx-auto max-w-4xl px-6">
+          <p className="home-eyebrow">ArcartX Suite</p>
+          <h1>
+            <span className="home-grad">SUITE</span>
           </h1>
-
-          {/* 打字机轮播副标题 */}
-          <HeroSubtagline />
-
-          <p className="mt-6 text-base text-[#c6c8d3]">
-            面向 ArcartX 客户端的 Minecraft 服务器插件套件，统一 UI 体验，模块间深度联动
+          <p className="home-tagline">
+            {modules.length} 个乐章，一部组曲，<b>一个插件</b>。
           </p>
-
-          <div className="mt-8 flex flex-wrap gap-3">
-            {heroActions.map((action) => (
-              <HeroButton key={action.text} {...action} />
+          <div className="home-cta">
+            <Link href="/docs/guide" className="home-btn home-btn-brand">
+              开始演奏 →
+            </Link>
+            <a href="#modules" className="home-btn home-btn-ghost">
+              翻阅曲目
+            </a>
+          </div>
+          <div className="home-stats">
+            {heroStats.map((s) => (
+              <div key={s.unit} className="home-stat">
+                <b>
+                  {s.number}
+                  <span className="u">{s.unit}</span>
+                </b>
+                <span>{s.caption}</span>
+              </div>
             ))}
           </div>
         </div>
       </section>
 
       {/* ============ 模块目录 ============ */}
-      <section id="module-directory" className="relative z-10 mx-auto max-w-7xl px-6 py-16 md:py-20 lg:px-12 scroll-mt-20">
-        <div className="mb-10">
-          <h2 className="text-2xl font-bold text-white md:text-3xl">模块目录</h2>
-          <p className="mt-2 text-sm text-neutral-400">
-            29 个模块如同 29 个乐章，每一个独立运作、各具音色、按需启用
-          </p>
+      <section id="modules" className="home-section">
+        <div className="home-sec-head">
+          <h2>曲目目录</h2>
+          <p>每张封面是一支独立乐章——合奏起来，就是你服务器的主旋律。</p>
         </div>
         <ModuleDirectory />
       </section>
 
-      {/* ============ 统计条 ============ */}
-      <section className="relative z-10 px-6 py-12 lg:px-12">
-        <div className="mx-auto flex max-w-4xl flex-wrap justify-center gap-12 md:gap-16">
-          {stats.map((s) => (
-            <div key={s.label} className="text-center">
-              <div className="bg-gradient-to-br from-[#6750a4] to-[#5b6efb] bg-clip-text text-3xl font-bold text-transparent md:text-4xl">
-                {s.number}
-              </div>
-              <div className="mt-1 text-sm text-neutral-400">{s.label}</div>
-            </div>
-          ))}
-        </div>
-      </section>
-
-      {/* ============ 底部 ============ */}
-      <footer className="relative z-10 border-t border-white/[0.06]">
-        <div className="mx-auto flex max-w-7xl flex-col items-center gap-4 px-6 py-10 sm:flex-row sm:justify-between lg:px-12">
-          <p className="text-sm text-neutral-500">
-            Suite · 面向 ArcartX 客户端的全场景核心套件
-          </p>
-          <div className="flex gap-6 text-sm">
-            <a href="https://arcartx.com" target="_blank" rel="noopener noreferrer" className="text-neutral-400 transition-colors hover:text-[#9b8cd8]">
+      {/* ============ 页脚 ============ */}
+      <footer className="home-footer">
+        <div className="home-foot">
+          <span>Suite · 面向 ArcartX 客户端的全场景核心套件</span>
+          <span style={{ display: 'flex', gap: 18 }}>
+            <a href="https://arcartx.com" target="_blank" rel="noopener noreferrer">
               官方社区
             </a>
-            <a href="https://github.com/ArcartX-Suite/ArcartXSuite-Wiki" target="_blank" rel="noopener noreferrer" className="text-neutral-400 transition-colors hover:text-[#9b8cd8]">
+            <a
+              href="https://github.com/ArcartX-Suite/ArcartXSuite-Wiki"
+              target="_blank"
+              rel="noopener noreferrer"
+            >
               GitHub
             </a>
-          </div>
+          </span>
         </div>
       </footer>
     </main>
-  );
-}
-
-function HeroButton({
-  text,
-  href,
-  variant,
-  external,
-}: {
-  text: string;
-  href: string;
-  variant: 'brand' | 'alt';
-  external?: boolean;
-}) {
-  const className =
-    variant === 'brand'
-      ? 'rounded-full bg-[#6750a4] px-6 py-2.5 text-sm font-semibold text-white transition-colors hover:bg-[#7c6bbf]'
-      : 'rounded-full border border-white/15 bg-white/[0.08] px-6 py-2.5 text-sm font-medium text-neutral-200 transition-all hover:border-[#9b8cd8]/40 hover:bg-white/14';
-
-  if (external) {
-    return (
-      <a href={href} target="_blank" rel="noopener noreferrer" className={className}>
-        {text}
-      </a>
-    );
-  }
-  return (
-    <Link href={href} className={className}>
-      {text}
-    </Link>
   );
 }

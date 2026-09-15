@@ -2,6 +2,7 @@ import './global.css';
 import type { ReactNode } from 'react';
 import { RootProvider } from 'fumadocs-ui/provider';
 import { I18nProvider } from 'fumadocs-ui/i18n';
+import { HomeBackground } from '@/components/HomeBackground';
 
 export const metadata = {
   title: {
@@ -15,6 +16,7 @@ export default function Layout({ children }: { children: ReactNode }) {
   return (
     <html lang="zh-CN" className="dark" suppressHydrationWarning>
       <body>
+        <HomeBackground />
         <RootProvider
           theme={{
             enabled: false,
