@@ -63,21 +63,21 @@ description: 配置文件详解与示例
 
 | 动作关键字 | 说明 |
 | --- | --- |
-| `command: &lt;命令>` | 以玩家身份执行命令 |
-| `chat: &lt;消息>` | 以玩家身份发送聊天消息（`/` 开头为命令） |
-| `connect: &lt;服务器名>` | 通过 BungeeCord Plugin Messaging 切换子服 |
-| `console: &lt;命令>` | 以控制台身份执行命令 |
-| `op: &lt;命令>` | 以玩家身份临时给予 OP 执行，用完自动收回 |
-| `message: &lt;消息>` | 向玩家发送聊天消息（支持颜色代码） |
-| `sound: &lt;音效名>\|&lt;音量>\|&lt;音调>` | 播放音效 |
+| `command: <命令>` | 以玩家身份执行命令 |
+| `chat: <消息>` | 以玩家身份发送聊天消息（`/` 开头为命令） |
+| `connect: <服务器名>` | 通过 BungeeCord Plugin Messaging 切换子服 |
+| `console: <命令>` | 以控制台身份执行命令 |
+| `op: <命令>` | 以玩家身份临时给予 OP 执行，用完自动收回 |
+| `message: <消息>` | 向玩家发送聊天消息（支持颜色代码） |
+| `sound: <音效名>\|<音量>\|<音调>` | 播放音效 |
 | `close` | 关闭当前菜单 |
-| `open: &lt;菜单id>` | 打开另一个菜单 |
-| `page: &lt;页面id>` | 切换到同菜单内的另一页 |
-| `signal: &lt;名称>` | 触发 EventPacket command-signal 信号 |
-| `signal: &lt;名称>\|键=值` | 触发信号并传递变量 |
-| `aria: &lt;脚本>` | 执行 Aria 脚本（注入 AXS player 门面到 `global.` 命名空间） |
-| `js: &lt;脚本>` | 执行 JavaScript（注入 player 门面与 Bukkit，需 classpath 有 JS 引擎） |
-| `delay: &lt;tick>` | 延迟 N tick 后执行后续动作（1 tick = 50ms） |
+| `open: <菜单id>` | 打开另一个菜单 |
+| `page: <页面id>` | 切换到同菜单内的另一页 |
+| `signal: <名称>` | 触发 EventPacket command-signal 信号 |
+| `signal: <名称>\|键=值` | 触发信号并传递变量 |
+| `aria: <脚本>` | 执行 Aria 脚本（注入 AXS player 门面到 `global.` 命名空间） |
+| `js: <脚本>` | 执行 JavaScript（注入 player 门面与 Bukkit，需 classpath 有 JS 引擎） |
+| `delay: <tick>` | 延迟 N tick 后执行后续动作（1 tick = 50ms） |
 
 图标 `icon` 支持的来源：
 

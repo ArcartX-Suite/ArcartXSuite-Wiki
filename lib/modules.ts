@@ -15,10 +15,10 @@ export const modules: ModuleInfo[] = [
   { slug: 'loginview', name: 'LoginView', displayName: 'LoginView 登录界面', description: 'ArcartX UI 登录/注册面板，支持 AuthMe 桥接', category: 'free', color: '#3b82f6' },
   { slug: 'onlinerewards', name: 'OnlineRewards', displayName: 'OnlineRewards 在线奖励', description: '在线奖励 / 每日签到 / 连续签到 / 补签卡', category: 'free', color: '#22c55e' },
   { slug: 'combateffect', name: 'CombatEffect', displayName: 'CombatEffect 战斗特效', description: '战斗特效（击杀/连击/伤害飘字），四插件属性来源自动检测', category: 'free', color: '#ef4444' },
-  { slug: 'eventpacket', name: 'EventPacket', displayName: 'EventPacket 事件引擎', description: '事件引擎，9种触发器 × 11种动作自由组合', category: 'free', color: '#a855f7' },
+  { slug: 'eventpacket', name: 'EventPacket', displayName: 'EventPacket 事件引擎', description: '事件引擎，18种触发器 × 13种动作自由组合', category: 'free', color: '#a855f7' },
   { slug: 'prop', name: 'Prop', displayName: 'Prop 快捷道具', description: '快捷道具栏，客户端按键绑定临时属性加成', category: 'free', color: '#06b6d4' },
   { slug: 'essentials', name: 'Essentials', displayName: 'Essentials 基础工具', description: '基础工具（传送/家/Warp/一键砍树/背包整理/UI 菜单）', category: 'free', color: '#14b8a6' },
-  { slug: 'regions', name: 'Regions', displayName: 'Regions 区域保护', description: '区域保护（40+ 标志/优先级继承/世界规则）', category: 'free', color: '#eab308' },
+  { slug: 'regions', name: 'Regions', displayName: 'Regions 区域保护', description: '区域保护（57 个标志/优先级继承/世界规则）', category: 'free', color: '#eab308' },
   { slug: 'afkreward', name: 'AfkReward', displayName: 'AfkReward 挂机奖励', description: '区域挂机 + 原地挂机双模式、周期命令奖励、排行榜', category: 'free', color: '#94a3b8' },
   { slug: 'tooltip', name: 'Tooltip', displayName: 'Tooltip 动态提示桥接', description: '物品提示桥接（TACZ/Apotheosis tooltip 采集）', category: 'free', color: '#f97316' },
 

@@ -43,17 +43,19 @@ description: Pickup 命令、权限、PAPI 占位符与 UI 包
 | 命令 | 说明 | 权限 |
 | --- | --- | --- |
 | `/axs reload pickup` | 重载 Pickup 模块（配置 + 消息 + UI） | `arcartxsuite.admin` |
-| `/axs enable pickup` | 启用 Pickup 模块 | `arcartxsuite.admin` |
-| `/axs disable pickup` | 禁用 Pickup 模块 | `arcartxsuite.admin` |
+| `/axs load pickup` | 热加载 Pickup 模块（从 `modules/` 扫描） | `arcartxsuite.admin` |
+| `/axs unload pickup` | 热卸载 Pickup 模块（释放 ClassLoader） | `arcartxsuite.admin` |
 
 > 重载时模块会先停止当前服务（关闭所有玩家 HUD/菜单），再重新加载配置并启动服务。扫描模式下重载会为所有在线玩家重新打开常驻 HUD。
+>
+> 持久启用/禁用模块通过宿主 `config.yml` 的 `modules.pickup.enabled` 控制；`/axs load`/`/axs unload` 仅做本次运行期的热加载/热卸载。
 
 ## 权限节点表
 
 | 权限节点 | 默认 | 说明 |
 | --- | --- | --- |
 | `arcartxsuite.pickup.use` | op | 使用 `/pickup` 命令与切换拾取功能 |
-| `arcartxsuite.admin` | op | 使用 `/axs reload|enable|disable pickup` 管理命令 |
+| `arcartxsuite.admin` | op | 使用 `/axs reload|load|unload pickup` 管理命令 |
 
 ## PlaceholderAPI
 

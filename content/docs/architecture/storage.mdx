@@ -67,14 +67,14 @@ storage:
 
 ### SQLite 模式
 
-各模块仍使用各自的 `&lt;moduleId>.db` 文件，宿主按模块名缓存对应的 HikariCP 连接池。数据不合并，旧 `.db` 文件零迁移。
+各模块仍使用各自的 `<moduleId>.db` 文件，宿主按模块名缓存对应的 HikariCP 连接池。数据不合并，旧 `.db` 文件零迁移。
 
 ```yaml
 storage:
   mode: sqlite
 ```
 
-SQLite 文件位于 `plugins/ArcartX-Suite/data/&lt;moduleId>/&lt;moduleId>.db`，与旧自建模式路径保持一致。
+SQLite 文件位于 `plugins/ArcartX-Suite/data/<moduleId>/<moduleId>.db`，与旧自建模式路径保持一致。
 
 ### SQLite 优化
 
@@ -119,7 +119,7 @@ DataSource ds = storageManager.resolveModuleDataSource(
 
 | 参数 | 值 |
 |------|-----|
-| 池名 | `AXS-SQLite-&lt;moduleId>` |
+| 池名 | `AXS-SQLite-<moduleId>` |
 | `minimumIdle` | 1 |
 | `maximumPoolSize` | 2 |
 | `autoCommit` | true |

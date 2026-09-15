@@ -44,7 +44,7 @@ EntityTracker 是 Suite 的 Boss 追踪与伤害排行模块。它跟踪指定�
 
 | 依赖类型 | 名称 | 说明 |
 |---|---|---|
-| 外部硬依赖 | PlaceholderAPI | 占位符扩展（无则占位符不可用，模块仍可运行） |
+| 外部硬依赖 | PlaceholderAPI | 占位符扩展（`external-depends` 硬依赖，未安装时模块不加载） |
 | 外部软依赖 | MythicMobs / MythicBukkit | Boss 追踪子系统必需；未安装时 Boss 追踪跳过，攻击目标 HUD 仍可使用 |
 | ArcartX 模块（可选） | Mail | 邮件类型奖励发放与物品奖励背包满转邮件（不可用时降级为掉落） |
 | ArcartX 宿主 | ArcartX 客户端 MOD | UI 面板与数据包通讯的必需前提 |

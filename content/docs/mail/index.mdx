@@ -16,9 +16,9 @@ Mail 是 Suite 的全功能邮件系统模块，提供 **收件箱**、**玩家�
 | 主类 | `xuanmo.arcartxsuite.mail.MailModule` |
 | 配置文件 | `config.yml` |
 | 消息文件 | `messages.yml` |
-| 外部依赖 | PlaceholderAPI（可选） |
+| 外部依赖 | PlaceholderAPI（必需，缺失时模块跳过加载） |
 | 模块依赖 | 无（本体内置 API 即可运行） |
-| 配置版本 | 3 |
+| 配置版本 | 2 |
 | 数据库表前缀 | `mail_`（共享模式无前缀） |
 
 ## 功能特性
@@ -49,7 +49,7 @@ Mail 是 Suite 的全功能邮件系统模块，提供 **收件箱**、**玩家�
 | 依赖类型 | 名称 | 必需 | 说明 |
 |---|---|---|---|
 | 模块依赖 | ArcartXSuite 本体 | 是 | 提供核心 API、存储管理、货币桥接、跨服通道、物品来源注册表等基础设施 |
-| 外部依赖 | PlaceholderAPI | 否 | 输出 `%axsmail_*%` 占位符；不安装时 PAPI 占位符不可用 |
+| 外部依赖 | PlaceholderAPI | 是 | 输出 `%axsmail_*%` 占位符；`external-depends` 硬依赖，未安装时模块不加载 |
 | 外部可选 | Vault | 否 | 玩家写信货币附件和手续费；不安装时 Vault 货币附件不可用 |
 | 外部可选 | PlayerPoints | 否 | Points 货币附件；不安装时 Points 附件不可用 |
 | 外部可选 | Redis | 否 | 跨服邮件刷新通知；不安装时仅单服可用 |

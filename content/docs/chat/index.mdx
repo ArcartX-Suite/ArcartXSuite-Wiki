@@ -17,7 +17,7 @@ Chat 是 Suite 的全频道聊天系统，提供 **频道聊天**、**私聊回�
 | 配置文件 | `config.yml` |
 | 消息文件 | `messages.yml` |
 | 配置版本号 | 2 |
-| 外部依赖 | PlaceholderAPI（可选） |
+| 外部依赖 | PlaceholderAPI（必需，缺失时模块跳过加载） |
 | 模块依赖 | 无（本体内置 API 即可运行） |
 
 ## 功能特性
@@ -47,7 +47,7 @@ Chat 是 Suite 的全频道聊天系统，提供 **频道聊天**、**私聊回�
 | 依赖类型 | 名称 | 必需 | 说明 |
 |---|---|---|---|
 | 模块依赖 | 无 | - | Chat 不依赖其他模块即可运行 |
-| 外部依赖 | PlaceholderAPI | 否 | 注册 `%axschat_xxx%` 占位符，频道格式与卡片文本可解析 PAPI |
+| 外部依赖 | PlaceholderAPI | 是 | 注册 `%axschat_xxx%` 占位符，频道格式与卡片文本可解析 PAPI；`external-depends` 硬依赖，未安装时模块不加载 |
 | 宿主能力 | EventBusCapability | 否 | 发布 `axs.chat.chat_message_sent` 事件供其他模块监听 |
 | 宿主能力 | TabRefreshable | 否 | 频道切换 / 开关变更后刷新 Tab 显示 |
 | 宿主能力 | TooltipDataCapable | 否 | 物品展示时注入动态 tooltip Lore（TACZ 枪属性、Apotheosis affix 等） |

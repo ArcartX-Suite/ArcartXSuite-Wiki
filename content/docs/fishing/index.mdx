@@ -41,7 +41,7 @@ Fishing 是 Suite 的钓鱼小游戏模块，采用星露谷风格的绿条追�
 | 依赖 | 类型 | 说明 |
 | --- | --- | --- |
 | ArcartX 客户端 MOD | 硬依赖 | 提供 UI 渲染与 PacketBridge，小游戏通过 ArcartX UI 呈现 |
-| PlaceholderAPI | 外部依赖 | 提供 PlaceholderAPI 占位符（`%axsfishing_*%`） |
+| PlaceholderAPI | 外部硬依赖 | 提供 PlaceholderAPI 占位符（`%axsfishing_*%`），`external-depends` 硬依赖，未安装时模块不加载 |
 
 物品库为可选功能，鱼类/宝藏/饵料/鱼竿的 `item.source` 按需依赖对应插件：
 

@@ -15,7 +15,7 @@ Suite 内置智能配置自动修正系统（`ConfigDiagnosticEngine`），可�
 |------|------|------|
 | 结构同步 | 键对齐 | 对比 jar 内默认配置，自动补全缺失键、标记废弃键 |
 | 类型修复 | 值校验 | 检查字段类型（STRING/INT/BOOLEAN 等），自动类型转换 |
-| 字段迁移 | 版本升级 | 根据 `migrations/&lt;from>-&lt;to>.yml` 执行重命名、删除、移动 |
+| 字段迁移 | 版本升级 | 根据 `migrations/<from>-<to>.yml` 执行重命名、删除、移动 |
 | 值验证 | 范围/枚举 | 验证数值范围、枚举值合法性 |
 
 ## 命令使用
@@ -26,9 +26,9 @@ Suite 内置智能配置自动修正系统（`ConfigDiagnosticEngine`），可�
 |--------|------|
 | `config status` | 当前会话诊断概况（ERROR/WARN/INFO 统计） |
 | `config diagnose [ownerId\|all]` | 重新运行诊断 |
-| `config preview &lt;ownerId\|all>` | 控制台输出 issue 详情 |
-| `config apply &lt;ownerId\|all> [--force]` | 应用自动修复提案（会备份原文件） |
-| `config rollback &lt;ownerId\|all> [--to &lt;timestamp>]` | 还原备份 |
+| `config preview <ownerId\|all>` | 控制台输出 issue 详情 |
+| `config apply <ownerId\|all> [--force]` | 应用自动修复提案（会备份原文件） |
+| `config rollback <ownerId\|all> [--to <timestamp>]` | 还原备份 |
 
 `ownerId` 可以是 `axs-core`（宿主配置）、模块 ID 或 `all`（全部）。
 

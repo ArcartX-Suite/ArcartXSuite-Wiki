@@ -35,7 +35,7 @@ BattlePass 是 Suite 的战斗通行证（Battle Pass）模块，为服务器提
 
 | 依赖类型 | 名称 | 说明 |
 |---|---|---|
-| 外部硬依赖 | PlaceholderAPI | 占位符扩展（无则占位符不可用，模块仍可运行） |
+| 外部硬依赖 | PlaceholderAPI | 占位符扩展（`external-depends` 硬依赖，未安装时模块不加载） |
 | 外部软依赖 | MythicMobs / MythicBukkit | MythicMobs 怪物击杀任务（可选） |
 | 外部软依赖 | Vault / PlayerPoints 等 | 货币奖励发放（可选） |
 | ArcartX 模块（可选） | loginview、fishing、entitytracker、questgps、prop、warehouse、regions、afkreward、market、chat、combateffect | 发布 EventBus 事件主题供任务订阅 |

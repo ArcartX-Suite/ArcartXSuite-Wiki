@@ -141,7 +141,7 @@ OneBot 群消息可能以消息段数组形式发送，`OneBotEvent` 自动提�
 | 特性 | 说明 |
 |---|---|
 | 环境要求 | Node.js 18+ |
-| 安装方式 | `/axs qqbot admin snowluma install`（从 GitHub 下载） |
+| 安装方式 | `/axs qqbot snowluma install`（从 GitHub 下载） |
 | 进程管理 | 自动启动 / 停止 / 清理残留进程 |
 | 输出监控 | 独立守护线程读取 stdout，检测端口冲突等致命错误 |
 | JVM 钩子 | 注册 ShutdownHook 确保异常退出时清理进程 |
@@ -180,7 +180,7 @@ Docker 容器模式，推荐 Linux VPS 使用。
 | 安装方式 | `docker pull` + `docker run`（自动挂载 3 个 volume） |
 | 端口映射 | WebUI / WS / HTTP 端口可配置 |
 | 数据持久化 | 自动挂载 `data` / `qq-config` / `qq-data` 三个 volume |
-| 日志查看 | `/axs qqbot admin snowluma logs`（`docker logs --tail 50`） |
+| 日志查看 | `/axs qqbot snowluma logs`（`docker logs --tail 50`） |
 
 #### Docker 容器创建参数
 
@@ -211,7 +211,7 @@ docker run -d
 
 ### SnowLuma 管理命令
 
-通过 `/axs qqbot admin snowluma <子命令>` 管理：
+通过 `/axs qqbot snowluma <子命令>` 管理：
 
 | 子命令 | 说明 |
 |---|---|

@@ -21,7 +21,7 @@ Regions 是 Suite 的区域保护与管理模块，定位为 **WorldGuard 替代
 | 命令 ID | `regions` |
 | 命令别名 | `rg` |
 | 外部依赖 | 无（本体内置 API 即可运行） |
-| 软依赖 | Essentials（飞行/交互绕过权限） |
+| 软依赖 | Essentials 模块（飞行/交互绕过权限，`module.yml` `softdepends`） |
 
 ## 功能特性
 
@@ -50,8 +50,8 @@ Regions 是 Suite 的区域保护与管理模块，定位为 **WorldGuard 替代
 
 | 依赖类型 | 名称 | 必需 | 说明 |
 |---|---|---|---|
-| 模块依赖 | 无 | - | Regions 不依赖其他模块即可运行 |
-| 外部软依赖 | Essentials | 否 | 提供飞行绕过（`axs.essentials.fly.bypass`）和交互绕过（`axs.essentials.interact.bypass`）权限节点 |
+| 模块软依赖 | Essentials | 否 | `module.yml` 声明 `softdepends: [essentials]`，提供飞行绕过（`axs.essentials.fly.bypass`）和交互绕过（`axs.essentials.interact.bypass`）权限节点 |
+| 外部依赖 | 无 | - | 无外部插件依赖 |
 | 宿主能力 | EventBusCapability | 否 | 发布区域进出事件（`axs.regions.region_change`）供其他模块监听 |
 | 宿主能力 | DatabaseMigratable | 否 | 支持数据库迁移，供存储管理工具调用 |
 | 宿主能力 | PlayerDataPurgeable | 否 | 支持玩家数据清理，供管理工具调用 |

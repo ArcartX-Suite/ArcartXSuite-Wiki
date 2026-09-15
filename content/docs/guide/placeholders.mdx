@@ -34,7 +34,7 @@ Suite 共有 16 个模块对外输出 PAPI 占位符：
 
 ## AfkReward 占位符
 
-前缀：`%axsafkreward_&lt;字段>%`
+前缀：`%axsafkreward_<字段>%`
 
 | 占位符 | 返回值 | 说明 |
 | --- | --- | --- |
@@ -50,12 +50,12 @@ Suite 共有 16 个模块对外输出 PAPI 占位符：
 | `%axsafkreward_total%` | 数字 | 累计获得奖励总次数 |
 | `%axsafkreward_players%` | 数字 | 当前区域同时挂机人数 |
 | `%axsafkreward_next%` | 数字 | 距离下次奖励的剩余秒数 |
-| `%axsafkreward_top_&lt;名次>_name%` | 文本 | 排行榜指定名次玩家名 |
-| `%axsafkreward_top_&lt;名次>_time%` | 文本 | 排行榜指定名次总时长 |
+| `%axsafkreward_top_<名次>_name%` | 文本 | 排行榜指定名次玩家名 |
+| `%axsafkreward_top_<名次>_time%` | 文本 | 排行榜指定名次总时长 |
 
 ## EntityTracker 占位符
 
-前缀：`%axsentitytracker_&lt;字段>%`
+前缀：`%axsentitytracker_<字段>%`
 
 ### 全局信息
 
@@ -69,11 +69,11 @@ Suite 共有 16 个模块对外输出 PAPI 占位符：
 
 | 占位符 | 说明 |
 | --- | --- |
-| `%axsentitytracker_current_&lt;字段>%` | 视野中第一个 Boss 的信息 |
-| `%axsentitytracker_slot_&lt;N>_&lt;字段>%` | 第 N 个 Boss 的信息 |
+| `%axsentitytracker_current_<字段>%` | 视野中第一个 Boss 的信息 |
+| `%axsentitytracker_slot_<N>_<字段>%` | 第 N 个 Boss 的信息 |
 | `%axsentitytracker_boss_count%` | 该玩家视野中的 Boss 数量 |
 
-常用字段：`display_name`、`health_percent`、`mob_id`、`viewer_rank`、`viewer_damage`、`top_&lt;排名>_name`、`top_&lt;排名>_damage`
+常用字段：`display_name`、`health_percent`、`mob_id`、`viewer_rank`、`viewer_damage`、`top_<排名>_name`、`top_<排名>_damage`
 
 ### 最近结算
 
@@ -85,7 +85,7 @@ Suite 共有 16 个模块对外输出 PAPI 占位符：
 
 ## Essentials 占位符
 
-前缀：`%axsess_&lt;字段>%`
+前缀：`%axsess_<字段>%`
 
 | 占位符 | 返回值 | 说明 |
 | --- | --- | --- |
@@ -99,7 +99,7 @@ Suite 共有 16 个模块对外输出 PAPI 占位符：
 
 ## Tab 占位符
 
-前缀：`%axstab_&lt;字段>%`
+前缀：`%axstab_<字段>%`
 
 | 占位符 | 返回值 | 说明 |
 | --- | --- | --- |
@@ -108,39 +108,39 @@ Suite 共有 16 个模块对外输出 PAPI 占位符：
 | `%axstab_pvp%` | true/false | 是否处于 PvP |
 | `%axstab_vanished%` | true/false | 是否隐身 |
 | `%axstab_uuid%` | 文本 | 玩家 UUID |
-| `%axstab_&lt;defId>_count%` | 数字 | 本服当前 definition 可见玩家数 |
-| `%axstab_&lt;defId>_total%` | 数字 | 本服 + 跨服合计可见玩家数 |
-| `%axstab_&lt;defId>_rank%` | 数字 | 当前玩家在本服排序中的位次 |
+| `%axstab_<defId>_count%` | 数字 | 本服当前 definition 可见玩家数 |
+| `%axstab_<defId>_total%` | 数字 | 本服 + 跨服合计可见玩家数 |
+| `%axstab_<defId>_rank%` | 数字 | 当前玩家在本服排序中的位次 |
 
 ## Title 占位符
 
-前缀：`%axstitle_&lt;字段>%`
+前缀：`%axstitle_<字段>%`
 
 | 占位符 | 返回值 | 说明 |
 | --- | --- | --- |
 | `%axstitle_owned_count%` | 数字 | 拥有的称号总数 |
 | `%axstitle_hidden_count%` | 数字 | 已隐藏的称号数量 |
-| `%axstitle_chat_&lt;组ID>_prefix%` | 文本 | 该组已装备称号的聊天前缀 |
-| `%axstitle_chat_&lt;组ID>_suffix%` | 文本 | 该组已装备称号的聊天后缀 |
-| `%axstitle_equipped_&lt;组ID>_id%` | 文本 | 该组已装备称号的 ID |
-| `%axstitle_equipped_&lt;组ID>_name%` | 文本 | 该组已装备称号的显示名称 |
-| `%axstitle_owned_&lt;称号ID>%` | true/false | 是否拥有指定称号 |
-| `%axstitle_remaining_&lt;称号ID>%` | 数字/文本 | 称号剩余有效时间，永久返回"永久" |
-| `%axstitle_total_attr_&lt;属性键>%` | 数字 | 展示 + 收藏的总属性加成 |
+| `%axstitle_chat_<组ID>_prefix%` | 文本 | 该组已装备称号的聊天前缀 |
+| `%axstitle_chat_<组ID>_suffix%` | 文本 | 该组已装备称号的聊天后缀 |
+| `%axstitle_equipped_<组ID>_id%` | 文本 | 该组已装备称号的 ID |
+| `%axstitle_equipped_<组ID>_name%` | 文本 | 该组已装备称号的显示名称 |
+| `%axstitle_owned_<称号ID>%` | true/false | 是否拥有指定称号 |
+| `%axstitle_remaining_<称号ID>%` | 数字/文本 | 称号剩余有效时间，永久返回"永久" |
+| `%axstitle_total_attr_<属性键>%` | 数字 | 展示 + 收藏的总属性加成 |
 
 ## RGB 占位符
 
-前缀：`%axsrgb_&lt;条目ID>%`
+前缀：`%axsrgb_<条目ID>%`
 
 > 此模块必须安装 PAPI 才能使用。
 
 | 占位符 | 返回值 | 说明 |
 | --- | --- | --- |
-| `%axsrgb_&lt;条目ID>%` | 彩色文本 | 渲染配置中定义的渐变文本条目 |
+| `%axsrgb_<条目ID>%` | 彩色文本 | 渲染配置中定义的渐变文本条目 |
 
 ## OnlineRewards 占位符
 
-前缀：`%axsonlinerewards_&lt;字段>%`
+前缀：`%axsonlinerewards_<字段>%`
 
 | 占位符 | 返回值 | 说明 |
 | --- | --- | --- |
@@ -149,13 +149,13 @@ Suite 共有 16 个模块对外输出 PAPI 占位符：
 | `%axsonlinerewards_daily_time%` | 文本 | 今日在线时间（格式化） |
 | `%axsonlinerewards_signin_signed_today%` | true/false | 今日是否已签到 |
 | `%axsonlinerewards_signin_streak%` | 数字 | 连续签到天数 |
-| `%axsonlinerewards_top_&lt;范围>_&lt;名次>_name%` | 文本 | 排行榜指定名次玩家名 |
+| `%axsonlinerewards_top_<范围>_<名次>_name%` | 文本 | 排行榜指定名次玩家名 |
 
 范围可选：`daily`、`weekly`、`monthly`、`total`
 
 ## Mail 占位符
 
-前缀：`%axsmail_&lt;字段>%`
+前缀：`%axsmail_<字段>%`
 
 | 占位符 | 返回值 | 说明 |
 | --- | --- | --- |
@@ -165,7 +165,7 @@ Suite 共有 16 个模块对外输出 PAPI 占位符：
 
 ## Chat 占位符
 
-前缀：`%axschat_&lt;字段>%`
+前缀：`%axschat_<字段>%`
 
 | 占位符 | 返回值 | 说明 |
 | --- | --- | --- |
@@ -176,7 +176,7 @@ Suite 共有 16 个模块对外输出 PAPI 占位符：
 
 ## LoginView 占位符
 
-前缀：`%axsloginview_&lt;字段>%`
+前缀：`%axsloginview_<字段>%`
 
 | 占位符 | 返回值 | 说明 |
 | --- | --- | --- |
@@ -189,7 +189,7 @@ Suite 共有 16 个模块对外输出 PAPI 占位符：
 
 ## Warehouse 占位符
 
-前缀：`%axswarehouse_&lt;字段>%`
+前缀：`%axswarehouse_<字段>%`
 
 | 占位符 | 返回值 | 说明 |
 | --- | --- | --- |
@@ -198,11 +198,11 @@ Suite 共有 16 个模块对外输出 PAPI 占位符：
 | `%axswarehouse_personal_capacity%` | 数字 | 个人仓库总容量 |
 | `%axswarehouse_shared_owned_count%` | 数字 | 自己拥有的共享仓库数量 |
 | `%axswarehouse_shared_joined_count%` | 数字 | 已加入的他人共享仓库数量 |
-| `%axswarehouse_bank_balance_&lt;货币ID>%` | 数字 | 指定货币的银行余额 |
+| `%axswarehouse_bank_balance_<货币ID>%` | 数字 | 指定货币的银行余额 |
 
 ## Market 占位符
 
-前缀：`%axsmarket_&lt;字段>%`
+前缀：`%axsmarket_<字段>%`
 
 | 占位符 | 返回值 | 说明 |
 | --- | --- | --- |
@@ -214,7 +214,7 @@ Suite 共有 16 个模块对外输出 PAPI 占位符：
 
 ## QQBot 占位符
 
-前缀：`%axsqqbot_&lt;字段>%`
+前缀：`%axsqqbot_<字段>%`
 
 | 占位符 | 返回值 | 说明 |
 | --- | --- | --- |
@@ -226,7 +226,7 @@ Suite 共有 16 个模块对外输出 PAPI 占位符：
 
 ## BattlePass 占位符
 
-前缀：`%axsbattlepass_&lt;字段>%`
+前缀：`%axsbattlepass_<字段>%`
 
 | 占位符 | 返回值 | 说明 |
 | --- | --- | --- |
@@ -239,7 +239,7 @@ Suite 共有 16 个模块对外输出 PAPI 占位符：
 
 ## Fishing 占位符
 
-前缀：`%axsfishing_&lt;字段>%`
+前缀：`%axsfishing_<字段>%`
 
 | 占位符 | 返回值 | 说明 |
 | --- | --- | --- |
@@ -251,16 +251,16 @@ Suite 共有 16 个模块对外输出 PAPI 占位符：
 
 ## Lottery 占位符
 
-前缀：`%axslottery_&lt;类型>_&lt;奖池ID>%`
+前缀：`%axslottery_<类型>_<奖池ID>%`
 
 | 占位符 | 返回值 | 说明 |
 | --- | --- | --- |
-| `%axslottery_pity5_&lt;奖池ID>%` | 数字 | 5 星保底抽数 |
-| `%axslottery_pity4_&lt;奖池ID>%` | 数字 | 4 星保底抽数 |
-| `%axslottery_opens_&lt;奖池ID>%` | 数字 | 总开箱次数 |
-| `%axslottery_guaranteed_&lt;奖池ID>%` | 文本 | 是否处于大保底（是/否） |
-| `%axslottery_fatepoints_&lt;奖池ID>%` | 数字 | 当前命定值 |
-| `%axslottery_point_&lt;奖池ID>%` | 数字 | 抽奖点数 |
+| `%axslottery_pity5_<奖池ID>%` | 数字 | 5 星保底抽数 |
+| `%axslottery_pity4_<奖池ID>%` | 数字 | 4 星保底抽数 |
+| `%axslottery_opens_<奖池ID>%` | 数字 | 总开箱次数 |
+| `%axslottery_guaranteed_<奖池ID>%` | 文本 | 是否处于大保底（是/否） |
+| `%axslottery_fatepoints_<奖池ID>%` | 数字 | 当前命定值 |
+| `%axslottery_point_<奖池ID>%` | 数字 | 抽奖点数 |
 
 ## 反向消费 PAPI
 
@@ -268,7 +268,7 @@ Suite 共有 16 个模块对外输出 PAPI 占位符：
 
 | 模块 | 配置字段 | 用途 |
 | --- | --- | --- |
-| Tab | `tabs.&lt;id>.pack` / `sort-papi-key` | 渲染自定义行并按占位符值排序 |
-| EventPacket | `rules.&lt;id>.placeholder` / `conditions` | 监控占位符值变化或条件判断 |
-| Mail | `currencies.&lt;id>.balance-placeholder` | 读取玩家货币余额 |
-| EntityTracker | `bosses.&lt;id>.title-format` | Boss 名称格式中嵌入占位符 |
+| Tab | `tabs.<id>.pack` / `sort-papi-key` | 渲染自定义行并按占位符值排序 |
+| EventPacket | `rules.<id>.placeholder` / `conditions` | 监控占位符值变化或条件判断 |
+| Mail | `currencies.<id>.balance-placeholder` | 读取玩家货币余额 |
+| EntityTracker | `bosses.<id>.title-format` | Boss 名称格式中嵌入占位符 |

@@ -12,7 +12,7 @@ Warehouse 是 Suite 的仓库与银行模块，通过 ArcartX UI 提供个人仓
 模块采用槽位聚合存储模型——相同物品（基于序列化哈希匹配）自动堆叠到同一槽位，单槽聚合上限为 `Integer.MAX_VALUE`，配合多级容量升级实现近乎无限的存储空间。物品分类基于 NBT/PDC 路径匹配，支持拼音/首字母搜索，排序方案可自定义。
 
 - **模块 ID**：`warehouse`
-- **版本**：1.4.5
+- **版本**：1.4.4
 - **配置版本**：4（当前 schema）
 - **源码主类**：`xuanmo.arcartxsuite.warehouse.WarehouseModule`
 - **配置文件**：`config.yml`
@@ -42,7 +42,7 @@ Warehouse 是 Suite 的仓库与银行模块，通过 ArcartX UI 提供个人仓
 | 依赖 | 类型 | 说明 |
 | --- | --- | --- |
 | ArcartX 客户端 MOD | 硬依赖 | 提供 UI 渲染与 PacketBridge，三套界面通过 ArcartX UI 呈现 |
-| PlaceholderAPI | 外部依赖 | 提供 PlaceholderAPI 占位符（`%axswarehouse_*%`） |
+| PlaceholderAPI | 外部硬依赖 | 提供 PlaceholderAPI 占位符（`%axswarehouse_*%`），`external-depends` 硬依赖，未安装时模块不加载 |
 
 物品库为可选功能，黑名单的 `mythic-item-ids` / `neige-item-ids` / `overture-item-ids` 按需依赖对应插件：
 

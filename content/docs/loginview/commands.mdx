@@ -5,21 +5,21 @@ description: LoginView 命令、权限、PlaceholderAPI 占位符与 UI 数据�
 
 # 命令与占位符
 
-LoginView 模块通过 `/axs loginview` 子命令提供管理功能，并通过 PlaceholderAPI 暴露账号类型查询占位符。所有命令均需 `axs.admin` 权限。
+LoginView 模块通过 `/axs loginview` 子命令提供管理功能，并通过 PlaceholderAPI 暴露账号类型查询占位符。所有命令均需 `arcartxsuite.admin` 权限。
 
 ## 管理命令
 
-所有命令通过 `/axs loginview <action>` 调用，需要 `axs.admin` 权限。
+所有命令通过 `/axs loginview <action>` 调用，需要 `arcartxsuite.admin` 权限。
 
 || 命令 | 说明 | 权限 |
 |---|---|---|
-| `/axs loginview help` | 显示 LoginView 模块命令帮助 | `axs.admin` |
-| `/axs loginview status` | 查看登录模块运行状态 | `axs.admin` |
-| `/axs loginview open <玩家>` | 强制为在线玩家打开登录界面 | `axs.admin` |
-| `/axs loginview migrate-authme [dry-run]` | 从 AuthMe 迁移账户哈希 | `axs.admin` |
-| `/axs loginview migration-commands` | 查看迁移后的安全操作提示 | `axs.admin` |
-| `/axs loginview set-spawn` | 将当前位置设为登录后传送点 | `axs.admin` |
-| `/axs loginview reset-password <玩家> [新密码]` | 重置玩家登录密码（仅 standalone 模式） | `axs.admin` |
+| `/axs loginview help` | 显示 LoginView 模块命令帮助 | `arcartxsuite.admin` |
+| `/axs loginview status` | 查看登录模块运行状态 | `arcartxsuite.admin` |
+| `/axs loginview open <玩家>` | 强制为在线玩家打开登录界面 | `arcartxsuite.admin` |
+| `/axs loginview migrate-authme [dry-run]` | 从 AuthMe 迁移账户哈希 | `arcartxsuite.admin` |
+| `/axs loginview migration-commands` | 查看迁移后的安全操作提示 | `arcartxsuite.admin` |
+| `/axs loginview set-spawn` | 将当前位置设为登录后传送点 | `arcartxsuite.admin` |
+| `/axs loginview reset-password <玩家> [新密码]` | 重置玩家登录密码（仅 standalone 模式） | `arcartxsuite.admin` |
 
 ### 命令详解
 

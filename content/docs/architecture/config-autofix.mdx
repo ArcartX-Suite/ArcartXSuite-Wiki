@@ -73,14 +73,14 @@ flowchart TD
 
 #### 2. 加载现有配置
 
-加载玩家 `data/&lt;moduleId>/config.yml`，若文件不存在则直接把默认值视作 proposal。
+加载玩家 `data/<moduleId>/config.yml`，若文件不存在则直接把默认值视作 proposal。
 
 #### 3. 版本检测与迁移
 
 比较 `liveVersion` 和 `currentVersion`：
 
-- `liveVersion &lt; currentVersion` 且有 migration 目录 → 应用迁移操作
-- `liveVersion &lt; currentVersion` 但无 migration → 仅升级版本号字段
+- `liveVersion < currentVersion` 且有 migration 目录 → 应用迁移操作
+- `liveVersion < currentVersion` 但无 migration → 仅升级版本号字段
 
 #### 4. 结构合并 dry-run
 
@@ -104,7 +104,7 @@ flowchart TD
 
 #### 6. 生成产物
 
-- **proposal yml**：修复后的完整配置（写入 `diagnosis/&lt;时间戳>/` 目录）
+- **proposal yml**：修复后的完整配置（写入 `diagnosis/<时间戳>/` 目录）
 - **Markdown 报告**：人类可读的诊断报告
 
 ## 配置规范 ModuleConfigSpec

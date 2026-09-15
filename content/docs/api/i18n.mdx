@@ -121,7 +121,7 @@ messages.get("welcome", player.getName(), serverName);
 
 ## 多语言支持
 
-`MessageProvider` 从模块 Jar 内导出默认消息文件，用户编辑 `data/&lt;moduleId>/messages.yml` 后 `/axs reload &lt;module>` 即可生效。
+`MessageProvider` 从模块 Jar 内导出默认消息文件，用户编辑 `data/<moduleId>/messages.yml` 后 `/axs reload <module>` 即可生效。
 
 服主可将消息文件翻译为任意语言，无需修改代码。新增字段无需迁移声明——`messages.yml` 不是配置，不走 `ConfigDiagnosticEngine`，新增键直接在 Jar 默认文件补充即可。
 
@@ -129,5 +129,5 @@ messages.get("welcome", player.getName(), serverName);
 
 - 键命名使用 `kebab-case` + 点号分层（如 `toggle.enabled`）
 - 前缀复用：把 `prefix` 也放进 `messages.yml`，连品牌前缀都可定制
-- reload 生效：用户编辑后执行 `/axs reload &lt;module>` 即可
+- reload 生效：用户编辑后执行 `/axs reload <module>` 即可
 - 内置默认消息作为 fallback：用户文件中缺少的键会回退到 Jar 内默认值

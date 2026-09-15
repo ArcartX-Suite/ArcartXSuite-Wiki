@@ -9,12 +9,12 @@ RGB 模块为纯计算型模块，无玩家命令，仅提供管理员重载命�
 
 ## 管理员命令
 
-管理员命令通过 `/axs rgb` 集成，需要 `arcartxsuite.rgb.admin` 权限。
+RGB 模块没有注册 `/axs rgb` 子命令处理器，管理操作通过宿主主命令 `/axs` 执行，需要 `arcartxsuite.admin` 权限（默认 OP）。
 
 | 命令 | 说明 | 权限 |
 |---|---|---|
-| `/axs reload rgb` | 热重载主配置和所有条目文件 | `arcartxsuite.rgb.admin` |
-| `/axs rgb status` | 查看模块运行状态 | `arcartxsuite.rgb.admin` |
+| `/axs reload rgb` | 热重载主配置和所有条目文件 | `arcartxsuite.admin` |
+| `/axs status` | 查看全部模块运行状态（含 RGB） | `arcartxsuite.admin` |
 
 ### reload
 
@@ -41,30 +41,19 @@ RGB 模块为纯计算型模块，无玩家命令，仅提供管理员重载命�
 
 ### status
 
-查看模块当前运行状态，包括已加载条目总数和活跃条目数。
+RGB 模块不提供独立的 `/axs rgb status` 子命令。查看模块运行状态请使用宿主命令：
 
 ```
-/axs rgb status
+/axs status
 ```
 
-输出示例：
-
-```
-AXS RGB 状态
-条目总数: 5
-活跃条目: 4
-```
-
-| 输出字段 | 说明 |
-|---|---|
-| 条目总数 | `entries/` 目录下所有文件中定义的条目总数（含禁用的） |
-| 活跃条目 | 满足 `active` 条件的条目数（enabled + text 非空 + gradient-colors 非空） |
+输出中 `rgb` 行显示该模块的启用/未启用状态。
 
 ## 权限节点
 
 | 权限节点 | 说明 | 默认 |
 |---|---|---|
-| `arcartxsuite.rgb.admin` | RGB 模块管理员命令权限（reload、status） | OP |
+| `arcartxsuite.admin` | 宿主管理命令权限（`/axs reload rgb`、`/axs status`） | OP |
 
 :::info
 RGB 模块无玩家权限节点。所有玩家均可通过 PlaceholderAPI 使用 `%axsrgb_<entryId>%` 占位符，渲染结果取决于条目配置，不涉及权限校验。

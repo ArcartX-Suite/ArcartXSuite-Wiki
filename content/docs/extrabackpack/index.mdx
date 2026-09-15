@@ -46,7 +46,7 @@ ExtraBackpack 是 Suite 的额外槽位背包模块，通过 ArcartX UI 替换�
 
 | 可选依赖 | 类型 | 说明 |
 | --- | --- | --- |
-| Warehouse | softdepend | 仓库模块可选依赖 ExtraBackpack 的 `ExtraBackpackAccess` Capability，用于额外背包物品交互 |
+| Warehouse | softdepend | `module.yml` 声明 `softdepends: [warehouse]`（加载顺序在 Warehouse 之后）；同时本模块注册 `ExtraBackpackAccess` Capability 供 Warehouse 消费，用于仓库与额外背包间的物品交互 |
 
 > ExtraBackpack 模块本身不依赖任何外部插件（无 `external-depends`），货币系统通过核心 `CurrencyBridgeAPI` 统一桥接（支持 Vault/PlayerPoints/XConomy 等）。
 

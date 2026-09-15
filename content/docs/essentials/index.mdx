@@ -53,7 +53,7 @@ Essentials 是 Suite 的基础工具模块，提供服务器日常运营所需�
 | 依赖 | 类型 | 说明 |
 |------|------|------|
 | ArcartXSuite 本体 | 硬依赖 | 提供模块框架、存储管理、PacketBridge、PacketGuard 等 API |
-| PlaceholderAPI | 外部依赖 | 提供 PlaceholderAPI 占位符注册与解析 |
+| PlaceholderAPI | 外部硬依赖 | 提供 PlaceholderAPI 占位符注册与解析（`external-depends`，未安装时模块不加载） |
 | ArcartX 客户端 | 可选 | UI 菜单与管理面板需要客户端支持 |
 | Chat 模块 | 可选 | 禁言 / 解禁功能依赖 `ChatMutable` 能力 |
 

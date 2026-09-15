@@ -36,7 +36,7 @@ AfkReward 是 Suite 的挂机奖励模块，为服务器提供完整的区域挂
 
 | 依赖类型 | 名称 | 说明 |
 |---|---|---|
-| 外部硬依赖 | PlaceholderAPI | 占位符扩展（无则占位符不可用，模块仍可运行） |
+| 外部硬依赖 | PlaceholderAPI | 占位符扩展（`external-depends` 硬依赖，未安装时模块不加载） |
 | ArcartX 模块（可选） | Mail | 邮件预设派发与背包满溢出补发（不可用时物品掉落地面） |
 | ArcartX 模块（可选） | EventPacket | 信号派发（不可用时信号静默跳过） |
 | ArcartX 模块（可选） | Subtitle | 字幕组播放（不可用时字幕静默跳过） |

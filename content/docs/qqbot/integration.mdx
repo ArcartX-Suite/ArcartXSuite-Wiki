@@ -339,7 +339,7 @@ QQBot 内置 SnowLuma 进程管理器，支持两种运行模式：
 |---|---|
 | 运行方式 | 本地 Node.js 子进程 |
 | 环境要求 | Node.js 18+ |
-| 安装方式 | `/axs qqbot admin snowluma install`（从 GitHub 下载） |
+| 安装方式 | `/axs qqbot snowluma install`（从 GitHub 下载） |
 | 进程管理 | 自动启动/停止/清理残留进程 |
 | 端口清理 | 按配置的 WS 端口清理残留进程 |
 | JVM 钩子 | 注册 ShutdownHook 确保异常退出时清理进程 |
@@ -350,10 +350,10 @@ QQBot 内置 SnowLuma 进程管理器，支持两种运行模式：
 |---|---|
 | 运行方式 | Docker 容器 |
 | 环境要求 | Docker 已安装 |
-| 安装方式 | `/axs qqbot admin snowluma install`（docker pull + docker run） |
+| 安装方式 | `/axs qqbot snowluma install`（docker pull + docker run） |
 | 端口映射 | WebUI / WS / HTTP 端口可配置 |
 | 数据持久化 | 自动挂载 3 个 volume（data / qq-config / qq-data） |
-| 日志查看 | `/axs qqbot admin snowluma logs` |
+| 日志查看 | `/axs qqbot snowluma logs` |
 
 ## 配置版本迁移
 
