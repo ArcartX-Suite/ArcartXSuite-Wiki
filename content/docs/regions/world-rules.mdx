@@ -154,9 +154,9 @@ public void onInteract(PlayerInteractEvent event) {
 | `axs.essentials.interact.bypass` | op | 禁交互物品 | 可与禁交互物品交互 |
 | - | - | 禁活塞世界 | 无绕过权限，活塞限制不可绕过 |
 
-:::info
+<Callout type="info">
 世界规则的绕过权限使用 `axs.essentials.*` 前缀，由 Essentials 模块提供。Regions 在 `module.yml` 中将 Essentials 声明为 `softdepends`，确保加载顺序上 Essentials 先于 Regions 启动。
-:::
+</Callout>
 
 ## 运行时 CRUD
 
@@ -237,9 +237,9 @@ worldRulesService = new WorldRulesService(plugin, logger, worldRulesSection,
     });
 ```
 
-:::tip
+<Callout type="info">
 世界规则通过管理员 UI 面板修改后自动持久化，无需手动编辑配置文件或执行重载命令。
-:::
+</Callout>
 
 ## UI 管理
 
@@ -346,9 +346,9 @@ public void shutdown() {
 | 禁活塞世界中的活塞区域 | 禁活塞 | `pistons` = `allow` | 世界规则优先，禁止活塞 |
 | 禁交互世界中的交互区域 | 禁交互 | `use` = `allow` | 世界规则优先，禁止交互 |
 
-:::caution
+<Callout type="warn">
 世界规则在事件优先级上使用 `HIGH`，区域保护监听器也使用 `HIGH`。当两者同时取消事件时，世界规则的限制优先生效。若需要在特定区域内允许被世界规则禁止的操作，需通过绕过权限（`axs.essentials.fly.bypass` 等）实现。
-:::
+</Callout>
 
 ## 相关页面
 

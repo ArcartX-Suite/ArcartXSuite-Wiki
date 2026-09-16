@@ -35,9 +35,9 @@ RGB 模块没有注册 `/axs rgb` 子命令处理器，管理操作通过宿主�
   → 替换内存中的配置和条目映射
 ```
 
-:::tip
+<Callout type="info">
 修改条目文件后只需执行 `/axs reload rgb` 即可生效。新增、删除、修改条目均支持热重载。
-:::
+</Callout>
 
 ### status
 
@@ -55,9 +55,9 @@ RGB 模块不提供独立的 `/axs rgb status` 子命令。查看模块运行状
 |---|---|---|
 | `arcartxsuite.admin` | 宿主管理命令权限（`/axs reload rgb`、`/axs status`） | OP |
 
-:::info
+<Callout type="info">
 RGB 模块无玩家权限节点。所有玩家均可通过 PlaceholderAPI 使用 `%axsrgb_<entryId>%` 占位符，渲染结果取决于条目配置，不涉及权限校验。
-:::
+</Callout>
 
 ## PlaceholderAPI 占位符
 
@@ -138,9 +138,9 @@ full:
 
 上述配置中，`%axsrgb_full%` 会先渲染 `prefix` 条目得到 `[ArcartX]` 的渐变文本，再拼接 `欢迎 <玩家名>` 并叠加 `full` 条目自身的渐变色。
 
-:::caution
+<Callout type="warn">
 条目间引用**不能形成环**。例如 a 的 text 包含 `%axsrgb_b%`，b 的 text 又包含 `%axsrgb_a%`，会触发递归检测，渲染结果为空串。开启 `debug: true` 可查看递归检测日志。
-:::
+</Callout>
 
 ## UI 文本中使用
 
@@ -158,9 +158,9 @@ icon:
     - "%axsrgb_shop_description%"
 ```
 
-:::tip
+<Callout type="info">
 RGB 渲染输出的颜色码为 `§#RRGGBB` 格式，需 ArcartX 客户端模组识别。在 UI 中使用时，确保玩家已安装 ArcartX 客户端，否则颜色码会显示为原始文本。
-:::
+</Callout>
 
 ### 在条件判定中使用
 
@@ -190,6 +190,6 @@ item:
 | 持久注册 (persist) | `true`（插件重载后保持注册） |
 | 注册类 | `ArcartRgbPlaceholderExpansion` |
 
-:::info
+<Callout type="info">
 RGB 模块的 PAPI 扩展设置 `persist() = true`，在 PlaceholderAPI 执行 `/papi reload` 时不会注销，确保占位符始终可用。
-:::
+</Callout>

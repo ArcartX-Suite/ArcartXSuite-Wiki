@@ -27,9 +27,9 @@ RGB 模块**不发布任何 EventBus 事件**。渲染过程为纯计算，无�
 
 RGB 模块**不参与跨服同步**。渐变文本渲染为纯本地计算，各服务器独立加载条目配置并渲染，无需跨服通信。
 
-:::info
+<Callout type="info">
 若需要在多服环境下保持一致的渐变效果，只需确保各服务器的 `entries/` 目录配置相同即可，无需额外的跨服同步机制。
-:::
+</Callout>
 
 ## 数据库表结构
 
@@ -209,9 +209,9 @@ RGB 模块的条目配置使用动态节（`dynamicSection`）同步策略，`en
 | `entries-directory` | 静态 | 重载时整体替换 |
 | `entries`（动态段） | 动态 | 标记为动态节，支持增量同步 |
 
-:::info
+<Callout type="info">
 动态节标记主要用于宿主的配置同步框架。实际热重载通过 `/axs reload rgb` 命令触发，重新扫描 `entries/` 目录并替换内存中的条目映射。
-:::
+</Callout>
 
 ## 模块生命周期
 
@@ -222,6 +222,6 @@ RGB 模块的条目配置使用动态节（`dynamicSection`）同步策略，`en
 | 注册占位符 | `createPlaceholderExpansion` | 创建 `ArcartRgbPlaceholderExpansion` 并注册到 PlaceholderAPI |
 | 停止服务 | `stopService` | 调用 `service.shutdown()` 清理 ThreadLocal，置空配置和服务实例 |
 
-:::tip
+<Callout type="info">
 RGB 模块为纯计算型，`shutdown()` 仅清理 ThreadLocal 资源，无需关闭数据库连接池或跨服通道。模块停止后占位符返回空串。
-:::
+</Callout>

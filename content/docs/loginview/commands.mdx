@@ -85,13 +85,13 @@ AuthMe 可用: false
 AuthMe 迁移完成: 扫描 256，可导入 240，跳过 16
 ```
 
-:::tip
+<Callout type="info">
 迁移流程建议：
 1. 先执行 `/axs loginview migrate-authme dry-run` 预览数量
 2. 确认无误后执行 `/axs loginview migrate-authme`
 3. 玩家首次用旧密码登录成功后，可自动重写为 AXS hash
 4. 完成验证后再停用 AuthMe，避免玩家无法登录
-:::
+</Callout>
 
 #### `/axs loginview migration-commands`
 
@@ -109,9 +109,9 @@ AuthMe 迁移完成: 扫描 256，可导入 240，跳过 16
 /axs loginview set-spawn
 ```
 
-:::info
+<Callout type="info">
 执行后 `spawn-on-login.enabled` 自动设为 `true`，并写入当前世界名、坐标、朝向。若需关闭传送，手动编辑配置将 `enabled` 设为 `false`。
-:::
+</Callout>
 
 #### `/axs loginview reset-password`
 
@@ -137,9 +137,9 @@ AuthMe 迁移完成: 扫描 256，可导入 240，跳过 16
 - 若玩家在线，会收到提示并被重新弹出登录界面
 - 新密码需符合 `min-password-length` 和 `max-password-length` 限制
 
-:::warning
+<Callout type="warn">
 `authme` 模式下此命令不可用，请使用 `/authme changepassword <玩家> <新密码>`。
-:::
+</Callout>
 
 ### Tab 补全
 
@@ -163,9 +163,9 @@ LoginView 注册了标识为 `axsloginview` 的 PlaceholderAPI 扩展，提供�
 | `%axsloginview_is_offline%` | `true` / `false` | 是否为离线账号 |
 | `%axsloginview_is_premium%` | `true` / `false` | 是否为正版账号（微软或 LittleSkin） |
 
-:::info
+<Callout type="info">
 账号类型由宿主 `AccountTypeService` 统一判定，基于玩家名在 Mojang 正版数据库和 authlib-injector 认证服务中的查询结果。占位符查询时若服务未就绪，返回 `offline`。
-:::
+</Callout>
 
 ## UI 数据包
 
@@ -226,9 +226,9 @@ LoginView 通过 ArcartX UI（Aria）的 `packet-id` 通道与客户端通信。
 | `bind_code` | `code` | QQ 绑定：输入验证码确认绑定 |
 | `refresh` | - | 刷新：重新打开登录界面 |
 
-:::caution
+<Callout type="warn">
 客户端回包由 `PacketGuardAPI` 在路由层统一安全校验，防止伪造数据包。`packet-id` 必须与配置中的 `ui.packet-id` 一致才会被处理。
-:::
+</Callout>
 
 ## UI 文件
 
@@ -241,6 +241,6 @@ LoginView 内置两套 UI 风格，通过 `ui.ui-file` 配置切换：
 
 两套 UI 的 `packetHandler` 结构一致，均处理 `init`、`result`、`close` 三种服务端包。UI 文件导出到 `plugins/ArcartX-Suite/ui/` 目录，可自行修改样式。详见 [Icons 指南](/docs/guide/icons)。
 
-:::tip
+<Callout type="info">
 修改 UI 文件后无需重启，执行 `/axs reload loginview` 即可热重载。若需恢复默认 UI，将 `ui.overwrite-ui-files` 设为 `true` 后重载。
-:::
+</Callout>

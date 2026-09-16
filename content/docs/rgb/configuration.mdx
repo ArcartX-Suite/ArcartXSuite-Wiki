@@ -46,9 +46,9 @@ plugins/ArcartX-Suite/data/rgb/
     └── tab.yml              # 自定义 TAB 渐变色
 ```
 
-:::tip
+<Callout type="info">
 同一个文件中可以放置任意数量的 RGB 定义，不需要每条单独一个文件。建议把同一业务相关的渐变色定义放在一个文件里统一管理。
-:::
+</Callout>
 
 ## 条目字段
 
@@ -75,9 +75,9 @@ plugins/ArcartX-Suite/data/rgb/
 text: "欢迎来到 ArcartX，%player_name%"
 ```
 
-:::caution
+<Callout type="warn">
 `text` 中可以嵌套 `%axsrgb_<otherId>%` 引用其他条目，但不能形成循环引用（如 a 引用 b、b 引用 a）。检测到递归时渲染结果为空串。
-:::
+</Callout>
 
 #### gradient-colors
 
@@ -96,9 +96,9 @@ gradient-colors:
   - "#7FE7FF"
 ```
 
-:::caution
+<Callout type="warn">
 颜色值**必须加引号**！不加引号时 `#` 会被 YAML 解析为行内注释，导致颜色值丢失。例如 `- #FF7A18` 会被解析为空值，模块会输出警告日志。
-:::
+</Callout>
 
 #### shine
 
@@ -252,6 +252,6 @@ chat-suffix:
 | `shine-color` 无效 | `shine-color 无效，已回退默认值` | 检查 `shine-color` 格式 |
 | `entries` 目录为空 | `entries 目录为空或不存在，未加载任何 RGB 条目` | 检查目录路径和文件内容 |
 
-:::tip
+<Callout type="info">
 开启 `settings.debug: true` 后，递归引用检测会输出额外警告日志，帮助排查条目间的循环引用问题。
-:::
+</Callout>

@@ -26,7 +26,7 @@ AXS 支持对 `modules/` 目录下的模块 Jar（含云端下发的内存加载
 | 服主 | 仅在使用第三方/私人定制 Jar 且希望防篡改时，向作者索取公钥 |
 | 仅用官方云端模块 | 默认不要配置公钥列表（留空 `[]`） |
 
-::: warning 开启校验后的行为
+<Callout type="warn" title="开启校验后的行为">
 `module-signature-public-keys` 非空时，宿主对每一个待加载模块执行验签：
 
 - `module.yml` 缺少 `signature` → 拒绝加载
@@ -34,7 +34,7 @@ AXS 支持对 `modules/` 目录下的模块 Jar（含云端下发的内存加载
 - 验签通过 → 正常加载
 
 这不是「只校验第三方」的开关，而是「只允许已签名且公钥在白名单内的模块」。
-:::
+</Callout>
 
 ## 签名规则
 
@@ -162,9 +162,9 @@ module-signature-public-keys:
 
 留空 `[]` 表示关闭模块签名校验（默认）。
 
-::: tip 与云端 .axb 的关系
+<Callout type="info" title="与云端 .axb 的关系">
 云端下发的加密模块在内存中还原为 Jar 后，同样会走 `module.yml` 签名校验（若已配置公钥）。官方模块若未带 `signature`，请勿在生产环境开启此列表。
-:::
+</Callout>
 
 ## 发布清单
 

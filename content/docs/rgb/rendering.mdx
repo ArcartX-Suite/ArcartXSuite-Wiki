@@ -45,9 +45,9 @@ int[] codePoints = actualText.codePoints().toArray();
 | `char[]`（错误） | 2 个代理 `char` + 1 个 `A` = 3 个单元 | emoji 被拆成两半，颜色分配错乱 |
 | `int[] codePoints`（实际） | 1 个码点 `😀` + 1 个码点 `A` = 2 个单元 | emoji 作为整体获得一个颜色 |
 
-:::tip
+<Callout type="info">
 渐变颜色的"字符数"指的是 codePoint 数量，不是 `String.length()`。例如 `欢迎😀` 的渐变长度为 3，而非 `String.length()` 返回的 4。
-:::
+</Callout>
 
 ## 渐变颜色插值
 
@@ -68,9 +68,9 @@ double position = codePoints.length == 1
 | 3 | `0.0` | `0.5` | `1.0` | - |
 | 4 | `0.0` | `0.333` | `0.667` | `1.0` |
 
-:::info
+<Callout type="info">
 单字符文本固定 `position = 0.0`，避免除以零。此时取调色板第一个颜色（经偏移后）。
-:::
+</Callout>
 
 ### 调色板映射
 
@@ -128,9 +128,9 @@ private static int blendChannel(int start, int end, double progress) {
 | `0.5` | `#FF0000` | `#0000FF` | `#7F007F`（紫色） |
 | `1.0` | `#FF0000` | `#0000FF` | `#0000FF`（纯 end） |
 
-:::caution
+<Callout type="warn">
 插值使用 `Math.round` 而非直接截断，减少累积误差。例如 `(255 + 0) * 0.5 = 127.5`，`round` 得 `128`，比截断的 `127` 更接近真实中间值。
-:::
+</Callout>
 
 ### 插值示例
 
@@ -197,9 +197,9 @@ private static double resolveShineAmount(int index, int shineCenter, int shineWi
 | falloff | `1.000` | `0.667` | `0.333` | 超出宽度 |
 | shineAmount | `0.550` | `0.367` | `0.183` | `0.000` |
 
-:::tip
+<Callout type="info">
 `shineWidth + 1.0` 而非 `shineWidth` 是为了让中心字符的 falloff 严格为 `1.0`（`1 - 0/(2+1) = 1.0`），同时边缘字符仍有非零高亮。
-:::
+</Callout>
 
 ### 扫光颜色混合
 
@@ -264,9 +264,9 @@ static long resolveAnimationStep(ArcartRgbEntry entry, long currentTimeMillis) {
 | 调色板滚动 | `paletteShift = floorMod(animationStep, paletteSize)` | 调色板整体偏移，颜色从左向右滚动 |
 | 扫光移动 | `shineCenter = floorMod(animationStep, travelLength) - shineWidth` | 扫光中心从左到右循环移动 |
 
-:::info
+<Callout type="info">
 调色板滚动周期 = `paletteSize` 步；扫光移动周期 = `textLength + shineWidth * 2` 步。两者周期通常不同，形成视觉上不重复的动画效果。
-:::
+</Callout>
 
 ### 时间换算示例
 
@@ -309,9 +309,9 @@ public String hex() {
 §#FF7A18H§#7FE7FFi§r
 ```
 
-:::caution
+<Callout type="warn">
 颜色码 `§#RRGGBB` 由 ArcartX 客户端模组解析。未安装客户端的玩家会看到原始的 `§#FF7A18` 文本，功能不受影响但无颜色效果。
-:::
+</Callout>
 
 ## 边界情况处理
 
@@ -390,9 +390,9 @@ String frame5 = ArcartRgbRenderer.renderText(
 );
 ```
 
-:::tip
+<Callout type="info">
 `renderText` 接受显式 `animationStep`，适合需要精确控制帧的场景（如预览、测试）。`renderTextAtTime` / `renderAtTime` 接受时间戳，内部自动换算步数，适合实时渲染场景。
-:::
+</Callout>
 
 ## 相关页面
 

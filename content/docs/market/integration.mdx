@@ -37,9 +37,9 @@ private void publishEvent(String topic, Player player, Map<String, String> paylo
 }
 ```
 
-:::info
+<Callout type="info">
 EventBus 为延迟查找（`getCapability`），因模块加载顺序不定。若 EventBus 模块未加载，事件发布为空操作，不影响 Market 正常运行。
-:::
+</Callout>
 
 ### 信号派发
 
@@ -135,9 +135,9 @@ cross-server:
   enabled: true
 ```
 
-:::tip
+<Callout type="info">
 跨服同步支持 Redis + BungeeCord/Velocity Forward 双后端。单服无需开启跨服和 Redis。
-:::
+</Callout>
 
 ## 数据库表结构
 

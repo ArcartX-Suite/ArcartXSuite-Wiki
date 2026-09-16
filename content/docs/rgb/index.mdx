@@ -46,9 +46,9 @@ RGB 是 Suite 的渐变文本渲染模块，提供 **逐字渐变** 与 **动态
 | 宿主能力 | 无 | - | 纯计算型模块，不注册任何 Capability |
 | 宿主配置 | 无 | - | 不需要 Redis、跨服、存储等宿主配置 |
 
-:::caution
+<Callout type="warn">
 PlaceholderAPI 是 RGB 模块的**硬依赖**。若未安装 PlaceholderAPI，模块仍可加载，但无法通过占位符输出任何渲染结果，模块失去实际意义。
-:::
+</Callout>
 
 ## RGB 文本机制
 
@@ -127,9 +127,9 @@ long animationStep = currentTimeMillis / intervalMillis;
 2. 若 Set 中已存在该 entryId，判定为递归引用，立即中止渲染返回空串
 3. 渲染结束后移除 entryId，根渲染结束时清理 ThreadLocal
 
-:::tip
+<Callout type="info">
 条目可以引用其他条目（如 `%axsrgb_a%` 的 text 中包含 `%axsrgb_b%`），但**不能形成环**（如 a 引用 b、b 又引用 a）。检测到环时渲染结果为空串，调试模式下会输出警告日志。
-:::
+</Callout>
 
 ## 快速上手
 

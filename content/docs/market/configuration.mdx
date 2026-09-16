@@ -36,9 +36,9 @@ Market 模块的配置文件位于 `plugins/ArcartX-Suite/data/market/config.yml
 | `ui.register-ui-on-enable` | boolean | `true` | 模块启动时自动注册 UI 到 ArcartX 桥接层 |
 | `ui.overwrite-ui-files` | boolean | `false` | 是否覆盖已导出的 UI 文件（`true` 会覆盖自定义修改） |
 
-:::caution
+<Callout type="warn">
 `overwrite-ui-files: true` 会覆盖你在服务器上的自定义 UI 修改！仅在需要恢复默认 UI 时设为 `true`。
-:::
+</Callout>
 
 ### storage 数据存储配置
 
@@ -55,9 +55,9 @@ Market 模块的配置文件位于 `plugins/ArcartX-Suite/data/market/config.yml
 | `storage.mysql.password` | string | - | MySQL 密码 |
 | `storage.mysql.table-prefix` | string | `axs_market_` | MySQL 表前缀 |
 
-:::tip
+<Callout type="info">
 `shared: true` 时，数据库连接由本体统一管控，各模块共用 `config.yml` 的 `storage` 节配置。性能更好，推荐使用。
-:::
+</Callout>
 
 ### redis 缓存配置
 
@@ -76,9 +76,9 @@ Market 模块的配置文件位于 `plugins/ArcartX-Suite/data/market/config.yml
 |---|---|---|---|
 | `cross-server.enabled` | boolean | `false` | 是否启用跨服同步 |
 
-:::info
+<Callout type="info">
 跨服同步需配合宿主 `config.yml` 的 `cross-server` 节使用。单服无需开启。
-:::
+</Callout>
 
 ## 拍卖行配置 (auction)
 

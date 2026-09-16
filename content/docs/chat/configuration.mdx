@@ -26,9 +26,9 @@ Chat 模块的配置文件位于 `plugins/ArcartX-Suite/data/chat/config.yml`。
 |---|---|---|---|
 | `compatibility.other-chat-plugins.force-takeover` | boolean | `false` | 强制接管聊天事件。开启后 AXS 会尽早捕获玩家原始消息，并在事件链末尾再次取消原版/其他插件广播。仅在服务器安装其他聊天插件并出现消息被改写、重复或复用旧消息时开启 |
 
-:::caution
+<Callout type="warn">
 `force-takeover: true` 会以 `LOWEST` 优先级拦截 `AsyncPlayerChatEvent` / Paper `AsyncChatEvent`，并在 `HIGHEST` 再次取消。如果服务器有其他依赖聊天事件的插件，可能导致其无法正常工作。
-:::
+</Callout>
 
 ### storage 数据存储配置
 
@@ -45,13 +45,13 @@ Chat 模块的配置文件位于 `plugins/ArcartX-Suite/data/chat/config.yml`。
 | `storage.mysql.password` | string | - | MySQL 密码 |
 | `storage.mysql.table-prefix` | string | `axs_chat_` | MySQL 表名前缀 |
 
-:::tip
+<Callout type="info">
 `shared: true` 时，数据库连接由本体统一管控，各模块共用 `config.yml` 的 `storage` 节配置。性能更好，推荐使用。
-:::
+</Callout>
 
-:::info
+<Callout type="info">
 配置版本 1 → 2 的迁移已自动处理 `storage.mode` → `storage.shared` 的重命名与值映射（`mysql` → `false`，`sqlite` → `true`）。详见配置管理文档。
-:::
+</Callout>
 
 ### cross-server 跨服配置
 
@@ -59,9 +59,9 @@ Chat 模块的配置文件位于 `plugins/ArcartX-Suite/data/chat/config.yml`。
 |---|---|---|---|
 | `cross-server.enabled` | boolean | `false` | 是否启用跨服聊天转发；需要 Redis 支持 |
 
-:::info
+<Callout type="info">
 跨服同步需配合宿主 `config.yml` 的 `cross-server` 节使用。单服无需开启。
-:::
+</Callout>
 
 ### cards 聊天卡片设置
 
@@ -75,9 +75,9 @@ Chat 模块的配置文件位于 `plugins/ArcartX-Suite/data/chat/config.yml`。
 | `cards.char-width-half` | int | `18` | 半角字符（英文/数字等）占位宽度（像素） |
 | `cards.max-line-width` | int | `750` | 文字区最大宽度（超过此值自动换行） |
 
-:::tip
+<Callout type="info">
 卡片宽度与高度由 UI 侧根据 Text 控件实际渲染尺寸自适应，Java 不再计算。`char-width-*` 与 `max-line-width` 仅用于消息文本换行测算。
-:::
+</Callout>
 
 ### function 功能开关
 
@@ -114,15 +114,15 @@ function:
 | `pattern` | string | 匹配正则表达式 |
 | `replacement` | string | 替换文本 |
 
-:::caution
+<Callout type="warn">
 `pattern` 必须是合法的 Java 正则表达式。非法正则会被跳过并输出警告日志。
-:::
+</Callout>
 
 ### filter 敏感词过滤（已迁移）
 
-:::warning
+<Callout type="warn">
 敏感词过滤已统一到宿主 `config.yml` 的 `moderation` 节。请在 `plugins/ArcartX-Suite/config.yml` 中配置全局敏感词过滤（支持标点穿透防护、白名单、多 URL 云端词库）。此处配置仅作向后兼容保留，不再生效。
-:::
+</Callout>
 
 | 字段 | 类型 | 默认值 | 说明 |
 |---|---|---|---|
@@ -312,9 +312,9 @@ operations:
       "sqlite": true
 ```
 
-:::info
+<Callout type="info">
 配置诊断引擎会自动检测版本号变动并执行迁移。详见 [/docs/guide/conditions](/docs/guide/conditions) 中的配置管理章节。
-:::
+</Callout>
 
 ## 消息文件
 

@@ -24,9 +24,9 @@ Regions 模块的配置文件位于 `plugins/ArcartX-Suite/data/regions/config.y
 | `selection.max-volume` | long | `500000` | 单次选区最大方块体积，范围 `1` ~ `100000000` |
 | `selection.max-regions-per-player` | int | `20` | 每玩家最大区域数量，`0` 表示无限 |
 
-:::tip
+<Callout type="info">
 `max-volume` 有配置诊断校验，范围为 `1` ~ `100000000`，超出范围会在 `diagnosis/` 目录报告中提示。
-:::
+</Callout>
 
 ### defaults 区域默认值
 
@@ -48,9 +48,9 @@ Regions 模块的配置文件位于 `plugins/ArcartX-Suite/data/regions/config.y
 | `chat` | 在聊天栏发送通知消息 |
 | `title` | 以 Title 副标题展示通知（淡入 5 tick / 持续 40 tick / 淡出 10 tick） |
 
-:::info
+<Callout type="info">
 当区域设置了 `greeting` / `farewell` 标志的自定义文本时，通知消息使用自定义文本，忽略 `display-mode` 配置（始终通过 `sendNotification` 发送）。
-:::
+</Callout>
 
 ### world-rules 世界规则
 
@@ -74,9 +74,9 @@ world-rules:
       - CRAFTING_TABLE
 ```
 
-:::tip
+<Callout type="info">
 世界规则支持运行时 CRUD——管理员通过 `/rg admin` UI 面板修改后，变更自动持久化回 `config.yml` 配置文件，无需手动编辑。
-:::
+</Callout>
 
 ### storage 存储配置
 
@@ -93,13 +93,13 @@ world-rules:
 | `storage.mysql.password` | string | - | MySQL 密码 |
 | `storage.mysql.table-prefix` | string | `axs_rg_` | MySQL 表名前缀 |
 
-:::tip
+<Callout type="info">
 `shared: true` 时，数据库连接由本体统一管控，各模块共用 `config.yml` 的 `storage` 节配置。性能更好，推荐使用。`storage.shared` 有配置诊断校验（`ValidationRule.required`），必须为布尔值。
-:::
+</Callout>
 
-:::caution
+<Callout type="warn">
 向后兼容：如果 `shared` 字段不存在但 `mode` 为 `mysql`，模块会自动视为 `shared: false`（自建模式）。
-:::
+</Callout>
 
 ## 配置迁移
 

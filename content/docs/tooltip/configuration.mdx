@@ -36,9 +36,9 @@ external-softdepends: []
 | `external-depends` | list | `[]` | 外部插件硬依赖（空列表） |
 | `external-softdepends` | list | `[]` | 外部插件软依赖（空列表） |
 
-:::info
+<Callout type="info">
 Tooltip 模块无任何模块依赖与外部插件依赖。`depends`、`softdepends`、`external-depends`、`external-softdepends` 均为空列表。
-:::
+</Callout>
 
 ## 运行参数（代码内固定）
 
@@ -52,9 +52,9 @@ Tooltip 模块的部分核心参数在代码中硬编码，不可通过配置文
 | 包归属模块 | `tooltip` | `TooltipModule.createPacketHandlerSpec()` | PacketGuard 路由归属 |
 | 物品指纹算法 | `itemStack.getType().getKey().toString()` | `TooltipDataCache.fingerprint()` | 使用物品注册名作为指纹，不含 NBT |
 
-:::tip
+<Callout type="info">
 如需修改这些参数，需要修改源码并重新编译模块。详见 [模块开发指南](/docs/developer)。
-:::
+</Callout>
 
 ## 消息文件（`messages.yml`）
 
@@ -227,9 +227,9 @@ protected @NotNull ModuleConfig configSpec() {
 | 3. 注入命令 | `TooltipAdminCommand` 接收 `MessageProvider` 实例 |
 | 4. 运行时使用 | 管理命令执行时通过 `messages.get(key, args)` 获取消息文本 |
 
-:::tip
+<Callout type="info">
 修改 `messages.yml` 后，使用 `/axs reload tooltip` 重载模块即可生效，无需重启服务器。消息文件支持 `&` 颜色码与 `{0}`、`{1}` 等位置参数。
-:::
+</Callout>
 
 ## 自定义消息示例
 
@@ -254,6 +254,6 @@ help:
   status: "&a{0} status &7- 查看模块运行状态"
 ```
 
-:::info
+<Callout type="info">
 消息文件中的 `&` 颜色码会在发送时自动转换为 `§` 颜色码。`{0}` 等位置参数由命令处理器在运行时填充。
-:::
+</Callout>

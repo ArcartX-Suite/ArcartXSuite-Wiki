@@ -35,9 +35,9 @@ Market 的拍卖系统包含 **拍卖行**（竞价交易）和 **玩家商店**
 11. 入库 → 失效 Redis 缓存 → 跨服广播
 12. 派发信号 `market_listing_created` + 发布 EventBus 事件 `market.listing_created`
 
-:::tip 物品安全
+<Callout type="info" title="物品安全">
 上架时使用物品副本，防止与主手物品引用别名。入库失败会自动退费 + 归还物品。
-:::
+</Callout>
 
 ### 竞价流程
 
@@ -85,11 +85,11 @@ Market 的拍卖系统包含 **拍卖行**（竞价交易）和 **玩家商店**
 3. 通知在线卖家
 4. 记录交易历史（类型 `EXPIRED`）
 
-:::info 安全发放机制
+<Callout type="info" title="安全发放机制">
 物品发放流程：反序列化（异步）→ 在线则主线程放入背包（满则转邮件）→ 离线则入待发放队列。
 货币发放流程：在线则主线程入账 → 失败或离线则入待发放队列。
 玩家上线时由 `PendingDeliveryService` 自动补发，保证不丢钱不丢物品。
-:::
+</Callout>
 
 ### 取消上架
 
@@ -207,9 +207,9 @@ auction:
 | 限购更新 | `SHOP_LIMIT_UPDATE:<uuid>:<shopId>:<itemId>:<count>:<ts>:<resetTime>` | 本地 upsert 限购记录 |
 | 动态商品 | `DYNAMIC_SHOP_UPDATE:<strategyKey>:<shopId>:<jsonData>` | 本地同步动态状态 |
 
-:::info
+<Callout type="info">
 跨服同步需配合宿主 `config.yml` 的 `cross-server` 节使用（Redis + BungeeCord/Velocity Forward 双后端）。单服无需开启。
-:::
+</Callout>
 
 ## 拍卖示例
 

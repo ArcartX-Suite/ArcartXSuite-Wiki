@@ -17,9 +17,9 @@ description: 从零编写 Suite 第三方模块——Gradle 工程、module.yml�
 | 客户端 | 玩家需安装 ArcartX 模组（UI/HUD/自定义包依赖客户端） |
 | SDK | `axs-api.jar` |
 
-::: warning 不要引用宿主实现
+<Callout type="warn" title="不要引用宿主实现">
 模块代码中只能 `import xuanmo.arcartxsuite.api.*`。不要 `import xuanmo.arcartxsuite.bridge.*` 或宿主 `module` 包——会导致 ClassLoader 隔离失败，且在不同版本间不兼容。
-:::
+</Callout>
 
 ## 第一步：工程结构
 
@@ -101,9 +101,9 @@ external-softdepends: []
 | `external-depends` | 硬依赖的外部 Bukkit 插件名（如 `PlaceholderAPI`） |
 | `signature` | 可选；Ed25519 签名（Base64）。见[模块签名](./module-signature) |
 
-::: tip 加载顺序
+<Callout type="info" title="加载顺序">
 宿主按 `depends` 做拓扑排序。若模块 A `depends: [title]`，则 Title 一定先于 A 启用——这对 Capability 使用方很重要。
-:::
+</Callout>
 
 ## 第三步：实现模块入口
 

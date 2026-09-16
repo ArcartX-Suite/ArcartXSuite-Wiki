@@ -72,9 +72,9 @@ dependencies {
 }
 ```
 
-::: warning 不要引用宿主实现
+<Callout type="warn" title="不要引用宿主实现">
 模块代码中只能 `import xuanmo.arcartxsuite.api.*`。不要 `import xuanmo.arcartxsuite.bridge.*` 或宿主 `module` 包——会导致 ClassLoader 隔离失败，且在不同版本间不兼容。
-:::
+</Callout>
 
 ## 文档索引
 

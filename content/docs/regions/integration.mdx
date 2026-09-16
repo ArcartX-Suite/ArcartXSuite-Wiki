@@ -40,9 +40,9 @@ protectionListener = new RegionProtectionListener(regionManager, configuration);
 protectionListener.setEventBusProvider(() -> getCapability(EventBusCapability.class));
 ```
 
-:::info
+<Callout type="info">
 EventBus 为延迟查找（`getCapability`），因模块加载顺序不定。若 EventBus 模块未加载，事件发布为空操作，不影响 Regions 正常运行。
-:::
+</Callout>
 
 ### 已发布的 Topic 声明
 
@@ -103,9 +103,9 @@ registerCapability(PlayerDataPurgeable.class, new PlayerDataPurgeable() {
 });
 ```
 
-:::info
+<Callout type="info">
 Regions 的数据库表（`regions`、`flags`、`members`）以区域 ID + 世界为主键，不包含玩家 UUID 列。`playerDataTables()` 返回空列表，玩家数据清理仅针对内存中的选区会话和进出追踪记录。
-:::
+</Callout>
 
 ## 存储模式
 
@@ -175,9 +175,9 @@ Regions 模块管理三张数据库表，表名前缀默认为 `axs_rg_`（可�
 
 MySQL 额外索引：`idx_rg_members (region_id, world)`
 
-:::tip
+<Callout type="info">
 保存区域时使用事务，先 `REPLACE INTO` 区域记录，再删除并重建标志和成员记录，确保数据一致性。删除区域时级联删除三张表的关联记录。
-:::
+</Callout>
 
 ## 跨服支持
 
@@ -189,9 +189,9 @@ MySQL 额外索引：`idx_rg_members (region_id, world)`
 
 `axs.regions.region_change` 事件通过 `EventBusCapability` 发布。若宿主配置了跨服传输（Redis + Proxy 双后端），事件可跨服传播，其他子服上的模块也能监听到玩家进出区域的事件。
 
-:::info
+<Callout type="info">
 跨服传输依赖宿主的 `cross-server` 配置。Redis 后端提供实时事件同步，Proxy 后端通过代理端插件转发。详见 [跨服配置指南](/docs/guide/cross-server-setup)。
-:::
+</Callout>
 
 ### 数据库迁移跨服
 
@@ -251,6 +251,6 @@ Regions 模块在启动时自动导出两个 UI 资源文件到 `plugins/ArcartX
 
 UI 文件使用 ArcartX Aria 脚本语法编写，支持通过 UI Editor 自定义修改。详见 [ArcartX UI 文档](/docs/guide/icons) 和 [条件系统](/docs/guide/conditions)。
 
-:::tip
+<Callout type="info">
 UI 文件导出后不会自动覆盖已有文件（`ModuleUiSpec` 的 `overwrite` 参数为 `false`），可安全自定义修改。如需恢复默认 UI，删除对应文件后重启模块即可。
-:::
+</Callout>

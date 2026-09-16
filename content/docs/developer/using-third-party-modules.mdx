@@ -24,9 +24,9 @@ plugins/
     ui/                     ← UI 从模块 Jar 自动导出
 ```
 
-::: warning 不要放进 plugins 根目录
+<Callout type="warn" title="不要放进 plugins 根目录">
 模块 Jar 必须放在 `plugins/ArcartX-Suite/modules/`，不要像普通 Bukkit 插件那样丢进 `plugins/`。AXS 宿主会扫描 `modules/` 并按 `module.yml` 加载。
-:::
+</Callout>
 
 ## 启用模块
 
@@ -58,9 +58,9 @@ modules:
 | `/axs reload all` | 重载所有已加载模块 |
 | `/axs unload <id>` | 卸载模块并释放 ClassLoader |
 
-::: tip unload 与依赖
+<Callout type="info" title="unload 与依赖">
 若模块 B `depends` 模块 A，卸载 A 前需先卸载 B。宿主会提示仍依赖 A 的模块列表。
-:::
+</Callout>
 
 ## 检查 module.yml
 
@@ -105,9 +105,9 @@ module-signature-public-keys:
 
 留空 `[]` 表示关闭（默认）。详见 [模块 Ed25519 签名](./module-signature)。
 
-::: warning 开启前请读完整说明
+<Callout type="warn" title="开启前请读完整说明">
 配置任意公钥后，所有模块（含官方云端模块）都必须带合法 `signature`，否则无法加载。
-:::
+</Callout>
 
 ## 云端模块 vs 本地 Jar
 

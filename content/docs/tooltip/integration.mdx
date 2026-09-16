@@ -17,9 +17,9 @@ Tooltip 模块**不发布** EventBus 事件，也**不订阅** EventBus 事件�
 | 发布事件 | 无 |
 | 订阅事件 | 无 |
 
-:::info
+<Callout type="info">
 Tooltip 模块的数据流是单向的：客户端 → 服务端缓存 → Capability 查询。模块不产生业务事件，不需要 EventBus 通知。其他模块在需要时主动调用 `TooltipDataCapable` 查询数据即可。
-:::
+</Callout>
 
 ## Capability 注册
 
@@ -83,9 +83,9 @@ protected void startService() throws Exception {
 | 实现逻辑 | 通过 `cache.get(player, itemStack)` 查找缓存条目，返回 `entry.structuredData()` |
 | 空值保护 | 物品为 null 或空气时返回 `"{}"` |
 
-:::tip
+<Callout type="info">
 结构化数据是客户端 mod 采集的 JSON 对象字符串，包含 TACZ 枪属性的 damage、armorIgnore、headshotMultiplier 等数值字段。消费方模块可直接解析此 JSON 用于业务逻辑。
-:::
+</Callout>
 
 #### `injectLore(ItemStack itemStack, List<String> lines)`
 
@@ -118,9 +118,9 @@ Tooltip 模块**不消费**任何其他模块的 Capability 或桥接。
 |---|---|
 | 无 | Tooltip 是纯数据提供方，不依赖其他模块的能力 |
 
-:::info
+<Callout type="info">
 Tooltip 模块仅依赖宿主基础框架（模块加载、网络包路由、Capability 注册），不使用 EventBus、CrossServer、PacketBridge、ItemBridge 等高级能力。
-:::
+</Callout>
 
 ## 跨服支持
 
@@ -132,9 +132,9 @@ Tooltip 模块**不支持**跨服数据同步。
 | 跨服通道 | 不注册 |
 | 数据同步 | tooltip 数据仅存在于玩家当前所在服务器 |
 
-:::info
+<Callout type="info">
 Tooltip 数据由客户端直接发送至当前连接的服务端，缓存在本地内存中。玩家切换服务器后，需等待客户端重新发送 tooltip 数据（通常在玩家打开物品栏或悬停物品时自动触发）。
-:::
+</Callout>
 
 ## 数据库表结构
 
@@ -195,9 +195,9 @@ if (tooltipDataProvider != null) {
 | 客户端展示 | 客户端 UI 渲染物品预览时显示动态 tooltip 内容 |
 | 降级处理 | Tooltip 模块未加载时，`getCapability` 返回 null，Chat 不注入 Lore，物品预览正常显示但不包含动态内容 |
 
-:::tip
+<Callout type="info">
 Chat 模块通过延迟查找 `getCapability(TooltipDataCapable.class)` 获取能力，因模块加载顺序不定。若 Tooltip 模块未加载，Chat 的物品预览功能不受影响，仅缺少动态 tooltip 内容。
-:::
+</Callout>
 
 ### 与其他模块集成
 
@@ -228,9 +228,9 @@ if (tooltipCap != null) {
 | 数据存在性检查 | `hasTooltipData` | 判断物品是否有 tooltip 数据，决定是否展示相关 UI |
 | 聊天展示 | `getTooltipLines` + `injectLore` | 聊天物品展示时注入动态内容 |
 
-:::info
+<Callout type="info">
 使用 `getStructuredData` 获取的 JSON 字符串需消费方自行解析。常见的结构化数据字段包括 TACZ 枪械的 `damage`、`armorIgnore`、`headshotMultiplier` 等，以及 Apotheosis 词缀的 affix 信息。具体字段结构由客户端 mod 决定。
-:::
+</Callout>
 
 ### 集成注意事项
 
@@ -243,6 +243,6 @@ if (tooltipCap != null) {
 | 物品指纹 | 指纹为物品注册名（不含 NBT），同类型物品共享 tooltip 数据 |
 | 客户端依赖 | tooltip 数据由客户端 mod 采集，服务端无法独立生成 |
 
-:::tip
+<Callout type="info">
 消费方模块应在每次需要时调用 `getCapability` 获取能力引用，而非在启动时缓存。这样在 Tooltip 模块热加载/卸载时，消费方能正确感知能力可用性变化。
-:::
+</Callout>

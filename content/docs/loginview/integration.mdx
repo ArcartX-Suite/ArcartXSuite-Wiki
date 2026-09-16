@@ -44,9 +44,9 @@ private void publishLoginEvent(Player player) {
 }
 ```
 
-:::info
+<Callout type="info">
 EventBus 为延迟查找（`getCapability`），因模块加载顺序不定。若 EventBus 模块未加载，事件发布为空操作，不影响 LoginView 正常运行。
-:::
+</Callout>
 
 ### publishedTopics 声明
 
@@ -77,9 +77,9 @@ LoginView 还通过 `SignalDispatchable` 派发信号，可供 QuestGPS、条件
 | `account_type` | 账号类型 ID：`microsoft` / `littleskin` / `offline` |
 | `account_type_display` | 账号类型中文展示名：`微软正版` / `LittleSkin` / `离线` |
 
-:::tip
+<Callout type="info">
 信号与 EventBus 事件的区别：信号通过 `SignalDispatchable` 派发，可供条件触发器（[Conditions](/docs/guide/conditions)）和任务系统使用；EventBus 事件供模块间直接监听。两者互不冲突，登录成功时同时触发。
-:::
+</Callout>
 
 ## Capability 注册
 
@@ -117,9 +117,9 @@ registerCapability(DatabaseMigratable.class, new DatabaseMigratable() {
 | `purgePlayerData(uuid)` | `int` | 删除指定玩家的数据，返回删除行数；失败返回 -1 |
 | `purgeAllPlayerData()` | `int` | 删除所有玩家数据，返回删除行数；失败返回 -1 |
 
-:::info
+<Callout type="info">
 LoginView 使用 `lower_name`（小写用户名）作为账户主键，不支持按 UUID 删除账户数据。`purgePlayerData` 会清理该玩家的 session 记录，但账户记录因无 UUID 字段而保留。`purgeAllPlayerData` 清空 accounts 和 sessions 两张表。
-:::
+</Callout>
 
 ## 宿主能力依赖
 
@@ -156,9 +156,9 @@ LoginView 依赖以下宿主服务，在 `startService` 中注入：
 
 standalone 模式下，登录 session 持久化到数据库 `sessions` 表。多服架构下，若各服共享同一数据库，玩家在 A 服登录后切换到 B 服可直接读取 session 免登录（需 `session-strict-ip: false` 或两服出口 IP 一致）。
 
-:::tip
+<Callout type="info">
 跨服场景推荐使用共享存储模式 + 同一 MySQL 数据库，确保 session 表全局共享。详见 [配置管理](/docs/loginview/configuration) 的 `storage` 节。
-:::
+</Callout>
 
 ## 数据库表结构
 
@@ -182,9 +182,9 @@ LoginView 使用两张表存储账户和会话数据，表名前缀由 `storage.
 | `migrated` | `INTEGER` / `TINYINT` | 是否从 AuthMe 迁移而来（0=否，1=是） |
 | `updated_at` | `BIGINT` | 更新时间戳（毫秒） |
 
-:::info
+<Callout type="info">
 `migrated` 字段标记从 AuthMe 导入的账户。当 `security.rehash-migrated-password-on-login: true` 时，迁移账户首次登录成功后密码哈希自动重写为 `AXS_PBKDF2_SHA256`，`migrated` 重置为 0，完全脱离 AuthMe。
-:::
+</Callout>
 
 ### sessions 表
 
@@ -198,9 +198,9 @@ LoginView 使用两张表存储账户和会话数据，表名前缀由 `storage.
 | `created_at` | `BIGINT` | 创建时间戳（毫秒） |
 | `expires_at` | `BIGINT` | 过期时间戳（毫秒） |
 
-:::tip
+<Callout type="info">
 每小时自动清理过期 session（`deleteExpiredSessions`）。`session-ttl-minutes: 0` 时不会写入 session 记录，每次进服都需重新登录。
-:::
+</Callout>
 
 ## 模块集成
 

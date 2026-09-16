@@ -114,9 +114,9 @@ public final class TooltipModule extends AbstractAXSModule implements ModuleComm
 | `/axs tooltip status` | `arcartxsuite.admin` | 无 | 查看模块缓存状态 |
 | `/axs tooltip` | `arcartxsuite.admin` | 无 | 无参数时默认显示 help |
 
-:::info
+<Callout type="info">
 无参数或未知子命令时，默认显示 `help` 内容。所有子命令均需 `arcartxsuite.admin` 权限。
-:::
+</Callout>
 
 ## 权限
 
@@ -124,9 +124,9 @@ public final class TooltipModule extends AbstractAXSModule implements ModuleComm
 |---|---|---|
 | `arcartxsuite.admin` | OP | 执行 Tooltip 管理命令所需权限 |
 
-:::tip
+<Callout type="info">
 `arcartxsuite.admin` 是 Suite 宿主的通用管理权限，所有模块的管理命令均使用此权限节点。
-:::
+</Callout>
 
 ## Tab 补全
 
@@ -158,9 +158,9 @@ Tooltip 模块**不注册** PlaceholderAPI 占位符。
 | PAPI 依赖 | 无（模块不依赖 PlaceholderAPI） |
 | 占位符注册 | 模块未实现 `createPlaceholderExpansion` |
 
-:::info
+<Callout type="info">
 Tooltip 模块的数据通过 `TooltipDataCapable` Capability 以编程方式提供，不通过 PAPI 占位符暴露。其他模块应通过 `getCapability(TooltipDataCapable.class)` 获取能力后调用 API 查询数据。详见 [联动](/docs/tooltip/integration)。
-:::
+</Callout>
 
 ## 玩家命令
 
@@ -246,9 +246,9 @@ public boolean handleClientPacket(@NotNull Player player, @NotNull String packet
 | 6. 异常处理 | 解析异常时静默处理，不抛出异常 |
 | 7. 返回 true | 消费此包，后续处理器不再接收 |
 
-:::tip
+<Callout type="info">
 包处理优先级为 50，高于默认值 0，确保 tooltip 数据在其他模块的包处理器之前缓存。这样依赖 tooltip 数据的模块在处理后续包时能立即读取到最新数据。
-:::
+</Callout>
 
 ### UI 包
 
@@ -261,6 +261,6 @@ Tooltip 模块**不发送** UI 包，不注册 UI 界面，不使用 `PacketBrid
 | 聊天卡片 | 无 |
 | HUD | 无 |
 
-:::info
+<Callout type="info">
 Tooltip 模块是纯数据桥接模块，不涉及任何 UI 渲染。tooltip 数据通过 Capability 提供给其他模块（如 Chat），由消费方模块负责 UI 展示。关于 UI 与图标系统的设计，详见 [/docs/guide/icons](/docs/guide/icons)。
-:::
+</Callout>

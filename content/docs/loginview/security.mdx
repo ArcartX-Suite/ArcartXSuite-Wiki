@@ -55,9 +55,9 @@ public boolean verify(String password, String storedHash, String algorithm) {
 }
 ```
 
-:::info
+<Callout type="info">
 所有验证方法均使用 `MessageDigest.isEqual` 进行常量时间比对，防止时序攻击。未知算法返回 `false`，拒绝登录。
-:::
+</Callout>
 
 ### 密码长度限制
 
@@ -108,9 +108,9 @@ private void recordFailure(Player player) {
 | `security.max-attempts` | `5` | 1~20 | 最大密码错误尝试次数 |
 | `security.kick-on-max-attempts` | `true` | - | 达到上限后是否踢出玩家 |
 
-:::warning
+<Callout type="warn">
 失败次数记录在内存中，玩家退出后自动清除（`onQuit` 事件）。服务器重启后所有失败计数归零。
-:::
+</Callout>
 
 ### 失败计数清除
 
@@ -158,9 +158,9 @@ for (String command : configuration.security().allowCommandsPrefix().split(","))
 }
 ```
 
-:::tip
+<Callout type="info">
 `allow-commands-prefix` 是前缀匹配，如配置 `login` 则 `/login`、`/loginview` 均允许。建议只放行登录相关命令，避免未登录玩家执行其他操作。
-:::
+</Callout>
 
 ### 移动锁定细节
 
@@ -199,9 +199,9 @@ if (!isAuthenticated(player)) {
 | 玩家退出 | `setInvulnerable(false)` | 离线时取消无敌 |
 | 服务关闭 | `setInvulnerable(false)` | 模块卸载时恢复所有在线玩家 |
 
-:::info
+<Callout type="info">
 无敌状态仅在未认证期间生效。正版免密玩家（bypass）打开 UI 时也会获得无敌，点击「进入服务器」后立即取消。
-:::
+</Callout>
 
 ## Session 持久化
 
@@ -280,9 +280,9 @@ cleanupTask = AxsScheduler.runAsyncTimer(plugin, () -> {
 DELETE FROM AXS_loginview_sessions WHERE expires_at <= ?
 ```
 
-:::tip
+<Callout type="info">
 `session-ttl-minutes: 0` 禁用 Session 持久化，每次进服都必须重新登录。适合高安全要求的服务器。
-:::
+</Callout>
 
 ### Session 数据结构
 
@@ -307,9 +307,9 @@ DELETE FROM AXS_loginview_sessions WHERE expires_at <= ?
 | 不同 IP 跨服 | `true` | 跨服免登录失效（IP 不匹配） |
 | 不同 IP 跨服 | `false` | 跨服免登录正常工作（不校验 IP） |
 
-:::warning
+<Callout type="warn">
 `session-strict-ip: true` 会校验 session 建立时的 IP 与当前 IP 是否一致。若玩家使用移动网络或 NAT 环境导致出口 IP 变化，需重新登录。跨服场景推荐设为 `false`。
-:::
+</Callout>
 
 ## 密码重置
 
@@ -378,9 +378,9 @@ online.sendMessage(color(messages.get("reset-notify-player")));  // 通知在线
 AxsScheduler.runTask(plugin, () -> openFor(online, true));  // 重新弹出登录界面
 ```
 
-:::info
+<Callout type="info">
 重置后新哈希始终使用 `AXS_PBKDF2_SHA256`，`migrated` 标记重置为 `0`。若玩家在线，会收到通知并自动弹出登录界面。
-:::
+</Callout>
 
 ## 信号与事件
 

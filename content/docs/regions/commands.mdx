@@ -91,9 +91,9 @@ Regions 模块通过 `/axs regions` 和 `/rg` 两个命令入口提供全部区�
 /rg addmember spawn g:vip
 ```
 
-:::info
+<Callout type="info">
 权限组通过 `axs.regions.group.<name>` 权限节点识别。玩家拥有该权限节点时被视为属于对应组，享受成员豁免。
-:::
+</Callout>
 
 #### `/rg parent`
 
@@ -132,9 +132,9 @@ Regions 模块通过 `/axs regions` 和 `/rg` 两个命令入口提供全部区�
 | `axs.essentials.fly.bypass` | op | 绕过世界规则禁飞限制 |
 | `axs.essentials.interact.bypass` | op | 绕过世界规则禁交互限制 |
 
-:::tip
+<Callout type="info">
 `axs.regions.bypass` 是全局保护绕过——拥有此权限的玩家在任何区域都不受标志限制。`axs.regions.bypass.limit` 仅绕过区域数量限制，不影响保护逻辑。
-:::
+</Callout>
 
 ## PlaceholderAPI 占位符
 
@@ -283,6 +283,6 @@ Regions 模块注册了两个 ArcartX UI 界面，通过 Packet Handler 实现�
 | `worlds` | `List<Map>` | 世界列表（`name`、`noFly`、`noPiston`、`interactions`） |
 | `worldCount` | `String` | 世界数量 |
 
-:::info
+<Callout type="info">
 UI 数据包通过 `PacketBridgeAPI` 发送，`PacketGuardAPI` 在路由层统一进行安全校验。客户端通过 `Packet.send(packetId, data)` 发送操作指令，服务端处理后通过 `init` 通道推送最新数据。
-:::
+</Callout>

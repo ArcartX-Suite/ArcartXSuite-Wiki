@@ -44,9 +44,9 @@ Tooltip 是 Suite 的客户端动态提示数据桥接模块。它接收客户�
 | 模块依赖 | 无 | - | Tooltip 不依赖任何其他模块即可独立运行 |
 | 外部依赖 | 无 | - | 无 PlaceholderAPI / Vault 等外部插件依赖 |
 
-:::info
+<Callout type="info">
 Tooltip 模块本身无任何模块依赖与外部插件依赖。其核心数据来源是客户端 ArcartX-Suite-Mod，服务端仅负责接收、缓存与提供查询。若客户端未安装 mod，模块仍可正常启动，但缓存为空，所有查询返回空值。
-:::
+</Callout>
 
 ## Tooltip 机制
 
@@ -74,9 +74,9 @@ Tooltip 模块本身无任何模块依赖与外部插件依赖。其核心数据
 | `data[2]` | tooltip 文本行 | JSON 数组字符串，包含 tooltip 每一行的文本 | `["§eAK47","§7伤害: §f15"]` |
 | `data[3]` | 结构化数据 | JSON 对象字符串，包含结构化属性字段 | `{"damage":15,"headshotMultiplier":2.0}` |
 
-:::tip
+<Callout type="info">
 `data[2]` 的文本行中可能包含 Minecraft 颜色码（`§` 前缀）。在 Lore 注入时，模块会自动将 `&` 颜色码转换为 `§` 颜色码。
-:::
+</Callout>
 
 ### 物品指纹机制
 
@@ -105,9 +105,9 @@ public static String fingerprint(@NotNull ItemStack itemStack) {
 | 玩家退出 | `PlayerQuitEvent`（MONITOR 优先级） | 立即删除该玩家的全部缓存数据 |
 | 模块卸载 | `stopService()` | 调用 `cleanup()` 清理全部缓存 |
 
-:::info
+<Callout type="info">
 缓存使用 `ConcurrentHashMap` 保证线程安全，无需异步调度。数据包处理同步执行，确保其他模块在查询时能立即获取最新数据。
-:::
+</Callout>
 
 ### Lore 注入机制
 
@@ -132,9 +132,9 @@ return clone;
 | 空值保护 | 物品为空 / 空气 / 无 ItemMeta 时返回原始物品 |
 | 异常保护 | 注入过程发生异常时返回原始物品，不抛出异常 |
 
-:::tip
+<Callout type="info">
 Lore 注入通常与 `ItemBridgeAPI.itemToJson` 配合使用：先注入 tooltip Lore，再序列化为 JSON 发送给客户端，使客户端 UI 能显示完整的动态物品信息。详见 [/docs/guide/icons](/docs/guide/icons)。
-:::
+</Callout>
 
 ### 与其他模块的关系
 
@@ -145,6 +145,6 @@ Tooltip 模块作为数据提供方，通过 `TooltipDataCapable` Capability 向
 | Chat | 聊天物品展示 `[item]` 时，从 Tooltip 获取物品 tooltip 文本行，注入 NBT Lore 后序列化发送给客户端 |
 | 其他模块 | 可通过 `getStructuredData` 获取结构化 JSON 数据，解析后用于业务逻辑（如枪械属性判定） |
 
-:::info
+<Callout type="info">
 Tooltip 模块不消费任何其他模块的 Capability，是纯提供方。模块加载顺序不影响其功能——消费方通过延迟查找 `getCapability(TooltipDataCapable.class)` 获取能力，若 Tooltip 未加载则返回 null，消费方降级处理。
-:::
+</Callout>

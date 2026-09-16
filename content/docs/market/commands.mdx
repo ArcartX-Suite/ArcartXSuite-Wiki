@@ -108,9 +108,9 @@ AXS Market 状态
 | `axsmarket.shop.legendary` | 系统商店商品购买权限（按商品配置） | 无 |
 | `axsmarket.shop.vip` | 系统商店商品购买权限（按商品配置） | 无 |
 
-:::tip
+<Callout type="info">
 权限节点在配置文件中自定义。`tax-discount` 和 `price-multiplier` 的键名即为权限节点，`discount` 的键名也是权限节点。你可以根据需要修改为任意权限节点。
-:::
+</Callout>
 
 ## PAPI 占位符
 
@@ -181,6 +181,6 @@ Market 模块所有 UI 通信通过统一的 packet ID `AXS_MARKET` 进行。客
 2. 附带的 token 与服务端签发的 token 一致
 3. 防止重放攻击（`actionTokensInFlight` 标记，操作完成后移除）
 
-:::info
+<Callout type="info">
 所有涉及交易操作的 packet 统一切到主线程串行执行，消除并发竞态（重复购买/限购绕过）与异步线程操作 Bukkit API 的风险。
-:::
+</Callout>

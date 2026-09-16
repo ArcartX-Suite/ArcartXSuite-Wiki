@@ -301,9 +301,9 @@ B 的 Jar 不需要依赖 A 的实现类，只需 `compileOnly` A 发布的 `api
 | 模块 `onDisable` | 宿主自动 `removeCapabilities(moduleId)` |
 | `/axs unload` | 同上，并关闭 ClassLoader |
 
-::: warning 不要在 onDisable 里留悬挂引用
+<Callout type="warn" title="不要在 onDisable 里留悬挂引用">
 使用方应把 Capability 引用置空；提供方无需手动 unregister（宿主会处理）。若你在静态字段缓存了 Capability，unload 后可能持有已失效对象。
-:::
+</Callout>
 
 ## 最佳实践 checklist
 

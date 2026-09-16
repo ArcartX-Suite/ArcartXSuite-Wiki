@@ -20,9 +20,9 @@ Chat 模块支持四种频道模式，由 `ChatChannelMode` 枚举定义：
 | 私聊 | `private` | `true` | 一对一私聊，`/msg` 与 `/reply` 复用此频道格式 |
 | 管理 | `staff` | `true` | 管理员内部频道，仅限有权限的玩家发送与接收 |
 
-:::info
+<Callout type="info">
 `cross-server` 字段未显式配置时，`global` 和 `staff` 模式默认开启跨服同步，`normal` 和 `private` 模式默认关闭。私聊频道虽然默认关闭跨服，但示例配置 `Private.yml` 中手动设为 `true`，确保私聊可跨服送达。
-:::
+</Callout>
 
 ### 模式解析逻辑
 
@@ -60,9 +60,9 @@ public static ChatChannelMode parse(String rawValue) {
 | `recipientFormat` | `String` | `&d[私聊 <- {player_name}] ...` | 私聊接收者视角格式模板 |
 | `spyFormat` | `String` | `&5[监听 {player_name} -> {target_name}] ...` | 监听视角格式模板 |
 
-:::tip
+<Callout type="info">
 `receivePermission` 未配置时自动继承 `sendPermission` 的值。如需让更多玩家能接收但仅少数能发送，可分别配置两个字段。
-:::
+</Callout>
 
 ## 频道加载机制
 
@@ -87,9 +87,9 @@ for (File file : files) {
 }
 ```
 
-:::caution
+<Callout type="warn">
 频道映射使用 `LinkedHashMap` 并在加载完成后冻结为不可变 Map。频道顺序按文件名字典序排列，不影响运行时行为，但决定了 `/chat channel` Tab 补全的候选顺序。
-:::
+</Callout>
 
 ## 范围聊天
 
@@ -115,9 +115,9 @@ if (localSender != null && channel.mode() == ChatChannelMode.NORMAL && channel.r
 | 同世界 | 距离平方 `<=` range² | 使用 `distanceSquared` 避免开方运算 |
 | `range = 0` | 不限制 | 全图广播（默认行为） |
 
-:::info
+<Callout type="info">
 范围聊天仅对 `normal` 模式生效。`global`、`staff` 模式忽略 `range` 字段，始终全服广播。`private` 模式不涉及范围判定。
-:::
+</Callout>
 
 ### 范围聊天配置示例
 
@@ -180,9 +180,9 @@ private boolean rememberEnvelope(String dedupeKey) {
 
 去重缓存 TTL 为 15 秒，超时自动清理。清理任务每 1200 tick（60 秒）执行一次。
 
-:::tip
+<Callout type="info">
 跨服转发需要宿主 `config.yml` 的 `cross-server` 节配置 Redis 或 Proxy 后端。单服无需开启。详见 [/docs/guide/conditions](/docs/guide/conditions)。
-:::
+</Callout>
 
 ## 权限模型
 
@@ -216,9 +216,9 @@ if (!channel.receivePermission().isBlank() && !recipient.hasPermission(channel.r
 }
 ```
 
-:::info
+<Callout type="info">
 发送者始终能看到自己发送的消息（`canReceivePublic` 中 `senderUuid.equals(recipient.getUniqueId())` 直接返回 `true`），不受接收权限限制。
-:::
+</Callout>
 
 ## 消息分发流程
 
@@ -270,9 +270,9 @@ if (!channel.receivePermission().isBlank() && !recipient.hasPermission(channel.r
 | 回复目标 | 不记录 | 双向记录 `replyTargets` |
 | EventBus | 发布 `axs.chat.chat_message_sent` | 不发布事件 |
 
-:::tip
+<Callout type="info">
 私聊消息使用三个格式模板分别渲染：发送者看到 `senderFormat`，接收者看到 `recipientFormat`，SocialSpy 监听者看到 `spyFormat`。控制台输出使用 `consoleFormat`。详见聊天格式化文档。
-:::
+</Callout>
 
 ## 默认频道
 
@@ -284,9 +284,9 @@ if (!channels.containsKey(defaultChannelId)) {
 }
 ```
 
-:::caution
+<Callout type="warn">
 如果频道目录为空（没有任何 `.yml` 文件），模块会输出警告日志 `ArcartXChat 未加载到任何频道定义`，此时所有聊天功能将不可用。
-:::
+</Callout>
 
 ## 频道切换
 
@@ -301,6 +301,6 @@ if (!channels.containsKey(defaultChannelId)) {
 
 频道切换不校验目标频道的 `receive-permission`，仅校验 `send-permission`。这意味着玩家可以切换到一个自己无法接收的频道（但发送时会被 `send-permission` 拦截）。
 
-:::info
+<Callout type="info">
 玩家状态持久化到 `chat_player_states` 表，包含当前频道 ID、私聊/提及/监听开关与忽略列表。详见 [/docs/guide/conditions](/docs/guide/conditions)。
-:::
+</Callout>

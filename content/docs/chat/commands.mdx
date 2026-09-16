@@ -68,9 +68,9 @@ Chat 模块注册了三个玩家命令，通过 `TabExecutor` 实现自动补全
 /msg Steve 你好，一起去挖矿吗？
 ```
 
-:::tip
+<Callout type="info">
 私聊消息使用私聊频道的 `sender-format`（发送者视角）和 `recipient-format`（接收者视角）渲染。如果私聊频道配置了 `cross-server: true` 且跨服通道活跃，私聊可跨服送达。
-:::
+</Callout>
 
 ### /reply 回复
 
@@ -82,9 +82,9 @@ Chat 模块注册了三个玩家命令，通过 `TabExecutor` 实现自动补全
 /reply 好的，马上过去
 ```
 
-:::info
+<Callout type="info">
 `/reply` 会自动回复最近一次私聊的对象。如果还没有私聊过任何人，会提示"当前没有可回复的私聊对象"。
-:::
+</Callout>
 
 ## 管理员命令
 
@@ -126,9 +126,9 @@ Chat 状态
 | 时长 | 是 | 禁言时长：`<数字><s\|m\|h\|d>` 或 `permanent` |
 | 原因 | 否 | 禁言原因，显示在禁言通知卡片中 |
 
-:::tip
+<Callout type="info">
 禁言后玩家会收到系统提示卡片（`axs_chat_system`），显示剩余时间与原因。如果卡片不可用，则回退为文本消息。
-:::
+</Callout>
 
 ### /axs chat unmute
 
@@ -156,9 +156,9 @@ Chat 状态
 | `arcartxsuite.chat.socialspy` | 使用 `/chat socialspy` 切换社交监听 | 管理员 |
 | `ArcartXSuite.chat.mute` | 使用 `/axs chat mute/unmute/spy` 管理命令 | 管理员 |
 
-:::info
+<Callout type="info">
 频道的 `send-permission` 和 `receive-permission` 可自定义权限节点。例如管理频道可设为 `ArcartXSuite.chat.mute`，仅管理员可发送和接收。
-:::
+</Callout>
 
 ## PlaceholderAPI 占位符
 
@@ -173,9 +173,9 @@ Chat 模块注册了 `axschat` 标识符的 PlaceholderAPI 扩展，提供以下
 | `%axschat_ignore_count%` | 当前玩家忽略列表数量 | `3` |
 | `%axschat_muted%` | 当前玩家是否处于禁言中 | `true` / `false` |
 
-:::tip
+<Callout type="info">
 频道格式模板、卡片文本和物品展示文本中的 PAPI 占位符会按聊天上下文（发送者玩家）解析。详见 [/docs/guide/conditions](/docs/guide/conditions)。
-:::
+</Callout>
 
 ## UI 包通信
 
@@ -201,9 +201,9 @@ Chat 模块通过 `PacketBridgeAPI` 与客户端 UI 通信，涉及以下包：
 | `axs_chat_system` | 服务端 → 客户端 | `type`（`mute`/`filter`）、`message`、`remaining`、`reason`、`mutedBy` | 系统提示卡片 |
 | `axs_item_preview` | 服务端 → 客户端 | `senderDisplayName`、`itemName`、`itemJson` | 物品预览卡片 |
 
-:::info
+<Callout type="info">
 卡片中 `msg0`~`msg9` 为消息文本的换行分段，服务端按 `max-line-width` 自动换行后推送。卡片宽度与高度由 UI 侧根据 Text 控件实际渲染尺寸自适应。详见 [/docs/guide/icons](/docs/guide/icons)。
-:::
+</Callout>
 
 ### @补全 Tab 补全包
 
@@ -216,6 +216,6 @@ Chat 模块通过 `PacketBridgeAPI` 与客户端 UI 通信，涉及以下包：
 
 玩家加入时，向所有在线玩家发送 `@新玩家名` 补全条目，并向新玩家发送所有在线玩家的 `@玩家名` 补全条目。玩家退出时，移除对应的补全条目。
 
-:::tip
+<Callout type="info">
 物品展示功能通过 `ItemBridgeAPI` 序列化物品为 JSON，并支持 `TooltipDataCapable` 注入动态 tooltip Lore。详见 [/docs/guide/item-sources](/docs/guide/item-sources)。
-:::
+</Callout>

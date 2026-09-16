@@ -105,9 +105,9 @@ Chat 模块的核心是 **频道（Channel）** 系统。每个频道是一个�
 | `{target_name}` | 私聊目标名称 |
 | `{message}` | 消息内容 |
 
-:::tip
+<Callout type="info">
 格式模板还支持 PlaceholderAPI 占位符，渲染时会按聊天上下文解析 PAPI。详见 [/docs/guide/conditions](/docs/guide/conditions)。
-:::
+</Callout>
 
 ### 频道加载机制
 
@@ -154,9 +154,9 @@ Chat 模块的核心是 **频道（Channel）** 系统。每个频道是一个�
 | `itemPreview` | 物品预览信息 |
 | `rawMessage` | 原始消息文本 |
 
-:::info
+<Callout type="info">
 跨服消息通过 `dedupeKey`（`originNodeId:messageId`）去重，避免同一消息被多个节点重复处理。信封 TTL 为 15 秒，超时自动清理。
-:::
+</Callout>
 
 ## 聊天卡片
 
@@ -180,6 +180,6 @@ Chat 模块通过 ArcartX 聊天卡片渲染特殊消息类型。卡片定义文
 - 服务端通过 `updatePlayers` 包推送在线玩家列表
 - 同时通过 Paper API（`addCustomChatCompletions`）或 NMS 发包注册 `@玩家名` 补全条目
 
-:::tip
+<Callout type="info">
 @补全功能兼容 Paper / Purpur（API 方式）和 Spigot / Mohist / Arclight（NMS 发包方式），自动选择可用策略。
-:::
+</Callout>

@@ -23,9 +23,9 @@ LoginView 模块的配置文件位于 `plugins/ArcartX-Suite/data/loginview/conf
 | `auth.mode` | string | `standalone` | 认证模式：`standalone`（独立账户库）或 `authme`（委托 AuthMe API） |
 | `auth.bypass-welcome.message` | string | `&a身份已验证，欢迎回来。` | 正版/LittleSkin 玩家绕过登录后的欢迎消息 |
 
-:::caution
+<Callout type="warn">
 `auth.mode=authme` 时必须安装 AuthMe 插件，否则模块不加载。standalone 模式不需要 AuthMe。
-:::
+</Callout>
 
 ## qq-binding QQ 绑定配置
 
@@ -60,13 +60,13 @@ qq-binding:
 | `ui.open-delay-ticks` | int | `20` | 玩家进服后延迟多少 ticks 弹出登录界面（20 ticks = 1 秒），范围 0~600 |
 | `ui.close-on-login` | boolean | `true` | 登录成功后是否自动关闭登录 UI |
 
-:::caution
+<Callout type="warn">
 `overwrite-ui-files: true` 会覆盖你在服务器上的自定义 UI 修改！仅在需要恢复默认 UI 时设为 `true`。
-:::
+</Callout>
 
-:::tip
+<Callout type="info">
 `ui-file` 支持两种内置风格：`login_view.yml`（紧凑面板）和 `login_view_menu.yml`（纯色块主菜单）。文件名必须以 `.yml` 结尾且不含路径分隔符，否则回退为 `login_view.yml`。
-:::
+</Callout>
 
 ## terms-of-service 服务条款配置
 
@@ -104,9 +104,9 @@ qq-binding:
 | `security.session-ttl-minutes` | int | `30` | 认证 session 有效期（分钟），有效期内重连或重启无需重新登录；设为 0 禁用持久化，范围 0~10080 |
 | `security.session-strict-ip` | boolean | `false` | 是否要求 session 绑定 IP（更严格但可能影响 NAT 切换/移动网络用户） |
 
-:::tip
+<Callout type="info">
 `session-ttl-minutes: 0` 表示每次进服都必须重新登录。`session-strict-ip: true` 会校验 session 建立时的 IP 与当前 IP 是否一致，防止 session 被盗用。
-:::
+</Callout>
 
 ## storage 数据存储配置
 
@@ -123,9 +123,9 @@ qq-binding:
 | `storage.mysql.password` | string | - | MySQL 密码 |
 | `storage.mysql.table-prefix` | string | `AXS_loginview_` | MySQL 表前缀 |
 
-:::tip
+<Callout type="info">
 `shared: true` 时，数据库连接由本体统一管控，各模块共用 `config.yml` 的 `storage` 节配置。性能更好，推荐使用。
-:::
+</Callout>
 
 ## authme-migration AuthMe 迁移配置
 
@@ -157,9 +157,9 @@ qq-binding:
 | `AUTHME_BCRYPT2Y` | BCrypt 2y 格式哈希 |
 | `AUTHME_SHA256` | AuthMe SHA-256 哈希（`$SHA$salt$hash` 格式） |
 
-:::warning
+<Callout type="warn">
 不支持的算法不会自动破解，请先在 AuthMe 侧转换或让玩家重置密码。导入后玩家首次用旧密码登录成功，若 `rehash-migrated-password-on-login: true`，密码将自动重写为 `AXS_PBKDF2_SHA256`。
-:::
+</Callout>
 
 ### JDBC 地址示例
 

@@ -14,9 +14,9 @@ LoginView 支持两种认证模式，通过 `auth.mode` 配置项切换。`stand
 | 独立模式 | `standalone` | AXS `accounts` 表 | `AXS_PBKDF2_SHA256` | 不需要 | 支持（`sessions` 表） |
 | 兼容模式 | `authme` | AuthMe 数据库 | AuthMe 配置的算法 | 必需 | 由 AuthMe 管理 |
 
-:::caution
+<Callout type="warn">
 `auth.mode=authme` 时必须安装 AuthMe 插件且插件已启用，否则 LoginView 模块不加载。`standalone` 模式完全独立运行，不需要 AuthMe。
-:::
+</Callout>
 
 ## standalone 独立模式
 
@@ -56,9 +56,9 @@ standalone 模式下的密码登录验证流程：
     → 记录失败次数 → 达到 max-attempts 踢出
 ```
 
-:::tip
+<Callout type="info">
 迁移账户（`migrated=1`）首次登录成功后自动重写哈希为 `AXS_PBKDF2_SHA256`，此后完全脱离 AuthMe 哈希验证。详见下文 [迁移后重哈希机制](#迁移后重哈希机制)。
-:::
+</Callout>
 
 ### 改密流程
 
@@ -121,9 +121,9 @@ public boolean initialize() {
   → 发送成功 result → 派发 login_success 信号
 ```
 
-:::info
+<Callout type="info">
 `authme` 模式下密码哈希、账户存储、Session 管理均由 AuthMe 负责，LoginView 仅提供 UI 界面和操作转发。`reset-password` 命令在此模式下不可用，需使用 AuthMe 自带命令。
-:::
+</Callout>
 
 ## AuthMe 数据迁移
 
@@ -176,9 +176,9 @@ authme-migration:
 | `columns.registration-date` | `regdate` | `registered_at` | 注册时间戳 |
 | `columns.last-login` | `lastlogin` | `last_login_at` | 最后登录时间戳 |
 
-:::info
+<Callout type="info">
 列名配置会经过 `sanitizeIdentifier` 清洗，防止 SQL 注入。若 AuthMe 使用了非默认列名，需在配置中修改对应映射。
-:::
+</Callout>
 
 ### 迁移 SQL
 
@@ -232,9 +232,9 @@ AuthMe 迁移完成: 扫描 256，可导入 240，跳过 16
 | 导入数 | 成功导入或可导入的记录数（含空名/空哈希跳过后的有效记录） |
 | 跳过数 | 因玩家名或密码哈希为空而跳过的记录数 |
 
-:::tip
+<Callout type="info">
 迁移过程中每 `batch-size` 条记录会向命令发送者上报进度，便于监控大批量迁移。
-:::
+</Callout>
 
 ### 迁移后安全操作
 
@@ -302,9 +302,9 @@ private boolean verifyAuthMeSha256(String password, String storedHash) {
 }
 ```
 
-:::warning
+<Callout type="warn">
 不支持的哈希算法不会自动破解。若 AuthMe 使用了非上述三种算法，请先在 AuthMe 侧转换为支持的算法，或让玩家通过 `reset-password` 命令重置密码。
-:::
+</Callout>
 
 ## 迁移后重哈希机制
 
@@ -338,9 +338,9 @@ if (account.migrated() && configuration.security().rehashMigratedPasswordOnLogin
 | `rehash-migrated-password-on-login: true` | 迁移账户首次登录后自动重写为 AXS 哈希（推荐） |
 | `rehash-migrated-password-on-login: false` | 迁移账户保持 AuthMe 哈希，每次登录使用对应算法验证 |
 
-:::tip
+<Callout type="info">
 推荐保持 `rehash-migrated-password-on-login: true`，迁移完成后所有账户逐步转为 AXS 哈希，可安全停用 AuthMe。若设为 `false`，迁移账户将永久依赖 AuthMe 哈希算法验证。
-:::
+</Callout>
 
 ## 模式选择建议
 

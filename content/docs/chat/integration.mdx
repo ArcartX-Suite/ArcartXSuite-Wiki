@@ -37,9 +37,9 @@ private void publishChatEvent(Player player, String channelId, String type) {
 }
 ```
 
-:::info
+<Callout type="info">
 EventBus 为延迟查找（`getCapability`），因模块加载顺序不定。若 EventBus 模块未加载，事件发布为空操作，不影响 Chat 正常运行。
-:::
+</Callout>
 
 ### publishedTopics 声明
 
@@ -71,9 +71,9 @@ registerCapability(ChatCardSendable.class, (player, cardId, data) ->
     cardBridge.sendChatCard(player, cardId, data));
 ```
 
-:::tip
+<Callout type="info">
 其他模块可通过 `getCapability(ChatCardSendable.class)` 获取此能力，向玩家发送自定义聊天卡片。
-:::
+</Callout>
 
 ### ChatMutable（提供方）
 
@@ -97,9 +97,9 @@ registerCapability(ChatCardSendable.class, (player, cardId, data) ->
 | `createdAt` | `Instant` | 禁言创建时间 |
 | `expiresAt` | `Instant` | 禁言过期时间，`null` 表示永久 |
 
-:::info
+<Callout type="info">
 Essentials 等模块可通过 `getCapability(ChatMutable.class)` 获取此能力，将自身的禁言命令委托给 Chat 模块统一处理。
-:::
+</Callout>
 
 ### PlayerDataPurgeable（提供方）
 
@@ -201,9 +201,9 @@ private boolean rememberEnvelope(String key) {
 }
 ```
 
-:::info
+<Callout type="info">
 跨服转发需要宿主 `config.yml` 的 `cross-server` 节配置 Redis 或 Proxy 后端。频道需配置 `cross-server: true` 才会跨服传输。
-:::
+</Callout>
 
 ## 数据库表结构
 
@@ -249,9 +249,9 @@ Chat 模块使用 4 张数据库表存储玩家数据，支持 SQLite 与 MySQL 
 | `last_server` | TEXT NOT NULL | VARCHAR(64) NOT NULL | 最后所在服务器 ID |
 | INDEX | `idx_chat_profiles_name` (last_known_name_lower) | 同左 | 名称查询索引 |
 
-:::tip
+<Callout type="info">
 `chat_player_profiles` 表用于跨服场景下按名称查找玩家 UUID。玩家加入 / 退出时自动更新档案。`findProfileByName` 通过 `last_known_name_lower` 索引实现不区分大小写的快速查询。
-:::
+</Callout>
 
 ## 模块集成
 
@@ -306,6 +306,6 @@ eventBus.subscribe("axs.chat.chat_message_sent", (player, payload) -> {
 });
 ```
 
-:::tip
+<Callout type="info">
 EventBus 事件的 `type` 字段当前值为 `channel`（频道消息）。私聊消息不发布 EventBus 事件。
-:::
+</Callout>

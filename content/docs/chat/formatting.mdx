@@ -39,9 +39,9 @@ public static String renderTemplate(
 }
 ```
 
-:::tip
+<Callout type="info">
 模板渲染支持 PlaceholderAPI 占位符，渲染时按聊天上下文（发送者玩家）解析 PAPI。详见 [/docs/guide/conditions](/docs/guide/conditions)。
-:::
+</Callout>
 
 ### 格式模板变量
 
@@ -65,9 +65,9 @@ public static String renderTemplate(
 | `{item_amount}` | 物品数量 | `1` |
 | `{item_material}` | 物品材质键 | `minecraft:diamond_sword` |
 
-:::info
+<Callout type="info">
 物品名称解析优先使用 `VanillaItemNameBridge`（支持原版中文名），不可用时回退到物品自定义名称，再回退到材质键格式化名称。详见 [/docs/guide/item-sources](/docs/guide/item-sources)。
-:::
+</Callout>
 
 ## 颜色代码
 
@@ -141,13 +141,13 @@ private String applyCustomComponents(String message) {
 }
 ```
 
-:::caution
+<Callout type="warn">
 `pattern` 必须是合法的 Java 正则表达式。非法正则会在加载时被跳过并输出警告日志 `ArcartXChat 自定义组件 '<id>' 正则非法，已跳过`。`replacement` 中的 `$` 和 `\` 具有特殊含义（反向引用），如需字面量请使用 `Matcher.quoteReplacement()` 转义。
-:::
+</Callout>
 
-:::info
+<Callout type="info">
 自定义组件按配置顺序依次应用，前一个组件的替换结果会作为后一个组件的输入。因此组件顺序可能影响最终结果。
-:::
+</Callout>
 
 ## 物品展示
 
@@ -219,9 +219,9 @@ HoverEvent hoverEvent = new HoverEvent(
 );
 ```
 
-:::tip
+<Callout type="info">
 物品展示功能通过 `ItemBridgeAPI` 序列化物品为 JSON，并支持 `TooltipDataCapable` 注入动态 tooltip Lore（如 TACZ 枪属性、Apotheosis affix）。详见 [/docs/guide/item-sources](/docs/guide/item-sources)。
-:::
+</Callout>
 
 ## 消息换行
 
@@ -288,9 +288,9 @@ static List<String> wrapText(String text, int maxLineWidth, int charWidthFull, i
 }
 ```
 
-:::info
+<Callout type="info">
 换行后的文本通过 `msg0`、`msg1`、... `msg9` 字段推送到聊天卡片。卡片宽度与高度由 UI 侧根据 Text 控件实际渲染尺寸自适应。详见 [/docs/guide/icons](/docs/guide/icons)。
-:::
+</Callout>
 
 ## 重复消息检测
 
@@ -312,9 +312,9 @@ public static String normalizeForDuplicateCheck(String message) {
 | 压缩空白 | 多个空白字符合并为单个空格 |
 | 转小写 | 不区分大小写比较 |
 
-:::tip
+<Callout type="info">
 重复检测窗口由 `settings.duplicate-window-millis` 配置（默认 4000 毫秒）。设为 0 可关闭重复检测。详见管理与审核文档。
-:::
+</Callout>
 
 ## 纯文本输出
 
