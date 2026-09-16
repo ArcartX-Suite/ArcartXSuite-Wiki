@@ -206,17 +206,34 @@ refreshChemdahTrackingPositions()
 | 清除追踪（`clearTrack`） | 关闭引导 UI |
 | 玩家退出（`PlayerQuitEvent`） | 清除追踪状态，关闭引导 UI |
 
-## AXMap 临时目标同步
+## Map 模块目标同步
 
-追踪任务/子任务时，QuestGPS 通过 `MapNavigable` Capability 向 AXMap 同步临时目标标记：
+QuestGPS 通过 `MapNavigable` Capability（公开 capability）与 Map 模块双向联动——地图负责展示与转发点击，导航执行仍在 QuestGPS：
 
 | 操作 | 方法 | 说明 |
 |---|---|---|
-| 同步目标 | `upsertExternalTarget` | 更新/插入临时目标（source = `questgps`） |
-| 清除目标 | `clearExternalTargets` | 清除 QuestGPS 来源的所有临时目标 |
-| 打开地图 | UI Packet `open_map` | 调用 `MapNavigable.openMenuFor` 打开 AXMap 菜单 |
+| 同步目标 | `reconcileExternalTargets` | 把所有进行中任务**原子替换**为地图外部目标（source = `questgps`），追踪中的任务 `navigated=true` |
+| 坐标跟随 | `upsertExternalTarget` | Chemdah tracker 动态坐标变化时更新目标坐标（`select=false`，不打断选中） |
+| 导航回调 | `registerNavigationSource` | 注册 `questgps` 来源的 `MapNavigationHandler`：面板"导航"→ `handleMapNavigateRequest`（任务级/子任务级追踪），"取消"→ `handleMapCancelRequest`（停止追踪，标记保留） |
+| 打开地图 | UI Packet `open_map` | 调用 `MapNavigable.openMenuFor` 打开地图菜单并选中目标 |
+| 清空目标 | `clearExternalTargets` | 模块卸载时清空 `questgps` 来源的全部目标 |
 
-> AXMap 不存在时导航功能正常运行，仅跳过地图标记同步。`map-label` 字段配置同步到地图的标签文本。
+### 同步时机
+
+| 触发 | 行为 |
+|---|---|
+| `QuestEvents.Accept.Post` / `Fail.Post` / `Complete.Post` | 重算该玩家目标集合并 reconcile |
+| 玩家进服 | 延迟 40 tick 后 reconcile（等待 Chemdah 数据就绪） |
+| Chemdah tracker 坐标刷新 | `positionListener` → `upsertExternalTarget` 更新坐标 |
+
+### 导航互斥
+
+同一时间一个玩家只有一个活跃导航：
+
+- QuestGPS 开始任务导航 → 调 `MapNavigable.clearTrack(player)` 静默清除地图自身的锚点/路径点导航
+- 地图开始锚点/路径点导航 → 发布 `axs.map.nav_started`，QuestGPS 订阅后调用 `onMapNavigationStarted` 停止任务导航（任务目标标记保留在地图上）
+
+> Map 模块不存在时导航功能正常运行，仅跳过地图标记同步。`map-label` 字段用作地图标记的标题（任务有描述时描述面板展示 `description`）。
 
 ## 导航状态管理
 
@@ -314,6 +331,6 @@ example_mainline_quest:
 | ArcartX Waypoint | 硬依赖 | 导航功能不可用（`navigationRuntimeReady` 返回 `false`） |
 | Adyeshach | 软依赖 | 导航标记关闭，路标导航正常 |
 | Chemdah Tracker API | 软依赖 | 回退 overlay 导航坐标 |
-| AXMap | 软依赖 | 跳过地图标记同步，导航正常 |
+| Map 模块 | 软依赖 | 跳过地图目标同步，导航正常 |
 
 > 导航运行时就绪状态可通过 `/axs questgps status` 查看 `导航就绪` 字段，或通过 UI Packet 的 `navigationReady` 字段获取。

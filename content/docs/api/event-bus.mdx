@@ -18,6 +18,8 @@ description: Suite 跨模块事件总线 API，支持主题发布/订阅、通�
 
 事件总线由宿主注册唯一实例，任何模块均可通过 `context.getCapability(EventBusCapability.class)` 获取并使用。
 
+`EventBusCapability` 标注了 `@PublicCapability`，**外部 Bukkit 插件**也可经 `AxsCapabilities.get(EventBusCapability.class)` 订阅/发布主题（如 `axs.map.nav_started`）。详见 [Capability 参考 - 公开 Capability](./capability#公开-capability外部插件入口)。
+
 ## 核心接口
 
 `EventBusCapability` 接口定义如下：

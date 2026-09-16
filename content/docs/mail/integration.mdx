@@ -84,41 +84,41 @@ MailSendResult result = mail.dispatchPreset(request);
 
 两个方法均可在任意线程调用（同步执行，内部落库阻塞至完成后返回）。调用方如需异步发送，请自行包异步任务。
 
-## AxsMailApi 公开服务
+## AxsMailService 公开服务
 
-Mail 模块还通过 Bukkit ServicesManager 和静态入口 `AxsMailApi` 对外提供更完整的邮件服务，面向外部 Bukkit 插件。所有方法返回 `CompletableFuture`，异步执行，不阻塞调用线程。
+Mail 模块还注册了 `AxsMailService` **公开 capability**（`@PublicCapability` + `@Stable`，`api.mail` 包），面向外部 Bukkit 插件提供更完整的邮件服务。所有方法返回 `CompletableFuture`，异步执行，不阻塞调用线程。
+
+> 旧的 `AxsMailApi` 静态门面与 Bukkit `ServicesManager` 注册均已移除，`AxsCapabilities.get()` 是唯一入口。
 
 ### 获取方式
 
-```java
-// 方式一：静态入口
-if (!AxsMailApi.isReady()) return;
-AxsMailService service = AxsMailApi.service();
+外部 Bukkit 插件（`plugin.yml` 声明 `depend: [ArcartXSuite]` 或 `softdepend`，构建时 `compileOnly` 依赖 axs-api）：
 
-// 方式二：Bukkit ServicesManager
-RegisteredServiceProvider<AxsMailService> reg =
-    Bukkit.getServicesManager().getRegistration(AxsMailService.class);
-if (reg == null) return;
-AxsMailService service = reg.getProvider();
+```java
+AxsMailService service = AxsCapabilities.get(AxsMailService.class);
+if (service == null) return; // mail 模块未启用
 ```
+
+AXS 模块内部经 `getCapability(AxsMailService.class)` 获取同一实例（统一入口，无双通道）。
 
 ### 接口方法
 
-| 方法 | 说明 |
-|---|---|
-| `send(AxsMailRequest)` | 发送系统邮件（含物品/货币/命令附件） |
-| `sendDurable(AxsMailRequest)` | 恢复持久化的邮件发送意图（当前与 send 行为一致） |
-| `getMail(UUID, long)` | 查询单封邮件 |
-| `getInbox(UUID, AxsMailQuery)` | 查询收件箱列表 |
-| `getUnreadCount(UUID)` | 查询未读数量 |
-| `markRead(UUID, long)` | 标记邮件为已读 |
-| `claim(UUID, long)` | 领取邮件附件（需玩家在线） |
-| `delete(UUID, long)` | 删除邮件（受附件保护约束） |
+| 方法 | 返回 | 说明 |
+|---|---|---|
+| `send(AxsMailRequest)` | `CompletableFuture<AxsDeliveryReceipt>` | 发送系统邮件（含物品/货币/命令附件），支持 `idempotencyKey` 去重 |
+| `sendDurable(AxsMailRequest)` | `CompletableFuture<AxsDeliveryReceipt>` | 恢复持久化的邮件发送意图（当前与 send 行为一致） |
+| `getMail(UUID, long)` | `CompletableFuture<AxsMailView>` | 查询单封邮件 |
+| `getInbox(UUID, AxsMailQuery)` | `CompletableFuture<List<AxsMailView>>` | 查询收件箱列表 |
+| `getUnreadCount(UUID)` | `CompletableFuture<Integer>` | 查询未读数量 |
+| `markRead(UUID, long)` | `CompletableFuture<AxsMailView>` | 标记邮件为已读 |
+| `claim(UUID, long)` | `CompletableFuture<AxsClaimResult>` | 领取邮件附件（物品附件需玩家在线） |
+| `delete(UUID, long)` | `CompletableFuture<AxsDeleteResult>` | 删除邮件（受附件保护约束） |
 
 ### 使用示例
 
 ```java
-AxsMailService service = AxsMailApi.service();
+AxsMailService service = AxsCapabilities.get(AxsMailService.class);
+if (service == null) return;
 
 // 发送邮件
 AxsMailRequest request = AxsMailRequest.builder()
@@ -147,6 +147,8 @@ service.getUnreadCount(playerUuid).thenAccept(count -> {
     // count 为未读数
 });
 ```
+
+> **不要在 Bukkit 主线程 `join()`/`get()`**——用 `thenAccept`/`whenComplete` 回调处理结果。
 
 ## 跨服同步
 

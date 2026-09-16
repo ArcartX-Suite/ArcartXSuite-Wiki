@@ -13,6 +13,8 @@ QuestGPS 是 Suite 的任务导航模块，将 Chemdah 任务系统的数据桥�
 
 此外，QuestGPS 还提供主线门禁机制：未完成指定主线任务前，可锁定部分分类 Tab、拦截特定命令、锁定其他模块入口和 EventPacket 事件规则，实现新手引导式的玩法限制。
 
+如果你只需要**任务面板与追踪HUD**，可以前往 ArcartX 官方购买官方付费插件 [**ChemdahView**](https://arcartx.com/resources/242/)。
+
 ## 功能特性
 
 | 特性 | 说明 |
@@ -23,7 +25,7 @@ QuestGPS 是 Suite 的任务导航模块，将 Chemdah 任务系统的数据桥�
 | 任务发现模式 | `overlay`（白名单，仅 `quests/*.yml` 登记的任务进菜单）或 `auto`（扫描全部 Chemdah 模板） |
 | 三态分页 | 可接取（AVAILABLE）、进行中（ACTIVE）、已完成（COMPLETED）三个页面，自动按任务状态分桶 |
 | 任务接取/放弃 | 通过 UI Packet 触发 Chemdah 任务接取/放弃，支持 `allow-abandon` 开关控制是否允许放弃 |
-| 任务追踪 | 追踪任务级或子任务级目标，同步到 ArcartX waypoint 路标导航和 AXMap 临时目标 |
+| 任务追踪 | 追踪任务级或子任务级目标，同步到 ArcartX waypoint 路标导航和 Map 模块外部目标 |
 | 路标导航 | 通过 ArcartX waypoint 系统创建路标，在客户端显示方向指引 |
 | 路径寻路 | A* 寻路算法，沿路径放置导航标记模型，支持路径间距/最大数量/最大距离/最大迭代次数配置 |
 | 导航标记 | 使用 Adyeshach 私有实体 + ArcartX 模型渲染客户端导航标记，零服务端 tick 开销 |
@@ -42,13 +44,13 @@ QuestGPS 是 Suite 的任务导航模块，将 Chemdah 任务系统的数据桥�
 |---|---|---|
 | 外部硬依赖 | Chemdah | 任务系统提供方，QuestGPS 读取 Chemdah 任务模板与玩家档案 |
 | 外部软依赖 | Adyeshach | 导航标记模型渲染（不可用时关闭标记功能，路标导航仍可用） |
-| ArcartX 模块（可选） | AXMap | 导航目标同步到地图模块的临时标记 |
+| ArcartX 模块（可选） | Map | 导航目标同步到地图模块的外部目标，地图面板"导航/取消"转发回 QuestGPS |
 | ArcartX 模块（可选） | EventPacket | 任务生命周期信号桥接，信号派发后由 EventPacket 规则引擎执行动作 |
 | ArcartX 模块（可选） | Announcer | 门禁拦截时播放字幕提示 |
 | ArcartX 模块（可选） | Chat | 门禁拦截时发送聊天卡片 |
 | ArcartX 模块（可选） | Title | 称号奖励预览渲染 |
 
-> 模块本身仅硬依赖 Chemdah。AXMap、EventPacket、Announcer、Chat、Title 等模块不存在时对应功能自动降级或跳过。
+> 模块本身仅硬依赖 Chemdah。Map、EventPacket、Announcer、Chat、Title 等模块不存在时对应功能自动降级或跳过。
 
 ## 任务机制详解
 

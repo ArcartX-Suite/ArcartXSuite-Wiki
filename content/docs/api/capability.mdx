@@ -33,6 +33,41 @@ if (title != null) {
 }
 ```
 
+## 公开 Capability：外部插件入口
+
+`context.getCapability()` 仅供 AXS 模块内部使用。面向**外部 Bukkit 插件**，Suite 提供统一静态门面 `AxsCapabilities`，并配合 `@PublicCapability` 注解做可见性过滤：
+
+- 只有标注 `@PublicCapability` 的接口才能被 `AxsCapabilities.get()` 返回；未标记的类型对外一律返回 `null`（模块内部 `getCapability` 不受限）
+- 宿主启动时把门面直连 `ModuleRegistry` 的 capability 注册表；模块热卸载后对应 capability 自动摘除，`get()` 返回 `null`
+- 公开 capability 的约定：入参用富对象（spec/record），阻塞操作返回 `CompletableFuture`
+
+### 当前公开的 Capability
+
+| 接口 | 提供方 | 用途 |
+|------|--------|------|
+| `MapNavigable` | map | 地图外部目标推送、导航回调注册、导航互斥 |
+| `QuestGpsNavigable` | questgps | 任务推送/接取/追踪/门禁检查 |
+| `EventBusCapability` | 宿主 | EventBus 主题 pub/sub |
+| `AxsMailService` | mail | 邮件发送/查询/领取/删除（全异步 API） |
+
+> `MailDispatchable` 等其余接口为内部专用，外部插件调用 `AxsCapabilities.get()` 会返回 `null`。
+
+### 外部插件接入
+
+插件 `plugin.yml` 声明 `depend: [ArcartXSuite]`（或 `softdepend`），构建时 `compileOnly` 依赖 `axs-api`：
+
+```java
+MapNavigable map = AxsCapabilities.get(MapNavigable.class);
+if (map != null) {
+    map.openMenuFor(player, targetId);
+}
+```
+
+- `AxsCapabilities.get(Class)` — 返回实现实例；类型未公开、未注册或本体未就绪时返回 `null`
+- `AxsCapabilities.has(Class)` — 判断指定公开 capability 当前是否可用
+
+外部插件无需再为每个模块编写 `AxsXxxApi` 静态门面，`AxsCapabilities` 是唯一入口。
+
 ## 内置 Capability 接口
 
 ### TitleGrantable
@@ -65,7 +100,7 @@ public interface TitleConfigQueryable {
 
 ### MailDispatchable
 
-邮件发送能力。由 Mail 模块实现。两个方法均可在任意线程调用（同步执行，内部落库阻塞至完成后返回）。
+邮件发送能力（**内部专用**，未标记 `@PublicCapability`，外部插件请使用 `AxsMailService`）。由 Mail 模块实现。两个方法均可在任意线程调用（同步执行，内部落库阻塞至完成后返回）。
 
 ```java
 public interface MailDispatchable {
@@ -78,6 +113,27 @@ public interface MailDispatchable {
 - `dispatchPreset` — 按预设模板发送邮件，收件人用玩家名（支持离线玩家）
 
 Mail 模块未启用时返回 `failure`，调用方应自行降级处理。
+
+### AxsMailService
+
+邮件公开服务接口（**公开 capability**，`@PublicCapability` + `@Stable`）。由 Mail 模块实现，面向外部 Bukkit 插件。所有方法返回 `CompletableFuture`，异步执行——不要在 Bukkit 主线程 `join()`/`get()`，应用 `thenAccept`/`whenComplete` 回调。
+
+```java
+// 获取（外部插件唯一入口；AXS 模块内部用 getCapability(AxsMailService.class) 取同一实例）
+AxsMailService service = AxsCapabilities.get(AxsMailService.class);
+if (service == null) return; // mail 模块未启用
+```
+
+| 方法 | 返回 | 说明 |
+|------|------|------|
+| `send(AxsMailRequest)` | `CompletableFuture<AxsDeliveryReceipt>` | 发送系统邮件（含物品/货币/命令附件），`idempotencyKey` 去重 |
+| `sendDurable(AxsMailRequest)` | `CompletableFuture<AxsDeliveryReceipt>` | 恢复持久化的发送意图（当前与 `send` 行为一致） |
+| `getMail(UUID, long)` | `CompletableFuture<AxsMailView>` | 查询玩家单封邮件 |
+| `getInbox(UUID, AxsMailQuery)` | `CompletableFuture<List<AxsMailView>>` | 查询收件箱 |
+| `getUnreadCount(UUID)` | `CompletableFuture<Integer>` | 查询未读数 |
+| `markRead(UUID, long)` | `CompletableFuture<AxsMailView>` | 标记已读并返回详情 |
+| `claim(UUID, long)` | `CompletableFuture<AxsClaimResult>` | 领取全部可领附件（物品附件需玩家在线） |
+| `delete(UUID, long)` | `CompletableFuture<AxsDeleteResult>` | 删除邮件（有未领取受保护附件时拒绝） |
 
 ### ChatCardSendable
 
@@ -139,21 +195,57 @@ public interface CombatEffectTriggerable {
 
 ### MapNavigable
 
-地图导航能力。由 Map 模块实现。
+地图导航能力（**公开 capability**，`@PublicCapability` + `@Stable`）。由 Map 模块实现。地图是展示层与事件源：来源推送外部目标、接收导航点击回调，导航的实际执行（信标、路径标记、追踪状态）由来源全权负责。
 
 ```java
 public interface MapNavigable {
-    void upsertExternalTarget(Player player, String targetId, String source,
-        String worldId, double x, double y, double z,
-        String displayName, String iconId, boolean select);
+    void upsertExternalTarget(Player player, MapExternalTargetSpec spec, boolean select);
+    void upsertExternalTargets(Player player, List<MapExternalTargetSpec> specs);
+    void reconcileExternalTargets(Player player, String source, List<MapExternalTargetSpec> specs);
     void clearExternalTargets(Player player, String source, boolean syncView);
-    void openMenuFor(Player player, String waypointId);
+    void setExternalNavigated(Player player, String targetId, boolean navigated);
+    void registerNavigationSource(Plugin owner, String source, MapNavigationHandler handler);
+    void unregisterNavigationSource(String source);
+    void clearTrack(Player player);
+    void openMenuFor(Player player, String targetId);
 }
 ```
 
+| 方法 | 说明 |
+|------|------|
+| `upsertExternalTarget` | 新增/更新单个外部目标（紫色标记，不占玩家路径点上限），`select=true` 时切到目标世界并选中 |
+| `upsertExternalTargets` | 批量推送外部目标，一次视图同步 |
+| `reconcileExternalTargets` | 用给定集合**原子替换**某来源的全部目标：单次同步、仍存在的目标选中态不闪断；空列表 = 清空该来源 |
+| `clearExternalTargets` | 清除指定来源的所有外部目标（`source` 为空串 = 全部来源） |
+| `setExternalNavigated` | 来源回推导航状态，驱动面板"导航 ↔ 取消"按钮切换 |
+| `registerNavigationSource` | 按 `source` 注册导航回调；玩家点击该来源目标的"导航/取消"时回调；`owner` 插件禁用时自动注销 |
+| `unregisterNavigationSource` | 注销指定来源的导航回调 |
+| `clearTrack` | 清除玩家当前的地图导航（锚点/路径点追踪）——来源开始自身导航时调用，实现导航互斥 |
+| `openMenuFor` | 打开地图并选中目标；`targetId` 依次匹配外部目标 → 路径点 → 标记点，未命中时按世界 ID 兜底打开 |
+
+`MapExternalTargetSpec` 为 record：`targetId` / `source` / `worldId` / `title` / `description` / `x` / `y` / `z` / `iconId` / `navigated` / `sortOrder`（有省略后三个字段的便捷构造）。
+
+`MapNavigationHandler` 回调接口：
+
+```java
+public interface MapNavigationHandler {
+    boolean onNavigateRequest(Player player, String targetId); // true=已接管；false=提示导航失败
+    default void onCancelRequest(Player player, String targetId) {} // 停止自身导航，标记保留
+}
+```
+
+监测事件（EventBus 主题，可经 `EventBusCapability` 订阅）：
+
+| 主题 | 触发时机 |
+|------|----------|
+| `axs.map.nav_started` | 玩家开始地图导航（payload 含 `type`/`id`/`world`）——来源应停止自身导航实现互斥 |
+| `axs.map.nav_cleared` | 玩家停止地图导航 |
+| `axs.map.external_navigate` | 面板点击外部目标"导航"（转发回调的同时发布，供监测/兜底） |
+| `axs.map.external_nav_cancel` | 面板点击外部目标"取消" |
+
 ### QuestGpsNavigable
 
-任务导航能力。由 QuestGPS 模块实现。
+任务导航能力（**公开 capability**）。由 QuestGPS 模块实现，外部插件经 `AxsCapabilities.get(QuestGpsNavigable.class)` 获取。
 
 ```java
 public interface QuestGpsNavigable {
@@ -287,19 +379,22 @@ if (bus != null) {
 
 ## 内置 Capability 能力图
 
-| Capability 接口 | 提供模块 | 典型使用方 | 用途 |
-|-----------------|----------|------------|------|
-| `TitleGrantable` | title | eventpacket, battlepass | 发放称号 |
-| `TitleConfigQueryable` | title | tab, chat | 查询称号元数据 |
-| `MailDispatchable` | mail | eventpacket, onlinerewards | 发送邮件 |
-| `SubtitlePlayable` | announcer | eventpacket | 播放字幕组 |
-| `ChatCardSendable` | chat | eventpacket | 发送聊天卡片 |
-| `ChatMutable` | chat | essentials | 禁言/解禁 |
-| `QuestGpsNavigable` | questgps | eventpacket | 任务导航 |
-| `MapNavigable` | map | questgps | 地图外部导航点 |
-| `TabRefreshable` | tab | title, chat | 刷新 Tab 列表 |
-| `CombatEffectTriggerable` | combateffect | eventpacket, prop | 触发战斗特效 |
-| `SignalDispatchable` | eventpacket | onlinerewards, afkreward | 触发规则引擎信号 |
-| `EventBusCapability` | 宿主 | market, qqbot, 第三方 | 主题 pub/sub |
-| `PlayerDataPurgeable` | 多模块 | 宿主 `/axs purge` | 清除玩家数据 |
-| `DatabaseMigratable` | 多模块 | 宿主 `/axs migrate` | 跨库迁移 |
+| Capability 接口 | 提供模块 | 公开 | 典型使用方 | 用途 |
+|-----------------|----------|------|------------|------|
+| `TitleGrantable` | title | — | eventpacket, battlepass | 发放称号 |
+| `TitleConfigQueryable` | title | — | tab, chat | 查询称号元数据 |
+| `AxsMailService` | mail | ✅ | 外部插件 | 邮件发送/查询/领取/删除 |
+| `MailDispatchable` | mail | — | eventpacket, onlinerewards | 发送邮件（内部） |
+| `SubtitlePlayable` | announcer | — | eventpacket | 播放字幕组 |
+| `ChatCardSendable` | chat | — | eventpacket | 发送聊天卡片 |
+| `ChatMutable` | chat | — | essentials | 禁言/解禁 |
+| `QuestGpsNavigable` | questgps | ✅ | eventpacket, 外部插件 | 任务导航 |
+| `MapNavigable` | map | ✅ | questgps, 外部插件 | 地图外部导航点 |
+| `TabRefreshable` | tab | — | title, chat | 刷新 Tab 列表 |
+| `CombatEffectTriggerable` | combateffect | — | eventpacket, prop | 触发战斗特效 |
+| `SignalDispatchable` | eventpacket | — | onlinerewards, afkreward | 触发规则引擎信号 |
+| `EventBusCapability` | 宿主 | ✅ | market, qqbot, 第三方/外部插件 | 主题 pub/sub |
+| `PlayerDataPurgeable` | 多模块 | — | 宿主 `/axs purge` | 清除玩家数据 |
+| `DatabaseMigratable` | 多模块 | — | 宿主 `/axs migrate` | 跨库迁移 |
+
+> "公开" = 标注 `@PublicCapability`，外部 Bukkit 插件可通过 `AxsCapabilities.get()` 获取；其余仅限 AXS 模块内部 `getCapability` 使用。

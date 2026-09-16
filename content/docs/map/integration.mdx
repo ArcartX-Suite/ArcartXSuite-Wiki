@@ -1,6 +1,6 @@
 ---
 title: 联动
-description: Map 模块跨模块联动、Capability 与数据库表结构
+description: Map 模块跨模块联动、公开 Capability、EventBus 主题与数据库表结构
 ---
 
 # 联动
@@ -9,43 +9,78 @@ description: Map 模块跨模块联动、Capability 与数据库表结构
 
 Map 模块在 `startService()` 中注册以下 Capability，供其他模块跨模块调用：
 
-### MapNavigable
+### MapNavigable（公开）
 
-地图导航能力接口，供 QuestGPS 等外部模块向地图注入临时导航目标。
+地图导航能力接口，标注 `@PublicCapability` + `@Stable`——AXS 模块内部经 `getCapability(MapNavigable.class)` 获取，**外部 Bukkit 插件经 `AxsCapabilities.get(MapNavigable.class)` 获取**（插件需 `depend: [ArcartXSuite]` 或 `softdepend`）。
+
+定位：地图是**展示层与事件源**。来源（QuestGPS / 外部插件）推送外部目标供玩家浏览，玩家点击"导航/取消"时回调来源的 `MapNavigationHandler`，导航的实际执行由来源全权负责。
 
 | 方法 | 参数 | 说明 |
 |---|---|---|
-| `upsertExternalTarget` | `Player`, `String targetId`, `String source`, `String worldId`, `double x`, `double y`, `double z`, `String displayName`, `String iconId`, `boolean select` | 新增或更新外部导航目标，可选自动选中 |
-| `clearExternalTargets` | `Player`, `String source`, `boolean syncView` | 按来源清除玩家的所有外部导航目标（source 为空时清除全部） |
-| `openMenuFor` | `Player`, `String waypointId` | 为玩家打开地图菜单 |
+| `upsertExternalTarget` | `Player`, `MapExternalTargetSpec spec`, `boolean select` | 新增/更新单个外部目标；`select=true` 切到目标世界并选中 |
+| `upsertExternalTargets` | `Player`, `List<MapExternalTargetSpec>` | 批量推送外部目标，一次视图同步 |
+| `reconcileExternalTargets` | `Player`, `String source`, `List<MapExternalTargetSpec>` | 用给定集合原子替换该来源全部目标：单次同步、仍存在的目标选中态不闪断；空列表 = 清空该来源 |
+| `clearExternalTargets` | `Player`, `String source`, `boolean syncView` | 按来源清除外部目标（`source` 为空串 = 全部来源） |
+| `setExternalNavigated` | `Player`, `String targetId`, `boolean navigated` | 来源回推导航状态，驱动面板"导航 ↔ 取消"按钮 |
+| `registerNavigationSource` | `Plugin owner`, `String source`, `MapNavigationHandler` | 注册来源导航回调；`owner` 插件禁用时自动注销 |
+| `unregisterNavigationSource` | `String source` | 注销来源导航回调 |
+| `clearTrack` | `Player` | 静默清除地图自身导航——来源开始自身导航时调用，实现导航互斥 |
+| `openMenuFor` | `Player`, `String targetId` | 打开地图并选中目标；依次匹配外部目标 → 路径点 → 标记点，未命中按世界 ID 兜底打开 |
 
-#### 调用示例
+#### MapExternalTargetSpec
+
+外部目标规格 record，字段：`targetId` / `source` / `worldId` / `title` / `description` / `x` / `y` / `z` / `iconId` / `navigated` / `sortOrder`（另有省略 `iconId`/`navigated`/`sortOrder` 的便捷构造）。
+
+#### MapNavigationHandler
 
 ```java
-// 获取 MapNavigable 能力
-MapNavigable mapNavigable = getCapability(MapNavigable.class);
-if (mapNavigable != null) {
-    // 向玩家推送任务导航目标
-    mapNavigable.upsertExternalTarget(
-        player,
-        "quest_boss_001",
-        "QuestGPS",
-        "world",
-        128.5, 64.0, -42.0,
-        "击杀世界Boss",
-        null,
-        true
-    );
+public interface MapNavigationHandler {
+    /** 玩家点击"导航"时回调；返回 true 表示已接管，false 提示"来源未提供导航支持" */
+    boolean onNavigateRequest(Player player, String targetId);
 
-    // 清除 QuestGPS 来源的所有外部目标
-    mapNavigable.clearExternalTargets(player, "QuestGPS", true);
-
-    // 为玩家打开地图菜单
-    mapNavigable.openMenuFor(player, "");
+    /** 玩家点击"取消"时回调；来源应停止自身导航，目标标记保留 */
+    default void onCancelRequest(Player player, String targetId) {}
 }
 ```
 
-> 外部目标的 `source` 字段标识来源模块，用于按来源批量清除。`select` 为 `true` 时自动切换到目标所在世界并选中该目标。
+#### 导航互斥约定
+
+同一时间一个玩家只有一个活跃导航：
+
+- 来源开始自身导航 → 调 `clearTrack(player)` 静默清除地图导航
+- 地图开始锚点/路径点导航 → 发布 `axs.map.nav_started`，来源应订阅并停止自身导航
+
+#### 调用示例（外部插件）
+
+```java
+MapNavigable map = AxsCapabilities.get(MapNavigable.class);
+if (map == null) return; // Map 模块未启用
+
+// 注册来源回调（插件 disable 时自动注销）
+map.registerNavigationSource(this, "myplugin", new MapNavigationHandler() {
+    @Override public boolean onNavigateRequest(Player p, String targetId) {
+        startMyNavigation(p, targetId);          // 自行创建信标/路径标记
+        map.setExternalNavigated(p, targetId, true); // 回推状态 → 面板按钮变"取消"
+        map.clearTrack(p);                        // 互斥：清掉地图自身导航
+        return true;
+    }
+    @Override public void onCancelRequest(Player p, String targetId) {
+        stopMyNavigation(p);
+        map.setExternalNavigated(p, targetId, false);
+    }
+});
+
+// 推送目标（批量推荐 reconcile，原子替换）
+map.reconcileExternalTargets(player, "myplugin", List.of(
+    new MapExternalTargetSpec("target-1", "myplugin", "world",
+        "击杀世界Boss", "限时目标", 128.5, 64.0, -42.0, null, false, 0)
+));
+
+// 打开地图并选中目标
+map.openMenuFor(player, "target-1");
+```
+
+> `upsertExternalTarget`/`reconcile`/`clearExternalTargets`/`openMenuFor` 为同步主线程操作；`registerNavigationSource`/`unregisterNavigationSource` 线程安全。
 
 ### PlayerDataPurgeable
 
@@ -54,10 +89,10 @@ if (mapNavigable != null) {
 | 方法 | 参数 | 说明 |
 |---|---|---|
 | `moduleId` | — | 返回模块 ID `map` |
-| `purgePlayerData` | `UUID playerUuid` | 清除指定玩家的全部地图数据（解锁记录 + 路径点），返回删除行数 |
+| `purgePlayerData` | `UUID playerUuid` | 清除指定玩家的全部地图数据（解锁记录 + 路径点 + 标记点），返回删除行数 |
 | `purgeAllPlayerData` | — | 清除所有玩家的全部地图数据，返回删除行数 |
 
-> `purgePlayerData` 在事务中删除 `AXS_map_unlocks` 和 `AXS_map_waypoints` 两表中该玩家的所有记录。失败时返回 `-1`。
+> `purgePlayerData` 在事务中删除 `AXS_map_unlocks`、`AXS_map_waypoints`、`AXS_map_pins` 三表中该玩家的所有记录。失败时返回 `-1`。
 
 ### DatabaseMigratable
 
@@ -71,25 +106,36 @@ if (mapNavigable != null) {
 
 > 迁移时支持从 SQLite 迁移到 MySQL 或反向迁移，`overwrite` 为 `true` 时覆盖目标库已有数据。
 
+## EventBus 主题
+
+Map 模块向 EventBus 发布以下主题，其他模块/外部插件可经 `EventBusCapability` 订阅：
+
+| 主题 | 触发时机 | Payload |
+|---|---|---|
+| `axs.map.nav_started` | 玩家开始锚点/路径点导航 | `type`（anchor/waypoint）、`id`、`world_id` |
+| `axs.map.nav_cleared` | 玩家停止地图导航 | `type`、`id`、`world_id`、`reason`（来源接管时为 `source_took_over`） |
+| `axs.map.external_navigate` | 面板点击外部目标"导航"（转发回调的同时发布） | `target_id`、`source`、`world_id` |
+| `axs.map.external_nav_cancel` | 面板点击外部目标"取消" | `target_id`、`source`、`world_id` |
+
 ## 跨服同步
 
-Map 模块的配置文件支持 `SyncPolicy`，以下段标记为动态段，可在跨服环境下同步配置：
+Map 模块的配置文件支持 `SyncPolicy`，`ArcartXMap.yml` 中以下段标记为动态段，可在跨服环境下同步配置：
 
 | 同步段 | 说明 |
 |---|---|
-| `worlds` | 世界定义（动态段，跨服同步） |
+| `worlds` | 世界定义（动态段，跨服同步；仅内联兼容格式生效） |
 | `anchors` | 锚点定义（动态段，跨服同步） |
 | `waypoints` | 路径点配置（动态段，跨服同步） |
 
-> 其他配置段（`ui`、`keybinds`、`join`、`storage`、`navigation` 等）为静态段，各服独立加载。
+> 其他配置段（`ui`、`join`、`storage`、`navigation`、`share` 等）为静态段，各服独立加载。注意：实际生效的世界/锚点定义位于 `worlds/` 目录的独立文件中，不受 `ArcartXMap.yml` 节级同步覆盖——多服部署需自行保持各服 `worlds/` 文件一致。
 
 ## 数据库表结构
 
-Map 模块使用两张表存储玩家数据，表名前缀取决于存储模式。
+Map 模块使用三张表存储玩家数据，表名前缀取决于存储模式。
 
 ### 共享模式表名
 
-共享模式下使用本体统一表前缀，表名固定为 `AXS_map_unlocks` 和 `AXS_map_waypoints`。
+共享模式下使用本体统一表前缀，表名固定为 `AXS_map_unlocks`、`AXS_map_waypoints`、`AXS_map_pins`。
 
 ### 自建模式表名
 
@@ -113,6 +159,7 @@ Map 模块使用两张表存储玩家数据，表名前缀取决于存储模式�
 | `uuid` | `TEXT NOT NULL` | `VARCHAR(36) NOT NULL` | 玩家 UUID |
 | `waypoint_id` | `TEXT NOT NULL` | `VARCHAR(128) NOT NULL` | 路径点 ID |
 | `name` | `TEXT NOT NULL` | `VARCHAR(128) NOT NULL` | 路径点名称 |
+| `description` | `TEXT NOT NULL` | `TEXT NOT NULL` | 描述 |
 | `world` | `TEXT NOT NULL` | `VARCHAR(64) NOT NULL` | 所在世界 ID |
 | `x` | `REAL NOT NULL` | `DOUBLE NOT NULL` | X 坐标 |
 | `y` | `REAL NOT NULL` | `DOUBLE NOT NULL` | Y 坐标 |
@@ -120,6 +167,21 @@ Map 模块使用两张表存储玩家数据，表名前缀取决于存储模式�
 | `created_at` | `INTEGER NOT NULL` | `BIGINT NOT NULL` | 创建时间戳（毫秒） |
 | `updated_at` | `INTEGER NOT NULL` | `BIGINT NOT NULL` | 更新时间戳（毫秒） |
 | **主键** | `(uuid, waypoint_id)` | `(uuid, waypoint_id)` | 联合主键 |
+
+#### AXS_map_pins（玩家标记点）
+
+| 列 | SQLite 类型 | MySQL 类型 | 说明 |
+|---|---|---|---|
+| `uuid` | `TEXT NOT NULL` | `VARCHAR(36) NOT NULL` | 玩家 UUID |
+| `pin_id` | `TEXT NOT NULL` | `VARCHAR(128) NOT NULL` | 标记点 ID |
+| `name` | `TEXT NOT NULL` | `VARCHAR(128) NOT NULL` | 名称 |
+| `description` | `TEXT NOT NULL` | `TEXT NOT NULL` | 描述 |
+| `world` | `TEXT NOT NULL` | `VARCHAR(64) NOT NULL` | 所在世界 ID |
+| `x` | `REAL NOT NULL` | `DOUBLE NOT NULL` | X 坐标 |
+| `z` | `REAL NOT NULL` | `DOUBLE NOT NULL` | Z 坐标 |
+| `created_at` | `INTEGER NOT NULL` | `BIGINT NOT NULL` | 创建时间戳（毫秒） |
+| `updated_at` | `INTEGER NOT NULL` | `BIGINT NOT NULL` | 更新时间戳（毫秒） |
+| **主键** | `(uuid, pin_id)` | `(uuid, pin_id)` | 联合主键 |
 
 > MySQL 表使用 `ENGINE=InnoDB DEFAULT CHARSET=utf8mb4`。SQLite 使用 `INSERT OR IGNORE` / `ON CONFLICT` 语法，MySQL 使用 `INSERT IGNORE` / `ON DUPLICATE KEY UPDATE` 语法实现原子 upsert。
 
@@ -129,11 +191,21 @@ Map 模块使用两张表存储玩家数据，表名前缀取决于存储模式�
 
 | 联动方式 | 说明 |
 |---|---|
-| 外部目标注入 | QuestGPS 追踪任务/子任务时，通过 `MapNavigable.upsertExternalTarget` 向地图注入临时导航目标（source = `QuestGPS`） |
-| 清除目标 | QuestGPS 清除追踪时调用 `clearExternalTargets` 移除 QuestGPS 来源的临时目标 |
-| 打开地图 | QuestGPS UI Packet `open_map` 操作调用 `MapNavigable.openMenuFor` 打开 Map 菜单 |
+| 外部目标注入 | QuestGPS 通过 `MapNavigable.reconcileExternalTargets` 把进行中任务原子同步为地图外部目标（source = `questgps`），任务接取/失败/完成/进服时刷新 |
+| 坐标跟随 | Chemdah tracker 动态坐标变化 > 0.5 格时经 `upsertExternalTarget` 更新目标坐标 |
+| 导航回调 | QuestGPS 注册 `MapNavigationHandler`：面板"导航"→ `trackQuest`/`trackTask`，"取消"→ 停止追踪（标记保留） |
+| 导航互斥 | QuestGPS 起导航调 `clearTrack`；地图起导航发布 `axs.map.nav_started`，QuestGPS 订阅后停止自身任务导航 |
+| 打开地图 | QuestGPS UI `open_map` 操作调用 `MapNavigable.openMenuFor` 打开 Map 菜单并选中目标 |
 
 > Map 模块不存在时 QuestGPS 导航功能正常运行，仅跳过地图标记同步。
+
+### Chat（点位分享）
+
+| 联动方式 | 说明 |
+|---|---|
+| 分享卡片 | `share_waypoint` / `share_pin` 通过 Chat 模块的 `ChatCardSendable` 发送 `axs_map_share` 卡片到聊天栏 |
+| 卡片领取 | 卡片按钮触发 `claim_share` packet 领取点位（不经 actionToken，分享码即凭据） |
+| 文本降级 | 卡片不可用时降级为文本广播 + `share-claim-button` 点击文本 |
 
 ### ArcartX Waypoint
 
@@ -143,7 +215,7 @@ Map 模块使用两张表存储玩家数据，表名前缀取决于存储模式�
 | 样式解析 | 路标样式 ID 优先使用 `navigation.waypoint-style-id`，回退到 `waypoints.default-style-id` |
 | 初始化 | 模块启动时调用 `waypointBridge.initialize("Map 导航")` 初始化路标系统 |
 
-> ArcartX Waypoint 不存在时导航功能不可用（`waypointRuntimeReady` 返回 `false`），但地图菜单和 HUD 正常使用。
+> ArcartX Waypoint 不存在时锚点/路径点导航不可用（`waypointRuntimeReady` 返回 `false`），但地图菜单、HUD 与外部目标转发正常使用。
 
 ### Adyeshach
 
@@ -154,6 +226,13 @@ Map 模块使用两张表存储玩家数据，表名前缀取决于存储模式�
 | Debug 模式 | `debug: true` 时 Adyeshach 桥接开启调试日志 |
 
 > Adyeshach 不存在时导航标记功能自动关闭（`navigation.marker.enabled` 仍可设为 `true`，但运行时检测不可用后跳过），路标导航不受影响。
+
+### Multiverse-Core
+
+| 联动方式 | 说明 |
+|---|---|
+| 世界显示名 | 世界文件 `display-name` 留空时，用 Multiverse colourless alias 自动补齐 |
+| 小地图世界名 | `map_hud.yml` 用 `Placeholder.parse("%multiverse-core_alias%")` 显示当前世界名 |
 
 ### Vault / 货币系统
 
@@ -182,8 +261,9 @@ Map 模块使用两张表存储玩家数据，表名前缀取决于存储模式�
 |---|---|
 | UI 注册 | 通过 `registerModuleUi` 注册地图菜单和小地图 HUD 两个 UI |
 | Packet 通讯 | 通过 `PacketBridgeAPI` 向客户端 UI 发送 `init`/`update` 包 |
-| Packet 安全 | 通过 `PacketGuardAPI` 对客户端 Packet 进行权限校验 |
-| 客户端初始化 | 通过 `ClientInitializedHandler` 监听客户端初始化完成，触发默认解锁和 HUD 显示 |
+| Packet 安全 | 通过 `PacketGuardAPI` 对客户端 Packet 进行权限校验（在路由层统一调用） |
+| 客户端初始化 | 通过 `ClientInitializedHandler` 监听客户端初始化完成，触发自动解锁和 HUD 显示 |
+| 按键绑定 | 打开地图/切换小地图按键由宿主 `config.yml` 的 `keybinds` 节统一注册 |
 | 物品源 | 通过 `ItemSourceRegistry` 获取物品源 |
 | 物品匹配 | 通过 `ItemMatcherAPI` 进行物品匹配 |
 | 调度器 | 通过 `AxsScheduler` 执行延迟任务（如入服 HUD 延迟显示） |
@@ -196,5 +276,6 @@ Map 模块内置配置迁移脚本，自动将旧版本配置升级到当前版�
 |---|---|
 | 1 → 2 | `client` 节的 UI 配置字段（`menu-ui-id`/`hud-ui-id`/`packet-id`/`register-ui-on-enable`/`overwrite-ui-files`）整体迁移到统一 `ui` 节，移除 `client` 节 |
 | 2 → 3 | `storage.mode` 重命名为 `storage.shared`，值从 `sqlite`/`mysql` 映射为 `true`/`false`；`storage.shared` 缺失时设为 `true` |
+| 3 → 4 | 移除全局 `default-unlocks` 节，自动解锁改为 `worlds/<world>.yml` 锚点的 `unlock.default` / `unlock.on-permission` |
 
 > 迁移脚本位于 `resources/migrations/` 目录，模块启动时自动检测 `config-version` 并按序执行迁移。

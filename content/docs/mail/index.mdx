@@ -9,6 +9,10 @@ description: Mail 邮件系统功能概览
 
 Mail 是 Suite 的全功能邮件系统模块，提供 **收件箱**、**玩家写信**、**预设邮件**、**CDK 兑换** 四合一邮件服务。模块通过 ArcartX UI 实现全图形化交互，支持物品附件、多货币附件、领取条件、内容审核、跨服同步等高级功能，并可被其他模块通过 `MailDispatchable` Capability 调用发送奖励邮件。
 
+如果你只需要**收件箱**，可以前往 ArcartX 官方购买[**高级会员**](https://arcartx.com/resources/67/)获取插件 [**SystemMail**](https://arcartx.com/resources/238/)。
+
+Suite 支持将 SystemMail 作为邮件后端：未启用本模块时，其他模块的邮件发送请求会自动降级转发给 SystemMail 投递，详见下方「SystemMail 降级模式」。
+
 | 属性 | 值 |
 |---|---|
 | 模块 ID | `mail` |
@@ -20,6 +24,40 @@ Mail 是 Suite 的全功能邮件系统模块，提供 **收件箱**、**玩家�
 | 模块依赖 | 无（本体内置 API 即可运行） |
 | 配置版本 | 2 |
 | 数据库表前缀 | `mail_`（共享模式无前缀） |
+
+## SystemMail 降级模式
+
+当服务器**未启用本模块（mail）但安装了 SystemMail 插件**时，宿主会自动注册一个降级适配器（`SystemMailMailDispatchable`），把 `MailDispatchable` Capability 指向 SystemMail——所有依赖邮件发送能力的模块会**无感知地**改用 SystemMail 投递邮件，收件、查看、领取由 SystemMail 自身的收件箱提供。
+
+### 工作原理
+
+1. **自动检测**：宿主在模块加载前检测 SystemMail 是否已安装且 API 就绪（`SystemMailApi.isReady()`）
+2. **注册降级适配器**：检测通过即注册为 `MailDispatchable` 核心 Capability，控制台输出 `检测到 SystemMail 插件，已注册邮件降级适配器（MailDispatchable → SystemMail）`
+3. **模块无感知接管**：所有通过 `MailDispatchable.sendMail()` 发邮件的功能自动改走 SystemMail，模块侧零配置。涵盖 BattlePass 赛季奖励、Market 到期退回、OnlineRewards 在线奖励、EntityTracker Boss 结算、Fishing 奖励、Lottery 奖品、EventPacket 事件邮件、QQBot 通知等
+4. **本模块优先**：mail 模块正常加载时会覆盖降级适配器，所有邮件回到 AXS 邮箱，SystemMail 适配器不再生效；此时 SystemMail 自身的邮件仍保留在其收件箱中，两套邮箱互不影响
+
+### 发送内容映射
+
+| Suite 邮件字段 | SystemMail 字段 | 说明 |
+|---|---|---|
+| `sourceModule` + `sourceDetail` + 收件人 | `idempotencyKey` | 去重标识，同一业务动作不重复投递 |
+| 收件人 UUID | `recipient` | 离线玩家也可投递 |
+| 标题 / 正文 | `title` / `content` | 直接映射 |
+| 发件人名称 | `senderName` | |
+| 来源模块 | `sourcePlugin` | 未指定时默认为 `ArcartXSuite` |
+| 过期时间 | `expireAt` | |
+| 物品附件 | `item` | ✅ 完整转发 |
+| 货币附件 | — | ❌ **跳过不发送**：SystemMail 的货币 provider 标识与 Suite 货币 ID 不一定一致，为避免错误发放直接跳过 |
+| 预设派发 `dispatchPreset` | — | ❌ 返回失败，预设是 Mail 模块专属功能，SystemMail 无对应概念 |
+
+### 限制与注意事项
+
+- **货币附件会丢失**：降级模式下邮件中的货币附件（含 Vault 金币）不会发放，玩家只收到标题、正文和物品附件。依赖货币奖励的场景建议安装本模块
+- **预设派发不可用**：`dispatchPreset` 直接返回失败（`SystemMail 不支持预设派发`），依赖预设的模块需自行降级处理
+- **仅接管发送能力**：写信界面、AXS 收件箱 UI、预设、CDK、邮件日志、领取条件等均为本模块功能，降级模式下全部不可用
+- **启动时检测一次**：适配器仅在宿主启动时注册。若启动日志未出现降级适配器提示，请检查 SystemMail 是否正常启用，并保证其先于 Suite 完成启用
+
+> 降级适配基于 SystemMail 1.0.0 API（`priv.seventeen.artist.arcartx.systemmail.api`）构建。SystemMail 的 `send` 为异步接口，适配器最多阻塞等待 5 秒；超时将乐观返回成功，实际投递由 SystemMail 在后台完成。
 
 ## 功能特性
 
@@ -40,7 +78,7 @@ Mail 是 Suite 的全功能邮件系统模块，提供 **收件箱**、**玩家�
 | 自动清理 | 按保留天数自动清理过期、已领取和已删除邮件，定时任务周期可配置 |
 | 通知卡片 | 新邮件到达时在聊天栏显示 ArcartX 卡片通知，支持自动换行 |
 | 二级密码 | 写信时消费宿主二级密码能力，已设置密码的玩家需先解锁才能寄信 |
-| 公开 API | 通过 `AxsMailApi` 和 ServicesManager 对外提供邮件发送/查询/领取/删除接口 |
+| 公开 API | 注册 `AxsMailService` 公开 capability，外部插件经 `AxsCapabilities.get()` 调用邮件发送/查询/领取/删除接口 |
 | 数据迁移 | 支持 `DatabaseMigratable` 能力，可通过 `/axs migrate` 跨源数据库迁移 |
 | 数据清理 | 支持 `PlayerDataPurgeable` 能力，可通过 `/axs purge` 统一清理玩家数据 |
 

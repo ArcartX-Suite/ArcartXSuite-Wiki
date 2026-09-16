@@ -163,7 +163,7 @@ QuestGPS 的配置文件为 `config.yml`，位于模块数据目录下。任务�
 | `navigation.point.z` | `double` | — | Z 坐标 |
 | `navigation.point.title` | `String` | `""` | 路标标题 |
 | `navigation.point.style-id` | `String` | `""` | 路标样式 ID（覆盖全局 `waypoint-style-id`） |
-| `navigation.point.map-label` | `String` | `""` | 同步到 AXMap 的标签 |
+| `navigation.point.map-label` | `String` | `""` | 同步到地图模块外部目标的标题 |
 
 ## 目标配置
 
@@ -180,7 +180,7 @@ QuestGPS 的配置文件为 `config.yml`，位于模块数据目录下。任务�
 | `tasks.<id>.navigation.z` | `double` | — | Z 坐标 |
 | `tasks.<id>.navigation.title` | `String` | `""` | 路标标题 |
 | `tasks.<id>.navigation.style-id` | `String` | `""` | 路标样式 ID |
-| `tasks.<id>.navigation.map-label` | `String` | `""` | AXMap 标签 |
+| `tasks.<id>.navigation.map-label` | `String` | `""` | 地图标记标题 |
 
 > 子目标导航点会覆盖任务级 `navigation.point`。hybrid 模式下 Chemdah tracker 坐标优先。
 

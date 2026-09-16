@@ -1,73 +1,81 @@
 ---
 title: 锚点系统
-description: 锚点定义、解锁费用、传送机制、权限控制与默认解锁规则
+description: 锚点定义、解锁费用、传送机制、权限控制、自动解锁与点亮区域
 ---
 
 # 锚点系统
 
 ## 概述
 
-锚点是 Map 模块的核心功能之一，表示地图上可解锁、可传送的标记点。每个锚点绑定一个世界坐标，玩家可通过消耗货币和物品解锁锚点，解锁后可消耗货币传送到锚点位置。
+锚点是 Map 模块的核心功能之一，表示地图上可解锁、可传送的标记点。每个锚点绑定一个世界坐标，玩家可通过消耗货币和物品解锁锚点，解锁后可消耗货币传送到锚点位置。锚点还可配置点亮区域，解锁后在小地图上照亮对应范围（战争迷雾）。
 
 锚点功能涉及以下组件：
 
 | 组件 | 类 | 职责 |
 |---|---|---|
-| 锚点定义 | `AnchorDefinition` | 配置层，描述锚点的坐标、费用、权限等 |
+| 锚点定义 | `AnchorDefinition` | 配置层，描述锚点的坐标、费用、权限、自动解锁与点亮区域 |
 | 锚点存储 | `JdbcMapRepository` | 持久化锚点解锁记录到 `AXS_map_unlocks` 表 |
-| 解锁逻辑 | `MapService.unlockAnchorInternal()` | 费用检查、原子插入、回滚机制 |
-| 传送逻辑 | `MapService.teleportAnchorInternal()` | 权限校验、货币消耗、Bukkit 传送 |
+| 解锁逻辑 | `MapService.unlockAnchor()` | 费用检查、原子插入、回滚机制 |
+| 传送逻辑 | `MapService.teleportAnchor()` | 权限校验、货币消耗、Bukkit 传送 |
 | 费用格式化 | `MapService.formatUnlockCostText()` | 生成 UI 显示的费用文本 |
 
-> 锚点定义存储在 `data/map/anchors/` 目录下的 YAML 文件中，`anchors` 节在 `configSpec()` 中声明为 `dynamicSection`，用户可自由增删锚点条目。
+> 锚点定义在各世界文件 `data/map/worlds/<世界ID>.yml` 的 `anchors` 节中，**不再有独立的 `anchors/` 目录**，锚点所属世界由所在文件名决定。
 
 ## 锚点定义
 
 ### 文件结构
 
-锚点定义文件位于 `data/map/anchors/` 目录，每个 `*.yml` 文件可包含多个锚点，根键即为锚点 ID。模块启动时按文件名字母顺序加载目录下所有 `.yml` 文件。
+锚点定义写在 `worlds/<世界ID>.yml` 的 `anchors` 节下，每个根键为锚点 ID：
 
 ```yaml
-# data/map/anchors/default.yml
-spawn:
-  enabled: true
-  display-name: "新手村"
-  world: "world"
-  x: 0
-  y: 80
-  z: 0
-  description: "所有玩家默认可见的主城锚点。"
-  permission: ""
-  sort-order: 0
-  unlock-currencies: []
-  teleport-currencies:
-    - currency: "money"
-      amount: 10
-  unlock-items: []
+# data/map/worlds/world.yml
+enabled: true
+display-name: "主世界"
 
-mine:
-  enabled: true
-  display-name: "矿洞入口"
-  world: "world"
-  x: 128
-  y: 64
-  z: -42
-  description: "示例锁定锚点，演示货币 + 物品解锁。"
-  permission: ""
-  sort-order: 10
-  unlock-currencies:
-    - currency: "money"
-      amount: 200
-    - currency: "points"
-      amount: 5
-  teleport-currencies:
-    - currency: "money"
-      amount: 30
-  unlock-items:
-    - amount: 2
-      matcher:
-        material-ids:
-          - "ender_pearl"
+anchors:
+  spawn:
+    enabled: true
+    display-name: "新手村"
+    x: 0
+    y: 80
+    z: 0
+    description: "所有玩家默认可见的主城锚点。"
+    permission: ""
+    sort-order: 0
+    unlock:
+      default: true          # 所有玩家进服自动免费解锁
+      on-permission: false
+    unlock-currencies: []
+    teleport-currencies:
+      - currency: "money"
+        amount: 10
+    unlock-items: []
+    light-radius: 100        # 解锁后点亮半径 100 范围
+
+  mine:
+    enabled: true
+    display-name: "矿洞入口"
+    x: 128
+    y: 64
+    z: -42
+    description: "示例锁定锚点，演示货币 + 物品解锁。"
+    permission: ""
+    sort-order: 10
+    unlock-currencies:
+      - currency: "money"
+        amount: 200
+      - currency: "points"
+        amount: 5
+    teleport-currencies:
+      - currency: "money"
+        amount: 30
+    unlock-items:
+      - amount: 2
+        matcher:
+          material-ids:
+            - "ender_pearl"
+    light-region:
+      points: [[100, -70], [160, -70], [160, -10], [100, -10]]
 ```
 
 ### 字段说明
@@ -76,22 +84,25 @@ mine:
 |---|---|---|---|
 | `enabled` | `boolean` | `true` | 是否启用此锚点 |
 | `display-name` | `String` | 锚点 ID | 在地图上显示的名称 |
-| `world` | `String` | `""` | 所在世界名（对应 Bukkit world name，不区分大小写） |
-| `x` / `y` / `z` | `double` | `0` | 锚点在世界中的坐标 |
+| `x` / `y` / `z` | `double` | `0` | 锚点坐标（世界由所在文件名决定） |
 | `description` | `String` | `""` | 锚点描述文本，显示在详情面板 |
 | `permission` | `String` | `""` | 使用此锚点所需权限（留空 = 无限制） |
 | `sort-order` | `int` | 当前锚点数 | 排序权重（越小越靠前） |
+| `unlock.default` | `boolean` | `false` | 所有玩家进服时自动免费解锁 |
+| `unlock.on-permission` | `boolean` | `false` | 拥有 `permission` 权限的玩家进服时自动免费解锁 |
 | `unlock-currencies` | `List` | `[]` | 解锁需消耗的货币列表 |
 | `teleport-currencies` | `List` | `[]` | 传送需消耗的货币列表 |
 | `unlock-items` | `List` | `[]` | 解锁需消耗的物品列表 |
+| `light-region.points` | `List` | — | 点亮多边形顶点 `[[x,z],...]`（至少 3 点） |
+| `light-radius` | `double` | `0` | 以锚点为中心的圆形点亮半径（方块数） |
 
-> 锚点 ID 不区分大小写，内部统一转换为小写存储。同一个锚点 ID 在不同文件中定义时，后加载的文件会覆盖先加载的。
+> 锚点 ID 不区分大小写，内部统一转换为小写存储。同一锚点 ID 在多个世界文件中定义时，后加载的文件覆盖先加载的（按文件名字母序）。
+>
+> 不配 `light-region` 和 `light-radius` = 该锚点不参与点亮。
 
-### 锚点目录
-
-锚点目录路径通过 `config.yml` 的 `anchors-directory` 配置项指定（默认 `anchors`），相对模块数据目录 `data/map/`。
-
-模块启动时检查目录是否存在，不存在则自动创建并导出默认锚点文件 `default.yml`。若目录下已有 `.yml` 或 `.yaml` 文件，则不再导出默认文件。
+<Callout type="warn">
+`unlock.on-permission: true` 但锚点未设置 `permission` 时，自动解锁不会生效，模块启动时会输出警告日志。注意：**解锁记录 ≠ 使用权限**——`unlock.default` 自动解锁的玩家若锚点配了 `permission`，仍需有权限才能传送。
+</Callout>
 
 ## 解锁机制
 
@@ -101,7 +112,7 @@ mine:
 玩家点击「解锁」按钮
   └→ UI 发送 unlock_anchor Packet（含 action_token）
        └→ MapUiPacketHandler.beginActionToken() 校验 token
-       └→ MapService.unlockAnchorInternal()
+       └→ MapService.unlockAnchor()
             1. 验证锚点存在且未已解锁
             2. 验证权限与世界配置
             3. 预检物品消耗（prepareItemConsumption）
@@ -119,7 +130,7 @@ mine:
 | 锚点是否存在 | `未找到锚点: {0}` | 锚点 ID 在配置中不存在 |
 | 是否已解锁 | `该锚点已解锁。` | 玩家已解锁过此锚点 |
 | 权限检查 | `你没有使用该锚点的权限。` | `permission` 字段非空且玩家无权限 |
-| 世界配置 | `锚点所在世界未配置地图: {0}` | 锚点的 `world` 不在 `worlds` 配置中 |
+| 世界配置 | `锚点所在世界未配置地图: {0}` | 锚点所在世界未配置 |
 | 物品预检 | `缺少解锁所需物品。` | 背包中匹配物品不足 |
 | 货币余额 | `余额不足: {0}` | 货币余额低于解锁费用 |
 | 货币桥接 | `货币桥接不可用: {0}` | 货币系统未安装或不可用 |
@@ -160,7 +171,7 @@ UI 详情面板显示的解锁费用文本由 `formatUnlockCostText()` 生成：
 玩家点击「传送」按钮
   └→ UI 发送 teleport_anchor Packet（含 action_token）
        └→ MapUiPacketHandler.beginActionToken() 校验 token
-       └→ MapService.teleportAnchorInternal()
+       └→ MapService.teleportAnchor()
             1. 验证锚点存在且已解锁
             2. 验证权限与世界配置
             3. 检查目标世界是否已加载
@@ -177,19 +188,14 @@ UI 详情面板显示的解锁费用文本由 `formatUnlockCostText()` 生成：
 | 锚点是否存在 | `未找到锚点: {0}` | 锚点 ID 在配置中不存在 |
 | 是否已解锁 | `该锚点尚未解锁。` | 玩家未解锁此锚点 |
 | 权限检查 | `你没有使用该锚点的权限。` | `permission` 字段非空且玩家无权限 |
-| 世界配置 | `锚点所在世界未配置地图: {0}` | 锚点的 `world` 不在 `worlds` 配置中 |
+| 世界配置 | `锚点所在世界未配置地图: {0}` | 锚点所在世界未配置 |
 | 世界加载 | `目标世界当前未加载: {0}` | `Bukkit.getWorld()` 返回 `null` |
 | 货币余额 | `余额不足: {0}` | 货币余额低于传送费用 |
 | 传送执行 | `传送失败，请稍后重试。` | `Player.teleport()` 返回 `false` |
 
 ### 传送坐标
 
-传送目标坐标为锚点定义的 `x` / `y` / `z`，保留玩家当前的 `yaw` 和 `pitch`：
-
-```java
-new Location(world, anchor.x(), anchor.y(), anchor.z(),
-    player.getLocation().getYaw(), player.getLocation().getPitch())
-```
+传送目标坐标为锚点定义的 `x` / `y` / `z`，保留玩家当前的 `yaw` 和 `pitch`。
 
 ### 传送费用文本
 
@@ -251,7 +257,7 @@ unlock-items:
 | `amount` | `int` | 最小 1 | 消耗数量 |
 | `matcher` | `ItemMatcher` | 非空匹配器 | 物品匹配器配置 |
 
-> 物品匹配器配置参考 /docs/guide/item-sources 中的物品匹配器语法。空匹配器（`emptyMatcher() == true`）的条目会被忽略。
+> 物品匹配器配置参考 /docs/guide/item-sources 中的物品匹配器语法。空匹配器的条目会被忽略。
 
 ### 物品消耗机制
 
@@ -278,93 +284,71 @@ unlock-items:
 
 权限检查在解锁和传送操作中均会执行。无权限时提示「你没有使用该锚点的权限」。
 
-### 路径点上限权限
+### 路径点/标记点上限权限
 
-路径点数量上限通过 `waypoints.limits` 按权限区分：
+路径点与标记点数量上限通过 `waypoints.limits` 按权限区分：
 
 ```yaml
 waypoints:
-  default-max-count: 5
+  default-max-count: 50
   limits:
-    - permission: "ArcartXSuite.map.admin"
-      max-count: 20
+    - permission: "ArcartXSuite.map.vip"
+      max-count: 100
 ```
 
 最终上限取 `default-max-count` 与所有匹配权限的 `limits` 中的最大值。
 
 | 权限节点 | 默认 | 说明 |
 |---|---|---|
-| `arcartxsuite.map.use` | 所有玩家 | 使用 `/map` 玩家命令的权限 |
-| `arcartxsuite.map.admin` | 管理员 | 路径点上限提升权限 |
+| `arcartxsuite.map.use` | 所有玩家 | 使用 `/map` 玩家命令的权限（plugin.yml 注册，默认 true） |
+| `arcartxsuite.map.admin` | OP | 管理/上限提升权限 |
 
-## 默认解锁
+## 自动解锁
 
 ### 配置
 
-拥有指定权限的玩家在进服时自动解锁对应锚点：
+自动解锁通过每个锚点的 `unlock` 节配置（配置版本 4 起，替代旧的全局 `default-unlocks` 节）：
 
 ```yaml
-default-unlocks:
-  - permission: "ArcartXSuite.map.use"
-    anchors:
-      - "spawn"
-  - permission: "ArcartXSuite.map.vip"
-    anchors:
-      - "spawn"
-      - "vip_hall"
+anchors:
+  spawn:
+    # ...
+    unlock:
+      default: true          # 所有玩家进服时自动免费解锁
+      on-permission: false   # 拥有 permission 权限的玩家进服时自动免费解锁
+
+  vip_hall:
+    permission: "arcartxsuite.map.vip"
+    unlock:
+      on-permission: true    # VIP 玩家进服自动解锁
 ```
 
 | 字段 | 类型 | 说明 |
 |---|---|---|
-| `permission` | `String` | 所需权限节点（非空时生效） |
-| `anchors` | `List<String>` | 自动解锁的锚点 ID 列表 |
+| `unlock.default` | `boolean` | 所有玩家进服时自动免费解锁（不消耗解锁货币/物品） |
+| `unlock.on-permission` | `boolean` | 拥有锚点 `permission` 权限的玩家进服时自动免费解锁 |
+
+> 不配 `unlock` 节 = 不自动解锁，玩家需手动解锁。
 
 ### 触发时机
 
-默认解锁在客户端初始化完成时触发（`ClientInitializedHandler`）：
+自动解锁在客户端初始化完成时触发（`ClientInitializedHandler`）：
 
 1. 玩家客户端初始化完成
-2. `MapService.handleClientInitialized()` 调用 `ensureDefaultUnlocks()`
-3. 遍历 `default-unlocks` 规则，检查玩家权限
-4. 对匹配规则的锚点，检查是否已解锁，未解锁则调用 `repository.unlockAnchor()` 写入记录
-5. 若有新解锁的锚点，刷新玩家数据缓存
+2. `MapService.handleClientInitialized()` 遍历所有锚点的 `unlock` 规则
+3. `default: true` 直接解锁；`on-permission: true` 且玩家有对应 `permission` 时解锁
+4. 已解锁的锚点跳过；有新解锁时刷新玩家数据缓存
 
-> 默认解锁使用 `defaultUnlocksEnsured` 集合确保每个玩家在一次会话中只执行一次。玩家退出重进后会重新执行。
-
-### 默认解锁示例
-
-| 配置 | 效果 |
-|---|---|
-| `permission: "ArcartXSuite.map.use"` + `anchors: ["spawn"]` | 所有拥有基础使用权限的玩家进服自动解锁 `spawn` 锚点 |
-| `permission: "ArcartXSuite.map.vip"` + `anchors: ["spawn", "vip_hall"]` | VIP 玩家进服自动解锁 `spawn` 和 `vip_hall` 锚点 |
-
-> 默认解锁不扣除任何费用。若锚点已解锁，重复执行不会产生重复记录（`tryUnlockAnchor` 使用 `INSERT OR IGNORE`）。
+> 自动解锁不扣除任何费用，每个玩家一次会话只执行一次。
 
 ## 锚点排序
 
 ### 排序规则
 
-锚点在地图菜单中的排序由 `sort-order` 字段控制，排序逻辑在 `MapSnapshotBuilder.build()` 中实现：
+锚点在地图菜单中的排序由 `sort-order` 字段控制：
 
 1. 先按 `sortOrder` 升序排列
 2. 相同 `sortOrder` 的锚点按 `displayName` 字母顺序排列（不区分大小写）
-
-```java
-visibleAnchors.stream()
-    .sorted(Comparator
-        .comparingInt(AnchorView::sortOrder)
-        .thenComparing(AnchorView::displayName, String.CASE_INSENSITIVE_ORDER))
-    .toList()
-```
-
-### 排序示例
-
-| 锚点 | sort-order | display-name | 排序结果 |
-|---|---|---|---|
-| spawn | 0 | 新手村 | 1 |
-| market | 0 | 交易中心 | 2 |
-| mine | 10 | 矿洞入口 | 3 |
-| nether_hub | 0 | 下界中枢 | 4（不同世界，不参与同世界排序） |
 
 > 锚点仅在当前选中世界中显示。排序仅对同一世界内的锚点生效。
 
@@ -387,9 +371,7 @@ visibleAnchors.stream()
 |---|---|---|
 | 原子插入 | `tryUnlockAnchor()` | SQLite: `INSERT OR IGNORE`；MySQL: `INSERT IGNORE` |
 | 移除记录 | `removeUnlock()` | `DELETE FROM AXS_map_unlocks WHERE uuid = ? AND anchor_id = ?` |
-| 加载已解锁 | `loadUnlockedAnchors()` | `SELECT anchor_id FROM AXS_map_unlocks WHERE uuid = ? ORDER BY unlock_time ASC, anchor_id ASC` |
-
-> 解锁记录使用联合主键 `(uuid, anchor_id)` 确保同一玩家对同一锚点只记录一次。`tryUnlockAnchor` 返回 `false` 表示已存在记录。
+| 加载已解锁 | `loadUnlockedAnchors()` | `SELECT anchor_id FROM AXS_map_unlocks WHERE uuid = ?` |
 
 ### 数据缓存
 
@@ -398,10 +380,8 @@ visibleAnchors.stream()
 | 缓存操作 | 触发时机 |
 |---|---|
 | 加载缓存 | 首次访问玩家数据时从数据库加载 |
-| 刷新缓存 | 解锁锚点、创建/删除路径点后调用 `invalidatePlayerDataCache()` |
+| 刷新缓存 | 解锁锚点、创建/删除路径点或标记点后调用 `invalidatePlayerDataCache()` |
 | 清除缓存 | 玩家退出服务器时移除 |
-
-> 缓存为进程内 `ConcurrentHashMap`，非持久化。服务器重启后缓存重建。
 
 ## 玩家数据清除
 
@@ -409,7 +389,7 @@ Map 模块注册 `PlayerDataPurgeable` Capability，支持 `/axs purge` 统一�
 
 | 方法 | 说明 |
 |---|---|
-| `purgePlayerData(UUID)` | 删除指定玩家的解锁记录和路径点，返回删除行数 |
-| `purgeAllPlayerData()` | 删除所有玩家的解锁记录和路径点，返回删除行数 |
+| `purgePlayerData(UUID)` | 删除指定玩家的解锁记录、路径点和标记点，返回删除行数 |
+| `purgeAllPlayerData()` | 删除所有玩家的解锁记录、路径点和标记点，返回删除行数 |
 
-> 清除操作在事务中执行，同时删除 `AXS_map_unlocks` 和 `AXS_map_waypoints` 两表中的玩家数据。失败时返回 `-1`。参考 /docs/guide/conditions 了解数据清除条件配置。
+> 清除操作在事务中执行。失败时返回 `-1`。

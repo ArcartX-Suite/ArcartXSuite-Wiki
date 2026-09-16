@@ -179,6 +179,39 @@ public void onQuestComplete(Player player) {
 }
 ```
 
+## 外部 Bukkit 插件接入：AxsCapabilities
+
+上文 `getCapability()` 仅供 AXS 模块内部使用。面向**外部 Bukkit 插件**，Suite 提供静态门面 `AxsCapabilities`（`axs-api` 的 `xuanmo.arcartxsuite.api` 包），配合 `@PublicCapability` 注解做可见性过滤——只有标注该注解的接口才能被外部获取，其余一律返回 `null`。
+
+### 当前公开的 Capability
+
+| 接口 | 提供方 | 用途 |
+|------|--------|------|
+| `MapNavigable` | map | 地图外部目标推送、导航回调、导航互斥 |
+| `QuestGpsNavigable` | questgps | 任务推送/接取/追踪/门禁检查 |
+| `EventBusCapability` | 宿主 | 主题 pub/sub |
+| `AxsMailService` | mail | 邮件发送/查询/领取/删除（全异步） |
+
+### 接入步骤
+
+1. 插件 `plugin.yml` 声明 `depend: [ArcartXSuite]`（或 `softdepend`）
+2. 构建时 `compileOnly` 依赖 `axs-api`
+3. 调用 `AxsCapabilities.get(接口.class)`，结果判 null
+
+```java
+// 外部插件 onEnable / 使用前
+AxsMailService mail = AxsCapabilities.get(AxsMailService.class);
+if (mail != null) {
+    mail.getUnreadCount(player.getUniqueId()).thenAccept(count -> {
+        // 异步结果，勿在主线程 join()
+    });
+}
+```
+
+- `AxsCapabilities.get(Class)` — 类型未公开、未注册或本体未就绪时返回 `null`
+- `AxsCapabilities.has(Class)` — 判断指定公开 capability 是否可用
+- 模块热卸载后对应 capability 自动摘除，下次 `get()` 返回 `null`——建议每次使用时现取，不要长期缓存
+
 ## EventBus 使用
 
 ```java
@@ -217,12 +250,13 @@ protected List<String> publishedTopics() {
 |-----------------|----------|------------|------|
 | `TitleGrantable` | title | eventpacket, battlepass | 发放称号 |
 | `TitleConfigQueryable` | title | tab, chat | 查询称号元数据 |
-| `MailDispatchable` | mail | eventpacket, onlinerewards | 按预设发邮件 |
+| `MailDispatchable` | mail | eventpacket, onlinerewards | 按预设发邮件（内部） |
+| `AxsMailService` | mail | 外部插件 | 邮件完整服务（公开，`AxsCapabilities.get`） |
 | `SubtitlePlayable` | announcer | eventpacket | 播放字幕组 |
 | `ChatCardSendable` | chat | eventpacket | 发送聊天卡片 |
 | `ChatMutable` | chat | essentials | 禁言/解禁 |
-| `QuestGpsNavigable` | questgps | eventpacket | 任务导航 |
-| `MapNavigable` | map | questgps | 地图外部导航点 |
+| `QuestGpsNavigable` | questgps | eventpacket, 外部插件 | 任务导航（公开） |
+| `MapNavigable` | map | questgps, 外部插件 | 地图外部导航点（公开） |
 | `TabRefreshable` | tab | title, chat | 刷新 Tab 列表 |
 | `CombatEffectTriggerable` | combateffect | eventpacket, prop | 触发战斗特效 |
 | `SignalDispatchable` | eventpacket | onlinerewards, afkreward | 触发规则引擎信号 |
@@ -235,7 +269,7 @@ protected List<String> publishedTopics() {
 | `MenuOpenable` | menu | essentials, 第三方 | 打开配置菜单 |
 | `AfkRewardDispatchable` | afkreward | essentials | 挂机状态/原地挂机 |
 | `InteractionState` | conversation | pickup, prop | 对话中让出共享按键 |
-| `EventBusCapability` | 宿主 | market, qqbot, 第三方 | 主题 pub/sub |
+| `EventBusCapability` | 宿主 | market, qqbot, 第三方/外部插件 | 主题 pub/sub（公开） |
 | `PlayerDataPurgeable` | 多模块 | 宿主 `/axs purge` | 清除玩家数据 |
 | `DatabaseMigratable` | 多模块 | 宿主 `/axs migrate` | 跨库迁移 |
 

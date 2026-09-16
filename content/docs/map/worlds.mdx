@@ -1,88 +1,82 @@
 ---
 title: 世界与地图渲染
-description: 世界配置、地图纹理渲染、坐标映射与缩放参数详解
+description: 世界配置目录、客户端 mod 实时渲染、点亮区域（战争迷雾）与 HUD 交互详解
 ---
 
 # 世界与地图渲染
 
 ## 概述
 
-Map 模块通过世界配置将游戏世界与地图纹理关联，由 Arcart-Suite-Map 客户端 mod 负责实际画面渲染。每个世界独立配置纹理路径、图片尺寸、像素偏移和缩放参数，服务端仅负责管理配置数据并通过 Packet 推送到客户端。
+Map 模块的世界配置与地图画面完全解耦：**地图地形由 Arcart-Suite-Map 客户端 mod 扫描客户端区块实时渲染**，服务端不需要、也不再支持地图纹理图片配置（`texture`/`image-width`/`pixel-offset-x` 等旧字段已废弃）。
 
-地图渲染分为两个场景：
+服务端只负责：
 
-| 场景 | UI | 渲染区域 | 说明 |
-|---|---|---|---|
-| 全屏大地图 | `map_menu.yml` | 地图渲染区 Canvas（900×596 设计像素） | 支持世界切换、缩放、标点交互 |
-| 小地图 HUD | `map_hud.yml` | 小地图渲染区 Canvas（214×160 设计像素） | 右上角常驻，实时显示玩家位置与朝向 |
+- 告诉 mod 当前要渲染哪个世界（`worldId`）以及它对应的 MC 维度 key
+- 下发已点亮区域（战争迷雾数据）
+- 下发标点列表（锚点/路径点/标记点/外部目标）与详情数据
 
-> 地图画面由 Arcart-Suite-Map 客户端 mod 在 `ArcartXLayerRenderEvent` 事件中渲染。mod 未安装时渲染区保持空白，UI 列表与详情面板功能不受影响。
+mod 侧负责：区块地形扫描、地图纹理生成、缩放/平移/形状交互、标点与玩家箭头绘制、探索缓存落盘。
+
+| 场景 | UI | 说明 |
+|---|---|---|
+| 全屏大地图 | `map_menu.yml` | 世界切换、滚轮缩放、拖拽平移、单击放置标记点 |
+| 小地图 HUD | `map_hud.yml` | 右上角常驻，圆形/方形切换，实时显示玩家位置与朝向 |
+
+> mod 未安装时渲染区保持空白，UI 的列表、详情面板、解锁、传送、分享等功能不受影响。
 
 ## 世界配置
 
-### 配置结构
+### 目录结构
 
-世界配置位于 `config.yml` 的 `worlds` 节，每个根键为世界 ID（对应 Bukkit world name，不区分大小写）。
+每个世界一个独立文件，放在 `data/map/worlds/` 目录下（目录名由 `worlds-directory` 配置，默认 `worlds`），**文件名即世界 ID**（对应 Bukkit world name，大小写不敏感）：
 
-```yaml
-worlds:
-  world:
-    enabled: true
-    display-name: "主世界"
-    texture: "Map/world.png"
-    image-width: 2048
-    image-height: 2048
-    pixel-offset-x: 0
-    pixel-offset-z: 0
-    default-zoom: 1.6
-    hud-zoom: 0.18
-    hud-size: 180
-  world_nether:
-    enabled: true
-    display-name: "下界"
-    texture: "Map/world_nether.png"
-    image-width: 1024
-    image-height: 1024
-    pixel-offset-x: 0
-    pixel-offset-z: 0
-    default-zoom: 1.4
-    hud-zoom: 0.16
-    hud-size: 180
 ```
+data/map/
+  ArcartXMap.yml
+  worlds/
+    world.yml            ← 世界 ID = world
+    bskyblock_world.yml  ← 世界 ID = bskyblock_world
+```
+
+模块启动时按文件名字母顺序加载目录下所有 `.yml` 文件。目录不存在时自动创建并导出示例文件 `worlds/world.yml`。
 
 ### 字段说明
 
-| 字段 | 类型 | 默认值 | 约束 | 说明 |
-|---|---|---|---|---|
-| `enabled` | `boolean` | `true` | — | 是否在地图菜单中显示此世界 |
-| `display-name` | `String` | 世界 ID | — | 在地图菜单和 HUD 中显示的名称 |
-| `texture` | `String` | `""` | — | 地图纹理文件路径（相对资源包目录） |
-| `image-width` | `int` | `2048` | 最小 1 | 地图纹理图片宽度（像素） |
-| `image-height` | `int` | `2048` | 最小 1 | 地图纹理图片高度（像素） |
-| `pixel-offset-x` | `int` | `0` | — | 像素 X 轴偏移（校准地图与游戏坐标的对应关系） |
-| `pixel-offset-z` | `int` | `0` | — | 像素 Z 轴偏移 |
-| `default-zoom` | `double` | `1.6` | 必须 `> 0` | 全屏地图默认缩放比例 |
-| `hud-zoom` | `double` | `0.18` | 必须 `> 0` | 小地图 HUD 缩放比例 |
-| `hud-size` | `int` | `180` | 最小 64 | 小地图 HUD 尺寸（像素） |
-
-> `worlds` 节在 `configSpec()` 中声明为 `dynamicSection`，用户可自由增删世界条目，配置同步时不会误删用户自定义世界。
-
-### 默认世界
-
-当 `worlds` 节为空或不存在时，模块自动生成一个默认世界配置：
-
 ```yaml
-world:
-  display-name: "主世界"
-  texture: "Map/world.png"
-  image-width: 2048
-  image-height: 2048
-  pixel-offset-x: 0
-  pixel-offset-z: 0
-  default-zoom: 1.6
-  hud-zoom: 0.18
-  hud-size: 180
+# worlds/world.yml — 文件名即世界 ID
+enabled: true
+display-name: ""
+
+anchors:
+  spawn:
+    enabled: true
+    display-name: "出生点"
+    x: 0
+    y: 64
+    z: 0
+    description: "默认出生点锚点。"
+    permission: ""
+    sort-order: 0
+    unlock:
+      default: true
+      on-permission: false
+    unlock-currencies: []
+    teleport-currencies: []
+    unlock-items: []
+    # light-region:
+    #   points: [[-50, -50], [50, -50], [50, 50], [-50, 50]]
+    # light-radius: 100
 ```
+
+| 字段 | 类型 | 默认值 | 说明 |
+|---|---|---|---|
+| `enabled` | `boolean` | `true` | 是否在地图菜单中显示此世界 |
+| `display-name` | `String` | `""` | 显示名称；留空时运行时从 Multiverse-Core colourless alias 自动补 |
+| `anchors` | `Map` | — | 该世界的锚点列表（见 [锚点系统](./anchors)） |
+
+<Callout type="info">
+维度（dimension）完全自动按 Bukkit `world.getKey()` 解析下发给客户端 mod，无需配置。旧版本的 `texture`、`image-width/height`、`pixel-offset-x/z`、`default-zoom`、`hud-zoom`、`hud-size` 字段已全部废弃——缩放与偏移由玩家在客户端用鼠标滚轮/拖拽实时控制。
+</Callout>
 
 ### 世界选择逻辑
 
@@ -97,78 +91,41 @@ world:
 
 > 若以上条件均不满足，地图菜单返回「当前世界未配置地图，且没有可用的默认地图」，HUD 返回「当前没有可显示的小地图世界」。
 
-## 坐标映射
+### 旧格式兼容
 
-### 映射公式
+若 `worlds/` 目录为空或不存在世界文件，模块回退读取 `ArcartXMap.yml` 中的内联 `worlds` 节（仅取 `enabled`/`display-name`，纹理字段被忽略）：
 
-Map 模块通过 `pixel-offset-x` / `pixel-offset-z` 和 `image-width` / `image-height` 将游戏世界坐标映射到地图纹理像素坐标。映射在 `MapSnapshotBuilder.buildHudSnapshot()` 中完成：
-
+```yaml
+# ArcartXMap.yml — 旧格式降级，不推荐
+worlds:
+  world:
+    enabled: true
+    display-name: "主世界"
 ```
-像素 X = clip(玩家X + pixelOffsetX, 0, imageWidth)
-像素 Z = clip(玩家Z + pixelOffsetZ, 0, imageHeight)
+
+> 内联 `worlds` 节不含 `anchors`——锚点必须写在 `worlds/<worldId>.yml` 的 `anchors` 节中。
+
+## 点亮区域（战争迷雾）
+
+锚点可配置点亮区域：玩家解锁该锚点后，小地图上对应区域从迷雾中亮起。未点亮的区域由 mod 渲染遮罩。
+
+每个锚点支持两种写法（可同时配置，任一生效即可）：
+
+| 字段 | 格式 | 说明 |
+|---|---|---|
+| `light-region.points` | `[[x,z], ...]` | 多边形顶点列表（至少 3 点），世界坐标 |
+| `light-radius` | 数值 | 以锚点为中心的圆形点亮半径（方块数） |
+
+```yaml
+anchors:
+  spawn:
+    # ...
+    light-region:
+      points: [[-50, -50], [50, -50], [50, 50], [-50, 50]]
+    light-radius: 100
 ```
 
-其中 `clip(value, min, max)` 将值限制在 `[min, max]` 范围内，防止玩家位置超出地图纹理边界。
-
-### 像素偏移校准
-
-`pixel-offset-x` 和 `pixel-offset-z` 用于校准地图纹理与游戏坐标的对应关系。不同世界的地图图片可能以不同的坐标原点绘制，通过偏移量对齐：
-
-| 场景 | 偏移设置 | 说明 |
-|---|---|---|
-| 地图原点 = 世界原点 (0,0) | `pixel-offset-x: 0` `pixel-offset-z: 0` | 无需偏移，坐标直接对应 |
-| 地图原点偏移到 (-1024, -1024) | `pixel-offset-x: 1024` `pixel-offset-z: 1024` | 将世界坐标平移到纹理坐标 |
-| 地图原点偏移到 (512, -256) | `pixel-offset-x: -512` `pixel-offset-z: 256` | 反向偏移 |
-
-> 偏移量可正可负。`clip()` 函数确保最终像素坐标始终在 `[0, imageWidth]` 和 `[0, imageHeight]` 范围内。
-
-### 坐标映射示例
-
-假设世界配置为 `image-width: 2048`、`image-height: 2048`、`pixel-offset-x: 0`、`pixel-offset-z: 0`：
-
-| 玩家坐标 (X, Z) | 像素坐标 | 说明 |
-|---|---|---|
-| `(0, 0)` | `(0, 0)` | 世界原点对应纹理左上角 |
-| `(1024, 512)` | `(1024, 512)` | 直接映射 |
-| `(3000, -100)` | `(2048, 0)` | 超出边界，X 裁剪到 2048，Z 裁剪到 0 |
-| `(-500, 100)` | `(0, 100)` | X 为负裁剪到 0，Z 正常 |
-
-## 缩放参数
-
-### 全屏地图缩放（`default-zoom`）
-
-`default-zoom` 控制全屏地图菜单打开时的初始缩放比例。客户端 mod 根据此值设置地图渲染的缩放级别：
-
-| 值 | 效果 |
-|---|---|
-| `1.0` | 1:1 原始尺寸 |
-| `1.6`（默认） | 放大 1.6 倍，显示更多细节 |
-| `2.0` | 放大 2 倍 |
-| `0.5` | 缩小到一半，显示更大范围 |
-
-> 全屏地图支持鼠标滚轮缩放和拖拽平移（由 UI Canvas 的交互区域接收），实际缩放范围由客户端 mod 控制。
-
-### 小地图 HUD 缩放（`hud-zoom`）
-
-`hud-zoom` 控制小地图 HUD 的缩放比例，通常小于全屏地图缩放以在有限区域内显示更大范围：
-
-| 值 | 效果 |
-|---|---|
-| `0.18`（默认） | 缩小显示，适合小尺寸 HUD |
-| `0.16` | 更小缩放，显示更大范围 |
-| `0.25` | 放大显示，细节更多但范围更小 |
-
-### HUD 尺寸（`hud-size`）
-
-`hud-size` 控制小地图 HUD 的显示尺寸（像素），最小值为 64：
-
-| 值 | 效果 |
-|---|---|
-| `180`（默认） | 标准尺寸 |
-| `120` | 紧凑模式 |
-| `250` | 大尺寸 HUD |
-
-> HUD 的实际渲染区域由 UI 布局定义（`map_hud.yml` 中的 Canvas 尺寸 214×160），`hud-size` 作为参数传递给客户端 mod 控制渲染缩放。
+服务端把已解锁锚点的点亮区域并集通过 HUD 快照的 `litRegions` 字段下发；UI 调用 `mapRenderer.setLitRegions(worldId, regions)` 传给 mod。不配置任何点亮字段 = 该锚点不参与点亮。
 
 ## 渲染流程
 
@@ -177,136 +134,79 @@ Map 模块通过 `pixel-offset-x` / `pixel-offset-z` 和 `image-width` / `image-
 ```
 MapService.syncMenu()
   └→ MapSnapshotBuilder.build()
-       └→ MenuSnapshot（世界列表 + 锚点/路径点/外部目标 + 详情）
+       └→ 菜单快照（世界列表 + 锚点/路径点/标记点/外部目标 + 点亮区域 + 详情）
   └→ PacketBridgeAPI.sendPacket(menuUiId, "init"/"update", payload)
        └→ 客户端 UI packetHandler 接收数据
-            └→ tick 触发器每帧调用 MapRenderer.setRegion(x, y, w, h, scale)
-            └→ tick 触发器每帧调用 MapRenderer.setWorldId(worldId)
-            └→ tick 触发器每帧调用 MapRenderer.setPlayerPose(x, z, yaw)
-            └→ packetHandler 处理后调用 syncMarkers()
-                 └→ MapRenderer.clearMarkers()
-                 └→ MapRenderer.addMarker(id, type, name, x, z, selected, tracked, unlocked)
+            └→ axsmap.getMapRenderer() 获取 MapRenderer（懒加载缓存）
+            └→ setWorldId(worldId) / setWorldDimension(worldId, dimension)
+            └→ setLitRegions(worldId, litRegions)
+            └→ tick 每帧 setRegion(x, y, w, h, scale) 传地图渲染区屏幕坐标
+            └→ syncMarkers() → clearMarkers() + addMarker(...) 同步标点
 ```
 
 ### 小地图 HUD 渲染
 
 ```
 MapService.syncHud()
-  └→ MapSnapshotBuilder.build()
-       └→ HudSnapshot（世界 ID + 纹理 + 玩家位置 + 缩放 + 追踪文本）
+  └→ HudSnapshot（visible + worldId + dimension + litRegions + playerYaw + trackingText）
   └→ PacketBridgeAPI.sendPacket(hudUiId, "init"/"update", payload)
        └→ 客户端 UI packetHandler 接收数据
-            └→ tick 触发器每帧调用 MapRenderer.setRegion(x, y, w, h, scale)
-            └→ mod 在渲染区绘制地图画面和玩家箭头
+            └→ axsmap.getMapRenderer() 获取 MapRenderer
+            └→ setWorldId / setWorldDimension / setLitRegions
+            └→ tick 每帧 setHudAnchor(anchorX, anchorY, scale) 传右上角锚点
+                 └→ mod 按内部 hudSize 状态计算渲染区域，绘制圆形/方形小地图
 ```
 
-### 渲染区屏幕坐标计算
+### mod 渲染细节
 
-客户端 UI 的 `tick` 触发器每帧计算地图渲染区的屏幕坐标并传递给 mod。坐标计算基于 Adaptive 布局的设计坐标系：
+| 环节 | 说明 |
+|---|---|
+| 地形扫描 | mod 监听客户端区块加载（`ClientChunkEvents.CHUNK_LOAD`），把区块列标记为待扫描，避免已探索区域显示黑色空洞 |
+| 缓存落盘 | 断开连接时把各维度扫描结果写入 `arcartsuitemap/<维度>.dat`，下次进服跨世界查看大地图可直接显示已探索地形 |
+| 圆形遮罩 | 小地图圆形遮罩在 mod CPU 端生成视图纹理时应用，含 1px 抗锯齿与圆形描边 |
+| 世界名/坐标 | 由 `map_hud.yml` 的 Text 控件渲染：世界名走 `Placeholder.parse("%multiverse-core_alias%")`，坐标用 `Player.getPosX/Y/Z` 本地实时取 |
+| 看门狗 | HUD 停止调用 `setHudAnchor` 超过约 150ms 时 mod 自动停用渲染；UI `close` 时也主动调 `closeHud()` |
 
-**全屏地图**（`map_menu.yml`）：
+### 小地图客户端按键
 
-| 参数 | 设计坐标值 | 说明 |
-|---|---|---|
-| 地图区域左上角 X | `224` | 主面板左上角 (200, 90) + 地图区域偏移 (24, 280) |
-| 地图区域左上角 Y | `370` | 同上 |
-| 地图区域宽度 | `900` | Canvas 宽度 |
-| 地图区域高度 | `596` | Canvas 高度 |
+小地图形状与大小由玩家在客户端用按键调整（mod 的 `MapInputHandler` 处理）：
 
-**小地图 HUD**（`map_hud.yml`）：
+| 按键 | 作用 |
+|---|---|
+| `[` | 切换圆形 / 方形小地图 |
+| `+` / `-` | 调整小地图尺寸 |
+| `,` / `.` | 调整小地图缩放 |
 
-| 参数 | 设计坐标值 | 说明 |
-|---|---|---|
-| 地图区域左上角 X | `1660` | 右上角对齐 (1920-28-250+18) |
-| 地图区域左上角 Y | `72` | 面板顶部 (24) + 标题区 (48) |
-| 地图区域宽度 | `214` | Canvas 宽度 |
-| 地图区域高度 | `160` | Canvas 高度 |
+### 大地图交互
 
-> 屏幕坐标 = 设计坐标 × `scale`，其中 `scale = min(Screen.width / 1920, Screen.height / 1080)`。Adaptive 布局自动处理不同分辨率下的缩放。
+`MapInputHandler` 处理全屏地图的鼠标交互：滚轮缩放、拖拽平移、单击放置标记点（Pin）。
 
 ## 标点同步
 
-### 标点数据流
-
-地图菜单的锚点、路径点和外部目标通过 `syncMarkers()` 函数同步到客户端 mod：
+地图菜单的锚点、路径点、标记点和外部目标通过 `syncMarkers()` 同步到客户端 mod：
 
 ```
 packetHandler init/update
   └→ syncMarkers()
        └→ MapRenderer.clearMarkers()
-       └→ 遍历 anchorRows → MapRenderer.addMarker(id, 'anchor', displayName, x, z, selected, tracked, unlocked)
-       └→ 遍历 waypointRows → MapRenderer.addMarker(id, 'waypoint', name, x, z, selected, tracked, true)
-       └→ 遍历 externalTargetRows → MapRenderer.addMarker(id, 'external', name, x, z, selected, tracked, true)
+       └→ 遍历 anchorRows        → addMarker(id, 'anchor',   displayName, x, z, selected, tracked, unlocked)
+       └→ 遍历 waypointRows      → addMarker(id, 'waypoint', name,        x, z, selected, tracked, true)
+       └→ 遍历 externalTargetRows→ addMarker(id, 'external', name,        x, z, selected, tracked, true)
+       └→ 遍历 pinRows           → addMarker(id, 'pin',      name,        x, z, selected, false,   true)
 ```
 
-### 标点参数
+`addMarker()` 参数：`id` / `type`（`anchor`/`waypoint`/`external`/`pin`）/ `name` / 世界坐标 `x,z` / `selected` / `tracked` / `unlocked`（仅锚点有意义）。
 
-`MapRenderer.addMarker()` 接收以下参数：
-
-| 参数 | 类型 | 说明 |
-|---|---|---|
-| `id` | `String` | 标点唯一标识（锚点 ID / 路径点 ID / 外部目标 ID） |
-| `type` | `String` | 标点类型：`anchor` / `waypoint` / `external` |
-| `name` | `String` | 显示名称 |
-| `x` | `double` | 世界坐标 X |
-| `z` | `double` | 世界坐标 Z |
-| `selected` | `boolean` | 是否当前选中 |
-| `tracked` | `boolean` | 是否正在追踪 |
-| `unlocked` | `boolean` | 是否已解锁（仅锚点有意义，路径点和外部目标始终为 `true`） |
-
-> 标点使用世界坐标（非像素坐标），客户端 mod 根据当前缩放和玩家位置自行计算标点在地图纹理上的像素位置。
-
-## 玩家位置获取
-
-全屏地图 UI 的 `tick` 触发器通过 Aria `use()` 获取 Minecraft 客户端玩家数据：
-
-```
-mc = use('net.minecraft.client.MinecraftClient')
-player = mc.field_1729  // MinecraftClient.instance
-p = player.field_1724   // MinecraftClient.player
-MapRenderer.setPlayerPose(p.getX(), p.getZ(), p.getYaw())
-```
-
-> `field_1729` 和 `field_1724` 为 Minecraft 客户端的混淆字段名，分别对应 `MinecraftClient.INSTANCE` 和 `MinecraftClient.player`。获取失败时 mod 使用上次记录的位置。
+> 标点使用世界坐标，mod 根据当前缩放和视野中心自行计算标点在屏幕上的位置。
 
 ## 多世界切换
 
-### 切换流程
-
 1. 玩家在地图菜单点击世界列表项，UI 发送 `open_world` Packet
 2. `MapService.openWorld()` 验证世界是否已配置
-3. 更新 `MapPlayerViewState.selectedWorldId`，同时清除锚点/路径点/外部目标的选中状态
+3. 更新 `MapPlayerViewState.selectedWorldId`，同时清除锚点/路径点/标记点/外部目标的选中状态
 4. 调用 `sync()` 重新构建快照并推送 `update` Packet
-5. 客户端 UI 的 `tick` 触发器检测到 `selectedWorldId` 变化，调用 `MapRenderer.setWorldId()` 通知 mod 重新加载纹理
+5. UI 调用 `setWorldId()` + `setWorldDimension()` 通知 mod 切换到对应维度渲染
 
 ### 世界列表排序
 
-世界列表按配置文件中的声明顺序排列（`LinkedHashMap` 保持插入顺序）。菜单 UI 使用水平滚动列表展示世界项，每项显示世界名称和选中状态。
-
-## 纹理资源
-
-### 纹理路径
-
-`texture` 字段指定地图纹理文件在资源包中的路径，例如 `Map/world.png`。客户端 mod 根据此路径从资源包加载地图图片。
-
-### 纹理尺寸建议
-
-| 世界类型 | 建议尺寸 | 说明 |
-|---|---|---|
-| 主世界 | 2048×2048 | 覆盖较大范围，细节适中 |
-| 下界 | 1024×1024 | 下界范围较小，可使用较小尺寸 |
-| 末地 | 1024×1024 | 同下界 |
-| 自定义小型世界 | 512×512 | 小型独立世界 |
-
-> 纹理尺寸越大，地图细节越清晰，但客户端加载和渲染开销也越大。建议根据世界实际大小选择合适的尺寸。
-
-### 坐标校准流程
-
-1. 截取世界全图作为地图纹理
-2. 确定纹理图片中坐标原点 (0,0) 对应的像素位置
-3. 设置 `pixel-offset-x` 和 `pixel-offset-z` 为该像素位置的负值
-4. 设置 `image-width` 和 `image-height` 为纹理图片实际尺寸
-5. 在游戏中移动到已知坐标，检查地图上玩家箭头位置是否正确
-6. 微调偏移量直到箭头位置与实际位置一致
-
-> 坐标校准是地图配置的关键步骤。错误的偏移量会导致玩家箭头和标点位置与实际地形不对应。参考 /docs/guide/icons 了解标点图标配置。
+世界列表按 `worlds/` 目录文件名加载顺序排列（文件名字母序）。菜单 UI 使用水平滚动列表展示世界项，每项显示世界名称和选中状态。
