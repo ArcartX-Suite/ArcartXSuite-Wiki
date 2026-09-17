@@ -13,7 +13,7 @@ Map 模块的世界配置与地图画面完全解耦：**地图地形由 Arcart-
 
 - 告诉 mod 当前要渲染哪个世界（`worldId`）以及它对应的 MC 维度 key
 - 下发已点亮区域（战争迷雾数据）
-- 下发标点列表（锚点/路径点/标记点/外部目标）与详情数据
+- 下发标点列表（锚点/路径点/标记点/第三方插件注册路径点）与详情数据
 
 mod 侧负责：区块地形扫描、地图纹理生成、缩放/平移/形状交互、标点与玩家箭头绘制、探索缓存落盘。
 
@@ -134,7 +134,7 @@ anchors:
 ```
 MapService.syncMenu()
   └→ MapSnapshotBuilder.build()
-       └→ 菜单快照（世界列表 + 锚点/路径点/标记点/外部目标 + 点亮区域 + 详情）
+       └→ 菜单快照（世界列表 + 锚点/路径点/标记点/第三方插件注册路径点 + 点亮区域 + 详情）
   └→ PacketBridgeAPI.sendPacket(menuUiId, "init"/"update", payload)
        └→ 客户端 UI packetHandler 接收数据
             └→ axsmap.getMapRenderer() 获取 MapRenderer（懒加载缓存）
@@ -183,7 +183,7 @@ MapService.syncHud()
 
 ## 标点同步
 
-地图菜单的锚点、路径点、标记点和外部目标通过 `syncMarkers()` 同步到客户端 mod：
+地图菜单的锚点、路径点、标记点和第三方插件注册路径点通过 `syncMarkers()` 同步到客户端 mod：
 
 ```
 packetHandler init/update
@@ -203,7 +203,7 @@ packetHandler init/update
 
 1. 玩家在地图菜单点击世界列表项，UI 发送 `open_world` Packet
 2. `MapService.openWorld()` 验证世界是否已配置
-3. 更新 `MapPlayerViewState.selectedWorldId`，同时清除锚点/路径点/标记点/外部目标的选中状态
+3. 更新 `MapPlayerViewState.selectedWorldId`，同时清除锚点/路径点/标记点/第三方插件注册路径点的选中状态
 4. 调用 `sync()` 重新构建快照并推送 `update` Packet
 5. UI 调用 `setWorldId()` + `setWorldDimension()` 通知 mod 切换到对应维度渲染
 

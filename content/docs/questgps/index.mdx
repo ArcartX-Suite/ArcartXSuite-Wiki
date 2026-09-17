@@ -25,7 +25,7 @@ QuestGPS 是 Suite 的任务导航模块，将 Chemdah 任务系统的数据桥�
 | 任务发现模式 | `overlay`（白名单，仅 `quests/*.yml` 登记的任务进菜单）或 `auto`（扫描全部 Chemdah 模板） |
 | 三态分页 | 可接取（AVAILABLE）、进行中（ACTIVE）、已完成（COMPLETED）三个页面，自动按任务状态分桶 |
 | 任务接取/放弃 | 通过 UI Packet 触发 Chemdah 任务接取/放弃，支持 `allow-abandon` 开关控制是否允许放弃 |
-| 任务追踪 | 追踪任务级或子任务级目标，同步到 ArcartX waypoint 路标导航和 Map 模块外部目标 |
+| 任务追踪 | 追踪任务级或子任务级目标，同步到 ArcartX waypoint 路标导航和 Map 模块第三方插件注册路径点 |
 | 多目标追踪 | 玩家可同时追踪多个任务/子目标（追踪态/到达判定并行）；屏幕路标与路径标记链只跟随"最新激活且同世界"的主目标 |
 | 路标导航 | 通过 ArcartX waypoint 系统创建路标，在客户端显示方向指引；标题支持模板化（`%label%`/`%quest%`/`%objective%`/`%distance%` 等占位符） |
 | NPC 动态目标 | 导航点可绑定 Adyeshach NPC 名/ID，坐标随 NPC 实时移动 |
@@ -48,7 +48,7 @@ QuestGPS 是 Suite 的任务导航模块，将 Chemdah 任务系统的数据桥�
 |---|---|---|
 | 外部硬依赖 | Chemdah | 任务系统提供方，QuestGPS 读取 Chemdah 任务模板与玩家档案 |
 | 外部软依赖 | Adyeshach | 导航标记模型渲染（不可用时关闭标记功能，路标导航仍可用） |
-| ArcartX 模块（可选） | Map | 导航目标同步到地图模块的外部目标，地图面板"导航/取消"转发回 QuestGPS |
+| ArcartX 模块（可选） | Map | 导航目标同步到地图模块的第三方插件注册路径点，地图面板"导航/取消"转发回 QuestGPS |
 | ArcartX 模块（可选） | EventPacket | 任务生命周期信号桥接，信号派发后由 EventPacket 规则引擎执行动作 |
 | ArcartX 模块（可选） | Announcer | 门禁拦截时播放字幕提示 |
 | ArcartX 模块（可选） | Chat | 门禁拦截时发送聊天卡片 |

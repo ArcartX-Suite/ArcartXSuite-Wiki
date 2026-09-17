@@ -89,7 +89,7 @@ Map 模块的 UI 交互通过 ArcartX Packet 通讯完成。客户端向服务�
 | `open_world` | `data[1]` = 世界ID | 切换到指定世界 | 否 |
 | `select_anchor` | `data[1]` = 锚点ID | 选中锚点（显示详情） | 否 |
 | `select_waypoint` | `data[1]` = 路径点ID | 选中路径点（显示详情） | 否 |
-| `select_external` | `data[1]` = 目标ID | 选中外部目标（显示详情） | 否 |
+| `select_external` | `data[1]` = 目标ID | 选中第三方插件注册路径点（显示详情） | 否 |
 | `select_pin` | `data[1]` = 标记点ID | 选中标记点（显示详情） | 否 |
 | `deselect` | — | 取消当前选中 | 否 |
 | `unlock_anchor` | `data[1]` = 锚点ID, `data[2]` = action_token | 解锁锚点 | 是 |
@@ -97,8 +97,8 @@ Map 模块的 UI 交互通过 ArcartX Packet 通讯完成。客户端向服务�
 | `track_anchor` | `data[1]` = 锚点ID | 追踪锚点导航（追加进多目标表并成为主目标） | 否 |
 | `track_waypoint` | `data[1]` = 路径点ID | 追踪路径点导航（追加进多目标表并成为主目标） | 否 |
 | `untrack` | `data[1]` = 类型（`anchor`/`waypoint`）, `data[2]` = 目标ID | 取消单个目标追踪，其余目标不受影响 | 否 |
-| `track_external` / `external_navigate` | `data[1]` = 目标ID | 外部目标"导航"——转发给来源的 `MapNavigationHandler.onNavigateRequest` 执行 | 否 |
-| `external_nav_cancel` | `data[1]` = 目标ID | 外部目标"取消"——转发给来源的 `onCancelRequest`，目标标记保留 | 否 |
+| `track_external` / `external_navigate` | `data[1]` = 目标ID | 第三方插件注册路径点"导航"——转发给来源的 `MapNavigationHandler.onNavigateRequest` 执行 | 否 |
+| `external_nav_cancel` | `data[1]` = 目标ID | 第三方插件注册路径点"取消"——转发给来源的 `onCancelRequest`，目标标记保留 | 否 |
 | `teleport_to_world` | `data[1]` = 世界ID | 传送到指定世界（就近已解锁锚点） | 否 |
 | `cross_world_navigate` | `data[1]` = `类型:目标ID` | 跨世界导航：先传送到目标世界再开始导航 | 否 |
 | `clear_track` | — | 清除全部导航追踪 | 否 |
@@ -131,7 +131,7 @@ Map 模块的 UI 交互通过 ArcartX Packet 通讯完成。客户端向服务�
 | `worldRows` | `Map<String, Map>` | 世界列表，key=索引，value 含 `id`/`displayName`/`selected` |
 | `anchorRows` | `Map<String, Map>` | 锚点列表，key=索引，value 含 `id`/`displayName`/`description`/`x`/`y`/`z`/`unlocked`/`unlockCostText`/`teleportCostText`/`selected`/`tracked` |
 | `waypointRows` | `Map<String, Map>` | 路径点列表，key=索引，value 含 `id`/`name`/`x`/`y`/`z`/`selected`/`tracked` |
-| `externalTargetRows` | `Map<String, Map>` | 外部目标列表，key=索引，value 含 `id`/`source`/`name`/`description`/`x`/`y`/`z`/`selected`/`tracked`/`navigated` |
+| `externalTargetRows` | `Map<String, Map>` | 第三方插件注册路径点列表，key=索引，value 含 `id`/`source`/`name`/`description`/`x`/`y`/`z`/`selected`/`tracked`/`navigated` |
 | `pinRows` | `Map<String, Map>` | 标记点列表，key=索引，value 含 `id`/`name`/`description`/`x`/`z`/`selected` |
 | `waypointLimit` | `int` | 路径点数量上限 |
 | `waypointCount` | `int` | 当前路径点数量 |
@@ -146,13 +146,13 @@ Map 模块的 UI 交互通过 ArcartX Packet 通讯完成。客户端向服务�
 | `detailUnlocked` | `boolean` | 是否已解锁 |
 | `detailUnlockCostText` | `String` | 解锁费用文本 |
 | `detailTeleportCostText` | `String` | 传送费用文本 |
-| `detailExternalTarget` | `boolean` | 是否为外部目标 |
+| `detailExternalTarget` | `boolean` | 是否为第三方插件注册路径点 |
 | `detailNavigated` | `boolean` | 是否导航中（驱动"导航 ↔ 取消"按钮切换） |
 | `detailCanUnlock` | `boolean` | 是否可执行解锁 |
 | `detailCanTeleport` | `boolean` | 是否可执行传送 |
 | `detailCanTrackAnchor` | `boolean` | 是否可追踪锚点 |
 | `detailCanTrackWaypoint` | `boolean` | 是否可追踪路径点 |
-| `detailCanTrackExternal` | `boolean` | 是否可追踪外部目标 |
+| `detailCanTrackExternal` | `boolean` | 是否可追踪第三方插件注册路径点 |
 | `detailCanDeleteWaypoint` | `boolean` | 是否可删除路径点 |
 | `detailCanDeletePin` | `boolean` | 是否可删除标记点 |
 | `detailCanCreateWaypoint` | `boolean` | 是否可创建路径点 |
@@ -161,7 +161,7 @@ Map 模块的 UI 交互通过 ArcartX Packet 通讯完成。客户端向服务�
 | `maxWorldCount` | `int` | 世界行模板最大复制数 |
 | `maxAnchorCount` | `int` | 锚点行模板最大复制数 |
 | `maxWaypointCount` | `int` | 路径点行模板最大复制数 |
-| `maxExternalCount` | `int` | 外部目标行模板最大复制数 |
+| `maxExternalCount` | `int` | 第三方插件注册路径点行模板最大复制数 |
 | `maxPinCount` | `int` | 标记点行模板最大复制数 |
 | `action_token` | `String` | 写操作防重放令牌 |
 

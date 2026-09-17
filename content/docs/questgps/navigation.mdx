@@ -109,9 +109,9 @@ AXS-questgps-<questId>__<taskId>    # 子任务级追踪
 | 屏幕路标 | 仅主目标 | 只有"最新激活且同世界"的目标下发客户端路标；取消主目标后上一个同世界目标自动接管 |
 | 路径标记链 | 仅主目标 | 同上——屏幕上始终只有一条路线，避免多路线误导玩家 |
 | 指引 HUD | 并行展示 | 引导 HUD 最多展示 3 张追踪卡片（`quests{}` 字段），但只渲染主目标坐标 |
-| 地图标记 | 并行展示 | 所有追踪中任务的外部目标 `navigated=true`，可在面板按目标单独取消 |
+| 地图标记 | 并行展示 | 所有追踪中任务的第三方插件注册路径点 `navigated=true`，可在面板按目标单独取消 |
 
-> 动态目标（Chemdah tracker / NPC）即使不是主目标，其坐标仍随 `refresh-ticks` 周期解析并同步到地图外部目标；HUD 卡片与到达判定不受影响。
+> 动态目标（Chemdah tracker / NPC）即使不是主目标，其坐标仍随 `refresh-ticks` 周期解析并同步到地图第三方插件注册路径点；HUD 卡片与到达判定不受影响。
 
 ### 到达判定滞回与命令钩子
 
@@ -217,11 +217,11 @@ NavigationTargetService.tick()
     │       └── 解析结果缓存 resolverCacheMillis（默认 1.5s）降频
     │
     ├── 坐标/标题变化 → diff 推送路标（仅主目标实际下发）
-    ├── 位置变化 → positionChangedHandler → 地图外部目标 upsert
+    ├── 位置变化 → positionChangedHandler → 地图第三方插件注册路径点 upsert
     └── 到达判定（滞回武装/触发）
 ```
 
-> resolver 结果有 1.5 秒缓存，NPC/任务坐标查询不会每轮真实执行；位置变化超过 0.05 格才上报 `positionChangedHandler`（供地图外部目标坐标跟随）。
+> resolver 结果有 1.5 秒缓存，NPC/任务坐标查询不会每轮真实执行；位置变化超过 0.05 格才上报 `positionChangedHandler`（供地图第三方插件注册路径点坐标跟随）。
 
 ## 指引 HUD
 
@@ -273,7 +273,7 @@ QuestGPS 通过 `MapNavigable` Capability（公开 capability）与 Map 模块�
 
 | 操作 | 方法 | 说明 |
 |---|---|---|
-| 同步目标 | `reconcileExternalTargets` | 把所有进行中任务**原子替换**为地图外部目标（source = `questgps`），追踪中的任务 `navigated=true` |
+| 同步目标 | `reconcileExternalTargets` | 把所有进行中任务**原子替换**为地图第三方插件注册路径点（source = `questgps`），追踪中的任务 `navigated=true` |
 | 坐标跟随 | `upsertExternalTarget` | Chemdah tracker 动态坐标变化时更新目标坐标（`select=false`，不打断选中） |
 | 导航回调 | `registerNavigationSource` | 注册 `questgps` 来源的 `MapNavigationHandler`：面板"导航"→ `handleMapNavigateRequest`（任务级/子任务级追踪），"取消"→ `handleMapCancelRequest`（停止追踪，标记保留） |
 | 打开地图 | UI Packet `open_map` | 调用 `MapNavigable.openMenuFor` 打开地图菜单并选中目标 |

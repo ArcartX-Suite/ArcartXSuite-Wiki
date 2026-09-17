@@ -13,27 +13,27 @@ Map 模块在 `startService()` 中注册以下 Capability，供其他模块跨�
 
 地图导航能力接口，标注 `@PublicCapability` + `@Stable`——AXS 模块内部经 `getCapability(MapNavigable.class)` 获取，**外部 Bukkit 插件经 `AxsCapabilities.get(MapNavigable.class)` 获取**（插件需 `depend: [ArcartXSuite]` 或 `softdepend`）。
 
-定位：地图是**展示层与事件源**。来源（QuestGPS / 外部插件）推送外部目标供玩家浏览；玩家点击"导航"时按优先级路由：全局委托 → `useMapNavigation` 地图代导航 → 来源 `MapNavigationHandler` 回调。
+定位：地图是**展示层与事件源**。来源（QuestGPS / 外部插件）推送第三方插件注册路径点供玩家浏览；玩家点击"导航"时按优先级路由：全局委托 → `useMapNavigation` 地图代导航 → 来源 `MapNavigationHandler` 回调。
 
 | 方法 | 参数 | 说明 |
 |---|---|---|
-| `upsertExternalTarget` | `Player`, `MapExternalTargetSpec spec`, `boolean select` | 新增/更新单个外部目标；`select=true` 切到目标世界并选中 |
-| `upsertExternalTargets` | `Player`, `List<MapExternalTargetSpec>` | 批量推送外部目标，一次视图同步 |
+| `upsertExternalTarget` | `Player`, `MapExternalTargetSpec spec`, `boolean select` | 新增/更新单个第三方插件注册路径点；`select=true` 切到目标世界并选中 |
+| `upsertExternalTargets` | `Player`, `List<MapExternalTargetSpec>` | 批量推送第三方插件注册路径点，一次视图同步 |
 | `reconcileExternalTargets` | `Player`, `String source`, `List<MapExternalTargetSpec>` | 用给定集合原子替换该来源全部目标：单次同步、仍存在的目标选中态不闪断；空列表 = 清空该来源 |
-| `clearExternalTargets` | `Player`, `String source`, `boolean syncView` | 按来源清除外部目标（`source` 为空串 = 全部来源） |
+| `clearExternalTargets` | `Player`, `String source`, `boolean syncView` | 按来源清除第三方插件注册路径点（`source` 为空串 = 全部来源） |
 | `setExternalNavigated` | `Player`, `String targetId`, `boolean navigated` | 来源回推导航状态，驱动面板"导航 ↔ 取消"按钮（`useMapNavigation` 目标由地图自维护，无需调用） |
-| `navigateExternalTarget` | `Player`, `String targetId` | 由地图内置导航栈开始导航指定外部目标（"地图代导航"命令式入口）；已在导航返回 `true`，目标不存在/导航不可用返回 `false` |
+| `navigateExternalTarget` | `Player`, `String targetId` | 由地图内置导航栈开始导航指定第三方插件注册路径点（"地图代导航"命令式入口）；已在导航返回 `true`，目标不存在/导航不可用返回 `false` |
 | `registerNavigationSource` | `Plugin owner`, `String source`, `MapNavigationHandler` | 注册来源导航回调；`owner` 插件禁用时自动注销 |
 | `unregisterNavigationSource` | `String source` | 注销来源导航回调 |
 | `setNavigationDelegate` | `Plugin owner`, `MapNavigationDelegate` | 注册全局导航委托（全量接管导航点击）；全服仅一个，重复注册由后者覆盖；`owner` 插件禁用时自动注销 |
 | `clearNavigationDelegate` | `Plugin owner` | 注销导航委托（仅当当前委托属于该插件时生效） |
 | `hasNavigationDelegate` | — | 当前是否已注册全局导航委托 |
 | `clearTrack` | `Player` | 静默清除地图自身导航——来源开始自身导航时调用，实现导航互斥 |
-| `openMenuFor` | `Player`, `String targetId` | 打开地图并选中目标；依次匹配外部目标 → 路径点 → 标记点，未命中按世界 ID 兜底打开 |
+| `openMenuFor` | `Player`, `String targetId` | 打开地图并选中目标；依次匹配第三方插件注册路径点 → 路径点 → 标记点，未命中按世界 ID 兜底打开 |
 
 #### MapExternalTargetSpec
 
-外部目标规格 record，字段：`targetId` / `source` / `worldId` / `title` / `description` / `x` / `y` / `z` / `iconId` / `navigated` / `sortOrder` / `useMapNavigation`（保留省略 `useMapNavigation` 的兼容构造，另有省略 `iconId`/`navigated`/`sortOrder`/`useMapNavigation` 的便捷构造）。
+第三方插件注册路径点规格 record，字段：`targetId` / `source` / `worldId` / `title` / `description` / `x` / `y` / `z` / `iconId` / `navigated` / `sortOrder` / `useMapNavigation`（保留省略 `useMapNavigation` 的兼容构造，另有省略 `iconId`/`navigated`/`sortOrder`/`useMapNavigation` 的便捷构造）。
 
 `useMapNavigation=true` 时，玩家点该目标的"导航"由地图内置导航栈执行（客户端路标 + 路径标记 + 到达判定），不回调来源 handler——来源推送后零代码获得导航能力；导航样式/到达半径/命令钩子走地图 `navigation.*` 配置。默认 `false` 走来源回调/全局委托。
 
@@ -51,7 +51,7 @@ public interface MapNavigationHandler {
 
 #### MapNavigationDelegate（全局委托）
 
-`setNavigationDelegate(owner, delegate)` 注册的委托会**先于一切导航处理**拦截玩家在地图上的"导航"点击（锚点/路径点/外部目标；标记点 pin 不可导航不经此接口）：
+`setNavigationDelegate(owner, delegate)` 注册的委托会**先于一切导航处理**拦截玩家在地图上的"导航"点击（锚点/路径点/第三方插件注册路径点；标记点 pin 不可导航不经此接口）：
 
 ```java
 public interface MapNavigationDelegate {
@@ -65,7 +65,7 @@ public interface MapNavigationDelegate {
 `MapNavigationRequest` record 携带目标完整描述：`targetType`（`anchor`/`waypoint`/`external`）、`targetId`、`worldId`、`title`、`x/y/z`、`source`（自有目标固定 `"map"`）。契约要点：
 
 - 导航执行（信标/路径标记/追踪状态）完全由委托方负责，地图不建客户端路标
-- 委托接管外部目标时应另调 `setExternalNavigated(player, targetId, true)` 驱动该目标行按钮切换
+- 委托接管第三方插件注册路径点时应另调 `setExternalNavigated(player, targetId, true)` 驱动该目标行按钮切换
 - 全服同一时间只有一个委托；重复注册由后者覆盖；`owner` 插件禁用时自动注销
 
 #### 导航互斥约定
@@ -135,23 +135,23 @@ map.openMenuFor(player, "target-1");
 
 获取接口：`AxsCapabilities.get(MapNavigable.class)`（需 `depend`/`softdepend: [ArcartXSuite]` + compileOnly axs-api）。
 
-外部目标"导航"点击按优先级路由：**全局委托 → `useMapNavigation` 地图代导航 → 来源 handler → 提示「来源未提供导航支持」**。按接入用途选择：
+第三方插件注册路径点"导航"点击按优先级路由：**全局委托 → `useMapNavigation` 地图代导航 → 来源 handler → 提示「来源未提供导航支持」**。按接入用途选择：
 
 | 用途 | 接入方式 | 导航执行方 |
 |---|---|---|
-| 第三方标记点由 Map 执行导航 | spec 设 `useMapNavigation=true`，或调用 `navigateExternalTarget` | Map 模块导航栈 |
-| 第三方插件代理自身标记点导航 | `registerNavigationSource` 注册来源回调 | 第三方插件 |
-| 第三方插件代理全部标记点导航（含地图自带锚点/路径点） | `setNavigationDelegate` | 第三方插件 |
-| 仅展示标记，不提供导航 | 仅推送外部目标 | 无 |
+| 第三方插件注册路径点由 Map 执行导航 | spec 设 `useMapNavigation=true`，或调用 `navigateExternalTarget` | Map 模块导航栈 |
+| 第三方插件代理自身注册路径点导航 | `registerNavigationSource` 注册来源回调 | 第三方插件 |
+| 第三方插件代理全部地图标记点导航（含自带锚点/路径点） | `setNavigationDelegate` | 第三方插件 |
+| 仅展示第三方插件注册路径点，不提供导航 | 仅推送第三方插件注册路径点 | 无 |
 
 > 同一 `source` 可按目标混用：部分目标 `useMapNavigation=true` 交由 Map 导航，其余经来源 handler 自行执行。
 
-### 第三方标记点由 Map 执行导航（useMapNavigation）
+### 第三方插件注册路径点由 Map 执行导航（useMapNavigation）
 
 spec 设 `useMapNavigation=true` 后，点击"导航"由 Map 导航栈全程执行——客户端路标、路径标记、到达判定、`finish-commands`、按钮态翻转、取消、互斥、跨世界 `cross_world_navigate`：
 
 ```java
-// 推送外部目标：useMapNavigation=true 表示该目标的导航由 Map 执行
+// 推送第三方插件注册路径点：useMapNavigation=true 表示该目标的导航由 Map 执行
 map.reconcileExternalTargets(player, "myplugin", List.of(
     new MapExternalTargetSpec(
         "target-1", "myplugin", "world",
@@ -169,7 +169,7 @@ map.navigateExternalTarget(player, "target-1");
 - 导航样式与行为参数（`navigation.waypoint.*`/`finish-*` 等）统一采用 Map 配置，来源插件不可按目标定制
 - `navigateExternalTarget` 亦可在来源 handler 内按需转交：同一 `source` 可混用"Map 执行"与"来源自执行"的目标
 
-### 第三方插件代理自身标记点导航（来源回调）
+### 第三方插件代理自身注册路径点导航（来源回调）
 
 来源插件注册 `MapNavigationHandler`：玩家点击"导航"/"取消"回调至来源插件，导航执行由来源插件完成：
 
@@ -204,13 +204,13 @@ map.reconcileExternalTargets(player, "myplugin", specs);
 
 互斥义务：来源插件开始导航前调用 `map.clearTrack(player)` 清除地图导航；订阅 `axs.map.nav_started`，在 Map 开始导航时停止自身导航。QuestGPS 模块即采用此模式。
 
-### 第三方插件代理全部标记点导航（全局委托）
+### 第三方插件代理全部地图标记点导航（全局委托）
 
-`setNavigationDelegate(this, delegate)` 后，锚点/路径点/外部目标的"导航"点击统一回调 `onNavigateRequest`（标记点 pin 不可导航，不经委托）：
+`setNavigationDelegate(this, delegate)` 后，锚点/路径点/第三方插件注册路径点的"导航"点击统一回调 `onNavigateRequest`（标记点 pin 不可导航，不经委托）：
 
 - 返回 `true` 表示接管：Map 记录委托导航态并发布 `nav_started`，**不创建路标**——路标/路径/到达判定均由委托方实现；返回 `false` 表示放行，移交下一级处理（可按 `targetType`/`source` 选择性接管）
 - `onCancelRequest` 在取消/互斥/玩家退出时触发，**须保证幂等**；取消逻辑应以 `targetType + targetId` 建立稳定映射——request 坐标为尽力重解（目标已删除时为 0），不可依赖坐标
-- 委托接管外部目标时需另调 `setExternalNavigated` 更新该行按钮；全局唯一委托，重复注册覆盖，`owner` 插件禁用时自动注销
+- 委托接管第三方插件注册路径点时需另调 `setExternalNavigated` 更新该行按钮；全局唯一委托，重复注册覆盖，`owner` 插件禁用时自动注销
 - 边界：`cross_world_navigate` 的传送段（含扣费）由 Map 先行执行，成功后移交委托方；传送/解锁/路径点管理不经委托；除 `onCancelRequest` 外无其他生命周期回调（无到达事件）
 
 ```java
@@ -218,10 +218,10 @@ map.setNavigationDelegate(this, new MapNavigationDelegate() {
 
     // 点击任意"导航"先回调此方法：
     // 返回 true 接管（Map 记委托态、发 nav_started，但不建路标）；
-    // 返回 false 放行（外部目标 → useMapNavigation/来源 handler；自有目标 → Map 内置导航）
+    // 返回 false 放行（第三方插件注册路径点 → useMapNavigation/来源 handler；自有目标 → Map 内置导航）
     @Override
     public boolean onNavigateRequest(Player player, MapNavigationRequest req) {
-        // 示例策略：仅接管地图自有目标，外部目标放行给来源处理
+        // 示例策略：仅接管地图自有目标，第三方插件注册路径点放行给来源处理
         if (MapNavigationRequest.TYPE_EXTERNAL.equals(req.targetType())) {
             return false;
         }
@@ -249,7 +249,7 @@ map.setNavigationDelegate(this, new MapNavigationDelegate() {
 
 - **仅展示**：仅推送目标、不注册 handler，点击"导航"提示「来源未提供导航支持」（适合位置公示，可在 `description` 注明）
 - **事件订阅**：经 `EventBusCapability` 订阅下表主题——`external_navigate` 在回调/委托之前发布，各接管路径均可观测
-- **打开地图**：`openMenuFor(player, targetId)` 依次匹配外部目标 → 路径点 → 标记点，未命中按世界兜底打开
+- **打开地图**：`openMenuFor(player, targetId)` 依次匹配第三方插件注册路径点 → 路径点 → 标记点，未命中按世界兜底打开
 
 ### AXS 模块额外选项：复用导航栈
 
@@ -263,10 +263,10 @@ Map 模块向 EventBus 发布以下主题，其他模块/外部插件可经 `Eve
 
 | 主题 | 触发时机 | Payload |
 |---|---|---|
-| `axs.map.nav_started` | 玩家开始导航（锚点/路径点，含委托接管与地图代导航的外部目标） | `type`（anchor/waypoint/external）、`id`、`world_id` |
+| `axs.map.nav_started` | 玩家开始导航（锚点/路径点，含委托接管与地图代导航的第三方插件注册路径点） | `type`（anchor/waypoint/external）、`id`、`world_id` |
 | `axs.map.nav_cleared` | 玩家停止地图导航（含委托态移除） | `type`（anchor/waypoint/external）、`id`、`world_id`、`reason`（`cleared`/来源接管 `source_took_over`） |
-| `axs.map.external_navigate` | 面板点击外部目标"导航"（在委托/来源回调**之前**发布，两种接管路径都能观测） | `target_id`、`source`、`world_id` |
-| `axs.map.external_nav_cancel` | 面板点击外部目标"取消" | `target_id`、`source`、`world_id` |
+| `axs.map.external_navigate` | 面板点击第三方插件注册路径点"导航"（在委托/来源回调**之前**发布，两种接管路径都能观测） | `target_id`、`source`、`world_id` |
+| `axs.map.external_nav_cancel` | 面板点击第三方插件注册路径点"取消" | `target_id`、`source`、`world_id` |
 
 ## 跨服同步
 
@@ -342,7 +342,7 @@ Map 模块使用三张表存储玩家数据，表名前缀取决于存储模式�
 
 | 联动方式 | 说明 |
 |---|---|
-| 外部目标注入 | QuestGPS 通过 `MapNavigable.reconcileExternalTargets` 把进行中任务原子同步为地图外部目标（source = `questgps`），任务接取/失败/完成/进服时刷新 |
+| 第三方插件注册路径点注入 | QuestGPS 通过 `MapNavigable.reconcileExternalTargets` 把进行中任务原子同步为地图第三方插件注册路径点（source = `questgps`），任务接取/失败/完成/进服时刷新 |
 | 坐标跟随 | Chemdah tracker 动态坐标变化 > 0.5 格时经 `upsertExternalTarget` 更新目标坐标 |
 | 导航回调 | QuestGPS 注册 `MapNavigationHandler`：面板"导航"→ `trackQuest`/`trackTask`，"取消"→ 停止追踪（标记保留） |
 | 导航互斥 | QuestGPS 起导航调 `clearTrack`；地图起导航发布 `axs.map.nav_started`，QuestGPS 订阅后停止自身任务导航 |
@@ -366,7 +366,7 @@ Map 模块使用三张表存储玩家数据，表名前缀取决于存储模式�
 | 样式解析 | 路标样式 ID 优先使用 `navigation.waypoint.style-id`，回退到 `waypoints.default-style-id` |
 | 初始化 | 模块启动时调用 `waypointBridge.initialize("Map 导航")` 初始化路标系统 |
 
-> ArcartX Waypoint 不存在时锚点/路径点导航不可用（`waypointRuntimeReady` 返回 `false`），但地图菜单、HUD 与外部目标转发正常使用。
+> ArcartX Waypoint 不存在时锚点/路径点导航不可用（`waypointRuntimeReady` 返回 `false`），但地图菜单、HUD 与第三方插件注册路径点转发正常使用。
 
 ### Adyeshach
 

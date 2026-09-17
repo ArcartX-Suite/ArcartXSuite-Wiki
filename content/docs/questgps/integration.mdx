@@ -104,7 +104,7 @@ QuestGPS 的配置文件支持 `SyncPolicy`，`categories` 段标记为动态段
 
 | 联动方式 | 说明 |
 |---|---|
-| 外部目标同步 | 通过 `MapNavigable.reconcileExternalTargets` 把进行中任务原子同步为地图外部目标（source = `questgps`），Chemdah 坐标变化时经 `upsertExternalTarget` 跟随 |
+| 第三方插件注册路径点同步 | 通过 `MapNavigable.reconcileExternalTargets` 把进行中任务原子同步为地图第三方插件注册路径点（source = `questgps`），Chemdah 坐标变化时经 `upsertExternalTarget` 跟随 |
 | 导航回调 | 注册 `MapNavigationHandler`：地图面板"导航"→ 任务追踪，"取消"→ 停止追踪（标记保留） |
 | 导航互斥 | QuestGPS 起导航调 `MapNavigable.clearTrack`；地图起导航发布 `axs.map.nav_started`，QuestGPS 订阅后停止自身导航 |
 | 清除目标 | 模块卸载时调用 `clearExternalTargets` 移除 `questgps` 来源的全部目标 |
