@@ -134,11 +134,37 @@ description: Tab 模块玩家命令、管理命令、权限、PlaceholderAPI 占
 
 删除存档文件（不影响已注入的虚拟节点）。
 
+### /axstab fake
+
+fake 测试模式：向本玩家推送指定数量的伪造在线条目，用于观察 TAB UI 在不同在线人数下的列数、背景尺寸与信息栏布局变化。需要 `axstab.debug` 权限或 OP，仅玩家可用，仅影响本人显示。
+
+```yaml
+# 模拟 50 人在线
+/axstab fake 50
+
+# 查看当前 fake 状态
+/axstab fake
+
+# 关闭，恢复真实数据
+/axstab fake off
+```
+
+| 参数 | 类型 | 说明 |
+|---|---|---|
+| `<数量\|off>` | `String` | 伪造条目数（0~500），`off` / `stop` / `false` 关闭 |
+
+- 开启后所有匹配当前 view 的 Tab 定义都会向本玩家推送 count 条伪造条目，走完整发包管线（结构化 diff、强制刷新、view 匹配）。
+- 伪造条目按该 definition 的 `pack` 模板以本人为上下文渲染（`%player_name%` 等占位符解析为本人数据），末尾追加 `&8#序号` 后缀便于数行；字典 pack 的顶层 key 追加 `_fake_<序号>` 后缀保证条目互不覆盖。
+- 不影响其他玩家的显示，也不影响 `%axstab_<def>_count%` 等 PAPI 统计；玩家退服后自动关闭。
+- 内置 UI 的背景行预生成上限约 120 行（`tab.yml` 的 `TAB遍历` / `tab-rich.yml` 的 `RichTAB遍历`），超过后文本行仍会创建但没有对应背景行。
+
+> 内置 UI 的布局人数由 `packet.size()` 派生（`var.TAB在线人数` / `var.RichTAB在线人数`），因此 fake 条目数会直接反映为布局行数。
+
 ## 权限
 
 | 权限节点 | 默认 | 说明 |
 |---|---|---|
-| `axstab.debug` | OP | 使用 `/axstab debug` 和 `/axstab snapshot` 子命令的权限 |
+| `axstab.debug` | OP | 使用 `/axstab debug`、`/axstab snapshot` 和 `/axstab fake` 子命令的权限 |
 
 > 玩家命令 `view` / `page` / `refresh` 无权限要求，所有在线玩家均可使用。
 
@@ -243,9 +269,12 @@ ui:
     load: |-
       var.TAB刷新轮次 = 0
       var.TAB显示 = false
+      var.TAB在线人数 = 0
     keyPress: |-
       if(self.currentKeyPress() == "TAB"){
         Packet.send("TAB","update")
+        var.单列数量 = math.ceil(var.TAB在线人数 / val.TAB遍历.row)
+        var.第一列人数 = math.min(var.TAB在线人数, 15)
         var.TAB显示 = true
       }
     keyRelease: |-
@@ -267,7 +296,12 @@ ui:
         }
         i++
       }
+      var.TAB在线人数 = packet.size()
+      var.单列数量 = math.ceil(var.TAB在线人数 / val.TAB遍历.row)
+      var.第一列人数 = math.min(var.TAB在线人数, 15)
 ```
+
+> **布局人数由包大小派生**：内置 UI 不再读取 `server.server_online`（PAPI 真实在线数），而是在 handler 中执行 `var.TAB在线人数 = packet.size()`（rich 版为 `var.RichTAB在线人数`），列数、第一列人数与背景行 `visible`（`self.ID < var.TAB在线人数`）全部以包内实际行数为准。filters / max-entries / 分页截断后布局与实际渲染行数始终一致，`/axstab fake` 也借此模拟任意人数。
 
 ### pack 形态与 packet 结构
 
@@ -343,4 +377,14 @@ player:
     view: "&7/axstab view <视图名>&f - 切换视图"
     page: "&7/axstab page <definitionId> <next|prev|页码>&f - 翻页"
     refresh: "&7/axstab refresh&f - 强制刷新本玩家"
+admin:
+  fake:
+    usage: "&7用法: /axstab fake <数量|off> &8(0-{0}，仅影响自己的 TAB 显示)"
+    status-on: "&efake 测试模式已开启：模拟在线人数 &f{0}&e。"
+    status-off: "&efake 测试模式未开启。"
+    enabled: "&a已进入 fake 测试模式：模拟在线人数 &f{0}&a。按住 TAB 查看布局效果，输入 /axstab fake off 关闭。"
+    disabled: "&a已关闭 fake 测试模式，恢复真实数据。"
+    not-active: "&efake 测试模式未开启。"
+    invalid: "&c数量无效: {0}（请输入 0-{1} 或 off）"
+  # debug / snapshot 消息省略
 ```

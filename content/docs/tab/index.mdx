@@ -31,7 +31,7 @@ Tab 是 Suite 的自定义 Tab 列表面板模块。它周期性扫描在线玩�
 | 跨服同步 | 本服与远程节点快照聚合，支持退服宽限期（`leave-grace-ms`）避免跨服跳传闪烁 |
 | 客户端限流 | `client-refresh-guard` 滑动窗口限流，防止恶意高频刷新 |
 | PAPI 兜底 | 未安装 `player` / `server` PAPI 扩展时自动注册内置兜底实现 |
-| 调试工具 | `dry-run` 模式、快照存档 / 加载 / 卸载（`/axstab snapshot`） |
+| 调试工具 | `dry-run` 模式、快照存档 / 加载 / 卸载（`/axstab snapshot`）、在线人数模拟（`/axstab fake`） |
 | 内置变量 | pack 中可直接使用 `{player_name}` / `{player_uuid}` / `{player_health}` 等花括号变量 |
 
 ## 依赖
@@ -57,6 +57,7 @@ refresh()
   ├─ dispatchRefresh()            ← 为每个 enabled 的 definition 构建 payload 并推送
   │    └─ 对每个 viewer：
   │         ├─ 检查 view 是否匹配
+  │         ├─ fakeEntryCounts 命中 → buildFakePayload()（/axstab fake 测试模式，仅该 viewer）
   │         ├─ buildPayloadForViewer()
   │         │    ├─ aggregate 模式 → buildAggregatePayload()
   │         │    ├─ cross-server 模式 → buildCrossServerPayload()
