@@ -15,9 +15,11 @@ Market 模块通过 `EventBusCapability` 发布事件，其他模块可通过 Ev
 
 | 事件 Topic | 触发时机 | Payload |
 |---|---|---|
-| `market.listing_created` | 拍卖行上架成功 | `price`（起拍价）、`currency`（货币 ID） |
-| `market.auction_purchased` | 拍卖行竞价成交 | - |
-| `market.shop_dynamic_triggered` | 动态商品策略触发 | `strategy_key`、`strategy_type`、`shop_id` |
+| `axs.market.listing_created` | 拍卖行上架成功 | `price`（起拍价）、`currency`（货币 ID） |
+| `axs.market.auction_purchased` | 拍卖行竞价成交结算完成 | `listing_id`、`item`、`price`、`formatted_price`、`currency`、`tax`、`seller_uuid`、`buyer_uuid`、`buyer`（买家名） |
+| `axs.market.shop_dynamic_triggered` | 动态商品策略触发 | `strategy_key`、`strategy_type`、`shop_id` |
+
+> `auction_purchased` 在到期结算路径（`BID_WIN`）发布；此时买家通常已离线，`event.player()` 可能为 null，订阅方应以 payload 的 `buyer`/`buyer_uuid` 为准。
 
 ### 事件发布机制
 
@@ -54,6 +56,26 @@ Market 还通过 `SignalDispatchable` 派发信号：
 ## Capability 注册
 
 Market 模块注册了以下 Capability，供其他模块调用：
+
+### AxsMarketService（公开）
+
+市场公开服务接口（`@PublicCapability`），面向外部 Bukkit 插件。经 `AxsCapabilities.get(AxsMarketService.class)` 获取，市场模块未启用时返回 `null`。所有方法请在 Bukkit 主线程调用。
+
+| 方法 | 说明 |
+|---|---|
+| `openUi(player, MarketView)` | 打开指定市场视图：`AUCTION`/`AUCTION_SELL`/`SHOP_LIST`/`SHOP`/`RECYCLE`/`HISTORY`/`SELL`/`PLAYER_SHOP`/`MY_LISTINGS` |
+| `createAuctionListing(player, item, startingBid, currency, durationSeconds)` | 替玩家创建拍卖挂单（`currency` 为 null 用默认货币）。返回 `CompletableFuture<Boolean>`——操作在调用线程同步完成（须主线程），`false` 表示校验失败；`item` 必须与玩家主手物品匹配（防复制），不支持上架未持有物品 |
+| `cancelListing(player, listingId)` | 取消玩家的一条挂单。返回 `CompletableFuture<Boolean>`（同步完成，`false` 表示挂单不存在/不属于该玩家等） |
+| `searchAuction(player, keyword)` | 打开拍卖 UI 并按关键字搜索。返回 `CompletableFuture<Boolean>`（`false` 表示市场服务不可用） |
+| `auctionCount()` / `shopCount()` / `myListingCount(player)` | 活跃挂单数 / 商店条目数 / 玩家自己的挂单数 |
+| `playerShopEnabled()` | 玩家商店功能是否启用 |
+
+```java
+AxsMarketService market = AxsCapabilities.get(AxsMarketService.class);
+if (market != null) {
+    market.openUi(player, AxsMarketService.MarketView.AUCTION);
+}
+```
 
 ### DatabaseMigratable
 

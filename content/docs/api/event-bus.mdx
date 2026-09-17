@@ -7,7 +7,9 @@ description: Suite 跨模块事件总线 API，支持主题发布/订阅、通�
 
 ## 概述
 
-`EventBusCapability` 是 Suite 的内存 pub/sub 事件总线。模块间通过主题字符串发布和订阅事件，实现零配置联动。主题采用点分字符串，如 `market.purchase`、`mail.received`。
+`EventBusCapability` 是 Suite 的内存 pub/sub 事件总线。模块间通过主题字符串发布和订阅事件，实现零配置联动。主题采用点分字符串，如 `axs.market.listing_created`、`axs.mail.received`。
+
+> **命名约定**：AXS 内置主题统一使用 `axs.<模块id>.<事件名>` 前缀（如 `axs.fishing.success`）。`publishedTopics()` 中声明的无前缀主题会在启动时收到告警日志。外部插件自建主题不受此约束，但建议避免使用 `axs.` 前缀以免与内置事件混淆。
 
 与 `SignalDispatchable` 的区别：
 
@@ -69,13 +71,13 @@ public interface EventBusCapability {
 
 ## 通配符订阅
 
-EventBus 支持末尾 `.*` 通配符订阅。例如 `market.*` 会匹配所有以 `market.` 开头的主题：
+EventBus 支持末尾 `.*` 通配符订阅。例如 `axs.market.*` 会匹配所有以 `axs.market.` 开头的主题：
 
 ```java
 // 订阅所有 market 开头的事件
-String subId = bus.subscribe("market.*", event -> {
+String subId = bus.subscribe("axs.market.*", event -> {
     logger.info(event.player().getName() + " 触发了 " + event.topic());
-    // event.topic() 可能是 "market.purchase"、"market.sell" 等
+    // event.topic() 可能是 "axs.market.listing_created"、"axs.market.auction_purchased" 等
 });
 ```
 
@@ -83,11 +85,11 @@ String subId = bus.subscribe("market.*", event -> {
 
 | 订阅模式 | 匹配的主题 | 不匹配的主题 |
 |----------|-----------|-------------|
-| `market.purchase` | `market.purchase` | `market.sell` |
-| `market.*` | `market.purchase`、`market.sell` | `mail.received` |
+| `axs.market.listing_created` | `axs.market.listing_created` | `axs.market.auction_purchased` |
+| `axs.market.*` | `axs.market.listing_created`、`axs.market.auction_purchased` | `axs.mail.received` |
 | `axs.combateffect.*` | `axs.combateffect.kill_entity`、`axs.combateffect.damage_dealt` | `axs.fishing.success` |
 
-> 通配符仅支持末尾 `.*`，不支持中间通配或多级通配（如 `*.*` 或 `market.*.purchase`）。
+> 通配符仅支持末尾 `.*`，不支持中间通配或多级通配（如 `*.*` 或 `axs.market.*.purchased`）。
 
 ## 自动注册发布者
 
@@ -98,13 +100,13 @@ public class MyModule extends AbstractAXSModule {
 
     @Override
     protected List<String> publishedTopics() {
-        return List.of("mymodule.event_a", "mymodule.event_b");
+        return List.of("axs.mymodule.event_a", "axs.mymodule.event_b");
     }
 
     @Override
     protected void startService() throws Exception {
-        // startService 之前，基类已自动注册 "mymodule.event_a" 和 "mymodule.event_b"
-        // 其他模块可通过 hasPublisher("mymodule.event_a") 检测本模块是否已加载
+        // startService 之前，基类已自动注册 "axs.mymodule.event_a" 和 "axs.mymodule.event_b"
+        // 其他模块可通过 hasPublisher("axs.mymodule.event_a") 检测本模块是否已加载
     }
 }
 ```
@@ -169,10 +171,10 @@ private void dispatch(Subscription sub, BusEvent event) {
 EventBusCapability bus = context.getCapability(EventBusCapability.class);
 if (bus != null) {
     // 发布 Map payload（向后兼容）
-    bus.publish("market.purchase", player, Map.of("price", "1000", "item", "钻石剑"));
+    bus.publish("axs.market.listing_created", player, Map.of("price", "1000", "item", "钻石剑"));
 
     // 发布类型安全 payload
-    bus.publish("market.auction_purchased", player, new PurchaseRecord(itemId, price, buyer));
+    bus.publish("axs.market.auction_purchased", player, new PurchaseRecord(itemId, price, buyer));
 }
 ```
 
@@ -182,18 +184,18 @@ if (bus != null) {
 EventBusCapability bus = context.getCapability(EventBusCapability.class);
 if (bus != null) {
     // 精确订阅
-    String subId1 = bus.subscribe("market.purchase", event -> {
+    String subId1 = bus.subscribe("axs.market.listing_created", event -> {
         Map<String, String> data = event.payload();
-        logger.info(event.player().getName() + " 购买了 " + data.get("item"));
+        logger.info(event.player().getName() + " 上架了 " + data.get("item"));
     });
 
     // 通配符订阅
-    String subId2 = bus.subscribe("market.*", event -> {
+    String subId2 = bus.subscribe("axs.market.*", event -> {
         logger.info("市场事件: " + event.topic() + " by " + event.player().getName());
     });
 
     // 类型安全 payload 订阅
-    String subId3 = bus.subscribe("market.auction_purchased", event -> {
+    String subId3 = bus.subscribe("axs.market.auction_purchased", event -> {
         PurchaseRecord record = (PurchaseRecord) event.typedPayload();
         // 处理类型安全数据
     });
@@ -211,16 +213,16 @@ public class MarketModule extends AbstractAXSModule {
     @Override
     protected List<String> publishedTopics() {
         return List.of(
-            "market.listing_created",
-            "market.auction_purchased",
-            "market.shop_dynamic_triggered"
+            "axs.market.listing_created",
+            "axs.market.auction_purchased",
+            "axs.market.shop_dynamic_triggered"
         );
     }
 
     @Override
     protected void startService() throws Exception {
         // 基类已自动注册上述主题为发布者
-        // 其他模块可通过 hasPublisher("market.listing_created") 检测本模块是否已加载
+        // 其他模块可通过 hasPublisher("axs.market.listing_created") 检测本模块是否已加载
     }
 }
 ```
@@ -231,9 +233,9 @@ public class MarketModule extends AbstractAXSModule {
 @Override
 protected void startService() throws Exception {
     EventBusCapability bus = getCapability(EventBusCapability.class);
-    if (bus != null && bus.hasPublisher("market.listing_created")) {
+    if (bus != null && bus.hasPublisher("axs.market.listing_created")) {
         // Market 模块已加载，订阅其事件
-        bus.subscribe("market.*", event -> {
+        bus.subscribe("axs.market.*", event -> {
             // 处理市场事件
         });
     } else {
@@ -249,12 +251,12 @@ protected void startService() throws Exception {
 
 | 模块 | 事件主题 | 说明 |
 |------|----------|------|
-| market | `market.listing_created` | 上架商品 |
-| market | `market.auction_purchased` | 拍卖购买 |
-| market | `market.shop_dynamic_triggered` | 动态商店触发 |
+| market | `axs.market.listing_created` | 上架商品 |
+| market | `axs.market.auction_purchased` | 拍卖竞价成交 |
+| market | `axs.market.shop_dynamic_triggered` | 动态商店触发 |
 | chat | `axs.chat.chat_message_sent` | 聊天消息发送 |
 | loginview | `axs.loginview.login_success` | 登录成功 |
-| onlinerewards | `onlinerewards.server_goal_reached` | 服务器目标达成 |
+| onlinerewards | `axs.onlinerewards.server_goal_reached` | 服务器目标达成 |
 | regions | `axs.regions.region_change` | 区域变更 |
 | warehouse | `axs.warehouse.item_deposited` | 物品入库 |
 | combateffect | `axs.combateffect.kill_entity` | 击杀实体 |

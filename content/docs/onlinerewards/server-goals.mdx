@@ -15,7 +15,7 @@ description: "OnlineRewards 全服签到目标/集体奖励系统：目标配置
 | 防重复触发 | 每个目标每天只触发一次（数据库记录） |
 | 多渠道奖励 | 命令、邮件预设、物品、聊天卡片、字幕组、标题、QQ广播 |
 | 全服广播 | 达成目标时全服广播消息 |
-| EventBus 事件 | 发布 `onlinerewards.server_goal_reached` 事件供其他模块订阅 |
+| EventBus 事件 | 发布 `axs.onlinerewards.server_goal_reached` 事件供其他模块订阅 |
 | 占位符查询 | 提供当前签到人数与下一个目标所需人数的占位符 |
 
 ## 配置结构
@@ -82,7 +82,7 @@ description: "OnlineRewards 全服签到目标/集体奖励系统：目标配置
             │    ├→ 播放 subtitle-groups 字幕组
             │    └→ 授予 title-ids 标题
             │
-            └→ 发布 EventBus 事件（onlinerewards.server_goal_reached）
+            └→ 发布 EventBus 事件（axs.onlinerewards.server_goal_reached）
 ```
 
 ### 防重复触发机制
@@ -286,7 +286,7 @@ server-sign-in-goal:
 
 全服签到目标达成时，模块通过 `EventBusCapability` 发布事件，其他模块可订阅对应 Topic 接收事件。
 
-### onlinerewards.server_goal_reached
+### axs.onlinerewards.server_goal_reached
 
 | Payload 字段 | 类型 | 说明 |
 |---|---|---|
@@ -297,7 +297,7 @@ server-sign-in-goal:
 
 ```java
 // 订阅示例（其他模块中）
-eventBus.subscribe("onlinerewards.server_goal_reached", (player, payload) -> {
+eventBus.subscribe("axs.onlinerewards.server_goal_reached", (player, payload) -> {
     String goalId = payload.get("goal_id");
     String goalName = payload.get("goal_name");
     int required = Integer.parseInt(payload.get("required"));

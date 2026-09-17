@@ -11,7 +11,7 @@ OnlineRewards 模块通过 Capability 注册、EventBus 事件发布、跨服通
 
 ### OnlineRewardsQueryable
 
-提供在线奖励的查询与操作能力，接口定义位于 `xuanmo.arcartxsuite.onlinerewards.capability.OnlineRewardsQueryable`。
+提供在线奖励的查询与操作能力（**公开 capability**，`@PublicCapability`），接口定义位于 `xuanmo.arcartxsuite.api.capability.OnlineRewardsQueryable`。外部插件可经 `AxsCapabilities.get(OnlineRewardsQueryable.class)` 获取，模块未启用时返回 `null`。
 
 | 方法签名 | 返回值 | 说明 |
 |---|---|---|
@@ -61,7 +61,7 @@ if (rewards != null) {
 
 模块通过 `EventBusCapability` 发布事件，其他模块可订阅对应 Topic 接收事件。
 
-### onlinerewards.server_goal_reached
+### axs.onlinerewards.server_goal_reached
 
 全服签到目标达成时发布。
 
@@ -74,7 +74,7 @@ if (rewards != null) {
 
 ```java
 // 订阅示例
-eventBus.subscribe("onlinerewards.server_goal_reached", (player, payload) -> {
+eventBus.subscribe("axs.onlinerewards.server_goal_reached", (player, payload) -> {
     String goalId = payload.get("goal_id");
     int signed = Integer.parseInt(payload.get("signed_count"));
     // 处理全服签到目标达成事件

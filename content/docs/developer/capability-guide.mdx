@@ -72,7 +72,7 @@ context.registerCapability(PlayerDataPurgeable.class, new PlayerDataPurgeable() 
 
 ```java
 EventBusCapability bus = context.getCapability(EventBusCapability.class);
-bus.publish("market.purchase", player, Map.of("item", "diamond"));
+bus.publish("axs.market.listing_created", player, Map.of("item", "diamond"));
 ```
 
 与 `SignalDispatchable`（面向 EventPacket 规则引擎的 1 对 1 触发）互补。
@@ -187,10 +187,38 @@ public void onQuestComplete(Player player) {
 
 | 接口 | 提供方 | 用途 |
 |------|--------|------|
+| `EventBusCapability` | 宿主 | 主题 pub/sub |
+| `SecondaryPasswordAccess` | 宿主 | 二级密码访问 |
+| `AxsMailService` | mail | 邮件发送/查询/领取/删除（全异步） |
+| `AxsMarketService` | market | 市场 UI/挂单/搜索/计数 |
 | `MapNavigable` | map | 地图外部目标推送、导航回调、导航互斥 |
 | `QuestGpsNavigable` | questgps | 任务推送/接取/追踪/门禁检查 |
-| `EventBusCapability` | 宿主 | 主题 pub/sub |
-| `AxsMailService` | mail | 邮件发送/查询/领取/删除（全异步） |
+| `BattlePassAccess` | battlepass | 战令经验/等级/档位/任务进度 |
+| `FishingAccess` | fishing | 钓鱼小游戏/图鉴/经验/疲劳 |
+| `RegionQueryable` | regions | 保护区域查询 |
+| `BossTrackerQueryable` | entitytracker | 活跃 Boss 会话查询 |
+| `LotteryAccess` | lottery | 抽奖积分/兑换/开箱 |
+| `LoginViewQueryable` | loginview | 认证状态/打开登录界面 |
+| `PropAccessible` | prop | 道具列表/应用到主手 |
+| `AnnouncerBroadcastable` / `SubtitlePlayable` | announcer | 公告广播 / 播放字幕组 |
+| `RgbRenderable` | rgb | 渐变文本渲染 |
+| `TitleGrantable` / `TitleConfigQueryable` | title | 发放称号 / 称号元数据 |
+| `ChatCardSendable` / `ChatMutable` | chat | 聊天卡片 / 禁言管理 |
+| `TabRefreshable` | tab | 刷新 Tab 列表 |
+| `CombatEffectTriggerable` | combateffect | 触发战斗特效 |
+| `SignalDispatchable` | eventpacket | 触发规则引擎信号 |
+| `MenuOpenable` | menu | 打开配置菜单 |
+| `AfkRewardDispatchable` | afkreward | 挂机状态/原地挂机 |
+| `WarehouseAutoDepositable` | warehouse | 仓库自动存入 |
+| `ExtraBackpackAccess` | extrabackpack | 扩展背包访问 |
+| `PickupNotifiable` / `PickupInterceptor` | pickup | 拾取通知 / 拾取拦截（分模式注册） |
+| `QQBotNotifiable` / `QQBotBroadcastable` / `QqBindCapable` | qqbot | QQ 群事件/推送/绑定查询 |
+| `EssentialsQueryable` | essentials | AFK/隐身/禁言/昵称查询 |
+| `OnlineRewardsQueryable` | onlinerewards | 签到/在线时长查询与操作 |
+| `InteractionState` | conversation | 对话交互状态 |
+| `TooltipDataCapable` | tooltip | 物品提示数据 |
+
+> 完整方法签名见 [Capability API 参考](../api/capability)。
 
 ### 接入步骤
 
@@ -218,13 +246,13 @@ if (mail != null) {
 // 发布方（Market 模块）
 EventBusCapability bus = getCapability(EventBusCapability.class);
 if (bus != null) {
-    bus.publish("market.purchase", player, Map.of("price", "1000", "item", "钻石剑"));
+    bus.publish("axs.market.listing_created", player, Map.of("price", "1000", "item", "钻石剑"));
 }
 
 // 订阅方（QQBot 模块）
 EventBusCapability bus = getCapability(EventBusCapability.class);
 if (bus != null) {
-    String subId = bus.subscribe("market.*", event -> {
+    String subId = bus.subscribe("axs.market.*", event -> {
         // event.topic()、event.player()、event.typedPayload()
         qqBot.sendToAllGroups("[交易] " + event.player().getName() + " 购买了物品");
     });
@@ -238,7 +266,7 @@ if (bus != null) {
 ```java
 @Override
 protected List<String> publishedTopics() {
-    return List.of("market.purchase", "market.list");
+    return List.of("axs.market.listing_created", "axs.market.auction_purchased");
 }
 ```
 
@@ -246,32 +274,48 @@ protected List<String> publishedTopics() {
 
 ## 内置 Capability 能力图
 
-| Capability 接口 | 提供模块 | 典型使用方 | 用途 |
-|-----------------|----------|------------|------|
-| `TitleGrantable` | title | eventpacket, battlepass | 发放称号 |
-| `TitleConfigQueryable` | title | tab, chat | 查询称号元数据 |
-| `MailDispatchable` | mail | eventpacket, onlinerewards | 按预设发邮件（内部） |
-| `AxsMailService` | mail | 外部插件 | 邮件完整服务（公开，`AxsCapabilities.get`） |
-| `SubtitlePlayable` | announcer | eventpacket | 播放字幕组 |
-| `ChatCardSendable` | chat | eventpacket | 发送聊天卡片 |
-| `ChatMutable` | chat | essentials | 禁言/解禁 |
-| `QuestGpsNavigable` | questgps | eventpacket, 外部插件 | 任务导航（公开） |
-| `MapNavigable` | map | questgps, 外部插件 | 地图外部导航点（公开） |
-| `TabRefreshable` | tab | title, chat | 刷新 Tab 列表 |
-| `CombatEffectTriggerable` | combateffect | eventpacket, prop | 触发战斗特效 |
-| `SignalDispatchable` | eventpacket | onlinerewards, afkreward | 触发规则引擎信号 |
-| `QQBotBroadcastable` | qqbot | eventpacket, mail | 推送到 QQ 群 |
-| `QQBotNotifiable` | qqbot | 第三方 | 监听群消息/进退群 |
-| `QqBindCapable` | qqbot | loginview | QQ 绑定查询 |
-| `WarehouseAutoDepositable` | warehouse | pickup | 拾取自动入库 |
-| `PickupNotifiable` | pickup | warehouse | 查询拾取 HUD 状态 |
-| `EssentialsQueryable` | essentials | tab, chat | AFK/隐身/禁言/昵称 |
-| `MenuOpenable` | menu | essentials, 第三方 | 打开配置菜单 |
-| `AfkRewardDispatchable` | afkreward | essentials | 挂机状态/原地挂机 |
-| `InteractionState` | conversation | pickup, prop | 对话中让出共享按键 |
-| `EventBusCapability` | 宿主 | market, qqbot, 第三方/外部插件 | 主题 pub/sub（公开） |
-| `PlayerDataPurgeable` | 多模块 | 宿主 `/axs purge` | 清除玩家数据 |
-| `DatabaseMigratable` | 多模块 | 宿主 `/axs migrate` | 跨库迁移 |
+| Capability 接口 | 提供模块 | 公开 | 典型使用方 | 用途 |
+|-----------------|----------|------|------------|------|
+| `TitleGrantable` | title | ✅ | eventpacket, battlepass | 发放称号 |
+| `TitleConfigQueryable` | title | ✅ | tab, chat | 查询称号元数据 |
+| `MailDispatchable` | mail | — | eventpacket, onlinerewards | 按预设发邮件（内部） |
+| `AxsMailService` | mail | ✅ | 外部插件 | 邮件完整服务 |
+| `AxsMarketService` | market | ✅ | 外部插件 | 市场 UI/挂单/搜索/计数 |
+| `SubtitlePlayable` | announcer | ✅ | eventpacket | 播放字幕组 |
+| `AnnouncerBroadcastable` | announcer | ✅ | 外部插件 | 即时/排队公告广播 |
+| `ChatCardSendable` | chat | ✅ | eventpacket | 发送聊天卡片 |
+| `ChatMutable` | chat | ✅ | essentials | 禁言/解禁 |
+| `QuestGpsNavigable` | questgps | ✅ | eventpacket, 外部插件 | 任务导航 |
+| `MapNavigable` | map | ✅ | questgps, 外部插件 | 地图外部导航点 |
+| `TabRefreshable` | tab | ✅ | title, chat | 刷新 Tab 列表 |
+| `CombatEffectTriggerable` | combateffect | ✅ | eventpacket, prop | 触发战斗特效 |
+| `SignalDispatchable` | eventpacket | ✅ | onlinerewards, afkreward | 触发规则引擎信号 |
+| `BattlePassAccess` | battlepass | ✅ | 外部插件 | 战令经验/等级/档位 |
+| `FishingAccess` | fishing | ✅ | 外部插件 | 钓鱼状态/经验/疲劳 |
+| `RegionQueryable` | regions | ✅ | 外部插件 | 区域信息查询 |
+| `BossTrackerQueryable` | entitytracker | ✅ | 外部插件 | 活跃 Boss 会话查询 |
+| `LotteryAccess` | lottery | ✅ | 外部插件 | 抽奖积分/兑换/开箱 |
+| `LoginViewQueryable` | loginview | ✅ | 外部插件 | 认证状态/打开登录界面 |
+| `PropAccessible` | prop | ✅ | 外部插件 | 道具列表/应用到主手 |
+| `RgbRenderable` | rgb | ✅ | 外部插件 | 渐变文本渲染 |
+| `OnlineRewardsQueryable` | onlinerewards | ✅ | 外部插件 | 签到/在线时长 |
+| `QQBotBroadcastable` | qqbot | ✅ | eventpacket, mail | 推送到 QQ 群 |
+| `QQBotNotifiable` | qqbot | ✅ | 第三方 | 监听群消息/进退群 |
+| `QqBindCapable` | qqbot | ✅ | loginview | QQ 绑定查询 |
+| `WarehouseAutoDepositable` | warehouse | ✅ | pickup | 拾取自动入库 |
+| `ExtraBackpackAccess` | extrabackpack | ✅ | 外部插件 | 扩展背包访问 |
+| `PickupNotifiable` / `PickupInterceptor` | pickup | ✅ | warehouse | 拾取通知/拦截（分模式） |
+| `EssentialsQueryable` | essentials | ✅ | tab, chat | AFK/隐身/禁言/昵称 |
+| `MenuOpenable` | menu | ✅ | essentials, 第三方 | 打开配置菜单 |
+| `AfkRewardDispatchable` | afkreward | ✅ | essentials | 挂机状态/原地挂机 |
+| `InteractionState` | conversation | ✅ | pickup, prop | 对话中让出共享按键 |
+| `EventBusCapability` | 宿主 | ✅ | market, qqbot, 第三方/外部插件 | 主题 pub/sub |
+| `SecondaryPasswordAccess` | 宿主 | ✅ | 外部插件 | 二级密码访问 |
+| `TooltipDataCapable` | tooltip | ✅ | 外部插件 | 物品提示数据 |
+| `PlayerDataPurgeable` | 多模块 | — | 宿主 `/axs purge` | 清除玩家数据 |
+| `DatabaseMigratable` | 多模块 | — | 宿主 `/axs migrate` | 跨库迁移 |
+| `PolygonSelectionCapability` | 宿主/regions | — | fishing 等 | 多边形选区管理 |
+| `ModuleAdminCapability` | 宿主 | — | 调试工具 | 模块管理（`@Internal`） |
 
 ## 宿主命令与 Capability
 

@@ -50,8 +50,23 @@ Fishing 模块注册了以下 Capability，供宿主或其他模块调用：
 
 | Capability | 说明 |
 | --- | --- |
+| `FishingAccess` | **公开 capability**（`@PublicCapability`），外部插件经 `AxsCapabilities.get(FishingAccess.class)` 获取：小游戏启停、图鉴计数、经验/疲劳读写、领奖、卖鱼 |
 | `DatabaseMigratable` | 支持数据库迁移，供宿主统一管理存储迁移。`migrateDatabase(target, overwrite)` 迁移数据到目标存储描述符 |
 | `PlayerDataPurgeable` | 支持清除玩家数据，供宿主的玩家数据清理功能调用。`purgePlayerData(uuid)` 删除指定玩家数据，`purgeAllPlayerData()` 删除全部 |
+
+### FishingAccess
+
+面向外部插件的钓鱼操作接口（所有方法请在 Bukkit 主线程调用）：
+
+| 方法 | 说明 |
+| --- | --- |
+| `isInMinigame(uuid)` | 玩家是否正处于钓鱼小游戏中 |
+| `startMinigame(player)` | 启动小游戏（鱼竿/条件不满足返回 `false`） |
+| `collectionCount(uuid)` / `totalFishTypes()` | 图鉴已解锁数 / 鱼类总数 |
+| `giveXp(uuid, amount)` | 增加钓鱼经验 |
+| `fatigue(uuid)` / `setFatigue(uuid, value)` | 查询/设置疲劳值 |
+| `claimReward(player, rewardId)` | 领取指定赛季奖励 |
+| `sellAllFish(player)` | 卖出背包全部鱼获，返回提示消息 |
 
 ### DatabaseMigratable
 

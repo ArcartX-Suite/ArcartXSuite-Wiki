@@ -9,8 +9,22 @@ Lottery 模块通过 `AbstractAXSModule.registerCapability` 注册以下能力�
 
 | Capability 接口 | 实现说明 | 用途 |
 |---|---|---|
+| `LotteryAccess` | **公开 capability**（`@PublicCapability`），委托 `LotteryService` | 外部插件查询/调整积分、兑换、开箱 |
 | `DatabaseMigratable` | `moduleId()` = `lottery`，`migrateDatabase()` 委托 `JdbcLotteryRepository.migrateData`，`currentDescriptor()` 返回当前存储描述符 | 支持本体统一数据库迁移（如 SQLite → MySQL 切换） |
 | `PlayerDataPurgeable` | `moduleId()` = `lottery`，`purgePlayerData(uuid)` 委托 `deletePlayerData`，`purgeAllPlayerData()` 委托 `deleteAllPlayerData` | 支持单玩家/全量数据清除（如玩家退服数据清理） |
+
+### LotteryAccess
+
+面向外部插件的抽奖操作接口，经 `AxsCapabilities.get(LotteryAccess.class)` 获取；所有方法请在 Bukkit 主线程调用。
+
+| 方法 | 说明 |
+|---|---|
+| `getPoint(uuid, pointId)` / `getPoints(uuid)` | 查询单项/全部积分余额 |
+| `givePoints(uuid, pointId, amount)` | 增加抽奖积分 |
+| `exchange(player, itemId)` | 执行一次兑换商店兑换 |
+| `openCase(player, poolId, count)` | 批量开启 CASE 奖池（开箱动画照常播放），返回 `List<CaseDrawResult>` |
+
+`CaseDrawResult` 为 API 侧 record（`rarity`/`poolIndex`/`itemKey`/`itemName`/`amount`），屏蔽内部 `PoolItem` 类型；无奖品时 `itemKey`/`itemName` 为 `null`、`poolIndex` 为 `-1`。
 
 ### DatabaseMigratable
 

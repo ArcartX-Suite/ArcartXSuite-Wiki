@@ -59,6 +59,19 @@ protected List<String> publishedTopics() {
 
 Regions 模块注册了以下 Capability，供其他模块和宿主管理工具调用。
 
+### RegionQueryable（公开）
+
+区域只读查询能力（`@PublicCapability`），外部插件经 `AxsCapabilities.get(RegionQueryable.class)` 获取；Regions 模块未启用时返回 `null`。请在 Bukkit 主线程调用（Region 内部成员集合非并发容器）。
+
+| 方法 | 说明 |
+|---|---|
+| `regionsAt(world, x, y, z)` | 指定坐标命中的全部区域（按优先级排序） |
+| `regionsInWorld(world)` | 指定世界的全部区域 |
+| `allRegions()` | 全部区域 |
+| `countRegionsByOwner(uuid)` | 玩家作为 owner 的区域数量 |
+
+返回 `RegionInfo` record（`id`/`world`/`minX..maxZ`/`priority`/`parentId`/`owners`/`members`，集合为不可变拷贝），并提供 `contains(world,x,y,z)`、`hasAccess(uuid)` 便捷方法。不暴露模块内部 `Region` 类型。
+
 ### DatabaseMigratable
 
 支持数据库迁移，供本体存储管理模块调用，可在 SQLite 与 MySQL 之间迁移区域数据。

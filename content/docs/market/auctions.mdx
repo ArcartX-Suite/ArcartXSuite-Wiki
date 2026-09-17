@@ -33,7 +33,7 @@ Market 的拍卖系统包含 **拍卖行**（竞价交易）和 **玩家商店**
 9. 生成拼音/首字母搜索 token（支持中文拼音搜索）
 10. 自动分类（按 NBT/PDC 路径匹配 categories）
 11. 入库 → 失效 Redis 缓存 → 跨服广播
-12. 派发信号 `market_listing_created` + 发布 EventBus 事件 `market.listing_created`
+12. 派发信号 `market_listing_created` + 发布 EventBus 事件 `axs.market.listing_created`
 
 <Callout type="info" title="物品安全">
 上架时使用物品副本，防止与主手物品引用别名。入库失败会自动退费 + 归还物品。
@@ -77,6 +77,7 @@ Market 的拍卖系统包含 **拍卖行**（竞价交易）和 **玩家商店**
 4. 卖家收款 = `成交价 - 税`（安全发放，离线入待发放队列）
 5. 买家得物品（安全发放：在线放入背包，背包满转邮件，离线入待发放队列）
 6. 记录交易历史（类型 `BID_WIN`）
+7. 发布 EventBus 事件 `axs.market.auction_purchased`（payload 含 `listing_id`/`price`/`formatted_price`/`currency`/`buyer` 等；买家通常已离线，`event.player()` 为 null，以 payload 为准）
 
 #### 无人竞价（EXPIRED）
 

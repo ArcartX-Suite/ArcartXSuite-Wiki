@@ -85,6 +85,17 @@ LoginView 还通过 `SignalDispatchable` 派发信号，可供 QuestGPS、条件
 
 LoginView 模块注册了以下 Capability，供宿主及其他模块调用：
 
+### LoginViewQueryable（公开）
+
+认证状态查询与登录界面打开能力（`@PublicCapability`），外部插件经 `AxsCapabilities.get(LoginViewQueryable.class)` 获取；LoginView 未启用时返回 `null`。查询方法可从任意线程调用（冷路径可能产生一次数据库查询，高频路径请异步或缓存）；`openFor` 须在 Bukkit 主线程调用。
+
+| 方法 | 说明 |
+|---|---|
+| `isAuthenticated(player)` | 玩家是否已通过认证（含 session 恢复判定） |
+| `isRegistered(player)` | 玩家是否已有注册账号 |
+| `openFor(player)` | 打开登录界面（已认证时为空操作） |
+| `openFor(player, force)` | `force=true` 时即使已认证也强制打开（改密等场景） |
+
 ### DatabaseMigratable
 
 支持数据库迁移，供本体存储管理模块在切换存储后端时调用。

@@ -9,6 +9,16 @@ Announcer 模块通过 Capability 注册、跨服通道、客户端变量推送�
 
 模块在启动时注册以下 Capability，供其他模块通过 `getCapability()` 获取并调用：
 
+### AnnouncerBroadcastable（公开）
+
+公告广播能力（`@PublicCapability`），外部插件经 `AxsCapabilities.get(AnnouncerBroadcastable.class)` 获取；Announcer 未启用时返回 `null`。文本支持 PlaceholderAPI 变量。
+
+| 方法 | 说明 |
+|---|---|
+| `broadcastNow(text)` | 立即播报（打断当前展示），本服生效 |
+| `broadcastNow(text, forward)` | 立即播报，`forward=true` 时跨服转发 |
+| `enqueue(text, forward)` | 加入手动广播队列，当前展示结束后播报 |
+
 ### SubtitlePlayable
 
 提供字幕播放能力，接口定义位于 `xuanmo.arcartxsuite.api.capability.SubtitlePlayable`。由 Announcer 模块的 `SubtitleService` 实现，供 EventPacket、OnlineRewards、Conversation、QuestGps、AfkReward 等模块跨模块调用。

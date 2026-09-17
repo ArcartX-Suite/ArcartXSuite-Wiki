@@ -56,13 +56,27 @@ BattlePass 任务引擎通过 `EventBusCapability` 订阅其他模块发布的�
 | `axs.warehouse.item_deposited` | warehouse | `amount` | 仓库存入材料 |
 | `axs.regions.region_change` | regions | `type`（`enter` / `exit`） | 区域变更 |
 | `axs.afkreward.reward_claimed` | afkreward | — | 领取挂机奖励 |
-| `market.listing_created` | market | — | 市场上架交易 |
+| `axs.market.listing_created` | market | — | 市场上架交易 |
 
 > 事件主题无需硬编码映射，引擎通过 `EventBusCapability.hasPublisher()` 动态检测发布者是否存在。
 
 ## Capability 注册
 
-BattlePass 模块注册了两个跨模块能力：
+BattlePass 模块注册了以下跨模块能力：
+
+### BattlePassAccess（公开）
+
+战令公开能力（`@PublicCapability`），面向外部 Bukkit 插件，经 `AxsCapabilities.get(BattlePassAccess.class)` 获取；战令模块未启用时返回 `null`。所有方法请在 Bukkit 主线程调用。
+
+| 方法 | 说明 |
+|---|---|
+| `isSeasonActive()` | 当前赛季是否进行中 |
+| `addXp` / `setXp` / `removeXp` | 增加/设置/扣减战令经验 |
+| `setLevel(player, level)` | 直接设置战令等级 |
+| `unlockTier(player, tier)` | 解锁档位（`"PREMIUM"`/`"DELUXE"`，大小写不敏感） |
+| `claimAllRewards(player)` | 一键领取全部可领奖励，返回领取份数 |
+| `updateTaskProgress(player, taskId, increment)` | 推进指定任务进度 |
+| `resetProgress(playerUuid)` | 重置本赛季进度 |
 
 ### DatabaseMigratable
 

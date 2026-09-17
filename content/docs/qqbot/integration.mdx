@@ -91,15 +91,18 @@ QQ 绑定状态查询与确认能力，供 loginview 等模块集成登录门控
 
 QQBot 模块订阅以下 EventBus 事件：
 
-### market.auction_purchased
+### axs.market.auction_purchased
 
-订阅 Market 模块的拍卖成交事件，当成交价 >= `market-broadcast.threshold` 时推送到所有群。
+订阅 Market 模块的拍卖成交事件（通配符 `axs.market.*`），当成交价 >= `market-broadcast.threshold` 时推送到所有群。
 
 | 事件字段 | 说明 |
 |---|---|
 | `price` | 成交价格 |
 | `formatted_price` | 格式化后的价格 |
-| `player` | 购买者 |
+| `buyer` | 购买者名称（结算时买家通常已离线，`event.player()` 为 null，以此字段为准） |
+| `buyer_uuid` / `seller_uuid` | 买家/卖家 UUID |
+| `currency` / `tax` | 货币 ID / 税费 |
+| `listing_id` / `item` | 挂单 ID / 物品标识 |
 
 **推送格式**：`[交易] <玩家名> 以 <价格> 购买了拍卖行物品`
 
@@ -110,7 +113,7 @@ QQBot 模块订阅以下 EventBus 事件：
 | `market-broadcast.enabled` | `true` | 是否启用大额交易播报 |
 | `market-broadcast.threshold` | `1000.0` | 大额交易阈值 |
 
-### mail.* （预留）
+### axs.mail.* （预留）
 
 预留邮件相关事件订阅，当前未实现具体逻辑。
 

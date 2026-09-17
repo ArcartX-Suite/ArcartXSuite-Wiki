@@ -41,6 +41,17 @@ if (eventBus != null && eventBus.hasPublisher("axs.prop.prop_used")) {
 
 Prop 模块在 `PropModule.publishedTopics()` 中声明了 `axs.prop.prop_used` 主题，宿主启动时自动注册为发布者。其他模块可通过 `eventBus.hasPublisher("axs.prop.prop_used")` 检测是否可订阅。
 
+## Capability 注册
+
+### PropAccessible（公开）
+
+快捷道具公开能力（`@PublicCapability`），外部插件经 `AxsCapabilities.get(PropAccessible.class)` 获取；Prop 模块未启用时返回 `null`。所有方法请在 Bukkit 主线程调用。
+
+| 方法 | 说明 |
+|---|---|
+| `propIds()` | 已注册的道具 ID 列表 |
+| `applyPropToMainHand(player, propId)` | 将指定道具效果应用到玩家主手物品，返回 `PropApplyResult(success, message)` |
+
 ## 属性桥接能力
 
 Prop 模块通过宿主 `AttributeBridgeRegistry` 获取三套属性插件的桥接实例，实现临时属性加成。每个桥接独立初始化，对应插件未安装时 `available()` 返回 `false`，调用为空操作。

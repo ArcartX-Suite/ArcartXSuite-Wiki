@@ -5,19 +5,34 @@ description: RGB 模块 API、Capability 与跨模块集成
 
 # 联动
 
-RGB 模块为纯计算型模块，不涉及数据库、跨服同步或 EventBus 事件，主要通过 PlaceholderAPI 对外输出渲染结果。模块提供了内部 Service API 供其他模块或脚本调用渲染能力。
+RGB 模块为纯计算型模块，不涉及数据库、跨服同步或 EventBus 事件，主要通过 PlaceholderAPI 与公开 Capability 对外输出渲染结果。
 
 ## Capability 注册
 
-RGB 模块**不注册任何 Capability**，不参与宿主的 `/axs migrate`（数据库迁移）和 `/axs purge`（玩家数据清除）命令。
+RGB 模块仅注册 `RgbRenderable`（公开 capability），不参与宿主的 `/axs migrate`（数据库迁移）和 `/axs purge`（玩家数据清除）命令。
 
 | Capability | 注册状态 | 说明 |
 |---|---|---|
+| `RgbRenderable` | ✅ 注册（`@PublicCapability`） | 渐变条目渲染，外部插件经 `AxsCapabilities.get(RgbRenderable.class)` 获取 |
 | `DatabaseMigratable` | 未注册 | 无数据库，无需迁移 |
 | `PlayerDataPurgeable` | 未注册 | 不存储玩家数据，无需清除 |
 | `EventBusCapability` | 未注册 | 不发布事件 |
 | `SignalDispatchable` | 未注册 | 不派发信号 |
 | `MailDispatchable` | 未注册 | 不涉及邮件 |
+
+### RgbRenderable
+
+| 方法 | 说明 |
+|---|---|
+| `render(entryId, player)` | 按条目 ID 渲染渐变文本；`player` 可为 `null`（不解析 PAPI），条目不存在返回空串 |
+| `entryIds()` | 已配置的渐变条目 ID 列表 |
+
+```java
+RgbRenderable rgb = AxsCapabilities.get(RgbRenderable.class);
+if (rgb != null) {
+    String text = rgb.render("welcome", player);
+}
+```
 
 ## EventBus 事件
 
@@ -44,7 +59,7 @@ RGB 模块**不使用数据库**，不创建任何表。所有条目配置存储
 
 ## Service API
 
-RGB 模块的核心服务为 `ArcartRgbService`，提供按条目 ID 渲染渐变文本的能力。其他模块可通过 `RgbModule.getService()` 获取服务实例调用渲染 API。
+RGB 模块的核心服务为 `ArcartRgbService`，提供按条目 ID 渲染渐变文本的能力。**推荐外部插件使用公开 Capability `RgbRenderable`**（见上文）；`RgbModule.getService()` 为模块内部 API，仅限 AXS 模块间调用。
 
 ### ArcartRgbService 方法
 

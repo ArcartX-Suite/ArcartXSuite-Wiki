@@ -21,6 +21,19 @@ EntityTracker 模块通过宿主 EventBus 发布以下事件主题，供其他�
 
 EntityTracker 在宿主 Capability 注册表中注册以下能力：
 
+### BossTrackerQueryable（公开）
+
+活跃 Boss 会话查询能力（`@PublicCapability`），外部插件经 `AxsCapabilities.get(BossTrackerQueryable.class)` 获取；EntityTracker 未启用时返回 `null`。
+
+| 方法 | 说明 |
+|---|---|
+| `isTrackedBoss(entityUuid)` | 实体是否为被追踪的配置 Boss |
+| `activeSessionCount()` | 当前活跃 Boss 会话数 |
+| `activeViewerCount()` | 正在观看 Boss 面板的玩家总数 |
+| `activeSessions(mobIdFilter)` | 活跃会话列表；`mobIdFilter` 为 MythicMob id 过滤，`null` 不过滤 |
+
+`activeSessions` 返回 API 侧 `BossSessionInfo` record（`entityUuid`/`mythicMobId`/`displayName`/`health`/`maxHealth`/`participantCount`/`trackedPlayerCount`/`totalDamage`），不暴露模块内部类型。
+
 ### PlayerDataPurgeable
 
 | 方法 | 说明 |

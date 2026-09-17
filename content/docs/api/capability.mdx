@@ -45,12 +45,38 @@ if (title != null) {
 
 | 接口 | 提供方 | 用途 |
 |------|--------|------|
+| `EventBusCapability` | 宿主 | EventBus 主题 pub/sub |
+| `SecondaryPasswordAccess` | 宿主 | 二级密码访问 |
+| `AxsMailService` | mail | 邮件发送/查询/领取/删除（全异步 API） |
+| `AxsMarketService` | market | 市场 UI 打开/挂单/搜索/计数 |
 | `MapNavigable` | map | 地图外部目标推送、导航回调注册、导航互斥 |
 | `QuestGpsNavigable` | questgps | 任务推送/接取/追踪/门禁检查 |
-| `EventBusCapability` | 宿主 | EventBus 主题 pub/sub |
-| `AxsMailService` | mail | 邮件发送/查询/领取/删除（全异步 API） |
+| `BattlePassAccess` | battlepass | 战令经验/等级/档位/任务进度 |
+| `FishingAccess` | fishing | 钓鱼小游戏/图鉴/经验/疲劳/领奖 |
+| `RegionQueryable` | regions | 保护区域查询（`RegionInfo` 只读视图） |
+| `BossTrackerQueryable` | entitytracker | 活跃 Boss 会话查询 |
+| `LotteryAccess` | lottery | 抽奖积分/兑换/开箱 |
+| `LoginViewQueryable` | loginview | 认证状态查询/打开登录界面 |
+| `PropAccessible` | prop | 道具列表/应用到主手 |
+| `AnnouncerBroadcastable` | announcer | 即时/排队公告广播 |
+| `SubtitlePlayable` | announcer | 播放字幕组 |
+| `RgbRenderable` | rgb | 渐变文本渲染 |
+| `TitleGrantable` / `TitleConfigQueryable` | title | 发放称号 / 查询称号元数据 |
+| `ChatCardSendable` / `ChatMutable` | chat | 发送聊天卡片 / 禁言管理 |
+| `TabRefreshable` | tab | 刷新 Tab 列表 |
+| `CombatEffectTriggerable` | combateffect | 触发战斗特效 |
+| `SignalDispatchable` | eventpacket | 触发规则引擎信号 |
+| `MenuOpenable` | menu | 打开配置菜单 |
+| `AfkRewardDispatchable` | afkreward | 挂机状态/原地挂机 |
+| `WarehouseAutoDepositable` | warehouse | 仓库自动存入 |
+| `ExtraBackpackAccess` | extrabackpack | 扩展背包访问 |
+| `PickupNotifiable` / `PickupInterceptor` | pickup | 拾取通知推送 / 拾取拦截查询（分模式注册） |
+| `QQBotNotifiable` / `QQBotBroadcastable` / `QqBindCapable` | qqbot | 群消息监听 / 群推送 / QQ 绑定 |
+| `EssentialsQueryable` | essentials | AFK/隐身/禁言/昵称查询 |
+| `OnlineRewardsQueryable` | onlinerewards | 签到/在线时长查询与操作 |
+| `InteractionState` | conversation | 对话交互状态查询 |
 
-> `MailDispatchable` 等其余接口为内部专用，外部插件调用 `AxsCapabilities.get()` 会返回 `null`。
+> `MailDispatchable`、`PlayerDataPurgeable`、`DatabaseMigratable`、`PolygonSelectionCapability`、`ModuleAdminCapability` 等接口为内部专用（未标注 `@PublicCapability`），外部插件调用 `AxsCapabilities.get()` 会返回 `null`。完整对照见文末 [内置 Capability 能力图](#内置-capability-能力图)。
 
 ### 外部插件接入
 
@@ -72,7 +98,7 @@ if (map != null) {
 
 ### TitleGrantable
 
-称号授予能力。由 Title 模块实现。
+称号授予能力（**公开 capability**）。由 Title 模块实现。
 
 ```java
 public interface TitleGrantable {
@@ -89,7 +115,7 @@ public interface TitleGrantable {
 
 ### TitleConfigQueryable
 
-称号配置查询能力。由 Title 模块实现。
+称号配置查询能力（**公开 capability**）。由 Title 模块实现。
 
 ```java
 public interface TitleConfigQueryable {
@@ -137,7 +163,7 @@ if (service == null) return; // mail 模块未启用
 
 ### ChatCardSendable
 
-聊天卡片发送能力。由 Chat 模块或宿主桥接实现。
+聊天卡片发送能力（**公开 capability**）。由 Chat 模块或宿主桥接实现。
 
 ```java
 public interface ChatCardSendable {
@@ -147,7 +173,7 @@ public interface ChatCardSendable {
 
 ### ChatMutable
 
-聊天禁言能力。由 Chat 模块实现。
+聊天禁言能力（**公开 capability**）。由 Chat 模块实现。
 
 ```java
 public interface ChatMutable {
@@ -164,7 +190,7 @@ public interface ChatMutable {
 
 ### SubtitlePlayable
 
-字幕播放能力。由 Announcer 模块实现。
+字幕播放能力（**公开 capability**）。由 Announcer 模块实现。
 
 ```java
 public interface SubtitlePlayable {
@@ -174,7 +200,7 @@ public interface SubtitlePlayable {
 
 ### SignalDispatchable
 
-信号派发能力。由 EventPacket 模块实现，供其他模块触发规则引擎信号。
+信号派发能力（**公开 capability**）。由 EventPacket 模块实现，供其他模块触发规则引擎信号。
 
 ```java
 public interface SignalDispatchable {
@@ -184,7 +210,7 @@ public interface SignalDispatchable {
 
 ### CombatEffectTriggerable
 
-战斗特效触发能力。由 CombatEffect 模块实现。
+战斗特效触发能力（**公开 capability**）。由 CombatEffect 模块实现。
 
 ```java
 public interface CombatEffectTriggerable {
@@ -261,7 +287,7 @@ public interface QuestGpsNavigable {
 
 ### TabRefreshable
 
-Tab 列表刷新能力。由 Tab 模块实现。
+Tab 列表刷新能力（**公开 capability**）。由 Tab 模块实现。
 
 ```java
 public interface TabRefreshable {
@@ -272,7 +298,7 @@ public interface TabRefreshable {
 
 ### MenuOpenable
 
-通用菜单打开能力。由 Menu 模块实现。
+通用菜单打开能力（**公开 capability**）。由 Menu 模块实现。
 
 ```java
 public interface MenuOpenable {
@@ -283,7 +309,7 @@ public interface MenuOpenable {
 
 ### AfkRewardDispatchable
 
-挂机状态查询与控制能力。由 AfkReward 模块实现。
+挂机状态查询与控制能力（**公开 capability**）。由 AfkReward 模块实现。
 
 ```java
 public interface AfkRewardDispatchable {
@@ -297,7 +323,7 @@ public interface AfkRewardDispatchable {
 
 ### WarehouseAutoDepositable
 
-仓库自动入库能力。由 Warehouse 模块实现。
+仓库自动入库能力（**公开 capability**）。由 Warehouse 模块实现。
 
 ```java
 public interface WarehouseAutoDepositable {
@@ -308,7 +334,7 @@ public interface WarehouseAutoDepositable {
 
 ### PickupNotifiable
 
-拾取通知能力。由 Pickup 模块实现。
+拾取通知能力（**公开 capability**）。由 Pickup 模块（通知模式）实现；scanner 模式下不注册，`get()` 返回 `null`。
 
 ```java
 public interface PickupNotifiable {
@@ -317,9 +343,23 @@ public interface PickupNotifiable {
 }
 ```
 
+`notifyPickup` 用于"物品已被其他模块接管、但玩家确实拾取了"的补发场景（如 Warehouse 自动入库取消 `EntityPickupItemEvent`）。前置校验通过后**会同步发布 EventBus 主题 `axs.pickup.item_pickup`**（payload 含 `material`/`amount`），与原版监听器路径语义一致——每次补发即一次拾取。请在 Bukkit 主线程调用。
+
+### PickupInterceptor
+
+拾取拦截能力（**公开 capability**）。由 Pickup 模块（扫描模式）实现；notification 模式下不注册，`get()` 返回 `null`。
+
+```java
+public interface PickupInterceptor {
+    boolean isAutoPickupIntercepted(UUID playerId);
+}
+```
+
+扫描模式接管掉落物拾取流程后，其他自动拾取类模块/插件（如 Warehouse 自动入库、磁铁插件）应在处理 `EntityPickupItemEvent` 前调用本接口判断是否让步。
+
 ### ExtraBackpackAccess
 
-扩展背包操作能力。由 ExtraBackpack 模块实现。
+扩展背包操作能力（**公开 capability**）。由 ExtraBackpack 模块实现。
 
 ```java
 public interface ExtraBackpackAccess {
@@ -331,6 +371,208 @@ public interface ExtraBackpackAccess {
 }
 ```
 
+### AxsMarketService
+
+市场公开服务接口（**公开 capability**）。由 Market 模块实现，覆盖拍卖行 / 系统商店 / 回收 / 玩家商店的 UI 打开与常用操作。所有方法请在 Bukkit 主线程调用。
+
+```java
+public interface AxsMarketService {
+    enum MarketView { AUCTION, AUCTION_SELL, SHOP_LIST, SHOP, RECYCLE,
+                      HISTORY, SELL, PLAYER_SHOP, MY_LISTINGS }
+    void openUi(Player player, MarketView view);
+    CompletableFuture<Boolean> createAuctionListing(Player player, ItemStack item,
+                              double startingBid, String currency, long durationSeconds);
+    CompletableFuture<Boolean> cancelListing(Player player, long listingId);
+    CompletableFuture<Boolean> searchAuction(Player player, String keyword);
+    int auctionCount();
+    int shopCount();
+    int myListingCount(Player player);
+    boolean playerShopEnabled();
+}
+```
+
+写操作返回 `CompletableFuture<Boolean>`：操作在调用线程同步完成（涉及背包与落库，须主线程调用），返回的 Future 已完成，`false` 表示校验失败（价格/货币/黑名单/数量上限等，失败原因已通过消息发给玩家）。`createAuctionListing` 有防复制约束：`item` 必须与玩家主手物品匹配，上架从主手扣除，不支持上架玩家未持有的物品。
+
+市场事件订阅 EventBus 主题 `axs.market.*`（`listing_created` / `auction_purchased` / `shop_dynamic_triggered`），详见 [EventBus 已注册主题](./event-bus#已注册主题列表)。
+
+### BattlePassAccess
+
+战令公开能力（**公开 capability**）。由 BattlePass 模块实现。所有方法请在 Bukkit 主线程调用。
+
+```java
+public interface BattlePassAccess {
+    boolean isSeasonActive();
+    int addXp(Player player, int xp);           // 返回增加后的总经验
+    void setXp(Player player, int xp);
+    void removeXp(Player player, int xp);
+    void setLevel(Player player, int level);
+    boolean unlockTier(Player player, String tier);  // "PREMIUM" / "DELUXE"，大小写不敏感
+    int claimAllRewards(Player player);          // 返回领取的奖励份数
+    void updateTaskProgress(Player player, String taskId, int increment);
+    void resetProgress(UUID playerUuid);         // 重置本赛季进度
+}
+```
+
+### FishingAccess
+
+钓鱼公开能力（**公开 capability**）。由 Fishing 模块实现。所有方法请在 Bukkit 主线程调用。
+
+```java
+public interface FishingAccess {
+    boolean isInMinigame(UUID playerUuid);
+    boolean startMinigame(Player player);        // 鱼竿/条件不满足返回 false
+    int collectionCount(UUID playerUuid);
+    int totalFishTypes();
+    void giveXp(UUID playerUuid, int amount);
+    int fatigue(UUID playerUuid);
+    void setFatigue(UUID playerUuid, int value);
+    boolean claimReward(Player player, String rewardId);
+    String sellAllFish(Player player);           // 返回结果提示消息
+}
+```
+
+钓鱼事件订阅 `axs.fishing.*`（`success` / `perfect` / `collection_unlock` / `treasure` / `level_up`）。
+
+### RegionQueryable
+
+区域查询能力（**公开 capability**）。由 Regions 模块实现。返回 API 侧只读 `RegionInfo` record（`owners`/`members` 为不可变集合拷贝），不暴露模块内部 `Region` 类型。请在 Bukkit 主线程调用——Region 内部成员集合非并发容器，快照拷贝遇异步并发修改可能抛出 `ConcurrentModificationException`。
+
+```java
+public interface RegionQueryable {
+    List<RegionInfo> regionsAt(String world, int x, int y, int z); // 按优先级排序
+    List<RegionInfo> regionsInWorld(String world);
+    List<RegionInfo> allRegions();
+    int countRegionsByOwner(UUID owner);
+
+    record RegionInfo(String id, String world,
+                      int minX, int minY, int minZ,
+                      int maxX, int maxY, int maxZ,
+                      int priority, String parentId,
+                      Set<UUID> owners, Set<UUID> members) {
+        boolean contains(String world, int x, int y, int z);
+        boolean hasAccess(UUID playerUuid); // owner 或 member，不含权限组判定
+    }
+}
+```
+
+区域变更订阅 `axs.regions.region_change`。
+
+### BossTrackerQueryable
+
+Boss 追踪查询能力（**公开 capability**）。由 EntityTracker 模块实现。
+
+```java
+public interface BossTrackerQueryable {
+    boolean isTrackedBoss(UUID entityUuid);
+    int activeSessionCount();
+    int activeViewerCount();
+    List<BossSessionInfo> activeSessions(String mobIdFilter); // null = 不过滤
+
+    record BossSessionInfo(UUID entityUuid, String mythicMobId, String displayName,
+                           double health, double maxHealth,
+                           int participantCount, int trackedPlayerCount,
+                           double totalDamage) {}
+}
+```
+
+Boss 击杀订阅 `axs.entitytracker.boss_kill`。
+
+### LotteryAccess
+
+抽奖公开能力（**公开 capability**）。由 Lottery 模块实现。所有方法请在 Bukkit 主线程调用。
+
+```java
+public interface LotteryAccess {
+    long getPoint(UUID playerUuid, String pointId);
+    Map<String, Long> getPoints(UUID playerUuid);
+    boolean givePoints(UUID playerUuid, String pointId, long amount);
+    boolean exchange(Player player, String itemId);
+    List<CaseDrawResult> openCase(Player player, String poolId, int count); // 开箱动画照常播放
+
+    record CaseDrawResult(String rarity, int poolIndex,
+                          String itemKey, String itemName, int amount) {}
+}
+```
+
+`CaseDrawResult` 屏蔽内部 `PoolItem` 类型：`itemKey`/`itemName` 无奖品时为 `null`，`poolIndex` 为 1 基索引（无奖品 `-1`）。
+
+### LoginViewQueryable
+
+登录界面查询能力（**公开 capability**）。由 LoginView 模块实现。`isAuthenticated`/`isRegistered` 可从任意线程调用——注意冷路径（内存未命中/自建认证模式）会同步执行一次数据库查询，高频路径请缓存结果或异步调用；`openFor` 涉及 UI 打开，须在 Bukkit 主线程调用。
+
+```java
+public interface LoginViewQueryable {
+    boolean isAuthenticated(Player player);
+    boolean isRegistered(Player player);
+    void openFor(Player player);
+    void openFor(Player player, boolean force); // force=true 已认证也强制打开
+}
+```
+
+登录成功订阅 `axs.loginview.login_success`。
+
+### PropAccessible
+
+快捷道具公开能力（**公开 capability**）。由 Prop 模块实现。所有方法请在 Bukkit 主线程调用。
+
+```java
+public interface PropAccessible {
+    List<String> propIds();
+    PropApplyResult applyPropToMainHand(Player player, String propId);
+
+    record PropApplyResult(boolean success, String message) {}
+}
+```
+
+道具使用事件订阅 `axs.prop.prop_used`。
+
+### AnnouncerBroadcastable
+
+公告广播能力（**公开 capability**）。由 Announcer 模块实现，文本支持 PlaceholderAPI 变量。
+
+```java
+public interface AnnouncerBroadcastable {
+    void broadcastNow(String text);               // 立即播报，打断当前展示
+    void broadcastNow(String text, boolean forward);
+    void enqueue(String text, boolean forward);   // 加入队列，当前展示结束后播报
+}
+```
+
+`forward=true` 时经跨服通道转发到其他子服（需 `cross-server.enabled`）。
+
+### RgbRenderable
+
+渐变文本渲染能力（**公开 capability**）。由 RGB 模块实现。
+
+```java
+public interface RgbRenderable {
+    String render(String entryId, OfflinePlayer player); // player 可为 null；条目不存在返回空串
+    List<String> entryIds();
+}
+```
+
+`player` 参数用于解析条目 `text` 中的 PlaceholderAPI 占位符。
+
+### OnlineRewardsQueryable
+
+在线奖励查询与操作能力（**公开 capability**，接口位于 `xuanmo.arcartxsuite.api.capability`）。由 OnlineRewards 模块实现。
+
+```java
+public interface OnlineRewardsQueryable {
+    boolean hasSignedToday(UUID playerUuid);
+    int todayOnlineMinutes(UUID playerUuid);
+    int weeklyOnlineMinutes(UUID playerUuid);
+    int monthlyOnlineMinutes(UUID playerUuid);
+    boolean signIn(Player player);
+    boolean makeupSignIn(Player player, String date);   // yyyy-MM-dd
+    boolean addMakeupCards(Player player, int amount);
+    void grantDailyRewards(Player player);
+    boolean addOnlineMinutes(Player player, int minutes);
+}
+```
+
+全服目标达成订阅 `axs.onlinerewards.server_goal_reached`。
+
 ### EventBusCapability
 
 模块间解耦事件总线（pub/sub 模式）。由宿主注册唯一实例，任何模块可发布/订阅主题。
@@ -341,7 +583,7 @@ public interface EventBusCapability {
     void publish(String topic, Player player, Map<String, String> payload); // 向后兼容
     void registerPublisher(String topic);
     boolean hasPublisher(String topic);
-    String subscribe(String topic, EventHandler handler);  // 支持通配符 "market.*"
+    String subscribe(String topic, EventHandler handler);  // 支持通配符 "axs.market.*"
     void unsubscribe(String subscriptionId);
     record BusEvent(String topic, Player player, Object typedPayload, long timestamp) {}
     @FunctionalInterface interface EventHandler { void handle(BusEvent event); }
@@ -351,10 +593,10 @@ public interface EventBusCapability {
 ```java
 EventBusCapability bus = context.getCapability(EventBusCapability.class);
 if (bus != null) {
-    // 发布
-    bus.publish("market.purchase", player, Map.of("price", "1000"));
+    // 发布（AXS 内置主题统一 axs.<模块id>.<事件名> 前缀）
+    bus.publish("axs.market.listing_created", player, Map.of("price", "1000"));
     // 订阅
-    String subId = bus.subscribe("market.*", event -> {
+    String subId = bus.subscribe("axs.market.*", event -> {
         logger.info(event.player().getName() + " 触发了 " + event.topic());
     });
     // 取消订阅
@@ -364,37 +606,59 @@ if (bus != null) {
 
 ### 其他 Capability 接口
 
-| 接口 | 提供模块 | 用途 |
-|------|----------|------|
-| `EssentialsQueryable` | essentials | AFK/隐身/禁言/昵称查询 |
-| `QQBotBroadcastable` | qqbot | 推送消息到 QQ 群 |
-| `QQBotNotifiable` | qqbot | 监听群消息/进退群 |
-| `QqBindCapable` | qqbot | QQ 绑定查询 |
-| `InteractionState` | conversation | 对话中让出共享按键 |
-| `PlayerDataPurgeable` | 多模块 | 清除玩家数据（`/axs purge`） |
-| `DatabaseMigratable` | 多模块 | 跨库迁移（`/axs migrate`） |
-| `SecondaryPasswordAccess` | loginview | 二级密码访问 |
-| `TooltipDataCapable` | tooltip | 物品提示数据 |
-| `ModuleAdminCapability` | 宿主 | 模块管理能力 |
+| 接口 | 提供模块 | 公开 | 用途 |
+|------|----------|------|------|
+| `EssentialsQueryable` | essentials | ✅ | AFK/隐身/禁言/昵称查询 |
+| `QQBotBroadcastable` | qqbot | ✅ | 推送消息到 QQ 群 |
+| `QQBotNotifiable` | qqbot | ✅ | 监听群消息/进退群 |
+| `QqBindCapable` | qqbot | ✅ | QQ 绑定查询 |
+| `InteractionState` | conversation | ✅ | 对话中让出共享按键 |
+| `TooltipDataCapable` | tooltip | ✅ | 物品提示数据 |
+| `PlayerDataPurgeable` | 多模块 | — | 清除玩家数据（`/axs purge`） |
+| `DatabaseMigratable` | 多模块 | — | 跨库迁移（`/axs migrate`） |
+| `PolygonSelectionCapability` | 宿主/regions | — | 多边形选区管理 |
+| `ModuleAdminCapability` | 宿主 | — | 模块管理能力（`@Internal`） |
 
 ## 内置 Capability 能力图
 
 | Capability 接口 | 提供模块 | 公开 | 典型使用方 | 用途 |
 |-----------------|----------|------|------------|------|
-| `TitleGrantable` | title | — | eventpacket, battlepass | 发放称号 |
-| `TitleConfigQueryable` | title | — | tab, chat | 查询称号元数据 |
+| `TitleGrantable` | title | ✅ | eventpacket, battlepass, 外部插件 | 发放称号 |
+| `TitleConfigQueryable` | title | ✅ | tab, chat, 外部插件 | 查询称号元数据 |
 | `AxsMailService` | mail | ✅ | 外部插件 | 邮件发送/查询/领取/删除 |
 | `MailDispatchable` | mail | — | eventpacket, onlinerewards | 发送邮件（内部） |
-| `SubtitlePlayable` | announcer | — | eventpacket | 播放字幕组 |
-| `ChatCardSendable` | chat | — | eventpacket | 发送聊天卡片 |
-| `ChatMutable` | chat | — | essentials | 禁言/解禁 |
+| `SubtitlePlayable` | announcer | ✅ | eventpacket, 外部插件 | 播放字幕组 |
+| `AnnouncerBroadcastable` | announcer | ✅ | 外部插件 | 即时/排队公告广播 |
+| `ChatCardSendable` | chat | ✅ | eventpacket, 外部插件 | 发送聊天卡片 |
+| `ChatMutable` | chat | ✅ | essentials, 外部插件 | 禁言/解禁 |
 | `QuestGpsNavigable` | questgps | ✅ | eventpacket, 外部插件 | 任务导航 |
 | `MapNavigable` | map | ✅ | questgps, 外部插件 | 地图外部导航点 |
-| `TabRefreshable` | tab | — | title, chat | 刷新 Tab 列表 |
-| `CombatEffectTriggerable` | combateffect | — | eventpacket, prop | 触发战斗特效 |
-| `SignalDispatchable` | eventpacket | — | onlinerewards, afkreward | 触发规则引擎信号 |
+| `TabRefreshable` | tab | ✅ | title, chat, 外部插件 | 刷新 Tab 列表 |
+| `CombatEffectTriggerable` | combateffect | ✅ | eventpacket, prop, 外部插件 | 触发战斗特效 |
+| `SignalDispatchable` | eventpacket | ✅ | onlinerewards, afkreward, 外部插件 | 触发规则引擎信号 |
 | `EventBusCapability` | 宿主 | ✅ | market, qqbot, 第三方/外部插件 | 主题 pub/sub |
+| `AxsMarketService` | market | ✅ | 外部插件 | 市场 UI/挂单/搜索 |
+| `BattlePassAccess` | battlepass | ✅ | 外部插件 | 战令经验/等级/档位/任务进度 |
+| `FishingAccess` | fishing | ✅ | 外部插件 | 钓鱼状态/小游戏/经验/疲劳 |
+| `RegionQueryable` | regions | ✅ | 外部插件 | 区域信息查询 |
+| `BossTrackerQueryable` | entitytracker | ✅ | 外部插件 | 活跃 Boss 会话查询 |
+| `LotteryAccess` | lottery | ✅ | 外部插件 | 抽奖积分/兑换/开箱 |
+| `LoginViewQueryable` | loginview | ✅ | 外部插件 | 认证状态查询/打开登录界面 |
+| `PropAccessible` | prop | ✅ | 外部插件 | 道具列表/应用到主手 |
+| `RgbRenderable` | rgb | ✅ | 外部插件 | 渐变文本渲染 |
+| `OnlineRewardsQueryable` | onlinerewards | ✅ | 外部插件 | 签到/在线时长查询 |
+| `WarehouseAutoDepositable` | warehouse | ✅ | pickup, 外部插件 | 仓库自动存入 |
+| `ExtraBackpackAccess` | extrabackpack | ✅ | 外部插件 | 扩展背包访问 |
+| `PickupNotifiable` / `PickupInterceptor` | pickup | ✅ | warehouse, 外部插件 | 拾取通知/拦截（分模式注册） |
+| `QQBotNotifiable` / `QQBotBroadcastable` / `QqBindCapable` | qqbot | ✅ | 外部插件 | QQ 推送/群事件/绑定查询 |
+| `EssentialsQueryable` | essentials | ✅ | 外部插件 | 基础工具查询 |
+| `AfkRewardDispatchable` | afkreward | ✅ | 外部插件 | 挂机状态/原地挂机 |
+| `InteractionState` | conversation | ✅ | 外部插件 | 交互状态 |
+| `MenuOpenable` | menu | ✅ | 外部插件 | 打开菜单 |
+| `SecondaryPasswordAccess` | 宿主 | ✅ | 外部插件 | 二级密码访问 |
 | `PlayerDataPurgeable` | 多模块 | — | 宿主 `/axs purge` | 清除玩家数据 |
 | `DatabaseMigratable` | 多模块 | — | 宿主 `/axs migrate` | 跨库迁移 |
+| `PolygonSelectionCapability` | 宿主/regions | — | fishing 等 | 多边形选区管理 |
+| `ModuleAdminCapability` | 宿主 | — | 调试工具 | 模块管理（`@Internal`） |
 
 > "公开" = 标注 `@PublicCapability`，外部 Bukkit 插件可通过 `AxsCapabilities.get()` 获取；其余仅限 AXS 模块内部 `getCapability` 使用。

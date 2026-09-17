@@ -11,7 +11,7 @@ Pickup 模块通过 EventBus 发布事件，供其他模块订阅。模块在 `p
 
 | 事件主题 | 触发时机 | Payload 字段 |
 | --- | --- | --- |
-| `axs.pickup.item_pickup` | 通知模式下玩家拾取地面掉落物时 | `material`（材质 ID）、`amount`（数量） |
+| `axs.pickup.item_pickup` | 通知模式下每次实际发生拾取时（含补发路径） | `material`（材质 ID）、`amount`（数量） |
 
 ### 事件发布流程
 
@@ -29,15 +29,15 @@ eventBus.subscribe("axs.pickup.item_pickup", (player, payload) -> {
 });
 ```
 
-> 事件仅在通知模式且拾取未被取消时发布。扫描模式下拾取由服务端主动执行（非 `EntityPickupItemEvent` 触发），不发布此事件。若 Warehouse 模块以 `LOWEST` 优先级取消了事件（自动入库），本模块因 `ignoreCancelled = true` 不会触发，事件不会发布。
+> 事件语义为"发生了一次拾取"：监听器路径与 `PickupNotifiable.notifyPickup` 补发路径都会发布，HUD 已打开或补发时 `ensureUiOpen` 失败也照发（拾取确实发生）。不发布的情况：扫描模式（拾取由服务端主动执行）、玩家手动关闭了拾取提示、模块未激活。Warehouse 自动入库取消 `EntityPickupItemEvent` 后由 `notifyPickup` 补发，事件随之发布。
 
 ## Capability 注册
 
 Pickup 模块根据工作模式注册不同的 Capability，供其他模块通过 `getCapability()` 获取。
 
-### PickupNotifiable（通知模式）
+### PickupNotifiable（通知模式，公开）
 
-通知模式下注册，提供拾取通知推送接口，供 Warehouse 等模块在自动入库后补发 HUD 提示。
+通知模式下注册（`@PublicCapability`，外部插件可经 `AxsCapabilities.get(PickupNotifiable.class)` 获取），提供拾取通知推送接口，供 Warehouse 等模块在自动入库后补发 HUD 提示。请在 Bukkit 主线程调用。
 
 ```java
 public interface PickupNotifiable {
@@ -49,25 +49,25 @@ public interface PickupNotifiable {
 | 方法 | 说明 |
 | --- | --- |
 | `isNotificationActive(UUID)` | 查询玩家拾取通知是否处于活跃状态（服务已启动且玩家未手动关闭） |
-| `notifyPickup(Player, ItemStack, int)` | 主动推送一条拾取通知到玩家 HUD，返回 `true` 表示已排入推送流程 |
+| `notifyPickup(Player, ItemStack, int)` | 主动推送一条拾取通知到玩家 HUD，返回 `true` 表示已排入推送流程；前置校验通过后同步发布 `axs.pickup.item_pickup` 事件 |
 
 **补发场景**：Warehouse 模块在 `LOWEST` 优先级取消了 `EntityPickupItemEvent`（自动入库），本模块监听器因 `ignoreCancelled = true` 不会触发。Warehouse 通过此接口补发 HUD 提示，确保玩家看到入库通知。
 
-### PickupInterceptor（扫描模式）
+### PickupInterceptor（扫描模式，公开）
 
-扫描模式下注册，提供拾取拦截状态查询接口，让 Warehouse 等模块知道扫描模式已接管拾取流程。
+扫描模式下注册（`@PublicCapability`，外部插件可经 `AxsCapabilities.get(PickupInterceptor.class)` 获取），提供拾取拦截状态查询接口，让 Warehouse 等模块知道扫描模式已接管拾取流程。
 
 ```java
 public interface PickupInterceptor {
-    boolean isPickupIntercepted(UUID playerId);
+    boolean isAutoPickupIntercepted(UUID playerId);
 }
 ```
 
 | 方法 | 说明 |
 | --- | --- |
-| `isPickupIntercepted(UUID)` | 查询玩家的拾取是否已被扫描模式拦截（服务已启动且玩家未手动关闭） |
+| `isAutoPickupIntercepted(UUID)` | 查询玩家的拾取是否已被扫描模式拦截（服务已启动且玩家未手动关闭） |
 
-> Warehouse 模块获取此 Capability 后，在自动入库场景下可判断是否需要拦截原版拾取事件，避免与扫描模式的拦截逻辑冲突。
+> Warehouse 模块获取此 Capability 后，在自动入库场景下可判断是否需要拦截原版拾取事件，避免与扫描模式的拦截逻辑冲突。外部磁铁/自动拾取类插件也应在处理拾取事件前调用本接口判断是否让步。
 
 ## Capability 依赖
 
