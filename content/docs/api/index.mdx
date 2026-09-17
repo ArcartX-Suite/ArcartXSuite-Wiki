@@ -59,6 +59,8 @@ axs-core/  (宿主实现 — 模块不可见，可安全混淆)
 | [`SoundPlayerBridgeAPI`](./bridge-api) | `api.bridge` | 音效播放器桥接 API |
 | [`VanillaItemNameBridge`](./bridge-api) | `api.bridge` | 原版物品中文名称解析 |
 | [`ContentModerator`](./bridge-api) | `api.bridge` | 内容审核（敏感词过滤） |
+| `NavigationTarget` / `NavigationTargetService` | `api.util` | 共享导航目标编排：diff 推送、到达滞回判定、命令钩子、跨世界抑制、单路标单路线（Map/QuestGPS 使用） |
+| `NavigationMarkerService` / `NavigationMarkerConfig` | `api.util` | Adyeshach 私有实体路径标记链（按 navKey 多组状态、距离滞回） |
 | [Capability 接口](./capability) | `api.capability` | 跨模块能力通信 |
 | [`ModuleLifecycleEvent`](./events) | `api.event` | 模块生命周期 Bukkit 事件 |
 | [`TaczGunDamageEvent`](./events) | `api.event` | TACZ 枪械伤害事件 |

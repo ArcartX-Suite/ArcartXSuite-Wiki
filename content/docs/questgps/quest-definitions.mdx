@@ -166,8 +166,12 @@ example_daily_quest:
 | `tasks.<id>.navigation.title` | `String` | `""` | 路标标题 |
 | `tasks.<id>.navigation.style-id` | `String` | `""` | 路标样式 ID |
 | `tasks.<id>.navigation.map-label` | `String` | `""` | 地图标记标题 |
+| `tasks.<id>.navigation.npc` | `String` | `""` | Adyeshach NPC 名/ID，设置后导航点跟随该 NPC 实时位置（`world` 可留空） |
+| `tasks.<id>.navigation.finish-range` | `double` | `-1` | 到达触发半径覆盖（小于 0 继承全局 `navigation.finish-range`） |
+| `tasks.<id>.navigation.finish-commands` | `List<String>` | `[]` | 到达命令覆盖（空列表继承全局 `navigation.finish-commands`） |
+| `tasks.<id>.navigation.teleport` | `Map` | — | 跨世界传送点（`world`/`x`/`y`/`z`）；未配置时回退任务级 `navigation.point.teleport` |
 
-> 子目标导航点会覆盖任务级 `navigation.point`。hybrid 模式下 Chemdah tracker 坐标优先。导航配置详见 [导航系统](/docs/questgps/navigation)。
+> 子目标导航点会覆盖任务级 `navigation.point`。hybrid 模式下坐标解析顺序：Chemdah tracker 动态坐标 → NPC 实时定位（`npc` 字段）→ overlay 静态坐标。任务级与子目标级导航点同样支持 `npc`/`finish-range`/`finish-commands`/`teleport` 字段。导航配置详见 [导航系统](/docs/questgps/navigation)。
 
 ## 任务生命周期与信号桥接
 
@@ -287,6 +291,15 @@ example_mainline_quest:
       title: "初入岛屿"
       style-id: "default"
       map-label: "主线目标"
+      # npc: "长老"                 # 可选：跟随 Adyeshach NPC 实时位置
+      # finish-range: 3             # 可选：到达触发半径（<0 继承全局）
+      # finish-commands:            # 可选：到达命令（控制台执行，%player% 占位）
+      #   - "say %player% 到达了目标"
+      # teleport:                   # 可选：目标在其他世界时面板显示「传送并追踪」
+      #   world: "world_nether"
+      #   x: 0
+      #   y: 64
+      #   z: 0
   tasks:
     "0":
       sort-order: 10

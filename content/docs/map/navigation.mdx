@@ -7,18 +7,21 @@ description: 导航状态管理、路标系统、路径标记模型、外部目�
 
 ## 概述
 
-Map 模块的导航功能允许玩家追踪锚点和自定义路径点，在客户端显示方向指引路标和路径标记实体。导航功能通过 `WaypointBridgeAPI` 创建客户端路标，可选通过 `AdyeshachNpcBridgeAPI` 渲染路径标记模型。
+Map 模块的导航功能允许玩家追踪锚点和自定义路径点，在客户端显示方向指引路标和路径标记实体。导航编排由 axs-api 共享的 `NavigationTargetService` 完成（diff 推送、到达滞回、跨世界抑制、命令钩子），路标通过 `WaypointBridgeAPI` 下发，可选通过 `AdyeshachNpcBridgeAPI` 渲染路径标记模型。
 
-**外部目标不走此链路**：外部目标由来源模块/插件（如 QuestGPS）注入展示，玩家点击"导航"时地图只负责把请求**转发给来源注册的 `MapNavigationHandler` 回调**，信标、路径标记、追踪状态由来源全权执行。
+玩家**可同时追踪多个锚点/路径点**（追踪态与到达判定并行），但**屏幕路标与路径标记链始终只跟随"最新激活且同世界"的主目标**——避免多信标/多路线误导玩家；取消主目标后其余目标自动接管。
+
+**外部目标默认不走此链路**：外部目标由来源模块/插件（如 QuestGPS）注入展示，玩家点击"导航"时地图把请求**转发给来源注册的 `MapNavigationHandler` 回调**，信标、路径标记、追踪状态由来源全权执行。例外：目标声明 `useMapNavigation=true`（或来源/插件调 `navigateExternalTarget`）时由地图内置导航栈执行，与锚点/路径点同链路。
 
 导航功能涉及以下组件：
 
 | 组件 | 类 | 职责 |
 |---|---|---|
-| 导航状态 | `MapNavigationState` | 记录玩家当前追踪的目标类型、ID 和标签 |
+| 导航状态 | `MapNavigationState` | 记录单个追踪目标的类型、ID 和标签（玩家 → `navKey → MapNavigationState` 多目标表） |
+| 目标编排 | `NavigationTargetService`（axs-api 共享） | 目标解析、diff 推送、到达滞回判定、命令钩子、跨世界抑制 |
 | 路标桥接 | `WaypointBridgeAPI` | 创建/移除客户端路标导航 |
-| 标记服务 | `NavigationMarkerService` | 沿路径放置 Adyeshach 标记实体 |
-| NPC 桥接 | `AdyeshachNpcBridgeAPI` | 创建私有实体渲染客户端模型 |
+| 标记服务 | `NavigationMarkerService` | 沿路径放置 Adyeshach 标记实体（按 navKey 维护多组路径状态） |
+| NPC 桥接 | `AdyeshachNpcBridgeAPI` | 创建私有实体渲染客户端模型，`locateByName` 实时定位 NPC |
 | 外部目标 | `MapExternalTarget` / `MapExternalTargetSpec` | 其他模块注入的临时导航目标 |
 | 导航回调 | `MapNavigationHandler` | 来源注册的"导航/取消"处理器 |
 | 能力接口 | `MapNavigable` | 供外部模块/插件调用的导航能力（公开 capability） |
@@ -32,9 +35,17 @@ Map 模块的导航功能允许玩家追踪锚点和自定义路径点，在客�
 ```yaml
 navigation:
   enabled: true
-  waypoint-style-id: "default"
   anchor-id-prefix: "AXS-map-anchor-"
   waypoint-id-prefix: "AXS-map-track-"
+  refresh-ticks: 20
+  world-hint-interval: 30
+  finish-range: 0
+  finish-commands: []
+  finish-rearm-buffer: 3.0
+  waypoint:
+    enabled: true
+    style-id: "default"
+    title-template: ""
   marker:
     enabled: true
     model-id: "waypoint"
@@ -46,15 +57,23 @@ navigation:
     path-max-markers: 20
     path-update-ticks: 10
     path-max-distance: 64.0
+    path-reshow-buffer: 8
     path-max-iterations: 2000
 ```
 
 | 配置项 | 类型 | 默认值 | 说明 |
 |---|---|---|---|
 | `navigation.enabled` | `boolean` | `true` | 是否启用导航追踪功能 |
-| `navigation.waypoint-style-id` | `String` | `default` | 路径点导航样式 ID |
 | `navigation.anchor-id-prefix` | `String` | `AXS-map-anchor-` | 锚点导航在客户端的 ID 前缀 |
 | `navigation.waypoint-id-prefix` | `String` | `AXS-map-track-` | 路径点导航在客户端的 ID 前缀 |
+| `navigation.refresh-ticks` | `int` | `20` | 目标刷新间隔（tick），驱动 diff 推送与到达判定 |
+| `navigation.waypoint.enabled` | `boolean` | `true` | 是否向客户端推送路标；`false` 时仅保留追踪态/到达判定/路径标记 |
+| `navigation.waypoint.style-id` | `String` | `default` | 路标样式 ID（ArcartX `waypoint/` 目录下定义） |
+| `navigation.waypoint.title-template` | `String` | `""` | 路标标题模板（单行；`%label%`/`%type%`/`%distance%`/`%world%`/`%x%`/`%y%`/`%z%`），留空显示目标名 |
+| `navigation.world-hint-interval` | `int` | `30` | 目标在其他世界时的提示节流间隔（秒），0 = 不提示 |
+| `navigation.finish-range` | `double` | `0` | 到达触发半径（格），0 = 不启用；到达不取消导航 |
+| `navigation.finish-commands` | `List<String>` | `[]` | 到达命令（控制台执行，`%player%` 占位） |
+| `navigation.finish-rearm-buffer` | `double` | `3.0` | 到达判定滞回缓冲（格）：触发后须离开 `finish-range + 本值` 才重新武装 |
 
 ### 路径点样式
 
@@ -62,7 +81,7 @@ navigation:
 
 | 优先级 | 来源 | 配置项 |
 |---|---|---|
-| 1 | 导航专用样式 | `navigation.waypoint-style-id` |
+| 1 | 导航专用样式 | `navigation.waypoint.style-id` |
 | 2 | 路径点默认样式 | `waypoints.default-style-id` |
 | 3 | 桥接默认样式 | `WaypointBridgeAPI` 内部默认 |
 
@@ -72,7 +91,7 @@ navigation:
 
 ### 状态模型
 
-`MapNavigationState` 记录玩家当前的导航追踪状态：
+`MapService` 为每个玩家维护 `LinkedHashMap<navKey, MapNavigationState>` 多目标追踪表（`navKey` = `anchor:<id>` / `waypoint:<id>` / `external:<targetId>`），`MapNavigationState` 记录单个追踪目标：
 
 | 字段 | 类型 | 说明 |
 |---|---|---|
@@ -84,27 +103,24 @@ navigation:
 | `label` | `String` | 导航显示标签 |
 | `source` | `String` | 来源模块标识（外部目标时有效） |
 
-> `EXTERNAL` 类型仅用于事件与状态标记——外部目标的导航实体由来源自行创建，地图不为其建信标。
+> `EXTERNAL` 类型有两种形态：来源自导航时仅作事件与状态标记（导航实体由来源创建）；`useMapNavigation`/`navigateExternalTarget` 的地图代导航态则会建真实路标（`waypointId` 非空），`source` 记真实来源以区分委托态（`delegate:` 前缀）。
 
 ### 状态匹配
 
-`MapNavigationState` 提供三个匹配方法，用于 UI 快照构建时标记列表项的 `tracked` 状态：
-
-| 方法 | 匹配条件 | 用途 |
-|---|---|---|
-| `matchesAnchor(anchorId)` | `active && targetType == ANCHOR && targetId == anchorId` | 判断是否正在追踪指定锚点 |
-| `matchesWaypoint(waypointId)` | `active && targetType == WAYPOINT && targetId == waypointId` | 判断是否正在追踪指定路径点 |
-| `matchesExternal(targetId)` | `active && targetType == EXTERNAL && targetId == targetId` | 判断是否正在追踪指定外部目标 |
+UI 快照构建时对锚点/路径点列表项计算 `tracked` 状态：`navigationStates.values().anyMatch(state -> state.matchesAnchor(anchorId))` / `matchesWaypoint(waypointId)`。外部目标以 `navKey` 精确查找（`external:<targetId>`）判定。
 
 ### 追踪文本
 
-导航状态生成追踪文本，显示在菜单标题栏和 HUD 底部：
+### 追踪文本
+
+追踪文本显示在菜单标题栏和 HUD 底部。多个目标并行追踪时显示汇总文本 `正在导航 N 个目标`；单目标按类型生成：
 
 | 目标类型 | 追踪文本格式 | 示例 |
 |---|---|---|
 | 锚点 | `当前导航锚点: {label}` | `当前导航锚点: 新手村` |
 | 路径点 | `当前导航路径点: {label}` | `当前导航路径点: 标记点-1` |
 | 外部目标 | `当前导航任务点: {label}` | `当前导航任务点: 击杀世界Boss` |
+| 多目标 | `正在导航 {N} 个目标` | `正在导航 2 个目标` |
 | 无导航 | `当前未导航` | — |
 
 ## 导航操作
@@ -118,14 +134,14 @@ navigation:
             1. 检查导航是否启用
             2. 检查锚点是否存在
             3. 检查 Waypoint 桥接是否可用
-            4. 清除当前追踪（clearTrackSilently）
-            5. 生成路标 ID：anchorIdPrefix + sanitize(anchor.id())
-            6. 解析样式 ID
-            7. 创建客户端路标：waypointBridge.addWaypoint()
-            8. 更新导航状态 + 发布 axs.map.nav_started
-            9. 显示路径标记（若启用）
-            10. 刷新 UI
+            4. 生成路标 ID：anchorIdPrefix + sanitize(anchor.id())
+            5. 解析样式 ID + 应用 title-template / finish-range / finish-commands
+            6. 登记导航状态（navigationStates[navKey]）+ NavigationTargetService.setTarget()
+            7. 发布 axs.map.nav_started
+            8. 刷新 UI
 ```
+
+> 追踪不再清除旧目标——新目标追加进多目标表并成为主目标（接管路标与路径标记链）；旧目标保留追踪态与到达判定，信标由共享编排层 suppress。
 
 ### 追踪路径点
 
@@ -136,16 +152,14 @@ navigation:
             1. 检查导航是否启用
             2. 查找玩家路径点
             3. 检查 Waypoint 桥接是否可用
-            4. 清除当前追踪
-            5. 生成路标 ID：waypointIdPrefix + sanitize(waypoint.waypointId())
-            6. 解析样式 ID
-            7. 创建客户端路标
-            8. 更新导航状态 + 发布 axs.map.nav_started
-            9. 显示路径标记
-            10. 刷新 UI
+            4. 生成路标 ID：waypointIdPrefix + sanitize(waypoint.waypointId())
+            5. 解析样式 ID + 应用 title-template / finish-range / finish-commands
+            6. 登记导航状态 + NavigationTargetService.setTarget()
+            7. 发布 axs.map.nav_started
+            8. 刷新 UI
 ```
 
-### 追踪外部目标（转发给来源）
+### 追踪外部目标（委托 → 地图代导航 → 来源）
 
 ```
 玩家点击「导航」按钮
@@ -153,12 +167,16 @@ navigation:
        └→ MapService.requestExternalNavigate()
             1. 查找外部目标
             2. 发布 axs.map.external_navigate 事件（监测/兜底用）
-            3. 查找目标 source 注册的 MapNavigationHandler
-            4. 调用 handler.onNavigateRequest(player, targetId)
-            5. 返回 false 或无 handler → 提示「该目标的来源未提供导航支持」
+            3. 全局委托 MapNavigationDelegate.onNavigateRequest，true 则记委托态
+            4. 目标 useMapNavigation=true → trackExternalInternal()：
+               建路标+路径标记（AXS-map-ext-<id>）+ 记 EXTERNAL 导航态
+               + navigated 翻转 + 发布 axs.map.nav_started
+            5. 否则查找目标 source 注册的 MapNavigationHandler
+               调用 handler.onNavigateRequest(player, targetId)
+            6. 返回 false 或无 handler → 提示「该目标的来源未提供导航支持」
 ```
 
-> 地图不为外部目标创建信标/路径标记。来源收到回调后自行接管导航（如 QuestGPS 创建任务路标），并通过 `setExternalNavigated` 回推状态让面板按钮切换为"取消"。
+> 来源自导航时地图不建信标/路径标记，来源收到回调后自行接管导航（如 QuestGPS 创建任务路标），并通过 `setExternalNavigated` 回推状态让面板按钮切换为"取消"。地图代导航时这一切由地图内部完成，`navigated` 标志由地图自维护。
 
 ### 取消外部目标导航
 
@@ -167,8 +185,11 @@ navigation:
   └→ UI 发送 external_nav_cancel Packet
        └→ MapService.requestExternalCancel()
             1. 发布 axs.map.external_nav_cancel 事件
-            2. 调用来源 handler.onCancelRequest(player, targetId)
-            3. 来源停止自身导航，目标标记保留在地图上
+            2. 委托态 → 回调委托方 onCancelRequest
+            3. 地图代导航态 → 本地移除（下路标+标记，清 navigated，
+               发布 axs.map.nav_cleared），不回调来源
+            4. 否则调用来源 handler.onCancelRequest(player, targetId)
+               来源停止自身导航，目标标记保留在地图上
 ```
 
 ### 跨世界导航
@@ -179,24 +200,39 @@ navigation:
 |---|---|
 | `anchor` | 直接传送该锚点（扣传送费）→ 追踪 |
 | `waypoint` | 在目标世界找距目标最近的**已解锁**锚点 → 传送（扣该锚点传送费）→ 追踪路径点 |
-| `external` | 同上就近锚点传送 → 调 `requestExternalNavigate` 交给来源接管 |
+| `external` | 同上就近锚点传送 → 调 `requestExternalNavigate`（委托 → 地图代导航 → 来源接管） |
 
 > 目标世界没有已解锁锚点时提示「目标世界没有已解锁的锚点，无法就近传送」。另有 `teleport_to_world`（参数=世界ID）直接传送到世界出生点。
 
-### 清除追踪
+### 取消单个目标追踪
+
+```
+玩家点击锚点/路径点详情「取消导航」按钮
+  └→ UI 发送 untrack Packet（参数1=类型 anchor/waypoint，参数2=目标ID）
+       └→ MapService.untrackTarget() → untrackInternal()
+            1. 按 navKey 查找 navigationStates 中的对应状态
+            2. NavigationTargetService.removeTarget()（下路标+路径标记）
+               （委托导航态则回调委托方 onCancelRequest）
+            3. 移除该条导航状态 + 发布 axs.map.nav_cleared
+            4. 提示「已取消该目标导航」（player.navigation-removed），其余目标不受影响
+            5. 若被移除的是主目标，其余同世界目标自动接管路标/路线
+```
+
+> 外部目标详情面板的「取消」仍走 `external_nav_cancel <targetId>` 包：委托态回调委托方，地图代导航态本地移除，否则转发给来源 `MapNavigationHandler.onCancelRequest`。
+
+### 清除全部追踪
 
 ```
 玩家点击「清除追踪」/ 执行 /map cleartrack
   └→ UI 发送 clear_track Packet
        └→ MapService.clearTrackInternal()
             1. 检查是否有活动导航
-            2. 移除客户端路标：waypointBridge.removeWaypoint()
-            3. 移除导航状态 + 发布 axs.map.nav_cleared
-            4. 隐藏路径标记
-            5. 刷新 UI
+            2. 逐目标 NavigationTargetService.removeTarget()（下路标+标记）
+            3. 清空导航状态表 + 发布 axs.map.nav_cleared
+            4. 刷新 UI
 ```
 
-> `clearTrackSilently()` 为内部方法，清除追踪时不发送反馈消息，用于切换追踪目标前的静默清理。
+> `clearTrackSilently()` 为内部方法，清除追踪时不发送反馈消息，用于来源接管导航（`clearTrackBySource`）与服务关闭时的静默清理。
 
 ### 路标 ID 生成规则
 
@@ -206,12 +242,33 @@ navigation:
 |---|---|---|
 | 锚点 | `anchorIdPrefix + sanitize(anchorId)` | `AXS-map-anchor-spawn` |
 | 路径点 | `waypointIdPrefix + sanitize(waypointId)` | `AXS-map-track-abc123def456` |
+| 外部目标（地图代导航） | `AXS-map-ext- + sanitize(targetId)` | `AXS-map-ext-target-1` |
 
-> 外部目标不再由地图生成路标 ID（导航实体归来源管理）。
+> 仅 `useMapNavigation=true` / `navigateExternalTarget` 的外部目标由地图生成路标 ID；来源自导航的目标导航实体归来源管理，地图不建路标。
+
+## 多目标并行与到达判定
+
+### 多目标追踪语义（单路标单路线）
+
+| 层 | 行为 |
+|---|---|
+| 追踪态（`navigationStates`） | 并行：多个锚点/路径点/外部目标可同时登记，各自独立做到达判定 |
+| 屏幕路标 | 仅主目标（最新激活且同世界）；取消主目标后其余目标自动接管 |
+| 路径标记链 | 仅主目标（同上） |
+| 面板 tracked 标记 | 并行：列表项 `navigated`/`tracked` 各自独立，可逐个取消 |
+
+> 该语义由共享 `NavigationTargetService.refreshPlayer` 实现：第一轮解析全部目标位置并选出主目标，第二轮仅主目标 diff 推送路标+`showMarker`，其余目标 `suppressPushed`（下路标）但保留位置上报与到达判定。
+
+### 到达判定滞回与命令钩子
+
+- `finish-range > 0` 时进入半径触发**一次**到达回调与 `finish-commands`（控制台执行，支持 `%player%`/`%world%`/`%x%`/`%y%`/`%z%` 占位），并提示「已到达导航目标附近」（`player.navigation-arrived`）。
+- 触发后须离开 `finish-range + finish-rearm-buffer` 才重新武装——防止边界抖动重复触发。
+- **到达不取消导航**：导航保持到玩家显式取消（`untrack` / `clear_track` / `/map cleartrack`）。
+- 目标在异世界时路标被抑制，按 `world-hint-interval` 节流提示「导航目标位于其他世界」（`player.navigation-other-world`）；玩家传送到目标世界后目标自动恢复显示。
 
 ## 导航互斥
 
-同一时间一个玩家只有一个活跃导航。互斥由双方协作实现：
+互斥体现在**跨模块/跨来源**层面（QuestGPS ↔ Map）；Map 模块内部允许多个锚点/路径点并行追踪（仅主目标有路标/路线）。互斥由双方协作实现：
 
 | 方向 | 机制 |
 |---|---|
@@ -236,6 +293,7 @@ navigation:
 | `marker.path-max-markers` | `int` | `20` | 路径最大标记数 |
 | `marker.path-update-ticks` | `int` | `10` | 路径更新间隔（tick） |
 | `marker.path-max-distance` | `double` | `64.0` | 路径最大距离（方块） |
+| `marker.path-reshow-buffer` | `double` | `8.0` | 距离滞回缓冲（方块）：超距隐藏后须回到 `path-max-distance - 本值` 以内才重新显示 |
 | `marker.path-max-iterations` | `int` | `2000` | 路径计算最大迭代次数 |
 
 ### 标记服务
@@ -280,6 +338,7 @@ navigation:
 | `iconId` | `String` | 图标 ID（可空） |
 | `navigated` | `boolean` | 是否导航中（驱动"导航 ↔ 取消"按钮） |
 | `sortOrder` | `int` | 排序权重（越小越靠前） |
+| `useMapNavigation` | `boolean` | `true` 时"导航"点击由地图内置导航栈执行（默认 `false` 走来源回调/委托） |
 
 ### MapNavigable 能力
 
@@ -292,6 +351,7 @@ Map 模块注册 `MapNavigable` **公开 capability**（`@PublicCapability`）�
 | `reconcileExternalTargets(player, source, specs)` | 原子替换某来源的全部目标，仍存在的目标选中态不闪断；空列表 = 清空该来源 |
 | `clearExternalTargets(player, source, syncView)` | 按来源清除（空串 = 全部来源） |
 | `setExternalNavigated(player, targetId, navigated)` | 来源回推导航状态，驱动面板按钮切换 |
+| `navigateExternalTarget(player, targetId)` | 由地图内置导航栈开始导航指定外部目标（命令式"地图代导航"入口） |
 | `registerNavigationSource(owner, source, handler)` | 注册来源导航回调；`owner` 插件禁用时自动注销 |
 | `unregisterNavigationSource(source)` | 注销来源导航回调 |
 | `clearTrack(player)` | 静默清除地图自身导航（来源起导航时调用，实现互斥） |

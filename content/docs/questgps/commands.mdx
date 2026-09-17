@@ -66,9 +66,12 @@ QuestGPS 的 UI 交互通过 ArcartX Packet 通讯完成。客户端向服务端
 | `select_quest` | `data[1]` = 任务 ID | 选中任务（显示详情） |
 | `accept_quest` | `data[1]` = 任务 ID | 接取任务 |
 | `abandon_quest` | `data[1]` = 任务 ID | 放弃任务 |
-| `track_quest` | `data[1]` = 任务 ID | 追踪任务级导航 |
-| `track_task` | `data[1]` = 任务 ID, `data[2]` = 子目标 ID | 追踪子任务级导航 |
-| `clear_track` | — | 清除当前导航追踪 |
+| `track_quest` | `data[1]` = 任务 ID | 追踪任务级导航（与其他追踪并行） |
+| `track_task` | `data[1]` = 任务 ID, `data[2]` = 子目标 ID | 追踪子任务级导航（与其他追踪并行） |
+| `untrack_quest` | `data[1]` = 任务 ID | 取消该任务全部追踪（任务级+其子目标级），其余目标不受影响 |
+| `untrack_task` | `data[1]` = 任务 ID, `data[2]` = 子目标 ID | 取消指定子目标追踪 |
+| `cross_world_track` | `data[1]` = 任务 ID | 跨世界追踪：目标在其他世界时先传送到该导航点的 `teleport` 传送点再开始追踪 |
+| `clear_track` | — | 清除全部导航追踪 |
 | `open_map` | — | 打开地图菜单（Map 模块不可用时刷新菜单） |
 
 ### 服务端→客户端 Packet 字段
@@ -104,7 +107,10 @@ QuestGPS 的 UI 交互通过 ArcartX Packet 通讯完成。客户端向服务端
 | `canTrackQuest` | `boolean` | 是否可追踪任务 |
 | `canTrackTask` | `boolean` | 是否可追踪目标 |
 | `canClearTrack` | `boolean` | 是否可清除追踪 |
-| `questTracked` | `boolean` | 当前任务是否已追踪 |
+| `questTracked` | `boolean` | 当前任务是否已追踪（任务级或任一子目标级） |
+| `detailCrossWorld` | `boolean` | 选中任务的导航目标是否在其他世界 |
+| `detailTeleportAvailable` | `boolean` | 选中任务导航点是否配置了 `teleport` 传送点（驱动「传送并追踪」按钮） |
+| `detailTargetWorld` | `String` | 选中任务导航目标所在世界名 |
 | `taskCount` | `int` | 目标总数 |
 | `rewardCount` | `int` | 奖励总数 |
 
@@ -113,20 +119,18 @@ QuestGPS 的 UI 交互通过 ArcartX Packet 通讯完成。客户端向服务端
 | 字段 | 类型 | 说明 |
 |---|---|---|
 | `packetId` | `String` | Packet 标识符 |
-| `active` | `boolean` | HUD 是否激活显示 |
-| `questName` | `String` | 当前追踪任务名称 |
-| `completedCount` | `int` | 已完成目标数 |
-| `totalCount` | `int` | 总目标数 |
-| `progressText` | `String` | 进度文本（如 `"2/5"`） |
-| `tasks` | `Map<String, Map>` | 目标字典，key=目标ID，value含 `id`/`text`/`description`/`completed`/`status`（最多 3 个） |
-| `taskCount` | `int` | 目标总数 |
-| `hasNav` | `boolean` | 是否有可用导航点 |
-| `navWorld` | `String` | 导航点所在世界名 |
-| `navX` | `int` | 导航点 X 坐标 |
-| `navY` | `int` | 导航点 Y 坐标 |
-| `navZ` | `int` | 导航点 Z 坐标 |
+| `active` | `boolean` | HUD 是否激活显示（存在任一追踪态时为 true） |
+| `trackedCount` | `int` | 追踪中的目标总数 |
+| `quests` | `Map<String, Map>` | 追踪卡片字典（key=`"0"`,`"1"`… 按激活顺序），每项含 `questId`/`taskId`/`mode`/`name`/`label`/`progressText`/`taskText`/`taskDesc`/`hasNav`/`navWorld`/`navText` |
+| `questCount` | `int` | `quests` 实际条数 |
+| `questName` | `String` | 主追踪（最新激活）目标名称 — 兼容字段 |
+| `hasNav` | `boolean` | 主目标是否有可用导航点 — 兼容字段 |
+| `navWorld` | `String` | 主目标导航点所在世界名 — 兼容字段 |
+| `navX` | `int` | 主目标导航点 X 坐标 — 兼容字段 |
+| `navY` | `int` | 主目标导航点 Y 坐标 — 兼容字段 |
+| `navZ` | `int` | 主目标导航点 Z 坐标 — 兼容字段 |
 
-> 引导 HUD 最多展示 3 个目标，由 `QuestGpsGuidePacketFactory.DISPLAY_TASK_LIMIT` 控制。
+> 引导 HUD 最多展示 3 张追踪卡片，由 `QuestGpsGuidePacketFactory.DISPLAY_QUEST_LIMIT = 3` 控制。多目标并行追踪时卡片按激活顺序排列，屏幕路标/路径标记链仅跟随最新激活的同世界目标。
 
 ## 消息文件
 
@@ -172,6 +176,13 @@ QuestGPS 的 UI 交互通过 ArcartX Packet 通讯完成。客户端向服务端
 | `player.task-navigation-unavailable` | 目标无导航点 | — |
 | `player.task-navigation-create-failed` | 目标导航创建失败 | — |
 | `player.task-navigation-set` | 目标导航已设置 | `{0}` = 目标文案 |
-| `player.navigation-cleared` | 导航已清除 | — |
+| `player.navigation-cleared` | 导航已清除（全部追踪） | — |
+| `player.navigation-removed` | 单个任务导航已取消 | — |
+| `player.navigation-other-world` | 任务目标在其他世界（节流提示） | `{0}` = 目标世界名 |
+| `player.navigation-arrived` | 到达任务目标附近 | `{0}` = 目标名称 |
+| `player.navigation-no-teleport` | 目标跨世界但未配置传送点 | `{0}` = 目标世界名 |
+| `player.navigation-teleport-world-unloaded` | 传送目标世界未加载 | `{0}` = 世界名 |
+| `player.navigation-teleport-failed` | 传送失败 | — |
+| `player.navigation-teleported` | 已传送并开始导航 | `{0}` = 目标世界名 |
 | `player.chemdah-profile-not-loaded` | 档案未加载 | — |
 | `player.chemdah-profile-read-failed` | 档案读取失败 | — |

@@ -3,6 +3,7 @@ import type { ReactNode } from 'react';
 import { RootProvider } from 'fumadocs-ui/provider';
 import { I18nProvider } from 'fumadocs-ui/i18n';
 import { HomeBackground } from '@/components/HomeBackground';
+import { BgmPlayer } from '@/components/BgmPlayer';
 
 export const metadata = {
   title: {
@@ -17,6 +18,7 @@ export default function Layout({ children }: { children: ReactNode }) {
     <html lang="zh-CN" className="dark" suppressHydrationWarning>
       <body>
         <HomeBackground />
+        <BgmPlayer />
         <RootProvider
           theme={{
             enabled: false,

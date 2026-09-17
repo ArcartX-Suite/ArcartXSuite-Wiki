@@ -86,9 +86,23 @@ keybinds:
 | 配置项 | 类型 | 默认值 | 说明 |
 |--------|------|--------|------|
 | `navigation.enabled` | `boolean` | `true` | 是否启用导航追踪功能 |
-| `navigation.waypoint-style-id` | `String` | `default` | 路径点导航样式 ID |
 | `navigation.anchor-id-prefix` | `String` | `AXS-map-anchor-` | 锚点导航在客户端的 ID 前缀 |
 | `navigation.waypoint-id-prefix` | `String` | `AXS-map-track-` | 路径点导航在客户端的 ID 前缀 |
+| `navigation.refresh-ticks` | `int` | `20` | 目标刷新间隔（tick），驱动 diff 推送与到达判定 |
+| `navigation.world-hint-interval` | `int` | `30` | 目标在其他世界时的提示节流间隔（秒），0 = 不提示 |
+| `navigation.finish-range` | `double` | `0` | 到达触发半径（格），0 = 不启用；到达不取消导航 |
+| `navigation.finish-commands` | `List<String>` | `[]` | 到达命令（控制台执行，`%player%` 占位） |
+| `navigation.finish-rearm-buffer` | `double` | `3.0` | 到达判定滞回缓冲（格）：触发后须离开 `finish-range + 本值` 才重新武装 |
+
+> 多目标追踪语义：玩家可同时追踪多个锚点/路径点（追踪态与到达判定并行），但屏幕路标与路径标记链只跟随"最新激活且同世界"的主目标。详见 [导航追踪与路径标记](./navigation)。
+
+### ArcartX 路标（`navigation.waypoint`）
+
+| 配置项 | 类型 | 默认值 | 说明 |
+|--------|------|--------|------|
+| `navigation.waypoint.enabled` | `boolean` | `true` | 是否向客户端推送路标；`false` 时导航仅保留追踪态/到达判定/路径标记，不发路标包 |
+| `navigation.waypoint.style-id` | `String` | `default` | 路标样式 ID（ArcartX `waypoint/` 目录下定义） |
+| `navigation.waypoint.title-template` | `String` | `""` | 路标标题模板（单行；`%label%`/`%type%`/`%distance%`/`%world%`/`%x%`/`%y%`/`%z%`），留空显示目标名 |
 
 ### 导航标记模型（`navigation.marker`）
 
@@ -104,6 +118,7 @@ keybinds:
 | `navigation.marker.path-max-markers` | `int` | `20` | 路径最大标记数 |
 | `navigation.marker.path-update-ticks` | `int` | `10` | 路径更新间隔（tick） |
 | `navigation.marker.path-max-distance` | `double` | `64.0` | 路径最大距离（方块） |
+| `navigation.marker.path-reshow-buffer` | `double` | `8.0` | 距离滞回缓冲（方块）：超距隐藏后须回到 `path-max-distance - 本值` 以内才重新显示 |
 | `navigation.marker.path-max-iterations` | `int` | `2000` | 路径计算最大迭代次数 |
 
 > 导航标记依赖 Adyeshach。Adyeshach 不存在时标记功能自动关闭，路标导航不受影响。
@@ -200,9 +215,17 @@ storage:
 
 navigation:
   enabled: true
-  waypoint-style-id: "default"
   anchor-id-prefix: "AXS-map-anchor-"
   waypoint-id-prefix: "AXS-map-track-"
+  refresh-ticks: 20
+  world-hint-interval: 30
+  finish-range: 0
+  finish-commands: []
+  finish-rearm-buffer: 3.0
+  waypoint:
+    enabled: true
+    style-id: "default"
+    title-template: ""
   marker:
     enabled: true
     model-id: "waypoint"
@@ -214,6 +237,7 @@ navigation:
     path-max-markers: 20
     path-update-ticks: 10
     path-max-distance: 64.0
+    path-reshow-buffer: 8
     path-max-iterations: 2000
 
 worlds-directory: "worlds"
@@ -324,7 +348,7 @@ storage:
 | `player.waypoint-updated` | 路径点已更新 | `{0}` = 路径点名 |
 | `player.target-not-found` | 任务点未找到 | `{0}` = 目标ID |
 | `player.target-navigation-failed` | 任务点导航失败 | — |
-| `player.target-navigation-started` | 任务点导航开始 | `{0}` = 目标名 |
+| `player.target-navigation-started` | 外部目标由地图代导航开始 | `{0}` = 目标名 |
 | `player.external-nav-unavailable` | 外部目标来源未提供导航 | — |
 | `player.cross-world-navigated` | 已跨世界传送并导航 | — |
 | `player.no-unlocked-anchor-in-world` | 目标世界无已解锁锚点 | — |
@@ -347,7 +371,10 @@ storage:
 | `player.claim-usage` | claim 命令用法 | `{0}` = 命令别名 |
 | `player.no-active-navigation` | 无活动导航 | — |
 | `player.clear-navigation-failed` | 清除导航失败 | — |
-| `player.navigation-cleared` | 导航已清除 | — |
+| `player.navigation-cleared` | 导航已清除（全部目标） | — |
+| `player.navigation-removed` | 单个目标导航已取消 | — |
+| `player.navigation-other-world` | 导航目标在其他世界（节流提示） | `{0}` = 目标世界 |
+| `player.navigation-arrived` | 到达导航目标附近 | `{0}` = 目标名 |
 | `player.custom-waypoints-disabled` | 自定义路径点未启用 | — |
 | `player.waypoint-world-not-configured` | 世界未配置 | — |
 | `player.waypoint-limit-reached` | 路径点达上限 | `{0}` = 上限 |

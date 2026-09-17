@@ -193,6 +193,9 @@ npc.applyModel(npcEntity, "model_id", 1.0);
 // 播放动画
 npc.applyAnimation(npcEntity, "walk", 1.0, 5, 1000);
 
+// 按名字/ID 定位 NPC 实时位置（动态导航目标用；找不到返回 Optional.empty）
+Optional<Location> npcLocation = npc.locateByName("长老");
+
 // 私有导航标记
 npc.spawnPrivateMarker(player, "marker_1", location);
 npc.teleportMarker(player, "marker_1", newLocation);

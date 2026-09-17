@@ -28,8 +28,8 @@ QuestGPS 注册以下 Capability，供其他模块跨模块调用：
 | `offerQuest` | `Player`, `String questId`, `boolean openMenu` | 向玩家推送任务，可选自动打开菜单 |
 | `acceptQuest` | `Player`, `String questId` | 让玩家接受指定任务 |
 | `openMenu` | `Player` | 为玩家打开任务导航菜单 |
-| `trackQuest` | `Player`, `String questId` | 追踪任务级导航 |
-| `trackTask` | `Player`, `String questId`, `String taskId` | 追踪子任务级导航 |
+| `trackQuest` | `Player`, `String questId` | 追踪任务级导航（与其他追踪并行登记，不覆盖已有目标） |
+| `trackTask` | `Player`, `String questId`, `String taskId` | 追踪子任务级导航（与其他追踪并行登记） |
 | `eventRuleLocked` | `Player`, `String ruleId` | 检查 EventPacket 事件规则是否被主线门禁锁定 |
 | `moduleEntryLocked` | `Player`, `String moduleEntryId` | 检查其他模块入口是否被主线门禁锁定 |
 
@@ -144,7 +144,7 @@ QuestGPS 的配置文件支持 `SyncPolicy`，`categories` 段标记为动态段
 | 联动方式 | 说明 |
 |---|---|
 | 路标导航 | 通过 `WaypointBridgeAPI` 创建/移除路标，在客户端显示方向指引 |
-| 样式解析 | 路标样式 ID 优先使用任务/子任务配置的 `style-id`，回退到全局 `navigation.waypoint-style-id` |
+| 样式解析 | 路标样式 ID 优先使用任务/子任务配置的 `style-id`，回退到全局 `navigation.waypoint.style-id` |
 
 > ArcartX Waypoint 不存在时导航功能不可用（`navigationRuntimeReady` 返回 `false`）。
 

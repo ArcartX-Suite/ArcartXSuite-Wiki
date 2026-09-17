@@ -94,13 +94,14 @@ Map 模块的 UI 交互通过 ArcartX Packet 通讯完成。客户端向服务�
 | `deselect` | — | 取消当前选中 | 否 |
 | `unlock_anchor` | `data[1]` = 锚点ID, `data[2]` = action_token | 解锁锚点 | 是 |
 | `teleport_anchor` | `data[1]` = 锚点ID, `data[2]` = action_token | 传送到锚点 | 是 |
-| `track_anchor` | `data[1]` = 锚点ID | 追踪锚点导航 | 否 |
-| `track_waypoint` | `data[1]` = 路径点ID | 追踪路径点导航 | 否 |
+| `track_anchor` | `data[1]` = 锚点ID | 追踪锚点导航（追加进多目标表并成为主目标） | 否 |
+| `track_waypoint` | `data[1]` = 路径点ID | 追踪路径点导航（追加进多目标表并成为主目标） | 否 |
+| `untrack` | `data[1]` = 类型（`anchor`/`waypoint`）, `data[2]` = 目标ID | 取消单个目标追踪，其余目标不受影响 | 否 |
 | `track_external` / `external_navigate` | `data[1]` = 目标ID | 外部目标"导航"——转发给来源的 `MapNavigationHandler.onNavigateRequest` 执行 | 否 |
 | `external_nav_cancel` | `data[1]` = 目标ID | 外部目标"取消"——转发给来源的 `onCancelRequest`，目标标记保留 | 否 |
 | `teleport_to_world` | `data[1]` = 世界ID | 传送到指定世界（就近已解锁锚点） | 否 |
 | `cross_world_navigate` | `data[1]` = `类型:目标ID` | 跨世界导航：先传送到目标世界再开始导航 | 否 |
-| `clear_track` | — | 清除当前导航追踪 | 否 |
+| `clear_track` | — | 清除全部导航追踪 | 否 |
 | `create_waypoint` | `data[1]` = action_token | 在当前位置创建路径点 | 是 |
 | `delete_waypoint` | `data[1]` = 路径点ID, `data[2]` = action_token | 删除指定路径点 | 是 |
 | `update_waypoint` | `data[1]` = 路径点ID, `data[2]` = 新名称, `data[3]` = 新描述, `data[4]` = action_token | 重命名/改描述 | 是 |
