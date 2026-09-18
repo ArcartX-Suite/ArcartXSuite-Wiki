@@ -137,7 +137,7 @@ QuestGPS 的配置文件支持 `SyncPolicy`，`categories` 段标记为动态段
 | 导航标记模型 | 通过 `AdyeshachNpcBridgeAPI` 创建私有实体，使用 ArcartX 模型渲染客户端导航标记 |
 | 路径标记 | A* 寻路沿路径放置标记模型，仅在追踪状态变更时发包，客户端独立渲染 |
 
-> Adyeshach 不存在时导航标记功能自动关闭（`navigation.marker.enabled` 仍可设为 `true`，但运行时检测不可用后跳过），路标导航不受影响。
+> Adyeshach 不存在时模型导航提示自动关闭（`navigation.model-marker.enabled` 仍可设为 `true`，但运行时检测不可用后跳过），路标导航与贴图导航提示（`navigation.texture-marker`）不受影响。
 
 ### ArcartX Waypoint
 

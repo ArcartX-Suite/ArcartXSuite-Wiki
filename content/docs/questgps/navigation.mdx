@@ -131,37 +131,57 @@ AXS-questgps-<questId>__<taskId>    # 子任务级追踪
 - `teleport` 未配置时跨世界目标仍可追踪，仅提示无传送点（`navigation-no-teleport`）。
 - 子目标未声明 `teleport` 时回退任务级 `navigation.point.teleport`。
 
-## 导航标记
+## 导航路径提示
 
-导航标记使用 Adyeshach 私有实体 + ArcartX 模型渲染客户端导航标记，仅在追踪状态变更时发包，客户端独立渲染，零服务端 tick 开销。
+路径导航有两种互补的可视化方式，可同时启用或只开其一（独立开关）：
 
-### 标记配置
+- **模型导航提示**（`navigation.model-marker`）：Adyeshach 私有实体 + ArcartX 模型渲染客户端导航标记，仅在追踪状态变更时发包，客户端独立渲染，零服务端 tick 开销。
+- **贴图导航提示**（`navigation.texture-marker`，1.5.0 新增）：沿寻路结果向玩家单人下发 ArcartX 世界贴图（WorldTexture）路径提示；无需 Adyeshach 实体，仅发包，天然玩家私有。
+
+### 模型导航提示配置
 
 | 字段 | 类型 | 默认值 | 说明 |
 |---|---|---|---|
-| `navigation.marker.enabled` | `boolean` | `true` | 是否启用导航标记 |
-| `navigation.marker.model-id` | `String` | `"nav_beacon"` | ArcartX 模型 ID |
-| `navigation.marker.scale` | `double` | `1.0` | 模型缩放比例 |
-| `navigation.marker.default-state` | `String` | `"idle"` | 模型默认状态名称 |
-| `navigation.marker.animation` | `String` | `"rotate"` | 循环播放的动画名称 |
-| `navigation.marker.y-offset` | `double` | `2.0` | 模型相对导航目标的 Y 轴偏移 |
+| `navigation.model-marker.enabled` | `boolean` | `true` | 是否启用模型导航提示 |
+| `navigation.model-marker.model-id` | `String` | `"nav_beacon"` | ArcartX 模型 ID |
+| `navigation.model-marker.scale` | `double` | `1.0` | 模型缩放比例 |
+| `navigation.model-marker.default-state` | `String` | `"idle"` | 模型默认状态名称 |
+| `navigation.model-marker.animation` | `String` | `"rotate"` | 循环播放的动画名称 |
+| `navigation.model-marker.y-offset` | `double` | `2.0` | 模型相对导航目标的 Y 轴偏移 |
 
-> 导航标记依赖 Adyeshach 插件。Adyeshach 不存在时标记功能自动关闭，路标导航不受影响。
+> 模型导航提示依赖 Adyeshach 插件。Adyeshach 不存在时该功能自动关闭，路标与贴图导航不受影响。
+>
+> **1.5.0 变更**：配置键 `navigation.marker` 已重命名为 `navigation.model-marker`，升级时迁移引擎自动改名并保留用户值。
+
+### 贴图导航提示配置
+
+| 字段 | 类型 | 默认值 | 说明 |
+|---|---|---|---|
+| `navigation.texture-marker.enabled` | `boolean` | `false` | 是否启用贴图路径提示（需资源包中存在 `texture` 对应贴图） |
+| `navigation.texture-marker.texture` | `String` | `"nav_arrow"` | 贴图资源 ID |
+| `navigation.texture-marker.width` / `height` | `double` | `100` | 贴图渲染宽/高 |
+| `navigation.texture-marker.facing` | `boolean` | `false` | `true` 始终面向玩家（billboard）；`false` 按 pitch/yaw 定向（贴地箭头） |
+| `navigation.texture-marker.glowing` | `boolean` | `true` | 是否泛光 |
+| `navigation.texture-marker.y-offset` | `double` | `0.1` | 贴图相对路径点的 Y 轴偏移 |
+| `navigation.texture-marker.pitch` | `double` | `90` | 俯仰角（度；贴地渲染 90） |
+| `navigation.texture-marker.orient-to-path` | `boolean` | `true` | yaw 朝向下一个路径点（贴地箭头指示方向） |
+| `navigation.texture-marker.life-time` | `int` | `-1` | 贴图存活时长（-1 = 永续直到显式移除） |
+| `navigation.texture-marker.pulse.*` | — | 见下 | 循环缩放脉冲动画：`enabled`/`from`/`to`/`duration`/`stagger`（按路径点序号错开形成波浪效果） |
 
 ### 路径寻路参数
 
-A* 寻路算法沿路径放置标记模型，支持以下参数：
+两种渲染方式各自带一组同语义的 `path-*` 参数（互不影响），A* 寻路算法沿路径放置标记模型/贴图：
 
 | 字段 | 类型 | 默认值 | 说明 |
 |---|---|---|---|
-| `navigation.marker.path-interval` | `double` | `3.0` | 路径标记间距（方块数，沿路径每隔多少格放一个标记） |
-| `navigation.marker.path-max-markers` | `int` | `20` | 路径标记最大数量（超出后截断远端标记） |
-| `navigation.marker.path-update-ticks` | `int` | `10` | 路径更新间隔（tick，20=1秒，玩家移动后重新计算路径） |
-| `navigation.marker.path-max-distance` | `double` | `64.0` | 路径最大渲染距离（方块数，超出此距离不显示路径标记） |
-| `navigation.marker.path-max-iterations` | `int` | `2000` | A* 寻路最大迭代次数（100-50000，越大越精确但越耗时） |
-| `navigation.marker.path-reshow-buffer` | `double` | `8.0` | 距离滞回缓冲（格）：标记因超距隐藏后，须回到 `path-max-distance - 本值` 以内才重新显示 |
+| `navigation.<renderer>.path-interval` | `double` | `3.0` | 路径点间距（方块数，沿路径每隔多少格放一个标记/贴图） |
+| `navigation.<renderer>.path-max-markers` | `int` | `20` | 路径点最大数量（超出后截断远端） |
+| `navigation.<renderer>.path-update-ticks` | `int` | `10` | 路径更新间隔（tick，20=1秒，玩家移动后重新计算路径） |
+| `navigation.<renderer>.path-max-distance` | `double` | `64.0` | 路径最大渲染距离（方块数，超出此距离不显示） |
+| `navigation.<renderer>.path-reshow-buffer` | `double` | `8.0` | 距离滞回缓冲（格）：超距隐藏后，须回到 `path-max-distance - 本值` 以内才重新显示 |
+| `navigation.<renderer>.path-max-iterations` | `int` | `2000` | A* 寻路最大迭代次数（100-50000，越大越精确但越耗时） |
 
-> `path-max-iterations` 配置校验范围为 100-50000，超出范围会被 `ValidationRule` 拒绝。
+> `<renderer>` 为 `model-marker` 或 `texture-marker`。`path-max-iterations` 配置校验范围为 100-50000，超出范围会被 `ValidationRule` 拒绝。
 
 ### 标记服务
 
@@ -350,13 +370,36 @@ navigation:
     enabled: true
     style-id: "default"
     title-template: ""
-  marker:
+  model-marker:
     enabled: true
     model-id: "waypoint"
     scale: 1.0
     default-state: "idle"
     animation: "rotate"
     y-offset: 0.0
+    path-interval: 3.0
+    path-max-markers: 20
+    path-update-ticks: 10
+    path-max-distance: 64
+    path-reshow-buffer: 8
+    path-max-iterations: 2000
+  texture-marker:
+    enabled: false
+    texture: "nav_arrow"
+    width: 100
+    height: 100
+    facing: false
+    glowing: true
+    y-offset: 0.1
+    pitch: 90
+    orient-to-path: true
+    life-time: -1
+    pulse:
+      enabled: true
+      from: 0.8
+      to: 1.2
+      duration: 20
+      stagger: 2
     path-interval: 3.0
     path-max-markers: 20
     path-update-ticks: 10

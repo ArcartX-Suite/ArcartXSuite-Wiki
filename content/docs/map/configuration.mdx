@@ -104,24 +104,44 @@ keybinds:
 | `navigation.waypoint.style-id` | `String` | `default` | 路标样式 ID（ArcartX `waypoint/` 目录下定义） |
 | `navigation.waypoint.title-template` | `String` | `""` | 路标标题模板（单行；`%label%`/`%type%`/`%distance%`/`%world%`/`%x%`/`%y%`/`%z%`），留空显示目标名 |
 
-### 导航标记模型（`navigation.marker`）
+### 模型导航提示（`navigation.model-marker`）
 
 | 配置项 | 类型 | 默认值 | 说明 |
 |--------|------|--------|------|
-| `navigation.marker.enabled` | `boolean` | `false`（默认配置文件中为 `true`） | 是否启用标记模型 |
-| `navigation.marker.model-id` | `String` | `nav_beacon`（默认配置文件中为 `waypoint`） | 模型 ID（资源包中的模型标识） |
-| `navigation.marker.scale` | `double` | `1.0` | 缩放比例 |
-| `navigation.marker.default-state` | `String` | `idle` | 默认状态 |
-| `navigation.marker.animation` | `String` | `rotate` | 动画类型 |
-| `navigation.marker.y-offset` | `double` | `2.0` | Y 轴偏移（方块） |
-| `navigation.marker.path-interval` | `double` | `3.0` | 路径标记间距（方块） |
-| `navigation.marker.path-max-markers` | `int` | `20` | 路径最大标记数 |
-| `navigation.marker.path-update-ticks` | `int` | `10` | 路径更新间隔（tick） |
-| `navigation.marker.path-max-distance` | `double` | `64.0` | 路径最大距离（方块） |
-| `navigation.marker.path-reshow-buffer` | `double` | `8.0` | 距离滞回缓冲（方块）：超距隐藏后须回到 `path-max-distance - 本值` 以内才重新显示 |
-| `navigation.marker.path-max-iterations` | `int` | `2000` | 路径计算最大迭代次数 |
+| `navigation.model-marker.enabled` | `boolean` | `false`（默认配置文件中为 `true`） | 是否启用模型导航提示 |
+| `navigation.model-marker.model-id` | `String` | `nav_beacon`（默认配置文件中为 `waypoint`） | 模型 ID（资源包中的模型标识） |
+| `navigation.model-marker.scale` | `double` | `1.0` | 缩放比例 |
+| `navigation.model-marker.default-state` | `String` | `idle` | 默认状态 |
+| `navigation.model-marker.animation` | `String` | `rotate` | 动画类型 |
+| `navigation.model-marker.y-offset` | `double` | `2.0` | Y 轴偏移（方块） |
+| `navigation.model-marker.path-interval` | `double` | `3.0` | 路径标记间距（方块） |
+| `navigation.model-marker.path-max-markers` | `int` | `20` | 路径最大标记数 |
+| `navigation.model-marker.path-update-ticks` | `int` | `10` | 路径更新间隔（tick） |
+| `navigation.model-marker.path-max-distance` | `double` | `64.0` | 路径最大距离（方块） |
+| `navigation.model-marker.path-reshow-buffer` | `double` | `8.0` | 距离滞回缓冲（方块）：超距隐藏后须回到 `path-max-distance - 本值` 以内才重新显示 |
+| `navigation.model-marker.path-max-iterations` | `int` | `2000` | 路径计算最大迭代次数 |
 
-> 导航标记依赖 Adyeshach。Adyeshach 不存在时标记功能自动关闭，路标导航不受影响。
+> 模型导航提示依赖 Adyeshach。Adyeshach 不存在时该功能自动关闭，路标与贴图导航不受影响。
+>
+> **1.5.0 变更**：配置键 `navigation.marker` 已重命名为 `navigation.model-marker`（与新增的 `navigation.texture-marker` 成对命名），`config-version: 4` 升级时由迁移引擎自动改名并保留用户值。
+
+### 贴图导航提示（`navigation.texture-marker`，1.5.0 新增）
+
+沿寻路结果向玩家单人下发 ArcartX 世界贴图（WorldTexture）路径提示。与 `model-marker` 互补，可同开也可独立开关；无需 Adyeshach 实体，仅发包，天然玩家私有。
+
+| 配置项 | 类型 | 默认值 | 说明 |
+|--------|------|--------|------|
+| `navigation.texture-marker.enabled` | `boolean` | `false` | 是否启用贴图路径提示（需资源包中存在 `texture` 对应贴图） |
+| `navigation.texture-marker.texture` | `String` | `nav_arrow` | 贴图资源 ID（ArcartX 自定义文字贴图格式 `§k!%<id><type>`，或资源包中注册的贴图名） |
+| `navigation.texture-marker.width` / `height` | `double` | `100` | 贴图渲染宽/高 |
+| `navigation.texture-marker.facing` | `boolean` | `false` | `true` 始终面向玩家（billboard）；`false` 按 pitch/yaw 定向（贴地箭头） |
+| `navigation.texture-marker.glowing` | `boolean` | `true` | 是否泛光 |
+| `navigation.texture-marker.y-offset` | `double` | `0.1` | 贴图相对路径点的 Y 轴偏移（方块） |
+| `navigation.texture-marker.pitch` | `double` | `90` | 俯仰角（度；贴地渲染 90，`facing=true` 时一般忽略） |
+| `navigation.texture-marker.orient-to-path` | `boolean` | `true` | yaw 朝向下一个路径点（贴地箭头指示方向） |
+| `navigation.texture-marker.life-time` | `int` | `-1` | 贴图存活时长（-1 = 永续直到显式移除） |
+| `navigation.texture-marker.pulse.*` | — | 见注释 | 循环缩放脉冲动画：`enabled`/`from`/`to`/`duration`/`stagger`（按路径点序号错开形成波浪效果） |
+| `navigation.texture-marker.path-*` | — | 同 `model-marker` | 同语义的路径寻路参数（`path-interval`/`path-max-markers`/`path-update-ticks`/`path-max-distance`/`path-reshow-buffer`/`path-max-iterations`），互不影响 |
 
 ## 世界配置（`worlds/` 目录）
 
@@ -226,13 +246,36 @@ navigation:
     enabled: true
     style-id: "default"
     title-template: ""
-  marker:
+  model-marker:
     enabled: true
     model-id: "waypoint"
     scale: 1.0
     default-state: "idle"
     animation: "rotate"
     y-offset: 2.0
+    path-interval: 3.0
+    path-max-markers: 20
+    path-update-ticks: 10
+    path-max-distance: 64.0
+    path-reshow-buffer: 8
+    path-max-iterations: 2000
+  texture-marker:
+    enabled: false
+    texture: "nav_arrow"
+    width: 100
+    height: 100
+    facing: false
+    glowing: true
+    y-offset: 0.1
+    pitch: 90
+    orient-to-path: true
+    life-time: -1
+    pulse:
+      enabled: true
+      from: 0.8
+      to: 1.2
+      duration: 20
+      stagger: 2
     path-interval: 3.0
     path-max-markers: 20
     path-update-ticks: 10

@@ -213,13 +213,22 @@ npc.shutdown();
 ```java
 WorldTextureBridgeAPI texture = context.worldTextureBridge();
 if (texture != null && texture.isAvailable()) {
-    // 在实体上方渲染
+    // 在实体上方渲染（广播给附近玩家）
     texture.spawnOnEntity(entity, "tex_1", "texture_id", 1.0, 0.5, 2.0, true);
-    // 在世界坐标渲染
+    // 在世界坐标渲染（广播给附近玩家）
     texture.spawnAtLocation(world, location, "tex_2", "texture_id", 1.0, 0.5);
     // 移除
     texture.removeFromEntity(entity, "tex_1");
     texture.removeFromWorld(world, "tex_2", location);
+
+    // 仅向单个玩家渲染（私有贴图，1.7.0 新增，用于路径导航提示等）
+    texture.spawnForPlayer(player, "nav_0", location, "nav_arrow",
+        100.0, 100.0,          // width, height
+        0f, 90f,               // yaw, pitch（贴地渲染 pitch=90）
+        false, true,           // facing（billboard）, glowing
+        -1,                    // lifeTime（-1 = 永续）
+        WorldTexturePulse.looping(0.8, 1.2, 20, 0));  // 可选缩放脉冲，null = 无动画
+    texture.removeForPlayer(player, "nav_0");
 }
 ```
 

@@ -5,17 +5,17 @@ description: Essentials 模块命令、权限、PlaceholderAPI 占位符与 UI P
 
 ## 命令体系
 
-Essentials 模块的所有功能通过 `/essentials <action>` 或缩写 `/ess <action>` 访问。同时支持在配置中定义命令简写别名（`command-aliases` 节），将独立顶层命令（如 `/fly`）转发到对应的 `/essentials <action>` 子命令。
+Essentials 模块的所有功能通过 `/axs essentials <action>` 或缩写 `/ess <action>`（别名 `/axsess`）访问。同时支持在配置中定义命令简写别名（`command-aliases` 节），将独立顶层命令（如 `/fly`）转发到对应的子命令。
 
 | 命令格式 | 说明 |
 |----------|------|
-| `/essentials <action> [参数...]` | 标准命令格式 |
-| `/ess <action> [参数...]` | 缩写别名，等价于 `/essentials` |
+| `/axs essentials <action> [参数...]` | 标准命令格式（管理入口，需 `arcartxsuite.admin`） |
+| `/ess <action> [参数...]` | 缩写命令（另有 `/axsess` 防冲突别名），按子命令权限控制 |
 | `/<别名> [参数...]` | 配置中定义的简写别名（如 `/fly`、`/home`），自动转发 |
 
 ## 玩家命令
 
-以下命令均可通过 `/essentials <action>`、`/ess <action>` 或配置的简写别名执行。
+以下命令均可通过 `/axs essentials <action>`、`/ess <action>` 或配置的简写别名执行。
 
 ### 状态切换
 

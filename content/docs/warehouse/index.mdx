@@ -7,7 +7,7 @@ description: Warehouse 仓库系统功能概览
 
 ## 模块简介
 
-Warehouse 是 Suite 的仓库与银行模块，通过 ArcartX UI 提供个人仓库、共享仓库、多货币银行、定期存款、二级密码等完整功能。所有业务操作均在 AXUI 界面内完成，玩家通过 `/warehouse`（别名 `/wh`）打开主界面。
+Warehouse 是 Suite 的仓库与银行模块，通过 ArcartX UI 提供个人仓库、共享仓库、多货币银行、定期存款、二级密码等完整功能。所有业务操作均在 AXUI 界面内完成，玩家通过 `/warehouse`（别名 `/wh`、`/axswarehouse`）打开主界面。
 
 模块采用槽位聚合存储模型——相同物品（基于序列化哈希匹配）自动堆叠到同一槽位，单槽聚合上限为 `Integer.MAX_VALUE`，配合多级容量升级实现近乎无限的存储空间。物品分类基于 NBT/PDC 路径匹配，支持拼音/首字母搜索，排序方案可自定义。
 

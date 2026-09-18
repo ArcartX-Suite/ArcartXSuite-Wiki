@@ -66,9 +66,9 @@ Tab 刷新请求接口，定义发起单玩家刷新与全局刷新的契约。
 | 玩家退服 | 全局 | `PlayerQuitEvent` 触发全局刷新，清理 viewer 状态 |
 | 客户端回包 | 单 viewer | `Packet.send("TAB", "update")` 触发 viewer 级强制刷新 |
 | 客户端翻页 | 单 viewer | `Packet.send("TAB_PAGE", ...)` 触发 viewer 级刷新 |
-| 命令 | 单 viewer | `/axstab refresh` 触发 viewer 级刷新 |
-| 视图切换 | 单 viewer | `/axstab view <name>` 触发 viewer 级强制刷新（所有 definition） |
-| 页码切换 | 单 viewer | `/axstab page <def> <N>` 触发 viewer 级强制刷新（单 definition） |
+| 命令 | 单 viewer | `/tab refresh` 触发 viewer 级刷新 |
+| 视图切换 | 单 viewer | `/tab view <name>` 触发 viewer 级强制刷新（所有 definition） |
+| 页码切换 | 单 viewer | `/tab page <def> <N>` 触发 viewer 级强制刷新（单 definition） |
 | 跨服快照 | 全局 | 收到远程节点快照时触发全局刷新 |
 | Capability | 单 viewer / 全局 | 其他模块通过 `TabRefreshable` 触发 |
 

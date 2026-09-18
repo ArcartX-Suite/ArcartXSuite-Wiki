@@ -61,7 +61,7 @@ description: /axs 主命令、各子命令用法与权限节点速查表
 
 ## 模块管理命令
 
-以下命令均以 `/axs <模块名>` 为前缀，需要 `arcartxsuite.admin` 权限。注册了命令处理器的模块都自带 `help` / `status` 子命令；`rgb`、`tab`、`vanilla`、`pickup`、`extrabackpack` 未注册处理器，只能通过 `/axs reload <id>`、`/axs load|unload <id>` 等宿主命令管理。
+以下命令均以 `/axs <模块名>` 为前缀，需要 `arcartxsuite.admin` 权限。注册了命令处理器的模块都自带 `help` / `status` 子命令；`rgb`、`vanilla`、`pickup`、`extrabackpack` 未注册处理器，只能通过 `/axs reload <id>`、`/axs load|unload <id>` 等宿主命令管理。
 
 ### EntityTracker
 
@@ -148,6 +148,18 @@ description: /axs 主命令、各子命令用法与权限节点速查表
 | `/axs battlepass season` | 查看当前赛季信息 |
 | `/axs battlepass settle` | 手动触发赛季结算 |
 
+### Tab
+
+| 命令 | 说明 |
+| --- | --- |
+| `/axs tab status` | 查看 Tab 模块状态（server-id / 定义数 / 虚拟节点数） |
+| `/axs tab view <name>` 或 `/axs tab view <玩家> <name>` | 切换自己或指定玩家的 Tab 视图 |
+| `/axs tab page <defId> <arg>` 或 `/axs tab page <玩家> <defId> <arg>` | 给自己或指定玩家翻页 |
+| `/axs tab refresh [玩家]` | 刷新（无参 = 全局刷新） |
+| `/axs tab fake <数量\|off> [玩家]` | fake 测试模式（需 `axs.tab.debug`） |
+| `/axs tab debug <玩家> [defId]` | 打印排序 / 分组 / 状态快照（需 `axs.tab.debug`） |
+| `/axs tab snapshot <save\|load\|unload\|list\|delete>` | 调试快照管理（需 `axs.tab.debug`） |
+
 ### 其他模块
 
 | 命令 | 说明 |
@@ -197,13 +209,15 @@ description: /axs 主命令、各子命令用法与权限节点速查表
 
 以下命令面向普通玩家，需要对应的 `arcartxsuite.<模块>.use` 权限节点（大部分默认所有玩家可用，Essentials 系列命令默认 OP，详见下方权限表）。
 
+> **防冲突别名**：所有玩家命令都注册了 `axs<原名>` 形式的别名（如 `/axsmail` = `/mail`、`/axsmap` = `/map`），当主命令与其他插件冲突时可改用 axs 前缀形式。
+
 ### Title — 称号
 
 权限：`arcartxsuite.title.use`
 
 | 命令 | 说明 |
 | --- | --- |
-| `/title` 或 `/title open` | 打开称号管理菜单 |
+| `/title` 或 `/axstitle` | 打开称号管理菜单（`/title open` 同效） |
 | `/title equip <称号ID>` | 装备称号 |
 | `/title unequip <组ID\|all>` | 卸下称号 |
 | `/title hide <称号ID>` | 隐藏称号 |
@@ -215,7 +229,7 @@ description: /axs 主命令、各子命令用法与权限节点速查表
 
 | 命令 | 说明 |
 | --- | --- |
-| `/warehouse` 或 `/wh` | 打开个人仓库 |
+| `/warehouse` 或 `/wh`、`/axswarehouse` | 打开个人仓库 |
 
 ### Mail — 邮箱
 
@@ -223,7 +237,7 @@ description: /axs 主命令、各子命令用法与权限节点速查表
 
 | 命令 | 说明 |
 | --- | --- |
-| `/mail` 或 `/mail open` | 打开邮箱收件箱 |
+| `/mail` 或 `/axsmail` | 打开邮箱收件箱（`/mail open` 同效） |
 | `/mail compose` | 打开写信界面 |
 | `/mail claimall` | 一键领取所有附件 |
 | `/mail deleteall` | 删除所有已读邮件 |
@@ -235,37 +249,37 @@ description: /axs 主命令、各子命令用法与权限节点速查表
 
 | 命令 | 说明 |
 | --- | --- |
-| `/chat` | 查看聊天状态 |
+| `/chat`（别名 `/axschat`） | 查看聊天状态 |
 | `/chat channel <频道ID>` | 切换频道 |
 | `/chat toggle private [on\|off]` | 开关私聊接收 |
 | `/chat toggle mentions [on\|off]` | 开关 @提及通知 |
 | `/chat ignore <玩家>` | 屏蔽玩家 |
 | `/chat unignore <玩家>` | 取消屏蔽 |
-| `/msg <玩家> <消息>` | 发送私聊 |
-| `/reply <消息>` | 回复最近私聊 |
+| `/msg <玩家> <消息>`（别名 `/axsmsg`） | 发送私聊 |
+| `/reply <消息>`（别名 `/r`、`/axsreply`） | 回复最近私聊 |
 
 ### 其他玩家命令
 
 | 命令 | 权限 | 说明 |
 | --- | --- | --- |
-| `/onlinerewards` 或 `/signin` | `arcartxsuite.onlinerewards.use` | 在线奖励 / 签到 |
-| `/afkreward` 或 `/afk` | `arcartxsuite.afkreward.use` | 挂机奖励 |
-| `/questgps` | `arcartxsuite.questgps.use` | 任务导航 |
-| `/map` 或 `/axmap` | `arcartxsuite.map.use` | 地图 |
-| `/market` 或 `/mk`、`/ah` | `arcartxsuite.market.use` | 全球市场 |
-| `/bp` | `arcartxsuite.battlepass.use` | 战令主界面 |
-| `/pickup` | `arcartxsuite.pickup.use` | 拾取通知/扫描模式切换 |
-| `/menu` 或 `/menu <菜单ID>` | `arcartxsuite.menu.use` | 打开菜单列表或指定菜单 |
-| `/fishing` | `arcartxsuite.fishing.use` | 打开钓鱼主界面 |
-| `/lottery` | `arcartxsuite.lottery.use` | 打开抽奖界面 |
-| `/axstab` | `axstab.debug`（快照/调试），玩家默认可用 `view`/`page`/`refresh` | Tab 列表面板控制 |
-| `/qqbot bind <验证码>` | `arcartxsuite.qqbot.use` | QQ 账号绑定 |
+| `/onlinerewards`（`/axsonlinerewards`）或 `/signin`（`/axssignin`） | `arcartxsuite.onlinerewards.use` | 在线奖励 / 签到 |
+| `/afkreward`（`/axsafkreward`）或 `/afk`（`/axsafk`） | `arcartxsuite.afkreward.use` | 挂机奖励 |
+| `/questgps`（`/axsquestgps`） | `arcartxsuite.questgps.use` | 任务导航 |
+| `/map`（`/axsmap`） | `arcartxsuite.map.use` | 地图 |
+| `/market` 或 `/mk`、`/ah`、`/axsmarket` | `arcartxsuite.market.use` | 全球市场 |
+| `/bp`（`/battlepass`、`/axsbp`） | `arcartxsuite.battlepass.use` | 战令主界面 |
+| `/pickup`（`/axspickup`） | `arcartxsuite.pickup.use` | 拾取通知/扫描模式切换 |
+| `/menu`（`/axsmenu`） | `arcartxsuite.menu.use` | 打开菜单列表或指定菜单（`/menu <菜单ID>`） |
+| `/fishing`（`/axsfishing`） | `arcartxsuite.fishing.use` | 打开钓鱼主界面 |
+| `/lottery`（`/axslottery`） | `arcartxsuite.lottery.use` | 打开抽奖界面 |
+| `/tab`（`/axstab`） | `arcartxsuite.tab.use` | Tab 列表 `view`/`page`/`refresh` |
+| `/qqbot bind <验证码>` | `arcartxsuite.qqbot.use` | QQ 账号绑定（`/axsqqbot` 同效） |
 | `/qqbot unbind` | `arcartxsuite.qqbot.use` | 解除绑定 |
 | `/qqbot info` | `arcartxsuite.qqbot.use` | 查看绑定状态 |
 
 ### Essentials 模块
 
-支持 `/axs essentials` 或独立别名 `/ess` 调用所有子命令。
+支持 `/axs essentials` 或独立别名 `/ess`（`/axsess`）调用所有子命令。
 
 | 命令 | 说明 |
 | --- | --- |
@@ -299,7 +313,7 @@ description: /axs 主命令、各子命令用法与权限节点速查表
 
 ### Regions 模块
 
-支持 `/axs regions` 或独立别名 `/rg` 调用所有子命令。
+支持 `/axs regions` 或独立别名 `/rg`（`/axsrg`）调用所有子命令。
 
 | 命令 | 说明 |
 | --- | --- |
@@ -325,6 +339,7 @@ description: /axs 主命令、各子命令用法与权限节点速查表
 | `arcartxsuite.<模块>.use` | 所有玩家 | 模块玩家命令 |
 | `arcartxsuite.chat.msg` | 所有玩家 | 私聊命令 |
 | `arcartxsuite.chat.socialspy` | OP | 社交监听 |
+| `axs.tab.debug` | OP | Tab 调试命令（`/axs tab debug`/`snapshot`/`fake`） |
 | `axs.essentials.admin` | OP | Essentials 管理面板 |
 | `axs.regions.admin` | OP | Regions 管理面板 |
 | `arcartxsuite.proxy.admin` | OP | 代理端管理命令 |

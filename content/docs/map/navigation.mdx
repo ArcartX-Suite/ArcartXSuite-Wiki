@@ -1,13 +1,13 @@
 ---
 title: 导航追踪与路径标记
-description: 导航状态管理、路标系统、路径标记模型、第三方插件注册路径点转发与导航互斥
+description: 导航状态管理、路标系统、模型/贴图路径提示、第三方插件注册路径点转发与导航互斥
 ---
 
 # 导航追踪与路径标记
 
 ## 概述
 
-Map 模块的导航功能允许玩家追踪锚点和自定义路径点，在客户端显示方向指引路标和路径标记实体。导航编排由 axs-api 共享的 `NavigationTargetService` 完成（diff 推送、到达滞回、跨世界抑制、命令钩子），路标通过 `WaypointBridgeAPI` 下发，可选通过 `AdyeshachNpcBridgeAPI` 渲染路径标记模型。
+Map 模块的导航功能允许玩家追踪锚点和自定义路径点，在客户端显示方向指引路标和路径提示。导航编排由 axs-api 共享的 `NavigationTargetService` 完成（diff 推送、到达滞回、跨世界抑制、命令钩子），路标通过 `WaypointBridgeAPI` 下发；路径提示有两种互补的可视化方式（独立开关、可同时启用）：`NavigationMarkerService` 通过 `AdyeshachNpcBridgeAPI` 渲染标记模型，`NavigationTextureMarkerService` 通过 `WorldTextureBridgeAPI` 向玩家单人下发 WorldTexture 贴图（1.5.0 新增）。
 
 玩家**可同时追踪多个锚点/路径点**（追踪态与到达判定并行），但**屏幕路标与路径标记链始终只跟随"最新激活且同世界"的主目标**——避免多信标/多路线误导玩家；取消主目标后其余目标自动接管。
 
@@ -21,6 +21,7 @@ Map 模块的导航功能允许玩家追踪锚点和自定义路径点，在客�
 | 目标编排 | `NavigationTargetService`（axs-api 共享） | 目标解析、diff 推送、到达滞回判定、命令钩子、跨世界抑制 |
 | 路标桥接 | `WaypointBridgeAPI` | 创建/移除客户端路标导航 |
 | 标记服务 | `NavigationMarkerService` | 沿路径放置 Adyeshach 标记实体（按 navKey 维护多组路径状态） |
+| 贴图服务 | `NavigationTextureMarkerService` | 沿路径向玩家单人下发 WorldTexture 贴图（1.5.0 新增，与标记模型互补） |
 | NPC 桥接 | `AdyeshachNpcBridgeAPI` | 创建私有实体渲染客户端模型，`locateByName` 实时定位 NPC |
 | 第三方插件注册路径点 | `MapExternalTarget` / `MapExternalTargetSpec` | 其他模块注入的临时导航目标 |
 | 导航回调 | `MapNavigationHandler` | 来源注册的"导航/取消"处理器 |
@@ -46,13 +47,36 @@ navigation:
     enabled: true
     style-id: "default"
     title-template: ""
-  marker:
+  model-marker:
     enabled: true
     model-id: "waypoint"
     scale: 1.0
     default-state: "idle"
     animation: "rotate"
     y-offset: 2.0
+    path-interval: 3.0
+    path-max-markers: 20
+    path-update-ticks: 10
+    path-max-distance: 64.0
+    path-reshow-buffer: 8
+    path-max-iterations: 2000
+  texture-marker:
+    enabled: false
+    texture: "nav_arrow"
+    width: 100
+    height: 100
+    facing: false
+    glowing: true
+    y-offset: 0.1
+    pitch: 90
+    orient-to-path: true
+    life-time: -1
+    pulse:
+      enabled: true
+      from: 0.8
+      to: 1.2
+      duration: 20
+      stagger: 2
     path-interval: 3.0
     path-max-markers: 20
     path-update-ticks: 10
@@ -275,51 +299,70 @@ UI 快照构建时对锚点/路径点列表项计算 `tracked` 状态：`navigat
 | 来源 → 地图 | 来源开始自身导航时调用 `MapNavigable.clearTrack(player)`，地图静默清除自身信标并发布 `nav_cleared`（reason=`source_took_over`） |
 | 地图 → 来源 | 玩家开始锚点/路径点导航时地图发布 `axs.map.nav_started`，来源订阅后停止自身导航（目标标记保留在地图上） |
 
-## 路径标记模型
+## 导航路径提示
 
-### 标记配置
+路径提示有两种互补的可视化方式，可同时启用或只开其一（独立开关）：
 
-路径标记模型通过 `navigation.marker` 配置节控制：
+- **模型导航提示**（`navigation.model-marker`）：Adyeshach 私有实体 + ArcartX 模型，客户端独立渲染，零服务端 tick 开销。
+- **贴图导航提示**（`navigation.texture-marker`，1.5.0 新增）：沿寻路结果向玩家单人下发 ArcartX WorldTexture 贴图；无需实体，仅发包，天然玩家私有。
+
+### 模型导航提示配置
+
+模型路径标记通过 `navigation.model-marker` 配置节控制：
 
 | 配置项 | 类型 | 默认值 | 说明 |
 |---|---|---|---|
-| `marker.enabled` | `boolean` | `false`（默认配置文件为 `true`） | 是否启用标记模型 |
-| `marker.model-id` | `String` | `nav_beacon`（默认配置文件为 `waypoint`） | 模型 ID（资源包中的模型标识） |
-| `marker.scale` | `double` | `1.0` | 缩放比例 |
-| `marker.default-state` | `String` | `idle` | 默认状态 |
-| `marker.animation` | `String` | `rotate` | 动画类型 |
-| `marker.y-offset` | `double` | `2.0` | Y 轴偏移（方块） |
-| `marker.path-interval` | `double` | `3.0` | 路径标记间距（方块） |
-| `marker.path-max-markers` | `int` | `20` | 路径最大标记数 |
-| `marker.path-update-ticks` | `int` | `10` | 路径更新间隔（tick） |
-| `marker.path-max-distance` | `double` | `64.0` | 路径最大距离（方块） |
-| `marker.path-reshow-buffer` | `double` | `8.0` | 距离滞回缓冲（方块）：超距隐藏后须回到 `path-max-distance - 本值` 以内才重新显示 |
-| `marker.path-max-iterations` | `int` | `2000` | 路径计算最大迭代次数 |
+| `model-marker.enabled` | `boolean` | `false`（默认配置文件为 `true`） | 是否启用模型导航提示 |
+| `model-marker.model-id` | `String` | `nav_beacon`（默认配置文件为 `waypoint`） | 模型 ID（资源包中的模型标识） |
+| `model-marker.scale` | `double` | `1.0` | 缩放比例 |
+| `model-marker.default-state` | `String` | `idle` | 默认状态 |
+| `model-marker.animation` | `String` | `rotate` | 动画类型 |
+| `model-marker.y-offset` | `double` | `2.0` | Y 轴偏移（方块） |
+| `model-marker.path-*` | — | 见下表 | 路径寻路参数（与 `texture-marker` 同语义，互不影响） |
 
-### 标记服务
+> **1.5.0 变更**：配置键 `navigation.marker` 已重命名为 `navigation.model-marker`，`config-version: 4` 升级时由迁移引擎自动改名并保留用户值。
 
-`NavigationMarkerService` 负责沿导航路径放置标记实体：
+### 贴图导航提示配置
 
-| 操作 | 方法 | 说明 |
-|---|---|---|
-| 显示标记 | `showMarker(player, worldId, x, y, z)` | 在目标坐标显示单个标记，并启动路径标记定时任务 |
-| 隐藏标记 | `hideMarker(player)` | 移除该玩家的所有标记实体 |
-| 启动服务 | `start()` | 初始化标记服务 |
-| 关闭服务 | `shutdown()` | 清理所有标记实体 |
+贴图路径提示通过 `navigation.texture-marker` 配置节控制：
 
-> 标记服务依赖 `AdyeshachNpcBridgeAPI`。Adyeshach 不存在时标记功能自动关闭，路标导航不受影响。
+| 配置项 | 类型 | 默认值 | 说明 |
+|---|---|---|---|
+| `texture-marker.enabled` | `boolean` | `false` | 是否启用贴图路径提示（需资源包中存在 `texture` 对应贴图） |
+| `texture-marker.texture` | `String` | `nav_arrow` | 贴图资源 ID |
+| `texture-marker.width` / `height` | `double` | `100` | 贴图渲染宽/高 |
+| `texture-marker.facing` | `boolean` | `false` | `true` 始终面向玩家（billboard）；`false` 按 pitch/yaw 定向（贴地箭头） |
+| `texture-marker.glowing` | `boolean` | `true` | 是否泛光 |
+| `texture-marker.y-offset` | `double` | `0.1` | 贴图相对路径点的 Y 轴偏移 |
+| `texture-marker.pitch` | `double` | `90` | 俯仰角（度；贴地渲染 90，`facing=true` 时一般忽略） |
+| `texture-marker.orient-to-path` | `boolean` | `true` | yaw 朝向下一个路径点（贴地箭头指示方向） |
+| `texture-marker.life-time` | `int` | `-1` | 贴图存活时长（-1 = 永续直到显式移除） |
+| `texture-marker.pulse.*` | — | — | 循环缩放脉冲：`enabled`/`from`/`to`/`duration`/`stagger`（按路径点序号错开形成波浪效果） |
+| `texture-marker.path-*` | — | 见下表 | 路径寻路参数（与 `model-marker` 同语义，互不影响） |
 
-### 路径标记参数说明
+### 路径寻路参数
+
+两种渲染方式各自带一组同语义的 `path-*` 参数（`navigation.<renderer>.path-*`，`<renderer>` 为 `model-marker` 或 `texture-marker`）：
 
 | 参数 | 作用 | 调优建议 |
 |---|---|---|
-| `path-interval` | 标记间距 | 值越小标记越密集，视觉引导更清晰但实体更多 |
-| `path-max-markers` | 最大标记数 | 限制同时存在的标记实体数量，防止性能问题 |
+| `path-interval` | 点间距 | 值越小标记/贴图越密集，视觉引导更清晰但开销越大 |
+| `path-max-markers` | 最大点数 | 限制同时存在的标记实体/贴图数量，防止性能问题 |
 | `path-update-ticks` | 更新间隔 | 值越小更新越频繁，路径跟随越平滑但开销越大 |
 | `path-max-distance` | 最大距离 | 超过此距离的路径截断，防止远距离导航生成过多标记 |
-| `path-max-iterations` | 最大迭代 | 路径计算的安全限制，防止死循环 |
+| `path-reshow-buffer` | 滞回缓冲 | 超距隐藏后须回到 `path-max-distance - 本值` 以内才重新显示，防边界抖动 |
+| `path-max-iterations` | 最大迭代 | 路径计算的安全限制（校验范围 100-50000），防止死循环 |
 
-> 路径标记仅在追踪状态变更时创建/移除，客户端独立渲染。标记实体为 Adyeshach 私有实体，仅追踪玩家可见。
+### 渲染服务
+
+| 服务 | 方法 | 说明 |
+|---|---|---|
+| `NavigationMarkerService` | `showMarker(player, worldId, x, y, z)` / `hideMarker(player)` / `start()` / `shutdown()` | 沿导航路径放置 Adyeshach 标记实体 |
+| `NavigationTextureMarkerService` | 同签名（实现共享的 `NavigationRouteRenderer` 接口） | 沿导航路径向玩家单人下发 WorldTexture 贴图，按序号 diff 重发（同 id 覆盖），数量收缩时移除尾部多余贴图 |
+
+> `NavigationTargetService` 通过 `addRouteRenderer()` 同时挂载两种渲染器，同一份寻路结果驱动两套渲染。模型标记依赖 `AdyeshachNpcBridgeAPI`，Adyeshach 不存在时仅模型提示关闭；贴图提示依赖 `WorldTextureBridgeAPI`，互不影响。
+>
+> 路径标记/贴图仅在追踪状态变更时创建/移除，客户端独立渲染，均仅追踪玩家可见。
 
 ## 第三方插件注册路径点
 
@@ -472,10 +515,17 @@ MapModule.startService()
   └→ repository.initialize()  // 创建数据库表
   └→ if navigation.enabled:
        waypointBridge.initialize("Map 导航")
-  └→ if navigation.marker.enabled && npcBridge != null:
+  └→ if navigation.model-marker.enabled && npcBridge != null:
        npcBridge.initialize()
        markerService = new NavigationMarkerService(...)
        markerService.start()
+  └→ if navigation.texture-marker.enabled && worldTextureBridge != null:
+       textureMarkerService = new NavigationTextureMarkerService(...)
+       textureMarkerService.start()
+  └→ if navigation.enabled:
+       targetService = new NavigationTargetService(..., markerService, ...)
+       targetService.addRouteRenderer(textureMarkerService)  // 若已创建
+       targetService.start()
   └→ 注册 MapNavigable / PlayerDataPurgeable / DatabaseMigratable capability
   └→ Bukkit.getPluginManager().registerEvents(this, plugin)
 ```
@@ -491,6 +541,8 @@ MapModule.stopService()
             bridge.closeUi(player, hudUiId)  // 关闭 HUD
        └→ if markerService != null:
             markerService.shutdown()  // 清理标记实体
+       └→ if textureMarkerService != null:
+            textureMarkerService.shutdown()  // 移除全部路径贴图
        └→ repository.shutdown()  // 关闭数据库连接
        └→ waypointBridge.shutdown()  // 关闭路标系统
        └→ 清理所有内存状态

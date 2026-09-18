@@ -431,17 +431,17 @@ plugins/ArcartX-Suite/data/tab/snapshots/<name>.json
 
 | 命令 | 说明 |
 |---|---|
-| `/axstab snapshot save <name>` | 保存当前快照到 JSON 文件 |
-| `/axstab snapshot load <name>` | 加载快照为虚拟节点 |
-| `/axstab snapshot unload <name\|all>` | 卸载虚拟节点 |
-| `/axstab snapshot list` | 列出已保存的快照与已注入的虚拟节点 |
-| `/axstab snapshot delete <name>` | 删除快照文件 |
+| `/axs tab snapshot save <name>` | 保存当前快照到 JSON 文件 |
+| `/axs tab snapshot load <name>` | 加载快照为虚拟节点 |
+| `/axs tab snapshot unload <name\|all>` | 卸载虚拟节点 |
+| `/axs tab snapshot list` | 列出已保存的快照与已注入的虚拟节点 |
+| `/axs tab snapshot delete <name>` | 删除快照文件 |
 
 ### 虚拟节点
 
 加载快照时，本服快照注入为 `snapshot:<name>:local`，远程节点逐个注入为 `snapshot:<name>:<原 nodeId>`。虚拟节点在 `cleanupStaleSnapshots` 中被豁免清理，仅通过命令显式 `unload`。
 
-> 快照名称仅允许字母 / 数字 / `_` / `-`，长度 1~64。正则校验：`^[A-Za-z0-9_\-]{1,64}$`。快照功能需要 `axstab.debug` 权限或 OP，仅限测试服使用。
+> 快照名称仅允许字母 / 数字 / `_` / `-`，长度 1~64。正则校验：`^[A-Za-z0-9_\-]{1,64}$`。快照功能需要 `axs.tab.debug` 权限或 OP，仅限测试服使用。
 
 ## 跨服部署最佳实践
 
@@ -461,6 +461,6 @@ plugins/ArcartX-Suite/data/tab/snapshots/<name>.json
 | 大型网络（10+ 节点） | 使用聚合模式减少条目数量 |
 | 高频 PVP 服 | 降低 `refresh-interval-ticks` 并启用 `batch.window-ticks` 节流 |
 | 跨服跳传频繁 | 启用 `leave-grace-ms: 2000` 避免闪烁 |
-| 调试跨服问题 | 使用 `/axstab snapshot save` 存档现场 |
+| 调试跨服问题 | 使用 `/axs tab snapshot save` 存档现场 |
 
 > 条件系统配置详见 [条件系统](/docs/guide/conditions)，图标配置详见 [图标配置](/docs/guide/icons)。

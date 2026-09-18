@@ -7,18 +7,18 @@ description: Tab 模块玩家命令、管理命令、权限、PlaceholderAPI 占
 
 ## 玩家命令
 
-所有玩家命令通过 `/axstab` 根命令触发。除 `debug` 和 `snapshot` 子命令允许控制台调用外，其余子命令仅玩家可用。
+玩家命令通过 `/tab` 根命令触发（别名 `/axstab`），需要 `arcartxsuite.tab.use` 权限（默认所有玩家可用）。仅玩家可用。
 
-### /axstab view
+### /tab view
 
 切换当前 Tab 视图。只有 `definition.view` 与玩家当前 view 匹配时，该 Tab 定义才会推送数据。
 
 ```yaml
 # 切换到 pvp 视图
-/axstab view pvp
+/tab view pvp
 
 # 查看当前视图
-/axstab view
+/tab view
 ```
 
 | 参数 | 类型 | 说明 |
@@ -27,19 +27,19 @@ description: Tab 模块玩家命令、管理命令、权限、PlaceholderAPI 占
 
 > 切换瞬间旧 view 的 Tab 会被一次性清空（发送空 payload），新 view 的 Tab 会立即重发。默认视图为 `default`。
 
-### /axstab page
+### /tab page
 
 翻页操作，仅在启用了 `pagination` 的 Tab 定义上生效。
 
 ```yaml
 # 翻到下一页
-/axstab page online-tab next
+/tab page online-tab next
 
 # 翻到上一页
-/axstab page online-tab prev
+/tab page online-tab prev
 
 # 直接设置页码（0 起）
-/axstab page online-tab 2
+/tab page online-tab 2
 ```
 
 | 参数 | 类型 | 说明 |
@@ -47,34 +47,80 @@ description: Tab 模块玩家命令、管理命令、权限、PlaceholderAPI 占
 | `<definitionId>` | `String` | Tab 定义 ID（文件名去掉 `.yml`） |
 | `<next\|prev\|N>` | `String` | `next` 下一页 / `prev` 上一页 / 数字直接设置页码 |
 
-### /axstab refresh
+### /tab refresh
 
 强制刷新当前玩家的 Tab 列表。此命令绕过周期 diff，立即触发一次 viewer 级刷新。
 
 ```yaml
-/axstab refresh
+/tab refresh
 ```
 
-### /axstab help
+### /tab help
 
 显示帮助信息。
 
 ```yaml
-/axstab help
+/tab help
 ```
 
 ## 管理命令
 
-### /axstab debug
+管理命令统一挂载在 `/axs tab` 下，需要 `arcartxsuite.admin` 权限（默认 OP）。其中 `debug`、`snapshot` 子命令允许控制台调用。
 
-打印指定玩家在指定 Tab 定义上的排序、分组、状态快照。需要 `axstab.debug` 权限或 OP。
+### /axs tab status
+
+查看 Tab 模块运行状态（server-id、definition 数量、已注入虚拟节点数）。
+
+```yaml
+/axs tab status
+```
+
+### /axs tab view
+
+切换自己或指定玩家的 Tab 视图。
+
+```yaml
+# 切换自己的视图（需玩家执行）
+/axs tab view pvp
+
+# 强制切换指定玩家的视图
+/axs tab view LiuYun_King pvp
+```
+
+### /axs tab page
+
+给自己或指定玩家翻页。
+
+```yaml
+# 给自己翻页（需玩家执行）
+/axs tab page online-tab next
+
+# 给指定玩家翻页
+/axs tab page LiuYun_King online-tab 2
+```
+
+### /axs tab refresh
+
+刷新 Tab 列表。无参数时执行**全局刷新**（所有 viewer），带玩家参数时只刷新该玩家。
+
+```yaml
+# 全局刷新
+/axs tab refresh
+
+# 刷新指定玩家
+/axs tab refresh LiuYun_King
+```
+
+### /axs tab debug
+
+打印指定玩家在指定 Tab 定义上的排序、分组、状态快照。需要 `axs.tab.debug` 权限或 OP。
 
 ```yaml
 # 打印玩家在所有 definition 上的状态
-/axstab debug LiuYun_King
+/axs tab debug LiuYun_King
 
 # 打印玩家在指定 definition 上的状态
-/axstab debug LiuYun_King online-tab
+/axs tab debug LiuYun_King online-tab
 ```
 
 | 参数 | 类型 | 说明 |
@@ -84,16 +130,16 @@ description: Tab 模块玩家命令、管理命令、权限、PlaceholderAPI 占
 
 输出内容包括：`view`、`page`、`sort-values-numeric`、`sort-values-string`、`group-key`、`pinned-top`、`pinned-bottom`、`vanished`、`pvp-active`、`ping`、`rank`、`local-visible-count`、`total-visible-count`。
 
-### /axstab snapshot
+### /axs tab snapshot
 
-调试快照管理命令，用于存档 / 加载 / 卸载 / 列出 / 删除 Tab 快照。需要 `axstab.debug` 权限或 OP。
+调试快照管理命令，用于存档 / 加载 / 卸载 / 列出 / 删除 Tab 快照。需要 `axs.tab.debug` 权限或 OP。
 
 > 快照文件存储在 `plugins/ArcartX-Suite/data/tab/snapshots/<name>.json`，仅限测试服或权限受控环境使用。
 
 #### snapshot save
 
 ```yaml
-/axstab snapshot save bug-repro-001
+/axs tab snapshot save bug-repro-001
 ```
 
 将当前在线玩家 + 跨服快照落盘为 JSON 文件。名称仅允许字母 / 数字 / `_` / `-`，长度 1~64。
@@ -101,7 +147,7 @@ description: Tab 模块玩家命令、管理命令、权限、PlaceholderAPI 占
 #### snapshot load
 
 ```yaml
-/axstab snapshot load bug-repro-001
+/axs tab snapshot load bug-repro-001
 ```
 
 把存档注入为 `snapshot:<name>:<原 nodeId>` 虚拟节点，本服 viewer 立即可见历史快照。本服快照注入为 `snapshot:<name>:local`，远程节点逐个注入为 `snapshot:<name>:<原 nodeId>`。
@@ -110,10 +156,10 @@ description: Tab 模块玩家命令、管理命令、权限、PlaceholderAPI 占
 
 ```yaml
 # 卸载指定快照
-/axstab snapshot unload bug-repro-001
+/axs tab snapshot unload bug-repro-001
 
 # 卸载所有已注入的快照
-/axstab snapshot unload all
+/axs tab snapshot unload all
 ```
 
 卸载该 name 对应的全部虚拟节点。
@@ -121,7 +167,7 @@ description: Tab 模块玩家命令、管理命令、权限、PlaceholderAPI 占
 #### snapshot list
 
 ```yaml
-/axstab snapshot list
+/axs tab snapshot list
 ```
 
 列出当前已保存的快照名 + 已注入的虚拟节点。
@@ -129,33 +175,37 @@ description: Tab 模块玩家命令、管理命令、权限、PlaceholderAPI 占
 #### snapshot delete
 
 ```yaml
-/axstab snapshot delete bug-repro-001
+/axs tab snapshot delete bug-repro-001
 ```
 
 删除存档文件（不影响已注入的虚拟节点）。
 
-### /axstab fake
+### /axs tab fake
 
-fake 测试模式：向本玩家推送指定数量的伪造在线条目，用于观察 TAB UI 在不同在线人数下的列数、背景尺寸与信息栏布局变化。需要 `axstab.debug` 权限或 OP，仅玩家可用，仅影响本人显示。
+fake 测试模式：向目标玩家推送指定数量的伪造在线条目，用于观察 TAB UI 在不同在线人数下的列数、背景尺寸与信息栏布局变化。需要 `axs.tab.debug` 权限或 OP，仅影响目标玩家显示。
 
 ```yaml
-# 模拟 50 人在线
-/axstab fake 50
+# 模拟 50 人在线（作用于自己，需玩家执行）
+/axs tab fake 50
+
+# 作用于指定玩家
+/axs tab fake LiuYun_King 50
 
 # 查看当前 fake 状态
-/axstab fake
+/axs tab fake
 
 # 关闭，恢复真实数据
-/axstab fake off
+/axs tab fake off
 ```
 
 | 参数 | 类型 | 说明 |
 |---|---|---|
 | `<数量\|off>` | `String` | 伪造条目数（0~500），`off` / `stop` / `false` 关闭 |
+| `[player]` | `String` | 目标玩家名，留空时作用于自己 |
 
-- 开启后所有匹配当前 view 的 Tab 定义都会向本玩家推送 count 条伪造条目，走完整发包管线（结构化 diff、强制刷新、view 匹配）。
-- 伪造条目按该 definition 的 `pack` 模板以本人为上下文渲染（`%player_name%` 等占位符解析为本人数据），末尾追加 `&8#序号` 后缀便于数行；字典 pack 的顶层 key 追加 `_fake_<序号>` 后缀保证条目互不覆盖。
-- 不影响其他玩家的显示，也不影响 `%axstab_<def>_count%` 等 PAPI 统计；玩家退服后自动关闭。
+- 开启后所有匹配当前 view 的 Tab 定义都会向目标玩家推送 count 条伪造条目，走完整发包管线（结构化 diff、强制刷新、view 匹配）。
+- 伪造条目按该 definition 的 `pack` 模板以目标玩家为上下文渲染（`%player_name%` 等占位符解析为目标玩家数据），末尾追加 `&8#序号` 后缀便于数行；字典 pack 的顶层 key 追加 `_fake_<序号>` 后缀保证条目互不覆盖。
+- 不影响其他玩家的显示，也不影响 `%axstab_<def>_count%` 等 PAPI 统计；目标玩家退服后自动关闭。
 - 内置 UI 的背景行预生成上限约 120 行（`tab.yml` 的 `TAB遍历` / `tab-rich.yml` 的 `RichTAB遍历`），超过后文本行仍会创建但没有对应背景行。
 
 > 内置 UI 的布局人数由 `packet.size()` 派生（`var.TAB在线人数` / `var.RichTAB在线人数`），因此 fake 条目数会直接反映为布局行数。
@@ -164,9 +214,9 @@ fake 测试模式：向本玩家推送指定数量的伪造在线条目，用于
 
 | 权限节点 | 默认 | 说明 |
 |---|---|---|
-| `axstab.debug` | OP | 使用 `/axstab debug`、`/axstab snapshot` 和 `/axstab fake` 子命令的权限 |
-
-> 玩家命令 `view` / `page` / `refresh` 无权限要求，所有在线玩家均可使用。
+| `arcartxsuite.tab.use` | 所有玩家 | 使用 `/tab` 玩家命令 |
+| `arcartxsuite.admin` | OP | 使用 `/axs tab` 管理命令 |
+| `axs.tab.debug` | OP | 使用 `/axs tab debug`、`/axs tab snapshot` 和 `/axs tab fake` 子命令的权限 |
 
 ## PlaceholderAPI 占位符
 
@@ -301,7 +351,7 @@ ui:
       var.第一列人数 = math.min(var.TAB在线人数, 15)
 ```
 
-> **布局人数由包大小派生**：内置 UI 不再读取 `server.server_online`（PAPI 真实在线数），而是在 handler 中执行 `var.TAB在线人数 = packet.size()`（rich 版为 `var.RichTAB在线人数`），列数、第一列人数与背景行 `visible`（`self.ID < var.TAB在线人数`）全部以包内实际行数为准。filters / max-entries / 分页截断后布局与实际渲染行数始终一致，`/axstab fake` 也借此模拟任意人数。
+> **布局人数由包大小派生**：内置 UI 不再读取 `server.server_online`（PAPI 真实在线数），而是在 handler 中执行 `var.TAB在线人数 = packet.size()`（rich 版为 `var.RichTAB在线人数`），列数、第一列人数与背景行 `visible`（`self.ID < var.TAB在线人数`）全部以包内实际行数为准。filters / max-entries / 分页截断后布局与实际渲染行数始终一致，`/axs tab fake` 也借此模拟任意人数。
 
 ### pack 形态与 packet 结构
 
@@ -360,7 +410,7 @@ packetHandler:
 prefix: "&3◆ &6ArcartXSuite &7| &r"
 common:
   service-down: "&cTab 服务未启动。"
-  only-player: "&c仅玩家可使用此命令（debug 除外）。"
+  only-player: "&c仅玩家可使用此命令。"
   no-permission: "&c缺少权限: {0}"
 player:
   refresh:
@@ -374,17 +424,17 @@ player:
     failed: "&e翻页未生效（definition 不存在或未开启分页）。"
   help:
     title: "&6Tab列表 命令"
-    view: "&7/axstab view <视图名>&f - 切换视图"
-    page: "&7/axstab page <definitionId> <next|prev|页码>&f - 翻页"
-    refresh: "&7/axstab refresh&f - 强制刷新本玩家"
+    view: "&7{0} view <视图名>&f - 切换视图"
+    page: "&7{0} page <definitionId> <next|prev|页码>&f - 翻页"
+    refresh: "&7{0} refresh&f - 强制刷新本玩家"
 admin:
   fake:
-    usage: "&7用法: /axstab fake <数量|off> &8(0-{0}，仅影响自己的 TAB 显示)"
+    usage: "&7用法: /axs tab fake <数量|off> [player] &8(0-{0}，仅影响目标玩家的 TAB 显示)"
     status-on: "&efake 测试模式已开启：模拟在线人数 &f{0}&e。"
     status-off: "&efake 测试模式未开启。"
-    enabled: "&a已进入 fake 测试模式：模拟在线人数 &f{0}&a。按住 TAB 查看布局效果，输入 /axstab fake off 关闭。"
-    disabled: "&a已关闭 fake 测试模式，恢复真实数据。"
+    enabled: "&a已进入 fake 测试模式：模拟在线人数 &f{0}&a（目标: &f{1}&a）。输入 /axs tab fake off 关闭。"
+    disabled: "&a已关闭玩家 &f{0} &a的 fake 测试模式，恢复真实数据。"
     not-active: "&efake 测试模式未开启。"
     invalid: "&c数量无效: {0}（请输入 0-{1} 或 off）"
-  # debug / snapshot 消息省略
+  # help / status / view / page / refresh / debug / snapshot 消息省略
 ```
