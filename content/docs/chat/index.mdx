@@ -142,8 +142,8 @@ Chat 模块的核心是 **频道（Channel）** 系统。每个频道是一个�
 | 字段 | 说明 |
 |---|---|
 | `messageId` | 消息唯一 ID（UUID） |
-| `originNodeId` | 消息来源节点 ID |
-| `serverId` | 消息来源服务器 ID |
+| `originNodeId` | 消息来源节点 ID（宿主 `cross-server.node-id`） |
+| `serverId` | 消息来源服务器 ID（同 `originNodeId`，统一读取宿主 `cross-server.node-id`） |
 | `channelId` | 频道 ID |
 | `senderUuid` / `senderName` / `senderDisplayName` | 发送者信息 |
 | `targetUuid` / `targetName` | 私聊目标信息（非私聊为空） |

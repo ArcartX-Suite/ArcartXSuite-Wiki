@@ -84,12 +84,9 @@ cross-server:
 宿主（三台子服仅 `node-id` 不同）+ Chat 模块：
 
 ```yaml
-# data/chat/config.yml（每台子服相同，除 settings.server-id 可不同）
+# data/chat/config.yml（每台子服相同；节点标识统一读取宿主 cross-server.node-id）
 cross-server:
   enabled: true
-
-settings:
-  server-id: "lobby"   # 展示用，与 node-id 无关
 ```
 
 ```yaml

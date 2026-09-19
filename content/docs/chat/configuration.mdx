@@ -14,7 +14,6 @@ Chat 模块的配置文件位于 `plugins/ArcartX-Suite/data/chat/config.yml`。
 | 字段 | 类型 | 默认值 | 说明 |
 |---|---|---|---|
 | `settings.debug` | boolean | `false` | 是否输出 Chat 模块调试日志 |
-| `settings.server-id` | string | `default` | 当前服务端节点标识；跨服转发或 Redis 去重时会用到 |
 | `settings.default-channel` | string | `normal` | 默认频道 ID；若配置不存在，模块会自动回退到首个有效频道 |
 | `settings.max-length` | int | `256` | 单条消息最大长度（字符数） |
 | `settings.cooldown-millis` | long | `750` | 玩家连续发言冷却，单位毫秒；设为 0 关闭冷却 |
@@ -170,7 +169,6 @@ config-version: 2
 
 settings:
   debug: false
-  server-id: "default"
   default-channel: "normal"
   max-length: 256
   cooldown-millis: 750
