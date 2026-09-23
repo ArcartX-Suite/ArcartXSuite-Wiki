@@ -58,6 +58,8 @@ QQBot 模块的配置文件为 `config.yml`，位于 `plugins/ArcartX-Suite/data
 | `mode` | string | `"native"` | 运行模式：`native`（本地子进程）/ `docker`（Docker 容器） |
 | `dir` | string | `"snowluma"` | SnowLuma 安装目录（相对于服务端根目录，仅 native 模式） |
 | `auto-start` | boolean | `false` | 模块启动时自动启动 SnowLuma |
+| `webui-password` | string | `""` | WebUI 初始密码（透传 `SNOWLUMA_WEBUI_BOOTSTRAP_PASSWORD`，仅首次初始化生效；留空则随机生成临时密码） |
+| `accept-agreements` | boolean | `false` | 自动同意 SnowLuma EULA 与隐私协议（首次打开 WebUI 不再显示协议确认页） |
 
 ### Docker 模式配置 (onebot.snowluma.docker)
 
@@ -68,6 +70,8 @@ QQBot 模块的配置文件为 `config.yml`，位于 `plugins/ArcartX-Suite/data
 | `webui-port` | int | `5099` | 宿主机 WebUI 端口映射 |
 | `ws-port` | int | `3001` | 宿主机 WebSocket 端口映射 |
 | `http-port` | int | `3000` | 宿主机 HTTP 端口映射 |
+| `novnc-port` | int | `6081` | 宿主机 noVNC 端口映射（浏览器操作内嵌 QQ 客户端登录用） |
+| `vnc-password` | string | `""` | VNC/noVNC 访问密码（透传 `VNC_PASSWD`；公网暴露时建议设置） |
 | `auto-install` | boolean | `false` | 模块启动时若容器不存在则自动安装 |
 
 ## 群配置 (groups)
@@ -405,7 +409,7 @@ QQBot 模块的配置文件为 `config.yml`，位于 `plugins/ArcartX-Suite/data
 
 ```yaml
 # 配置版本号（不要手动修改，由模块自动管理）
-config-version: 4
+config-version: 5
 
 settings:
   debug: false
@@ -420,12 +424,16 @@ onebot:
     mode: "native"
     dir: "snowluma"
     auto-start: false
+    webui-password: ""
+    accept-agreements: false
     docker:
       container-name: "snowluma"
       image: "motricseven7/snowluma:latest"
       webui-port: 5099
       ws-port: 3001
       http-port: 3000
+      novnc-port: 6081
+      vnc-password: ""
       auto-install: false
 
 groups:

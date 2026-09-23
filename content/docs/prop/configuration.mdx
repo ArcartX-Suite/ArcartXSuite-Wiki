@@ -24,6 +24,9 @@ Prop 模块的配置分散在多个文件中，模块首次启动时自动导出
 | `config-version` | `int` | `1` | 配置版本号，由模块自动管理，不要手动修改 |
 | `settings.debug` | `boolean` | `false` | 是否输出调试日志（按键注册、使用成功、效果跳过等） |
 | `mythiclib.source-prefix` | `string` | `AXS_PROP` | MythicLib 临时属性 modifier 的来源前缀，最终生成格式为 `<前缀>_<道具ID>_<属性ID>` |
+| `auto-trigger.enabled` | `boolean` | `false` | 自动触发总开关。开启后服务端按固定间隔轮询在线玩家的快捷槽，自动使用满足触发条件的道具 |
+| `auto-trigger.interval` | `int` | `20` | 全局轮询间隔（tick，20 = 1 秒）。道具 `auto.interval` 可覆盖，但实际粒度不会比该值更细 |
+| `auto-trigger.mode` | `string` | `all` | 同轮多个槽位道具满足触发条件时的模式：`all` 全部尝试触发，`first` 第一个成功触发后停止本轮 |
 
 > `mythiclib.source-prefix` 是否生效由宿主 `config.yml` 的 `attribute-bridges.mythiclib` 统一管理。前缀中的非字母数字字符会被替换为 `_` 并转为大写。
 
@@ -41,6 +44,18 @@ mythiclib:
   # 最终会生成:
   #   <前缀>_<PROP_ID>_<STAT>
   source-prefix: "AXS_PROP"
+
+auto-trigger:
+  # 自动触发总开关。开启后服务端按固定间隔轮询在线玩家的快捷槽，
+  # 对配置了 auto.enabled 且满足 auto.conditions 的道具自动执行使用流程。
+  enabled: false
+  # 全局轮询间隔（tick，20 = 1 秒）。
+  # 单个道具可用 auto.interval 覆盖，但实际检查粒度不会比该值更细。
+  interval: 20
+  # 同一轮多个槽位道具同时满足触发条件时的处理模式:
+  #   all   -> 全部尝试触发（各自受自己的冷却组限制）
+  #   first -> 按槽位顺序，第一个成功触发后停止本轮
+  mode: "all"
 ```
 
 ## 按键映射（`data/prop/key.yml`）
@@ -85,6 +100,7 @@ keys:
 | `NO_KEY` | `{NAME}` | 无法通过按键使用提示（`key: false`） |
 | `NO_HAND` | `{NAME}` | 无法手持右键使用提示（`hand: false`） |
 | `CONDITION_NOT_MET` | `{NAME}` `{CONDITION}` | 使用条件不满足提示，`{CONDITION}` 为未满足的条件原文 |
+| `AUTO_USED` | `{NAME}` | 自动触发成功提示（道具 `auto.notify` 控制是否发送） |
 
 ```yaml
 # {NAME} 为道具名，{TIME} 为剩余冷却秒数。
@@ -95,6 +111,9 @@ NO_HAND: "&7[&dArcartXProp&7]&c{NAME} &f该道具无法手持使用"
 
 # {NAME} 为道具名，{CONDITION} 为未满足的条件原文。
 CONDITION_NOT_MET: "&7[&dArcartXProp&7]&c{NAME} &f使用条件不满足: &e{CONDITION}"
+
+# {NAME} 为道具名。自动触发成功时发送（道具 auto.notify 控制开关）。
+AUTO_USED: "&7[&dArcartXProp&7]&f已自动使用 &a{NAME}"
 ```
 
 ## 道具定义（`data/prop/props/*.yml`）
@@ -113,8 +132,14 @@ CONDITION_NOT_MET: "&7[&dArcartXProp&7]&c{NAME} &f使用条件不满足: &e{COND
 | `permission` | `string` | `""` | 使用所需权限节点，留空表示无限制 |
 | `conditions` | `list<string>` | `[]` | 使用条件列表，全部满足才可使用（AND 逻辑） |
 | `effects` | `list<string>` | `[]` | 效果列表，每行格式为 `type\|payload` |
+| `auto.enabled` | `boolean` | `false` | 是否启用自动触发（整节可省略）。独立于 `hand` / `key` 开关 |
+| `auto.interval` | `int` | `0` | 该道具的检查间隔（tick）；`0` 或缺省表示使用全局 `auto-trigger.interval` |
+| `auto.notify` | `boolean` | `true` | 自动使用成功时是否给玩家发送 `AUTO_USED` 提示 |
+| `auto.conditions` | `list<string>` | `[]` | 触发条件列表，格式与 `conditions` 一致，全部满足才尝试使用 |
 
 > `coolDownGroup` 为空时会回退为 `默认冷却组` 并输出警告日志。`coolDownTime` 和 `Duration` 的负值会被归零。
+
+> 自动触发只检测 `key.yml` 中已配置的快捷槽物品。触发条件满足后仍要经过冷却、`permission` 与 `conditions` 校验，失败一律静默跳过（不发送提示）；`remove` 消耗语义与手动使用一致。
 
 ### 效果格式
 
@@ -199,6 +224,14 @@ permission: "arcartxsuite.prop.heal"
 conditions:
   - "%player_level% >= 5"
   - "%player_health% < 20"
+
+# 自动触发：生命值低于 30% 时自动使用（需全局 auto-trigger.enabled 开启）
+auto:
+  enabled: true
+  interval: 20
+  notify: true
+  conditions:
+    - "%player_health% < 30"
 
 effects:
   - "potion|REGENERATION:2"

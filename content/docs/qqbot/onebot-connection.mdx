@@ -31,12 +31,16 @@ OneBot 11 是 QQ 机器人领域的标准通信协议，QQBot 模块作为 **Web
 模块启动 (startService)
   │
   ├─ SnowLumaProcessManager.init()     ← 异步线程
-  │    ├─ 检测 Node.js 环境 (native) / 容器状态 (docker)
-  │    └─ 启动 SnowLuma 进程
+  │    ├─ native: auto-start 时拉起子进程（优先内置 node 运行时）
+  │    └─ docker: auto-install 时自动 pull + run 容器，auto-start 时启动已有容器
   │
-  ├─ waitForPort(wsUrl, 8000ms)        ← 等待 WS 端口就绪
+  ├─ SnowLuma 已运行 → waitForPort(wsUrl, 8000ms) 等待 WS 端口就绪
   │
-  └─ OneBotClient.start()
+  ├─ SnowLuma 未运行 → 本机 ws 且端口无服务 → 打印部署引导
+  │                    （未安装提示 install / 已安装提示 start；端口已有
+  │                      NapCat 等服务或 ws 指向远程则不打扰）
+  │
+  └─ OneBotClient.start()              ← 始终启动，实现端就绪后自动重连
        ├─ probePort()                  ← TCP 端口探测（1秒超时）
        │    ├─ 端口不通 → 触发 onClose → scheduleReconnect
        │    └─ 端口可连 → WebSocketClient.connect()
@@ -140,21 +144,31 @@ OneBot 群消息可能以消息段数组形式发送，`OneBotEvent` 自动提�
 
 | 特性 | 说明 |
 |---|---|
-| 环境要求 | Node.js 18+ |
-| 安装方式 | `/axs qqbot snowluma install`（从 GitHub 下载） |
+| 环境要求 | 完整版自带 Node 运行时，**零依赖解压即用**；lite 版需系统 Node.js 22.13+ / 23.4+ |
+| 安装方式 | `/axs qqbot snowluma install`（从 GitHub 下载，优先完整版，实时推送下载进度） |
 | 进程管理 | 自动启动 / 停止 / 清理残留进程 |
-| 输出监控 | 独立守护线程读取 stdout，检测端口冲突等致命错误 |
+| 输出监控 | 独立守护线程读取 stdout，检测端口冲突等致命错误，并捕获 WebUI 初始密码 |
 | JVM 钩子 | 注册 ShutdownHook 确保异常退出时清理进程 |
 
 #### 启动流程
 
-1. 检测 Node.js 环境（`node --version`，5 秒超时）
-2. 检查安装目录是否存在启动脚本
+1. 检测 Node.js 环境（优先使用安装目录内置 `node`/`node.exe`；无内置运行时则检查 PATH `node --version`，要求 22.13+ / 23.4+）
+2. 检查安装目录是否存在入口文件
 3. 清理端口残留进程（WebUI 5099 + 配置的 WS 端口）
-4. 构建 `ProcessBuilder` 启动子进程
-5. 守护线程监控输出，检测 `EADDRINUSE` 等致命错误
+4. 构建 `ProcessBuilder` 直接以 `node index.mjs` 启动子进程（不经 launcher 脚本，避免批处理回显干扰与 pause 挂起）
+5. 守护线程监控输出：词边界匹配告警/错误行转发到控制台，识别 `initial credentials`/`临时密码` 行并捕获保存
 6. 等待 3 秒确认进程存活
-7. 标记状态为 `RUNNING`
+7. 标记状态为 `RUNNING`；进程意外退出时自动降级为 `STOPPED` 并告警
+
+#### WebUI 初始密码
+
+SnowLuma 的 WebUI（默认 `http://127.0.0.1:5099`）首次启动时会在 stdout 打印一次 `admin` 账号的随机临时密码：
+
+- **模块自动捕获**：识别密码行后打印到控制台，并保存到 `<安装目录>/webui-password.txt`
+- **随时查询**：`/axs qqbot snowluma password`（docker 模式自动从 `docker logs` 提取）
+- **注意**：临时密码未修改的情况下，SnowLuma 下次启动会重新生成新密码（捕获随之更新）；首次登录后请立即改密
+- **固定密码**：可在 `onebot.snowluma.webui-password` 预设初始密码（仅首次初始化生效）
+- **忘记密码**：停止 SnowLuma，删除 `<安装目录>/config/webui.json` 后重启将生成新临时密码
 
 #### 残留进程清理
 
@@ -177,8 +191,9 @@ Docker 容器模式，推荐 Linux VPS 使用。
 | 特性 | 说明 |
 |---|---|
 | 环境要求 | Docker 已安装 |
-| 安装方式 | `docker pull` + `docker run`（自动挂载 3 个 volume） |
-| 端口映射 | WebUI / WS / HTTP 端口可配置 |
+| 安装方式 | `docker pull` + `docker run`（自动挂载 3 个 volume，拉取进度实时推送） |
+| 自动部署 | `docker.auto-install: true` 时模块启动发现容器不存在会自动 pull + run |
+| 端口映射 | WebUI / WS / HTTP / noVNC 端口可配置 |
 | 数据持久化 | 自动挂载 `data` / `qq-config` / `qq-data` 三个 volume |
 | 日志查看 | `/axs qqbot snowluma logs`（`docker logs --tail 50`） |
 
@@ -194,6 +209,10 @@ docker run -d
   -p <webui-port>:5099
   -p <http-port>:3000
   -p <ws-port>:3001
+  -p <novnc-port>:6081        # 浏览器远程操作内嵌 QQ 客户端登录
+  -e VNC_PASSWD=<vnc-password>                    # 仅在配置 vnc-password 时注入
+  -e SNOWLUMA_WEBUI_BOOTSTRAP_PASSWORD=<webui-password>  # 仅在配置时注入
+  -e SNOWLUMA_ACCEPT_EULA=1 -e SNOWLUMA_ACCEPT_PRIVACY=1 # 仅在 accept-agreements: true 时注入
   -v <container-name>-data:/app/data
   -v <container-name>-qq-config:/app/.config
   -v <container-name>-qq-data:/app/.local/share
@@ -215,30 +234,47 @@ docker run -d
 
 | 子命令 | 说明 |
 |---|---|
-| `start` | 启动 SnowLuma |
+| `start` | 启动 SnowLuma（成功提示 WebUI 地址与密码获取方式） |
 | `stop` | 停止 SnowLuma |
-| `status` | 查看状态报告（容器名 / 镜像 / 版本 / 运行状态 / 端口） |
-| `install` | 下载安装（异步执行） |
+| `status` | 查看状态报告（容器名 / 镜像 / 版本 / Node / 运行状态 / WebUI / 安装进度） |
+| `install` | 下载安装（异步执行，实时推送下载/拉取进度） |
 | `logs` | 查看最近日志（仅 Docker 模式） |
+| `password` | 查看 WebUI 登录信息（地址 / 账号 admin / 临时密码） |
 | `check-update` | 检查 GitHub 最新版本（异步执行） |
+
+### 实现端缺失提醒
+
+模块启动时若检测到 **ws-url 指向本机且端口无服务监听**，会在控制台打印部署引导（区分「未安装」与「已安装未运行」两种情形），避免用户不知道需要安装 SnowLuma：
+
+- 未安装 → 提示 `/axs qqbot snowluma install` + `start` + WebUI/密码查询步骤
+- 已安装未运行 → 提示 `/axs qqbot snowluma start`
+- ws-url 指向远程地址或本机端口已有服务（NapCat 等）→ 不打扰，直接走连接/重连流程
+
+OneBot 断开告警也会根据实际情况附加 SnowLuma 状态提示（未安装 / 未运行的指引命令）。
 
 ## 异步启动设计
 
 SnowLuma 启动和 WebSocket 连接在 **异步线程** 中执行，避免阻塞主线程触发 Paper 看门狗：
 
 ```
-AxsScheduler.runAsync(plugin, () -> {
+runTaskAsynchronously(plugin, () -> {
     if (closed) return;                    // 模块已关闭则跳过
-    slm.init();                            // 初始化 SnowLuma
-    if (running) waitForPort(wsUrl, 8000);  // 等待端口就绪
+    slm.init();                            // 初始化 SnowLuma（auto-start 拉起 / docker auto-install 部署）
     if (closed) {                          // 启动期间模块被关闭
         slm.shutdown();                    // 立即回收，避免孤儿进程
         obc.shutdown();
         return;
     }
-    if (running) obc.start();              // 连接 OneBot
-    else if (autoStart) logger.warning(...); // 启动失败告警
-    else obc.start();                      // 用户手动管理，直接连接
+    if (running) {                         // SnowLuma 已运行
+        waitForPort(wsUrl, 8000);          // 等待端口就绪
+        if (closed) { slm.shutdown(); obc.shutdown(); return; }
+        obc.start();                       // 连接 OneBot
+        return;
+    }
+    // SnowLuma 未运行：本机 ws 且端口无服务 → 打印部署引导；
+    // 其他实现端在跑 / 远程 ws → 不打扰
+    if (localWs && !probePort(wsUrl, 800)) logOneBotSetupGuide(slm);
+    obc.start();                           // 始终启动客户端，实现端就绪后自动重连
 });
 ```
 
@@ -263,12 +299,20 @@ onebot:
     dir: "snowluma"
     # 模块启动时自动启动 SnowLuma
     auto-start: false
+    # WebUI 初始密码（可选，仅首次初始化生效；留空则随机生成临时密码）
+    webui-password: ""
+    # 自动同意 SnowLuma EULA 与隐私协议
+    accept-agreements: false
     docker:
       container-name: "snowluma"
       image: "motricseven7/snowluma:latest"
       webui-port: 5099
       ws-port: 3001
       http-port: 3000
+      # noVNC 网页远程桌面端口（浏览器操作内嵌 QQ 客户端登录用）
+      novnc-port: 6081
+      # VNC/noVNC 访问密码（可选）
+      vnc-password: ""
       auto-install: false
 ```
 
@@ -282,6 +326,8 @@ onebot:
 | `heartbeat-interval-seconds` | int | `30` | 心跳间隔（保留兼容，实际由服务端推送） |
 | `snowluma.mode` | string | `"native"` | `native` 或 `docker` |
 | `snowluma.auto-start` | boolean | `false` | 模块启动时自动拉起 SnowLuma |
+| `snowluma.webui-password` | string | `""` | WebUI 初始密码（仅首次初始化生效，留空随机生成） |
+| `snowluma.accept-agreements` | boolean | `false` | 自动同意 EULA 与隐私协议 |
 
 > WS 端口从 `ws-url` 自动解析，用于 SnowLuma 残留进程清理。修改端口时清理逻辑会跟随配置，而非写死 3001。
 
@@ -291,7 +337,9 @@ onebot:
 |---|---|---|
 | 连接被拒绝 | OneBot 实现端未启动 | 启动实现端后执行 `/axs reload qqbot` |
 | 连接超时 | 防火墙拦截或地址错误 | 检查 `ws-url` 和防火墙规则 |
-| SnowLuma 启动失败 | 未安装 Node.js | 安装 Node.js 18+ 后重载模块 |
+| SnowLuma 启动失败 | Node.js 缺失或版本过低 | 执行 `/axs qqbot snowluma install` 安装完整版（自带运行时），或安装 Node.js 22.13+ 后 `/axs reload qqbot` |
+| 不知道 WebUI 密码 | 临时密码只在首次启动打印一次 | 执行 `/axs qqbot snowluma password` 查看；忘记密码可删除 `snowluma/config/webui.json` 后重启生成新密码 |
+| WebUI 显示协议确认页 | 首次启动需同意 EULA/隐私协议 | 在 WebUI 页面点击同意，或设 `snowluma.accept-agreements: true` |
 | 端口冲突 | 其他进程占用 5099/3001 | 模块会自动清理残留，或手动终止占用进程 |
 | 频繁断开重连 | 实现端不稳定 | 检查实现端日志，适当增大 `reconnect-interval-seconds` |
 

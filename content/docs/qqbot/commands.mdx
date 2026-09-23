@@ -74,6 +74,7 @@ QQBot 模块提供游戏内命令和 QQ 群内指令两套命令体系，以及 
 - 存储模式
 - 绑定功能状态（启用/禁用）
 - 白名单状态（启用/禁用）
+- SnowLuma 状态（运行状态 / 未安装提示）
 
 #### `/axs qqbot send <all|群号> <消息>`
 
@@ -95,11 +96,12 @@ SnowLuma 进程/容器管理：
 
 | 子命令 | 说明 |
 |---|---|
-| `start` | 启动 SnowLuma |
+| `start` | 启动 SnowLuma（成功后提示 WebUI 地址与密码获取方式） |
 | `stop` | 停止 SnowLuma |
-| `status` | 查看 SnowLuma 状态 |
-| `install` | 下载安装/部署 SnowLuma（异步执行） |
+| `status` | 查看 SnowLuma 状态（版本 / Node / 运行状态 / WebUI / 安装进度） |
+| `install` | 下载安装/部署 SnowLuma（异步执行，实时推送下载进度；native 模式优先下载自带 Node 运行时的完整版） |
 | `logs` | 查看最近日志（仅 Docker 模式） |
+| `password` | 查看 WebUI 登录信息（地址 / 账号 admin / 临时密码） |
 | `check-update` | 检查是否有新版本（异步执行） |
 
 #### `/axs qqbot blacklist <add|remove|list> [QQ]`

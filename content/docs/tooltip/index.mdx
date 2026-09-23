@@ -7,7 +7,7 @@ description: Tooltip 客户端动态提示数据采集与跨模块共享
 
 ## 模块简介
 
-Tooltip 是 Suite 的客户端动态提示数据桥接模块。它接收客户端 ArcartX-Suite-Mod 在 `ItemTooltipEvent` 中采集的 tooltip 文本行与结构化数据，通过 ArcartX 自定义网络包传输至服务端，按玩家与物品指纹去重缓存后，以 `TooltipDataCapable` Capability 形式向其他模块提供查询服务。典型应用场景包括 TACZ 枪械属性展示、Apotheosis 词缀预览、聊天物品展示中的动态 Lore 注入等。
+Tooltip 是 Suite 的客户端动态提示数据桥接模块。它接收客户端 ArcartX-Suite-Tooltips 在 `ItemTooltipEvent` 中采集的 tooltip 文本行与结构化数据，通过 ArcartX 自定义网络包传输至服务端，按玩家与物品指纹去重缓存后，以 `TooltipDataCapable` Capability 形式向其他模块提供查询服务。典型应用场景包括 TACZ 枪械属性展示、Apotheosis 词缀预览、聊天物品展示中的动态 Lore 注入等。
 
 | 属性 | 值 |
 |---|---|
@@ -25,7 +25,7 @@ Tooltip 是 Suite 的客户端动态提示数据桥接模块。它接收客户�
 
 | 特性 | 说明 |
 |---|---|
-| 客户端 tooltip 采集 | 客户端 ArcartX-Suite-Mod 在 Forge `ItemTooltipEvent` 中采集 tooltip 文本行和结构化数据，通过 `AXS_TOOLTIP_DATA` 自定义网络包发送给服务端 |
+| 客户端 tooltip 采集 | 客户端 ArcartX-Suite-Tooltips 在 Forge `ItemTooltipEvent` 中采集 tooltip 文本行和结构化数据，通过 `AXS_TOOLTIP_DATA` 自定义网络包发送给服务端 |
 | 按物品指纹缓存 | 以玩家 UUID + 物品注册名（如 `tacz:ak47`）为键去重缓存，避免同一物品重复处理 |
 | 结构化数据透传 | 保留客户端采集的 JSON 格式结构化数据（如 TACZ 枪属性的 damage、armorIgnore、headshotMultiplier 等字段），供业务逻辑直接解析使用 |
 | Lore 注入 | 将 tooltip 文本行注入物品 NBT `display.Lore` 标签，用于聊天物品预览等场景，支持 `&` 颜色码自动转换 |
@@ -40,12 +40,12 @@ Tooltip 是 Suite 的客户端动态提示数据桥接模块。它接收客户�
 | 依赖类型 | 名称 | 必需 | 说明 |
 |---|---|---|---|
 | 宿主 | ArcartXSuite 主插件 | 是 | 模块加载、网络包路由、Capability 注册 |
-| 客户端 | ArcartX-Suite-Mod | 是 | 客户端 Forge mod，采集 tooltip 数据并发送 `AXS_TOOLTIP_DATA` 网络包 |
+| 客户端 | ArcartX-Suite-Tooltips | 是 | 客户端 Forge mod，采集 tooltip 数据并发送 `AXS_TOOLTIP_DATA` 网络包 |
 | 模块依赖 | 无 | - | Tooltip 不依赖任何其他模块即可独立运行 |
 | 外部依赖 | 无 | - | 无 PlaceholderAPI / Vault 等外部插件依赖 |
 
 <Callout type="info">
-Tooltip 模块本身无任何模块依赖与外部插件依赖。其核心数据来源是客户端 ArcartX-Suite-Mod，服务端仅负责接收、缓存与提供查询。若客户端未安装 mod，模块仍可正常启动，但缓存为空，所有查询返回空值。
+Tooltip 模块本身无任何模块依赖与外部插件依赖。其核心数据来源是客户端 ArcartX-Suite-Tooltips，服务端仅负责接收、缓存与提供查询。若客户端未安装 mod，模块仍可正常启动，但缓存为空，所有查询返回空值。
 </Callout>
 
 ## Tooltip 机制
@@ -54,7 +54,7 @@ Tooltip 模块本身无任何模块依赖与外部插件依赖。其核心数据
 
 ```
 客户端 Forge ItemTooltipEvent
-  → ArcartX-Suite-Mod 采集 tooltip 文本行 + 结构化数据
+  → ArcartX-Suite-Tooltips 采集 tooltip 文本行 + 结构化数据
   → 构建 AXS_TOOLTIP_DATA 网络包
   → ArcartX 自定义网络通道发送至服务端
   → TooltipPacketHandler 接收（优先级 50，高优先级尽快缓存）

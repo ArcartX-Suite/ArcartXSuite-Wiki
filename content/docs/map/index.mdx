@@ -8,7 +8,7 @@ description: Map 地图模块功能概览
 
 Map 是 Suite 的地图模块，提供全屏地图菜单和小地图 HUD，支持多世界切换、锚点解锁与传送、玩家自定义路径点、单击标记点（Pin）、点位分享、导航追踪与路径标记、区域点亮（战争迷雾），以及外部模块/插件注入的第三方插件注册路径点。
 
-**地图画面完全由客户端 mod 实时渲染**——服务端不需要任何地图纹理图片。Map 模块负责管理世界配置、锚点定义、路径点/标记点持久化、导航状态与第三方插件注册路径点，通过 Packet 把地图快照推送到 ArcartX UI；UI 再通过 Aria 全局函数 `axsmap.getMapRenderer()` 调用 **Arcart-Suite-Map 客户端 mod** 完成地形画面渲染。
+**地图画面完全由客户端 mod 实时渲染**——服务端不需要任何地图纹理图片。Map 模块负责管理世界配置、锚点定义、路径点/标记点持久化、导航状态与第三方插件注册路径点，通过 Packet 把地图快照推送到 ArcartX UI；UI 再通过 Aria 全局函数 `axsmap.getMapRenderer()` 调用 **ArcartX-Suite-Map 客户端 mod** 完成地形画面渲染。
 
 ## 功能特性
 
@@ -16,7 +16,7 @@ Map 是 Suite 的地图模块，提供全屏地图菜单和小地图 HUD，支�
 |---|---|
 | 全屏大地图 | ArcartX UI 驱动的全屏地图菜单，支持世界切换、滚轮缩放、拖拽平移、锚点/路径点/标记点/第三方插件注册路径点列表与详情面板 |
 | 小地图 HUD | 右上角常驻小地图（圆形/方形可切换），实时显示玩家位置、朝向、世界名、坐标和导航追踪状态 |
-| 客户端实时渲染 | 地形画面由 Arcart-Suite-Map mod 扫描客户端区块实时生成，无需地图纹理图片，已探索区域缓存落盘 |
+| 客户端实时渲染 | 地形画面由 ArcartX-Suite-Map mod 扫描客户端区块实时生成，无需地图纹理图片，已探索区域缓存落盘 |
 | 多世界支持 | 每个世界一个 `worlds/<世界ID>.yml` 配置文件；维度按 Bukkit `world.getKey()` 自动解析，Multiverse 别名自动补显示名 |
 | 战争迷雾 | 锚点可配置 `light-region` / `light-radius` 点亮区域，未探索区域在小地图上遮罩 |
 | 锚点系统 | 可配置锚点，支持货币 + 物品解锁费用、传送费用、权限控制、自动解锁与排序 |
@@ -40,7 +40,7 @@ Map 是 Suite 的地图模块，提供全屏地图菜单和小地图 HUD，支�
 | 依赖类型 | 名称 | 说明 |
 |---|---|---|
 | 核心 | ArcartX | UI 渲染框架，提供 UI 注册、Packet 通讯、按键绑定 |
-| 客户端 mod | **Arcart-Suite-Map** | 地图画面渲染客户端 mod（Fabric 1.20.1）。**未安装时地图渲染区空白**，列表/详情/传送等功能不受影响 |
+| 客户端 mod | **ArcartX-Suite-Map** | 地图画面渲染客户端 mod（Fabric 1.20.1）。**未安装时地图渲染区空白**，列表/详情/传送等功能不受影响 |
 | 外部软依赖 | Multiverse-Core | `display-name` 留空时用其 colourless alias 自动补世界显示名；小地图世界名经 `%multiverse-core_alias%` PAPI 显示 |
 | 外部软依赖 | Vault | 锚点解锁/传送货币消耗（通过 CurrencyBridge） |
 | 外部软依赖 | Adyeshach | 导航标记模型渲染（不可用时关闭标记功能，路标导航仍可用） |
@@ -51,7 +51,7 @@ Map 是 Suite 的地图模块，提供全屏地图菜单和小地图 HUD，支�
 
 ### 客户端 mod 要求
 
-玩家客户端需安装 **Arcart-Suite-Map** mod 才能看到地图画面：
+玩家客户端需安装 **ArcartX-Suite-Map** mod 才能看到地图画面：
 
 | 项目 | 要求 |
 |---|---|
@@ -70,7 +70,7 @@ mod 初始化后注册 Aria 全局函数 `axsmap.getMapRenderer()` 供 UI 脚本
 ArcartXMap.yml + worlds/*.yml ──→ MapService ──→ MapSnapshotBuilder ──→ UI Packet ──→ ArcartX 客户端 UI
      (世界/锚点/路径点配置)        (状态管理)        (快照构建)          (init/update)        │
                                                                   axsmap.getMapRenderer() │
-                                                                  Arcart-Suite-Map mod ◄──┘
+                                                                  ArcartX-Suite-Map mod ◄──┘
                                                                     (区块扫描 → 实时渲染)
 ```
 

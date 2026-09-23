@@ -13,7 +13,7 @@ Tooltip 模块的核心价值在于将客户端 Forge 环境中的动态 tooltip
 
 ```
 ┌─────────────────────────────────────────────────────────────────┐
-│  客户端（Forge / ArcartX-Suite-Mod）                             │
+│  客户端（Forge / ArcartX-Suite-Tooltips）                             │
 │                                                                 │
 │  ItemTooltipEvent 触发                                           │
 │    → 采集 tooltip 文本行（List<String>）                         │
@@ -48,7 +48,7 @@ Tooltip 模块的核心价值在于将客户端 Forge 环境中的动态 tooltip
 
 ### ItemTooltipEvent 触发
 
-客户端 ArcartX-Suite-Mod 监听 Forge 的 `ItemTooltipEvent`，在玩家悬停物品时触发 tooltip 渲染事件。mod 在事件回调中采集两类数据：
+客户端 ArcartX-Suite-Tooltips 监听 Forge 的 `ItemTooltipEvent`，在玩家悬停物品时触发 tooltip 渲染事件。mod 在事件回调中采集两类数据：
 
 | 数据类型 | 说明 | 示例 |
 |---|---|---|

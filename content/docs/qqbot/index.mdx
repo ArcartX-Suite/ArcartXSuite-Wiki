@@ -182,9 +182,11 @@ UI 通讯通过 PacketBridge 实现，绑定中心使用 `AXS_qqbot` 包 ID，�
 
 ## 快速上手
 
-1. 安装 OneBot 实现端（推荐 SnowLuma，模块内置进程管理）
-2. 在 `config.yml` 中配置 `onebot.ws-url` 指向 OneBot WebSocket 地址
-3. 在 `groups` 列表中添加要监听的 QQ 群号
-4. 执行 `/axs reload qqbot` 重载模块
+1. 执行 `/axs qqbot snowluma install` 下载安装内置 SnowLuma 实现端（完整版自带 Node 运行时，含进度显示）
+2. 执行 `/axs qqbot snowluma start` 启动，浏览器打开 WebUI（默认 `http://127.0.0.1:5099`，账号 `admin`，临时密码见控制台或 `/axs qqbot snowluma password`）
+3. 在 WebUI 中登录 QQ 账号（Docker 模式请访问 noVNC 端口操作内嵌 QQ 客户端）
+4. 在 `groups` 列表中添加要监听的 QQ 群号，执行 `/axs reload qqbot` 重载模块
 5. 群内发送 `#帮助` 查看可用指令
 6. 群内发送 `#绑定 <游戏名>` 开始绑定流程
+
+> 使用其他 OneBot 实现端（NapCat/Lagrange 等）时，跳过前两步，启动实现端并将 `onebot.ws-url` 指向其 WS 地址即可，模块会自动重连。

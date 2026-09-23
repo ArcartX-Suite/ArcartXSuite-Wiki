@@ -182,7 +182,7 @@ Map 模块的 UI 交互通过 ArcartX Packet 通讯完成。客户端向服务�
 
 ## UI 客户端 Mod 交互
 
-地图画面渲染由 **Arcart-Suite-Map 客户端 mod** 负责。mod 初始化后注册 Aria 全局函数 `axsmap.getMapRenderer()`，返回 `JavaObjectMirror` 包装的 `MapRenderer` 实例；UI 脚本懒加载缓存到 `var.mapRenderer` 后调用：
+地图画面渲染由 **ArcartX-Suite-Map 客户端 mod** 负责。mod 初始化后注册 Aria 全局函数 `axsmap.getMapRenderer()`，返回 `JavaObjectMirror` 包装的 `MapRenderer` 实例；UI 脚本懒加载缓存到 `var.mapRenderer` 后调用：
 
 | 方法 | 调用时机 | 说明 |
 |---|---|---|

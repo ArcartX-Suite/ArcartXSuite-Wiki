@@ -340,11 +340,12 @@ QQBot 内置 SnowLuma 进程管理器，支持两种运行模式：
 
 | 特性 | 说明 |
 |---|---|
-| 运行方式 | 本地 Node.js 子进程 |
-| 环境要求 | Node.js 18+ |
-| 安装方式 | `/axs qqbot snowluma install`（从 GitHub 下载） |
+| 运行方式 | 本地 Node.js 子进程（直接以 `node index.mjs` 启动，优先使用安装包内置运行时） |
+| 环境要求 | 完整版自带 Node 运行时，零依赖；lite 版需系统 Node.js 22.13+ / 23.4+ |
+| 安装方式 | `/axs qqbot snowluma install`（从 GitHub 下载，优先完整版，实时进度显示） |
 | 进程管理 | 自动启动/停止/清理残留进程 |
 | 端口清理 | 按配置的 WS 端口清理残留进程 |
+| WebUI 密码 | 首次启动的临时密码自动捕获并保存至 `snowluma/webui-password.txt`，可随时用 `/axs qqbot snowluma password` 查看 |
 | JVM 钩子 | 注册 ShutdownHook 确保异常退出时清理进程 |
 
 ### Docker 模式
@@ -353,19 +354,21 @@ QQBot 内置 SnowLuma 进程管理器，支持两种运行模式：
 |---|---|
 | 运行方式 | Docker 容器 |
 | 环境要求 | Docker 已安装 |
-| 安装方式 | `/axs qqbot snowluma install`（docker pull + docker run） |
-| 端口映射 | WebUI / WS / HTTP 端口可配置 |
+| 安装方式 | `/axs qqbot snowluma install`（docker pull + docker run，支持 `auto-install` 自动部署） |
+| 端口映射 | WebUI / WS / HTTP / noVNC 端口可配置 |
 | 数据持久化 | 自动挂载 3 个 volume（data / qq-config / qq-data） |
 | 日志查看 | `/axs qqbot snowluma logs` |
+| WebUI 密码 | `/axs qqbot snowluma password` 自动从容器日志提取临时密码 |
 
 ## 配置版本迁移
 
-模块支持配置文件自动迁移，当前版本为 4。迁移文件位于 `migrations/` 目录：
+模块支持配置文件自动迁移，当前版本为 5。迁移文件位于 `migrations/` 目录：
 
 | 迁移文件 | 说明 |
 |---|---|
 | `1-2.yml` | 初始迁移 |
 | `2-3.yml` | 结构调整 |
 | `3-4.yml` | `storage.mode` → `storage.shared`，值映射 sqlite→true / mysql→false |
+| `4-5.yml` | 新增 `snowluma.webui-password` / `accept-agreements` / `docker.novnc-port` / `docker.vnc-password` |
 
 模块启动时自动检测 `config-version` 并执行必要的迁移操作。
