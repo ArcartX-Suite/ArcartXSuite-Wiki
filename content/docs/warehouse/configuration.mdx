@@ -54,15 +54,19 @@ description: Warehouse 配置文件详解
 
 > **向后兼容**：如果 `shared` 字段不存在但 `mode=mysql`，自动视为 `shared: false`。
 
-### security 节
+### security 节（已移除）
 
-| 字段 | 类型 | 默认值 | 说明 |
-| --- | --- | --- | --- |
-| `min-length` | int | `4` | 二级密码最小长度，范围 3-32 |
-| `max-length` | int | `32` | 二级密码最大长度，范围 4-64 |
-| `unlock-session-ms` | long | `600000` | 解锁后会话有效时长（毫秒，600000 = 10 分钟），最小 10000 |
-| `allow-admin-password-reveal` | boolean | `false` | 是否允许管理员查看玩家二级密码 |
-| `admin-reveal-secret` | string | `""` | 管理员查看密码所需的密钥 |
+二级密码策略已全部迁移到**宿主核心**统一管理，配置位置为 `plugins/ArcartX-Suite/config.yml` 的 `security.secondary-password` 节：
+
+```yaml
+security:
+  secondary-password:
+    min-length: 4              # 二级密码最小长度
+    max-length: 32             # 二级密码最大长度
+    unlock-timeout-seconds: 1800  # 解锁后会话有效时长（秒，默认 30 分钟）
+```
+
+所有模块（Warehouse、ExtraBackpack 等）共用同一策略与解锁会话。模块内的旧 `security` 节会被配置同步自动清理（`obsoletePath`）。
 
 ### pickup 节
 
@@ -97,39 +101,34 @@ description: Warehouse 配置文件详解
 
 ## 仓库分类配置
 
-`warehouses` 节定义个人仓库类型，每个仓库可配置多级容量与升级费用：
+`warehouses` 节定义个人仓库类型。个人仓库采用**逐格解锁模型**：初始 `base-slots` 格，玩家按 `slot-price` 逐格付费购买至 `max-slots`（不再整级升级）。扩展背包（ExtraBackpack）与个人仓库共用同一存储——两个入口看到同样的格子。
 
 ```yaml
 warehouses:
   personal:
     display-name: "&6个人仓库"    # 仓库显示名称
     default-owned: true           # 玩家首次使用时是否自动创建
-    default-level: 1              # 默认仓库等级
+    base-slots: 32                # 初始解锁槽位数
+    max-slots: 999                # 可购买槽位上限
+    slot-price:
+      currency: "points"          # 每格所需货币 ID
+      amount: 100                 # 每格价格
     permission: ""                 # 拥有此仓库所需的权限（留空 = 无限制）
-    levels:
-      "1":
-        capacity: 1000             # 等级 1 容量（槽位数）
-        upgrade:
-          currency: "points"       # 升级所需货币 ID
-          amount: 500              # 升级所需金额
-      "2":
-        capacity: 2500
-        upgrade:
-          currency: "points"
-          amount: 1200
-      "3":
-        capacity: 6000             # 最高级（无 upgrade 节 = 不可再升级）
 ```
 
 | 字段 | 类型 | 说明 |
 | --- | --- | --- |
 | `display-name` | string | 仓库显示名称，支持颜色码 |
 | `default-owned` | boolean | 玩家首次使用时是否自动创建此仓库 |
-| `default-level` | int | 默认仓库等级，必须在 `levels` 中存在 |
+| `base-slots` | long | 初始解锁槽位数（默认 32） |
+| `max-slots` | long | 槽位**总数**上限，含初始格（默认 999）；已解锁 = `base-slots` + 已购格数，不得超过此值 |
+| `slot-price.currency` | string | 每格所需货币 ID，留空表示不可购买 |
+| `slot-price.amount` | decimal | 每格价格 |
 | `permission` | string | 拥有此仓库所需的权限节点，留空表示无限制 |
-| `levels.<level>.capacity` | long | 该等级的容量（槽位数），最小 1 |
-| `levels.<level>.upgrade.currency` | string | 升级到下一级所需货币 ID |
-| `levels.<level>.upgrade.amount` | decimal | 升级到下一级所需金额，`<=0` 或留空表示不可升级 |
+
+> **已解锁格数 = `base-slots` + `extra_slots`（数据库字段）**。玩家每点一次购买消耗 `slot-price` 并 `extra_slots + 1`。共享仓库仍使用 `shared.levels` 等级制，不受本模型影响。
+
+> **已移除字段**：个人仓库的 `default-level`、`levels` 旧等级制容量表与 `migration` 迁移标记节已随逐格解锁上线一并移除，配置同步时由 `obsoletePath` 自动清理。
 
 ## 物品分类配置
 
@@ -289,13 +288,6 @@ ui:
 
 storage:
   shared: true
-
-security:
-  min-length: 4
-  max-length: 32
-  unlock-session-ms: 600000
-  allow-admin-password-reveal: false
-  admin-reveal-secret: ""
 
 pickup:
   enabled: true

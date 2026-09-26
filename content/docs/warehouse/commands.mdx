@@ -48,7 +48,7 @@ description: Warehouse 命令、权限与 PlaceholderAPI 占位符
 | `/axs warehouse status` | 查看模块运行状态 |
 | `/axs warehouse open <玩家>` | 为在线玩家打开仓库 |
 | `/axs warehouse info <玩家>` | 查看玩家仓库概览 |
-| `/axs warehouse view <玩家> <仓库ID>` | 查看玩家指定仓库的物品详情 |
+| `/axs warehouse view <玩家> [仓库ID]` | 以只读 UI 打开玩家仓库（玩家执行时）；控制台执行则输出文本概览 |
 | `/axs warehouse delete <玩家> <仓库ID> confirm` | 删除玩家指定仓库（需 confirm 确认） |
 | `/axs warehouse bank <玩家> <货币ID> <set\|add\|take> <金额>` | 管理玩家银行余额 |
 
@@ -66,9 +66,9 @@ description: Warehouse 命令、权限与 PlaceholderAPI 占位符
 
 异步生成玩家仓库概览，包括个人仓库列表、共享仓库列表、银行余额、定期存款等。
 
-**`/axs warehouse view <玩家> <仓库ID>`**
+**`/axs warehouse view <玩家> [仓库ID]`**
 
-查看玩家指定仓库的物品详情，列出所有槽位的物品名称与数量。支持离线玩家（需曾进服）。
+以只读预览 UI 打开目标玩家的仓库，管理员可直接浏览槽位物品。`仓库ID` 省略时默认首个个人仓库（`personal`），也可填共享仓库 ID。目标玩家**支持离线**（数据走数据库）；管理员自身需在线（UI 要发到管理员客户端）。控制台执行时退化为文本概览。
 
 **`/axs warehouse delete <玩家> <仓库ID> confirm`**
 

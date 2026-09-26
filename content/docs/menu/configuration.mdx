@@ -89,6 +89,55 @@ description: 配置文件详解与示例
 | ArcartX 贴图 | `texture` / `texture-url` / `nbt` | 写入 NBT 渲染自定义贴图 |
 | 直接 NBT | `json` | 直接提供物品 NBT JSON |
 
+## 全屏功能导航与悬停详情（1.5.0）
+
+内置 `AXS:menu_panel` 已改为全屏导航：左侧功能列表，右侧通高详情面板。`panel` 与 `full` 仍使用该 UI ID，`esc` 界面不变。内置新版采用单列宽幅条目；`columns` 仍保留在数据包中，供 ESC 或自定义 UI 使用，不再控制内置全屏列表的列数。
+
+鼠标停留在功能上后切换详情，离开后保留当前详情；点击左侧功能才执行动作。禁用功能仍可预览，但不会发送执行请求。长说明独立滚动，页脚较多时支持横向滚动。刷新按按钮 ID 保留预览，切换页面时重置滚动位置。
+
+按钮及 `footer-buttons` 均可添加可选的 `details`：
+
+| 字段 | 类型 | 默认值 / 行为 |
+| --- | --- | --- |
+| `details.summary` | string | `浏览功能详情`，列表与详情区的一句话介绍 |
+| `details.category` | string | `功能导航`，详情区顶部的分类标签 |
+| `details.accent` | string | `#D6BE8F`，主题色，必须为 `#RRGGBB`；无效值记录警告并回退 |
+| `details.artwork` | string | 空，独立详情展示图资源路径；不为空时替代右侧物品图标，建议使用约 2.3:1 的图片 |
+| `details.description` | string / string[] | `选择此功能，继续你的旅程。`；支持多行文本和段落列表 |
+| `details.requirements` | string / string[] | 空，仅用于展示使用说明，不参与权限、条件或费用判断 |
+| `details.action-hint` | string | `点击左侧功能进入`，可用时的操作提示 |
+| `details.disabled-reason` | string | 空；禁用时优先显示此值，否则使用 `deny-message`，均未配置则显示通用提示 |
+
+简介、分类、说明、使用说明、操作提示和禁用原因支持既有占位符解析。长说明在服务端解析占位符后折行，客户端以独立行展示。标题和简介为单行展示，建议使用简短文案，完整内容放入 `description`。主题色和图片路径不作为脚本执行。
+
+```yaml
+warehouse:
+  text: "&f仓库系统"
+  order: 0
+  icon:
+    material: CHEST
+  details:
+    summary: "为每一次冒险，留出新的空间"
+    category: "物资管理 / STORAGE"
+    accent: "#D6BE8F"
+    artwork: ""
+    description:
+      - "把旅途中的收获妥善收藏，让背包轻装上阵。"
+      - "在仓库中浏览、整理和存取你的物品。"
+    requirements:
+      - "可用仓库与容量以仓库界面为准。"
+    action-hint: "点击左侧功能，打开仓库"
+    disabled-reason: ""
+  actions:
+    - "close"
+    - "delay: 10"
+    - "command: warehouse open"
+```
+
+此次新增可选字段，不需要迁移菜单配置，主配置版本仍为 `2`。没有 `details` 的旧按钮使用默认介绍；动作、权限与写操作令牌校验保持不变。新增详情数据随 `init/update` 一起发送，悬停不发起服务端请求，也不下发动作脚本或条件表达式。
+
+升级需同时更新 menu 模块与 UI 资源。`ui.overwrite-ui-files: false` 时，已修改的服务器 UI 不会被强制覆盖；请先备份、比较并更新对应 UI 文件，再执行 `/axs reload menu`。已有 `menus/` 文件不会自动覆盖，示例详情需按需加入。模块二进制通过 GitHub CI 构建、云端下发，不在本地构建 JAR。
+
 ## 配置示例
 
 以下为 `menus/example.yml` 的精简示例，演示面板布局、多页、按钮动作与物品库图标：

@@ -102,29 +102,21 @@ warehouse_slots 表
 4. 构造 ItemStack 并放入玩家背包
 5. 更新或删除槽位记录
 
-### 仓库等级与容量
+### 仓库槽位与容量
 
-每个仓库定义包含多级容量配置，玩家可通过货币付费升级：
+个人仓库采用**逐格解锁模型**：玩家从 `base-slots`（默认 32）格起步，按 `slot-price` 逐格付费购买至 `max-slots`（默认 999）。已解锁格数 = `base-slots` + `extra_slots`（数据库字段）。
 
 ```yaml
 warehouses:
   personal:
-    levels:
-      "1":
-        capacity: 1000        # 等级 1 容量
-        upgrade:
-          currency: "points"  # 升级货币
-          amount: 500          # 升级费用
-      "2":
-        capacity: 2500
-        upgrade:
-          currency: "points"
-          amount: 1200
-      "3":
-        capacity: 6000         # 最高级（无 upgrade 节）
+    base-slots: 32            # 初始解锁槽位数
+    max-slots: 999            # 可购买槽位上限
+    slot-price:
+      currency: "points"      # 每格所需货币
+      amount: 100             # 每格价格
 ```
 
-容量即最大槽位数，每个槽位可聚合大量相同物品。
+容量即最大槽位数，每个槽位可聚合大量相同物品。共享仓库仍使用 `shared.levels` 等级制升级，不受本模型影响。
 
 ### 共享仓库架构
 
@@ -148,7 +140,7 @@ Warehouse 使用 7 张核心表（表名前缀可配置）：
 
 | 表名 | 说明 | 主键 |
 | --- | --- | --- |
-| `warehouse_personal` | 个人仓库元数据（等级、名称、展示开关） | `(player_uuid, warehouse_id)` |
+| `warehouse_personal` | 个人仓库元数据（已购槽位数、名称、展示开关） | `(player_uuid, warehouse_id)` |
 | `warehouse_slots` | 仓库槽位物品（个人+共享共用） | `(owner_type, owner_id, warehouse_id, slot)` |
 | `warehouse_bank_balances` | 银行活期余额（多货币） | `(player_uuid, currency_id)` |
 | `warehouse_fixed_deposits` | 定期存款记录 | `id` |

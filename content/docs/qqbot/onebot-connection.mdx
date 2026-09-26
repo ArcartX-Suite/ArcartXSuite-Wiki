@@ -168,7 +168,7 @@ SnowLuma 的 WebUI（默认 `http://127.0.0.1:5099`）首次启动时会在 stdo
 - **随时查询**：`/axs qqbot snowluma password`（docker 模式自动从 `docker logs` 提取）
 - **注意**：临时密码未修改的情况下，SnowLuma 下次启动会重新生成新密码（捕获随之更新）；首次登录后请立即改密
 - **固定密码**：可在 `onebot.snowluma.webui-password` 预设初始密码（仅首次初始化生效）
-- **忘记密码**：停止 SnowLuma，删除 `<安装目录>/config/webui.json` 后重启将生成新临时密码
+- **忘记密码**：`/axs qqbot snowluma password reset` 一键重置（删除 `config/webui.json` 并重启 SnowLuma，生成的新临时密码自动捕获展示）
 
 #### 残留进程清理
 
@@ -213,7 +213,7 @@ docker run -d
   -e VNC_PASSWD=<vnc-password>                    # 仅在配置 vnc-password 时注入
   -e SNOWLUMA_WEBUI_BOOTSTRAP_PASSWORD=<webui-password>  # 仅在配置时注入
   -e SNOWLUMA_ACCEPT_EULA=1 -e SNOWLUMA_ACCEPT_PRIVACY=1 # 仅在 accept-agreements: true 时注入
-  -v <container-name>-data:/app/data
+  -v <container-name>-data:/app/snowluma-data   # 镜像 WORKDIR/VOLUME 即此路径
   -v <container-name>-qq-config:/app/.config
   -v <container-name>-qq-data:/app/.local/share
   <image>
@@ -239,7 +239,7 @@ docker run -d
 | `status` | 查看状态报告（容器名 / 镜像 / 版本 / Node / 运行状态 / WebUI / 安装进度） |
 | `install` | 下载安装（异步执行，实时推送下载/拉取进度） |
 | `logs` | 查看最近日志（仅 Docker 模式） |
-| `password` | 查看 WebUI 登录信息（地址 / 账号 admin / 临时密码） |
+| `password` | 查看 WebUI 登录信息（地址 / 账号 admin / 临时密码）；`password reset` 重置生成新临时密码 |
 | `check-update` | 检查 GitHub 最新版本（异步执行） |
 
 ### 实现端缺失提醒
@@ -338,7 +338,7 @@ onebot:
 | 连接被拒绝 | OneBot 实现端未启动 | 启动实现端后执行 `/axs reload qqbot` |
 | 连接超时 | 防火墙拦截或地址错误 | 检查 `ws-url` 和防火墙规则 |
 | SnowLuma 启动失败 | Node.js 缺失或版本过低 | 执行 `/axs qqbot snowluma install` 安装完整版（自带运行时），或安装 Node.js 22.13+ 后 `/axs reload qqbot` |
-| 不知道 WebUI 密码 | 临时密码只在首次启动打印一次 | 执行 `/axs qqbot snowluma password` 查看；忘记密码可删除 `snowluma/config/webui.json` 后重启生成新密码 |
+| 不知道 WebUI 密码 | 临时密码只在首次启动打印一次；已改密后无法从输出找回 | 执行 `/axs qqbot snowluma password` 查看；忘记密码执行 `/axs qqbot snowluma password reset` 重置生成新密码 |
 | WebUI 显示协议确认页 | 首次启动需同意 EULA/隐私协议 | 在 WebUI 页面点击同意，或设 `snowluma.accept-agreements: true` |
 | 端口冲突 | 其他进程占用 5099/3001 | 模块会自动清理残留，或手动终止占用进程 |
 | 频繁断开重连 | 实现端不稳定 | 检查实现端日志，适当增大 `reconnect-interval-seconds` |

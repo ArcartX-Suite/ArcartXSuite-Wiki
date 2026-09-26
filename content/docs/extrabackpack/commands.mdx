@@ -59,7 +59,7 @@ if (access != null && access.isAvailable(player)) {
 | `withdraw` | `<槽位号>` | 是 | 否 | 从当前分类页取出指定槽位物品到快捷栏 |
 | `withdraw_all` | `<槽位号>` | 是 | 否 | 取出指定槽位全部物品 |
 | `store` | `<快捷栏槽位>` | 是 | 否 | 将快捷栏指定槽位（0-8）的物品存入额外背包 |
-| `buy_slots` | `<数量>` `<token>` | 是 | 是 | 购买指定数量的槽位，扣费扩容当前分类页 |
+| `buy_slots` | `<数量>` `<token>` | 是 | 是 | 购买指定数量的仓库槽位（全页签共通，价格走仓库配置） |
 | `vanilla_info` | `<原版槽位号>` | 否 | 否 | 显示原版背包指定槽位的物品信息（`-1` 关闭） |
 | `vanilla_options` | `<原版槽位号>` | 否 | 否 | 显示原版背包指定槽位的操作选项（`-1` 关闭） |
 | `vanilla_store` | `<原版槽位号>` | 是 | 否 | 将原版背包指定槽位的物品存入额外背包 |
@@ -86,10 +86,10 @@ if (access != null && access.isAvailable(player)) {
 | `categories` | `Map<int, Map>` | 分类页数据（key=分类索引，value=分类详情） |
 | `categoryCount` | int | 分类页总数（含原版背包标签） |
 | `slots` | `Map<int, Map>` | 当前分类页槽位数据（key=槽位索引） |
-| `slotCount` | int | 当前分类页槽位数量 |
-| `used` | int | 已使用槽位数 |
-| `capacityText` | string | 容量显示文本（如 `9/27`） |
-| `maxCapacity` | int | 最大容量 |
+| `slotCount` | int | 当前页签过滤视图的格子数（匹配槽位 + 剩余空格） |
+| `used` | int | 仓库已用槽位数（共通） |
+| `capacityText` | string | 仓库容量显示文本（如 `9/32`，共通） |
+| `maxCapacity` | int | 仓库可购槽位上限 |
 | `canBuySlots` | boolean | 是否可以购买更多槽位 |
 | `remainingSlots` | int | 剩余可购买槽位数 |
 | `buySlotsText` | string | 购买槽位按钮提示文本 |

@@ -80,9 +80,19 @@ public interface WarehouseAutoDepositable {
 | `migrateDatabase(StorageDescriptor, boolean)` | 将数据迁移到目标数据源，`overwrite` 控制是否覆盖已有数据 |
 | `currentDescriptor()` | 返回当前存储描述符 |
 
-### ExtraBackpackAccess（可选）
+### WarehouseAccess（模块提供）
 
-模块可获取 `ExtraBackpackAccess` Capability（由 ExtraBackpack 模块提供），用于额外槽位背包功能的物品交互。此 Capability 为可选依赖，模块通过 `getExtraBackpackAccess()` 方法获取，返回 `null` 时降级为无额外背包模式。
+模块注册 `WarehouseAccess` Capability（`axs-api`），向其他模块暴露玩家个人仓库的直接读写：槽位快照/存取/覆写、已解锁容量、逐格购买与管理端发放/重置。ExtraBackpack 模块依赖此能力——扩容背包即个人仓库的第二入口。
+
+| 方法 | 说明 |
+| --- | --- |
+| `slots(player)` | 个人仓库全部占用槽位（`SlotItem{slot, itemStack}`） |
+| `snapshot(player)` | 聚合快照（used/unlocked/max/canPurchase/nextSlotPrice） |
+| `deposit(player, stack)` | 存入：先合并同类堆叠再填首个空位 |
+| `setSlot(player, slot, stack)` | 覆写/清空指定槽位 |
+| `withdraw(player, slot, amount)` | 按槽位取出到玩家背包 |
+| `purchaseSlot(player)` | 逐格购买（扣费 + `extra_slots+1` + 失败退款） |
+| `grantSlots` / `resetSlots` | 管理端赠送/重置已购槽位 |
 
 ## 跨服同步
 
@@ -144,9 +154,10 @@ public interface WarehouseAutoDepositable {
 | --- | --- | --- |
 | `player_uuid` | VARCHAR(36) | 玩家 UUID |
 | `warehouse_id` | VARCHAR(64) | 仓库标识 |
-| `level` | INTEGER | 仓库等级 |
+| `level` | INTEGER | 旧版仓库等级（逐格解锁后仅保留兼容，恒为 1） |
 | `custom_name` | VARCHAR(64) | 自定义名称 |
 | `showcase_enabled` | BOOLEAN | 展示柜开关 |
+| `extra_slots` | BIGINT | 已购买的额外槽位数，已解锁格数 = `base-slots` + `extra_slots` |
 | `updated_at` | BIGINT | 更新时间戳 |
 
 主键：`(player_uuid, warehouse_id)`
@@ -273,7 +284,7 @@ public interface WarehouseAutoDepositable {
 | Pickup | `WarehouseAutoDepositable` Capability | Pickup 模块拾取物品时调用 Warehouse 自动入库接口，将物品存入玩家仓库 |
 | Pickup | `PickupNotifiable` Capability | Warehouse 获取 Pickup 的通知能力，在自动入库后向玩家发送提示 |
 | Pickup | `PickupInterceptor` Capability | Warehouse 获取拾取拦截器，在自动入库场景下拦截原版拾取事件 |
-| ExtraBackpack | `ExtraBackpackAccess` Capability | Warehouse 可选获取额外背包访问能力，用于额外槽位背包物品交互 |
+| ExtraBackpack | `WarehouseAccess` Capability（Warehouse 提供） | ExtraBackpack 依赖 warehouse 模块，扩容背包与个人仓库共用同一存储 |
 | 核心 | `SecondaryPasswordAccess` Capability | Warehouse 获取核心二级密码服务，统一管理仓库/银行的二级密码验证 |
 | 核心 | `EventBusCapability` | Warehouse 通过 EventBus 发布 `axs.warehouse.item_deposited` 事件 |
 | 核心 | `PlayerDataPurgeable` | 支持 `/axs purge` 清除玩家仓库数据 |
@@ -297,4 +308,4 @@ public interface WarehouseAutoDepositable {
 
 Warehouse 的二级密码由核心统一管理（`SecondaryPasswordAccess` Capability），不再由模块自行存储密码。玩家通过 `/axs password set|unlock|clear` 管理密码。Warehouse 在存取物品、银行操作、共享仓库管理等敏感操作前检查二级密码会话状态。
 
-会话有效期由 `security.unlock-session-ms` 配置（默认 10 分钟），超时后需重新解锁。
+会话有效期由宿主 `config.yml` 的 `security.secondary-password.unlock-timeout-seconds` 配置（默认 1800 秒 = 30 分钟），超时后需重新解锁。

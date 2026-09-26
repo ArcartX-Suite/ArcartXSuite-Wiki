@@ -11,12 +11,6 @@ description: ExtraBackpack 配置文件详解
 
 ## 主配置字段表
 
-### settings 节
-
-| 字段 | 类型 | 默认值 | 说明 |
-| --- | --- | --- | --- |
-| `debug` | boolean | `false` | 是否输出调试日志 |
-
 ### ui 节
 
 | 字段 | 类型 | 默认值 | 说明 |
@@ -63,16 +57,15 @@ description: ExtraBackpack 配置文件详解
 | `display-name` | string | 分类 ID | 分类显示名称（显示在 UI 标签上） |
 | `priority` | int | 当前分类序号 | 分类排序优先级，数值越小越靠前 |
 | `default` | boolean | `false` | 是否为兜底分类（未匹配其他分类的物品归入此处） |
-| `slots.initial` | int | `9` | 初始槽位数量（最小 0） |
-| `slots.max` | int | `initial` | 最大槽位上限（不小于 `initial`） |
-| `price.currency` | string | `""` | 购买槽位使用的货币 ID（如 `points`、`vault`） |
-| `price.per-slot` | decimal | `0` | 每个槽位的升级金额 |
+| `slots.max` | int | `999` | 该页网格显示上限（应 ≥ 仓库 `max-slots`） |
 | `match.nbt.path` | string | `""` | NBT 匹配路径（如 `pdc:arcartx:item_category`、`material`、`lore`） |
 | `match.nbt.values` | list | `[]` | 匹配的标签值列表，物品标签值在此列表中则归入该分类 |
 
-> `price.currency` 为空或 `price.per-slot <= 0` 时，该分类不可扩容。
+> **1.5.0 共通存储后已移除**：`slots.initial`、`price.currency`、`price.per-slot`、`settings.debug`、`settings.flush-interval-ticks` 不再生效，配置同步时由 `obsoletePath` 自动清理。容量与价格统一走仓库配置（`warehouses.personal.base-slots / max-slots / slot-price`）。
 
-> 向后兼容：`slots.initial` 也可写为 `initial-slots`，`slots.max` 也可写为 `max-slots`；`match.nbt.path` 也可写为 `nbt.path`，`match.nbt.values` 也可写为 `nbt.values`。
+> 向后兼容：`match.nbt.path` 也可写为 
+bt.path`，`match.nbt.values` 也可写为 
+bt.values`。
 
 ## 完整配置示例
 
@@ -80,9 +73,6 @@ description: ExtraBackpack 配置文件详解
 
 ```yaml
 config-version: 2
-
-settings:
-  debug: false
 
 ui:
   register-ui-on-enable: true
@@ -98,11 +88,7 @@ extra-backpack:
       display-name: "装备"
       priority: 10
       slots:
-        initial: 9
-        max: 27
-      price:
-        currency: "points"
-        per-slot: 100
+        max: 999
       match:
         nbt:
           path: "pdc:arcartx:item_category"
@@ -111,11 +97,7 @@ extra-backpack:
       display-name: "材料"
       priority: 20
       slots:
-        initial: 9
-        max: 27
-      price:
-        currency: "points"
-        per-slot: 80
+        max: 999
       match:
         nbt:
           path: "pdc:arcartx:item_category"
@@ -125,20 +107,13 @@ extra-backpack:
       priority: 9999
       default: true
       slots:
-        initial: 9
-        max: 27
-      price:
-        currency: "points"
-        per-slot: 60
+        max: 999
 ```
 
 ### 自建 MySQL 存储配置
 
 ```yaml
 config-version: 2
-
-settings:
-  debug: false
 
 ui:
   register-ui-on-enable: true
@@ -163,11 +138,7 @@ extra-backpack:
       display-name: "装备"
       priority: 10
       slots:
-        initial: 9
-        max: 54
-      price:
-        currency: "vault"
-        per-slot: 500.0
+        max: 999
       match:
         nbt:
           path: "pdc:arcartx:item_category"
@@ -177,8 +148,7 @@ extra-backpack:
       priority: 9999
       default: true
       slots:
-        initial: 18
-        max: 54
+        max: 999
 ```
 
 ### Lore 匹配配置
@@ -191,8 +161,7 @@ extra-backpack:
       display-name: "任务物品"
       priority: 5
       slots:
-        initial: 9
-        max: 18
+        max: 999
       match:
         nbt:
           path: "lore"
@@ -201,11 +170,7 @@ extra-backpack:
       display-name: "消耗品"
       priority: 15
       slots:
-        initial: 9
-        max: 36
-      price:
-        currency: "points"
-        per-slot: 50
+        max: 999
       match:
         nbt:
           path: "material"
@@ -215,17 +180,13 @@ extra-backpack:
       priority: 9999
       default: true
       slots:
-        initial: 9
-        max: 27
+        max: 999
 ```
 
 ### 仅 Capability 模式（不注册 UI）
 
 ```yaml
 config-version: 2
-
-settings:
-  debug: false
 
 ui:
   register-ui-on-enable: false
@@ -242,8 +203,7 @@ extra-backpack:
       priority: 0
       default: true
       slots:
-        initial: 27
-        max: 54
+        max: 999
 ```
 
 > 此配置下模块仅提供 `ExtraBackpackAccess` Capability 供其他模块调用，不替换原版物品栏界面。
@@ -256,7 +216,6 @@ extra-backpack:
 | --- | --- | --- |
 | `storage.shared` | boolean | 必填 |
 | `storage.pool-size` | int | 范围 1-100 |
-| `settings.debug` | boolean | 可选 |
 | `ui.register-ui-on-enable` | boolean | 可选 |
 | `ui.overwrite-ui-files` | boolean | 可选 |
 | `extra-backpack.enabled` | boolean | 可选 |
@@ -273,7 +232,7 @@ extra-backpack:
 | `extra-backpack.operation-failed` | `操作失败，请查看控制台。` | - |
 | `extra-backpack.ui-required` | `请先打开额外背包界面。` | - |
 | `extra-backpack.action-token-invalid` | `&c操作令牌无效，请刷新额外背包界面后重试。` | - |
-| `extra-backpack.page-full` | `&c该分类页已满，部分物品未能存入。` | - |
+| `extra-backpack.page-full` | `&c仓库槽位已满，物品未能存入。` | - |
 | `extra-backpack.buy-invalid` | `&c请输入有效的购买数量。` | - |
 | `extra-backpack.buy-not-configured` | `&c该分类页未配置槽位价格，无法购买。` | - |
 | `extra-backpack.buy-maxed` | `&c该分类页槽位已达上限。` | - |

@@ -101,7 +101,7 @@ SnowLuma 进程/容器管理：
 | `status` | 查看 SnowLuma 状态（版本 / Node / 运行状态 / WebUI / 安装进度） |
 | `install` | 下载安装/部署 SnowLuma（异步执行，实时推送下载进度；native 模式优先下载自带 Node 运行时的完整版） |
 | `logs` | 查看最近日志（仅 Docker 模式） |
-| `password` | 查看 WebUI 登录信息（地址 / 账号 admin / 临时密码） |
+| `password` | 查看 WebUI 登录信息（地址 / 账号 admin / 临时密码）；`password reset` 重置密码（删除 webui.json 并重启，生成新临时密码） |
 | `check-update` | 检查是否有新版本（异步执行） |
 
 #### `/axs qqbot blacklist <add|remove|list> [QQ]`
