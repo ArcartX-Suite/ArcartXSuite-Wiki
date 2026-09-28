@@ -132,7 +132,7 @@ warehouses:
 
 ## 物品分类配置
 
-`categories` 节定义物品分类规则，按 NBT/PDC 路径匹配物品归属：
+`categories` 节定义物品分类规则，按**物品注册键**或 **NBT/PDC 路径**匹配物品归属，三组规则为"或"关系：
 
 ```yaml
 categories:
@@ -142,6 +142,10 @@ categories:
     nbt:
       path: "pdc:arcartx:item_category"   # NBT 匹配路径
       values: ["equipment", "weapon", "armor"]  # 匹配值列表
+  mod_items:
+    display-name: "Mod物品"
+    priority: 5
+    material-prefixes: ["tacz:", "apotheosis:"]   # 按 mod 命名空间分类
   material:
     display-name: "材料"
     priority: 20
@@ -157,12 +161,18 @@ categories:
 | 字段 | 类型 | 说明 |
 | --- | --- | --- |
 | `display-name` | string | 分类显示名称 |
-| `priority` | int | 排序优先级，数字越小越靠前 |
-| `nbt.path` | string | NBT/PDC 匹配路径（支持 `pdc:` 前缀读取 PersistentDataContainer） |
+| `priority` | int | 排序优先级，数字越小越靠前；先命中者优先 |
+| `material-ids` | list | 物品注册键精确匹配（`minecraft:diamond_sword`、`tacz:modern_kinetic_gun`） |
+| `material-prefixes` | list | 物品注册键前缀匹配（`tacz:` 命中全部 TaCZ 物品，`apotheosis:` 命中全部 Apotheosis 物品） |
+| `nbt.path` | string | NBT/PDC 匹配路径（支持 `pdc:` 前缀读取 PersistentDataContainer，也可用 `material`/`name`/`custom-model-data`） |
 | `nbt.values` | list | 匹配值列表，物品 NBT 路径值在此列表中即归入此分类 |
 | `default` | boolean | 是否为兜底分类（未匹配任何分类的物品归入此处） |
 
 > `other` 分类为系统内置兜底分类，始终存在，优先级 9999。
+>
+> 物品注册键指 Bukkit `Material.getKey()` 的全名（`命名空间:ID`）：原版物品为 `minecraft:<id>`，混合服 mod 物品为 `<modid>:<id>`（如 `tacz:modern_kinetic_gun`）。若只需精确匹配原版物品也可写 `nbt.path: "material"` + `values`（材质枚举名）。
+>
+> **注意**：`categoryId` 在物品入库时计算并随槽位记录持久化。新配规则生效后，已入库物品仍保持旧分类，重新存取一次（取出再存入）才会按新规则归类。
 
 ## 权限配置
 
