@@ -91,7 +91,9 @@ description: 配置文件详解与示例
 
 ## 全屏功能导航与悬停详情（1.5.0）
 
-内置 `AXS:menu_panel` 已改为全屏导航：左侧功能列表，右侧通高详情面板。`panel` 与 `full` 仍使用该 UI ID，`esc` 界面不变。内置新版采用单列宽幅条目；`columns` 仍保留在数据包中，供 ESC 或自定义 UI 使用，不再控制内置全屏列表的列数。
+内置 `AXS:menu_panel` 已改为全屏导航：左侧功能列表，右侧通高详情面板。`panel` 与 `full` 仍使用该 UI ID。内置新版采用单列宽幅条目；`columns` 仍保留在数据包中，供 ESC 或自定义 UI 使用，不再控制内置全屏列表的列数。
+
+内置 `AXS:menu_esc`（ESC 暂停界面）现为图标驱动布局：左侧通高窄工具栏（返回 / 页脚按钮图标 / ESC 提示），右侧为资料头部（圆形头像 / 昵称 / 等级+经验条 / 生命 / UID）、分区标题行与固定 4 列深色方格按钮网格（`columns` 配置对内置 esc 渲染不生效）。菜单按钮统一渲染 `icon` 配置的物品图标、标签收进方格内；悬停时底部操作说明行显示 `details.summary`（缺省回退 `description` 首行），不满足使用条件时显示禁用原因；`footer-buttons` 同样以图标渲染。
 
 鼠标停留在功能上后切换详情，离开后保留当前详情；点击左侧功能才执行动作。禁用功能仍可预览，但不会发送执行请求。长说明独立滚动，页脚较多时支持横向滚动。刷新按按钮 ID 保留预览，切换页面时重置滚动位置。
 
@@ -248,6 +250,16 @@ pages:
       shop:
         text: "&f商城"
         order: 0
+        icon:
+          material: EMERALD
+          name: "&f商城"
+        details:
+          summary: "旅途所需，皆备于此"
+          category: "交易服务 / SHOP"
+          accent: "#E2B76B"
+          description:
+            - "浏览服务器商店，选购装备、材料与补给。"
+          action-hint: "点击进入商城"
         actions:
           - "close"
           - "delay: 10"
@@ -255,6 +267,17 @@ pages:
       warehouse:
         text: "&f仓库系统"
         order: 1
+        icon:
+          material: CHEST
+          name: "&f仓库系统"
+        details:
+          summary: "为每一次冒险，留出新的空间"
+          category: "物资管理 / STORAGE"
+          accent: "#D6BE8F"
+          description:
+            - "把旅途中的收获妥善收藏，让背包轻装上阵。"
+            - "在仓库中浏览、整理和存取你的物品。"
+          action-hint: "点击打开仓库"
         actions:
           - "close"
           - "delay: 10"
@@ -262,6 +285,16 @@ pages:
       example:
         text: "&f功能菜单"
         order: 7
+        icon:
+          material: NETHER_STAR
+          name: "&f功能菜单"
+        details:
+          summary: "更多功能，由此展开"
+          category: "功能导航 / MENU"
+          accent: "#9DB4E0"
+          description:
+            - "进入功能菜单，浏览服务器提供的全部玩法入口。"
+          action-hint: "点击进入功能菜单"
         actions:
           - "open: example"
           - "close"
@@ -269,9 +302,17 @@ footer-buttons:
   options:
     text: "&f游戏选项"
     order: 0
+    icon:
+      material: COMPARATOR
+      name: "&f游戏选项"
     client-action: "options"
   quit:
     text: "&f退出游戏"
     order: 1
+    icon:
+      material: BARRIER
+      name: "&f退出游戏"
     client-action: "quit"
 ```
+
+> 模块自带的 `menus/esc_main.yml` 已为每个按钮配置 `icon` 与 `details`（含 `summary`/`category`/`accent`/`description`/`action-hint`），可直接参照修改。

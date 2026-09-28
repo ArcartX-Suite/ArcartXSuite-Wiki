@@ -177,6 +177,7 @@ Map 模块的 UI 交互通过 ArcartX Packet 通讯完成。客户端向服务�
 | `litRegions` | `List` | 已点亮多边形区域并集 |
 | `playerYaw` | `float` | 玩家朝向角度 |
 | `trackingText` | `String` | 导航追踪提示文本 |
+| `settings` | `Map<String, String>` | 仅 `init` 包携带：玩家地图设置字典（雷达/小地图外观等服务端留存偏好），UI 逐项 `applySetting` 套回 mod |
 
 > 玩家坐标不再经服务端下发——HUD 用 `Player.getPosX/Y/Z` 在客户端本地实时取值。
 
@@ -187,17 +188,25 @@ Map 模块的 UI 交互通过 ArcartX Packet 通讯完成。客户端向服务�
 | 方法 | 调用时机 | 说明 |
 |---|---|---|
 | `setRegion(x, y, w, h, scale)` | 大地图 UI `tick` 每帧 | 传递地图渲染区的屏幕坐标和缩放比例 |
-| `setHudAnchor(anchorX, anchorY, scale)` | HUD UI `tick` 每帧 | 传递小地图右上角锚点；mod 据此向左下延伸 hudSize×hudSize 区域 |
+| `setHudAnchor(anchorX, anchorY, scale)` | HUD UI `tick` 每帧 | 传递小地图锚点（UI 按 `getHudPosition()` 所选四角位置计算）；mod 据此延伸 hudSize×hudSize 区域 |
 | `setWorldId(worldId)` | `packetHandler` init/update | 设置当前世界 ID |
 | `setWorldDimension(worldId, dimension)` | `packetHandler` init/update | 注册 worldId → MC 维度 key 映射 |
 | `setLitRegions(worldId, regions)` | `packetHandler` init/update | 下发已点亮区域多边形并集（传 `none` = 全亮） |
 | `clearMarkers()` + `addMarker(id, type, name, x, z, selected, tracked, unlocked)` | `packetHandler` init/update 后 | 同步标点（`anchor`/`waypoint`/`external`/`pin`） |
 | `getHudSize()` / `getHudShape()` | HUD UI `tick` | 读取 mod 内的小地图尺寸/形状供装饰控件使用 |
 | `getMode()` / `deactivate()` / `closeHud()` | HUD UI `tick`/`close` | 渲染模式管理与停用（`deactivate` 延迟防抖，`closeHud` 立即停用） |
+| `toggleRadar()` / `isRadarEnabled()` | 设置面板 / 按 `V` | 实体雷达开关（小地图 + 大地图圆点） |
+| `toggleRadarNames()` / `isRadarNames()` | 设置面板 | 实体名称标签开关 |
+| `toggleRadarPlayers()` / `toggleRadarHostile()` / `toggleRadarPassive()`（+ `isRadar*()`） | 设置面板 | 玩家 / 怪物 / 动物逐类显隐 |
+| `cycleRadarNameScale()` | 按 `B` | 雷达名称字号循环（0.45 / 0.65 / 0.85） |
+| `toggleMenuCaveView()` / `isMenuCaveView()` | 大地图图层按钮 | 地表 ↔ 洞穴切片视图切换 |
+| `cycleCaveDepth()` / `getCaveDepthText()` | 洞深按钮 / 按 `N` | 洞穴切片深度循环（16 / 30 / 48 / 64） |
+| `setHudShape()` / `setHudPosition()` / `adjustHudSize()` / `adjustHudZoom()`（+ `getHudPosition()` / `getHudZoom()`） | 设置面板 | 小地图形状 / 四角位置 / 尺寸 / 缩放调整 |
+| `applySetting(key, value)` | HUD `init` 包 `settings` 字典 | 服务端留存设置逐项套回 mod（只写本地不上报） |
 
 > mod 未安装时 `axsmap.getMapRenderer()` 抛异常（UI 已用 `try/catch` 兜底），地图渲染区保持空白，列表与详情面板功能不受影响。HUD 停止调用 `setHudAnchor` 约 150ms 后 mod 看门狗自动停用渲染。
 >
-> 小地图形状（圆形/方形）、尺寸、缩放由玩家在客户端用按键调整：`[` 切换形状、`+`/`-` 调整尺寸、`,`/`.` 调整缩放。
+> 客户端默认按键：`V` 切实体雷达、`Z` 循环小地图缩放档、`N` 循环洞穴深度、`B` 循环雷达名称字号（均为原版 KeyBinding，可在 MC 控制设置中改键）；`[` 切形状、`+`/`-` 调尺寸、`,`/`.` 微调缩放为固定轮询键，仅 HUD 激活且无界面打开时生效。同一组选项也可在大地图顶栏「设置」面板中调整。
 
 ## 消息文件
 
