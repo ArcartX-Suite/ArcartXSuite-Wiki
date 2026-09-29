@@ -1,0 +1,95 @@
+---
+title: 命令与占位符
+description: Abyss 命令、权限与 PlaceholderAPI 占位符
+---
+
+# 命令与占位符
+
+## 玩家命令
+
+`/abyss`（别名 `/axsabyss`），仅限玩家执行，权限 `arcartxsuite.abyss.use`。
+
+| 命令 | 说明 |
+|---|---|
+| `/abyss` | 打开地牢浏览器 UI（无客户端时显示列表） |
+| `/abyss enter <地牢>` | 进入指定地牢（检查体力/冷却/货币/物品/权限） |
+| `/abyss leave` | 离开当前副本，传送回进本前位置 |
+| `/abyss list` | 列出可进入的地牢 |
+| `/abyss info` | 显示当前副本信息（地牢/状态/人数） |
+| `/abyss stamina` | 查看当前体力 |
+| `/abyss rank <地牢>` | 打开排行榜 UI（别名 `top`） |
+| `/abyss party` | 打开队伍面板（等同 `/party`） |
+| `/abyss ui` | 重开/刷新 UI（调试用） |
+
+## 队伍命令
+
+`/party`（别名 `/axsparty`），权限 `arcartxsuite.abyss.party`。
+
+| 命令 | 说明 |
+|---|---|
+| `/party` | 打开队伍面板 UI |
+| `/party create` | 创建队伍（队长身份） |
+| `/party invite <玩家>` | 邀请玩家入队 |
+| `/party accept` | 接受最新邀请 |
+| `/party leave` | 离开队伍 |
+| `/party kick <玩家>` | 踢出成员（队长，支持离线成员按 UUID） |
+| `/party leader <玩家>` | 转让队长 |
+| `/party chat <消息>` | 队内聊天 |
+| `/party list` | 列出队伍成员 |
+| `/party disband` | 解散队伍（队长） |
+
+## 管理员命令
+
+`/axs abyss <子命令>`，由 `ModuleCommandHandler` 注册，走 `/axs` 主命令权限。
+
+| 命令 | 说明 |
+|---|---|
+| `/axs abyss help` | 管理命令帮助 |
+| `/axs abyss status` | 模块状态（模板数/运行实例） |
+| `/axs abyss list` | 列出地牢模板与运行中实例 |
+| `/axs abyss info <地牢>` | 模板详情（世界来源/人数/时限/怪物组数） |
+| `/axs abyss enter <地牢> [玩家]` | 强制进本（绕过条件检查，控制台需指定玩家） |
+| `/axs abyss leave` | 离开当前副本 |
+| `/axs abyss force_complete [玩家]` | 强制该玩家所在实例通关 |
+| `/axs abyss force_fail [玩家]` | 强制该玩家所在实例失败 |
+| `/axs abyss cancel <地牢>` | 取消该地牢全部运行中实例 |
+| `/axs abyss stamina <玩家> give\|set <值>` | 体力管理 |
+| `/axs abyss cooldown <玩家> clear\|check [地牢]` | 冷却管理 |
+| `/axs abyss tp <地牢>` | 传送到该地牢实例世界 |
+| `/axs abyss reload` | 重载全部地牢模板（`abysses/` 目录） |
+
+## 权限节点
+
+| 权限节点 | 默认 | 说明 |
+|---|---|---|
+| `arcartxsuite.abyss.use` | `true` | `/abyss` 玩家命令 |
+| `arcartxsuite.abyss.party` | `true` | `/party` 队伍命令 |
+
+> 管理命令走 `/axs` 宿主权限（`arcartxsuite.admin`，默认 OP）。副本内禁用命令由 `restrictions.blocked-commands` + 地牢 `disabled_commands` 双重控制。
+
+## PlaceholderAPI 占位符
+
+模块注册扩展 `axsabyss`（`%axsabyss_*%`），需 PlaceholderAPI。
+
+| 占位符 | 返回 | 说明 |
+|---|---|---|
+| `%axsabyss_stamina%` | 当前体力 | |
+| `%axsabyss_stamina_max%` | 最大体力 | |
+| `%axsabyss_in_dungeon%` | `true`/`false` | 是否在副本中 |
+| `%axsabyss_dungeon_id%` | 地牢 ID | 副本外为空 |
+| `%axsabyss_dungeon_name%` | 地牢显示名 | 副本外为空 |
+| `%axsabyss_dungeon_time%` | 已进行秒数 | 副本外为 `0` |
+| `%axsabyss_deaths%` | 本副本死亡数 | |
+| `%axsabyss_alive_count%` | 存活玩家数 | |
+| `%axsabyss_dungeon_kills%` | 本副本个人击杀 | 副本任务常用 |
+| `%axsabyss_dungeon_total_kills%` | 本副本全队击杀 | |
+| `%axsabyss_party_size%` | 队伍人数 | 无队伍为 `0` |
+| `%axsabyss_party_name%` | 队伍名 | 无队伍为空 |
+| `%axsabyss_party_leader%` | 队长名 | 离线队长显示 UUID 前 8 位 |
+| `%axsabyss_cooldown_<地牢>%` | 剩余冷却秒数 | |
+| `%axsabyss_completions_<地牢>%` | 该地牢通关次数 | |
+| `%axsabyss_best_time_<地牢>%` | 该地牢最佳通关秒数 | |
+
+## 消息文件
+
+`messages.yml` 位于 `plugins/ArcartX-Suite/data/abyss/`，支持 `&` 颜色码与 `{0}`/`{1}` 占位符，覆盖进本提示、组队通知、死亡/通关/失败、体力不足、冷却中、UI 未启用等全部玩家可见文案。修改后 `/axs reload abyss` 生效。

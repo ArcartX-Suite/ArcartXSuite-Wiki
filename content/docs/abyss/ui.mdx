@@ -1,0 +1,65 @@
+---
+title: UI 界面
+description: Abyss 的 7 个 ArcartX UI 与客户端通讯协议
+---
+
+# UI 界面
+
+Abyss 注册 7 个 ArcartX UI（`AXS:<id>`），全部随模块 jar 打包在 `arcartx/ui/` 下，首次启动导出到 `plugins/ArcartX-Suite/ui/` 并由 `registerModuleUi` 注册到 ArcartX 桥。UI ID 可在 `config.yml ui` 节修改（自动补 `AXS:` 前缀）。
+
+## UI 一览
+
+| UI 文件 | 默认 ID | 打开方式 | 用途 |
+|---|---|---|---|
+| `abyss_browser.yml` | `AXS:abyss_browser` | `/abyss` | 地牢浏览器：左侧地牢卡片滚动列表 + 右侧详情（难度/人数/条件/描述）+ 进入/队伍/刷新 |
+| `abyss_confirm.yml` | `AXS:abyss_confirm` | 浏览器点「进入」 | 进本确认：显示体力/门票/冷却/限时摘要 |
+| `abyss_party.yml` | `AXS:abyss_party` | `/party` 或浏览器「队伍」 | 队伍面板：成员列表（队长冠标/在线点/踢出/转让）+ 邀请输入 + 邀请接受 + 队聊 |
+| `abyss_chest.yml` | `AXS:abyss_chest` | 脚本 `open_chest_ui` | 宝箱：权重抽取的物品槽 + 单个/全部领取 |
+| `abyss_hud.yml` | `AXS:abyss_hud` | 进本自动开启 | 副本 HUD：波次进度/存活怪/存活玩家/剩余时间条/任务追踪，每秒推送 |
+| `abyss_stats.yml` | `AXS:abyss_stats` | 副本结束（`auto-show`） | 战斗统计表：击杀/伤害/承伤/治疗按玩家分行 |
+| `abyss_leaderboard.yml` | `AXS:abyss_leaderboard` | `/abyss rank <地牢>` / 通关自动 | 排行榜：前三名金银铜高亮 |
+
+> 客户端需安装 ArcartX MOD 才能显示 UI；无客户端时 `/abyss` 回落为命令文本（列表/进本正常），宝箱直接发放不吞奖励。
+
+## 客户端→服务端协议
+
+客户端通过 `Packet.send('abyss', '<action>', ...)` 向服务端发包，`AbyssUiService.handlePacket` 路由到对应处理。所有敏感操作（进本/踢人/转让/领取）都校验 `action_token`，防止伪造包。
+
+| action | 参数 | 说明 |
+|---|---|---|
+| `enter` | `data[1]`=地牢ID, `data[2]`=action_token | 进本（浏览器「进入」按钮） |
+| `refresh_browser` | — | 刷新浏览器地牢列表 |
+| `open_party_ui` | — | 打开队伍面板 |
+| `party_invite` | `data[1]`=玩家名 | 邀请玩家 |
+| `party_accept` | `data[1]`=邀请方 | 接受邀请 |
+| `party_leave` | — | 离开队伍 |
+| `party_disband` | — | 解散队伍（队长） |
+| `party_kick` | `data[1]`=UUID/名字 | 踢出成员（优先按 UUID，支持离线） |
+| `party_transfer` | `data[1]`=UUID/名字 | 转让队长（支持离线） |
+| `party_chat` | `data[1]`=消息 | 队聊 |
+| `chest_claim` | — | 宝箱全部领取 |
+| `chest_claim_one` | `data[1]`=槽位索引 | 宝箱单个领取 |
+| `open_stats` | — | 打开统计界面 |
+
+## 服务端→客户端
+
+服务端用 `packetBridge.sendPacket(player, "AXS:<ui>", "<handler>", payload)` 推送数据，`packetId` 字段恒为 `"abyss"`：
+
+| Packet | handler | 内容 |
+|---|---|---|
+| 浏览器 init | `init` | `dungeons` 字典（id/name/difficulty/iconJson/desc0-2/条件摘要）、`canEnter` 等 |
+| 确认 init | `init` | 选中地牢详情字段 |
+| 队伍 init/update | `init`/`update` | `memberRows`（uuid/name/leader/online）、邀请列表、队聊 |
+| 宝箱 init | `init` | `title`/`rows`/`items`（每槽 `itemJson`，空槽 AIR） |
+| HUD update | `update` | 每秒推送：`progress`/`aliveMobs`/`alivePlayers`/`timeLeft`/`questRows` |
+| 统计 init | `init` | `rows` 字典（玩家名+击杀/伤害/承伤/治疗） |
+| 排行榜 init | `init` | `rows` 字典（玩家名+通关耗时+名次） |
+
+## HUD 生命周期
+
+- 玩家进本 `startInstance` 成功 → `openUiUnsafe` 打开 HUD → 每秒推送 `update`（只在 HUD 实际打开过的玩家上推送，未打开不发无效包）
+- 出本/掉线 `handleQuit` → 关闭 HUD + 清理 token，防止会话态泄漏
+
+## 自定义 UI
+
+`plugins/ArcartX-Suite/ui/abyss_*.yml` 是导出文件，可直接改文案/配色/布局；改完 `ui.overwrite-ui-files: false` 时重启不被覆盖（设 `true` 强制重导出）。UI 开发遵循 ArcartX ARIA 规范——多行文本用 `texts` 列表、动态列表用模板复制+引用字典、字典 key 用 `.round()` 整数索引、`seticon` 需显式触发。

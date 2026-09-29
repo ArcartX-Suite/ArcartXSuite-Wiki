@@ -1,0 +1,265 @@
+---
+title: 地牢模板编写
+description: abysses/<地牢ID>/ 下各 YAML 的字段规范
+---
+
+# 地牢模板编写
+
+每个地牢是 `plugins/ArcartX-Suite/data/abyss/abysses/<地牢ID>/` 下的一个目录，目录名即地牢 ID（建议小写英文+下划线）。模块首次启动会自动导出 `abysses/example/` 示例地牢——直接复制改配置即可得到新副本。
+
+## 目录结构
+
+```
+abysses/<地牢ID>/
+├── config.yml       ← 地牢基本信息（必需）
+├── monsters.yml     ← 怪物组/波次
+├── scripts.yml      ← 生命周期脚本
+├── tasks.yml        ← 副本内定时/事件任务
+├── interacts.yml    ← 交互点
+├── obstacles.yml    ← 障碍物
+├── npcs.yml         ← 副本 NPC
+├── quests.yml       ← 副本任务
+├── rewards.yml      ← 奖励集/宝箱
+└── world/           ← 世界文件夹（可选，含 level.dat）
+```
+
+> 除 `config.yml` 外所有文件均可省略，缺失时使用空配置。
+
+## config.yml — 地牢主配置
+
+```yaml
+name: "&6虚空试炼场"           # 显示名（支持 & 颜色码）
+icon: "END_STONE"            # 浏览器卡片图标（Material 名）
+difficulty: "简单"            # 难度标签（显示用）
+description:                  # 描述（列表，逐行显示在详情面板）
+  - "&7在虚空平台上击退两波怪物"
+
+world:
+  template: "void"           # 世界来源，见下表
+  spawn: "0,80,0,90,0"       # 出生点 x,y,z,yaw,pitch（副本世界坐标）
+
+time_limit: 600              # 限时（秒），超时触发 timeout_action
+timeout_action: "FAIL"       # FAIL=判负 / KICK=踢出
+max_instances: 0             # 该地牢最大并行实例数，0=不限
+
+requirements:
+  min_players: 1             # 最小进本人数
+  max_players: 4             # 最大进本人数
+  party_required: false      # 是否必须组队
+  min_level: 0               # 最低玩家等级（0=不限）
+  max_level: 0               # 最高等级（0=不限）
+  cooldown: 300              # 通关冷却（秒），按玩家+地牢独立计时
+  money_cost: 0              # 货币消耗
+  currency_id: "money"       # 货币 ID（宿主 currencies 定义）
+  stamina_cost: 10           # 体力消耗
+  required_items: []         # 进本消耗物品列表
+  required_permissions: []   # 需要的权限节点
+  conditions: []             # PAPI 条件表达式（如 "%player_level% >= 10"）
+  disabled_commands: [spawn] # 本副本额外禁用命令（叠加全局 restrictions）
+  disabled_items: []         # 本副本额外禁用物品
+```
+
+### world.template（世界来源）
+
+| 值 | 说明 |
+|---|---|
+| `void` | 生成虚空世界（全空气），用 `init` 脚本现场搭场景。零依赖最简方案 |
+| 目录名 | `abysses/<地牢ID>/world/` 下的完整世界存档文件夹（需含 `level.dat`），逐实例复制 |
+| `maps/<名>` 或 `.schem` | WorldEdit/FAWE schematic，粘贴到虚空世界。需安装 WorldEdit 或 FAWE |
+
+## monsters.yml — 怪物组/波次
+
+顶层每个 key 是一个怪物组 ID，组内 `monsters` 为刷怪点列表：
+
+```yaml
+wave_1:
+  spawn_timing: AUTO_START            # 触发方式，见下表
+  monsters:
+    - mob_id: "vanilla:ZOMBIE"        # vanilla: 强制原版 / 无前缀走 MythicMobs
+      location: "3,80,3"              # x,y,z
+      amount: 3
+  complete_when_alive_below: 0        # 存活数低于此值时组完成
+  on_start:                           # 组开始时执行的脚本动作
+    - "message @all &e第一波来袭！"
+  on_end:                             # 组完成时执行
+    - "spawn_group wave_2"
+```
+
+| spawn_timing | 触发时机 |
+|---|---|
+| `AUTO_START` | 副本 start 脚本后自动刷 |
+| `DELAYED` | 延迟触发（配合 `trigger_after` 或脚本） |
+| `TRIGGERED` | 由其他组的 `on_end` 中 `spawn_group <组>` 触发 |
+| `MANUAL` / `SCRIPTED` | 仅脚本动作 `spawn_group` 触发 |
+
+`mob_id` 路由规则：`vanilla:` 前缀强制原版；其余尝试 MythicMobs，加载失败自动回退原版同类型实体。
+
+## tasks.yml — 副本内任务
+
+```yaml
+tips:
+  type: TIMED                        # 指定秒数触发
+  times: [60, 300, 540]
+  timed_scripts:
+    60: ["message @all &7已进行 1 分钟"]
+    300: ["message @all &e时间过半！"]
+
+supply:
+  type: INTERVAL                     # 循环任务
+  interval: 120                      # 每 120 秒
+  script:
+    - "message @all &7补给已投放"
+
+on_kill:
+  type: EVENT                        # 事件任务
+  event: monster_kill                # 怪物被击杀
+  script:
+    - "setvar last_killer {killer}"
+```
+
+| type | 触发方式 |
+|---|---|
+| `TIMED` | 副本进行到 `times` 列出的秒数时执行对应 `timed_scripts` |
+| `INTERVAL` | 每 `interval` 秒循环执行 `script` |
+| `EVENT` | 指定事件发生时执行（如 `monster_kill`，上下文含 `{killer}`） |
+
+## interacts.yml — 交互点
+
+```yaml
+trial_chest:
+  type: RIGHT_CLICK_BLOCK            # 见下表
+  location: "5,80,5"                 # 方块坐标（方块型用）
+  region: ["0,60,0", "20,80,20"]     # 区域对角（区域型用）
+  entity_name: "宝箱守卫"             # 实体名（RIGHT_CLICK_ENTITY 用）
+  required_block: "GOLD_BLOCK"       # 要求的目标方块
+  once: true                         # 一次性触发
+  conditions: []                     # PAPI 条件
+  fail_message: "&c条件不满足"        # 条件失败提示（独立 5 秒节流）
+  script:                            # 触发时执行
+    - "open_chest_ui @trigger trial_chest"
+```
+
+| type | 说明 |
+|---|---|
+| `RIGHT_CLICK_BLOCK` / `LEFT_CLICK_BLOCK` | 右键/左键 `location` 处指定方块 |
+| `BREAK_BLOCK` / `PLACE_BLOCK` | 破坏/放置 `location` 处方块 |
+| `STEP_ON` | 站上 `location` 处方块 |
+| `ENTER_REGION` | 进入 `region` 区域（边沿触发，离开后再进可重触发） |
+| `RIGHT_CLICK_ENTITY` | 右键名为 `entity_name` 的实体 |
+
+> 防抖：同一玩家对同一交互点 500ms 内不重复触发；条件失败的提示消息独立节流 5 秒。
+
+## obstacles.yml — 障碍物
+
+障碍物是副本开始时自动放置的方块组，可用于封路/边界/装饰：
+
+```yaml
+edge_wall:
+  blocks:
+    - "-7,79,-7,BEDROCK"             # x,y,z,Material
+    - "-7,79,7,BEDROCK"
+  auto_create: true                  # 副本开始时自动放置
+  trigger_mode: NONE                 # NONE / ENTER / LEAVE / PERSIST
+  on_delete: []                      # 障碍移除时执行的脚本
+```
+
+| trigger_mode | 说明 |
+|---|---|
+| `NONE` | 纯方块组，无触发 |
+| `ENTER` / `LEAVE` | 玩家进入/离开障碍区域时触发脚本 |
+| `PERSIST` | 玩家在区域内持续期间按周期触发 |
+
+脚本可用 `create_obstacle <名>` / `delete_obstacle <名>` 动态控制。
+
+## npcs.yml — 副本 NPC
+
+```yaml
+guide:
+  name: "&e向导·艾琳"                # 显示名
+  type: VILLAGER                     # 实体类型；有 Adyeshach 时可写 PLAYER
+  location: "0,80,-5,0,0"            # x,y,z,yaw,pitch
+  look_at_player: true               # 注视附近玩家
+  dialogs:                           # 右键时逐句播放的对话
+    - "&e欢迎来到虚空试炼场！"
+  dialog_interval: 40                # 对话间隔（tick）
+  click_script:                      # 右键时执行的脚本
+    - "quest_step slay_guard"
+  once: false
+```
+
+> 装 Adyeshach 时 NPC 用其渲染（支持 PLAYER 皮肤型）；未装时退化为原版实体。
+
+## quests.yml — 副本任务
+
+副本任务采用「NPC 接取/条件提交」模型，与 Chemdah 等外部任务插件无关：
+
+```yaml
+slay_guard:
+  name: "讨伐虚空怪物"
+  description: "击杀 5 只副本怪物后回来找向导领取报酬"
+  accept_text: "&e[艾琳] &f拜托了！击杀 5 只怪物后回来找我。"
+  accept_script:
+    - "message @trigger &a已接取任务"
+  submit_text: "&e[艾琳] &f这是说好的报酬。"
+  submit_conditions:
+    - "%axsabyss_dungeon_kills% >= 5"   # PAPI 条件
+  submit_script:
+    - "grant_reward @trigger quest_pack"
+```
+
+配合脚本动作：`quest_step <任务>`（未接取→接取，已接取→提交，推荐 NPC `click_script` 用）、`accept_quest` / `submit_quest` / `quest_status`。
+
+## rewards.yml — 奖励集与宝箱
+
+### 命名奖励集
+
+`grant_reward <集名>` 脚本动作调用：
+
+```yaml
+rewards:
+  clear_pack:
+    items:
+      - "material:DIAMOND:3"         # material:<材质>:<数量>
+      - "material:GOLDEN_APPLE:2"
+    money: 100                       # 货币（走宿主 currencyManager）
+    currency: "money"
+    exp: 50
+    commands: []                     # 控制台命令（%player% 占位）
+```
+
+物品写法 `material:<Material>:<数量>`；MythicMobs/NeigeItems 等外源物品经宿主 ItemSourceRegistry 生成（写法见 integration 页）。
+
+随机奖励集：
+
+```yaml
+  random_pack:
+    type: random
+    picks: 1                         # 抽取次数
+    pool:
+      - reward: clear_pack           # 引用其他集
+        weight: 80
+      - reward: quest_pack
+        weight: 20
+```
+
+### 宝箱奖励
+
+`open_chest_ui @trigger <名>` 打开宝箱 UI（无 ArcartX 客户端时直接发放）：
+
+```yaml
+chest_rewards:
+  trial_chest:
+    title: "试炼宝箱"
+    rows: 3                          # UI 行数
+    options:                         # 权重抽取的物品槽
+      - item: "material:IRON_INGOT:5"
+        weight: 50
+      - item: "material:DIAMOND:2"
+        weight: 20
+```
+
+宝箱 UI 支持单个/全部领取；玩家未领取关闭时服务端自动全发兜底，不吞奖励。
+
+## scripts.yml — 生命周期脚本
+
+详见 [脚本系统](/docs/abyss/scripting)。

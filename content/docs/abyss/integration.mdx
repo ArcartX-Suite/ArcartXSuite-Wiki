@@ -1,0 +1,95 @@
+---
+title: 集成与兼容性
+description: Abyss 外部依赖、跨模块能力、服务端兼容性与故障排查
+---
+
+# 集成与兼容性
+
+## 外部插件集成
+
+| 插件 | 必需性 | 集成的功能 |
+|---|---|---|
+| PlaceholderAPI | **硬依赖** | 条件占位符解析（`requirements.conditions`/`submit_conditions`/`check`）+ 注册 `%axsabyss_*%` 扩展 |
+| MythicMobs | 软依赖 | `monsters.yml` 中无前缀/`mythic:` 怪物经 MM 生成；`cast_skill`/`play_model_animation` 脚本动作 |
+| WorldEdit / FAWE | 软依赖 | `world.template` 为 schematic 时的粘贴；`void`/世界文件夹来源不需要 |
+| Adyeshach | 软依赖 | NPC 渲染（`npcs.yml` 的 PLAYER 型皮肤 NPC）；未装时 NPC 退化为原版实体 |
+| Vault | 间接 | 货币消耗/奖励经宿主 `currencyManager` → Vault 等货币源 |
+| ArcartX MOD | 客户端 | 全部 UI/HUD 展示；无客户端副本仍可正常玩（命令进本、宝箱直接发放） |
+
+### MythicMobs 怪物路由
+
+`monsters.yml` 的 `mob_id` 按前缀路由：
+
+```
+vanilla:ZOMBIE       → 原版 ZOMBIE
+SkeletalKnight       → MythicMobs SkeletalKnight（失败回退原版 SKELETON 同类）
+mythic:SkeletalKnight→ 同上，显式前缀
+```
+
+MM 不可用时全部 mob_id 按原版实体名解析，副本不会因此崩溃。
+
+### 物品来源
+
+`rewards.yml`/`required_items` 中的物品描述经宿主 `ItemSourceRegistry` 统一生成，支持 `material:`（原版）及 MythicMobs/NeigeItems/Overture/MMOItems 等外源前缀（见宿主物品来源配置）。
+
+## 跨模块能力
+
+模块注册 `AbyssQueryable` Capability（`axs-api`，`@Stable`）供其他模块查询玩家地牢状态：
+
+```java
+AbyssQueryable abyss = getCapability(AbyssQueryable.class);
+if (abyss != null && abyss.isInDungeon(player.getUniqueId())) {
+    String dungeon = abyss.currentDungeonId(player.getUniqueId());
+}
+```
+
+| 方法 | 说明 |
+|---|---|
+| `isInDungeon(uuid)` | 是否在副本中 |
+| `currentDungeonId(uuid)` | 当前地牢 ID（不在副本为 null） |
+| `currentRunningSeconds(uuid)` | 当前副本已运行秒数 |
+| `cooldownRemaining(uuid, dungeonId)` | 剩余冷却 |
+| `stamina(uuid)` | 体力（体力系统关闭返回 -1） |
+| `completions(uuid, dungeonId)` | 通关次数 |
+| `bestTime(uuid, dungeonId)` | 最佳通关秒数 |
+| `dungeonIds()` | 全部地牢模板 ID |
+
+## 服务端兼容性
+
+| 平台 | 状态 |
+|---|---|
+| Spigot / Paper 1.20.1+ | 完全支持（`api-version` 声明） |
+| Mohist | 兼容：虚空世界用 `NORMAL + VoidGenerator` 生成（规避 Mohist 上 `WorldType.FLAT` 空 layers 配置报错）；玩家命令 `abyss`/`party` 在宿主 `plugin.yml` 静态声明，不依赖运行时 CommandMap 注册 |
+
+> `abyss.nms-fast-load` 默认开启快速世界加载通道，在不支持的服务端上自动回退纯 Bukkit API，不会产生错误。
+
+## 数据持久化
+
+| 数据 | 存储 |
+|---|---|
+| 体力/冷却/通关记录/最佳时间 | SQLite（`data/abyss/abyss.db`）或 MySQL（`storage.mode`） |
+| 排行榜 | 同上，按地牢独立榜单 |
+| 副本实例/变量/会话态 | 纯内存，实例结束销毁 |
+
+玩家掉线：副本内玩家退出时恢复并移出实例；HUD/宝箱 token 清理在 `handleQuit` 中无条件执行，不留会话态。
+
+## 故障排查
+
+| 现象 | 排查方向 |
+|---|---|
+| `/abyss` 未知命令 | 宿主 jar 未更新到含 `abyss`/`party` 声明的版本——这两个命令走 `plugin.yml` 静态声明，模块热更新不生效；更新宿主后重启 |
+| `/abyss` 执行无响应 | UI 未注册：模块版本过旧（UI 注册在 `1b40ae61` 加入）或 `ui.register-on-enable: false`；检查服务端日志 `Abyss UI 注册` 相关行 |
+| 进本后聊天栏疯狂重复消息 | 旧版本 `InteractManager` 防抖失效 + failMessage 无节流，已修复；升级模块 |
+| `No key layers in MapLike[{}]` | Mohist + `WorldType.FLAT` 已知问题，已改 `VoidGenerator`，升级模块 |
+| `[Script] JavaScript ScriptEngine 不可用` | 服务端无 Nashorn/GraalJS，`js:` 动作被跳过——避免用 `js:` 前缀（示例地牢未用） |
+| `MythicBukkit 未安装` 警告 | `external-softdepends` 同时声明 MythicMobs/MythicBukkit 的正常提示，MM 接入不受影响 |
+| MythicMobs 怪物没刷出/变成原版怪 | MM 加载失败自动回退原版，检查服务端日志 `MythicMobs` 接入行与怪物 ID 拼写 |
+| 宝箱二次打开残留旧图标 | 旧版本 `seticon` 未显式触发，已修复（属性声明 + init 显式 `seticon()`） |
+| 离线队员踢不掉 | 旧版本按名字查找，已改为 UUID 优先 |
+| 世界实例残留不删 | `instance-cleanup-timeout` 过长或实例未正常结束；`/axs abyss status` 看实例，`/axs abyss cancel <地牢>` 强制清 |
+
+## 已知限制
+
+- `js:` 内联脚本需服务端装 Nashorn/GraalJS，默认 Java 17 不含 JS 引擎（Aria 脚本 `aria:` 不受影响）
+- 排行榜/统计 UI 需 ArcartX 客户端，无客户端时数据仍落库但不可视化
+- schematic 世界来源需 WorldEdit/FAWE，未装时该类型模板无法加载（`void`/文件夹来源不受影响）

@@ -1,0 +1,161 @@
+---
+title: 脚本系统
+description: 生命周期脚本、动作清单与选择器
+---
+
+# 脚本系统
+
+Abyss 的副本流程由 `scripts.yml` 中的生命周期脚本驱动。每个脚本段是一串动作行，按顺序执行；`wait <秒>` 挂起当前脚本（不阻塞其他脚本），`{player}`/`{killer}` 等占位符在运行时展开。
+
+## 生命周期段
+
+| 段名 | 触发时机 |
+|---|---|
+| `init` | 世界加载完成后、玩家传送前（虚空世界在此搭场景） |
+| `start` | 玩家已传送，副本正式开始 |
+| `complete` | 通关（脚本 `complete_dungeon` 或怪物组条件触发） |
+| `fail` | 失败（脚本 `fail_dungeon`、团灭、超时 FAIL） |
+| `player_death` | 副本内玩家死亡（`{player}` = 死者，`@trigger` 指向该玩家） |
+| `all_death` | 全员死亡（配合 `team-wipe-mode`） |
+| `exit` | 玩家离开副本（`@trigger` = 离开者） |
+
+```yaml
+init:
+  - "fillblocks -6,79,-6 6,79,6 END_STONE"
+  - "message @all &7正在构建竞技场..."
+
+start:
+  - "bossbar @all 600 RED SOLID &c虚空试炼场"
+
+complete:
+  - "grant_reward @all clear_pack"
+  - "wait 3"
+  - "exit_dungeon @all"
+
+fail:
+  - "exit_dungeon @all"
+
+player_death:
+  - "wait 5"
+  - "revive_player @trigger"
+
+all_death:
+  - "fail_dungeon"
+```
+
+## 选择器
+
+动作行中 `选择器` 位置支持：
+
+| 选择器 | 指向 |
+|---|---|
+| `@all` | 副本内全部玩家 |
+| `@trigger` | 触发者（交互点触发者/死亡者/NPC 点击者等上下文玩家） |
+| `@random` | 随机一名副本内玩家 |
+| `@dead` | 当前死亡的玩家 |
+| 玩家名 | 指定玩家 |
+
+## 动作清单
+
+> 统一格式：`<动作> [选择器] <参数...>`。无选择器的动作直接作用于副本上下文。
+
+### 消息与展示
+
+| 动作 | 用法 |
+|---|---|
+| `message` | `message <选择器> <文本>` 发消息（& 颜色码） |
+| `broadcast` | `broadcast <文本>` 全服广播 |
+| `title` | `title <选择器> <fadeIn> <stay> <fadeOut> <主标题\|副标题>` |
+| `actionbar` | `actionbar <选择器> <文本>` |
+| `sound` | `sound <选择器> <音效> <音量> <音高>` |
+| `effect` | `effect <选择器> <粒子> <参数>` |
+| `firework` | `firework <选择器> <类型> <颜色>` |
+| `bossbar` | `bossbar <选择器> <秒> <颜色> <样式> <标题>` |
+| `announce` | `announce <文本>` 公告 |
+
+### 玩家操作
+
+| 动作 | 用法 |
+|---|---|
+| `teleport` | `teleport <选择器> <x,y,z>` 副本内传送 |
+| `teleport_dungeon` | 传送进副本出生点 |
+| `heal` | `heal <选择器> <血量>` |
+| `feed` | `feed <选择器>` 恢复饥饿 |
+| `gamemode` | `gamemode <选择器> <模式>` |
+| `fly` | `fly <选择器> <true/false>` |
+| `apply_potion` | `apply_potion <选择器> <药水> <秒> <等级>` |
+| `clear_potion` | `clear_potion <选择器>` |
+| `give_exp` | `give_exp <选择器> <经验>` |
+| `setlevel` | `setlevel <选择器> <等级>` |
+| `velocity` | `velocity <选择器> <x,y,z>` 击退/推进 |
+| `revive_player` | `revive_player <选择器>` 复活副本内死亡玩家 |
+
+### 物品与命令
+
+| 动作 | 用法 |
+|---|---|
+| `give_item` | `give_item <选择器> <物品描述>` |
+| `take_item` | `take_item <选择器> <物品描述>` |
+| `clear_inventory` | `clear_inventory <选择器>` |
+| `command` | `command <选择器> <命令>` 玩家执行 |
+| `console` | `console <命令>` 控制台执行（`%player%` 占位） |
+| `player_command` | 玩家身份执行命令 |
+| `op_command` | 以 OP 权限执行 |
+| `give_money` | `give_money <选择器> <金额>` |
+
+### 副本流程控制
+
+| 动作 | 用法 |
+|---|---|
+| `complete_dungeon` | 判定通关 |
+| `fail_dungeon` | 判定失败 |
+| `cancel_dungeon` | 取消副本（不算胜负） |
+| `exit_dungeon` | `exit_dungeon <选择器>` 传送回原位置并退出 |
+| `kick_all_players` | 踢出全部玩家 |
+| `run_script` | `run_script <段名>` 调用其他脚本段 |
+| `delay` / `wait` | `wait <秒>` 挂起当前脚本 |
+| `setvar` / `delvar` / `addvar` | 副本变量读写 |
+| `check` | `check <条件>` 条件不满足时中止当前脚本 |
+
+### 怪物与方块
+
+| 动作 | 用法 |
+|---|---|
+| `spawn_group` | `spawn_group <怪物组>` 触发波次 |
+| `kill_group` / `remove_group` | 击杀/移除指定组 |
+| `group_alive_count` | `group_alive_count <组>` 存活数（配合 check） |
+| `kill_all_mobs` | 清全部副本怪 |
+| `cast_skill` | `cast_skill <怪物> <技能>` MythicMobs 技能 |
+| `play_model_animation` | 播放模型动画 |
+| `setblock` | `setblock <x,y,z> <Material>` |
+| `fillblocks` | `fillblocks <x1,y1,z1> <x2,y2,z2> <Material>` |
+
+### 障碍物 / 交互点 / NPC / 任务
+
+| 动作 | 用法 |
+|---|---|
+| `create_obstacle` / `delete_obstacle` | `create_obstacle <名>` 放置/移除障碍物 |
+| `create_interact` / `delete_interact` | 动态启停交互点 |
+| `spawn_npc` / `remove_npc` | `spawn_npc <名>` 生成/移除 NPC |
+| `npc_dialog` | `npc_dialog <名>` 播放 NPC 对话 |
+| `accept_quest` / `submit_quest` | `accept_quest <任务>` / `submit_quest <任务>` |
+| `quest_step` | `quest_step <任务>` 智能一步：未接取→接取，已接取→提交（推荐 NPC click 用） |
+| `quest_status` | `quest_status <任务>` 查询状态 |
+
+### 奖励
+
+| 动作 | 用法 |
+|---|---|
+| `grant_reward` | `grant_reward <选择器> <奖励集名>` 发放 `rewards.yml` 命名集 |
+| `open_chest_ui` | `open_chest_ui <选择器> <宝箱名>` 打开宝箱 UI |
+| `time` / `weather` | 设置副本世界时间/天气 |
+
+## 内联脚本与占位符
+
+- 动作行可用 `aria: <表达式>` / `js: <代码>` 前缀走 Aria/JavaScript 脚本（`js:` 需服务端有 Nashorn/GraalJS，否则跳过并警告）
+- 条件字段支持 PAPI 占位符比较：`%axsabyss_dungeon_kills% >= 5`（完整占位符见 [命令与占位符](/docs/abyss/commands#placeholderapi-占位符)）
+- `check` 动作可在脚本中途做条件判断，不满足即中止本段后续动作
+
+## 实例变量
+
+`setvar`/`delvar`/`addvar` 读写副本实例级变量（如 `setvar last_killer {killer}`），生命周期随实例结束销毁。占位符 `{变量名}` 在后续动作行中展开。

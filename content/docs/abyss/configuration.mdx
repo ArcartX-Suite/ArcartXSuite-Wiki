@@ -1,0 +1,120 @@
+---
+title: 配置
+description: Abyss 主配置 ArcartXAbyss.yml 详解
+---
+
+# 配置
+
+Abyss 的主配置文件为 `config.yml`，位于 `plugins/ArcartX-Suite/data/abyss/`（jar 内资源名 `ArcartXAbyss.yml`，首次启动自动导出）。地牢定义在同级 `abysses/` 目录，详见 [地牢模板编写](/docs/abyss/dungeons)。
+
+修改后执行 `/axs abyss reload`（重载模板）或 `/axs reload abyss`（重载模块配置）生效。
+
+## abyss（世界与实例）
+
+| 字段 | 类型 | 默认值 | 说明 |
+|---|---|---|---|
+| `abyss.world-prefix` | `String` | `"axs_abyss_"` | 副本实例世界名前缀，用于清理识别 |
+| `abyss.instance-cleanup-timeout` | `int` | `7200` | 实例清理超时（秒），结束/无人实例超过该时间强制回收 |
+| `abyss.instance-check-interval` | `int` | `30` | 实例检查周期（秒），超时/无人检测间隔 |
+| `abyss.world-load-timeout` | `int` | `120000` | 世界加载超时（毫秒） |
+| `abyss.max-entities-per-instance` | `int` | `100` | 单实例实体上限，防止实体爆炸 |
+| `abyss.nms-fast-load` | `boolean` | `true` | 启用 NMS 快速世界加载通道，失败自动回退 Bukkit API |
+| `abyss.async-world-copy` | `boolean` | `true` | 世界文件夹复制异步执行（大目录建议开启） |
+
+## death（死亡判定）
+
+| 字段 | 类型 | 默认值 | 说明 |
+|---|---|---|---|
+| `death.fatal-damage-check` | `boolean` | `true` | 拦截致死伤害判为副本死亡（玩家不真正死亡） |
+| `death.allow-totem` | `boolean` | `true` | 手持不死图腾时图腾正常救活，不算死亡 |
+| `death.team-wipe-mode` | `String` | `"STRICT"` | 团灭判定：`STRICT`=全员死亡立即失败 / `DELAYED`=延迟判定（配合复活脚本） |
+| `death.team-wipe-delay-ticks` | `int` | `60` | DELAYED 模式下的判定延迟（tick） |
+
+## escape（防逃逸）
+
+| 字段 | 类型 | 默认值 | 说明 |
+|---|---|---|---|
+| `escape.mode` | `String` | `"BLOCK"` | `BLOCK`=拦截传送 / `TELEPORT_BACK`=拉回副本 / `FAIL`=逃逸判负 |
+| `escape.block-ender-pearl` | `boolean` | `true` | 拦截末影珍珠 |
+| `escape.block-chorus-fruit` | `boolean` | `true` | 拦截紫颂果 |
+| `escape.block-portal` | `boolean` | `true` | 拦截传送门 |
+| `escape.block-spectate-teleport` | `boolean` | `true` | 拦截旁观玩家点击实体传送 |
+
+## restrictions（副本内限制）
+
+| 字段 | 类型 | 默认值 | 说明 |
+|---|---|---|---|
+| `restrictions.blocked-commands` | `List<String>` | `[spawn,tpa,home,back,warp,tp]` | 副本内禁用命令（按主命令匹配），副本模板 `disabled_commands` 可追加 |
+| `restrictions.blocked-items` | `List<String>` | `[CHORUS_FRUIT]` | 副本内禁用物品（Material 名） |
+| `restrictions.block-break` | `boolean` | `false` | 禁止破坏方块（false=允许，交给交互点判定） |
+| `restrictions.block-place` | `boolean` | `false` | 禁止放置方块 |
+
+## party（队伍）
+
+| 字段 | 类型 | 默认值 | 说明 |
+|---|---|---|---|
+| `party.max-members` | `int` | `4` | 队伍最大人数 |
+| `party.invite-timeout` | `int` | `60` | 邀请有效时间（秒） |
+| `party.storage-pages` | `int` | `1` | 队伍仓库页数（每页 45 格） |
+| `party.allow-custom-name` | `boolean` | `true` | 允许自定义队伍名/颜色 |
+| `party.exp-share-mode` | `String` | `"EQUAL"` | 经验共享：`NONE` / `EQUAL` 平分 / `DISTANCE` 按距离衰减 |
+| `party.loot-mode` | `String` | `"FREE"` | 掉落分配：`FREE` / `ROUND_ROBIN` 轮流 / `LEADER` 队长 |
+
+## stamina（体力）
+
+| 字段 | 类型 | 默认值 | 说明 |
+|---|---|---|---|
+| `stamina.enabled` | `boolean` | `true` | 体力系统开关 |
+| `stamina.max` | `int` | `100` | 最大体力值 |
+| `stamina.regen-amount` | `int` | `1` | 每次回复量 |
+| `stamina.regen-interval-seconds` | `int` | `300` | 回复间隔（秒） |
+
+> 进本实际消耗由各地牢 `config.yml` 的 `requirements.stamina_cost` 决定。
+
+## leaderboard（排行榜）
+
+| 字段 | 类型 | 默认值 | 说明 |
+|---|---|---|---|
+| `leaderboard.enabled` | `boolean` | `true` | 排行榜开关 |
+| `leaderboard.size` | `int` | `20` | 榜单缓存行数 |
+| `leaderboard.auto-show-complete` | `boolean` | `true` | 通关后自动展示排行榜 |
+
+## statistics（战斗统计）
+
+| 字段 | 类型 | 默认值 | 说明 |
+|---|---|---|---|
+| `statistics.enabled` | `boolean` | `true` | 统计开关 |
+| `statistics.track-damage` | `boolean` | `true` | 记录造成伤害 |
+| `statistics.track-damage-taken` | `boolean` | `true` | 记录承受伤害 |
+| `statistics.track-healing` | `boolean` | `true` | 记录治疗量 |
+| `statistics.auto-show` | `boolean` | `true` | 副本结束自动展示统计 UI |
+
+## storage（存储）
+
+| 字段 | 类型 | 默认值 | 说明 |
+|---|---|---|---|
+| `storage.mode` | `String` | `"sqlite"` | `sqlite`=共享宿主数据源 / `mysql`=模块自建连接池 |
+| `storage.sqlite-file-name` | `String` | `"abyss.db"` | SQLite 文件名（位于模块数据目录） |
+| `storage.host` / `port` / `database` / `username` / `password` | — | `127.0.0.1`/`3306`/`arcartxsuite`/`root`/`""` | MySQL 连接参数 |
+| `storage.table-prefix` | `String` | `"axs_abyss_"` | 表名前缀 |
+| `storage.pool-size` | `int` | `8` | MySQL 连接池大小 |
+
+## ui（ArcartX UI）
+
+| 字段 | 类型 | 默认值 | 说明 |
+|---|---|---|---|
+| `ui.register-on-enable` | `boolean` | `true` | 模块启动时注册全部 UI 到 ArcartX 桥 |
+| `ui.overwrite-ui-files` | `boolean` | `false` | 更新时覆盖 `ui/` 目录已存在的同名文件 |
+| `ui.browser-id` | `String` | `"abyss_browser"` | 地牢浏览器 UI ID（自动加 `AXS:` 前缀） |
+| `ui.confirm-id` | `String` | `"abyss_confirm"` | 进本确认 UI |
+| `ui.party-id` | `String` | `"abyss_party"` | 队伍 UI |
+| `ui.chest-id` | `String` | `"abyss_chest"` | 宝箱 UI |
+| `ui.stats-id` | `String` | `"abyss_stats"` | 战斗统计 UI |
+| `ui.leaderboard-id` | `String` | `"abyss_leaderboard"` | 排行榜 UI |
+| `ui.hud-id` | `String` | `"abyss_hud"` | 副本内 HUD |
+
+## debug
+
+| 字段 | 类型 | 默认值 | 说明 |
+|---|---|---|---|
+| `debug` | `boolean` | `false` | 开发者调试日志 |
