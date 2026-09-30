@@ -135,6 +135,7 @@ Warehouse 模块注册 PlaceholderAPI 扩展，前缀为 `%axswarehouse_*%`。�
 | `deposit_slot` | `<背包槽位>` `<数量>` | 从背包指定槽位存入物品 |
 | `deposit_all_backpack` | - | 存入背包全部可存物品 |
 | `withdraw` | `<槽位号>` `<数量>` | 从仓库取出指定数量物品 |
+| `withdraw_quick` | `<槽位号>` `<数量上限>` | 双击快捷取出：最多取一组（上限 min(数量, 物品堆叠数)，不可堆叠物品只取 1） |
 | `withdraw_all` | `<槽位号>` | 取出指定槽位全部物品 |
 | `showcase` | - | 展示当前仓库物品 |
 | `close` | - | 关闭界面 |
