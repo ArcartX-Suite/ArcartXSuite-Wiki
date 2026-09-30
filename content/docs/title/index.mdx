@@ -11,6 +11,18 @@ Title 是 Suite 的称号系统模块，为服务器提供完整的分组称号�
 
 模块采用 ArcartX UI 客户端面板展示称号管理界面，玩家可在界面中浏览、筛选、装备、卸下、隐藏称号，所有交互通过 Packet 通讯完成，无需服务端菜单插件。
 
+| 属性 | 值 |
+|---|---|
+| 模块 ID | `title` |
+| 版本 | 1.5.0 |
+| 主类 | `xuanmo.arcartxsuite.title.TitleModule` |
+| 配置文件 | `config.yml`、`messages.yml`、`titles/`（称号定义目录） |
+| 命令入口 | 玩家 `/title`；管理 `/axs title` |
+| 外部依赖 | PlaceholderAPI（必需）；AttributePlus / MythicLib / CraneAttribute / Symphony（经宿主属性桥接，可选） |
+| 模块依赖 | 无 |
+| 对外能力 | `TitleGrantable`（发放称号）、`TitleConfigQueryable`（称号配置查询）、`PlayerDataPurgeable`、`DatabaseMigratable` |
+| PAPI 前缀 | `%axstitle_*%` |
+
 ## 功能特性
 
 | 特性 | 说明 |

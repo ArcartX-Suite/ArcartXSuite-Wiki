@@ -11,12 +11,17 @@ Pickup 是 Suite 的物品拾取增强模块，通过 ArcartX UI 提供两种工
 
 通知模式下，玩家正常拾取地面掉落物，HUD 以滚动队列展示最近 N 条拾取记录，每条包含物品图标、名称与数量，超时后自动消失。扫描模式下，模块周期性扫描玩家周围掉落物实体，经五维过滤引擎筛选后推送到客户端 HUD 面板，玩家通过按键打开透明交互菜单，使用鼠标点击或滚轮切换选中并拾取目标物品，可选联动 Warehouse 模块将拾取物自动存入仓库。
 
-- **模块 ID**：`pickup`
-- **版本**：1.4.4
-- **配置版本**：3（当前 schema）
-- **源码主类**：`xuanmo.arcartxsuite.pickup.PickupModule`
-- **配置文件**：`config.yml`
-- **消息文件**：`messages.yml`
+| 属性 | 值 |
+|---|---|
+| 模块 ID | `pickup` |
+| 版本 | 1.4.4 |
+| 配置版本 | 3（当前 schema） |
+| 主类 | `xuanmo.arcartxsuite.pickup.PickupModule` |
+| 配置文件 | `config.yml`、`messages.yml` |
+| 命令入口 | 玩家 `/pickup`（无模块管理命令） |
+| 外部依赖 | 无 |
+| 模块依赖 | 无（Warehouse 自动入库可选联动） |
+| 对外能力 | `PickupNotifiable`（拾取通知）、`PickupInterceptor`（拾取拦截） |
 
 ## 功能特性
 

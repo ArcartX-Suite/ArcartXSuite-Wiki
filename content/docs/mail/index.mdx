@@ -24,6 +24,9 @@ Suite 支持将 SystemMail 作为邮件后端：未启用本模块时，其他�
 | 模块依赖 | 无（本体内置 API 即可运行） |
 | 配置版本 | 2 |
 | 数据库表前缀 | `mail_`（共享模式无前缀） |
+| 命令入口 | 玩家 `/mail`；管理 `/axs mail` |
+| 对外能力 | `MailDispatchable`（邮件投递）、`AxsMailService`、`PlayerDataPurgeable`、`DatabaseMigratable` |
+| PAPI 前缀 | `%axsmail_*%` |
 
 ## SystemMail 降级模式
 

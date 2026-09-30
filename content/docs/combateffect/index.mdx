@@ -18,6 +18,17 @@ CombatEffect 是 Suite 的战斗特效模块，为服务器提供完整的战斗
 
 所有特效均通过 ArcartX UI 客户端渲染，服务端仅负责事件监听与包分发，不涉及任何服务端菜单或 BossBar。
 
+| 属性 | 值 |
+|---|---|
+| 模块 ID | `combateffect` |
+| 版本 | 1.4.4 |
+| 主类 | `xuanmo.arcartxsuite.combateffect.CombatEffectModule` |
+| 配置文件 | `config.yml`、`messages.yml`、`packets/`（特效包定义目录） |
+| 命令入口 | 管理 `/axs combateffect`（无玩家命令） |
+| 外部依赖 | ArcartX（必需）；ArcartX_Chronos_Plugin（可选，连击追踪） |
+| 模块依赖 | 无 |
+| 对外能力 | `CombatEffectTriggerable`（其他模块触发特效播放） |
+
 ## 功能特性
 
 | 特性 | 说明 |

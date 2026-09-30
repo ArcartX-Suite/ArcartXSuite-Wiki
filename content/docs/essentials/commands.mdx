@@ -11,7 +11,25 @@ Essentials 模块的所有功能通过 `/axs essentials <action>` 或缩写 `/es
 |----------|------|
 | `/axs essentials <action> [参数...]` | 标准命令格式（管理入口，需 `arcartxsuite.admin`） |
 | `/ess <action> [参数...]` | 缩写命令（另有 `/axsess` 防冲突别名），按子命令权限控制 |
-| `/<别名> [参数...]` | 配置中定义的简写别名（如 `/fly`、`/home`），自动转发 |
+| `/<别名> [参数...]` | `command-aliases` 配置的简写别名（默认含 `/fly`、`/gm` 等 47 个），自动转发 |
+
+### 默认简写别名
+
+模块默认配置在 `command-aliases` 节注册了 47 个顶层命令别名。除 `/gm` 转发至 `gamemode` 外，其余别名均转发至同名 action。别名命令享有与子命令相同的权限校验和 Tab 补全转发。
+
+| 类别 | 别名 |
+|------|------|
+| 状态切换 | `/fly` `/god` `/heal` `/feed` `/vanish` `/afk` `/back` `/speed` |
+| 游戏模式 | `/gm`（→ `gamemode`） |
+| 物品与容器 | `/repair` `/hat` `/enderchest` `/workbench` `/anvil` `/trash` `/nick` `/seen` `/inv` |
+| 传送 | `/home` `/sethome` `/delhome` `/warp` `/setwarp` `/delwarp` `/spawn` `/setspawn` `/tpa` `/tpahere` `/tpaccept` `/tpdeny` `/tp` `/top` `/tppos` |
+| 世界 | `/time` `/weather` |
+| 管理 | `/ban` `/tempban` `/unban` `/mute` `/tempmute` `/unmute` `/kick` `/warn` `/sudo` |
+| 交互与工具 | `/sit` `/lay` `/sort` |
+
+示例：`/gm 0` 等价于 `/ess gamemode 0`，将游戏模式切换为生存模式。
+
+> 别名可在 `ArcartXEssentials.yml` 的 `command-aliases` 节中自定义增删，格式为 `别名: action`（action 必须为合法子命令）。别名不能包含空格，与其它插件命令冲突时以先注册者为准。
 
 ## 玩家命令
 
@@ -25,7 +43,7 @@ Essentials 模块的所有功能通过 `/axs essentials <action>` 或缩写 `/es
 | `god` | `axs.essentials.god` | `[玩家]` | 切换无敌模式 |
 | `heal` | `axs.essentials.heal` | `[玩家]` | 恢复生命值并清除着火状态 |
 | `feed` | `axs.essentials.feed` | `[玩家]` | 恢复饥饿值与饱和度 |
-| `gamemode` | `axs.essentials.gamemode` | `<模式> [玩家]` | 切换游戏模式（survival/creative/adventure/spectator） |
+| `gamemode` | `axs.essentials.gamemode` | `<模式> [玩家]` | 切换游戏模式：`survival`/`creative`/`adventure`/`spectator`，也可用数字 `0`/`1`/`2`/`3` 或字母 `s`/`c`/`a`/`sp` |
 | `speed` | `axs.essentials.speed` | `<fly\|walk> <速度>` | 设置飞行或行走速度（1-10） |
 | `vanish` | `axs.essentials.vanish` | — | 切换隐身状态 |
 | `afk` | `axs.essentials.afk` | — | 切换 AFK 挂机状态 |

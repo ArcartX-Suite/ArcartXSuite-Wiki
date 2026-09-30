@@ -3,11 +3,24 @@ title: "概览"
 description: "Announcer 公告轮播与字幕播放模块概览"
 ---
 
+# Announcer 公告与字幕
+
 ## 模块简介
 
 Announcer（公告轮播）模块为服务器提供基于 ArcartX 客户端 HUD 的公告展示系统。它以可配置的间隔自动循环播放公告条目，每条公告支持 PlaceholderAPI 变量解析与点击执行命令。模块同时内置字幕（Subtitle）子系统，可按字幕组顺序播放打字机动画字幕，供其他模块通过 Capability 跨模块触发。
 
 模块支持单服轮播与跨服广播：手动广播命令可转发到其他子服，自动轮播条目仅在本地播放。公告文本可选转发到 QQ 群（需 QQBot 模块）。字幕播放通过 `SubtitlePlayable` 能力接口对外暴露，EventPacket、OnlineRewards、Conversation 等模块均可调用。
+
+| 属性 | 值 |
+|---|---|
+| 模块 ID | `announcer` |
+| 版本 | 1.4.4 |
+| 主类 | `xuanmo.arcartxsuite.announcer.AnnouncerModule` |
+| 配置文件 | `config.yml`、`messages.yml`、`announcer/`（轮播条目）、`subtitle/`（字幕组） |
+| 命令入口 | 管理 `/axs announcer`（无玩家命令） |
+| 外部依赖 | 无（ArcartX 客户端渲染 HUD / 字幕） |
+| 模块依赖 | 无（QQBot 可选联动转发 QQ 群） |
+| 对外能力 | `SubtitlePlayable`（字幕组播放）、`AnnouncerBroadcastable`（手动广播） |
 
 ## 功能特性
 

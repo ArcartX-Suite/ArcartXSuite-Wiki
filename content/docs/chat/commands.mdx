@@ -20,6 +20,8 @@ Chat 模块注册了三个玩家命令（`/chat` 别名 `/axschat`，`/msg` 别�
 | `/chat ignore <玩家>` | 忽略指定玩家的私聊 | `arcartxsuite.chat.use` |
 | `/chat unignore <玩家>` | 取消忽略指定玩家 | `arcartxsuite.chat.use` |
 | `/chat socialspy [on\|off]` | 切换社交监听（监听全服私聊） | `arcartxsuite.chat.socialspy` |
+| `/chat redpacket <normal\|lucky> <总金额> <个数> [祝福语]` | 发送货币红包（`normal` 均分 / `lucky` 拼手气） | `arcartxsuite.chat.use` + `redpacket.send-permission`（若配置） |
+| `/chat grab <红包ID>` | 抢红包（也可直接点击红包卡片/文字按钮） | `arcartxsuite.chat.use` + `redpacket.claim-permission`（若配置） |
 
 #### /chat（无参数）
 
@@ -97,6 +99,10 @@ Chat 模块注册了三个玩家命令（`/chat` 别名 `/axschat`，`/msg` 别�
 | `/axs chat mute <玩家> <时长> [原因]` | 禁言指定玩家 | `ArcartXSuite.chat.mute` |
 | `/axs chat unmute <玩家>` | 解除指定玩家的禁言 | `ArcartXSuite.chat.mute` |
 | `/axs chat spy <玩家> <on\|off>` | 设置指定玩家的社交监听开关 | `ArcartXSuite.chat.mute` |
+| `/axs chat redpacket <normal\|lucky> <金额> <个数> [祝福语]` | 发放免扣款货币红包（不扣管理员余额） | `arcartxsuite.admin` + `redpacket.admin-permission`（若配置） |
+| `/axs chat redpacket <预设ID> [个数]` | 发放预设奖励池红包（预设见 `chat/redpackets/` 目录） | `arcartxsuite.admin` + `redpacket.admin-permission`（若配置） |
+| `/axs chat redpacket list` | 列出所有可用红包预设 | `arcartxsuite.admin` |
+| `/axs chat redpacket reload` | 重新加载红包预设文件 | `arcartxsuite.admin` |
 
 ### /axs chat status
 
@@ -146,6 +152,50 @@ Chat 状态
 /axs chat spy Steve on    # 开启 Steve 的社交监听
 /axs chat spy Steve off   # 关闭 Steve 的社交监听
 ```
+
+## 红包系统
+
+Chat 模块内置聊天红包功能（`redpacket.enabled` 总开关），红包通过 ArcartX 聊天卡片（默认卡片 ID `axs_chat_redpacket`）或可点击文字行发送到当前频道，玩家点击或执行 `/chat grab <红包ID>` 领取。
+
+**红包类型**：
+
+| 类型 | 说明 | 发送方式 |
+|---|---|---|
+| `normal` | 普通红包：总金额平分为指定份数 | 玩家 `/chat redpacket normal ...`（扣余额）/ 管理员 `/axs chat redpacket normal ...`（免扣款） |
+| `lucky` | 拼手气红包：总金额随机分配 | 同上，类型写 `lucky` |
+| 预设红包（`pool`） | 从 `chat/redpackets/` 奖励池按权重抽取货币/物品/指令奖励 | 仅管理员 `/axs chat redpacket <预设ID> [个数]` |
+
+**预设红包文件**：`chat/redpackets/*.yml`，每文件一个 `preset` 节：
+
+```yaml
+preset:
+  id: "newyear"            # 预设 ID（缺省取文件名）
+  enabled: true
+  display-name: "新年红包"  # 显示名
+  wish: "恭喜发财"          # 卡片祝福语
+  count: 5                  # 份数（命令行可覆盖；无放回时受奖励池总量收缩）
+  replacement: false        # 是否有放回抽取
+  expire-minutes: 0         # 过期分钟数，0 = 使用全局配置
+  rewards:                  # 奖励池条目
+    - type: currency        # currency / item / command
+      weight: 3             # 抽取权重
+      quantity: 2           # 数量（无放回时占用池位）
+      currency: "money"
+      amount: "100"
+      description: "100 金币"   # 缺省自动生成
+    - type: item
+      source: minecraft     # 支持 mythic/neige/overture/mmoitems
+      id: "DIAMOND"
+      amount: 1
+      weight: 1
+    - type: command
+      command: "give {player} apple 1"
+      weight: 1
+```
+
+**规则与限制**（均可在 `redpacket` 配置节调整）：金额上下限、每份最小金额、最大份数、发送冷却、过期时间、过期退款（仅玩家货币红包）、发送者可否自领、领取播报与手气王播报等。
+
+**红包卡片数据**：`axs_chat_redpacket` 卡片收到字段 `packetId`、`senderName`、`senderDisplayName`、`wish`、`typeName`、`count`、`expire`（剩余分钟数）。
 
 ## 权限节点
 
@@ -200,6 +250,7 @@ Chat 模块通过 `PacketBridgeAPI` 与客户端 UI 通信，涉及以下包：
 | `axs_chat_private` | 服务端 → 客户端 | `senderName`、`senderDisplayName`、`targetName`、`direction`（`sender`/`recipient`）、`msg0`~`msg9` | 私聊通知卡片 |
 | `axs_chat_system` | 服务端 → 客户端 | `type`（`mute`/`filter`）、`message`、`remaining`、`reason`、`mutedBy` | 系统提示卡片 |
 | `axs_item_preview` | 服务端 → 客户端 | `senderDisplayName`、`itemName`、`itemJson` | 物品预览卡片 |
+| `axs_chat_redpacket` | 服务端 → 客户端 | `packetId`、`senderName`、`senderDisplayName`、`wish`、`typeName`、`count`、`expire` | 红包通知卡片（可点击领取） |
 
 <Callout type="info">
 卡片中 `msg0`~`msg9` 为消息文本的换行分段，服务端按 `max-line-width` 自动换行后推送。卡片宽度与高度由 UI 侧根据 Text 控件实际渲染尺寸自适应。详见 [/docs/guide/icons](/docs/guide/icons)。

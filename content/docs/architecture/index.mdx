@@ -5,7 +5,7 @@ description: ArcartXSuite 整体架构图、宿主+模块设计理念与核心�
 
 # 架构概览
 
-ArcartXSuite 是专为 ArcartX 客户端 MOD 生态构建的全场景核心套件。一个插件覆盖 **29 个功能领域**，统一 ArcartX UI 体验，模块间深度联动。
+ArcartXSuite 是专为 ArcartX 客户端 MOD 生态构建的全场景核心套件。一个插件覆盖 **30 个功能领域**，统一 ArcartX UI 体验，模块间深度联动。
 
 ## 整体架构图
 
@@ -38,7 +38,7 @@ graph TB
     subgraph 模块层 modules/
         M1["Module 1"]
         M2["Module 2"]
-        M3["... 29 个模块"]
+        M3["... 30 个模块"]
     end
 
     subgraph 外部依赖
@@ -131,7 +131,7 @@ ArcartXSuite/
 ├── axs-api/          公开 API 契约（模块仅依赖此）
 ├── axs-core/         宿主核心实现（含 ProGuard 混淆）
 ├── axs-placeholder/  PlaceholderAPI 桥接子模块
-├── modules/          29 个可插拔模块（每个独立 jar）
+├── modules/          30 个可插拔模块（每个独立 jar）
 ├── proxy/            代理端插件（跨服传输）
 │   ├── common/       共享代码
 │   ├── bungee/      BungeeCord 插件

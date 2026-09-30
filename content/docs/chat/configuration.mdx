@@ -117,6 +117,32 @@ function:
 `pattern` 必须是合法的 Java 正则表达式。非法正则会被跳过并输出警告日志。
 </Callout>
 
+### redpacket 红包
+
+聊天红包功能。玩家用 `/chat redpacket normal|lucky <总金额> <个数> [祝福语]` 发放货币红包、`/chat grab <红包ID>` 领取；管理员用 `/axs chat redpacket` 发放免扣款货币红包或 `chat/redpackets/` 目录下定义的预设奖励池红包。详见 [命令与占位符 - 红包系统](/docs/chat/commands#红包系统)。
+
+| 字段 | 类型 | 默认值 | 说明 |
+|---|---|---|---|
+| `redpacket.enabled` | boolean | `true` | 红包功能总开关 |
+| `redpacket.send-permission` | string | `""` | 玩家发红包所需权限节点，空串 = 所有人可发 |
+| `redpacket.claim-permission` | string | `""` | 抢红包所需权限节点，空串 = 所有人可抢 |
+| `redpacket.admin-permission` | string | `""` | 管理员发红包额外权限节点，空串 = 仅需 `/axs` 管理权限 |
+| `redpacket.currency` | string | `money` | 玩家红包使用的货币 ID |
+| `redpacket.card-id` | string | `axs_chat_redpacket` | 红包聊天卡片 ID，空串 = 仅文字播报 |
+| `redpacket.presets-directory` | string | `chat/redpackets` | 预设红包目录（相对模块数据目录） |
+| `redpacket.admin-channel` | string | `""` | 控制台发红包时使用的频道，空串 = 默认频道 |
+| `redpacket.min-total` | double | `1.0` | 红包最小总金额 |
+| `redpacket.max-total` | double | `1000000.0` | 红包最大总金额 |
+| `redpacket.min-per-claim` | double | `0.01` | 每份最小金额 |
+| `redpacket.max-count` | int | `50` | 最大份数 |
+| `redpacket.send-cooldown-seconds` | long | `10` | 发红包冷却（秒） |
+| `redpacket.expire-minutes` | long | `5` | 红包有效期（分钟） |
+| `redpacket.refund-on-expire` | boolean | `true` | 过期未领完是否退款给发送者（仅玩家货币红包） |
+| `redpacket.sender-can-claim` | boolean | `true` | 发送者能否抢自己的红包 |
+| `redpacket.announce-claims` | boolean | `true` | 是否在频道内播报领取信息 |
+| `redpacket.announce-finish` | boolean | `true` | 抢完时是否播报（含手气王） |
+| `redpacket.text-alongside` | boolean | `true` | 发卡片的同时是否附带可点击的文字行 |
+
 ### filter 敏感词过滤（已迁移）
 
 <Callout type="warn">

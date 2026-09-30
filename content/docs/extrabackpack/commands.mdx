@@ -9,24 +9,37 @@ ExtraBackpack 模块不注册独立的玩家命令，背包界面通过替换原
 
 ## 管理命令
 
-模块通过宿主 `/axs` 命令框架提供管理操作：
+模块在 `/axs extrabackpack` 下注册了管理子命令。玩家执行需 `arcartxsuite.extrabackpack.admin` 权限，控制台不受限：
+
+| 命令 | 说明 |
+| --- | --- |
+| `/axs extrabackpack help` | 显示管理命令帮助 |
+| `/axs extrabackpack status` | 模块状态（是否启用、缓存玩家数、分类列表） |
+| `/axs extrabackpack info <玩家>` | 查看在线玩家各分类页的占用/容量快照 |
+| `/axs extrabackpack give <玩家> <分类ID> <数量>` | 为玩家增加仓库已解锁槽位（支持离线玩家） |
+| `/axs extrabackpack reset <玩家> <分类ID>` | 将玩家已购槽位重置为 0（回落至仓库 `base-slots`） |
+
+> **共通存储说明**：`give` / `reset` 的容量直接作用于玩家个人仓库（`extra_slots`），各分类页签共享同一容量；`<分类ID>` 参数为历史兼容保留，传入任意已配置的分类 ID 即可，实际增减的是整体槽位数。
+
+以下宿主级管理命令同样适用于本模块：
 
 | 命令 | 说明 |
 | --- | --- |
 | `/axs reload extrabackpack` | 重载模块配置文件（`config.yml`） |
-| `` /axs purge extrabackpack `<玩家名/UUID>` `` | 清除指定玩家的额外背包数据 |
-| `` /axs purge extrabackpack all `` | 清除所有玩家的额外背包数据 |
-| `` /axs migrate extrabackpack `<目标数据源>` `` | 将额外背包数据迁移到目标数据库源 |
+| `/axs purge extrabackpack <玩家名/UUID>` | 清除指定玩家的额外背包数据 |
+| `/axs purge extrabackpack all` | 清除所有玩家的额外背包数据 |
+| `/axs migrate extrabackpack <目标数据源>` | 将额外背包数据迁移到目标数据库源 |
 
 > `/axs purge` 与 `/axs migrate` 由宿主统一调度，模块通过 `PlayerDataPurgeable` 与 `DatabaseMigratable` Capability 接入。
 
 ## 权限节点
 
-ExtraBackpack 模块不定义独立的权限节点。UI 访问依赖原版物品栏的打开行为，无需额外权限。管理命令的权限由宿主 `/axs` 命令框架统一管控（默认 `op`）。
+UI 访问依赖原版物品栏的打开行为，玩家侧无需额外权限。
 
 | 权限 | 默认 | 说明 |
 | --- | --- | --- |
-| `arcartxsuite.admin` | op | 执行 `/axs reload extrabackpack`、`/axs purge`、`/axs migrate` 等管理命令 |
+| `arcartxsuite.extrabackpack.admin` | op | 执行 `/axs extrabackpack <子命令>`（info / give / reset 等） |
+| `arcartxsuite.admin` | op | 执行 `/axs reload extrabackpack`、`/axs purge`、`/axs migrate` 等宿主级管理命令 |
 
 ## PAPI 占位符
 

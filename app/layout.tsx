@@ -10,7 +10,7 @@ export const metadata = {
     default: 'Suite 文档',
     template: '%s | Suite',
   },
-  description: 'Suite 是面向 ArcartX 客户端的 29 模块 Minecraft 服务器插件套件',
+  description: 'Suite 是面向 ArcartX 客户端的 30 模块 Minecraft 服务器插件套件',
 };
 
 export default function Layout({ children }: { children: ReactNode }) {

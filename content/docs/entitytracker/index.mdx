@@ -16,6 +16,18 @@ EntityTracker 是 Suite 的 Boss 追踪与伤害排行模块。它跟踪指定�
 
 两个子系统共享 UI 配置节，但各自拥有独立的 UI ID、刷新间隔和显示格式。
 
+| 属性 | 值 |
+|---|---|
+| 模块 ID | `entitytracker` |
+| 版本 | 1.4.4 |
+| 主类 | `xuanmo.arcartxsuite.entitytracker.EntityTrackerModule` |
+| 配置文件 | `config.yml`、`messages.yml`、`bosses/`（Boss 定义目录） |
+| 命令入口 | 管理 `/axs entitytracker`（含 `rewards` 子命令组） |
+| 外部依赖 | PlaceholderAPI（必需）；MythicMobs（Boss 追踪必需） |
+| 模块依赖 | 无 |
+| 对外能力 | `BossTrackerQueryable`（Boss 会话查询）、`PlayerDataPurgeable`、`DatabaseMigratable` |
+| PAPI 前缀 | `%axsentitytracker_*%` |
+
 ## 功能特性
 
 | 特性 | 说明 |

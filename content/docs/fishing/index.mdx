@@ -11,10 +11,19 @@ Fishing 是 Suite 的钓鱼小游戏模块，采用星露谷风格的绿条追�
 
 模块包含多水域生态、鱼类/宝藏/饵料/鱼竿定义、天赋树、赛季等级与经验、疲惫值、日/周/赛季任务、鱼类图鉴、赛季结算等完整系统，是一个功能完备的钓鱼玩法套件。
 
-- **模块 ID**：`fishing`
-- **版本**：1.4.4
-- **配置版本**：5
-- **源码主类**：`xuanmo.arcartxsuite.fishing.FishingModule`
+| 属性 | 值 |
+|---|---|
+| 模块 ID | `fishing` |
+| 版本 | 1.4.4 |
+| 配置版本 | 5 |
+| 主类 | `xuanmo.arcartxsuite.fishing.FishingModule` |
+| 配置文件 | `config.yml`、`fatigue.yml`、`rewards.yml`、`settlement.yml`、`talents.yml`、`messages.yml` |
+| 定义目录 | `fishes/`、`rods/`、`baits/`、`waters/`、`tasks/`、`treasures/` |
+| 命令入口 | 玩家 `/fishing`；管理 `/axs fishing` |
+| 外部依赖 | PlaceholderAPI（必需） |
+| 模块依赖 | 无 |
+| 对外能力 | `FishingAccess`、`PlayerDataPurgeable`、`DatabaseMigratable` |
+| PAPI 前缀 | `%axsfishing_*%` |
 
 ## 功能特性
 

@@ -13,6 +13,18 @@ Tab 是 Suite 的自定义 Tab 列表面板模块。它周期性扫描在线玩�
 
 模块内置三套 UI 模板（`tab` / `tab-rich` / `tab-arena`），分别对应基础文本列表、富信息列表（含头像与延迟图标）、竞技场红蓝双队布局，覆盖从简单到复杂的常见使用场景。
 
+| 属性 | 值 |
+|---|---|
+| 模块 ID | `tab` |
+| 版本 | 1.4.4 |
+| 主类 | `xuanmo.arcartxsuite.tab.TabModule` |
+| 配置文件 | `config.yml`、`messages.yml`、`tabs/`（Tab 定义目录） |
+| 命令入口 | 玩家 `/tab`；管理 `/axs tab` |
+| 外部依赖 | PlaceholderAPI（必需） |
+| 模块依赖 | 无 |
+| 对外能力 | `TabRefreshable`（触发 Tab 重刷） |
+| PAPI 前缀 | `%axstab_*%` |
+
 ## 功能特性
 
 | 特性 | 说明 |

@@ -19,6 +19,8 @@ Chat 是 Suite 的全频道聊天系统，提供 **频道聊天**、**私聊回�
 | 配置版本号 | 2 |
 | 外部依赖 | PlaceholderAPI（必需，缺失时模块跳过加载） |
 | 模块依赖 | 无（本体内置 API 即可运行） |
+| 命令入口 | 玩家 `/chat`、`/msg`、`/reply`；管理 `/axs chat` |
+| 对外能力 | `ChatCardSendable`（发送聊天卡片）、`ChatMutable`（聊天修改管道）、`PlayerDataPurgeable`、`DatabaseMigratable` |
 
 ## 功能特性
 
@@ -33,6 +35,7 @@ Chat 是 Suite 的全频道聊天系统，提供 **频道聊天**、**私聊回�
 | 提及功能 | `@玩家名` 提及识别，通过聊天卡片高亮提示被提及者；支持 `@all` 全员提及 |
 | @补全 HUD | 聊天栏输入 `@` 后自动弹出在线玩家候选列表，点击补全玩家名 |
 | 物品展示 | `[item]` 占位标记展示手持物品，支持 Tooltip 动态 Lore 注入 |
+| 聊天红包 | 玩家发放普通/拼手气货币红包（`/chat redpacket`），`/chat grab` 或点击卡片领取；管理员可发免扣款红包与 `chat/redpackets/` 预设奖励池红包 |
 | 自定义组件 | 通过正则匹配替换消息文本，实现表情符号、关键词高亮等扩展 |
 | 跨服转发 | 频道可配置 `cross-server: true`，通过 Redis / Proxy 通道跨服同步消息 |
 | 聊天卡片 | 提及、私聊、系统提示、物品预览均通过 ArcartX 聊天卡片渲染 |

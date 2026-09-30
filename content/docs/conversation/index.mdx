@@ -13,12 +13,17 @@ Conversation 是 Suite 的 NPC 对话桥接模块，基于 Chemdah 对话引擎�
 
 如果你只需要**对话UI**和**NPC交互**，可以前往 ArcartX 官方购买官方付费插件 [**ChemdahView**](https://arcartx.com/resources/242/)。
 
-- **模块 ID**：`conversation`
-- **版本**：1.4.4
-- **配置版本**：2
-- **源码主类**：`xuanmo.arcartxsuite.conversation.ConversationModule`
-- **配置文件**：`config.yml`
-- **消息文件**：`messages.yml`
+| 属性 | 值 |
+|---|---|
+| 模块 ID | `conversation` |
+| 版本 | 1.4.4 |
+| 配置版本 | 2 |
+| 主类 | `xuanmo.arcartxsuite.conversation.ConversationModule` |
+| 配置文件 | `config.yml`、`messages.yml` |
+| 命令入口 | 管理 `/axs conversation`（无玩家命令） |
+| 外部依赖 | Chemdah、Adyeshach（必需） |
+| 模块依赖 | 无（Announcer 字幕能力可选联动） |
+| 对外能力 | `InteractionState`（玩家交互中状态查询） |
 
 ## 功能特性
 

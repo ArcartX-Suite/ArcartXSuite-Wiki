@@ -204,6 +204,13 @@ description: /axs 主命令、各子命令用法与权限节点速查表
 | `/axs afkreward status` | 查看挂机奖励状态 |
 | `/axs tooltip status` | 查看 Tooltip 数据缓存状态 |
 | `/axs regions status` | 查看区域模块状态 |
+| `/axs abyss list` / `info <地牢>` | 地牢模板/实例列表、模板详情 |
+| `/axs abyss enter <地牢> [玩家]` | 强制玩家进本 |
+| `/axs abyss force_complete\|force_fail [玩家]` | 强制结算玩家所在实例 |
+| `/axs abyss cancel <地牢>` | 取消该地牢全部实例 |
+| `/axs abyss stamina <玩家> give\|set <值>` | 体力管理 |
+| `/axs abyss cooldown <玩家> clear\|check [地牢]` | 冷却管理 |
+| `/axs abyss reload` | 重载地牢模板 |
 
 ## 玩家命令
 
@@ -276,6 +283,8 @@ description: /axs 主命令、各子命令用法与权限节点速查表
 | `/qqbot bind <验证码>` | `arcartxsuite.qqbot.use` | QQ 账号绑定（`/axsqqbot` 同效） |
 | `/qqbot unbind` | `arcartxsuite.qqbot.use` | 解除绑定 |
 | `/qqbot info` | `arcartxsuite.qqbot.use` | 查看绑定状态 |
+| `/abyss`（`/axsabyss`） | `arcartxsuite.abyss.use` | 地牢浏览器、`enter <地牢>` 进本、`leave`、`list`、`info`、`stamina`、`rank <地牢>` |
+| `/party`（`/axsparty`） | `arcartxsuite.abyss.party` | 地牢队伍：`create`/`invite`/`accept`/`leave`/`kick`/`leader`/`chat`/`list`/`disband` |
 
 ### Essentials 模块
 

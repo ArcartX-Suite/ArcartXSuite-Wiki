@@ -38,15 +38,18 @@ description: Map 模块命令、权限、PAPI 占位符与 UI Packet
 | `/axs map open <玩家> [世界ID]` | 为指定玩家打开地图，可指定世界 |
 | `/axs map list` | 列出已配置的世界 |
 | `/axs map anchors [世界ID]` | 列出已配置的锚点，可按世界过滤 |
+| `/axs map unlock <玩家> <锚点ID>` | 为在线玩家免费解锁锚点（跳过付费/距离门槛） |
+| `/axs map refresh <世界ID>` | 刷新该世界的预加载版本号，客户端下次同步时自动重拉地形 |
 
 ### Tab 补全
 
 | 参数位置 | 补全内容 |
 |---|---|
-| 第 2 参数 | `help` / `status` / `open` / `list` / `anchors` |
-| 第 3 参数（`open`） | 在线玩家名 |
-| 第 3 参数（`anchors`） | 已配置的世界 ID 列表 |
+| 第 2 参数 | `help` / `status` / `open` / `list` / `anchors` / `unlock` / `refresh` |
+| 第 3 参数（`open` / `unlock`） | 在线玩家名 |
+| 第 3 参数（`anchors` / `refresh`） | 已配置的世界 ID 列表 |
 | 第 4 参数（`open`） | 已配置的世界 ID 列表 |
+| 第 4 参数（`unlock`） | 已配置的锚点 ID 列表 |
 
 ### status 输出
 

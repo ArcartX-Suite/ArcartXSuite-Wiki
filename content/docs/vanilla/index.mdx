@@ -11,13 +11,19 @@ VanillaUI 是 Suite 的原版界面替换模块，通过 ArcartX UI 系统将原
 
 配方数据来源于服务端已注册的 Bukkit 配方（`ShapedRecipe`、`ShapelessRecipe`、`FurnaceRecipe`），并结合 `VanillaItemNameBridge` 将物品材质名翻译为中文，使配方书支持中英文模糊搜索。一键填充材料功能会从玩家背包中自动取出对应材料放入合成/烧制槽位，已正确放置的材料会保留并追加，不匹配的材料会退回背包。
 
-- **模块 ID**：`vanilla`
-- **版本**：1.4.4
-- **配置版本**：2（当前 schema）
-- **源码主类**：`xuanmo.arcartxsuite.vanilla.VanillaModule`
-- **配置文件**：`config.yml`
-- **UI 文件**：`ui/vanilla_crafting.yml`、`ui/vanilla_furnace.yml`
-- **通信包 ID**：`AXS:vanilla_crafting`、`AXS:vanilla_furnace`
+| 属性 | 值 |
+|---|---|
+| 模块 ID | `vanilla` |
+| 版本 | 1.4.4 |
+| 配置版本 | 2（当前 schema） |
+| 主类 | `xuanmo.arcartxsuite.vanilla.VanillaModule` |
+| 配置文件 | `config.yml` |
+| UI 文件 | `ui/vanilla_crafting.yml`、`ui/vanilla_furnace.yml` |
+| 通信包 ID | `AXS:vanilla_crafting`、`AXS:vanilla_furnace` |
+| 命令入口 | 无模块命令（宿主 `/axs reload vanilla` 重载配置） |
+| 外部依赖 | 无（ArcartX UI 渲染） |
+| 模块依赖 | 无 |
+| 对外能力 | 无（纯界面替换，经 `VanillaItemNameBridge` 获取物品中文名） |
 
 ## 功能特性
 

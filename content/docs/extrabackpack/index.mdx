@@ -13,14 +13,19 @@ ExtraBackpack 是 Suite 的随身扩容背包模块，通过 ArcartX UI 替换�
 
 容量 = 个人仓库已解锁格数（`base-slots` + 逐格购买的 `extra_slots`），槽位价格与上限统一由仓库配置（`ArcartXWarehouse.yml` 的 `warehouses.personal`）。销毁光标物品需二级密码验证，由核心统一管理。
 
-- **模块 ID**：`extrabackpack`
-- **版本**：1.5.0
-- **配置版本**：2（当前 schema）
-- **源码主类**：`xuanmo.arcartxsuite.extrabackpack.ExtraBackpackModule`
-- **配置文件**：`config.yml`
-- **消息文件**：`messages.yml`
-- **UI 文件**：`ui/extrabackpack.yml`
-- **通信包 ID**：`AXS_BACKPACK`
+| 属性 | 值 |
+|---|---|
+| 模块 ID | `extrabackpack` |
+| 版本 | 1.4.4 |
+| 配置版本 | 2（当前 schema） |
+| 主类 | `xuanmo.arcartxsuite.extrabackpack.ExtraBackpackModule` |
+| 配置文件 | `config.yml`、`messages.yml` |
+| UI 文件 | `ui/extrabackpack.yml` |
+| 通信包 ID | `AXS_BACKPACK` |
+| 命令入口 | 管理 `/axs extrabackpack`（无玩家命令，UI 替换原版物品栏） |
+| 外部依赖 | ArcartX（必需） |
+| 模块依赖 | Warehouse（软依赖，容量与物品共用仓库存储） |
+| 对外能力 | `ExtraBackpackAccess`（背包数据快照）、`PlayerDataPurgeable`、`DatabaseMigratable` |
 
 ## 功能特性
 

@@ -11,6 +11,18 @@ Abyss 是 Suite 的地牢副本模块，提供「模板定义 → 独立实例 �
 
 副本世界支持三种来源：**虚空世界**（运行时生成全空世界，脚本自行搭建场景）、**世界文件夹**（整个存档目录复制为实例世界）、**WorldEdit/FAWE schematic**（粘贴到虚空世界）。怪物支持原版实体与 MythicMobs Boss，副本内可跑 NPC 对话、任务接取、交互点、障碍物、定时任务与生命周期脚本。
 
+| 属性 | 值 |
+|---|---|
+| 模块 ID | `abyss` |
+| 版本 | 1.0.0 |
+| 主类 | `xuanmo.arcartxsuite.abyss.AbyssModule` |
+| 配置文件 | `config.yml`、`messages.yml`、`abysses/`（副本模板目录） |
+| 命令入口 | 玩家 `/abyss`、`/party`；管理 `/axs abyss` |
+| 外部依赖 | PlaceholderAPI（必需）；MythicMobs / WorldEdit / FAWE / Adyeshach（可选） |
+| 模块依赖 | 无 |
+| 对外能力 | `AbyssQueryable`（副本状态查询）、`PlayerDataPurgeable`、`DatabaseMigratable` |
+| PAPI 前缀 | `%axsabyss_*%` |
+
 ## 功能特性
 
 | 特性 | 说明 |

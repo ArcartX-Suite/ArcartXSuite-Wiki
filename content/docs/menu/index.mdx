@@ -9,6 +9,17 @@ description: Menu 通用菜单框架功能概览
 
 Menu 是 Suite 的通用菜单框架，通过 `menus/` 目录下的 YAML 文件定义多页菜单、按钮动作、打开条件与命令绑定。模块采用类 TrMenu 的配置驱动方式，支持居中面板（panel）与左侧滑出（esc）两种布局，可替换原版 ESC 暂停界面，并允许将菜单绑定到游戏命令或背包物品上触发。
 
+| 属性 | 值 |
+|---|---|
+| 模块 ID | `menu` |
+| 版本 | 1.5.0 |
+| 主类 | `xuanmo.arcartxsuite.menu.MenuModule` |
+| 配置文件 | `config.yml`、`messages.yml`、`menus/`（菜单定义目录） |
+| 命令入口 | 玩家 `/menu`；管理 `/axs menu` |
+| 外部依赖 | PlaceholderAPI（可选） |
+| 模块依赖 | 无 |
+| 对外能力 | `MenuOpenable`（其他模块按 ID 打开菜单） |
+
 ## 功能特性
 
 - 配置驱动菜单：一个 `.yml` 文件可包含多个菜单（用 `---` 分隔），每个菜单支持多页分页

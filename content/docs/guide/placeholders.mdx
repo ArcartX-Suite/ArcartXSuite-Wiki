@@ -11,7 +11,7 @@ description: Suite 全部 PlaceholderAPI 占位符速查表
 
 ## 占位符总览
 
-Suite 共有 16 个模块对外输出 PAPI 占位符：
+Suite 共有 17 个模块对外输出 PAPI 占位符：
 
 | 模块 | 前缀 | 说明 |
 | --- | --- | --- |
@@ -31,6 +31,7 @@ Suite 共有 16 个模块对外输出 PAPI 占位符：
 | Tab | `%axstab_*%` | Tab 在线列表变量 |
 | Fishing | `%axsfishing_*%` | 钓鱼等级、经验、捕获数 |
 | Lottery | `%axslottery_*%` | 保底计数、开箱次数、命运点 |
+| Abyss | `%axsabyss_*%` | 体力、副本状态、击杀数、队伍、冷却与最佳通关 |
 
 ## AfkReward 占位符
 
@@ -261,6 +262,29 @@ Suite 共有 16 个模块对外输出 PAPI 占位符：
 | `%axslottery_guaranteed_<奖池ID>%` | 文本 | 是否处于大保底（是/否） |
 | `%axslottery_fatepoints_<奖池ID>%` | 数字 | 当前命定值 |
 | `%axslottery_point_<奖池ID>%` | 数字 | 抽奖点数 |
+
+## Abyss 占位符
+
+前缀：`%axsabyss_<字段>%`
+
+| 占位符 | 返回值 | 说明 |
+| --- | --- | --- |
+| `%axsabyss_stamina%` | 数字 | 当前体力 |
+| `%axsabyss_stamina_max%` | 数字 | 最大体力 |
+| `%axsabyss_in_dungeon%` | true/false | 是否在副本中 |
+| `%axsabyss_dungeon_id%` | 文本 | 当前地牢 ID（副本外为空） |
+| `%axsabyss_dungeon_name%` | 文本 | 当前地牢显示名 |
+| `%axsabyss_dungeon_time%` | 数字 | 当前副本已进行秒数 |
+| `%axsabyss_deaths%` | 数字 | 本副本死亡数 |
+| `%axsabyss_alive_count%` | 数字 | 副本存活玩家数 |
+| `%axsabyss_dungeon_kills%` | 数字 | 本副本个人击杀数 |
+| `%axsabyss_dungeon_total_kills%` | 数字 | 本副本全队击杀数 |
+| `%axsabyss_party_size%` | 数字 | 队伍人数（无队伍为 0） |
+| `%axsabyss_party_name%` | 文本 | 队伍名 |
+| `%axsabyss_party_leader%` | 文本 | 队长名 |
+| `%axsabyss_cooldown_<地牢>%` | 数字 | 该地牢剩余冷却秒数 |
+| `%axsabyss_completions_<地牢>%` | 数字 | 该地牢通关次数 |
+| `%axsabyss_best_time_<地牢>%` | 数字 | 该地牢最佳通关秒数 |
 
 ## 反向消费 PAPI
 

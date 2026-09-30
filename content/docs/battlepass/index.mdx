@@ -11,6 +11,18 @@ BattlePass 是 Suite 的战斗通行证（Battle Pass）模块，为服务器提
 
 模块采用 ArcartX UI 客户端面板展示战令主界面、任务列表、奖励列表和赛季结算界面，所有交互通过 Packet 通讯完成，无需服务端菜单插件。
 
+| 属性 | 值 |
+|---|---|
+| 模块 ID | `battlepass` |
+| 版本 | 1.4.4 |
+| 主类 | `xuanmo.arcartxsuite.battlepass.BattlePassModule` |
+| 配置文件 | `config.yml`、`rewards.yml`、`season-rewards.yml`、`messages.yml`、`tasks/`（任务定义目录） |
+| 命令入口 | 玩家 `/bp`；管理 `/axs battlepass` |
+| 外部依赖 | PlaceholderAPI（必需） |
+| 模块依赖 | 无 |
+| 对外能力 | `BattlePassAccess`、`PlayerDataPurgeable`、`DatabaseMigratable` |
+| PAPI 前缀 | `%axsbattlepass_*%` |
+
 ## 功能特性
 
 | 特性 | 说明 |

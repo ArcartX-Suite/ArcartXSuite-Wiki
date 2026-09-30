@@ -20,6 +20,9 @@ Market 是 Suite 的核心经济交易模块，提供 **拍卖行**、**玩家�
 | 消息文件 | `messages.yml` |
 | 外部依赖 | PlaceholderAPI（必需，缺失时模块跳过加载） |
 | 模块依赖 | 无（本体内置 API 即可运行） |
+| 命令入口 | 玩家 `/market`（别名 `/mk`、`/ah`）；管理 `/axs market` |
+| 对外能力 | `AxsMarketService`、`PlayerDataPurgeable`、`DatabaseMigratable` |
+| PAPI 前缀 | `%axsmarket_*%` |
 
 ## 功能特性
 

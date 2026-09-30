@@ -12,13 +12,13 @@ description: Abyss 命令、权限与 PlaceholderAPI 占位符
 | 命令 | 说明 |
 |---|---|
 | `/abyss` | 打开地牢浏览器 UI（无客户端时显示列表） |
-| `/abyss enter <地牢>` | 进入指定地牢（检查体力/冷却/货币/物品/权限） |
-| `/abyss leave` | 离开当前副本，传送回进本前位置 |
+| `/abyss enter <地牢>` | 进入指定地牢（检查体力/冷却/货币/物品/权限；别名 `join`；队长执行时带整队进本） |
+| `/abyss leave` | 离开当前副本，传送回进本前位置（别名 `quit`） |
 | `/abyss list` | 列出可进入的地牢 |
 | `/abyss info` | 显示当前副本信息（地牢/状态/人数） |
 | `/abyss stamina` | 查看当前体力 |
 | `/abyss rank <地牢>` | 打开排行榜 UI（别名 `top`） |
-| `/abyss party` | 打开队伍面板（等同 `/party`） |
+| `/abyss party [子命令]` | 队伍面板/子命令，等同于 `/party`（如 `/abyss party invite`） |
 | `/abyss ui` | 重开/刷新 UI（调试用） |
 
 ## 队伍命令
@@ -31,11 +31,21 @@ description: Abyss 命令、权限与 PlaceholderAPI 占位符
 | `/party create` | 创建队伍（队长身份） |
 | `/party invite <玩家>` | 邀请玩家入队 |
 | `/party accept` | 接受最新邀请 |
+| `/party apply <队伍UUID>` | 申请加入公开队伍（直接加入或提交入队申请，视该队 joinmode） |
+| `/party lobby` | 打开队伍大厅（列出公开队伍；无 UI 时输出文本列表） |
 | `/party leave` | 离开队伍 |
+| `/party ready` | 切换准备状态 |
 | `/party kick <玩家>` | 踢出成员（队长，支持离线成员按 UUID） |
-| `/party leader <玩家>` | 转让队长 |
+| `/party leader <玩家>` | 转让队长（别名 `transfer`） |
 | `/party chat <消息>` | 队内聊天 |
-| `/party list` | 列出队伍成员 |
+| `/party list` | 列出队伍成员（别名 `members`） |
+| `/party public` | 将队伍设为公开（队长，别名 `open`） |
+| `/party private` | 将队伍设为私密（队长） |
+| `/party joinmode <open\|apply>` | 设置加入方式：直接加入 / 需要审批（队长） |
+| `/party dungeon <地牢>` | 设置队伍目标副本（队长） |
+| `/party approve <玩家>` | 批准入队申请（队长） |
+| `/party deny <玩家>` | 拒绝入队申请（队长） |
+| `/party allowinvite` | 切换自己是否可被邀请入队 |
 | `/party disband` | 解散队伍（队长） |
 
 ## 管理员命令

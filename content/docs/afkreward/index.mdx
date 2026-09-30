@@ -10,6 +10,18 @@ AfkReward 是 Suite 的挂机奖励模块，为服务器提供完整的区域挂
 
 模块支持奖励档位（VIP 分级）、倍率调度（基础 / 周末 / 定时）、反滥用策略（时长限制 / 机器人检测 / IP 限制 / 收益衰减）、低 TPS 暂停、崩溃恢复、审计日志等完整功能链路，并通过 ArcartX UI HUD 实时展示挂机状态。
 
+| 属性 | 值 |
+|---|---|
+| 模块 ID | `afkreward` |
+| 版本 | 1.4.4 |
+| 主类 | `xuanmo.arcartxsuite.afkreward.AfkRewardModule` |
+| 配置文件 | `config.yml`、`area-default.yml`、`messages.yml` |
+| 命令入口 | 玩家 `/afk`；管理 `/axs afkreward` |
+| 外部依赖 | PlaceholderAPI（必需） |
+| 模块依赖 | 无（Mail / EventPacket 可选联动） |
+| 对外能力 | `AfkRewardDispatchable`（远程触发挂机）、`PlayerDataPurgeable` |
+| PAPI 前缀 | `%axsafkreward_*%` |
+
 ## 功能特性
 
 | 特性 | 说明 |

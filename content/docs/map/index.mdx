@@ -10,6 +10,17 @@ Map 是 Suite 的地图模块，提供全屏地图菜单和小地图 HUD，支�
 
 **地图画面完全由客户端 mod 实时渲染**——服务端不需要任何地图纹理图片。Map 模块负责管理世界配置、锚点定义、路径点/标记点持久化、导航状态与第三方插件注册路径点，通过 Packet 把地图快照推送到 ArcartX UI；UI 再通过 Aria 全局函数 `axsmap.getMapRenderer()` 调用 **ArcartX-Suite-Map 客户端 mod** 完成地形画面渲染。
 
+| 属性 | 值 |
+|---|---|
+| 模块 ID | `map` |
+| 版本 | 1.6.0 |
+| 主类 | `xuanmo.arcartxsuite.map.MapModule` |
+| 配置文件 | `config.yml`、`messages.yml`、`worlds/`（世界地图定义目录） |
+| 命令入口 | 玩家 `/map`（别名 `/axsmap`）；管理 `/axs map` |
+| 外部依赖 | Multiverse-Core（可选，世界别名）；地图渲染需 ArcartX-Suite-Map 客户端 mod |
+| 模块依赖 | 无 |
+| 对外能力 | `MapNavigable`（注册第三方导航目标）、`MapAnchorUnlockable`、`PlayerDataPurgeable`、`DatabaseMigratable` |
+
 ## 功能特性
 
 | 特性 | 说明 |

@@ -11,12 +11,18 @@ Warehouse 是 Suite 的仓库与银行模块，通过 ArcartX UI 提供个人仓
 
 模块采用槽位聚合存储模型——相同物品（基于序列化哈希匹配）自动堆叠到同一槽位，单槽聚合上限为 `Integer.MAX_VALUE`，配合多级容量升级实现近乎无限的存储空间。物品分类基于 NBT/PDC 路径匹配，支持拼音/首字母搜索，排序方案可自定义。
 
-- **模块 ID**：`warehouse`
-- **版本**：1.4.4
-- **配置版本**：4（当前 schema）
-- **源码主类**：`xuanmo.arcartxsuite.warehouse.WarehouseModule`
-- **配置文件**：`config.yml`
-- **消息文件**：`messages.yml`
+| 属性 | 值 |
+|---|---|
+| 模块 ID | `warehouse` |
+| 版本 | 1.4.4 |
+| 配置版本 | 4（当前 schema） |
+| 主类 | `xuanmo.arcartxsuite.warehouse.WarehouseModule` |
+| 配置文件 | `config.yml`、`messages.yml` |
+| 命令入口 | 玩家 `/warehouse`（别名 `/wh`、`/axswarehouse`）；管理 `/axs warehouse` |
+| 外部依赖 | PlaceholderAPI（必需） |
+| 模块依赖 | 无 |
+| 对外能力 | `WarehouseAccess`（仓库槽位读写）、`WarehouseAutoDepositable`（自动入库）、`PlayerDataPurgeable`、`DatabaseMigratable` |
+| PAPI 前缀 | `%axswarehouse_*%` |
 
 ## 功能特性
 

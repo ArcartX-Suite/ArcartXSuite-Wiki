@@ -3,11 +3,25 @@ title: "概览"
 description: "OnlineRewards 在线奖励功能概览"
 ---
 
+# OnlineRewards 在线奖励
+
 ## 模块简介
 
 OnlineRewards（在线奖励）模块为服务器提供完整的在线时长激励体系。它以每分钟为粒度统计玩家当日、本周、本月和总在线时长，并在达到配置的分钟阈值时自动发放阶段奖励。同时提供每日签到、连续签到里程碑、累计签到里程碑、每月指定日期奖励、节日奖励、补签卡、权限组加成、离线时长储蓄、全服签到目标、时刻奖励等丰富的签到玩法，配合 ArcartX 客户端日历 UI 实现可视化签到体验。
 
 模块支持跨服同步（需共享 MySQL 数据库），签到/补签/管理员操作后自动通知其他子服刷新缓存与 UI。
+
+| 属性 | 值 |
+|---|---|
+| 模块 ID | `onlinerewards` |
+| 版本 | 1.4.4 |
+| 主类 | `xuanmo.arcartxsuite.onlinerewards.OnlineRewardsModule` |
+| 配置文件 | `config.yml`、`rewards.yml`、`sign-in.yml`、`messages.yml` |
+| 命令入口 | 玩家 `/onlinerewards`（别名 `/signin`）；管理 `/axs onlinerewards` |
+| 外部依赖 | PlaceholderAPI（必需） |
+| 模块依赖 | 无 |
+| 对外能力 | `OnlineRewardsQueryable`、`PlayerDataPurgeable`、`DatabaseMigratable` |
+| PAPI 前缀 | `%axsonlinerewards_*%` |
 
 ## 功能特性
 

@@ -19,6 +19,8 @@ EventPacket 是 Suite 的通用事件触发与动作链模块，提供 **18 种�
 | 模块依赖 | 无（本体内置 API 即可运行） |
 | 配置版本 | 2 |
 | 数据库表前缀 | `axs_eventpacket_`（共享模式无前缀） |
+| 命令入口 | 管理 `/axs eventpacket` |
+| 对外能力 | `SignalDispatchable`（派发信号触发其他模块）、`PlayerDataPurgeable`、`DatabaseMigratable` |
 
 ## 功能特性
 
