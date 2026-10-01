@@ -20,6 +20,8 @@ abysses/<地牢ID>/
 ├── npcs.yml         ← 副本 NPC
 ├── quests.yml       ← 副本任务
 ├── rewards.yml      ← 奖励集/宝箱
+├── floors.yml       ← 楼层定义（mode: floors 多层房间地牢）
+├── rooms.yml        ← 房间模板池（floors 模式）
 └── world/           ← 世界文件夹（可选，含 level.dat）
 ```
 
@@ -295,3 +297,80 @@ chest-rewards:
 ## scripts.yml — 生命周期脚本
 
 详见 [脚本系统](/docs/abyss/scripting)。
+
+## floors.yml + rooms.yml — 多层房间地牢
+
+`config.yml` 设 `mode: floors` 后启用：地牢由若干**层（floor）**组成，每层是一条**房间链**，玩家逐房推进——进战斗房自动锁门刷怪，清完开门解锁出口，层末房清完进入下一层，最终层清完即通关（类元气骑士结构）。
+
+### floors.yml
+
+```yaml
+defaults:
+  lock-material: BARRIER     # 锁门填充材质
+  border-pullback: true      # 战斗房锁门期间离开区域拉回（逃逸双保险）
+  room-spacing: 200          # pool 模式相邻房锚点间距（格）
+  paste-y: 64                # pool 模式 schematic 粘贴基准高度
+  advance-timeout: 60        # portal 推进兜底秒数（0=不兜底）
+
+floors:
+  - id: f1
+    name: "第 1 层"
+    source: region              # region=固定区域 | pool=schematic 随机拼接
+    spawn: "0,65,0,90,0"        # 层入口站位（region 绝对坐标）
+    rooms: [corridor_a, corridor_b]   # region 模式：rooms.yml 引用链
+    boss-room: boss_1           # 层末房（可选；不配则链尾房即层末）
+    advance: portal             # portal=踩出口传送 | auto=清完自动传送
+    on-enter: [...]             # 层开始脚本
+    on-clear: [...]             # 层清完脚本
+  - id: f2
+    source: pool                # 随机拼接（world.template 建议 void + FAWE）
+    pool: [combat_a, combat_b, shop_a, treasure_a]
+    room-count: 3               # 池内随机抽取数（0=全用且打乱顺序）
+    boss-room: boss_2
+    direction: x                # 拼接排列轴 x|z
+    advance: portal
+```
+
+| 字段 | 说明 |
+|---|---|
+| `source: region` | 房间已手工建在世界模板里，坐标写世界绝对值 |
+| `source: pool` | 虚空世界 + 房间 `.schem` 随机抽取粘贴（需 WorldEdit/FAWE，进本时校验） |
+| `advance: portal` | 层/房清完激活出口区，玩家踩 `exit` 传送；`advance-timeout` 超时自动推 |
+| `advance: auto` | 清完 3 秒后自动传送下一目标 |
+
+### rooms.yml
+
+```yaml
+rooms:
+  corridor_a:
+    type: combat                 # combat=锁门清怪 | safe/shop=不锁 | boss=战斗(语义标记)
+    schematic: "rooms/a.schem"   # pool 模式必填（相对地牢目录）；region 忽略
+    origin: "0,0,0"              # region 房间原点（默认 0,0,0 = 坐标写绝对值）
+    region: ["0,60,0", "29,80,29"]  # 房间 box 两角（相对 origin）
+    spawn: "1,64,15,90,0"        # 进房站位（相对 origin）
+    exit: ["29,63,13", "31,67,17"]  # 出口传送区（可选）
+    doors:                        # 物理门盒（锁=填 lock-material，开=还原原方块）
+      - region: ["30,64,14", "30,66,16"]
+        material: BARRIER
+    groups:                       # 房内怪组（格式同 monsters.yml，坐标相对 origin）
+      wave1:
+        spawn-timing: AUTO_START  # 房内语义：AUTO_START=锁门即刷 / DELAYED=锁门后延迟 / TRIGGERED=组联动
+        monsters:
+          - mob-id: minecraft:zombie
+            location: "15,64,15"
+            amount: 4
+    on-enter: [...]               # 玩家首次进房
+    on-lock: [...]                # 锁门瞬间
+    on-clear: [...]               # 房内组全清（无怪房进房即清）
+```
+
+### 运行规则
+
+- 房间物化：进本时按层生成房间链；pool 房沿轴粘贴，一切坐标（region/spawn/doors/groups/exit）自动按锚点偏移为绝对值
+- 怪组物化：房内组注册为 `f{层}_r{房序}_{模板id}:{组名}`；`trigger-after` 引用房内短名自动加前缀
+- 事件：`axs.abyss.room_enter` / `room_clear` / `floor_enter` / `floor_clear`
+- 脚本变量：`{floor}` `{floor_name}` `{floors_total}` `{room}` 写入实例变量
+- 脚本动作：`floor_next`（强制推层）/ `room_lock <房>` / `room_unlock <房>` / `room_status <房> <变量>`
+- 虚空防护：玩家掉出当前房底部 8 格以下自动拉回房中心
+- 最终层链尾房清完自动 `complete_dungeon`；中途判负/超时/全员死亡走现有失败流程
+
