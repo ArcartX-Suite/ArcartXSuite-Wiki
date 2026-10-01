@@ -49,7 +49,7 @@ Abyss 的主配置文件为 `config.yml`，位于 `plugins/ArcartX-Suite/data/ab
 | 字段 | 类型 | 默认值 | 说明 |
 |---|---|---|---|
 | `restrictions.command-mode` | `String` | `"BLACKLIST"` | `NONE`=不限制 / `BLACKLIST`=列表内禁用 / `WHITELIST`=仅列表内可用 |
-| `restrictions.blocked-commands` | `List<String>` | `[spawn,tpa,home,back,warp,tp]` | 命令控制列表（whitelist 模式下=允许的命令）；副本模板 `disabled_commands`/`world.command_control` 可覆盖 |
+| `restrictions.blocked-commands` | `List<String>` | `[spawn,tpa,home,back,warp,tp]` | 命令控制列表（whitelist 模式下=允许的命令）；副本模板 `disabled-commands`/`world.command-control` 可覆盖 |
 | `restrictions.blocked-items` | `List<String>` | `[CHORUS_FRUIT]` | 副本内禁用物品（Material 名） |
 | `restrictions.block-break` | `boolean` | `false` | 禁止破坏方块（false=允许，交给交互点判定） |
 | `restrictions.block-place` | `boolean` | `false` | 禁止放置方块 |
@@ -73,7 +73,7 @@ Abyss 的主配置文件为 `config.yml`，位于 `plugins/ArcartX-Suite/data/ab
 | `stamina.regen-amount` | `int` | `1` | 每次回复量 |
 | `stamina.regen-interval-seconds` | `int` | `300` | 回复间隔（秒） |
 
-> 进本实际消耗由各地牢 `config.yml` 的 `requirements.stamina_cost` 决定。
+> 进本实际消耗由各地牢 `config.yml` 的 `requirements.stamina-cost` 决定。
 
 ## leaderboard（排行榜）
 
@@ -123,7 +123,7 @@ Abyss 的主配置文件为 `config.yml`，位于 `plugins/ArcartX-Suite/data/ab
 | 字段 | 类型 | 默认值 | 说明 |
 |---|---|---|---|
 | `recovery.enabled` | `boolean` | `true` | 玩家在副本中掉线/崩服后，下次进服执行恢复动作 |
-| `recovery.actions` | `List<String>` | `["[tell] ..."]` | 动作序列：`[tell]`/`[title]`/`[console]`/`[command]`/`[teleport]`/`[clear]`，支持 `{player}` `{dungeon}` 占位 |
+| `recovery.actions` | `List<String>` | `["message ..."]` | 动作序列，与副本脚本 DSL 一致（单目标无选择器）：`message`/`title <in> <stay> <out> <主>\|<副>`/`console`/`player_command`/`teleport [世界] <x,y,z[,yaw,pitch]>`/`clear_inventory`/`aria:`/`js:`，支持 `{player}` `{dungeon}` 占位 |
 
 ## debug
 

@@ -41,33 +41,33 @@ world:
   gamerules:                 # Bukkit GameRule 名 → 值（布尔或整数），叠加在模块默认规则之上
     keepInventory: true
     mobGriefing: false
-  disable_natural_spawn: true        # 禁环境驱动刷怪（脚本刷怪走 CUSTOM 不受影响）
-  disabled_spawn_reasons: []         # 额外禁用的 SpawnReason 名（可含 CUSTOM）
-  command_control:                   # 副本级命令控制（覆盖全局 restrictions.command-mode）
+  disable-natural-spawn: true        # 禁环境驱动刷怪（脚本刷怪走 CUSTOM 不受影响）
+  disabled-spawn-reasons: []         # 额外禁用的 SpawnReason 名（可含 CUSTOM）
+  command-control:                   # 副本级命令控制（覆盖全局 restrictions.command-mode）
     mode: "inherit"                  # inherit=沿用全局 / blacklist / whitelist
     commands: []                     # mode 非 inherit 时的黑/白名单（按主命令匹配）
 
-time_limit: 600              # 限时（秒），超时触发 timeout_action
-timeout_action: "FAIL"       # FAIL=判负 / KICK=踢出
-max_instances: 0             # 该地牢最大并行实例数，0=不限
+time-limit: 600              # 限时（秒），超时触发 timeout-action
+timeout-action: "FAIL"       # FAIL=判负 / KICK=踢出
+max-instances: 0             # 该地牢最大并行实例数，0=不限
 
 requirements:
-  min_players: 1             # 最小进本人数
-  max_players: 4             # 最大进本人数
-  party_required: false      # 是否必须组队
-  min_level: 0               # 最低玩家等级（0=不限）
-  max_level: 0               # 最高等级（0=不限）
+  min-players: 1             # 最小进本人数
+  max-players: 4             # 最大进本人数
+  party-required: false      # 是否必须组队
+  min-level: 0               # 最低玩家等级（0=不限）
+  max-level: 0               # 最高等级（0=不限）
   cooldown: 300              # 通关冷却（秒），按玩家+地牢独立计时
-  money_cost: 0              # 货币消耗
-  currency_id: "money"       # 货币 ID（宿主 currencies 定义）
-  stamina_cost: 10           # 体力消耗
-  required_items: []         # 进本消耗物品列表
-  required_permissions: []   # 需要的权限节点
+  money-cost: 0              # 货币消耗
+  currency-id: "money"       # 货币 ID（宿主 currencies 定义）
+  stamina-cost: 10           # 体力消耗
+  required-items: []         # 进本消耗物品列表
+  required-permissions: []   # 需要的权限节点
   conditions: []             # PAPI 条件表达式（如 "%player_level% >= 10"）
-  require_all_players: true  # false=物品/货币/权限/条件只校验队长（队长买单全队进）
-  leader_conditions: []      # 仅队长需要满足的额外条件（PAPI 表达式）
-  disabled_commands: [spawn] # 本副本额外禁用命令（绝对黑名单，叠加于命令控制之上）
-  disabled_items: []         # 本副本额外禁用物品
+  require-all-players: true  # false=物品/货币/权限/条件只校验队长（队长买单全队进）
+  leader-conditions: []      # 仅队长需要满足的额外条件（PAPI 表达式）
+  disabled-commands: [spawn] # 本副本额外禁用命令（绝对黑名单，叠加于命令控制之上）
+  disabled-items: []         # 本副本额外禁用物品
 ```
 
 ### world.template（世界来源）
@@ -81,9 +81,9 @@ requirements:
 ### world 世界治理
 
 - `gamerules`：按副本覆盖游戏规则（如 `keepInventory`、`randomTickSpeed`），未知规则名自动跳过；模块默认已内置一套副本规则（关日夜/天气/火焰蔓延/自然刷怪、keepInventory=true 等）
-- `disable_natural_spawn`：拦截自然/刷怪笼/巡逻/袭击等环境驱动生成；副本脚本刷怪走 `CUSTOM` 来源不受影响
-- `disabled_spawn_reasons`：按 `CreatureSpawnEvent.SpawnReason` 名精确禁用（含 `CUSTOM`，可彻底锁死生成）
-- `command_control`：副本级命令黑/白名单，`mode: inherit` 时沿用全局 `restrictions.command-mode`；`whitelist` 适合 PVP/硬核副本「只许用这几个命令」
+- `disable-natural-spawn`：拦截自然/刷怪笼/巡逻/袭击等环境驱动生成；副本脚本刷怪走 `CUSTOM` 来源不受影响
+- `disabled-spawn-reasons`：按 `CreatureSpawnEvent.SpawnReason` 名精确禁用（含 `CUSTOM`，可彻底锁死生成）
+- `command-control`：副本级命令黑/白名单，`mode: inherit` 时沿用全局 `restrictions.command-mode`；`whitelist` 适合 PVP/硬核副本「只许用这几个命令」
 
 ## monsters.yml — 怪物组/波次
 
@@ -91,26 +91,26 @@ requirements:
 
 ```yaml
 wave_1:
-  spawn_timing: AUTO_START            # 触发方式，见下表
+  spawn-timing: AUTO_START            # 触发方式，见下表
   monsters:
-    - mob_id: "vanilla:ZOMBIE"        # vanilla: 强制原版 / 无前缀走 MythicMobs
+    - mob-id: "vanilla:ZOMBIE"        # vanilla: 强制原版 / 无前缀走 MythicMobs
       location: "3,80,3"              # x,y,z
       amount: 3
-  complete_when_alive_below: 0        # 存活数低于此值时组完成
-  on_start:                           # 组开始时执行的脚本动作
+  complete-when-alive-below: 0        # 存活数低于此值时组完成
+  on-start:                           # 组开始时执行的脚本动作
     - "message @all &e第一波来袭！"
-  on_end:                             # 组完成时执行
+  on-end:                             # 组完成时执行
     - "spawn_group wave_2"
 ```
 
-| spawn_timing | 触发时机 |
+| spawn-timing | 触发时机 |
 |---|---|
 | `AUTO_START` | 副本 start 脚本后自动刷 |
-| `DELAYED` | 延迟触发（配合 `trigger_after` 或脚本） |
-| `TRIGGERED` | 由其他组的 `on_end` 中 `spawn_group <组>` 触发 |
+| `DELAYED` | 延迟触发（配合 `trigger-after` 或脚本） |
+| `TRIGGERED` | 由其他组的 `on-end` 中 `spawn_group <组>` 触发 |
 | `MANUAL` / `SCRIPTED` | 仅脚本动作 `spawn_group` 触发 |
 
-`mob_id` 路由规则：`vanilla:` 前缀强制原版；其余尝试 MythicMobs，加载失败自动回退原版同类型实体。
+`mob-id` 路由规则：`vanilla:` 前缀强制原版；其余尝试 MythicMobs，加载失败自动回退原版同类型实体。
 
 ## tasks.yml — 副本内任务
 
@@ -118,7 +118,7 @@ wave_1:
 tips:
   type: TIMED                        # 指定秒数触发
   times: [60, 300, 540]
-  timed_scripts:
+  timed-scripts:
     60: ["message @all &7已进行 1 分钟"]
     300: ["message @all &e时间过半！"]
 
@@ -137,7 +137,7 @@ on_kill:
 
 | type | 触发方式 |
 |---|---|
-| `TIMED` | 副本进行到 `times` 列出的秒数时执行对应 `timed_scripts` |
+| `TIMED` | 副本进行到 `times` 列出的秒数时执行对应 `timed-scripts` |
 | `INTERVAL` | 每 `interval` 秒循环执行 `script` |
 | `EVENT` | 指定事件发生时执行（如 `monster_kill`，上下文含 `{killer}`） |
 
@@ -148,11 +148,11 @@ trial_chest:
   type: RIGHT_CLICK_BLOCK            # 见下表
   location: "5,80,5"                 # 方块坐标（方块型用）
   region: ["0,60,0", "20,80,20"]     # 区域对角（区域型用）
-  entity_name: "宝箱守卫"             # 实体名（RIGHT_CLICK_ENTITY 用）
-  required_block: "GOLD_BLOCK"       # 要求的目标方块
+  entity-name: "宝箱守卫"             # 实体名（RIGHT_CLICK_ENTITY 用）
+  required-block: "GOLD_BLOCK"       # 要求的目标方块
   once: true                         # 一次性触发
   conditions: []                     # PAPI 条件
-  fail_message: "&c条件不满足"        # 条件失败提示（独立 5 秒节流）
+  fail-message: "&c条件不满足"        # 条件失败提示（独立 5 秒节流）
   script:                            # 触发时执行
     - "open_chest_ui @trigger trial_chest"
 ```
@@ -163,7 +163,7 @@ trial_chest:
 | `BREAK_BLOCK` / `PLACE_BLOCK` | 破坏/放置 `location` 处方块 |
 | `STEP_ON` | 站上 `location` 处方块 |
 | `ENTER_REGION` | 进入 `region` 区域（边沿触发，离开后再进可重触发） |
-| `RIGHT_CLICK_ENTITY` | 右键名为 `entity_name` 的实体 |
+| `RIGHT_CLICK_ENTITY` | 右键名为 `entity-name` 的实体 |
 
 > 防抖：同一玩家对同一交互点 500ms 内不重复触发；条件失败的提示消息独立节流 5 秒。
 
@@ -176,12 +176,12 @@ edge_wall:
   blocks:
     - "-7,79,-7,BEDROCK"             # x,y,z,Material
     - "-7,79,7,BEDROCK"
-  auto_create: true                  # 副本开始时自动放置
-  trigger_mode: NONE                 # NONE / ENTER / LEAVE / PERSIST
-  on_delete: []                      # 障碍移除时执行的脚本
+  auto-create: true                  # 副本开始时自动放置
+  trigger-mode: NONE                 # NONE / ENTER / LEAVE / PERSIST
+  on-delete: []                      # 障碍移除时执行的脚本
 ```
 
-| trigger_mode | 说明 |
+| trigger-mode | 说明 |
 |---|---|
 | `NONE` | 纯方块组，无触发 |
 | `ENTER` / `LEAVE` | 玩家进入/离开障碍区域时触发脚本 |
@@ -196,11 +196,11 @@ guide:
   name: "&e向导·艾琳"                # 显示名
   type: VILLAGER                     # 实体类型；有 Adyeshach 时可写 PLAYER
   location: "0,80,-5,0,0"            # x,y,z,yaw,pitch
-  look_at_player: true               # 注视附近玩家
+  look-at-player: true               # 注视附近玩家
   dialogs:                           # 右键时逐句播放的对话
     - "&e欢迎来到虚空试炼场！"
-  dialog_interval: 40                # 对话间隔（tick）
-  click_script:                      # 右键时执行的脚本
+  dialog-interval: 40                # 对话间隔（tick）
+  click-script:                      # 右键时执行的脚本
     - "quest_step slay_guard"
   once: false
 ```
@@ -215,17 +215,17 @@ guide:
 slay_guard:
   name: "讨伐虚空怪物"
   description: "击杀 5 只副本怪物后回来找向导领取报酬"
-  accept_text: "&e[艾琳] &f拜托了！击杀 5 只怪物后回来找我。"
-  accept_script:
+  accept-text: "&e[艾琳] &f拜托了！击杀 5 只怪物后回来找我。"
+  accept-script:
     - "message @trigger &a已接取任务"
-  submit_text: "&e[艾琳] &f这是说好的报酬。"
-  submit_conditions:
+  submit-text: "&e[艾琳] &f这是说好的报酬。"
+  submit-conditions:
     - "%axsabyss_dungeon_kills% >= 5"   # PAPI 条件
-  submit_script:
+  submit-script:
     - "grant_reward @trigger quest_pack"
 ```
 
-配合脚本动作：`quest_step <任务>`（未接取→接取，已接取→提交，推荐 NPC `click_script` 用）、`accept_quest` / `submit_quest` / `quest_status`。
+配合脚本动作：`quest_step <任务>`（未接取→接取，已接取→提交，推荐 NPC `click-script` 用）、`accept_quest` / `submit_quest` / `quest_status`。
 
 ## rewards.yml — 奖励集与宝箱
 
@@ -265,7 +265,7 @@ rewards:
 `open_chest_ui @trigger <名>` 打开宝箱 UI（无 ArcartX 客户端时直接发放）：
 
 ```yaml
-chest_rewards:
+chest-rewards:
   trial_chest:
     title: "试炼宝箱"
     rows: 3                          # UI 行数

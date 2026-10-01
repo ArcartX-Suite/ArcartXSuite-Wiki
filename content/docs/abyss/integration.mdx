@@ -9,7 +9,7 @@ description: Abyss 外部依赖、跨模块能力、服务端兼容性与故障�
 
 | 插件 | 必需性 | 集成的功能 |
 |---|---|---|
-| PlaceholderAPI | **硬依赖** | 条件占位符解析（`requirements.conditions`/`submit_conditions`/`check`）+ 注册 `%axsabyss_*%` 扩展 |
+| PlaceholderAPI | **硬依赖** | 条件占位符解析（`requirements.conditions`/`submit-conditions`/`check`）+ 注册 `%axsabyss_*%` 扩展 |
 | MythicMobs | 软依赖 | `monsters.yml` 中无前缀/`mythic:` 怪物经 MM 生成；`cast_skill`/`play_model_animation` 脚本动作 |
 | WorldEdit / FAWE | 软依赖 | `world.template` 为 schematic 时的粘贴；`void`/世界文件夹来源不需要 |
 | Adyeshach | 软依赖 | NPC 渲染（`npcs.yml` 的 PLAYER 型皮肤 NPC）；未装时 NPC 退化为原版实体 |
@@ -18,7 +18,7 @@ description: Abyss 外部依赖、跨模块能力、服务端兼容性与故障�
 
 ### MythicMobs 怪物路由
 
-`monsters.yml` 的 `mob_id` 按前缀路由：
+`monsters.yml` 的 `mob-id` 按前缀路由：
 
 ```
 vanilla:ZOMBIE       → 原版 ZOMBIE
@@ -26,11 +26,11 @@ SkeletalKnight       → MythicMobs SkeletalKnight（失败回退原版 SKELETON
 mythic:SkeletalKnight→ 同上，显式前缀
 ```
 
-MM 不可用时全部 mob_id 按原版实体名解析，副本不会因此崩溃。
+MM 不可用时全部 mob-id 按原版实体名解析，副本不会因此崩溃。
 
 ### 物品来源
 
-`rewards.yml`/`required_items` 中的物品描述经宿主 `ItemSourceRegistry` 统一生成，支持 `material:`（原版）及 MythicMobs/NeigeItems/Overture/MMOItems 等外源前缀（见宿主物品来源配置）。
+`rewards.yml`/`required-items` 中的物品描述经宿主 `ItemSourceRegistry` 统一生成，支持 `material:`（原版）及 MythicMobs/NeigeItems/Overture/MMOItems 等外源前缀（见宿主物品来源配置）。
 
 ## 跨模块能力
 

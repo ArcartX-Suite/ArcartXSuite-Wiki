@@ -29,8 +29,8 @@ Abyss 是 Suite 的地牢副本模块，提供「模板定义 → 独立实例 �
 |---|---|
 | 独立副本实例 | 每个副本实例创建独立世界（`axs_abyss_<随机ID>`），多实例并行互不干扰，结束后自动卸载清理 |
 | 三种世界来源 | `void` 虚空生成 / `world/` 世界文件夹复制 / schematic 粘贴（需 WorldEdit 或 FAWE） |
-| 怪物波次 | 怪物组按 `spawn_timing` 触发（自动/延迟/上一组结束/脚本），`vanilla:` 前缀强制原版，默认走 MythicMobs 并自动回退原版 |
-| 生命周期脚本 | `init` / `start` / `complete` / `fail` / `player_death` / `all_death` / `exit` 脚本段 + 60+ 内置动作 + `wait` 挂起 |
+| 怪物波次 | 怪物组按 `spawn-timing` 触发（自动/延迟/上一组结束/脚本），`vanilla:` 前缀强制原版，默认走 MythicMobs 并自动回退原版 |
+| 生命周期脚本 | `init` / `start` / `complete` / `fail` / `player-death` / `all-death` / `exit` 脚本段 + 60+ 内置动作 + `wait` 挂起 |
 | 副本任务 | NPC 对话接取、条件提交（PAPI 条件），`quest_step` 智能动作一次点击完成接取/提交 |
 | 交互点 | 右键方块/左键/挖掘/放置/踩上/进入区域/右键实体，支持一次性、条件、失败消息节流 |
 | 障碍物 | 方块组自动放置/移除，可选 ENTER/LEAVE/PERSIST 触发脚本 |
@@ -66,7 +66,7 @@ Abyss 是 Suite 的地牢副本模块，提供「模板定义 → 独立实例 �
               ┌── init 脚本(建场景) ──→ start 脚本 ──→ 怪物组/任务/交互点激活 ──┤
               │                                                               │
    通关 complete ──→ 发奖励+烟花 ──→ exit_dungeon 传送回 ──→ 世界卸载删除        │
-   失败 fail/all_death ──→ exit_dungeon ──→ 世界卸载删除                        │
+   失败 fail/all-death ──→ exit_dungeon ──→ 世界卸载删除                        │
    超时 timeout ──→ FAIL 判负 / KICK 踢出                                       │
               └───────────────────────────────────────────────────────────────┘
 ```
@@ -77,7 +77,7 @@ Abyss 是 Suite 的地牢副本模块，提供「模板定义 → 独立实例 �
 
 ### 怪物刷怪路由
 
-| mob_id 写法 | 行为 |
+| mob-id 写法 | 行为 |
 |---|---|
 | `vanilla:ZOMBIE` | 强制原版实体 |
 | `SkeletalKnight` / `mythic:SkeletalKnight` | MythicMobs 怪物，加载失败自动回退原版同类型 |

@@ -15,8 +15,8 @@ Abyss 的副本流程由 `scripts.yml` 中的生命周期脚本驱动。每个�
 | `start` | 玩家已传送，副本正式开始 |
 | `complete` | 通关（脚本 `complete_dungeon` 或怪物组条件触发） |
 | `fail` | 失败（脚本 `fail_dungeon`、团灭、超时 FAIL） |
-| `player_death` | 副本内玩家死亡（`{player}` = 死者，`@trigger` 指向该玩家） |
-| `all_death` | 全员死亡（配合 `team-wipe-mode`） |
+| `player-death` | 副本内玩家死亡（`{player}` = 死者，`@trigger` 指向该玩家） |
+| `all-death` | 全员死亡（配合 `team-wipe-mode`） |
 | `exit` | 玩家离开副本（`@trigger` = 离开者） |
 
 ```yaml
@@ -35,11 +35,11 @@ complete:
 fail:
   - "exit_dungeon @all"
 
-player_death:
+player-death:
   - "wait 5"
   - "revive_player @trigger"
 
-all_death:
+all-death:
   - "fail_dungeon"
 ```
 
