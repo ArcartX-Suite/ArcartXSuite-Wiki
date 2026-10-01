@@ -37,6 +37,15 @@ description:                  # 描述（列表，逐行显示在详情面板）
 world:
   template: "void"           # 世界来源，见下表
   spawn: "0,80,0,90,0"       # 出生点 x,y,z,yaw,pitch（副本世界坐标）
+  # 世界治理（可选）：gamerule 覆盖 / 自然刷怪控制 / 副本级命令控制
+  gamerules:                 # Bukkit GameRule 名 → 值（布尔或整数），叠加在模块默认规则之上
+    keepInventory: true
+    mobGriefing: false
+  disable_natural_spawn: true        # 禁环境驱动刷怪（脚本刷怪走 CUSTOM 不受影响）
+  disabled_spawn_reasons: []         # 额外禁用的 SpawnReason 名（可含 CUSTOM）
+  command_control:                   # 副本级命令控制（覆盖全局 restrictions.command-mode）
+    mode: "inherit"                  # inherit=沿用全局 / blacklist / whitelist
+    commands: []                     # mode 非 inherit 时的黑/白名单（按主命令匹配）
 
 time_limit: 600              # 限时（秒），超时触发 timeout_action
 timeout_action: "FAIL"       # FAIL=判负 / KICK=踢出
@@ -55,7 +64,9 @@ requirements:
   required_items: []         # 进本消耗物品列表
   required_permissions: []   # 需要的权限节点
   conditions: []             # PAPI 条件表达式（如 "%player_level% >= 10"）
-  disabled_commands: [spawn] # 本副本额外禁用命令（叠加全局 restrictions）
+  require_all_players: true  # false=物品/货币/权限/条件只校验队长（队长买单全队进）
+  leader_conditions: []      # 仅队长需要满足的额外条件（PAPI 表达式）
+  disabled_commands: [spawn] # 本副本额外禁用命令（绝对黑名单，叠加于命令控制之上）
   disabled_items: []         # 本副本额外禁用物品
 ```
 
@@ -66,6 +77,13 @@ requirements:
 | `void` | 生成虚空世界（全空气），用 `init` 脚本现场搭场景。零依赖最简方案 |
 | 目录名 | `abysses/<地牢ID>/world/` 下的完整世界存档文件夹（需含 `level.dat`），逐实例复制 |
 | `maps/<名>` 或 `.schem` | WorldEdit/FAWE schematic，粘贴到虚空世界。需安装 WorldEdit 或 FAWE |
+
+### world 世界治理
+
+- `gamerules`：按副本覆盖游戏规则（如 `keepInventory`、`randomTickSpeed`），未知规则名自动跳过；模块默认已内置一套副本规则（关日夜/天气/火焰蔓延/自然刷怪、keepInventory=true 等）
+- `disable_natural_spawn`：拦截自然/刷怪笼/巡逻/袭击等环境驱动生成；副本脚本刷怪走 `CUSTOM` 来源不受影响
+- `disabled_spawn_reasons`：按 `CreatureSpawnEvent.SpawnReason` 名精确禁用（含 `CUSTOM`，可彻底锁死生成）
+- `command_control`：副本级命令黑/白名单，`mode: inherit` 时沿用全局 `restrictions.command-mode`；`whitelist` 适合 PVP/硬核副本「只许用这几个命令」
 
 ## monsters.yml — 怪物组/波次
 

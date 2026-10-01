@@ -20,6 +20,10 @@ Abyss 的主配置文件为 `config.yml`，位于 `plugins/ArcartX-Suite/data/ab
 | `abyss.max-entities-per-instance` | `int` | `100` | 单实例实体上限，防止实体爆炸 |
 | `abyss.nms-fast-load` | `boolean` | `true` | 启用 NMS 快速世界加载通道，失败自动回退 Bukkit API |
 | `abyss.async-world-copy` | `boolean` | `true` | 世界文件夹复制异步执行（大目录建议开启） |
+| `abyss.empty-cleanup-delay-seconds` | `int` | `30` | 副本无人后回收延迟（秒），掉线玩家在窗口内重连可继续 |
+| `abyss.preload.enabled` | `boolean` | `false` | 副本预热池：启动后预建世界，进本秒开 |
+| `abyss.preload.strict` | `boolean` | `false` | 严格模式：预热池空时拒绝进入（`false`=回退即时创建） |
+| `abyss.preload.dungeons` | `Map` | `{}` | 各地牢预热数量，如 `skeleton_throne: 2` |
 
 ## death（死亡判定）
 
@@ -44,7 +48,8 @@ Abyss 的主配置文件为 `config.yml`，位于 `plugins/ArcartX-Suite/data/ab
 
 | 字段 | 类型 | 默认值 | 说明 |
 |---|---|---|---|
-| `restrictions.blocked-commands` | `List<String>` | `[spawn,tpa,home,back,warp,tp]` | 副本内禁用命令（按主命令匹配），副本模板 `disabled_commands` 可追加 |
+| `restrictions.command-mode` | `String` | `"BLACKLIST"` | `NONE`=不限制 / `BLACKLIST`=列表内禁用 / `WHITELIST`=仅列表内可用 |
+| `restrictions.blocked-commands` | `List<String>` | `[spawn,tpa,home,back,warp,tp]` | 命令控制列表（whitelist 模式下=允许的命令）；副本模板 `disabled_commands`/`world.command_control` 可覆盖 |
 | `restrictions.blocked-items` | `List<String>` | `[CHORUS_FRUIT]` | 副本内禁用物品（Material 名） |
 | `restrictions.block-break` | `boolean` | `false` | 禁止破坏方块（false=允许，交给交互点判定） |
 | `restrictions.block-place` | `boolean` | `false` | 禁止放置方块 |
@@ -57,8 +62,11 @@ Abyss 的主配置文件为 `config.yml`，位于 `plugins/ArcartX-Suite/data/ab
 | `party.invite-timeout` | `int` | `60` | 邀请有效时间（秒） |
 | `party.storage-pages` | `int` | `1` | 队伍仓库页数（每页 45 格） |
 | `party.allow-custom-name` | `boolean` | `true` | 允许自定义队伍名/颜色 |
-| `party.exp-share-mode` | `String` | `"EQUAL"` | 经验共享：`NONE` / `EQUAL` 平分 / `DISTANCE` 按距离衰减 |
-| `party.loot-mode` | `String` | `"FREE"` | 掉落分配：`FREE` / `ROUND_ROBIN` 轮流 / `LEADER` 队长 |
+| `party.exp-share-mode` | `String` | `"EQUAL"` | 经验共享：`NONE` / `EQUAL` 副本内队友平分 / `DISTANCE` 32 格内成员平分 |
+| `party.loot-mode` | `String` | `"FREE"` | 掉落分配：`FREE` / `ROUND_ROBIN` 轮流 / `LEADER` 队长 / `AUTO_STORE` 进队伍仓库 |
+
+> 掉落/经验路由只对副本内队伍生效；`AUTO_STORE` 存入共享仓库（`/party storage`），队伍解散时仓库物品发还队长。
+> 邀请有 60 秒冷却；玩家可 `/party allowinvite` 关闭接收。
 
 ## stamina（体力）
 
@@ -107,11 +115,19 @@ Abyss 的主配置文件为 `config.yml`，位于 `plugins/ArcartX-Suite/data/ab
 | `ui.overwrite-ui-files` | `boolean` | `false` | 更新时覆盖 `ui/` 目录已存在的同名文件 |
 | `ui.browser-id` | `String` | `"abyss_browser"` | 地牢浏览器 UI ID（自动加 `AXS:` 前缀） |
 | `ui.confirm-id` | `String` | `"abyss_confirm"` | 进本确认 UI |
-| `ui.party-id` | `String` | `"abyss_party"` | 队伍 UI |
+| `ui.lobby-id` | `String` | `"abyss_lobby"` | 组队大厅 UI |
+| `ui.party-id` | `String` | `"abyss_party"` | 队伍房间 UI |
 | `ui.chest-id` | `String` | `"abyss_chest"` | 宝箱 UI |
 | `ui.stats-id` | `String` | `"abyss_stats"` | 战斗统计 UI |
 | `ui.leaderboard-id` | `String` | `"abyss_leaderboard"` | 排行榜 UI |
 | `ui.hud-id` | `String` | `"abyss_hud"` | 副本内 HUD |
+
+## recovery（异常退出恢复）
+
+| 字段 | 类型 | 默认值 | 说明 |
+|---|---|---|---|
+| `recovery.enabled` | `boolean` | `true` | 玩家在副本中掉线/崩服后，下次进服执行恢复动作 |
+| `recovery.actions` | `List<String>` | `["[tell] ..."]` | 动作序列：`[tell]`/`[title]`/`[console]`/`[command]`/`[teleport]`/`[clear]`，支持 `{player}` `{dungeon}` 占位 |
 
 ## debug
 

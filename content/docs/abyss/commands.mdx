@@ -46,7 +46,8 @@ description: Abyss 命令、权限与 PlaceholderAPI 占位符
 | `/party approve <玩家>` | 批准入队申请（队长） |
 | `/party deny <玩家>` | 拒绝入队申请（队长） |
 | `/party allowinvite` | 切换自己是否可被邀请入队 |
-| `/party disband` | 解散队伍（队长） |
+| `/party storage` | 打开队伍共享仓库（Bukkit 容器 GUI，AUTO_STORE 掉落物进这里） |
+| `/party disband` | 解散队伍（队长；仓库物品自动发还队长） |
 
 ## 管理员命令
 
@@ -74,8 +75,9 @@ description: Abyss 命令、权限与 PlaceholderAPI 占位符
 |---|---|---|
 | `arcartxsuite.abyss.use` | `true` | `/abyss` 玩家命令 |
 | `arcartxsuite.abyss.party` | `true` | `/party` 队伍命令 |
+| `arcartxsuite.abyss.bypass` | `op` | 绕过副本内命令限制（管理/测试用） |
 
-> 管理命令走 `/axs` 宿主权限（`arcartxsuite.admin`，默认 OP）。副本内禁用命令由 `restrictions.blocked-commands` + 地牢 `disabled_commands` 双重控制。
+> 管理命令走 `/axs` 宿主权限（`arcartxsuite.admin`，默认 OP）。副本内命令控制：地牢 `disabled_commands` 绝对黑名单 + `world.command_control`（副本级黑/白名单，可覆盖全局 `restrictions`）+ 全局 `restrictions.blocked-commands`。
 
 ## PlaceholderAPI 占位符
 
