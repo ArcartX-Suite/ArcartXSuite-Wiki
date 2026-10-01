@@ -21,6 +21,7 @@ Abyss 的主配置文件为 `config.yml`，位于 `plugins/ArcartX-Suite/data/ab
 | `abyss.nms-fast-load` | `boolean` | `true` | 启用 NMS 快速世界加载通道，失败自动回退 Bukkit API |
 | `abyss.async-world-copy` | `boolean` | `true` | 世界文件夹复制异步执行（大目录建议开启） |
 | `abyss.empty-cleanup-delay-seconds` | `int` | `30` | 副本无人后回收延迟（秒），掉线玩家在窗口内重连可继续 |
+| `abyss.afk-kick-minutes` | `int` | `0` | 副本内挂机踢出（分钟）：玩家处于 Essentials AFK 状态超时则移出副本；`0`=关，需 essentials 模块 |
 | `abyss.preload.enabled` | `boolean` | `false` | 副本预热池：启动后预建世界，进本秒开 |
 | `abyss.preload.strict` | `boolean` | `false` | 严格模式：预热池空时拒绝进入（`false`=回退即时创建） |
 | `abyss.preload.dungeons` | `Map` | `{}` | 各地牢预热数量，如 `skeleton_throne: 2` |

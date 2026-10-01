@@ -68,7 +68,20 @@ requirements:
   leader-conditions: []      # 仅队长需要满足的额外条件（PAPI 表达式）
   disabled-commands: [spawn] # 本副本额外禁用命令（绝对黑名单，叠加于命令控制之上）
   disabled-items: []         # 本副本额外禁用物品
+
+links:                       # 跨模块联动（全部可选，模块缺席自动跳过）
+  entrance: "world;100,64,-50"          # 地牢入口地图标记 "世界;x,y,z"（map 模块紫色外部目标+内置导航）
+  announce-clear: "&6{party} 通关 {dungeon}&6，用时 &f{time}&6！"  # 通关全服播报（announcer 模块）
+  announce-forward: false               # 播报是否跨服转发
+  qq-notify-clear: false                # 通关推 QQ 群（qqbot 模块）
+  qq-group: 0                           # 指定群号，<=0=全部已配置群
 ```
+
+### links 跨模块联动
+
+声明式联动——不写脚本即可接其他模块。`announce-clear` 支持占位 `{party}`（队伍名）、`{dungeon}`（地牢显示名）、`{time}`（用时）。如需更细粒度（首通播报、成员名单、自定义条件），在 `scripts.yml` 生命周期脚本里用 `signal`/`announce_global`/`qq_group`/`bp_task` 等联动动作（见 [脚本系统](/docs/abyss/scripting#跨模块联动)）。
+
+`entrance` 推送为地图紫色外部目标，玩家可在地图面板点"导航"，由地图内置导航栈寻路（不占玩家路径点上限）；入口指向主城等固定世界坐标，不要指向副本世界内部。
 
 ### world.template（世界来源）
 

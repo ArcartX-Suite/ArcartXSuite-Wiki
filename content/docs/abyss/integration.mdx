@@ -54,6 +54,49 @@ if (abyss != null && abyss.isInDungeon(player.getUniqueId())) {
 | `bestTime(uuid, dungeonId)` | 最佳通关秒数 |
 | `dungeonIds()` | 全部地牢模板 ID |
 
+### EventBus 事件主题
+
+abyss 向 EventBus 发布以下主题（`axs.abyss.*`），battlepass 任务等订阅方按 `event-topic` 消费。**玩家级**主题的 `event.player()` 为对应玩家（驱动战令任务必须用这个级别）；实例级主题 `player` 为 null 或首名玩家：
+
+| 主题 | 级别 | 触发 | 主要 payload |
+|---|---|---|---|
+| `axs.abyss.enter` | 实例 | 队伍进本 | `dungeon` `instance` `players` |
+| `axs.abyss.player_enter` | 玩家 | 每名队员进本 | `dungeon` `instance` `party-size` |
+| `axs.abyss.start` | 实例 | 副本正式开始 | `dungeon` `instance` `players` |
+| `axs.abyss.complete` | 实例 | 通关 | `dungeon` `instance` `time_seconds` |
+| `axs.abyss.player_complete` | 玩家 | 每名队员通关 | `dungeon` `instance` `time_seconds` `party-size` |
+| `axs.abyss.fail` | 实例 | 失败 | `dungeon` `instance` `reason` |
+| `axs.abyss.player_fail` | 玩家 | 每名队员失败 | `dungeon` `instance` `reason` |
+| `axs.abyss.leave` | 玩家 | 离开副本 | `dungeon` `instance` `reason` |
+| `axs.abyss.player_death` | 玩家 | 副本内死亡 | `dungeon` `instance` `deaths` |
+| `axs.abyss.mob_kill` | 玩家 | 击杀副本怪 | `dungeon` `instance` `mob`（实体UUID） |
+| `axs.abyss.mob_group_start` / `mob_group_complete` | 实例 | 怪物组开始/完成 | `dungeon` `instance` `group` |
+
+战令任务示例（`battlepass` 任务配置）：
+
+```yaml
+event-topic: axs.abyss.player_complete
+conditions:
+  - "{dungeon} == skeleton_throne"
+```
+
+### abyss 消费的能力
+
+脚本动作与 `links` 声明式联动按需解析以下 capability（见 [脚本系统·跨模块联动](/docs/abyss/scripting#跨模块联动) 与 [地牢模板·links](/docs/abyss/dungeons#links-跨模块联动)）：
+
+| capability | 来源模块 | 用途 |
+|---|---|---|
+| `SignalDispatchable` | eventpacket | `signal` 动作 → 规则引擎 |
+| `AnnouncerBroadcastable` | announcer | `announce_global` / `links.announce-clear` |
+| `QQBotBroadcastable` | qqbot | `qq_group` / `links.qq-notify-clear` |
+| `SubtitlePlayable` | subtitle | `subtitle` 动作 |
+| `ChatCardSendable` | chat | `chat_card` 动作 |
+| `CombatEffectTriggerable` | combateffect | `combat_effect` 动作 |
+| `BattlePassAccess` | battlepass | `bp_task` 动作 |
+| `MapNavigable` | map | `links.entrance` 地图入口标记+内置导航 |
+| `EssentialsQueryable` | essentials | `recovery` 的 `teleport`（裸写=送回 spawn）/`afk-kick-minutes` |
+| 属性桥 `AttributeBridgeRegistry` | 宿主 | `apply_attribute`/`remove_attribute` + 属性伤害/治疗计入战斗统计 |
+
 ## 服务端兼容性
 
 | 平台 | 状态 |

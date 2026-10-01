@@ -71,7 +71,7 @@ all-death:
 | `effect` | `effect <选择器> <粒子> <参数>` |
 | `firework` | `firework <选择器> <类型> <颜色>` |
 | `bossbar` | `bossbar <选择器> <秒> <颜色> <样式> <标题>` |
-| `announce` | `announce <文本>` 公告 |
+| `announce` | `announce <选择器> <big\|small> <内容>` 大标题/actionbar 展示 |
 
 ### 玩家操作
 
@@ -149,6 +149,24 @@ all-death:
 | `grant_reward` | `grant_reward <选择器> <奖励集名>` 发放 `rewards.yml` 命名集 |
 | `open_chest_ui` | `open_chest_ui <选择器> <宝箱名>` 打开宝箱 UI |
 | `time` / `weather` | 设置副本世界时间/天气 |
+
+### 跨模块联动
+
+以下动作调用其他 AXS 模块的 capability；目标模块未启用时**静默跳过**，不报错不阻塞。
+
+| 动作 | 用法 | 依赖模块 |
+|---|---|---|
+| `signal` | `signal <选择器> <信号名>` 触发 EventPacket 规则引擎信号 | eventpacket |
+| `announce_global` | `announce_global <文本> [forward]` Announcer 全服公告（`forward`/`true` 结尾=跨服） | announcer |
+| `qq_group` | `qq_group [群号] <消息>` QQ 群推送（群号省略=全部已配置群） | qqbot |
+| `subtitle` | `subtitle <选择器> <字幕组id>` 播放字幕组 | subtitle |
+| `chat_card` | `chat_card <选择器> <卡片id> [k=v,k=v]` 发送聊天卡片 | chat |
+| `combat_effect` | `combat_effect <选择器> <特效包id>` 触发战斗特效包 | combateffect |
+| `bp_task` | `bp_task <选择器> <任务id> [增量]` 推进战令任务进度 | battlepass |
+| `apply_attribute` | `apply_attribute <选择器> <属性id> <值> [percent\|flat]` 副本内属性修饰，出本自动清除 | 属性桥（Symphony 等） |
+| `remove_attribute` | `remove_attribute <选择器>` 主动移除副本属性修饰 | 同上 |
+
+> 注意 `announce`（本地 title/actionbar 展示）与 `announce_global`（announcer 模块全服公告）是两个动作，不要混淆。
 
 ## 内联脚本与占位符
 
