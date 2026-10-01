@@ -71,6 +71,11 @@ abyss 向 EventBus 发布以下主题（`axs.abyss.*`），battlepass 任务等�
 | `axs.abyss.player_death` | 玩家 | 副本内死亡 | `dungeon` `instance` `deaths` |
 | `axs.abyss.mob_kill` | 玩家 | 击杀副本怪 | `dungeon` `instance` `mob`（实体UUID） |
 | `axs.abyss.mob_group_start` / `mob_group_complete` | 实例 | 怪物组开始/完成 | `dungeon` `instance` `group` |
+| `axs.abyss.party_created` | 玩家(队长) | 建队 | `party` `mode` `max_size` |
+| `axs.abyss.party_member_join` | 玩家(新成员) | 加入队伍 | `party` `mode` `size` |
+| `axs.abyss.party_member_leave` | 玩家(离线为null) | 离开/被踢/移除 | `party` `mode` `reason`(quit/kick/removed) |
+| `axs.abyss.party_disbanded` | null | 队伍解散 | `party` `mode` |
+| `axs.abyss.party_leader_change` | 玩家(新队长) | 队长变更/移交 | `party` `mode` |
 
 战令任务示例（`battlepass` 任务配置）：
 
@@ -96,6 +101,32 @@ conditions:
 | `MapNavigable` | map | `links.entrance` 地图入口标记+内置导航 |
 | `EssentialsQueryable` | essentials | `recovery` 的 `teleport`（裸写=送回 spawn）/`afk-kick-minutes` |
 | 属性桥 `AttributeBridgeRegistry` | 宿主 | `apply_attribute`/`remove_attribute` + 属性伤害/治疗计入战斗统计 |
+
+### 队伍系统开放能力 `AbyssPartyAccess`
+
+外部插件/其他模块可复用 abyss 的队伍数据结构与组队 UI（战区摸金、公会团本等场景）：
+
+```java
+AbyssPartyAccess parties = getCapability(AbyssPartyAccess.class);
+if (parties != null) {
+    // 建队：guild 模式、10 人上限（覆盖全局 party.max-members）
+    var party = parties.createParty(leader, "公会一团", "guild", 10);
+    // 同公会校验：注册后该模式队伍的任何加入路径（邀请/大厅/审批/直加）都会回调
+    parties.registerJoinValidator("guild", (p, applicant) ->
+        guildApi.sameGuild(p.leader(), applicant) ? null : "仅同公会成员可加入");
+    // 直加成员（跳过邀请流程，仍过校验钩子）
+    parties.addMember(party.id(), memberUuid);
+}
+```
+
+| 能力 | 说明 |
+|---|---|
+| `partyOf` / `isInParty` / `isLeader` / `getParty` / `publicParties` | 队伍查询（返回 `PartySnapshot` 不可变视图：id/name/mode/leader/members/maxSize/dungeonId） |
+| `createParty` | 编程式建队：`mode`（"free"自由/"guild"公会/自定义）+ 每队 `maxSize` 覆盖 |
+| `addMember` / `removeMember` / `transferLeader` / `disband` | 成员管理（全部发 EventBus 事件） |
+| `registerJoinValidator(mode, v)` | 按模式注册加入校验——同公会检查等由你的插件实现 |
+
+副本侧配合：地牢模板 `requirements.party-mode: "guild"` 可限制该副本仅接受公会模式队伍进入（自由组队/无队伍被拒）；`party-required` 控制是否强制组队。
 
 ## 服务端兼容性
 
