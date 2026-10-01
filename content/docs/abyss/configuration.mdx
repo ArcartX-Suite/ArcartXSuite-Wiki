@@ -60,13 +60,9 @@ Abyss 的主配置文件为 `config.yml`，位于 `plugins/ArcartX-Suite/data/ab
 |---|---|---|---|
 | `party.max-members` | `int` | `4` | 队伍最大人数 |
 | `party.invite-timeout` | `int` | `60` | 邀请有效时间（秒） |
-| `party.storage-pages` | `int` | `1` | 队伍仓库页数（每页 45 格） |
 | `party.allow-custom-name` | `boolean` | `true` | 允许自定义队伍名/颜色 |
-| `party.exp-share-mode` | `String` | `"EQUAL"` | 经验共享：`NONE` / `EQUAL` 副本内队友平分 / `DISTANCE` 32 格内成员平分 |
-| `party.loot-mode` | `String` | `"FREE"` | 掉落分配：`FREE` / `ROUND_ROBIN` 轮流 / `LEADER` 队长 / `AUTO_STORE` 进队伍仓库 |
 
-> 掉落/经验路由只对副本内队伍生效；`AUTO_STORE` 存入共享仓库（`/party storage`），队伍解散时仓库物品发还队长。
-> 邀请有 60 秒冷却；玩家可 `/party allowinvite` 关闭接收。
+> 副本奖励统一走 `rewards.yml` 奖励集 + `ItemRewardDispatcher`（背包→个人仓库→邮件→离线暂存→掉落），掉落物按原版归属由击杀者拾取。邀请有 60 秒冷却；玩家可 `/party allowinvite` 关闭接收。
 
 ## stamina（体力）
 
