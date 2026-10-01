@@ -78,6 +78,25 @@ links:                       # 跨模块联动（全部可选，模块缺席自�
   announce-forward: false               # 播报是否跨服转发
   qq-notify-clear: false                # 通关推 QQ 群（qqbot 模块）
   qq-group: 0                           # 指定群号，<=0=全部已配置群
+
+# 作战方案：进本前选择，影响本局怪组/脚本分支（详见「plans 作战方案」节）
+plans:
+  strong:
+    name: "&c强攻·正面突破"
+    lore: ["怪群密集，需火力压制", "掉落倾向：弹药/武器件"]
+  sneak:
+    name: "&b潜入·暗杀优先"
+    lore: ["敌人分散警觉，需潜行", "掉落倾向：稀有材料/情报"]
+
+# 世界入口点：主世界/场景里的物理入口，右键触发进本（详见「entrances 世界入口点」节）
+entrances:
+  - world: world                 # 入口所在世界（非副本世界）
+    location: "100,64,-50"       # 方块坐标（与 region 二选一，可都填）
+    name: "正门"
+  - world: world
+    region: "90,60,-60;95,70,-55"  # 立方区域（区域内任意方块右键都触发）
+    plan: strong                 # 固定方案（可选；不配且 plans>1 → 弹方案选择菜单）
+    name: "侧墙裂缝"
 ```
 
 ### links 跨模块联动
@@ -85,6 +104,49 @@ links:                       # 跨模块联动（全部可选，模块缺席自�
 声明式联动——不写脚本即可接其他模块。`announce-clear` 支持占位 `{party}`（队伍名）、`{dungeon}`（地牢显示名）、`{time}`（用时）。如需更细粒度（首通播报、成员名单、自定义条件），在 `scripts.yml` 生命周期脚本里用 `signal`/`announce_global`/`qq_group`/`bp_task` 等联动动作（见 [脚本系统](/docs/abyss/scripting#跨模块联动)）。
 
 `entrance` 推送为地图紫色外部目标，玩家可在地图面板点"导航"，由地图内置导航栈寻路（不占玩家路径点上限）；入口指向主城等固定世界坐标，不要指向副本世界内部。
+
+> **地图标记 vs 物理入口**：`links.entrance` 只是地图上的导航标记（指路用）；真正右键进本要配下面的 `entrances` 世界入口点。两者通常指向同一位置。
+
+### plans 作战方案
+
+进本前选择的作战方案（如"强攻/潜入/破局"），影响本局怪组与脚本分支，**不影响剧情走向**。
+
+- **定义**：`plans` 节每个 key 是方案 id，`name` 显示名（支持 `&`）、`lore` 描述行（菜单展示用）
+- **选择入口**（三处都生效）：
+  - 命令：`/abyss enter <地牢> <方案id>`
+  - 入口点 `plan:` 字段固定方案（适合"不同物理入口=不同打法"）
+  - 入口点不配 `plan` 且方案多于一个时，点击者收到**可点击的方案选择菜单**（聊天栏，点击自动执行进本命令）
+- **不选方案**：模板定义了 plans 但没指定时，默认取第一个方案
+- **实例变量**：进本后 `{plan}`=方案 id、`{plan_name}`=显示名，可在脚本/消息文本中引用
+- **事件**：`axs.abyss.enter` / `axs.abyss.player_enter` 的 payload 附带 `plan`
+
+**方案怎么影响玩法**（两条路，可混用）：
+
+1. **怪组过滤**——`monsters.yml` 和 `rooms.yml` 的怪物组加 `plans: [方案id]` 字段后，只有该方案进本才注册此组。不同方案刷完全不同的怪群：
+   ```yaml
+   wave_assault:              # 只在"强攻"方案出现
+     plans: [strong]
+     spawn-timing: AUTO_START
+     monsters: [...]
+   ```
+2. **脚本分支**——`{plan}` 变量配合 `check` 动作分流奖励/机制：
+   ```yaml
+   on-end:
+     - "check @trigger var:plan == strong"      # 仅强攻方案继续往下走
+     - "grant_reward @trigger ammo_cache"        # 强攻掉弹药箱
+   ```
+
+### entrances 世界入口点
+
+主世界/场景里的**物理进本点**——玩家右键登记的方块（或区域内任意方块）触发进本，命中后交互事件自动取消（门/箱子不会真的打开）。
+
+- `world`：入口所在世界名（主世界场景，**不是**副本世界——副本世界名带 `axs_abyss_` 前缀且是实例世界）
+- `location`：单点 `"x,y,z"`；`region`：立方区域 `"x1,y1,z1;x2,y2,z2"`——两者可都填，同一入口多点命中
+- `plan`：可选，固定方案 id（对应 `plans` 键名）；不配且模板多方案 → 弹方案菜单
+- `name`：可选显示名
+- **队伍带入**：点击者是队长且有队员 → 自动带全队进本（沿用进本条件校验：体力/冷却/道具按 `require-all-players` 规则判定）
+- 进本失败（条件不满足/冷却中/实例满等）会给点击者发失败原因
+- 与 `links.entrance` 地图标记独立，建议配合使用：地图指路 + 到点右键进本
 
 ### world.template（世界来源）
 
@@ -113,6 +175,7 @@ wave_1:
       location: "3,80,3"              # x,y,z
       amount: 3
   complete-when-alive-below: 0        # 存活数低于此值时组完成
+  plans: []                           # 限定作战方案 id 列表（空=所有方案都刷；见 plans 作战方案）
   on-start:                           # 组开始时执行的脚本动作
     - "message @all &e第一波来袭！"
   on-end:                             # 组完成时执行

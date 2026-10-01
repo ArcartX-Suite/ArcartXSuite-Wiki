@@ -117,6 +117,26 @@ all-death:
 | `setvar` / `delvar` / `addvar` | 副本变量读写 |
 | `check` | `check <条件>` 条件不满足时中止当前脚本 |
 
+### 全服共享计数
+
+跨副本/跨实例的**服务器级**计数器（持久化到数据库，重启不丢）。典型用途：全服收集进度（"重启密钥归档"）、全服完成率统计、全服事件的触发数据源。
+
+| 动作 | 用法 |
+|---|---|
+| `global_add` | `global_add <键> [增量]` 累加（默认 +1），命中阈值自动发事件 |
+| `global_set` | `global_set <键> <值>` 直接设定 |
+| `global_get` | `global_get <键> <变量>` 把全服计数读进实例变量（配合 `check` 判断） |
+| `global_reset` | `global_reset <键>` 归零并清阈值触发记录（一轮全服事件结束用） |
+
+**阈值事件**：模块配置 `ArcartXAbyss.yml` 的 `global-thresholds` 节声明阈值表：
+
+```yaml
+global-thresholds:
+  reboot_key_fragments: [50, 100]   # 到达 50 / 100 时各发一次 axs.abyss.global_threshold
+```
+
+计数每次变更发 `axs.abyss.global_change`（payload：`key`/`value`/`delta`/`dungeon`/`instance`/`player`）；首次跨越阈值额外发 `axs.abyss.global_threshold`（payload 加 `threshold`），同一阈值只触发一次，`global_reset` 后可重新触发。**事件本体（全服防守战/阵营混战等）由 eventpacket 规则或外部玩法模块订阅实现**——abyss 只出数据源。
+
 ### 怪物与方块
 
 | 动作 | 用法 |
@@ -180,3 +200,12 @@ all-death:
 ## 实例变量
 
 `setvar`/`delvar`/`addvar` 读写副本实例级变量（如 `setvar last_killer {killer}`），生命周期随实例结束销毁。占位符 `{变量名}` 在后续动作行中展开。
+
+**预置变量**（进本/推进流程自动写入，无需 setvar）：
+
+| 变量 | 内容 | 来源 |
+|---|---|---|
+| `{plan}` / `{plan_name}` | 作战方案 id / 显示名 | 地牢定义了 `plans` 时，进本选定的方案 |
+| `{floor}` / `{floor_name}` / `{floors_total}` | 当前层序号 / 层名 / 总层数 | floors 模式推进时写入 |
+| `{room}` | 当前房间 id | floors 模式进房时写入 |
+| `{player}` / `{killer}` 等 | 触发者/击杀者 | 事件脚本上下文 |

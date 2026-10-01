@@ -60,8 +60,8 @@ abyss 向 EventBus 发布以下主题（`axs.abyss.*`），battlepass 任务等�
 
 | 主题 | 级别 | 触发 | 主要 payload |
 |---|---|---|---|
-| `axs.abyss.enter` | 实例 | 队伍进本 | `dungeon` `instance` `players` |
-| `axs.abyss.player_enter` | 玩家 | 每名队员进本 | `dungeon` `instance` `party-size` |
+| `axs.abyss.enter` | 实例 | 队伍进本 | `dungeon` `instance` `players` `plan`（有方案时） |
+| `axs.abyss.player_enter` | 玩家 | 每名队员进本 | `dungeon` `instance` `party-size` `plan`（有方案时） |
 | `axs.abyss.start` | 实例 | 副本正式开始 | `dungeon` `instance` `players` |
 | `axs.abyss.complete` | 实例 | 通关 | `dungeon` `instance` `time_seconds` |
 | `axs.abyss.player_complete` | 玩家 | 每名队员通关 | `dungeon` `instance` `time_seconds` `party-size` |
@@ -76,6 +76,10 @@ abyss 向 EventBus 发布以下主题（`axs.abyss.*`），battlepass 任务等�
 | `axs.abyss.party_member_leave` | 玩家(离线为null) | 离开/被踢/移除 | `party` `mode` `reason`(quit/kick/removed) |
 | `axs.abyss.party_disbanded` | null | 队伍解散 | `party` `mode` |
 | `axs.abyss.party_leader_change` | 玩家(新队长) | 队长变更/移交 | `party` `mode` |
+| `axs.abyss.global_change` | null | 全服计数每次变更 | `key` `value` `delta` `dungeon` `instance` `player` |
+| `axs.abyss.global_threshold` | null | 全服计数首次跨越 `global-thresholds` 阈值 | `key` `value` `threshold` `dungeon` `instance` `player` |
+
+> **职责边界**：`global_*` 系列只提供「持久化计数 + 事件出口」。阈值命中后的全服事件玩法（防守战/阵营混战/全服 Boss 等）由 eventpacket 规则、regions 区域规则或外部玩法模块订阅实现——abyss 不承载副本实例之外的世界状态。
 
 战令任务示例（`battlepass` 任务配置）：
 
