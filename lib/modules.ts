@@ -42,6 +42,7 @@ export const modules: ModuleInfo[] = [
   { slug: 'entitytracker', name: 'EntityTracker', displayName: 'EntityTracker 实体追踪', description: 'Boss / 目标追踪面板', category: 'bonus', color: '#fde047' },
   { slug: 'extrabackpack', name: 'ExtraBackpack', displayName: 'ExtraBackpack 额外背包', description: '扩展背包（多分类额外槽位）', category: 'bonus', color: '#8b5cf6' },
   { slug: 'vanilla', name: 'VanillaUI', displayName: 'VanillaUI 原版界面替换', description: '原版界面替换（工作台/熔炉 UI 化）', category: 'bonus', color: '#10b981' },
+  { slug: 'abyss', name: 'Abyss', displayName: 'Abyss 地牢副本', description: '实例化地牢副本：楼层模式/随机房间/作战方案/怪物波次/队伍/结算统计', category: 'bonus', color: '#fb923c' },
 ];
 
 export const categoryLabels: Record<ModuleInfo['category'], string> = {
