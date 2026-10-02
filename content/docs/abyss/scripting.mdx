@@ -159,6 +159,11 @@ global-thresholds:
 | `floor_next` | 强制推进下一层（floors 模式） |
 | `room_lock` / `room_unlock` | `room_lock <房id>` 手动锁门/清房开门（floors 模式） |
 | `room_status` | `room_status <房id> <变量>` 写房间状态到变量（SEALED/FIGHTING/CLEARED/UNKNOWN） |
+| `puzzle_prompt` | `puzzle_prompt <机关id>` 给触发者打开 input 型机关的输入面板（puzzles.yml） |
+| `puzzle_prompt_player` | `puzzle_prompt_player <玩家\|@all> <机关id>` 指定玩家打开输入面板 |
+| `puzzle_reset` | `puzzle_reset <机关id>` 机关进度/锁定清零，回到初始状态 |
+| `puzzle_solve` | `puzzle_solve <机关id>` 直接判定完成（触发 on-complete + 事件） |
+| `puzzle_state` | `puzzle_state <机关id> <变量>` 机关进度写入变量（无此机关=-1） |
 | `spawn_npc` / `remove_npc` | `spawn_npc <名>` 生成/移除 NPC |
 | `npc_dialog` | `npc_dialog <名>` 播放 NPC 对话 |
 | `accept_quest` / `submit_quest` | `accept_quest <任务>` / `submit_quest <任务>` |

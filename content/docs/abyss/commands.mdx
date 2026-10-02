@@ -67,6 +67,14 @@ description: Abyss 命令、权限与 PlaceholderAPI 占位符
 | `/axs abyss cooldown <玩家> clear\|check [地牢]` | 冷却管理 |
 | `/axs abyss tp <地牢>` | 传送到该地牢实例世界 |
 | `/axs abyss reload` | 重载全部地牢模板（`abysses/` 目录） |
+| `/axs abyss puzzle` | 列出当前实例全部机关状态（需身在副本内） |
+| `/axs abyss puzzle <机关id>` | 单机关详情（类型/进度/步数） |
+| `/axs abyss puzzle <id> reset` | 重置进度+解除锁定 |
+| `/axs abyss puzzle <id> solve` | 直接判定完成（触发 on-complete + 事件） |
+| `/axs abyss puzzle <id> fail` | 强制锁定（触发 on-fail + 事件） |
+| `/axs abyss puzzle <id> prompt [玩家]` | 给指定玩家打开 input 型机关的输入面板 |
+
+> `puzzle` 系列是**局内编辑**入口：只改当前副本实例的内存状态（进度/完成/锁定），不写回 `puzzles.yml`，不影响下一个副本实例。需要 `arcartxsuite.abyss.admin` 权限且玩家身在目标副本内。
 
 ## 权限节点
 
@@ -74,6 +82,7 @@ description: Abyss 命令、权限与 PlaceholderAPI 占位符
 |---|---|---|
 | `arcartxsuite.abyss.use` | `true` | `/abyss` 玩家命令 |
 | `arcartxsuite.abyss.party` | `true` | `/party` 队伍命令 |
+| `arcartxsuite.abyss.admin` | `op` | `/axs abyss` 管理子命令（含 `puzzle` 局内编辑） |
 | `arcartxsuite.abyss.bypass` | `op` | 绕过副本内命令限制（管理/测试用） |
 
 > 管理命令走 `/axs` 宿主权限（`arcartxsuite.admin`，默认 OP）。副本内命令控制：地牢 `disabled-commands` 绝对黑名单 + `world.command-control`（副本级黑/白名单，可覆盖全局 `restrictions`）+ 全局 `restrictions.blocked-commands`。

@@ -246,6 +246,72 @@ trial_chest:
 
 > 防抖：同一玩家对同一交互点 500ms 内不重复触发；条件失败的提示消息独立节流 5 秒。
 
+## puzzles.yml — 机关解谜
+
+每个地牢目录可放 `puzzles.yml` 定义实例级机关——状态随副本创建/销毁，不占主世界。两种类型：
+
+- `sequence` — 按顺序触发一组 interact 点名（压力阀/符文顺序/接线板）
+- `input` — 弹 ArcartX 输入面板，玩家键盘输入密码/口令（电梯通行码）
+
+```yaml
+# 序列型：按 4-2-1-3 顺序点阀门
+valve_sequence:
+  name: "冷却阀序列"
+  type: sequence
+  steps: [valve_4, valve_2, valve_1, valve_3]   # interacts.yml 中的点名（可重复）
+  reset-on-miss: true          # 点错顺序→清空进度重来；false=错序只惩罚不回退
+  miss-limit: 5                # 累计错序上限（0=不限）；超限→on-fail 并锁定
+  on-step:                     # 每步正确执行
+    - "sound @trigger ui.button.click 1 1.6"
+    - "title @trigger &a阀门 {var:puzzle.valve_sequence}/4 已开启"
+  on-miss:                     # 错序惩罚
+    - "subtitle @all &c阀门顺序错误"
+    - "spawn_group noise_lure"
+  on-complete:
+    - "delete_obstacle pump_door"
+  on-fail:
+    - "broadcast &c控制台已锁定"
+
+# 输入型：加密电梯四位码
+elevator_code:
+  name: "加密电梯终端"
+  type: input
+  answer: "4312"               # 正确答案（仅服务端比对，永不下发客户端）
+  case-sensitive: false        # 大小写敏感
+  length: 4                    # 输入框最大长度（0=不限）
+  input-pattern: "^[0-9]*$"    # 客户端字符过滤正则（可删）
+  title: "加密电梯终端"         # 面板标题（空用 name）
+  hint: "输入四位通行码"        # 输入框空提示
+  masked: true                 # 掩码显示（*）
+  max-attempts: 3              # 允许错误次数（0=不限；超限→on-fail+锁定）
+  per-player: false            # true=每人独立计次；false=全队共享额度
+  on-miss: ["title @trigger &c通行码错误"]
+  on-complete: ["delete_obstacle elevator_gate"]
+  on-fail: ["broadcast &c终端已锁定"]
+```
+
+### 联动方式
+
+- **步骤点名** = `interacts.yml` 键名。interact 触发成功即上报谜题系统——步骤点可以不挂 `script`（纯机关点），也可以同时挂脚本做额外反馈
+- **input 面板入口**：interact/NPC 脚本里用 `puzzle_prompt <机关id>` 打开；指定玩家用 `puzzle_prompt_player <玩家|@all> <机关id>`
+- **实例变量**：`{var:puzzle.<id>}`=进度（sequence=步数/input=尝试次数）、`{var:puzzle.<id>.done}`="1"、`{var:puzzle.<id>.locked}`="1"
+- **事件**：`axs.abyss.puzzle_step` / `axs.abyss.puzzle_complete` / `axs.abyss.puzzle_fail`（`reason`: `miss_sequence`/`miss_input`/`locked`）
+- **管理/脚本动作**：`puzzle_reset` / `puzzle_solve` / `puzzle_state <id> <变量>` —— 跳关、动态重置、状态读取
+- **安全模型**：答案只在服务端比对；UI 提交需 action_token + 玩家实例校验，伪造包/跨实例提交无效
+
+### 管理员局内操作
+
+```
+/axs abyss puzzle                  # 列出当前实例全部机关状态
+/axs abyss puzzle <id>             # 单机关详情（类型/进度/步数）
+/axs abyss puzzle <id> reset       # 重置进度+解锁
+/axs abyss puzzle <id> solve       # 直接判定完成（触发 on-complete）
+/axs abyss puzzle <id> fail        # 强制锁定（触发 on-fail）
+/axs abyss puzzle <id> prompt [玩家]  # 给玩家打开输入面板（测试用）
+```
+
+所有操作**只改当前实例内存状态**，不写回 `puzzles.yml`——局内调试完不影响下个副本实例。
+
 ## obstacles.yml — 障碍物
 
 障碍物是副本开始时自动放置的方块组，可用于封路/边界/装饰：
