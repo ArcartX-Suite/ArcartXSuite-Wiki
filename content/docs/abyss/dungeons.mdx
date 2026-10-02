@@ -312,6 +312,60 @@ elevator_code:
 
 所有操作**只改当前实例内存状态**，不写回 `puzzles.yml`——局内调试完不影响下个副本实例。
 
+## buffs.yml — 增益选择池
+
+roguelike 式"祝福"系统：清房/层间/神龛交互等时机，给玩家弹**三选一增益卡片**（或静默按权重直接生效）。触发不写在本文件——在任何生命周期段 / interact / 机关脚本里用 `buff_offer <池id>` 动作发起，时机完全由编排决定。
+
+```yaml
+pools:
+  room_blessing:
+    name: "房间肃清祝福"          # 面板标题
+    pick: 1                     # 每玩家选一个
+    candidates: 3               # 候选数（<=0=全显；按 weight 加权抽取，不重复）
+    presentation: panel         # panel=AX 卡片面板 / hud=不弹窗直接生效
+    timeout: 20                 # 选择限时秒（0=不限）
+    timeout-auto: random        # 超时兜底：first|random|none
+    once-per-instance: false    # true=本池每实例只能 offer 一次
+    options:
+      - id: sharp_edge
+        name: "&c利刃"
+        icon: IRON_SWORD        # 物品材质名 → 卡片图标（可空）
+        rarity: rare            # common|rare|epic|legendary → 描边色
+        weight: 10              # 抽中权重
+        desc: ["攻击伤害 +15%"]  # 面板最多显示前 3 行
+        effects:                # 脚本行（全动作可用，@trigger=选择者）
+          - "apply_attribute @trigger attack_damage 15 percent"
+          - "message @trigger &d✦ &c利刃 &7已生效"
+```
+
+### 效果三通道
+
+`effects` 是完整脚本行列表，落地路径全走现有机制：
+
+- **药水**：`apply_potion @trigger SPEED 1 9999`
+- **属性加成**：`apply_attribute @trigger <属性> <值> [percent]`（Symphony/AttributePlus/MythicLib/Crane 统一属性桥，装了哪个走哪个）
+- **变量驱动**：`setvar buff_ember_mark 1` —— 伤害加成/特殊机制在怪物组/武器脚本里 `check` 变量分支实现，策划自由度最大
+
+### 触发方式（脚本动作）
+
+```yaml
+# rooms.yml 清房后
+on-clear:
+  - "buff_offer room_blessing"
+
+# floors.yml 层进入 / interact 神龛点击 / 机关完成同理
+on-enter:
+  - "buff_offer floor_mend"          # presentation: hud —— 不弹窗，直接生效+提示
+```
+
+`buff_grant <池id> <选择器> [optionId]` 直接赋予不弹窗（剧情强制增益/调试）；`buff_clear <池id>` 撤下未完成的待选面板。
+
+### 联动
+
+- **实例变量**：`{var:buff.<poolId>}`=最近所选 option id、`{var:buff.<poolId>.count}`=已发放人次
+- **事件**：`axs.abyss.buff_offer` / `axs.abyss.buff_pick`（payload 含 `pool`/`option`）
+- **超时**：`timeout` 到时按 `timeout-auto` 兜底，客户端面板自动关闭
+
 ## obstacles.yml — 障碍物
 
 障碍物是副本开始时自动放置的方块组，可用于封路/边界/装饰：

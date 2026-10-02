@@ -170,6 +170,37 @@ global-thresholds:
 | `quest_step` | `quest_step <任务>` 智能一步：未接取→接取，已接取→提交（推荐 NPC click 用） |
 | `quest_status` | `quest_status <任务>` 查询状态 |
 
+### 副本内引导（路标/路径渲染）
+
+调用 `api.util.NavigationTargetService`——HUD 目标行 + 客户端路标 + 路径标记链直达目标，到达发事件并可自动跑脚本段。
+
+| 动作 | 用法 |
+|---|---|
+| `guide_point` | `guide_point <navId> <x,y,z> [到达半径] <标题...>` 全员登记导航目标（同 navId 覆盖） |
+| `guide_clear` | `guide_clear <navId\|all>` 撤下目标 |
+
+```yaml
+start:
+  - "guide_point pump_room 90,64,-55 3 &e前往泵房"
+
+# 到达回调：scripts.yml 里定义 guide_<navId> 段自动运行
+guide_pump_room:
+  - "guide_clear pump_room"
+  - "message @all &a已抵达泵房"
+```
+
+到达同时发 `axs.abyss.guide_arrive` 事件（payload：`nav`）。HUD 顶部常驻显示最新一条目标标题；玩家退出/副本结束自动清理；中途进本的玩家自动补推当前目标。ArcartX 路标桥不可用时动作静默跳过。
+
+### 增益选择池（buffs.yml）
+
+| 动作 | 用法 |
+|---|---|
+| `buff_offer` | `buff_offer <池id>` 发起增益选择（panel=弹卡片面板 / hud=直接生效） |
+| `buff_grant` | `buff_grant <池id> <选择器> [optionId]` 直接赋予（不弹窗；optionId 空=权重随机） |
+| `buff_clear` | `buff_clear <池id>` 撤下未完成的待选面板 |
+
+实例变量 `{var:buff.<池id>}`=所选 option id、`{var:buff.<池id>.count}`=发放人次；事件 `axs.abyss.buff_offer`/`buff_pick`。详见 [buffs.yml 增益选择池](/docs/abyss/dungeons#buffsyml--增益选择池)。
+
 ### 奖励
 
 | 动作 | 用法 |
