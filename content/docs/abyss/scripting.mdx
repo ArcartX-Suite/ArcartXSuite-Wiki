@@ -220,6 +220,17 @@ guide_pump_room:
 | `qq_group` | `qq_group [群号] <消息>` QQ 群推送（群号省略=全部已配置群） | qqbot |
 | `subtitle` | `subtitle <选择器> <字幕组id>` 播放字幕组 | subtitle |
 | `chat_card` | `chat_card <选择器> <卡片id> [k=v,k=v]` 发送聊天卡片 | chat |
+| `quest_track` | `quest_track <questId> [taskId\|-] [@sel]` QuestGPS 任务追踪卡片：taskId 省略或 `-`=追踪整个任务，否则追踪指定步骤；选择器缺省 `@trigger` | questgps |
+
+```yaml
+# 进本后给全员挂上"讨伐魔君"任务追踪；到泵房时切到具体步骤
+start:
+  - "quest_track demon_slayer - @all"
+on-room-clear:
+  - "quest_track demon_slayer reach_pump @all"
+```
+
+`quest_track` 只做追踪/HUD 卡片展示——任务接取、条件判定、奖励发放仍由 questgps/Chemdah 任务体系负责；abyss 侧坐标引导用 `guide_point`，两者分工不重叠。
 | `combat_effect` | `combat_effect <选择器> <特效包id>` 触发战斗特效包 | combateffect |
 | `bp_task` | `bp_task <选择器> <任务id> [增量]` 推进战令任务进度 | battlepass |
 | `apply_attribute` | `apply_attribute <选择器> <属性id> <值> [percent\|flat]` 副本内属性修饰，出本自动清除 | 属性桥（Symphony 等） |
