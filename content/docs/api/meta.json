@@ -11,6 +11,7 @@
                   "aria",
                   "placeholder-api",
                   "packet-bridge",
+                  "mod-attributes",
                   "i18n",
                   "cross-server-api"
               ]

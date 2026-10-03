@@ -44,6 +44,8 @@ description: 称号定义字段、分组品质体系、双属性系统与头顶�
 | `source` | `String` | `""` | 称号来源说明 |
 | `display-attributes` | `Map<String, Double>` | `{}` | 展示属性键值对（装备时生效） |
 | `display-attribute-lines` | `List<String>` | `[]` | 展示属性文本行（用于 UI 展示与属性源写入） |
+| `display-effects` | `Map<String, Integer>` | `{}` | 持续药水效果（装备时生效，效果名 → 等级 1 起） |
+| `permanent-display-bonuses` | `Map<String, 数值或节>` | `{}` | Mod 实体属性加成（装备且称号为永久拥有时生效） |
 | `collection-attributes` | `Map<String, Double>` | `{}` | 收集属性键值对（拥有即生效） |
 | `collection-attribute-lines` | `List<String>` | `[]` | 收集属性文本行 |
 | `sort-order` | `int` | 索引位置 | 同分组/同品质内的排序权重，越小越靠前 |
@@ -142,6 +144,75 @@ collection-attribute-lines:
   - "&b学识: 1"
   - "&e声望: 2"
 ```
+
+### 持续药水效果（display-effects）
+
+装备称号期间持续生效的药水效果，经本体 `PotionAuraService` 按来源 `AXS_TITLE_DISPLAY` 周期刷新。卸下、切换、退出或模块重载时自动移除。
+
+```yaml
+display-effects:
+  急迫: 1        # 中文别名或英文枚举名均可
+  speed: 2       # 支持新旧枚举名（新版 haste / 旧版 fast_digging 双向兼容）
+  村庄英雄: 1
+```
+
+### Mod 属性加成（permanent-display-bonuses）
+
+**仅混合核心（Mohist / Arclight 等 Forge+Bukkit 环境）可用。** 向玩家挂载任意 Mod 注册的 Forge 实体属性修饰器（经本体 `ModAttributeService`，来源 `AXS_TITLE_PERMANENT`），可加成 `gunsmithlib:*`、`apothic_attributes:*`、`irons_spellbooks:*` 等任意 Mod 属性。
+
+**生效条件**：装备该称号 **且** 该称号为永久拥有（`expiresAt == null`）。限时称号即使当前有效也不生效——这是它与 `display-*` / `collection-*` 的本质区别。
+
+```yaml
+permanent-display-bonuses:
+  "gunsmithlib:bullet_damage": 10          # 标量 = 加算（ADDITION）
+  "gunsmithlib:headshot_multiplier": 1.0   # 比例型属性：1.0 = +100%
+  "apothic_attributes:crit_damage":        # 子节形式可指定运算模式
+    amount: 0.5
+    operation: multiply_base               # addition / multiply_base / multiply_total
+```
+
+> 数值语义由对应 Mod 定义，AXS 原样写入修饰器不做换算。属性未注册（Mod 未安装）时记日志跳过，不影响其他条目。
+>
+> 完整属性 ID 表（GunsmithLib / ApothicAttributes / Iron's Spellbooks / TACZ）见 [/docs/api/mod-attributes](/docs/api/mod-attributes)。
+
+### 三层加成完整示例（VIP 称号）
+
+一个同时携带「药水 buff + 属性插件加成 + Mod 永久加成」的称号：
+
+```yaml
+VIP:
+  enabled: true
+  group: "贵族"
+  quality: "史诗"
+  kind: "icon"
+  display-name: "§k!%000006<icon>"
+
+  # 第一层：佩戴期间持续药水效果（装备生效）
+  display-effects:
+    速度: 2
+    村庄英雄: 1
+
+  # 第二层：装备属性
+  display-attribute-lines:
+    # AttributePlus 属性行 + 面板展示两用，装备生效
+    - "速度 II"
+    - "村庄英雄 I"
+    - "真实伤害:5"
+    - "物理防御:5"
+    - "经验加成:20"
+    - "+100%爆头倍率（永久获得生效）"
+    - "+10枪械伤害（永久获得生效）"
+    - "+10%原版护甲穿透（永久获得生效）"
+
+  # 第三层：装备 且 称号为永久拥有才生效
+  permanent-display-bonuses:
+    # Mod 属性
+    "gunsmithlib:headshot_multiplier": 1.0
+    "gunsmithlib:bullet_damage": 10
+    "gunsmithlib:armor_piercing_ratio": 0.1
+```
+
+> `permanent-display-bonuses` 不放展示文本，如需在面板中说明可在 `display-attribute-lines` 中添加带「（永久获得生效）」标注的文本行，避免限时称号玩家误以为生效。
 
 ### 属性合并规则
 

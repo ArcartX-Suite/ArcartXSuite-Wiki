@@ -1,0 +1,176 @@
+---
+title: Mod 属性服务
+description: ModAttributeService / ModAttributeModifier 接口参考，向玩家挂载任意 Forge Mod 实体属性加成（GunsmithLib、ApothicAttributes、Iron's Spellbooks 等），含完整属性表与示例。
+---
+
+# Mod 属性服务（ModAttributeService）
+
+仅在**混合核心**（Mohist / Arclight 等 Forge+Bukkit 环境）上可用的通用 Mod 属性加成服务。按「玩家 → 来源 → 属性修饰器表」登记，本体通过 Forge 属性注册表为玩家挂载 `AttributeModifier`，使**任意 Mod 注册的实体属性**获得持续加成。
+
+**获取方式：** `context.modAttributes()`（标记为 `@ApiStability.Stable`，永不为 `null`；非 Forge 环境时 `available()` 返回 `false`）
+
+## 工作原理
+
+```
+模块登记 ──► DefaultModAttributeService ──► ForgeRegistries.ATTRIBUTES
+（来源+属性+数值）      （反射，主线程）         getValue(ResourceLocation)
+                                            ──► LivingEntity.getAttribute()
+                                            ──► AttributeInstance.addTransientModifier()
+```
+
+- 修饰器 UUID 由「来源 ID + 属性 ID」确定生成：重复登记同一来源为**整体替换**，不会叠加
+- 不同来源对同一属性的修饰器**独立共存**，移除互不影响
+- 属性未注册（Mod 未安装或拼写错误）或实体不持有该属性时记日志跳过，不影响同来源其他条目
+- transient 修饰器不持久化：玩家退出即失效，本服务同时解除追踪（模块侧需在玩家上线后重新登记，title 模块已内置该流程）
+- 本体停用 / `mod-attributes.enabled: false` 时主动移除全部已登记修饰器
+
+## 接口方法
+
+```java
+ModAttributeService service = context.modAttributes();
+if (!service.available()) {
+    // 非混合核心或服务被禁用
+    return;
+}
+
+// 整体登记/替换某来源的修饰器（Map 的 key 仅作标识，建议用属性 ID）
+service.setModifiers(player, "MY_SOURCE", Map.of(
+    "gunsmithlib:bullet_damage",
+        ModAttributeModifier.addition("gunsmithlib:bullet_damage", 10),
+    "gunsmithlib:headshot_multiplier",
+        ModAttributeModifier.addition("gunsmithlib:headshot_multiplier", 1.0),
+    "apothic_attributes:crit_damage",
+        ModAttributeModifier.multiplyBase("apothic_attributes:crit_damage", 0.5)
+));
+
+service.clearSource(player, "MY_SOURCE");   // 移除该来源的全部修饰器
+service.clearPlayer(player);                // 移除该玩家的全部来源
+service.clearAll("MY_SOURCE");              // 全服移除某来源（模块重载/停用时）
+```
+
+### ModAttributeModifier
+
+| 字段 | 类型 | 说明 |
+|---|---|---|
+| `attributeId` | `String` | 完整命名空间属性 ID（`"gunsmithlib:bullet_damage"`）；不带命名空间时按 `minecraft:` 解析 |
+| `amount` | `double` | 数值，语义由 Mod 侧定义，AXS 原样写入不做换算 |
+| `operation` | `Operation` | `ADDITION`（加算，默认）/ `MULTIPLY_BASE`（乘基础值）/ `MULTIPLY_TOTAL`（乘总值） |
+
+工厂方法：`ModAttributeModifier.addition(id, v)` / `multiplyBase(id, v)` / `multiplyTotal(id, v)`。
+
+### 宿主配置
+
+```yaml
+# config.yml
+mod-attributes:
+  enabled: true   # false 时所有登记调用为空操作，并移除已登记的修饰器
+```
+
+## 可用属性表
+
+属性 ID 取决于服务器实际安装的 Mod。以下为常见的属性提供方（以 GunsmithLib + Apotheosis 组合为例，均在运行时由 Mod 自行注册并被各自管线消费）：
+
+### GunsmithLib（`gunsmithlib:`）—— TACZ 枪械玩家属性
+
+| 属性 ID | 类型 | 说明 |
+|---|---|---|
+| `gunsmithlib:bullet_damage` | 固定值 | 枪械伤害固定加成（`10` = +10） |
+| `gunsmithlib:armor_piercing_ratio` | 比例 | 原版护甲穿透比例（`0.1` = +10%） |
+| `gunsmithlib:headshot_multiplier` | 比例 | 爆头倍率加成（`1.0` = +100%） |
+| `gunsmithlib:bullet_speed` | 固定值 | 子弹飞行速度 |
+| `gunsmithlib:horz_recoil` | 比例 | 水平后坐力（同步客户端） |
+| `gunsmithlib:vert_recoil` | 比例 | 垂直后坐力（同步客户端） |
+| `gunsmithlib:rpm` | 固定值 | 射速（有效范围 300 ~ 1200） |
+| `gunsmithlib:ammo_capacity` | 固定值 | 弹匣容量（下限 30） |
+| `gunsmithlib:reload_speed` | 比例 | 换弹速度（同步客户端） |
+| `gunsmithlib:aim_lock_range` | 固定值 | 自瞄锁定范围（FireControl） |
+| `gunsmithlib:aim_lock_angle` | 固定值 | 自瞄锁定角度（FireControl） |
+
+### TACZ 本体（`tacz:`）
+
+| 属性 ID | 类型 | 说明 |
+|---|---|---|
+| `tacz:bullet_resistance` | 固定值 | 子弹抗性（防御侧，减少受到的枪械伤害） |
+
+### ApothicAttributes（`apothic_attributes:`）—— 通用 RPG 属性
+
+| 属性 ID | 说明 | 属性 ID | 说明 |
+|---|---|---|---|
+| `armor_pierce` | 护甲穿透 | `armor_shred` | 护甲削减 |
+| `prot_pierce` | 保护穿透 | `prot_shred` | 保护削减 |
+| `crit_chance` | 暴击率 | `crit_damage` | 暴击伤害 |
+| `dodge_chance` | 闪避几率 | `experience_gained` | 经验加成 |
+| `life_steal` | 生命偷取 | `overheal` | 过量治疗 |
+| `healing_received` | 受治疗加成 | `current_hp_damage` | 当前生命值附加伤害 |
+| `fire_damage` | 火焰伤害 | `cold_damage` | 冰霜伤害 |
+| `draw_speed` | 拉弓速度 | `mining_speed` | 挖掘速度 |
+| `arrow_damage` | 箭矢伤害 | `arrow_velocity` | 箭矢速度 |
+| `elytra_flight` | 鞘翅飞行 | `creative_flight` | 创造飞行 |
+| `ghost_health` | 濒死幽灵生命 | | |
+
+### Iron's Spellbooks（`irons_spellbooks:`）—— 法系属性
+
+| 属性 ID | 说明 |
+|---|---|
+| `irons_spellbooks:spell_power` | 通用法术强度 |
+| `irons_spellbooks:<流派>_spell_power` | 各流派法强：`fire` / `ice` / `lightning` / `holy` / `ender` / `blood` / `evocation` / `nature` / `eldritch` |
+| `irons_spellbooks:max_mana` | 最大法力 |
+| `irons_spellbooks:mana_regen` | 法力回复 |
+| `irons_spellbooks:cooldown_reduction` | 冷却缩减 |
+| `irons_spellbooks:cast_time_reduction` | 施法时间缩减 |
+| `irons_spellbooks:casting_movespeed` | 施法移动速度 |
+| `irons_spellbooks:spell_resist` | 法术抗性 |
+| `irons_spellbooks:summon_damage` | 召唤物伤害 |
+
+### Apotheosis Modern Ragnarok（`apotheosis_modern_ragnarok:`）
+
+| 属性 ID | 说明 |
+|---|---|
+| `apotheosis_modern_ragnarok:posture` | 架势条（TACZ×神化桥接） |
+
+> 属性是否生效取决于对应 Mod 是否安装并在其管线中消费该属性——例如 `gunsmithlib:*` 由 GunsmithLib 在 TACZ 伤害/枪械属性管线中读取，`apothic_attributes:*` 由 Apotheosis/AMR 伤害管线消费。写入了未安装 Mod 的属性 ID 不会报错，只会记日志跳过。
+
+## 配置示例
+
+### 称号永久加成（title 模块）
+
+```yaml
+# titles/vip.yml
+VIP:
+  group: "贵族"
+  # ...其他字段
+  permanent-display-bonuses:
+    "gunsmithlib:bullet_damage": 10
+    "gunsmithlib:headshot_multiplier": 1.0
+    "gunsmithlib:armor_piercing_ratio": 0.1
+```
+
+装备该称号**且**称号为永久拥有（`expiresAt == null`）时生效；卸下、切换或玩家退出自动清除。详见 [/docs/title/title-definitions#mod-属性加成permanent-display-bonuses](/docs/title/title-definitions)。
+
+### 模块侧代码示例
+
+```java
+public class VipBuffModule extends AbstractAXSModule {
+    private static final String SOURCE = "VIP_BUFF";
+
+    void applyVipBuff(Player player) {
+        if (!modAttributes.available()) {
+            return; // 非混合核心或服务关闭
+        }
+        modAttributes.setModifiers(player, SOURCE, Map.of(
+            "gunsmithlib:bullet_damage",
+                ModAttributeModifier.addition("gunsmithlib:bullet_damage", 10),
+            "apothic_attributes:experience_gained",
+                ModAttributeModifier.addition("apothic_attributes:experience_gained", 0.2)
+        ));
+    }
+
+    void removeVipBuff(Player player) {
+        modAttributes.clearSource(player, SOURCE);
+    }
+
+    @Override protected void stopService() {
+        modAttributes.clearAll(SOURCE); // 模块停用/重载时清理
+    }
+}
+```
