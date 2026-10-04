@@ -22,10 +22,14 @@ abysses/<地牢ID>/
 ├── rewards.yml      ← 奖励集/宝箱
 ├── floors.yml       ← 楼层定义（mode: floors 多层房间地牢）
 ├── rooms.yml        ← 房间模板池（floors 模式）
+├── external/        ← 外部系统配套文件（可选，不加载——复制安装用）
+│   ├── chemdah/conversation/*.yml   → plugins/Chemdah/conversation/
+│   ├── chemdah/quest/*.yml          → plugins/Chemdah/quest/
+│   └── questgps/*.yml               → plugins/ArcartXSuite/data/questgps/quests/
 └── world/           ← 世界文件夹（可选，含 level.dat）
 ```
 
-> 除 `config.yml` 外所有文件均可省略，缺失时使用空配置。
+> 除 `config.yml` 外所有文件均可省略，缺失时使用空配置。`external/` 不参与加载，是「这个副本需要哪些 Chemdah 会话/任务、questgps 呈现层」的随包清单——部署时按 external/README.md 拷到对应插件目录。
 
 ## config.yml — 地牢主配置
 
@@ -414,41 +418,64 @@ edge_wall:
 
 ## npcs.yml — 副本 NPC
 
+副本 NPC 由 **Adyeshach** 渲染：每个 npcs.yml 条目在副本实例里生成一个**公共临时实体**（`EntityManagerPublicTemporary`，随实例销毁，不落 Adyeshach 持久库），实体 id 固定取配置 key——Chemdah 会话按 `npc id: 'adyeshach <key>'` 精确绑定。
+
 ```yaml
 guide:
   name: "&e向导·艾琳"                # 显示名
-  type: VILLAGER                     # 实体类型；有 Adyeshach 时可写 PLAYER
-  location: "0,80,-5,0,0"            # x,y,z,yaw,pitch
+  type: VILLAGER                     # PLAYER/VILLAGER/ZOMBIE/SKELETON/WITCH/CREEPER
+                                     # /ENDERMAN/BLAZE/PILLAGER/WANDERING_TRADER/IRON_GOLEM
+  location: "11,61,11,90,0"          # x,y,z,yaw,pitch（yaw 90=面向 -x 入口）
+  skin: "玩家名或皮肤值"              # 仅 PLAYER 型
   look-at-player: true               # 注视附近玩家
-  dialogs:                           # 右键时逐句播放的对话
+  dialogs:                           # 兜底对话：该 NPC 未绑定 Chemdah 会话时逐句播放
     - "&e欢迎来到虚空试炼场！"
-  dialog-interval: 40                # 对话间隔（tick）
-  click-script:                      # 右键时执行的脚本
-    - "quest_step slay_guard"
-  once: false
+  dialog-interval: 40                # 兜底对话间隔（tick）
+  click-script:                      # 右键时执行的副本脚本（对话之后照常执行）
+    - "accept_quest slayer"
+  once: false                        # true=每名玩家只触发一次
 ```
 
-> 装 Adyeshach 时 NPC 用其渲染（支持 PLAYER 皮肤型）；未装时退化为原版实体。
+**点击时的判定顺序**：
 
-## quests.yml — 副本任务
+1. 该 NPC id 绑定了 Chemdah 会话且 conversation 模块在线 → 打开 **ArcartX 真会话 UI**（选项/回复走 Chemdah）
+2. 否则 → `dialogs` 聊天栏逐句播放兜底
+3. `click-script` 无论哪条路径都会执行
 
-副本任务采用「NPC 接取/条件提交」模型，与 Chemdah 等外部任务插件无关：
+相关脚本动作：`spawn_npc` / `remove_npc`（动态生成/移除）、`npc_dialog <npc> [sel]`（同点击判定）、`open_conversation <npcId> [sel]`（强制开 Chemdah 会话，不要求 NPC 在 npcs.yml）、`play_cinematic <序列> [sel]`（播 conversation 电影序列）、`play_model_animation`（Adyeshach 模型动画）。
+
+> Adyeshach 缺席时副本仍可进入，NPC 退化为原版 `Villager` 实体 + 聊天栏对话；装 Adyeshach 未装 conversation 时对话同样走 `dialogs` 兜底。
+
+## quests.yml — 副本任务（Chemdah/QuestGPS 适配层）
+
+**任务语义（目标/进度/完成判定）100% 由 Chemdah 任务定义承担**，abyss 不自建任务引擎。quests.yml 只是「副本编排面」：本地 id → Chemdah id 的映射 + 副本内钩子脚本。
 
 ```yaml
-slay_guard:
-  name: "讨伐虚空怪物"
-  description: "击杀 5 只副本怪物后回来找向导领取报酬"
-  accept-text: "&e[艾琳] &f拜托了！击杀 5 只怪物后回来找我。"
-  accept-script:
-    - "message @trigger &a已接取任务"
-  submit-text: "&e[艾琳] &f这是说好的报酬。"
-  submit-conditions:
-    - "%axsabyss_dungeon_kills% >= 5"   # PAPI 条件
-  submit-script:
+slayer:                              # 副本本地任务 id（脚本动作都用这个）
+  chemdah-id: "sk_slayer"            # Chemdah 任务 id；缺省=本 key
+  name: "讨伐深渊魔物"                # HUD 任务行显示名
+  description: "深入地牢击杀魔物"
+  auto-track: true                   # 接取后自动 quest_track 追踪
+  on-accept:                         # 接取成功时跑（@trigger=该玩家）
+    - "message @trigger &a已接取委托"
+  on-complete:                       # Chemdah 完成 → EventBus 路由到此发副本侧奖励
     - "grant_reward @trigger quest_pack"
+  manual-claim: false                # true=完成不自动发奖，须 submit_quest 回 NPC 领取
 ```
 
-配合脚本动作：`quest_step <任务>`（未接取→接取，已接取→提交，推荐 NPC `click-script` 用）、`accept_quest` / `submit_quest` / `quest_status`。
+**脚本动作**（均按本地 id 解析成 chemdah-id 后委托 questgps/Chemdah）：
+
+| 动作 | 行为 |
+|---|---|
+| `accept_quest <任务> [sel]` | 通过 `QuestGpsNavigable.acceptQuest` 接取；成功跑 `on-accept`，`auto-track` 时顺带追踪 |
+| `submit_quest <任务> [sel]` | 已完成的 Chemdah 任务 → 跑 `on-complete` 领副本奖励（`manual-claim` 场景） |
+| `quest_step <任务> [sel]` | 未接取→接取；已完成未领→提交。NPC `click-script` 一站式用法 |
+| `quest_track <任务> [步骤] [sel]` | QuestGPS 追踪卡片（整个任务或指定步骤） |
+| `quest_status <任务> <变量> [sel]` | 写 `NONE`/`ACTIVE`/`COMPLETED` 到实例变量，配合 `check` 分支 |
+
+**完成路由**：Chemdah 判定完成 → questgps 发 EventBus `axs.questgps.quest_completed` → abyss 反查 chemdah-id 命中本地任务 → `manual-claim: false` 直接跑 `on-complete`。
+
+> **注意**：Chemdah 任务是玩家级持久档案——副本任务应在 Chemdah 侧配置为**可重复接取**（`agent: restart` 类），否则玩家二刷副本时任务已 COMPLETED 无法再进状态机。QuestGPS 缺席时相关动作静默跳过，副本其余玩法不受影响。任务定义文件放 `plugins/Chemdah/`（questgps 呈现层放 `data/questgps/quests/`），示例见 example 模板 `external/` 目录。
 
 ## rewards.yml — 奖励集与宝箱
 
@@ -576,7 +603,7 @@ rooms:
       wave1:
         spawn-timing: AUTO_START  # 房内语义：AUTO_START=锁门即刷 / DELAYED=锁门后延迟 / TRIGGERED=组联动
         monsters:
-          - mob-id: minecraft:zombie
+          - mob-id: vanilla:zombie
             location: "15,64,15"
             amount: 4
     on-enter: [...]               # 玩家首次进房
@@ -594,3 +621,17 @@ rooms:
 - 虚空防护：玩家掉出当前房底部 8 格以下自动拉回房中心
 - 最终层链尾房清完自动 `complete_dungeon`；中途判负/超时/全员死亡走现有失败流程
 
+
+## 内置示例：元气试炼之地（example）
+
+`abysses/example/` 是一个**零外部资源**即可跑通的元气骑士式三层地牢——`world.template: void` 虚空世界，全部建筑由 `scripts.yml` 的 `world-init` 段用 `fillblocks` 程序化生成（11 间房 + 8 条封闭走廊，无需 schematic）。
+
+| 层 | 房间链 | 演示点 |
+|---|---|---|
+| f1 苔痕前哨 | 起始房 → 战斗房 → 祭坛房 → Boss房 | 向导 NPC（Adyeshach+Chemdah 会话）、两波+休整预告、金币祭坛三选一、冲撞兽+定时增援 |
+| f2 熔岩矿道 | 三连战 → 商店 → 解谜房 → Boss房 | 三波递进休整、旅行商人+台座购物、序列拉杆封门机关、唤魔者+增援 |
+| f3 深渊王座 | 走廊决战 → 宝箱房 → 终层Boss | 灵魂沙/岩浆块陷阱带（obstacles）、宝箱 UI、凋零+两阶段增援 |
+
+**贯穿机制**：击杀掉全队金币（tasks.yml `monster_kill` 事件）、祭坛/商店 `%axsabyss_var_coins%` 条件扣费、每层 Boss 后 `buff_offer` 三选一天赋、`guide_point` 路标导航、portal 出口垫传送 + 走廊可回溯。
+
+**外部配套**（可选增强，见 `example/external/README.md`）：Chemdah 会话文件绑 `adyeshach guide`/`adyeshach merchant`（NPC 右键开真会话 UI）；Chemdah 任务 `sk_slayer` + questgps 呈现层（`quests.yml` 的 `slayer` 委托线）。缺依赖时自动降级：原版实体 NPC、聊天栏对话、委托线静默跳过。

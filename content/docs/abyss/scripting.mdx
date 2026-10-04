@@ -164,11 +164,12 @@ global-thresholds:
 | `puzzle_reset` | `puzzle_reset <机关id>` 机关进度/锁定清零，回到初始状态 |
 | `puzzle_solve` | `puzzle_solve <机关id>` 直接判定完成（触发 on-complete + 事件） |
 | `puzzle_state` | `puzzle_state <机关id> <变量>` 机关进度写入变量（无此机关=-1） |
-| `spawn_npc` / `remove_npc` | `spawn_npc <名>` 生成/移除 NPC |
-| `npc_dialog` | `npc_dialog <名>` 播放 NPC 对话 |
-| `accept_quest` / `submit_quest` | `accept_quest <任务>` / `submit_quest <任务>` |
-| `quest_step` | `quest_step <任务>` 智能一步：未接取→接取，已接取→提交（推荐 NPC click 用） |
-| `quest_status` | `quest_status <任务>` 查询状态 |
+| `spawn_npc` / `remove_npc` | `spawn_npc <名>` 生成/移除 npcs.yml 定义的 NPC（Adyeshach 公共临时实体） |
+| `npc_dialog` | `npc_dialog <名> [sel]` 触发 NPC 对话——已绑 Chemdah 会话→真会话 UI，否则 `dialogs` 聊天栏兜底 |
+| `play_model_animation` | `play_model_animation <npc名> <动画名> [速度] [过渡tick] [保持tick]` Adyeshach 模型动画 |
+| `accept_quest` / `submit_quest` | `accept_quest <任务> [sel]` / `submit_quest <任务> [sel]`——经 questgps 接取 Chemdah 任务 / manual-claim 领取副本奖励 |
+| `quest_step` | `quest_step <任务>` 智能一步：未接取→接取，已完成→领取（推荐 NPC click-script 用） |
+| `quest_status` | `quest_status <任务> <变量>` 写触发玩家的 Chemdah 状态（NONE/ACTIVE/COMPLETED）到变量，配 `check` 分支 |
 
 ### 副本内引导（路标/路径渲染）
 
@@ -220,7 +221,11 @@ guide_pump_room:
 | `qq_group` | `qq_group [群号] <消息>` QQ 群推送（群号省略=全部已配置群） | qqbot |
 | `subtitle` | `subtitle <选择器> <字幕组id>` 播放字幕组 | subtitle |
 | `chat_card` | `chat_card <选择器> <卡片id> [k=v,k=v]` 发送聊天卡片 | chat |
-| `quest_track` | `quest_track <questId> [taskId\|-] [@sel]` QuestGPS 任务追踪卡片：taskId 省略或 `-`=追踪整个任务，否则追踪指定步骤；选择器缺省 `@trigger` | questgps |
+| `quest_track` | `quest_track <任务> [taskId\|-] [@sel]` QuestGPS 任务追踪卡片：本地任务 id 自动解析成 chemdah-id；taskId 省略或 `-`=追踪整个任务，否则追踪指定步骤；选择器缺省 `@trigger` | questgps |
+| `quest_offer` | `quest_offer <任务> [sel] [menu]` questgps 推送任务供玩家选择接取；`menu`=弹任务菜单 | questgps |
+| `quest_menu` | `quest_menu [sel]` 打开 questgps 任务菜单 | questgps |
+| `open_conversation` | `open_conversation <npcId> [sel]` 强制打开该 Adyeshach NPC 绑定的 Chemdah 会话（不要求在 npcs.yml 登记） | conversation |
+| `play_cinematic` | `play_cinematic <序列id> [sel]` 播放 conversation 模块电影序列 | conversation |
 
 ```yaml
 # 进本后给全员挂上"讨伐魔君"任务追踪；到泵房时切到具体步骤

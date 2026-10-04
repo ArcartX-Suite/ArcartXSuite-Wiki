@@ -110,7 +110,12 @@ conditions:
 | `BattlePassAccess` | battlepass | `bp_task` 动作 |
 | `MapNavigable` | map | `links.entrance` 地图入口标记+内置导航 |
 | `EssentialsQueryable` | essentials | `recovery` 的 `teleport`（裸写=送回 spawn）/`afk-kick-minutes` |
+| `ConversationPlayable` | conversation | NPC 点击/`npc_dialog`/`open_conversation` → Chemdah 会话 UI；`play_cinematic` → 电影序列 |
+| `QuestGpsNavigable` | questgps | `accept_quest`/`submit_quest`/`quest_step`/`quest_track`/`quest_status` → Chemdah 任务状态机 |
+| `AdyeshachNpcBridgeAPI` | 宿主桥 | 副本 NPC 生成为 Adyeshach 公共临时实体 + 交互事件路由 |
 | 属性桥 `AttributeBridgeRegistry` | 宿主 | `apply_attribute`/`remove_attribute` + 属性伤害/治疗计入战斗统计 |
+
+> **NPC/任务委托架构**：副本 NPC 实体走 Adyeshach（临时公共管理器，实例销毁即清）；对话走 conversation→Chemdah 会话；任务走 questgps→Chemdah 任务定义，abyss `quests.yml` 只做 id 映射与副本钩子。三者任一缺席时优雅降级——无 Adyeshach 用原版实体，无 conversation 用 `dialogs` 聊天栏兜底，无 questgps 任务动作静默跳过。
 
 ### 队伍系统开放能力 `AbyssPartyAccess`
 
