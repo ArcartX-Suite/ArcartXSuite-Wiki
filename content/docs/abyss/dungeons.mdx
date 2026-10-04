@@ -178,18 +178,42 @@ wave_1:
   plans: []                           # 限定作战方案 id 列表（空=所有方案都刷；见 plans 作战方案）
   on-start:                           # 组开始时执行的脚本动作
     - "message @all &e第一波来袭！"
-  on-end:                             # 组完成时执行
-    - "spawn_group wave_2"
+  on-end:
+    - "message @all &a第一波已清剿！"
+
+wave_2:
+  spawn-timing: TRIGGERED             # 由 trigger-after 组清完自动触发（无需手写 spawn_group）
+  trigger-after: ["wave_1"]
+  delay-seconds: 6                    # 清完休整 6 秒再刷
+  on-prespawn:                        # 预告段：触发后、休整期内立即跑
+    - "title @all 5 40 5 &c第二波 &76 秒后来袭！"
+    - "sound @all ENTITY_RAVAGER_ROAR 1 0.8"
+  monsters:
+    - mob-id: "vanilla:SKELETON"
+      location: "4,80,0"
+      amount: 2
 ```
 
 | spawn-timing | 触发时机 |
 |---|---|
 | `AUTO_START` | 副本 start 脚本后自动刷 |
-| `DELAYED` | 延迟触发（配合 `trigger-after` 或脚本） |
-| `TRIGGERED` | 由其他组的 `on-end` 中 `spawn_group <组>` 触发 |
+| `DELAYED` | 进本 `delay-seconds` 后自动刷 |
+| `TRIGGERED` | `trigger-after` 列出的组全部清完后自动触发 |
 | `MANUAL` / `SCRIPTED` | 仅脚本动作 `spawn_group` 触发 |
 
+> **不要在 `on-end` 里手动 `spawn_group`**——`trigger-after` 已自动触发，手写会双通道刷两遍。
+
 `mob-id` 路由规则：`vanilla:` 前缀强制原版；其余尝试 MythicMobs，加载失败自动回退原版同类型实体。
+
+### 波次休整（delay-seconds / rest-seconds / on-prespawn）
+
+TRIGGERED 组前置清完后**不立即刷**，按休整规则延迟：
+
+- `delay-seconds`：组级覆盖——触发后延迟 N 秒刷（对 TRIGGERED 也生效）
+- `rest-seconds`：组级兜底——`delay-seconds<=0` 时用；floors 房间还可在房间级写 `wave-rest` 作为整房组的兜底
+- `on-prespawn`：预告段——组被触发、休整期**开始瞬间**执行（写「下一波来袭」title/音效/actionbar，给玩家喘息提示）
+
+优先级：`delay-seconds` > 组 `rest-seconds` > 房间 `wave-rest`；三者都 ≤0 时照旧立即刷（向后兼容）。
 
 ## tasks.yml — 副本内任务
 
@@ -479,6 +503,18 @@ chest-rewards:
 
 ## scripts.yml — 生命周期脚本
 
+段执行时机：
+
+| 段 | 时机 |
+|---|---|
+| `world-init` | 世界就绪后、玩家传送**之前**——造平台/铺场景专用（void 世界必须用它建落脚处） |
+| `init` | 玩家全部进图后、副本激活前（玩法对象尚未初始化） |
+| `start` | 副本激活时（怪组已注册，AUTO_START 组已刷） |
+| `complete` / `fail` / `exit` | 通关 / 失败 / 玩家离开 |
+| `player-death` / `all-death` | 单人阵亡 / 全员阵亡 |
+
+> **虚空世界务必用 `world-init` 而不是 `init` 建平台**——`init` 在玩家传送之后才跑，先传送会掉虚空。即使没写 `world-init`，系统也会检测出生点下方无支撑时自动垫一块 5×5 基岩兜底。
+
 详见 [脚本系统](/docs/abyss/scripting)。
 
 ## floors.yml + rooms.yml — 多层房间地牢
@@ -535,6 +571,7 @@ rooms:
     doors:                        # 物理门盒（锁=填 lock-material，开=还原原方块）
       - region: ["30,64,14", "30,66,16"]
         material: BARRIER
+    wave-rest: 4                  # 房内 TRIGGERED 组休整兜底（组自身 delay/rest 优先）
     groups:                       # 房内怪组（格式同 monsters.yml，坐标相对 origin）
       wave1:
         spawn-timing: AUTO_START  # 房内语义：AUTO_START=锁门即刷 / DELAYED=锁门后延迟 / TRIGGERED=组联动
