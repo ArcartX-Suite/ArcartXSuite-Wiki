@@ -200,10 +200,14 @@ wave_2:
 
 | spawn-timing | 触发时机 |
 |---|---|
-| `AUTO_START` | 副本 start 脚本后自动刷 |
-| `DELAYED` | 进本 `delay-seconds` 后自动刷 |
-| `TRIGGERED` | `trigger-after` 列出的组全部清完后自动触发 |
-| `MANUAL` / `SCRIPTED` | 仅脚本动作 `spawn_group` 触发 |
+| `AUTO_START` | monsters.yml 全局组=start 即刷；floors **房间内组**=锁门即刷（`delay-seconds` 起延迟） |
+| `DELAYED` | 全局组=进本延迟刷；房间内组=锁门 `delay-seconds` 后刷 |
+| `TRIGGERED` | `trigger-after` 列出的组**全部**清完后自动触发（房间内同样生效） |
+| `MANUAL` / `SCRIPTED` | 仅脚本动作 `spawn_group` 触发（锁门不刷——随机波次、条件波次用） |
+
+> **房间清判**：`combat`/`boss` 房要求 `groups` 列出的**全部**组进入 COMPLETED。
+> `MANUAL` 组若本轮不刷，须 `kill_group` 跳过（PENDING 组被 kill 视同完成，照走完成链）；
+> `remove_group` 是静默移除，不会计入完成，慎用。
 
 > **不要在 `on-end` 里手动 `spawn_group`**——`trigger-after` 已自动触发，手写会双通道刷两遍。
 

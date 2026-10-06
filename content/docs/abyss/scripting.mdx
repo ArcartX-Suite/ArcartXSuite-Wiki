@@ -115,7 +115,11 @@ all-death:
 | `run_script` | `run_script <段名>` 调用其他脚本段 |
 | `delay` / `wait` | `wait <秒>` 挂起当前脚本 |
 | `setvar` / `delvar` / `addvar` | 副本变量读写 |
-| `check` | `check <条件>` 条件不满足时中止当前脚本 |
+| `random` | `random <变量> <min> <max>` 写均匀随机整数到实例变量 |
+| `if_var` | `if_var <变量> <op> <值>` 实例变量不满足则中止本段（不依赖玩家，world-init 可用） |
+| `check` | `check <选择器> <条件>` 目标不满足条件时中止当前脚本 |
+
+> **随机分支模式**：`random` 掷变量 → `run_script` 调多个变体段 → 各段首行 `if_var <变量> == N` 门控，不匹配只终止该段（`run_script` 开独立会话）。`check` 逐玩家评估，world-init 阶段无玩家会空转——变量门控请用 `if_var`。
 
 ### 全服共享计数
 
@@ -142,7 +146,7 @@ global-thresholds:
 | 动作 | 用法 |
 |---|---|
 | `spawn_group` | `spawn_group <怪物组>` 触发波次 |
-| `kill_group` / `remove_group` | 击杀/移除指定组 |
+| `kill_group` / `remove_group` | 击杀/跳过指定组（未刷出的组经 kill_group 视同完成走联动链；remove_group 静默移除不计完成） |
 | `group_alive_count` | `group_alive_count <组>` 存活数（配合 check） |
 | `kill_all_mobs` | 清全部副本怪 |
 | `cast_skill` | `cast_skill <怪物> <技能>` MythicMobs 技能 |
