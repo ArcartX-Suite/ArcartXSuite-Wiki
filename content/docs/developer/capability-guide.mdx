@@ -1,47 +1,19 @@
 ---
 title: Capability 开发教程
-description: 自定义 Capability、注册与查找、跨模块通信的完整开发教程——原理、内置能力表、提供方/使用方示例、EventBus。
+description: 自定义 Capability、注册与查找、跨模块通信的完整开发教程——内置能力表、提供方/使用方示例、EventBus。
 ---
 
 # Capability 开发教程
 
-Capability 是 Suite 各模块之间协作的标准方式。宿主在 `ModuleRegistry` 中维护一张能力注册表：模块启动时注册自己提供的接口，其他模块按 Java 接口类型查找并调用——全程无需 `import` 对方实现类。
+Capability 是 Suite 各模块之间协作的标准方式：模块启动时注册自己提供的接口，其他模块按 Java 接口类型查找并调用——全程无需 `import` 对方实现类。
 
 ## 为什么用 Capability
 
 | 方式 | 问题 |
 |------|------|
-| 直接 `import` 其他模块的 Service | ClassLoader 隔离、循环依赖、版本耦合 |
+| 直接 `import` 其他模块的 Service | 模块间无法直接访问彼此的实现类，且造成版本耦合 |
 | Bukkit 自定义事件 | 适合广播，不适合「调用对方业务方法」 |
 | **Capability** | 只依赖 `axs-api` 中的接口，松耦合、可 softdepends |
-
-## 架构一览
-
-```mermaid
-sequenceDiagram
-    participant Title as Title 模块
-    participant Registry as ModuleRegistry
-    participant Event as EventPacket 模块
-
-    Title->>Registry: registerCapability(TitleGrantable, impl)
-    Note over Registry: capabilities 表: TitleGrantable → impl
-    Event->>Registry: getCapability(TitleGrantable.class)
-    Registry-->>Event: TitleGrantable 实例
-    Event->>Title: giveTitle(playerId, titleId, ...)
-```
-
-数据流：
-
-```
-提供方 startService()
-    └── context.registerCapability(接口.class, 实现)
-
-使用方 startService()
-    └── capability = context.getCapability(接口.class)  // 可能为 null
-
-宿主 onDisable(提供方)
-    └── removeCapabilities(moduleId)  // 自动清理
-```
 
 ## 三种 Capability 形态
 
@@ -315,7 +287,6 @@ protected List<String> publishedTopics() {
 | `PlayerDataPurgeable` | 多模块 | — | 宿主 `/axs purge` | 清除玩家数据 |
 | `DatabaseMigratable` | 多模块 | — | 宿主 `/axs migrate` | 跨库迁移 |
 | `PolygonSelectionCapability` | 宿主/regions | — | fishing 等 | 多边形选区管理 |
-| `ModuleAdminCapability` | 宿主 | — | 调试工具 | 模块管理（`@Internal`） |
 
 ## 宿主命令与 Capability
 
@@ -377,7 +348,7 @@ B 的 Jar 不需要依赖 A 的实现类，只需 `compileOnly` A 发布的 `api
 |------|------|
 | 模块 `onEnable` | 在 `startService()` 中 `registerCapability` |
 | 模块 `onDisable` | 宿主自动 `removeCapabilities(moduleId)` |
-| `/axs unload` | 同上，并关闭 ClassLoader |
+| `/axs unload` | 同上 |
 
 <Callout type="warn" title="不要在 onDisable 里留悬挂引用">
 使用方应把 Capability 引用置空；提供方无需手动 unregister（宿主会处理）。若你在静态字段缓存了 Capability，unload 后可能持有已失效对象。

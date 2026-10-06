@@ -5,7 +5,7 @@ description: Abyss 的 7 个 ArcartX UI 与客户端通讯协议
 
 # UI 界面
 
-Abyss 注册 7 个 ArcartX UI（`AXS:<id>`），全部随模块 jar 打包在 `arcartx/ui/` 下，首次启动导出到 `plugins/ArcartX-Suite/ui/` 并由 `registerModuleUi` 注册到 ArcartX 桥。UI ID 可在 `config.yml ui` 节修改（自动补 `AXS:` 前缀）。
+Abyss 注册 7 个 ArcartX UI（`AXS:<id>`），首次启动导出到 `plugins/ArcartX-Suite/ui/`。UI ID 可在 `config.yml ui` 节修改（自动补 `AXS:` 前缀）。
 
 ## UI 一览
 
@@ -23,7 +23,7 @@ Abyss 注册 7 个 ArcartX UI（`AXS:<id>`），全部随模块 jar 打包在 `a
 
 ## 客户端→服务端协议
 
-客户端通过 `Packet.send('abyss', '<action>', ...)` 向服务端发包，`AbyssUiService.handlePacket` 路由到对应处理。所有敏感操作（进本/踢人/转让/领取）都校验 `action_token`，防止伪造包。
+客户端通过 `Packet.send('abyss', '<action>', ...)` 向服务端发包。所有敏感操作（进本/踢人/转让/领取）都校验 `action_token`，防止伪造包。
 
 | action | 参数 | 说明 |
 |---|---|---|
@@ -43,7 +43,7 @@ Abyss 注册 7 个 ArcartX UI（`AXS:<id>`），全部随模块 jar 打包在 `a
 
 ## 服务端→客户端
 
-服务端用 `packetBridge.sendPacket(player, "AXS:<ui>", "<handler>", payload)` 推送数据，`packetId` 字段恒为 `"abyss"`：
+服务端向各 UI 推送数据（`packetId` 字段恒为 `"abyss"`）：
 
 | Packet | handler | 内容 |
 |---|---|---|
@@ -57,8 +57,8 @@ Abyss 注册 7 个 ArcartX UI（`AXS:<id>`），全部随模块 jar 打包在 `a
 
 ## HUD 生命周期
 
-- 玩家进本 `startInstance` 成功 → `openUiUnsafe` 打开 HUD → 每秒推送 `update`（只在 HUD 实际打开过的玩家上推送，未打开不发无效包）
-- 出本/掉线 `handleQuit` → 关闭 HUD + 清理 token，防止会话态泄漏
+- 进本成功后自动打开 HUD，每秒推送进度数据
+- 出本/掉线时自动关闭 HUD 并清理会话状态
 
 ## 自定义 UI
 

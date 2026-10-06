@@ -36,7 +36,7 @@ currencies:
 | `withdraw-command` | string | — | 扣款时执行的控制台命令（command 类型必填） |
 | `deposit-command` | string | — | 入账时执行的控制台命令（command 类型必填） |
 
-> `scale` 是标准小数位字段；为兼容旧配置，parser 仍会在缺少 `scale` 时读取 `precision`。
+> `scale` 是标准小数位字段；为兼容旧配置，缺少 `scale` 时会读取旧字段 `precision`。
 
 ## 支持的 Provider 类型
 
@@ -50,7 +50,7 @@ currencies:
 | `placeholder-command` | PlaceholderAPI | 同 command，别名 |
 | `custom` | PlaceholderAPI | 同 command，别名 |
 
-> `command`、`placeholder-command`、`custom` 三个名称完全等价，内部使用相同的桥接实现。
+> `command`、`placeholder-command`、`custom` 三个名称完全等价，配置时任选其一。
 
 ## Provider 详解
 
@@ -86,7 +86,7 @@ currencies:
 
 ### xconomy — XConomy 原生经济
 
-直接调用 XConomy 原生 `XConomyAPI`，不经过 Vault。余额查询、充值和扣款全程使用 `BigDecimal`。
+直连 XConomy，不经过 Vault。
 
 ```yaml
 currencies:
@@ -100,7 +100,7 @@ currencies:
 
 ### rondo — Rondo 多货币
 
-Rondo 原生支持多种货币 ID。Suite 会将配置中的货币 ID 直接传递给 Rondo API。
+Rondo 原生支持多种货币 ID，需要在 Suite 与 Rondo 两边使用相同的货币 ID。
 
 ```yaml
 currencies:
@@ -217,7 +217,7 @@ currencies:
 
 ## 货币变动事件
 
-`CurrencyBridgeManager` 在每次 `withdraw` / `deposit` 成功后，自动通过 `EventBusCapability` 分发货币变动事件。
+每次扣款 / 入账成功后，会自动向事件总线发布货币变动事件：
 
 | 事件主题 | 触发时机 |
 |---------|---------|

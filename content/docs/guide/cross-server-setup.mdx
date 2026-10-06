@@ -5,7 +5,7 @@ description: Redis 配置、Proxy Forward 配置、跨服模块设置与验证
 
 # 跨服配置
 
-Suite 提供统一的跨服传输层（CrossServer SDK），支持 Redis Pub/Sub 与 BungeeCord/Velocity Forward 双后端，可同时启用（双发 + 入站去重）。
+Suite 提供统一的跨服传输层，支持 Redis Pub/Sub 与 BungeeCord/Velocity Forward 双后端，可同时启用。
 
 ## 两步启用
 
@@ -28,10 +28,6 @@ cross-server:
     enabled: false       # 无 Redis 时可改为 true（有 32KB 与在线玩家限制）
     messenger-channel: "AXS_CROSS"
     forward-target: "ALL"
-  signature:
-    enabled: true
-    secret: "同一网络内所有子服填写相同密钥"
-    verify: true
 ```
 
 ### 2. 模块配置
@@ -62,9 +58,6 @@ cross-server:
 | `proxy.enabled` | false | 是否启用 BungeeCord/Velocity Forward |
 | `proxy.messenger-channel` | AXS_CROSS | Forward 子频道 |
 | `proxy.forward-target` | ALL | 转发目标 |
-| `signature.enabled` | false | 是否 HMAC 签名 |
-| `signature.secret` | — | 签名密钥（多服一致） |
-| `signature.verify` | true | 是否验证入站签名 |
 
 ## 按模块速查
 
@@ -112,7 +105,7 @@ storage:
     pool-size: 8
 ```
 
-所有模块默认共用此处的数据库连接配置，无需在各模块配置中重复填写 storage 节。连接池由本体统一创建和关闭。
+所有模块默认共用此处的数据库连接配置，无需在各模块配置中重复填写 storage 节。
 
 ## 验证
 
@@ -126,5 +119,4 @@ storage:
 | --- | --- |
 | 跨服消息不到达 | 检查各子服 `node-id` 是否唯一、Redis 连接是否正常 |
 | 双后端重复消息 | 去重 TTL 内的消息会被丢弃，属正常行为 |
-| 签名验证失败 | 确保所有子服 `signature.secret` 一致 |
 | Proxy Forward 消息过大 | Forward 有 32KB 限制，建议使用 Redis |

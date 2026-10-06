@@ -7,10 +7,10 @@ description: Suite axs-api 模块介绍、接口分层与版本管理。
 
 Suite 提供 **`axs-api`** 模块作为第三方开发的稳定接口层。所有公开 API 均位于 `xuanmo.arcartxsuite.api` 包下，第三方模块只需 `compileOnly` 依赖 `axs-api` 即可开发自定义模块。
 
-## 架构分层
+## API 包结构
 
 ```
-axs-api/  (接口层 — 模块唯一可见)
+axs-api/
   ├── AXSModule          模块生命周期接口
   ├── AbstractAXSModule   模块抽象基类（声明式生命周期）
   ├── ModuleContext       宿主暴露给模块的上下文
@@ -24,10 +24,9 @@ axs-api/  (接口层 — 模块唯一可见)
   ├── storage/            存储层
   ├── command/            模块命令处理
   └── ...                 其他子包
-axs-core/  (宿主实现 — 模块不可见，可安全混淆)
 ```
 
-模块通过 `ModuleContext` 获取基础设施能力，禁止直接引用宿主实现类（`xuanmo.arcartxsuite.bridge.*` 等），否则混淆后可能无法加载。
+模块通过 `ModuleContext` 获取基础设施能力，只能 `import xuanmo.arcartxsuite.api.*`；宿主实现类（`xuanmo.arcartxsuite.bridge.*` 等）不对外开放，直接引用会导致模块加载失败或版本不兼容。
 
 ## API 稳定性标记
 
@@ -114,7 +113,7 @@ public class MyModule extends AbstractAXSModule {
 
 | API 版本 | 关键变更 |
 |----------|----------|
-| 1.0 | 基础架构：AXSModule、ModuleContext、ModuleRegistry |
+| 1.0 | 基础接口：AXSModule、ModuleContext 等 |
 | 1.1 | Bridge API 接口化（PacketBridgeAPI、ClientBridgeAPI、ItemBridgeAPI） |
 | 1.2 | Prop/Waypoint/Adyeshach/WorldTexture 桥接；跨服 API |
 | 1.3 | SoundPlayer 桥接；VanillaItemNameBridge；ContentModerator |

@@ -7,47 +7,38 @@ description: 面向 ArcartX 客户端的 30 模块 Minecraft 服务器插件套�
 
 import Link from 'next/link';
 
-> **Suite — 组曲，亦是套装。**
-
-在音乐中，**Suite**（组曲）是由多首独立小曲串联而成的成套器乐作品。一部组曲有四段——**序曲启程**、**变奏展开**、**华彩交织**、**终章回响**。每一段风格、节奏各不相同，分开能单独演奏，合起来是一部统一于同一调性的完整作品。
-
-**Suite** 正是这样的理念：30 个模块如同 30 个乐章，每一个独立运作、各具音色、按需启用，共享 ArcartX 的统一调性与 UI 主题，组合成一部属于你自己的**服务器组曲**。
+Suite 是面向 ArcartX 客户端 MOD 生态的 Minecraft 服务器插件套件：一个插件覆盖 30 个功能领域，模块可按需启用，统一使用 ArcartX UI。
 
 ---
 
-## 项目定位
-
-Suite 是基于 ArcartX 生态构建的第三方宿主框架，不属于官方项目。核心职责包括：
+## 功能概览
 
 - 统一管理 AttributePlus / CraneAttribute / MythicLib / Symphony 等属性桥接
 - MythicMobs / NeigeItems / MMOItems 等物品来源桥接
 - Vault / PlayerPoints 等经济桥接
-- 提供模块加载、生命周期管理与配置诊断引擎
-- 内置跨服传输（Redis + Proxy）、按键绑定服务、聊天签名绕过、账号类型识别等基础设施
-
-所有业务逻辑均通过 `modules/*.jar` 独立模块加载，宿主本身不持有任何业务服务。
+- 内置跨服传输（Redis + Proxy）、按键绑定服务、聊天签名绕过、账号类型识别等基础功能
 
 ---
 
 ## 核心特性
 
 ### 模块化
-全部 30 个模块独立 jar，支持热加载 / 热卸载，`config.yml` 一键开关，按需启用。
+全部 30 个模块支持热加载 / 热卸载，`config.yml` 一键开关，按需启用。
 
-### API 接口隔离
-模块仅通过 `axs-api` 中的接口（如 `PacketBridgeAPI`、`ModuleContext`）与宿主通信，核心实现类可被 ProGuard 完全混淆。
+### 开放 API
+提供公开 API（`axs-api`），支持开发第三方模块扩展功能，详见 [开发者指南](../developer/)。
 
 ### 跨模块联动
-原生 Capability 桥接，模块间零配置联动。事件包、称号授予、邮件派发、聊天卡片、QQ 推送等能力可自由组合。
+模块间零配置联动。事件包、称号授予、邮件派发、聊天卡片、QQ 推送等能力可自由组合。
 
 ### ArcartX UI 原生
 所有模块统一使用 ArcartX 客户端 UI 渲染，实现游戏级沉浸式交互体验。
 
 ### 智能配置体检
-内置 `ConfigDiagnosticEngine`，自动检测配置结构差异、类型错误、字段迁移，一键修复。
+自动检测配置结构差异、类型错误、字段迁移，一键修复。
 
 ### 跨服同步
-支持 CrossServer SDK（Redis + Proxy 双后端），Market 拍卖行、OnlineRewards 签到、Mail 邮件、Tab 列表等模块可跨服务器无缝同步。
+支持 Redis + Proxy 双后端跨服传输，Market 拍卖行、OnlineRewards 签到、Mail 邮件、Tab 列表等模块可跨服务器无缝同步。
 
 ---
 

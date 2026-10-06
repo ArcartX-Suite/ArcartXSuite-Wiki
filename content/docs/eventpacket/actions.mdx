@@ -7,28 +7,11 @@ description: EventPacket 13 种动作类型的参数、Capability 依赖与使�
 
 ## 概述
 
-EventPacket 模块的动作（Action）是规则触发后执行的具体操作。每条规则可定义一个**动作链**（`actions` 列表），动作按顺序执行，单个动作失败不会中断后续动作。所有动作由 `EventPacketDispatchService.executeAction()` 统一调度，通过 `switch` 表达式按动作类型分发到对应的执行方法。
+EventPacket 模块的动作（Action）是规则触发后执行的具体操作。每条规则可定义一个**动作链**（`actions` 列表），动作按顺序执行，单个动作失败不会中断后续动作。
 
-动作通过 `EventPacketAction` 记录封装，包含 `type`（类型标识）和 `values`（参数键值表）。参数值支持上下文变量替换（`{变量名}` 语法），在执行前由 `EventPacketContext.renderPayload()` 渲染。
+每个动作包含 `type`（类型标识）和参数键值表，参数值支持上下文变量替换（`{变量名}` 语法），在执行前渲染。
 
 ## 动作执行机制
-
-### 执行流程
-
-```
-规则匹配成功
-  │
-  ├─ 遍历 actions 列表
-  ├─ 对每个 action:
-  │    ├─ 解析 action.type（转小写）
-  │    ├─ switch 分发到对应执行方法
-  │    ├─ 渲染参数中的 {变量名} → 实际值
-  │    ├─ 通过 Capability Supplier 获取目标模块能力
-  │    ├─ 执行操作，返回 success/failure
-  │    └─ 异常捕获 → 记录警告日志，返回 false
-  ├─ 统计成功/失败次数
-  └─ 全部失败 → 不记录为已触发（不持久化、不计冷却）
-```
 
 ### 失败处理策略
 
@@ -61,7 +44,7 @@ EventPacket 模块的动作（Action）是规则触发后执行的具体操作�
 | `announcer.play` | 播放公告字幕组 | `SubtitlePlayable` | Subtitle / Announcer |
 | `combateffect.play` | 播放战斗特效 | `PacketBridgeAPI` | 本体 PacketBridge |
 
-> 所有 Capability 通过 `Supplier` 延迟获取，模块间无编译期依赖。缺失能力时对应动作直接跳过，不报错。
+> 对应模块缺失或能力不可用时，动作直接跳过，不报错。
 
 ## QuestGPS 动作
 
@@ -178,7 +161,7 @@ actions:
       level: "{new_number}"
 ```
 
-> `data` 参数值会被递归渲染，支持 Map 和 List 结构。渲染后转换为 `Map<String, String>` 传递给 `ChatCardSendable.sendChatCard()`。
+> `data` 参数值会被递归渲染，支持 Map 和 List 结构。
 
 ## 称号动作
 
@@ -205,7 +188,7 @@ actions:
     duration: "7d"
 ```
 
-> 称号发放通过 `TitleGrantable.giveTitle(playerUuid, titleId, duration, "EventPacket")` 调用，来源标记为 `EventPacket`。
+> 称号发放的来源标记为 `EventPacket`。
 
 ## 命令派发动作
 
@@ -227,13 +210,13 @@ actions:
 
 ### 执行者模式
 
-| 执行者 | 说明 | 安全机制 |
-|---|---|---|
-| `console` | 以控制台身份执行（`Bukkit.getConsoleSender()`） | `CommandSanitizer.stripCommandSeparators` 清理命令分隔符 |
-| `player` | 以触发玩家身份执行（`player.performCommand`） | 同上 |
-| `op` | 临时赋予玩家 OP 权限执行命令 | `TemporaryOpExecutor` 临时提权，执行后恢复 |
+| 执行者 | 说明 |
+|---|---|
+| `console` | 以控制台身份执行 |
+| `player` | 以触发玩家身份执行 |
+| `op` | 临时赋予玩家 OP 权限执行，执行后立即恢复 |
 
-> `op` 模式通过 `TemporaryOpExecutor.execute()` 实现，执行期间临时赋予 OP 权限，执行完毕后立即恢复。命令中的 `/` 前缀会被自动去除。命令分隔符（`;`、`|`、`&&`、`||`、换行符）会被清理以防止命令注入。
+> 命令中的 `/` 前缀会被自动去除。命令分隔符（`;`、`|`、`&&`、`||`、换行符）会被清理以防止命令注入。
 
 ## UI 数据包动作
 
@@ -263,7 +246,7 @@ actions:
 
 ### 接收者解析
 
-`recipients` 支持列表和逗号分隔字符串两种格式，解析为 `EventPacketRecipient` 枚举：
+`recipients` 支持列表和逗号分隔字符串两种格式：
 
 | 配置值 | 别名 | 说明 |
 |---|---|---|
@@ -271,7 +254,7 @@ actions:
 | `all-online` | `all` | 全部在线玩家 |
 | `others` | `other-online`、`other-players` | 除触发者外的在线玩家 |
 
-> `recipients` 为空时默认为 `self`。每个接收者会独立渲染 `pack` 数据（`{receiver_name}` 等变量按接收者替换）。`canDispatchTo()` 方法确保接收者在线，`quit` 触发器允许向已退出的触发者自身发包。UI 系统详见 [UI 图标](/docs/guide/icons)。
+> `recipients` 为空时默认为 `self`。每个接收者会独立渲染 `pack` 数据（`{receiver_name}` 等变量按接收者替换）。UI 系统详见 [UI 图标](/docs/guide/icons)。
 
 ## 邮件动作
 
@@ -289,7 +272,7 @@ actions:
     preset-id: "boss_reward_{boss_id}"
 ```
 
-> 邮件发送通过 `MailDispatchable.dispatchPreset()` 调用，构建 `MailPresetRequest` 时来源模块标记为 `eventpacket`，收件人为触发玩家名。
+> 邮件来源模块标记为 `eventpacket`，收件人为触发玩家名。
 
 ## QQ 广播动作
 
@@ -316,7 +299,7 @@ actions:
     message: "服务器即将维护，请做好准备！"
 ```
 
-> `group-id` 支持数字和字符串两种类型。字符串类型会尝试解析为 `long`，解析失败时发送到所有群。
+> `group-id` 支持数字和字符串两种类型，无法解析时发送到所有群。
 
 ## 战斗特效动作
 
@@ -338,11 +321,11 @@ actions:
     # packet-handler: "play"
 ```
 
-> `ui-id` 不填时使用 `combatEffectUiIdProvider` 提供的默认值。`pack` 数据按 `EventPacketRecipient.SELF` 渲染后发送给触发玩家。
+> `ui-id` 不填时使用模块默认。`pack` 数据渲染后仅发送给触发玩家。
 
 ## 动作参数渲染
 
-所有动作参数值在执行前通过 `EventPacketContext.renderPayload()` 渲染上下文变量。渲染机制支持递归处理 String、List 和 Map 三种节点类型：
+所有动作参数值在执行前渲染上下文变量，支持递归处理 String、List 和 Map 三种节点类型：
 
 | 节点类型 | 渲染行为 |
 |---|---|
@@ -367,7 +350,7 @@ actions:
           - "{player_z}"                # → "200"
 ```
 
-> 未匹配的 `{变量名}` 原样保留，不会报错。渲染时以触发者自身作为接收者（`EventPacketRecipient.SELF`），`ui-packet` 动作除外——它按每个接收者独立渲染。上下文变量详见 [命令与占位符](/docs/eventpacket/commands#上下文变量)。
+> 未匹配的 `{变量名}` 原样保留，不会报错。渲染时以触发者自身作为接收者，`ui-packet` 动作除外——它按每个接收者独立渲染。上下文变量详见 [命令与占位符](/docs/eventpacket/commands#上下文变量)。
 
 ## 动作组合示例
 

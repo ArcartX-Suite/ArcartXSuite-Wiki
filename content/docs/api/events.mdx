@@ -133,7 +133,7 @@ context.attributeBridge().registerDamageListener(event -> {
 
 ## TaczGunDamageEvent
 
-TACZ（创世战术武器）枪械伤害事件。当 TACZ Mod 的 `EntityHurtByGunEvent.Pre` 触发时，由 `TaczCombatBridge` 转换为标准 Bukkit 事件并广播。标记为 `@ApiStability.Stable`。
+TACZ（创世战术武器）枪械伤害事件。当 TACZ Mod 的 `EntityHurtByGunEvent.Pre` 触发时，转换为标准 Bukkit 事件并广播。标记为 `@ApiStability.Stable`。
 
 此事件与 `EntityDamageByEntityEvent` 完全解耦：TACZ 伤害不再被伪装为 Bukkit 原版事件，模块可明确区分枪械伤害与近战/弓箭等原版伤害。
 

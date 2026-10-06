@@ -95,14 +95,7 @@ shared:
 | 成员 | `member` | 可存取（需获取编辑锁） | 无 | 无 |
 | 观众 | `viewer` | 只读 | 无 | 无 |
 
-角色判断逻辑位于 `WarehouseService.canEditShared()`：
-
-```java
-private boolean canEditShared(String role) {
-    String normalized = normalizeId(role);
-    return "owner".equals(normalized) || "member".equals(normalized);
-}
-```
+仅 `owner` 与 `member` 角色可以编辑共享仓库。
 
 ### 权限分层
 
@@ -115,7 +108,7 @@ private boolean canEditShared(String role) {
 | `max-owned` | int | 可拥有的共享仓库上限 |
 | `max-members` | int | 每个仓库的成员上限 |
 
-系统通过 `resolveSharedTier()` 为玩家匹配权限分层：遍历所有 tier，筛选出玩家拥有其 `permission` 的 tier，取 `priority` 最大的一个。如果没有任何 tier 匹配，回退到第一个 tier。
+系统为玩家匹配权限分层：在玩家拥有权限的分层中取 `priority` 最大的一个；如果没有任何分层匹配，回退到默认分层。
 
 ### 权限分层示例
 
@@ -147,37 +140,18 @@ permission-tiers:
 
 ### 锁机制
 
-共享仓库采用编辑互斥锁（`SharedEditLock`）确保同一时刻仅一人可编辑：
-
-| 字段 | 类型 | 说明 |
-| --- | --- | --- |
-| `playerUuid` | `UUID` | 锁持有者 UUID |
-| `playerName` | string | 锁持有者名称（用于提示消息） |
-| `nodeId` | string | 持有者所在子服节点 ID（本机为 `local`） |
-
-锁状态存储在 `ConcurrentMap<String, SharedEditLock> sharedEditLocks` 中，key 为共享仓库 ID。
+共享仓库采用编辑互斥锁，确保同一时刻仅一人可编辑。
 
 ### 锁获取流程
 
-1. 玩家在 UI 中切换到共享仓库并点击"编辑模式"按钮（发送 `shared_mode` action，参数为 `edit`）
-2. 系统检查玩家角色是否为 owner 或 member（`canEditShared`）
-3. 检查当前是否已有锁持有者：
-   - 如果锁已由当前玩家持有，直接返回成功
-   - 如果锁由他人持有，返回锁忙提示，以只读模式打开
-   - 如果无锁，创建新锁并通过 `putIfAbsent` 原子写入
-4. 启用跨服时，通过 `crossServerLockService.publishLock()` 广播锁获取事件
+1. 玩家在 UI 中切换到共享仓库并点击"编辑模式"按钮
+2. 系统检查玩家角色是否为 owner 或 member
+3. 如果锁已由当前玩家持有，直接进入编辑模式；如果锁由他人持有，提示锁忙并以只读模式打开；如果无锁，获取编辑锁
+4. 启用跨服时，锁状态广播到所有子服
 
 ### 锁释放
 
-锁在以下场景释放：
-
-| 场景 | 触发方式 |
-| --- | --- |
-| 玩家切换到只读模式 | `shared_mode` action，参数为非 `edit` 值 |
-| 玩家关闭 UI | `handleUiClosed` → `releaseCurrentSharedLock` |
-| 玩家退出服务器 | `onPlayerQuit` → `releaseSharedLocks` |
-| 共享仓库被删除 | `deleteSharedWarehouse` 中清理锁 |
-| 所有权转让完成 | `confirmPendingTransfer` 中清理锁 |
+锁在以下场景释放：玩家切换回只读模式、关闭界面、退出服务器、共享仓库被删除、所有权转让完成。
 
 ### 锁忙提示
 
@@ -202,45 +176,17 @@ cross-server:
 
 同时需要在宿主 `config.yml` 的 `cross-server` 节配置跨服通道参数。详见 [跨服配置](/docs/guide/cross-server-setup)。
 
-### 工作原理
+### 工作机制
 
-跨服锁同步通过 `WarehouseCrossServerLockService` 实现：
-
-1. **锁获取广播**：本机获取锁后，通过 CrossServer 通道发送 `LOCK` 类型 payload
-2. **锁释放广播**：本机释放锁后，发送 `UNLOCK` 类型 payload
-3. **远程锁应用**：其他子服收到 `LOCK` payload 后，通过 `applyRemoteSharedLock` 更新本地锁视图
-4. **远程锁释放**：其他子服收到 `UNLOCK` payload 后，通过 `applyRemoteSharedUnlock` 清除本地锁
-
-### Payload 格式
-
-跨服 payload 使用 Tab 分隔的文本格式：
-
-| 类型 | 格式 |
-| --- | --- |
-| `LOCK` | `LOCK\t{sharedId}\t{playerUuid}\t{playerName}\t{nodeId}` |
-| `UNLOCK` | `UNLOCK\t{sharedId}\t{playerUuid}\t{nodeId}` |
-
-Payload 中的 Tab、换行符会被 `sanitize()` 替换为空格，防止格式破坏。
-
-### 远程锁冲突处理
-
-当远程子服获取锁后，本机正在编辑该仓库的玩家会被强制切换到只读模式：
-
-1. `applyRemoteSharedLock` 遍历所有 `ViewState`
-2. 对正在编辑该共享仓库且非锁持有者的玩家，设置 `sharedEditMode = false`
-3. 发送锁忙提示并刷新 UI
+- 本机获取/释放锁后，通过跨服通道向所有子服广播锁状态
+- 其他子服收到锁状态后更新本地视图
+- 当远程子服获取锁后，本机正在编辑该仓库的其他玩家会被强制切换到只读模式并收到锁忙提示
 
 ## 成员管理
 
 ### 邀请成员
 
-所有者通过 UI 发送 `shared_invite` action 邀请成员：
-
-| 参数 | 说明 |
-| --- | --- |
-| `sharedId` | 共享仓库 ID |
-| `memberName` | 目标玩家名称 |
-| `role` | 角色（`member` 或 `viewer`，传入 `owner` 会被降级为 `member`） |
+所有者通过仓库 UI 邀请成员，可指定角色为 `member` 或 `viewer`。
 
 邀请前需校验：
 - 二级密码已解锁
@@ -250,11 +196,11 @@ Payload 中的 Tab、换行符会被 `sanitize()` 替换为空格，防止格式
 
 ### 移除成员
 
-所有者通过 UI 发送 `shared_remove` action 移除成员：
+所有者通过仓库 UI 移除成员：
 
 - 需二级密码已解锁
 - 仅 owner 可操作
-- 不可移除自己（owner 角色不可被移除，SQL 中 `WHERE role <> 'owner'`）
+- 不可移除自己（owner 角色不可被移除）
 - 移除后释放被移除者持有的所有共享仓库编辑锁
 
 ## 所有权转让
@@ -281,7 +227,7 @@ Payload 中的 Tab、换行符会被 `sanitize()` 替换为空格，防止格式
 
 ### 转让确认
 
-转让发起后，系统创建 `PendingTransfer` 记录并通知目标玩家。目标玩家通过命令确认或拒绝：
+转让发起后，系统创建待确认记录并通知目标玩家。目标玩家通过命令确认或拒绝：
 
 ```bash
 # 确认转让
@@ -293,49 +239,11 @@ Payload 中的 Tab、换行符会被 `sanitize()` 替换为空格，防止格式
 
 转让确认的过期时间由 `settings.transfer-confirm-expire-hours`（默认 24 小时）控制。设为 `<=0` 表示永不过期。
 
-### 转让数据库操作
+转让确认后，仓库所有者变更为目标玩家，原所有者自动降级为 `member`。
 
-转让确认时，`transferSharedWarehouse()` 在事务中执行：
+## 数据存储
 
-1. 更新 `warehouse_shared` 表的 `owner_uuid` 为新所有者
-2. 原所有者在 `warehouse_shared_members` 中的角色改为 `member`
-3. 新所有者在 `warehouse_shared_members` 中的角色改为 `owner`
-
-## 数据库表结构
-
-### warehouse_shared
-
-| 列名 | 类型 | 说明 |
-| --- | --- | --- |
-| `id` | `VARCHAR(36)` | 共享仓库 UUID（主键） |
-| `owner_uuid` | `VARCHAR(36)` | 所有者 UUID |
-| `name` | `VARCHAR(64)` | 仓库名称 |
-| `level` | `INTEGER` | 当前等级 |
-| `capacity` | `BIGINT` | 当前容量 |
-| `created_at` | `BIGINT` | 创建时间戳 |
-| `updated_at` | `BIGINT` | 更新时间戳 |
-| `showcase_enabled` | `BOOLEAN` | 是否启用展示柜 |
-
-### warehouse_shared_members
-
-| 列名 | 类型 | 说明 |
-| --- | --- | --- |
-| `shared_id` | `VARCHAR(36)` | 共享仓库 ID |
-| `player_uuid` | `VARCHAR(36)` | 成员 UUID |
-| `role` | `VARCHAR(16)` | 角色（owner / member / viewer） |
-| `updated_at` | `BIGINT` | 更新时间戳 |
-
-主键为 `(shared_id, player_uuid)`。
-
-### warehouse_pending_transfers
-
-| 列名 | 类型 | 说明 |
-| --- | --- | --- |
-| `shared_id` | `VARCHAR(36)` | 共享仓库 ID（主键） |
-| `from_owner_uuid` | `VARCHAR(36)` | 原所有者 UUID |
-| `to_uuid` | `VARCHAR(36)` | 目标玩家 UUID |
-| `created_at` | `BIGINT` | 发起时间戳 |
-| `expires_at` | `BIGINT` | 过期时间戳（0 表示永不过期） |
+共享仓库的元数据、成员关系与待确认转让记录存储在数据库中，多服共库时跨服可见。
 
 ## 相关文档
 

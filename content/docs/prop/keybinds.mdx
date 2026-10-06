@@ -11,28 +11,9 @@ description: Prop 模块客户端按键绑定注册、槽位映射、使用流�
 
 按键绑定系统是 Prop 模块区别于传统道具插件的核心能力。通过 ArcartX 客户端 MOD 提供的桥接 API，服务器可以将键盘按键映射到客户端额外槽位，玩家按下按键即可触发对应槽位中的道具。本页详细说明按键绑定的注册、触发、槽位同步与冷却管理的完整流程。
 
-## 系统架构
-
-```
-key.yml（按键映射配置）
-  │
-  ├─ PropKeyMappingConfiguration
-  │   ├─ category: 客户端按键分类名
-  │   └─ bindings: Map<绑定ID, PropKeyBindingDefinition>
-  │
-  ├─ PropKeyBindingDefinition
-  │   ├─ bindingId:  绑定唯一标识
-  │   ├─ defaultKey: 默认按键（Z/X/C...）
-  │   └─ slotId:     关联槽位（Slot1/Slot2/Slot3...）
-  │
-  └─ PropService.registerBindings()
-      └─ PropBridgeAPI.registerClientKeyBind(bindingId, category, defaultKey, onPress)
-          └─ 客户端 MOD 注册按键 → 玩家按键设置中可见
-```
-
 ## 按键映射配置
 
-按键映射在 `data/prop/key.yml` 中配置，由 `PropKeyMappingConfiguration` 解析。
+按键映射在 `data/prop/key.yml` 中配置：每个绑定指定默认按键与关联道具槽位，玩家可在客户端按键设置中查看和改键。
 
 ### 配置结构
 
@@ -42,7 +23,7 @@ key.yml（按键映射配置）
 | `keys.<绑定ID>.defaultKey` | `string` | `X` | 默认按键（客户端按键名） |
 | `keys.<绑定ID>.slot` | `string` | `Slot1` | 绑定的道具槽位标识 |
 
-> `<绑定ID>` 是按键绑定的唯一标识，同时也是显示给玩家的按键名称。它在 `PropKeyBindingDefinition` 中作为 `bindingId` 字段，用于客户端注册和注销。
+> `<绑定ID>` 是按键绑定的唯一标识，同时也是显示给玩家的按键名称。
 
 ### 配置示例
 
@@ -307,39 +288,11 @@ COOL_DOWN: "&7[&dArcartXProp&7]&c{NAME}&f还在冷却,你还需要等待&a{TIME}
 ### 同步流程
 
 ```
-synchronizeConfiguredSlots(player)
-  │
-  ├─ bridge.resolvePlayerHandle(player) → PropPlayerHandle
-  │
-  ├─ 收集全部已配置槽位 ID
-  │   └─ 遍历 keyMappingConfiguration.bindings() 收集 slotId（去重）
-  │
-  ├─ 遍历每个槽位
-  │   ├─ handle.getSlotItemStack(slotId) → 读取物品
-  │   ├─ resolveBoundProp(slotItem) → 解析道具绑定
-  │   └─ 若道具绑定存在且冷却标签变更 → handle.setSlotItemStack(slotId, newItem)
-  │
-  └─ handle.syncSlotCacheToClient() → 同步到客户端
-```
+同步遍历 `key.yml` 中已配置的槽位（不扫描全部槽位），读取槽位物品、解析道具绑定、刷新冷却标签后推送到客户端。延迟 1 tick 是为了等待客户端 MOD 和玩家数据完全加载。
 
-> 同步只处理已配置的槽位（`key.yml` 中绑定的槽位），不会扫描客户端全部额外槽位。延迟 1 tick 是为了等待客户端 MOD 和玩家数据完全加载。
+## 槽位同步时机
 
-## 客户端初始化回调
-
-Prop 模块注册了 `ClientInitializedHandler`，在玩家客户端初始化完成时触发槽位同步：
-
-```java
-// PropModule.createInitializedHandler()
-return player -> {
-    if (service != null) {
-        service.handleClientInitialized(player);
-    }
-};
-```
-
-`handleClientInitialized()` 调用 `scheduleSlotSync(player, 1L)`，延迟 1 tick 后执行 `synchronizeConfiguredSlots()`。
-
-> 客户端初始化完成表示 ArcartX 客户端 MOD 已就绪，可以接收槽位同步数据。`PlayerJoinEvent` 和 `ClientInitializedHandler` 都会触发同步，确保无论客户端加载快慢都能正确同步槽位。
+玩家加入服务器与客户端 MOD 初始化完成时都会触发槽位同步，确保无论客户端加载快慢都能正确同步槽位。
 
 ## 多槽位配置实践
 
@@ -418,10 +371,10 @@ keys:
 
 | 问题 | 可能原因 | 排查方法 |
 |------|----------|----------|
-| 按键无反应 | 客户端 MOD 未安装 / 桥接不可用 | 检查 `PropBridgeAPI.isAvailable()` |
+| 按键无反应 | 客户端 MOD 未安装 | 确认玩家客户端装有 ArcartX MOD |
 | 按键未注册 | `key.yml` 格式错误 / 绑定 ID 重复 | 查看启动日志的注册结果 |
 | 槽位物品不同步 | 客户端初始化延迟 / 槽位 ID 不匹配 | 确认 `slotId` 与客户端 MOD 支持的槽位一致 |
-| 冷却不生效 | 冷却组标签未写入 / 客户端标签系统异常 | 检查 `setCooldownTag()` 是否成功 |
+| 冷却不生效 | 冷却组标签未写入 | 检查道具 `cooldown-group` 配置 |
 | 按键触发但道具不执行 | `key: false` / 权限不足 / 条件不满足 | 查看玩家收到的提示消息 |
 
 > 使用 `/axs prop status` 可查看已注册的按键数量和属性桥接状态，快速判断模块是否正常运行。

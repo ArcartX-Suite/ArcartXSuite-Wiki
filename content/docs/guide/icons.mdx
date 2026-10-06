@@ -7,18 +7,11 @@ description: Suite 统一图标系统配置指南，支持 Material、外部物�
 
 ## 概述
 
-IconDefinition 是 Suite 的统一图标配置系统。所有模块中需要展示物品图标的地方——如菜单按钮、奖励图标、商店商品、鱼类图鉴、抽奖物品等——都使用统一的 `icon:` 配置节。
-
-IconResolver 负责将配置解析为两部分：
-
-- **ItemStack**：服务端实际使用的物品对象
-- **JSON**：客户端 UI 渲染用的物品 JSON 数据
-
-这种统一设计使得图标配置在不同模块间完全一致，学会一处即可全局适用。无论你是配置一个菜单按钮还是一个抽奖奖品，`icon:` 节的写法完全相同。
+所有模块中需要展示物品图标的地方——如菜单按钮、奖励图标、商店商品、鱼类图鉴、抽奖物品等——都使用统一的 `icon:` 配置节，写法完全一致。
 
 ## 完整字段列表
 
-IconDefinition 支持以下 17 个字段：
+`icon:` 配置节支持以下字段：
 
 | 字段 | 说明 | 默认值 |
 |------|------|--------|
@@ -43,20 +36,12 @@ IconDefinition 支持以下 17 个字段：
 
 ## 解析优先级
 
-IconResolver 按以下顺序解析图标配置：
+图标配置按以下顺序生效：
 
 1. **JSON 优先**：若配置了 `json` 字段，按 SNBT 格式直接生成物品，跳过其他来源
-2. **外部物品来源**：若配置了 `source` + `id`，调用 ItemSourceRegistry 生成外部物品（MythicMobs、NeigeItems、Overture、MMOItems 等）
+2. **外部物品来源**：若配置了 `source` + `id`，生成对应物品库的物品（MythicMobs、NeigeItems、Overture、MMOItems 等）
 3. **原版 Material**：否则按 `material` 字段创建原版物品
 4. **属性叠加**：最后在生成的物品基础上叠加 `name`、`lore`、`customModelData`、`glow`、`skullTexture`、`color`、`nbt`、`texture`、`textureUrl` 等属性
-
-```
-json ──> 生成物品 ──┐
-                   │
-source+id ──> 外部物品 ──┤──> 叠加属性 ──> 最终 ItemStack
-                   │
-material ──> 原版物品 ──┘
-```
 
 > 属性叠加阶段会覆盖外部物品自带的 `name`、`lore` 等属性。若希望保留外部物品原始属性，请勿在 `icon:` 中重复配置这些字段。
 

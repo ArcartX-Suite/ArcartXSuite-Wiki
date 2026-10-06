@@ -3,7 +3,6 @@
     "pages":  [
                   "index",
                   "module-development",
-                  "module-signature",
                   "using-third-party-modules",
                   "capability-guide"
               ]

@@ -382,20 +382,8 @@ blacklist:
 | `remove` | `blacklist remove <QQ号>` | 将 QQ 移出黑名单 |
 | `list` | `blacklist list` | 查看黑名单列表（含配置静态 + 数据库动态） |
 
-> 黑名单数据存储在 `axs_qqbot_blacklist` 表中，支持跨服同步。
+> 黑名单数据存储在数据库中，共享存储模式下支持跨服同步。
 
-## 数据库表结构总览
+## 数据存储
 
-签到积分与群管理相关数据使用以下数据表：
-
-| 表名 | 说明 |
-|---|---|
-| `axs_qqbot_points` | 积分账户表 |
-| `axs_qqbot_signin` | 签到记录表 |
-| `axs_qqbot_redeem_log` | 兑换流水表 |
-| `axs_qqbot_blacklist` | 黑名单表 |
-| `axs_qqbot_red_packets` | 红包表 |
-| `axs_qqbot_red_packet_claims` | 红包领取记录表 |
-| `axs_qqbot_activity` | 群活跃度表 |
-
-> 所有数据表支持 SQLite 和 MySQL 双方言，通过 `AbstractModuleRepository` 基类自动适配。共享存储模式下所有服务器共享同一数据库，实现跨服同步。物品来源配置参考 [物品来源指南](/docs/guide/item-sources)。
+积分账户、签到记录、兑换流水、黑名单、红包与群活跃度数据存储在数据库中，支持 SQLite 和 MySQL。共享存储模式下所有服务器共享同一数据库，实现跨服同步。物品来源配置参考 [物品来源指南](/docs/guide/item-sources)。

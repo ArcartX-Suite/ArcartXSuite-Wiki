@@ -7,13 +7,13 @@ description: Fishing 鱼饵系统配置
 
 鱼饵定义文件位于 `plugins/ArcartX-Suite/data/fishing/baits/` 目录下，每个 `.yml` 文件定义一种鱼饵。
 
-## 鱼饵工作原理
+## 鱼饵机制
 
 鱼饵物品由外部物品库（NeigeItems/MythicMobs 等）生成，配置文件仅用于**识别物品**和**设置效果**。
 
 ### 饵料队列系统
 
-玩家拥有一个饵料队列（存储在数据库 `axs_fishing_bait_queue` 表中），通过 ArcartX UI 饵料管理界面操作：
+玩家拥有一个饵料队列，通过 ArcartX UI 饵料管理界面操作：
 
 1. **放入饵料**（`put_bait`）：从背包指定槽位将饵料物品放入队列指定槽位
 2. **取出饵料**（`take_bait`）：从队列槽位取出饵料返还到背包

@@ -5,7 +5,7 @@ description: Suite 第三方模块开发入门——环境准备、SDK 获取、
 
 # 开发者概览
 
-本章面向第三方模块开发者与需要集成自定义模块的服主。Suite 采用「宿主 + 独立模块 Jar」架构：宿主只提供基础设施（桥接、模块加载、跨服、配置诊断），所有业务逻辑都在 `modules/*.jar` 中运行。你可以基于公开 API 编写自己的模块，也可以安装他人发布的模块 Jar。
+本章面向第三方模块开发者与需要集成自定义模块的服主。你可以基于公开 API 编写自己的模块，也可以安装他人发布的模块 Jar。
 
 ## 核心概念
 
@@ -73,7 +73,7 @@ dependencies {
 ```
 
 <Callout type="warn" title="不要引用宿主实现">
-模块代码中只能 `import xuanmo.arcartxsuite.api.*`。不要 `import xuanmo.arcartxsuite.bridge.*` 或宿主 `module` 包——会导致 ClassLoader 隔离失败，且在不同版本间不兼容。
+模块代码中只能 `import xuanmo.arcartxsuite.api.*`。不要 `import xuanmo.arcartxsuite.bridge.*` 或宿主 `module` 包——这些内部类不对外开放，引用会导致模块加载失败或版本不兼容。
 </Callout>
 
 ## 文档索引
@@ -81,19 +81,16 @@ dependencies {
 | 文档 | 内容 |
 |------|------|
 | [开发第三方模块](./module-development) | 项目结构、Gradle、`module.yml`、`AbstractAXSModule`、UI 绑定、客户端包、子命令 |
-| [模块 Ed25519 签名](./module-signature) | 开发者生成密钥、签名 `module.yml`；服主配置公钥校验 |
-| [使用第三方模块](./using-third-party-modules) | 服主安装、启用、热加载、依赖与签名、常见问题 |
-| [Capability 详解](./capability-guide) | 原理、内置能力表、提供方/使用方完整示例 |
+| [使用第三方模块](./using-third-party-modules) | 服主安装、启用、热加载、依赖与常见问题 |
+| [Capability 详解](./capability-guide) | 内置能力表、提供方/使用方完整示例 |
 | [模块生命周期 API](../api/module-lifecycle) | `AXSModule` / `AbstractAXSModule` 接口说明 |
 | [ModuleContext](../api/module-context) | 桥接、跨服、资源导出等上下文 API |
 | [Capability API](../api/capability) | 各内置 Capability 接口方法签名 |
 
 ## 与官方模块的关系
 
-AXS 自带 30 个官方模块（Title、Mail、Chat 等），它们与第三方模块使用同一套加载机制：
+AXS 自带 30 个官方模块（Title、Mail、Chat 等），第三方模块与它们使用相同的使用方式：
 
-- 同样放在 `modules/`（或云端下发到内存加载）。
+- 同样放在 `modules/` 目录（或由云端下发）。
 - 同样通过 `ModuleContext` 获取桥接。
 - 同样通过 Capability 暴露能力供其他模块调用。
-
-因此：你为服务器写的「小插件」，在架构上与 Title、Mail 是平级的——这正是 Suite（组曲）的设计。

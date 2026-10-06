@@ -9,14 +9,7 @@ description: ModAttributeService / ModAttributeModifier 接口参考，向玩家
 
 **获取方式：** `context.modAttributes()`（标记为 `@ApiStability.Stable`，永不为 `null`；非 Forge 环境时 `available()` 返回 `false`）
 
-## 工作原理
-
-```
-模块登记 ──► DefaultModAttributeService ──► ForgeRegistries.ATTRIBUTES
-（来源+属性+数值）      （反射，主线程）         getValue(ResourceLocation)
-                                            ──► LivingEntity.getAttribute()
-                                            ──► AttributeInstance.addTransientModifier()
-```
+## 行为说明
 
 - 修饰器 UUID 由「来源 ID + 属性 ID」确定生成：重复登记同一来源为**整体替换**，不会叠加
 - 不同来源对同一属性的修饰器**独立共存**，移除互不影响
@@ -68,7 +61,7 @@ mod-attributes:
 
 ## 可用属性表
 
-属性 ID 取决于服务器实际安装的 Mod。以下为常见的属性提供方（以 GunsmithLib + Apotheosis 组合为例，均在运行时由 Mod 自行注册并被各自管线消费）：
+属性 ID 取决于服务器实际安装的 Mod。以下为常见的属性提供方（以 GunsmithLib + Apotheosis 组合为例）：
 
 ### GunsmithLib（`gunsmithlib:`）—— TACZ 枪械玩家属性
 
@@ -128,7 +121,7 @@ mod-attributes:
 |---|---|
 | `apotheosis_modern_ragnarok:posture` | 架势条（TACZ×神化桥接） |
 
-> 属性是否生效取决于对应 Mod 是否安装并在其管线中消费该属性——例如 `gunsmithlib:*` 由 GunsmithLib 在 TACZ 伤害/枪械属性管线中读取，`apothic_attributes:*` 由 Apotheosis/AMR 伤害管线消费。写入了未安装 Mod 的属性 ID 不会报错，只会记日志跳过。
+> 属性是否生效取决于对应 Mod 是否安装并使用该属性。写入了未安装 Mod 的属性 ID 不会报错，只会记日志跳过。
 
 ## 配置示例
 

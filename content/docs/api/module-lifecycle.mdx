@@ -25,9 +25,9 @@ public interface AXSModule {
 | 方法 | 调用时机 | 说明 |
 |------|----------|------|
 | `descriptor()` | 模块加载前 | 返回模块元数据 |
-| `onEnable(context)` | 密码验证和依赖检查通过后 | 启动模块，返回 `true` 表示成功 |
+| `onEnable(context)` | 依赖检查通过后 | 启动模块，返回 `true` 表示成功 |
 | `onDisable()` | 模块被卸载/禁用时 | 释放所有资源 |
-| `onReload()` | 执行 `/axs reload` 时 | 热重载配置，不卸载 ClassLoader |
+| `onReload()` | 执行 `/axs reload` 时 | 热重载配置 |
 | `isReady()` | 任意时刻 | 查询模块是否正常运行 |
 | `configSpecs()` | `onEnable` 之前 | 返回配置诊断规约（参与智能配置体检） |
 
@@ -211,7 +211,6 @@ ModuleDescriptor desc = ModuleDescriptor.builder("mymodule")
 | `softDepends` | `List<String>` | 软依赖的其他 AXS 模块 id |
 | `externalDepends` | `List<String>` | 强依赖的外部 Bukkit 插件名 |
 | `externalSoftDepends` | `List<String>` | 软依赖的外部 Bukkit 插件名 |
-| `signature` | `String` | Ed25519 签名（Base64），见[模块签名](../developer/module-signature) |
 
 ## ModuleCommandHandler
 

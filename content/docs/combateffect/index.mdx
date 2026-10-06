@@ -22,7 +22,6 @@ CombatEffect 是 Suite 的战斗特效模块，为服务器提供完整的战斗
 |---|---|
 | 模块 ID | `combateffect` |
 | 版本 | 1.4.4 |
-| 主类 | `xuanmo.arcartxsuite.combateffect.CombatEffectModule` |
 | 配置文件 | `config.yml`、`messages.yml`、`packets/`（特效包定义目录） |
 | 命令入口 | 管理 `/axs combateffect`（无玩家命令） |
 | 外部依赖 | ArcartX（必需）；ArcartX_Chronos_Plugin（可选，连击追踪） |
@@ -193,16 +192,15 @@ death-buffer:
   world-blacklist: []
 ```
 
-死亡缓冲在 `EntityDamageEvent` 的 `HIGHEST` 优先级拦截致死伤害：
+死亡缓冲在玩家受到致死伤害时生效：
 
-1. 检测伤害是否致死（`healthAfter <= 0`）
-2. 取消伤害事件，进入缓冲状态
-3. 冻结玩家（无敌、移速归零、血量设为 0.001）
-4. 应用视觉效果（Shader、第三人称、预设相机、Chronos 状态）
-5. 发送 `trigger: death` 的包定义
-6. 调度延迟任务，缓冲结束后执行真正死亡（`setHealth(0)`）
+1. 检测伤害是否致死，是则取消伤害并进入缓冲状态
+2. 冻结玩家（无敌、无法移动、血量保留微量）
+3. 应用视觉效果（Shader、第三人称、预设相机、Chronos 状态）
+4. 触发 `trigger: death` 的包定义
+5. 缓冲时长结束后执行真正死亡
 
-> 玩家退出时自动清理缓冲状态。`PlayerDeathEvent` 作为安全网兜底，防止其他插件绕过伤害拦截。
+> 玩家退出时自动清理缓冲状态。
 
 ## 相关文档
 

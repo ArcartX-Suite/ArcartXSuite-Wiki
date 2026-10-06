@@ -190,7 +190,7 @@ function:
 ### 完整配置示例
 
 ```yaml
-# 配置文件版本号；用于自动迁移程序识别当前版本并执行升级。
+# 配置文件版本号，请勿手动修改；版本升级时自动迁移。
 config-version: 2
 
 settings:
@@ -337,7 +337,7 @@ operations:
 ```
 
 <Callout type="info">
-配置诊断引擎会自动检测版本号变动并执行迁移。详见 [/docs/guide/conditions](/docs/guide/conditions) 中的配置管理章节。
+版本号变动时自动执行迁移，无需手动操作。详见 [配置管理](/docs/guide/config-management)。
 </Callout>
 
 ## 消息文件

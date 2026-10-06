@@ -92,56 +92,7 @@ Lottery 模块通过 `LotteryPlaceholderExpansion` 注册 PlaceholderAPI 占位�
 
 > `guaranteed` 占位符的 `是`/`否` 文本由 `messages.yml` 的 `placeholder.guaranteed-yes` / `placeholder.guaranteed-no` 定义。
 
-## UI Packet 触发
-
-Lottery 模块通过 `LotteryPacketHandler` 处理客户端 UI 数据包。UI 通过 `PacketBridgeAPI` 与客户端通信，玩家操作 UI 时发送数据包到服务端，服务端处理后回推数据包更新界面。
-
-### 数据包 ID
-
-| 数据包 ID | 说明 | 对应 UI |
-|---|---|---|
-| `AXS_LOTTERY_GACHA` | 祈愿（GACHA）数据包 | `gacha-ui-id`（默认 `AXS:lottery_gacha`） |
-| `AXS_LOTTERY_WISH` | 祈愿全屏版（WISH）数据包 | `wish-ui-id`（默认 `AXS:lottery_wish`） |
-| `AXS_LOTTERY_CASE` | 开箱（CASE）数据包 | `case-ui-id`（默认 `AXS:lottery_case`） |
-
-### 客户端动作（action）
-
-客户端通过 `data.get(0)` 指定动作，服务端 `LotteryPacketHandler.handle` 分发：
-
-| action | 数据包 | 参数 | 说明 |
-|---|---|---|---|
-| `switch_pool` | GACHA / WISH / CASE | `data[1]` = 奖池索引 | 切换当前选中奖池 |
-| `pull` | GACHA / WISH | `data[1]` = 抽卡次数（1 或 10），`data[2]` = action_token | 执行抽卡 |
-| `open_case` | CASE | `data[1]` = action_token | 执行单次开箱 |
-| `open_case_batch` | CASE | `data[1]` = 开箱次数（固定 10），`data[2]` = action_token | 执行十连开箱 |
-| `history` | GACHA / WISH / CASE | 无 | 请求历史记录数据 |
-| `details` | GACHA / WISH / CASE | 无 | 请求奖池详情数据（概率、保底、条目） |
-| `exchange` | GACHA / WISH | 无 | 请求兑换商店数据 |
-| `exchange_buy` | GACHA / WISH | `data[1]` = 商品 ID，`data[2]` = action_token | 执行兑换购买 |
-| `refresh` 或其他 | 全部 | 无 | 刷新当前奖池界面 |
-
-### 服务端回推数据包（sub-packet）
-
-服务端通过 `packetBridge.sendPacket` 向客户端推送数据，`subPacketId` 标识数据类型：
-
-| subPacketId | 说明 |
-|---|---|
-| `update` | 刷新奖池界面（奖池列表、消耗、保底、资源余额等） |
-| `result` | 单抽结果（GACHA 或 CASE） |
-| `batch_result` | 十连结果（GACHA 或 CASE） |
-| `history` | 历史记录数据 |
-| `details` | 奖池详情数据（概率、保底、条目） |
-| `exchange` | 兑换商店数据 |
-
-### Token 防抖机制
-
-`pull` / `open_case` / `open_case_batch` / `exchange_buy` 动作需携带 `action_token`。服务端通过 `checkToken` 校验 token 并占用 `inFlight` 标记，防止并发重复请求。每次 `update` 推送时生成新 token，客户端需使用最新 token 发起操作。
-
-### CASE 开箱动画数据
-
-单次开箱结果 `result` 包含 50 个伪随机物品填满动画带（`animItemJson1` ~ `animItemJson50`），第 39 个（`animWinnerSlot` = 39）为中奖物品。十连开箱 `batch_result` 选最高稀有度的中奖物品作为动画停止位置展示。
-
-### UI 打开方式
+## UI 打开方式
 
 | 触发方式 | 说明 |
 |---|---|

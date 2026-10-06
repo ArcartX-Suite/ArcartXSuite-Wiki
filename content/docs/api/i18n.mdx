@@ -15,20 +15,6 @@ Suite 提供消息外部化框架，让模块的所有用户可见文本从硬�
 | `AbstractAXSModule#configSpec()` | `api` | 声明 `messagesFileName`，基类自动导出+加载 |
 | `AbstractAXSModule#messages()` | `api` | 获取已加载的 `MessageProvider` |
 
-## 工作原理
-
-```
-模块 jar 内 messages.yml
-   │ (onEnable 时自动导出)
-   ▼
-data/<moduleId>/messages.yml  ← 用户可编辑
-   │ (MessageProvider.load 读取)
-   ▼
-messages().get("key", args)  ← 代码中使用
-```
-
-消息文件与 `config.yml` 走同一套资源导出管线。
-
 ## 接入步骤
 
 ### 1. 创建默认消息文件
@@ -123,7 +109,7 @@ messages.get("welcome", player.getName(), serverName);
 
 `MessageProvider` 从模块 Jar 内导出默认消息文件，用户编辑 `data/<moduleId>/messages.yml` 后 `/axs reload <module>` 即可生效。
 
-服主可将消息文件翻译为任意语言，无需修改代码。新增字段无需迁移声明——`messages.yml` 不是配置，不走 `ConfigDiagnosticEngine`，新增键直接在 Jar 默认文件补充即可。
+服主可将消息文件翻译为任意语言，无需修改代码。新增字段无需迁移声明——`messages.yml` 不受配置体检管理，新增键直接在 Jar 默认文件补充即可。
 
 ## 注意事项
 

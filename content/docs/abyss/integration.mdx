@@ -30,11 +30,11 @@ MM 不可用时全部 mob-id 按原版实体名解析，副本不会因此崩溃
 
 ### 物品来源
 
-`rewards.yml`/`required-items` 中的物品描述经宿主 `ItemSourceRegistry` 统一生成，支持 `material:`（原版）及 MythicMobs/NeigeItems/Overture/MMOItems 等外源前缀（见宿主物品来源配置）。
+`rewards.yml`/`required-items` 中的物品描述经宿主物品来源系统统一生成，支持 `material:`（原版）及 MythicMobs/NeigeItems/Overture/MMOItems 等外源前缀（见宿主物品来源配置）。
 
 ## 跨模块能力
 
-模块注册 `AbyssQueryable` Capability（`axs-api`，`@Stable`）供其他模块查询玩家地牢状态：
+模块注册 `AbyssQueryable` 公开能力，供其他模块查询玩家地牢状态：
 
 ```java
 AbyssQueryable abyss = getCapability(AbyssQueryable.class);
@@ -113,7 +113,7 @@ conditions:
 | `ConversationPlayable` | conversation | NPC 点击/`npc_dialog`/`open_conversation` → Chemdah 会话 UI；`play_cinematic` → 电影序列 |
 | `QuestGpsNavigable` | questgps | `accept_quest`/`submit_quest`/`quest_step`/`quest_track`/`quest_status` → Chemdah 任务状态机 |
 | `AdyeshachNpcBridgeAPI` | 宿主桥 | 副本 NPC 生成为 Adyeshach 公共临时实体 + 交互事件路由 |
-| 属性桥 `AttributeBridgeRegistry` | 宿主 | `apply_attribute`/`remove_attribute` + 属性伤害/治疗计入战斗统计 |
+| 宿主属性桥 | 宿主 | `apply_attribute`/`remove_attribute` + 属性伤害/治疗计入战斗统计 |
 
 > **NPC/任务委托架构**：副本 NPC 实体走 Adyeshach（临时公共管理器，实例销毁即清）；对话走 conversation→Chemdah 会话；任务走 questgps→Chemdah 任务定义，abyss `quests.yml` 只做 id 映射与副本钩子。三者任一缺席时优雅降级——无 Adyeshach 用原版实体，无 conversation 用 `dialogs` 聊天栏兜底，无 questgps 任务动作静默跳过。
 
@@ -160,21 +160,18 @@ if (parties != null) {
 | 排行榜 | 同上，按地牢独立榜单 |
 | 副本实例/变量/会话态 | 纯内存，实例结束销毁 |
 
-玩家掉线：副本内玩家退出时恢复并移出实例；HUD/宝箱 token 清理在 `handleQuit` 中无条件执行，不留会话态。
+玩家掉线：副本内玩家退出时恢复并移出实例；HUD 与宝箱等会话状态在退出时全部清理。
 
 ## 故障排查
 
 | 现象 | 排查方向 |
 |---|---|
-| `/abyss` 未知命令 | 宿主 jar 未更新到含 `abyss`/`party` 声明的版本——这两个命令走 `plugin.yml` 静态声明，模块热更新不生效；更新宿主后重启 |
-| `/abyss` 执行无响应 | UI 未注册：模块版本过旧（UI 注册在 `1b40ae61` 加入）或 `ui.register-on-enable: false`；检查服务端日志 `Abyss UI 注册` 相关行 |
-| 进本后聊天栏疯狂重复消息 | 旧版本 `InteractManager` 防抖失效 + failMessage 无节流，已修复；升级模块 |
-| `No key layers in MapLike[{}]` | Mohist + `WorldType.FLAT` 已知问题，已改 `VoidGenerator`，升级模块 |
-| `[Script] JavaScript ScriptEngine 不可用` | 服务端无 Nashorn/GraalJS，`js:` 动作被跳过——避免用 `js:` 前缀（示例地牢未用） |
-| `MythicBukkit 未安装` 警告 | `external-softdepends` 同时声明 MythicMobs/MythicBukkit 的正常提示，MM 接入不受影响 |
-| MythicMobs 怪物没刷出/变成原版怪 | MM 加载失败自动回退原版，检查服务端日志 `MythicMobs` 接入行与怪物 ID 拼写 |
-| 宝箱二次打开残留旧图标 | 旧版本 `seticon` 未显式触发，已修复（属性声明 + init 显式 `seticon()`） |
-| 离线队员踢不掉 | 旧版本按名字查找，已改为 UUID 优先 |
+| `/abyss` 未知命令 | 宿主 jar 过旧——这两个命令需要更新宿主后重启 |
+| `/abyss` 执行无响应 | UI 未注册：模块版本过旧或 `ui.register-on-enable: false`；检查服务端日志 |
+| 进本后聊天栏疯狂重复消息 | 旧版本已知问题，升级模块 |
+| `No key layers in MapLike[{}]` | Mohist 虚空世界已知问题，已在后续版本修复，升级模块 |
+| `[Script] JavaScript ScriptEngine 不可用` | 服务端无 JS 引擎，`js:` 动作被跳过——避免用 `js:` 前缀（Aria 脚本不受影响） |
+| MythicMobs 怪物没刷出/变成原版怪 | MM 加载失败自动回退原版，检查服务端日志与怪物 ID 拼写 |
 | 世界实例残留不删 | `instance-cleanup-timeout` 过长或实例未正常结束；`/axs abyss status` 看实例，`/axs abyss cancel <地牢>` 强制清 |
 
 ## 已知限制

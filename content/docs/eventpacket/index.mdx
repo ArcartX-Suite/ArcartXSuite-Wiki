@@ -12,13 +12,12 @@ EventPacket 是 Suite 的通用事件触发与动作链模块，提供 **18 种�
 |---|---|
 | 模块 ID | `eventpacket` |
 | 版本 | 1.4.4 |
-| 主类 | `xuanmo.arcartxsuite.eventpacket.EventPacketModule` |
 | 配置文件 | `config.yml` |
 | 消息文件 | `messages.yml` |
 | 外部依赖 | PlaceholderAPI（可选） |
 | 模块依赖 | 无（本体内置 API 即可运行） |
 | 配置版本 | 2 |
-| 数据库表前缀 | `axs_eventpacket_`（共享模式无前缀） |
+| 数据存储 | SQLite 或 MySQL（共享/自建存储模式） |
 | 命令入口 | 管理 `/axs eventpacket` |
 | 对外能力 | `SignalDispatchable`（派发信号触发其他模块）、`PlayerDataPurgeable`、`DatabaseMigratable` |
 
@@ -114,4 +113,4 @@ give_item:
 
 - [配置](/docs/eventpacket/configuration) — 主配置字段表、规则配置、完整示例
 - [命令与占位符](/docs/eventpacket/commands) — 管理命令、权限、PAPI 占位符、客户端回包
-- [联动](/docs/eventpacket/integration) — EventBus 事件、Capability、数据库表、模块集成
+- [联动](/docs/eventpacket/integration) — EventBus 事件、Capability 与模块集成

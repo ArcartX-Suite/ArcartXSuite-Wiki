@@ -15,7 +15,6 @@ BattlePass 是 Suite 的战斗通行证（Battle Pass）模块，为服务器提
 |---|---|
 | 模块 ID | `battlepass` |
 | 版本 | 1.4.4 |
-| 主类 | `xuanmo.arcartxsuite.battlepass.BattlePassModule` |
 | 配置文件 | `config.yml`、`rewards.yml`、`season-rewards.yml`、`messages.yml`、`tasks/`（任务定义目录） |
 | 命令入口 | 玩家 `/bp`；管理 `/axs battlepass` |
 | 外部依赖 | PlaceholderAPI（必需） |
@@ -135,7 +134,7 @@ BattlePass 任务分为三个周期，每个周期的重置规则和分配方式
 | 共享存储（推荐） | `storage.shared: true` | 使用本体 `config.yml` 的 storage 节配置，数据库连接由本体统一管控 |
 | 自建存储（不推荐） | `storage.shared: false` | 模块自建独立 HikariCP 连接池，支持 SQLite / MySQL |
 
-数据库表结构详见 [联动](/docs/battlepass/integration) 页面。
+数据存储与集成详见 [联动](/docs/battlepass/integration) 页面。
 
 ## 相关文档
 
@@ -143,4 +142,4 @@ BattlePass 任务分为三个周期，每个周期的重置规则和分配方式
 - [任务系统](/docs/battlepass/tasks) — 任务模板字段、条件系统、增量策略、事件触发源
 - [奖励系统](/docs/battlepass/rewards) — 等级奖励、赛季结算奖励、奖励类型详解
 - [命令与占位符](/docs/battlepass/commands) — 玩家命令、管理命令、PAPI 占位符
-- [联动](/docs/battlepass/integration) — EventBus 事件订阅、Capability 注册、跨服同步、数据库表结构
+- [联动](/docs/battlepass/integration) — EventBus 事件订阅、Capability 注册、跨服同步

@@ -227,46 +227,6 @@ Chat 模块注册了 `axschat` 标识符的 PlaceholderAPI 扩展，提供以下
 频道格式模板、卡片文本和物品展示文本中的 PAPI 占位符会按聊天上下文（发送者玩家）解析。详见 [/docs/guide/conditions](/docs/guide/conditions)。
 </Callout>
 
-## UI 包通信
-
-Chat 模块通过 `PacketBridgeAPI` 与客户端 UI 通信，涉及以下包：
-
-### @补全玩家列表包
-
-| 包 ID | 方向 | 字段 | 说明 |
-|---|---|---|---|
-| `AXS:axs_chat_completion` | 服务端 → 客户端 | `updatePlayers`（`List<String>`） | 推送在线玩家名称列表，供 @补全 HUD 匹配使用 |
-
-服务端在以下时机推送玩家列表：
-- 模块启动时（`broadcastCompletionPlayerList`）
-- 玩家加入服务器时（`PlayerJoinEvent`）
-- 玩家退出服务器时（`PlayerQuitEvent`）
-
-### 聊天卡片包
-
-| 卡片 ID | 方向 | data 字段 | 说明 |
-|---|---|---|---|
-| `axs_chat_mention` | 服务端 → 客户端 | `senderName`、`senderDisplayName`、`channel`、`channelId`、`msg0`~`msg9` | @提及通知卡片 |
-| `axs_chat_private` | 服务端 → 客户端 | `senderName`、`senderDisplayName`、`targetName`、`direction`（`sender`/`recipient`）、`msg0`~`msg9` | 私聊通知卡片 |
-| `axs_chat_system` | 服务端 → 客户端 | `type`（`mute`/`filter`）、`message`、`remaining`、`reason`、`mutedBy` | 系统提示卡片 |
-| `axs_item_preview` | 服务端 → 客户端 | `senderDisplayName`、`itemName`、`itemJson` | 物品预览卡片 |
-| `axs_chat_redpacket` | 服务端 → 客户端 | `packetId`、`senderName`、`senderDisplayName`、`wish`、`typeName`、`count`、`expire` | 红包通知卡片（可点击领取） |
-
 <Callout type="info">
-卡片中 `msg0`~`msg9` 为消息文本的换行分段，服务端按 `max-line-width` 自动换行后推送。卡片宽度与高度由 UI 侧根据 Text 控件实际渲染尺寸自适应。详见 [/docs/guide/icons](/docs/guide/icons)。
-</Callout>
-
-### @补全 Tab 补全包
-
-除了 HUD 方式，模块还通过以下方式注册 `@玩家名` Tab 补全条目：
-
-| 策略 | 适用服务端 | 方式 |
-|---|---|---|
-| Paper API | Paper / Purpur 1.19.1+ | `Player.addCustomChatCompletions()` / `removeCustomChatCompletions()` |
-| NMS 发包 | Spigot / Mohist / Arclight 1.19.1+ | `ClientboundCustomChatCompletionsPacket`（ADD / REMOVE） |
-
-玩家加入时，向所有在线玩家发送 `@新玩家名` 补全条目，并向新玩家发送所有在线玩家的 `@玩家名` 补全条目。玩家退出时，移除对应的补全条目。
-
-<Callout type="info">
-物品展示功能通过 `ItemBridgeAPI` 序列化物品为 JSON，并支持 `TooltipDataCapable` 注入动态 tooltip Lore。详见 [/docs/guide/item-sources](/docs/guide/item-sources)。
+物品展示功能支持 Tooltip 模块注入动态 Lore（如 TACZ 枪械属性、Apotheosis affix）。详见 [物品来源](/docs/guide/item-sources)。
 </Callout>

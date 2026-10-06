@@ -19,7 +19,6 @@ QuestGPS 是 Suite 的任务导航模块，将 Chemdah 任务系统的数据桥�
 |---|---|
 | 模块 ID | `questgps` |
 | 版本 | 1.4.4 |
-| 主类 | `xuanmo.arcartxsuite.questgps.QuestGpsModule` |
 | 配置文件 | `config.yml`、`messages.yml`、`quests/`（任务登记目录） |
 | 命令入口 | 玩家 `/questgps`（别名 `/axsquestgps`）；管理 `/axs questgps` |
 | 外部依赖 | Chemdah（必需，任务数据源） |
@@ -68,15 +67,6 @@ QuestGPS 是 Suite 的任务导航模块，将 Chemdah 任务系统的数据桥�
 > 模块本身仅硬依赖 Chemdah。Map、EventPacket、Announcer、Chat、Title 等模块不存在时对应功能自动降级或跳过。
 
 ## 任务机制详解
-
-### 数据流架构
-
-```
-Chemdah 任务模板 ──→ QuestGPS overlay 配置 ──→ 分类解析 ──→ 任务发现 ──→ 快照构建 ──→ UI Packet ──→ ArcartX 客户端
-                       (quests/*.yml)          (meta.type     (overlay/auto)   (SnapshotBuilder)   (MenuPacketFactory)
-                                               或 overlay
-                                               category)
-```
 
 ### 分类系统
 

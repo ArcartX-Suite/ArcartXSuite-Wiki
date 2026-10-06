@@ -13,13 +13,12 @@ QQBot 是 Suite 的 QQ 群服互联模块，通过 **OneBot 11 WebSocket 协议*
 |---|---|
 | 模块 ID | `qqbot` |
 | 版本 | 1.5.0 |
-| 主类 | `xuanmo.arcartxsuite.qqbot.QQBotModule` |
 | 配置文件 | `config.yml` |
 | 消息文件 | `messages.yml` |
 | 外部依赖 | PlaceholderAPI（必需，`external-depends` 硬依赖，未安装时模块不加载） |
 | 软依赖模块 | `chat` |
 | 配置版本 | 4 |
-| 数据库表前缀 | `axs_qqbot_`（共享模式）或自定义 |
+| 数据存储 | SQLite 或 MySQL（共享/自建存储模式） |
 | 命令入口 | 玩家 `/qqbot`；管理 `/axs qqbot` |
 | 对外能力 | `QqBindCapable`（QQ 绑定）、`QQBotBroadcastable`、`QQBotNotifiable`、`PlayerDataPurgeable`、`DatabaseMigratable` |
 | PAPI 前缀 | `%axsqqbot_*%` |
@@ -63,113 +62,31 @@ QQBot 是 Suite 的 QQ 群服互联模块，通过 **OneBot 11 WebSocket 协议*
 | Capability 依赖 | `EventBusCapability` | 订阅 Market 模块拍卖成交事件实现大额交易播报 |
 | Capability 依赖 | `QqBindCapable` | 向 loginview 等模块暴露 QQ 绑定状态查询 |
 
-## 机器人架构详解
+## 连接行为
 
-QQBot 模块采用分层架构，核心组件如下：
-
-```
-┌─────────────────────────────────────────────────────────┐
-│                    QQBotModule                          │
-│              (模块生命周期 / 配置 / 命令注册)              │
-├─────────────────────────────────────────────────────────┤
-│  OneBotClient          QQBotService         SnowLuma    │
-│  (WebSocket 客户端)    (事件处理 + Bukkit   ProcessManager│
-│   ↕ OneBot 11 WS        监听器)             (进程管理)    │
-│   ↕ 自动重连/端口探测                                    │
-├─────────────────────────────────────────────────────────┤
-│  QQBotCommandRouter   QQBotBindService   QQBotSignInService│
-│  (群指令路由)         (绑定服务)         (签到积分服务)    │
-├─────────────────────────────────────────────────────────┤
-│  QQBotUiService      QQBotMonitorService  QQBotScheduled  │
-│  (UI 通讯)          (监控告警)          MessageService   │
-│                                          (定时消息)       │
-├─────────────────────────────────────────────────────────┤
-│  QQBotWeeklyRankService  QQBotLoginGateListener          │
-│  (周结算排行)             (登录审计日志)                  │
-├─────────────────────────────────────────────────────────┤
-│              JdbcQQBotRepository                         │
-│        (SQLite / MySQL 数据存储层)                        │
-└─────────────────────────────────────────────────────────┘
-```
-
-### OneBot 连接流程
-
-1. 模块启动时，`SnowLumaProcessManager` 异步初始化 SnowLuma 进程（若 `auto-start: true`）
-2. 等待 WS 端口就绪（最多 8 秒超时探测）
-3. `OneBotClient` 发起 WebSocket 连接到 OneBot 实现端
-4. 连接成功后，`QQBotService.onBotConnected()` 标记连接状态
-5. 收到 OneBot 事件后，经 `OneBotEvent` 包装，分发给 `QQBotService.handleOneBotEvent()`
-6. 断线时自动按 `reconnect-interval-seconds` 间隔重连
-
-### 消息处理流水线
-
-群消息到达后，`QQBotService.handleOneBotEvent()` 按以下顺序处理：
-
-1. **黑名单拦截** — 配置静态黑名单 + 数据库动态黑名单双重检查
-2. **notice 事件** — 入群欢迎 / 禁言同步
-3. **自动 moderation** — 关键词拦截（撤回 + 禁言）
-4. **指令处理** — `QQBotCommandRouter.handleCommand()` 尝试匹配群指令
-5. **自动回复** — 关键词 FAQ 匹配
-6. **@ 提示** — 群内 @ 某 QQ → 游戏内 Title 提示
-7. **活跃度记录** — 记录群发言次数
-8. **消息同步** — QQ → 游戏内广播（受 `sync-mode` 控制）
+- 支持 SnowLuma 内置进程（`auto-start: true` 自动启动）或外部 OneBot 实现端（`onebot.ws-url` 指向其 WS 地址）
+- 断线后按 `reconnect-interval-seconds` 自动重连
+- 群消息按顺序处理：黑名单拦截 → notice 事件（入群欢迎/禁言同步）→ 关键词 moderation → 群指令 → 关键词自动回复 → @ 提示 → 活跃度记录 → 消息同步
 
 ## 账号绑定机制
 
-QQBot 使用 **验证码绑定** 方式关联 QQ 号与游戏账号，流程如下：
+QQBot 使用 **验证码绑定** 方式关联 QQ 号与游戏账号：
 
-### 绑定流程
-
-```
-QQ 群                          Minecraft 服务端
-  │                                │
-  │  #绑定 <游戏名>                 │
-  │ ──────────────────────────────>│
-  │  生成 6 位验证码                 │
-  │  <── 验证码已生成: {code} ──────│
-  │  (验证码有效期 300 秒)           │
-  │                                │
-  │              /qqbot bind {code}│
-  │ <──────────────────────────────│
-  │  校验玩家名匹配 → 写入数据库     │
-  │  <── 绑定成功! ─────────────────│
-  │  自动加白名单（若启用）           │
-```
+1. 群内发送 `#绑定 <游戏名>`，机器人回复 6 位验证码
+2. 玩家在游戏内执行 `/qqbot bind <验证码>` 完成绑定
+3. 绑定成功后自动加白名单（若启用）
 
 ### 绑定规则
 
 | 规则 | 说明 |
 |---|---|
-| 绑定方式 | 验证码（code），群内发起 → 游戏内确认 |
-| 验证码格式 | 6 位随机数字（100000-999999） |
+| 验证码格式 | 6 位随机数字 |
 | 验证码有效期 | `binding.code-expire-seconds`（默认 300 秒） |
 | 每 QQ 绑定上限 | `binding.max-bindings-per-qq`（默认 1） |
 | 玩家名唯一 | 同一玩家名只能被一个 QQ 绑定 |
-| 验证码防碰撞 | 生成时检查重复，确保唯一 |
-| 自动白名单 | 绑定成功后自动执行 `whitelist add {name}`（若启用） |
-| 自动解绑白名单 | 解绑后自动执行 `whitelist remove {name}`（若启用） |
+| 自动白名单 | 绑定成功后自动执行 `whitelist add`；解绑后自动 `whitelist remove`（若启用） |
 
-### 绑定数据存储
-
-绑定记录存储在 `axs_qqbot_bindings` 表中，包含以下字段：
-
-| 字段 | 类型 | 说明 |
-|---|---|---|
-| `id` | INTEGER | 自增主键 |
-| `qq_id` | BIGINT | QQ 号 |
-| `player_uuid` | VARCHAR(36) | 玩家 UUID |
-| `player_name` | VARCHAR(64) | 玩家名 |
-| `bound_at` | BIGINT | 绑定时间戳（毫秒） |
-
-### QqBindCapable Capability
-
-模块注册了 `QqBindCapable` Capability，供 loginview 等模块查询绑定状态：
-
-| 方法 | 说明 |
-|---|---|
-| `isBound(UUID)` | 查询玩家是否已绑定 QQ |
-| `getBoundQqId(UUID)` | 获取玩家绑定的 QQ 号 |
-| `confirmBind(Player, code)` | 确认绑定（含自动加白名单逻辑） |
+> 其他模块可查询玩家的 QQ 绑定状态（如 loginview 二级验证联动）。
 
 ## UI 面板
 

@@ -1,6 +1,6 @@
 ---
 title: 联动
-description: Essentials 模块依赖关系、Capability、数据库表与跨模块联动
+description: Essentials 模块依赖关系、Capability 与跨模块联动
 ---
 
 ## 依赖关系
@@ -73,98 +73,13 @@ Essentials 模块通过 `registerCapability` 注册以下能力，供其他模�
 
 > Chat 模块未加载时，`/essentials mute` 命令会提示"禁言功能需要 Chat 模块启用"，管理面板禁言标签页显示"Chat 模块未加载"。
 
-## 数据库表结构
+## 数据存储
 
-`EssentialsRepository` 继承 `AbstractModuleRepository`，在模块启动时自动建表。表名使用配置的表前缀（默认 `axs_ess_`）。
-
-### `axs_ess_homes` — 玩家家
-
-| 列名 | 类型 | 说明 |
-|------|------|------|
-| `uuid` | `VARCHAR(36)` | 玩家 UUID（联合主键） |
-| `name` | `VARCHAR(64)` | 家名称（联合主键，存储为小写） |
-| `world` | `VARCHAR(128)` | 世界名称 |
-| `x` | `DOUBLE` | X 坐标 |
-| `y` | `DOUBLE` | Y 坐标 |
-| `z` | `DOUBLE` | Z 坐标 |
-| `yaw` | `FLOAT` | 偏航角 |
-| `pitch` | `FLOAT` | 俯仰角 |
-
-### `axs_ess_warps` — 公共传送点
-
-| 列名 | 类型 | 说明 |
-|------|------|------|
-| `name` | `VARCHAR(64)` | 传送点名称（主键，存储为小写） |
-| `world` | `VARCHAR(128)` | 世界名称 |
-| `x` | `DOUBLE` | X 坐标 |
-| `y` | `DOUBLE` | Y 坐标 |
-| `z` | `DOUBLE` | Z 坐标 |
-| `yaw` | `FLOAT` | 偏航角 |
-| `pitch` | `FLOAT` | 俯仰角 |
-
-### `axs_ess_spawn` — 出生点
-
-| 列名 | 类型 | 说明 |
-|------|------|------|
-| `id` | `INT` | 固定为 1（主键，单行表） |
-| `world` | `VARCHAR(128)` | 世界名称 |
-| `x` | `DOUBLE` | X 坐标 |
-| `y` | `DOUBLE` | Y 坐标 |
-| `z` | `DOUBLE` | Z 坐标 |
-| `yaw` | `FLOAT` | 偏航角 |
-| `pitch` | `FLOAT` | 俯仰角 |
-
-### `axs_ess_bans` — 封禁记录
-
-| 列名 | 类型 | 说明 |
-|------|------|------|
-| `uuid` | `VARCHAR(36)` | 玩家 UUID（主键） |
-| `player_name` | `VARCHAR(32)` | 玩家名称 |
-| `reason` | `TEXT` | 封禁原因 |
-| `operator` | `VARCHAR(32)` | 操作者名称 |
-| `created_at` | `BIGINT` | 创建时间戳（毫秒） |
-| `expires_at` | `BIGINT` | 过期时间戳（毫秒，`-1` 为永久） |
-| `ip` | `VARCHAR(45)` | 玩家 IP 地址（可为 null） |
-
-### `axs_ess_warnings` — 警告记录
-
-| 列名 | 类型 | 说明 |
-|------|------|------|
-| `id` | `INTEGER` | 自增主键（SQLite `AUTOINCREMENT` / MySQL `AUTO_INCREMENT`） |
-| `uuid` | `VARCHAR(36)` | 玩家 UUID |
-| `player_name` | `VARCHAR(32)` | 玩家名称 |
-| `reason` | `TEXT` | 警告原因 |
-| `operator` | `VARCHAR(32)` | 操作者名称 |
-| `created_at` | `BIGINT` | 创建时间戳（毫秒） |
-
-### `axs_ess_nicknames` — 玩家昵称
-
-| 列名 | 类型 | 说明 |
-|------|------|------|
-| `uuid` | `VARCHAR(36)` | 玩家 UUID（主键） |
-| `nickname` | `VARCHAR(128)` | 昵称（原始文本，含 `&` 颜色码） |
-
-### `axs_ess_player_data` — 玩家数据
-
-| 列名 | 类型 | 说明 |
-|------|------|------|
-| `uuid` | `VARCHAR(36)` | 玩家 UUID（主键） |
-| `last_seen` | `BIGINT` | 最后在线时间戳（毫秒） |
-| `last_ip` | `VARCHAR(45)` | 最后已知 IP |
-| `first_join` | `BIGINT` | 首次加入时间戳（毫秒） |
-
-### 玩家数据与全表枚举
-
-`EssentialsRepository` 实现了两个枚举方法以支持宿主统一管理：
-
-| 方法 | 包含的表 | 用途 |
-|------|----------|------|
-| `playerDataTables()` | `homes`、`bans`、`warnings`、`nicknames`、`player_data` | 按 UUID 清除玩家数据 |
-| `allTables()` | 上述全部 + `warps`、`spawn` | 全表枚举（数据库迁移时使用） |
+家、传送点、出生点、封禁、警告、昵称与玩家基础数据存储在数据库中（表前缀 `axs_ess_` 可配置）。玩家数据清理与迁移使用 `/axs purge`、`/axs migrate` 命令。
 
 ## 跨服支持
 
-Essentials 模块本身不直接使用跨服 API（`CrossServerAPI`），但通过共享存储模式（`storage.shared: true`）间接支持跨服数据同步：
+Essentials 通过共享存储模式（`storage.shared: true`）支持跨服数据同步：
 
 - **共享 MySQL**：多个子服连接同一 MySQL 数据库，家、传送点、出生点、封禁等数据自动跨服共享。
 - **封禁同步**：在线玩家封禁后踢出，其他子服通过共享数据库查询到封禁记录。

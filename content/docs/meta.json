@@ -3,7 +3,6 @@
   "description": "Suite 全套文档",
   "pages": [
     "guide",
-    "architecture",
     "api",
     "developer",
     "---",

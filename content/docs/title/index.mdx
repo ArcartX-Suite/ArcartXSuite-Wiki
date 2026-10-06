@@ -15,7 +15,6 @@ Title 是 Suite 的称号系统模块，为服务器提供完整的分组称号�
 |---|---|
 | 模块 ID | `title` |
 | 版本 | 1.5.0 |
-| 主类 | `xuanmo.arcartxsuite.title.TitleModule` |
 | 配置文件 | `config.yml`、`messages.yml`、`titles/`（称号定义目录） |
 | 命令入口 | 玩家 `/title`；管理 `/axs title` |
 | 外部依赖 | PlaceholderAPI（必需）；AttributePlus / MythicLib / CraneAttribute / Symphony（经宿主属性桥接，可选） |
@@ -43,16 +42,15 @@ Title 是 Suite 的称号系统模块，为服务器提供完整的分组称号�
 | PAPI 全量输出 | 拥有数量、装备信息、剩余时间、属性加成等全部通过 PlaceholderAPI 输出 |
 | 数据持久化 | SQLite 或 MySQL，支持共享存储模式（复用本体数据源）与自建存储模式 |
 | 跨服同步 | 共享存储模式下，玩家称号数据跨服同步 |
-| 数据库迁移 | 注册 DatabaseMigratable 能力，支持存储切换时数据迁移 |
-| 玩家数据清理 | 注册 PlayerDataPurgeable 能力，支持按 UUID 或全量清理玩家数据 |
-| 跨模块授予 | 注册 TitleGrantable 能力，供 EventPacket 等模块跨模块授予称号 |
-| 配置查询 | 注册 TitleConfigQueryable 能力，供 QuestGps 等模块查询称号配置元数据 |
+| 数据库迁移 | 支持存储切换时数据迁移（`/axs migrate`） |
+| 玩家数据清理 | 支持按 UUID 或全量清理玩家数据（`/axs purge`） |
+| 跨模块授予 | 其他模块可授予称号（供 EventPacket 等模块使用） |
 
 ## 依赖
 
 | 依赖类型 | 名称 | 说明 |
 |---|---|---|
-| 外部硬依赖 | PlaceholderAPI | 占位符扩展（`external-depends` 硬依赖，未安装时模块不加载） |
+| 外部硬依赖 | PlaceholderAPI | 占位符扩展（未安装时模块不加载） |
 | 外部软依赖 | AttributePlus | 展示/收藏属性同步（可选） |
 | 外部软依赖 | MythicLib | 展示/收藏属性同步（可选，含 MMOItems 生态） |
 | 外部软依赖 | CraneAttribute | 展示/收藏属性同步（可选） |
@@ -67,7 +65,7 @@ Title 是 Suite 的称号系统模块，为服务器提供完整的分组称号�
 
 称号从发放到回收经历以下状态流转：
 
-1. **授予（Grant）**：通过管理员命令 `/axs title give` 或跨模块 `TitleGrantable` 能力授予玩家称号，写入 `title_player_titles` 表
+1. **授予（Grant）**：通过管理员命令 `/axs title give` 或跨模块接口授予玩家称号
 2. **拥有（Owned）**：玩家持有称号，收藏属性立即生效（无论是否装备）
 3. **装备（Equip）**：玩家在 UI 或通过 `/title equip` 装备称号到对应分组，展示属性生效
 4. **隐藏（Hide）**：玩家可隐藏称号，隐藏后不参与头顶/聊天展示，但收藏属性仍然生效
@@ -98,14 +96,14 @@ Title 是 Suite 的称号系统模块，为服务器提供完整的分组称号�
 
 称号的 `overhead-mode` 决定装备后的头顶显示方式：
 
-| 模式 | 说明 | 实现方式 |
-|---|---|---|
-| `texture` | 贴图模式，在玩家头顶渲染自定义文字贴图 | 通过 WorldTextureBridge 挂载贴图实体，需 ArcartX 客户端支持 |
-| `text` | 文本模式，通过 Scoreboard Team 前后缀显示 | 纯服务端实现，使用 `overhead-prefix` / `overhead-suffix` |
-| `none` | 不显示 | 无头顶效果 |
+| 模式 | 说明 |
+|---|---|
+| `texture` | 贴图模式，在玩家头顶渲染自定义文字贴图，需 ArcartX 客户端支持 |
+| `text` | 文本模式，通过计分板前后缀显示（`overhead-prefix` / `overhead-suffix`） |
+| `none` | 不显示 |
 
-> 当 `texture` 模式但 WorldTextureBridge 不可用时，自动降级为 `text` 模式。
+> `texture` 模式不可用时自动降级为 `text` 模式。
 
 ### 过期清理
 
-后台定时任务按 `settings.expiration-cleanup-interval-ticks` 配置的周期运行，扫描所有缓存玩家状态，清理已过期的称号记录并同步外部属性。过期称号从 `title_player_titles` 表批量删除。
+后台定时任务按 `settings.expiration-cleanup-interval-ticks` 配置的周期运行，自动清理已过期的称号记录并同步外部属性。

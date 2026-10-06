@@ -11,7 +11,7 @@ Warehouse 模块提供多层安全保障与自动化功能：二级密码保护�
 
 ### 功能说明
 
-二级密码是 Warehouse 模块的安全核心，由 Suite 核心统一管理（`SecondaryPasswordAccess` 能力）。以下操作要求二级密码已解锁：
+二级密码是 Warehouse 模块的安全核心，由 Suite 核心统一管理。以下操作要求二级密码已解锁：
 
 | 操作类型 | 要求解锁的 action |
 | --- | --- |
@@ -36,8 +36,8 @@ security:
 
 | 字段 | 类型 | 默认值 | 说明 |
 | --- | --- | --- | --- |
-| `min-length` | int | `4` | 二级密码最小长度，核心 `SecondaryPasswordService` 统一校验 |
-| `max-length` | int | `32` | 二级密码最大长度，核心统一校验 |
+| `min-length` | int | `4` | 二级密码最小长度 |
+| `max-length` | int | `32` | 二级密码最大长度 |
 | `unlock-timeout-seconds` | int | `1800` | 解锁后会话有效时长（秒），默认 30 分钟，全模块共享 |
 
 > 模块内旧的 `security` 节（`min-length`/`max-length`/`unlock-session-ms`/`allow-admin-password-reveal`/`admin-reveal-secret`）已全部移除，配置同步时自动清理。
@@ -62,7 +62,7 @@ security:
 
 ### 密码长度校验
 
-长度校验由核心 `SecondaryPasswordService.set()` 统一执行：trim 后的密码长度须在宿主配置的 `min-length` ~ `max-length` 范围内，否则返回 `PASSWORD_TOO_SHORT` / `PASSWORD_TOO_LONG` 由模块提示玩家。
+密码长度须在宿主配置的 `min-length` ~ `max-length` 范围内，否则提示玩家密码过长或过短。
 
 ## 物品黑名单
 
@@ -109,10 +109,9 @@ blacklist:
 
 | 场景 | 检查方式 |
 | --- | --- |
-| 手动存入单格 | `depositSlot()` → `itemMatcherSupport.matches(configuration.blacklist(), stack)` |
-| 一键存入背包 | `depositAllBackpack()` 逐格检查，命中黑名单的物品跳过并计数 |
-| 自动拾取入库 | `depositStack()` 内部检查 |
-| 核心存入逻辑 | `depositStack()` 开头检查 `itemMatcherSupport.matches` |
+| 手动存入单格 | 存入前逐物品校验 |
+| 一键存入背包 | 逐格检查，命中黑名单的物品跳过并计数 |
+| 自动拾取入库 | 入库前检查 |
 
 > 黑名单匹配使用 `ItemMatcherAPI`，支持多种物品来源的匹配。详见 [物品来源](/docs/guide/item-sources)。
 
@@ -222,7 +221,7 @@ pickup:
 
 ### 自动入库流程
 
-自动入库由 `onEntityPickupItem` 事件监听器处理（`EventPriority.LOWEST`）：
+玩家拾取物品时按以下顺序处理：
 
 1. 检查拾取者是否为在线玩家
 2. 检查服务器总开关 `pickup.enabled`，关闭则跳过自动入库
@@ -231,7 +230,7 @@ pickup:
 5. 按物品类型分流判定：
    - **MythicMobs 自定义掉落物**（`isMythicItem` 判定）：走战利品通道，需 `mythic-loot-enabled`（服务器）与玩家 `auto_mythic` 开关同时开启，否则跳过
    - **普通物品**：需玩家 `auto_pickup` 开关开启，否则跳过
-6. 调用 `depositStack()` 将物品存入第一个个人仓库
+6. 将物品存入第一个个人仓库
 6. 根据存入结果更新掉落物：
    - 全部存入：取消拾取事件并移除掉落物
    - 部分存入：更新掉落物数量为剩余数量
@@ -245,7 +244,7 @@ pickup:
 | 通道 | 控制开关 | 说明 |
 | --- | --- | --- |
 | 聊天栏 | 玩家个人设置 `autoNotify` | 发送聊天消息提示存入数量 |
-| HUD | Pickup 模块的 `isNotificationActive` | 通过 `PickupNotifiable.notifyPickup()` 推送 HUD |
+| HUD | Pickup 模块拾取通知开关 | 通过 Pickup 模块推送 HUD 通知 |
 
 > 两个通道独立工作，互不影响。聊天栏由 Warehouse 自身的 notify 开关控制，HUD 由 Pickup 模块的 toggle 控制。
 
@@ -255,45 +254,13 @@ pickup:
 
 ### 外部模块调用
 
-Warehouse 模块注册了 `WarehouseAutoDepositable` 能力，供 Pickup 等外部模块调用：
-
-```java
-registerCapability(WarehouseAutoDepositable.class,
-    (player, itemStack) -> service.depositToPersonalWarehouse(player, itemStack));
-```
-
-`depositToPersonalWarehouse()` 方法将物品存入玩家第一个个人仓库，返回 `DepositResult`（包含成功状态、存入数量、剩余数量和消息）。
+Warehouse 模块提供 `WarehouseAutoDepositable` 公开能力，供 Pickup 等外部模块调用将物品存入玩家第一个个人仓库。
 
 > 该接口同样受服务器级开关约束：`pickup.enabled=false` 时直接拒绝存入；MythicMobs 自定义物品在 `mythic-loot-enabled=false` 时也会被拒绝，防止外部模块绕过服务器限制。玩家个人开关不作用于该接口（外部模块的拾取为玩家主动行为）。
 
 ## 玩家设置持久化
 
-### warehouse_player_settings 表
-
-| 列名 | 类型 | 说明 |
-| --- | --- | --- |
-| `player_uuid` | `VARCHAR(36)` | 玩家 UUID（主键） |
-| `auto_pickup` | `BOOLEAN` | 自动入库开关 |
-| `auto_mythic` | `BOOLEAN` | 自动存储怪物战利品开关 |
-| `auto_notify` | `BOOLEAN` | 入库通知开关 |
-| `updated_at` | `BIGINT` | 更新时间戳 |
-
-### 设置加载优先级
-
-玩家 ViewState 初始化时，设置加载优先级为：
-
-1. 从 `warehouse_player_settings` 表加载持久化设置
-2. 如果无记录，回退到 `pickup` 节的全局默认值
-
-```java
-boolean autoPickup = configuration.pickup().autoStoreOnPickup();
-var settings = repository.loadPlayerSettings(player.getUniqueId());
-if (settings.isPresent()) {
-    autoPickup = settings.get().autoPickup();
-}
-```
-
-> 这确保服务器重启后玩家的个人设置不会丢失，不会回退到全局默认值。
+玩家个人设置（自动入库、战利品、通知开关）持久化到数据库，服务器重启后保持，不会回退到全局默认值。
 
 ## 相关文档
 

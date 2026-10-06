@@ -120,9 +120,9 @@ CombatEffect 模块的命令权限设计：
 
 > 推荐方式：开启 `sync-variable` 后直接用 `{server.combo_count}` 显示实时数字，packetHandler 仅用于里程碑动画（如 5 连击闪光、10 连击特效）。
 
-## UI 包通讯
+## UI 面板与 handler
 
-CombatEffect 通过 ArcartX UI 客户端包与 UI 面板交互。服务端通过 `PacketBridgeAPI.sendPacket` 向客户端推送数据，客户端 UI 通过 `packetHandler` 接收并处理。
+CombatEffect 通过 ArcartX UI 与客户端交互。包定义中的 `ui-id` 与 `packet-handler` 字段对应 UI 面板及其 handler，不同 handler 对应不同的特效行为。
 
 ### 注册的 UI 面板
 
@@ -160,9 +160,9 @@ CombatEffect 通过 ArcartX UI 客户端包与 UI 面板交互。服务端通过
 |---|---|---|---|
 | `death` | `death` | `killer`、`victim` | 死亡缓冲，显示全屏遮罩和死亡信息区，记录击杀者名称 |
 
-### 服务端推送数据格式
+### 推送数据
 
-服务端通过 `PacketBridgeAPI.sendPacket(recipient, uiId, handler, payload)` 向客户端推送数据。`payload` 为 `Map<String, Object>`，由包定义的 `pack` 模板渲染而来。
+包定义的 `pack` 模板渲染后作为发送内容。例如：
 
 ```yaml
 # kill-effect 包定义
@@ -171,7 +171,7 @@ kill-effect:
     killer: "{attacker}"
     victim: "{target}"
 
-# 实际发送的 payload（attacker=Steve, target=Zombie）
+# 实际发送（attacker=Steve, target=Zombie）
 # {"killer": "Steve", "victim": "Zombie"}
 ```
 
@@ -222,15 +222,9 @@ ui:
       }
 ```
 
-### damage_display 飘字通讯
+### damage_display 飘字
 
-伤害飘字通过 ArcartX 客户端 `ClientBridgeAPI.sendDamageDisplay` 推送，与 UI 包通讯独立。服务端发送样式 ID 与伤害数值，客户端根据 `damage_display/` 目录下的样式配置渲染数字飘字。
-
-| 方法 | 参数 | 说明 |
-|---|---|---|
-| `sendDamageDisplay` | `Player viewer, String configId, double amount, Entity target` | 向指定玩家发送伤害飘字 |
-
-> 伤害飘字不需要 UI 文件，由 ArcartX 客户端原生渲染。样式配置参考 [ArcartX 伤害飘字文档](https://wiki.arcartx.com/docs/core/2_simple/9_damage_display)。
+伤害飘字与 UI 包通讯独立，不需要 UI 文件，由 ArcartX 客户端原生渲染。样式配置在 `plugins/ArcartX/damage_display/` 目录下，参考 [ArcartX 伤害飘字文档](https://wiki.arcartx.com/docs/core/2_simple/9_damage_display)。
 
 ## 消息本地化
 

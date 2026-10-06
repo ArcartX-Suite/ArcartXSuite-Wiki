@@ -38,7 +38,7 @@ EventPacket 模块的核心是"触发器 → 规则匹配 → 动作链执行"�
 
 ## 玩家生命周期触发器
 
-玩家生命周期触发器由 `PlayerEventPacketListener` 监听 Bukkit 原生事件并桥接到分发系统。
+玩家生命周期触发器监听 Bukkit 原生事件并桥接到分发系统。
 
 ### join — 玩家加入
 
@@ -100,22 +100,13 @@ quit_save_reminder:
 
 ## PAPI 占位符触发器
 
-PAPI 触发器由 `PapiWatcherService` 通过定时任务轮询实现。轮询间隔由 `settings.refresh-interval-ticks` 配置（默认 20 tick = 1 秒）。每次轮询时，服务读取每个在线玩家指定占位符的当前值，与上次缓存值对比，按触发条件判定是否分发规则。
+PAPI 触发器按 `settings.refresh-interval-ticks` 配置的周期轮询（默认 20 tick = 1 秒）：读取每个在线玩家指定占位符的当前值，与上次值对比，按触发器类型判定：
 
-### 工作原理
+- `papi-increase` — 新值 > 旧值
+- `papi-decrease` — 新值 < 旧值
+- `placeholder-threshold` — 旧值 < 阈值 且 新值 >= 阈值
 
-```
-轮询周期 (refresh-interval-ticks)
-  │
-  ├─ 读取占位符当前值 (PlaceholderResolverAPI)
-  ├─ 与上次缓存值对比 (lastValues)
-  ├─ 解析为 BigDecimal 数值
-  ├─ 按触发器类型判定:
-  │    ├─ papi-increase    → 新值 > 旧值
-  │    ├─ papi-decrease    → 新值 < 旧值
-  │    └─ placeholder-threshold → 旧值 < 阈值 且 新值 >= 阈值
-  └─ 满足条件 → 分发规则
-```
+满足条件即触发规则。
 
 ### papi-increase — PAPI 数值增加
 
@@ -194,27 +185,7 @@ power_threshold_offer_side:
 
 ## 击杀计数触发器
 
-击杀计数触发器由 `PlayerEventPacketListener.onEntityDeath()` 监听 `EntityDeathEvent`，将击杀记录传递给 `PapiWatcherService.recordMobKill()` 处理。
-
-### 工作原理
-
-```
-实体死亡 (EntityDeathEvent)
-  │
-  ├─ 获取击杀者 (entity.getKiller())
-  ├─ 解析实体元数据:
-  │    ├─ 实体类型 (EntityCombatMetadata.resolveEntityType)
-  │    └─ MythicMob ID (EntityCombatMetadata.resolveMythicMobId)
-  ├─ 遍历 mob-kill-count 规则:
-  │    ├─ 世界过滤 (rule.worlds)
-  │    ├─ 实体类型过滤 (rule.entityTypes)
-  │    ├─ MythicMob ID 过滤 (rule.mythicMobIds)
-  │    ├─ 读取当前击杀数 (内存缓存 → 数据库)
-  │    ├─ 击杀数 +1 并持久化
-  │    ├─ 判断是否达到 requiredCount
-  │    └─ 达到 → 分发规则
-  └─ repeatable 规则触发后重置计数为 0
-```
+玩家击杀实体时，模块按 `worlds` / `entity-types` / `mythic-mob-ids` 过滤后累计该玩家的击杀数，达到 `count` 时触发规则。`repeatable: true` 的规则触发后计数归零重新累计。
 
 ### 配置示例
 
@@ -246,7 +217,7 @@ kill_zombie_trigger_encounter:
 | `entity-types` | list | 限制生效的实体类型集合（`EntityType` 枚举名，如 `ZOMBIE`） |
 | `mythic-mob-ids` | list | 限制生效的 MythicMob ID 集合（小写），空 = 不匹配 MM |
 
-> 击杀进度持久化到 `eventpacket_kill_progress` 表，跨会话保留。`repeatable: true` 规则在达到目标后重置计数为 0，可再次累计触发。详见 [联动](/docs/eventpacket/integration#数据库表)。
+> 击杀进度持久化到数据库，跨会话保留。`repeatable: true` 规则在达到目标后重置计数为 0，可再次累计触发。
 
 ### 击杀计数可用变量
 
@@ -295,7 +266,7 @@ dispatcher.dispatchSignal("accept_mainline", player, Map.of("quest-id", "main/tu
 
 ### client-packet — 客户端回包
 
-客户端回包触发器由 ArcartX 客户端 MOD 通过 `Packet.send(packetId, presetId, ...args)` 发包触发。模块在 `EventPacketModule.createPacketHandlerSpec()` 中注册统一包处理器，按 `packetId` 和 `presetId` 匹配预设规则。
+客户端回包触发器由 ArcartX 客户端 MOD 通过 `Packet.send(packetId, presetId, ...args)` 发包触发。服务端按 `packetId` 和 `presetId` 匹配预设规则。
 
 ```yaml
 # packet-command-presets/example.yml
@@ -320,11 +291,11 @@ Packet.send('ArcartXEventPacket', 'give_item', 'DIAMOND_SWORD', '1')
 
 | 机制 | 说明 |
 |---|---|
-| 权限门槛 | `permission` 字段，通过 `player.hasPermission` 检测 |
+| 权限门槛 | `permission` 字段，校验玩家权限 |
 | 冷却控制 | `cooldown` 字段，支持 `5s`/`1m`/`1h`/`1d` |
 | 参数校验 | `allow-args: true` 时按 `args-pattern` 正则校验每个参数 |
-| 命令黑名单 | `CommandSanitizer` 拦截 `op`/`deop`/`stop`/`luckperms` 等致命命令 |
-| PacketGuard | 路由层统一限流，管理命令 `run` 可绕过（`bypass=true`） |
+| 命令黑名单 | 拦截 `op`/`deop`/`stop`/`luckperms` 等致命命令 |
+| 限流保护 | 客户端包统一限流 |
 
 > 客户端回包预设的 `type` 仅支持 `op`/`console`/`player` 三种，其他值在加载时跳过并输出警告。详见 [命令与占位符](/docs/eventpacket/commands#客户端回包预设)。
 
@@ -337,11 +308,7 @@ Packet.send('ArcartXEventPacket', 'give_item', 'DIAMOND_SWORD', '1')
 
 ## Chemdah 任务触发器
 
-Chemdah 触发器由 `ChemdahEventBridge` 通过反射注册事件监听器实现。桥接器在模块启动时检测 Chemdah 插件是否存在，存在且有 Chemdah 触发器规则时自动注册。
-
-### 桥接机制
-
-Chemdah 事件类继承 TabooLib `BukkitProxyEvent`，共享同一个 `HandlerList`。桥接器通过 `EventExecutor` 注册监听后，所有 `BukkitProxyEvent` 子类事件都会触发回调，因此严格按运行时类型过滤（`e.getClass() != eventClass`），避免误触发。
+安装 Chemdah 插件且配置了对应触发器规则时，以下任务事件可用。
 
 ### 任务生命周期触发器
 
@@ -462,7 +429,7 @@ chemdah_level_up_celebrate:
 
 ## 脚本触发器
 
-脚本触发器由 `PapiWatcherService.tickScriptTriggers()` 在轮询周期内评估脚本表达式。脚本返回 `true` 时触发规则，仅在从 `false` 变为 `true` 的**上升沿**触发，持续返回 `true` 不会重复触发。
+脚本触发器按轮询周期评估脚本表达式。脚本返回 `true` 时触发规则，仅在从 `false` 变为 `true` 的**上升沿**触发，持续返回 `true` 不会重复触发。
 
 ### script-js — JavaScript 脚本
 
@@ -509,16 +476,14 @@ Aria 表达式中 `player` 门面注入到 `global.` 命名空间，需用 `glob
 | `{rule_id}` | 触发的规则 ID |
 | `{script_result}` | 脚本结果（固定为 `true`） |
 
-> 脚本评估异常时跳过该玩家本轮评估，debug 模式下输出 `FINE` 级别日志。脚本触发器仅在有 `scriptTrigger()` 规则时启动 `PapiWatcherService`。详见 [条件系统](/docs/guide/conditions)。
+> 脚本评估异常时跳过该玩家本轮评估。详见 [条件系统](/docs/guide/conditions)。
 
-## 触发器启动条件
+## 触发器启用条件
 
-模块启动时根据规则配置按需启动服务，避免不必要的资源消耗：
-
-| 服务 | 启动条件 |
+| 触发器类型 | 启用条件 |
 |---|---|
-| `PapiWatcherService` | 存在 PAPI 触发器规则且 PlaceholderAPI 已安装，或存在击杀计数规则，或存在脚本触发器规则 |
-| `ChemdahEventBridge` | 存在 Chemdah 触发器规则且 Chemdah 插件已安装 |
+| PAPI / 击杀计数 / 脚本触发器 | 存在对应规则且（PAPI 触发器需）PlaceholderAPI 已安装 |
+| Chemdah 触发器 | 存在对应规则且 Chemdah 插件已安装 |
 
 > 缺少依赖时对应触发器不生效，启动时输出警告日志但不影响其他触发器正常运行。
 
@@ -528,4 +493,4 @@ Aria 表达式中 `player` 门面注入到 `global.` 命名空间，需用 `glob
 - [定时服务](/docs/eventpacket/services) — 实体清理、定时命令与 PAPI 监听服务
 - [配置](/docs/eventpacket/configuration) — 规则字段表与完整配置示例
 - [命令与占位符](/docs/eventpacket/commands) — 管理命令、权限与上下文变量
-- [联动](/docs/eventpacket/integration) — Capability、数据库表与模块集成
+- [联动](/docs/eventpacket/integration) — Capability 与模块集成

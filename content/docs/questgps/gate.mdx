@@ -83,17 +83,6 @@ example_side_quest:
 | 菜单首次打开 | 自动跳转到第一个未锁定的分类（按 `sort-order`） |
 | 接取锁定分类中的任务 | 拦截接取操作，发送 `deny-message` 提示 |
 
-### 分类锁定判定
-
-```java
-boolean isCategoryLocked(Player player, QuestGpsCategory category) {
-    return player != null
-        && category != null
-        && gate.blockedCategories().contains(category.id())
-        && !mainlineGateSatisfied(player);
-}
-```
-
 > 已过关的玩家不受分类锁定限制。锁定的分类 Tab 中的任务不会出现在任务列表中。
 
 ## 命令拦截
@@ -110,17 +99,7 @@ boolean isCategoryLocked(Player player, QuestGpsCategory category) {
 
 ### 命令前缀匹配
 
-```
-onPlayerCommandPreprocess(event)
-    │
-    ├── 消息标准化: 去除 /，转小写，去空白
-    ├── 已过关 → 直接返回（不拦截）
-    └── 遍历 blocked-command-prefixes
-        └── 前缀标准化: 去除 /，转小写，去空白
-        └── message.startsWith(prefix) → 拦截 + denyGate
-```
-
-> 命令前缀匹配是大小写不敏感的。前缀不含 `/`，如配置 `"warp"` 会拦截 `/warp`、`/warpall`、`/warpxxx` 等所有以 `warp` 开头的命令。
+命令前缀匹配不区分大小写、自动忽略 `/` 与首尾空白。前缀不含 `/`，如配置 `"warp"` 会拦截 `/warp`、`/warpall`、`/warpxxx` 等所有以 `warp` 开头的命令。
 
 ## 模块入口锁定
 
@@ -177,48 +156,24 @@ if (questGps != null && questGps.eventRuleLocked(player, "first_join_offer_mainl
 
 门禁拦截时，向玩家发送多层提示：
 
-| 提示方式 | 配置字段 | 条件 | Capability |
-|---|---|---|---|
-| 聊天消息 | `gate.deny-message` | 始终发送 | 直接 `player.sendMessage` |
-| 聊天卡片 | `gate.deny-chat-card` | 非空时发送 | `ChatCardSendable` |
-| 字幕 | `gate.deny-subtitle` | 非空时播放 | `SubtitlePlayable` |
-
-### denyGate 流程
-
-```
-denyGate(player)
-    │
-    ├── player.sendMessage(deny-message)           # 始终发送聊天消息
-    ├── ChatCardSendable != null && deny-chat-card 非空
-    │   └── chatCard.sendChatCard(player, deny-chat-card, {reason: "mainline_gate"})
-    └── SubtitlePlayable != null && deny-subtitle 非空
-        └── subtitle.playGroup(player, deny-subtitle)
-```
+| 提示方式 | 配置字段 | 条件 |
+|---|---|---|
+| 聊天消息 | `gate.deny-message` | 始终发送 |
+| 聊天卡片 | `gate.deny-chat-card` | 非空时发送（需 Chat 模块） |
+| 字幕 | `gate.deny-subtitle` | 非空时播放（需 Announcer 模块） |
 
 > 聊天卡片和字幕为可选增强提示。Chat/Announcer 模块不存在时自动跳过，仅发送聊天消息。
 
 ## Capability 接口
 
-主线门禁的两个查询方法通过 `QuestGpsNavigable` Capability 暴露：
+主线门禁的查询方法通过 `QuestGpsNavigable` 公开能力暴露：
 
 | 方法 | 参数 | 返回值 | 说明 |
 |---|---|---|---|
 | `eventRuleLocked` | `Player`, `String ruleId` | `boolean` | 检查 EventPacket 事件规则是否被门禁锁定 |
 | `moduleEntryLocked` | `Player`, `String moduleEntryId` | `boolean` | 检查模块入口是否被门禁锁定 |
 
-### 实现逻辑
-
-```java
-public boolean eventRuleLocked(Player player, String ruleId) {
-    return gate.blockedEventRuleIds().contains(ruleId) && !mainlineGateSatisfied(player);
-}
-
-public boolean moduleEntryLocked(Player player, String moduleEntryId) {
-    return gate.blockedModuleEntries().contains(moduleEntryId) && !mainlineGateSatisfied(player);
-}
-```
-
-> 已过关玩家调用这两个方法始终返回 `false`。Capability 的完整接口说明详见 [联动](/docs/questgps/integration)。
+> 已过关玩家调用这两个方法始终返回 `false`。能力接口的完整说明详见 [联动](/docs/questgps/integration)。
 
 ## 完整门禁配置示例
 
@@ -296,6 +251,6 @@ gate:
 
 ## 条件评估
 
-门禁的过关判定使用 Suite 统一条件评估器（`ScriptConditionEvaluator`），支持 PAPI + Aria + JS + EventPacket 上下文。任务完成状态由 Chemdah 的 `PlayerProfile.isQuestCompleted` 直接判定，无需额外条件配置。
+任务完成状态由 Chemdah 直接判定，无需额外条件配置。
 
 > 如需更复杂的门禁条件（如等级要求、经济门槛），可在 Chemdah 任务的 `accept` 条件中配置，QuestGPS 会在接取时由 Chemdah 检查。条件评估器的使用详见 [/docs/guide/conditions](/docs/guide/conditions)。

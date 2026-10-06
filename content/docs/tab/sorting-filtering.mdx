@@ -11,9 +11,9 @@ Tab 模块的排序与过滤系统是决定 Tab 列表中玩家显示顺序与�
 
 ## 排序系统 sort-keys
 
-### 多键复合排序原理
+### 多键复合排序
 
-`sort-keys` 是一个有序列表，模块按列表顺序从前往后依次应用排序键，优先级递减。每个排序键独立指定模式、排序值来源与排序方向，最终通过 Java `Comparator.thenComparing()` 链式组合为一个复合比较器。
+`sort-keys` 是一个有序列表，模块按列表顺序从前往后依次应用排序键，优先级递减。每个排序键独立指定模式、排序值来源与排序方向。
 
 ```
 sort-keys:
@@ -26,7 +26,7 @@ sort-keys:
 
 ### 排序模式
 
-模块支持三种排序模式，由 `TabSortMode` 枚举定义：
+模块支持三种排序模式：
 
 | 模式 | 配置值 | 排序依据 | 适用场景 |
 |---|---|---|---|
@@ -46,7 +46,7 @@ sort-keys:
 
 ### NAME 模式
 
-按玩家名称排序，使用 `String.CASE_INSENSITIVE_ORDER` 忽略大小写比较。这是最简单的排序模式，无需额外参数。
+按玩家名称排序，忽略大小写。这是最简单的排序模式，无需额外参数。
 
 ```yaml
 sort-keys:
@@ -59,9 +59,9 @@ sort-keys:
 
 | 解析来源 | 优先级 | 说明 |
 |---|---|---|
-| Vault | 1 | 通过 `Permission.getPrimaryGroup()` 获取，转为小写 |
-| LuckPerms | 2 | 通过 `UserManager.getUser().getPrimaryGroup()` 获取，转为小写 |
-| Scoreboard Team | 3 | 通过 `Scoreboard.getEntryTeam()` 获取队伍名，转为小写 |
+| Vault | 1 | 获取玩家主权限组，转为小写 |
+| LuckPerms | 2 | 获取玩家主权限组，转为小写 |
+| Scoreboard Team | 3 | 获取队伍名，转为小写 |
 | 兜底 | - | 以上均不可用时返回 `default` |
 
 ```yaml
@@ -76,10 +76,10 @@ sort-keys:
 
 按 PlaceholderAPI 变量值排序，支持数字排序与文本排序两种子模式。
 
-| 子模式 | 配置 | 比较方式 | 示例 |
-|---|---|---|---|
-| 数字排序 | `numeric: true` | `Comparator.comparingDouble()` | 按等级 `%player_level%`、击杀数 `%statistic_player_kills%` |
-| 文本排序 | `numeric: false` | `String.CASE_INSENSITIVE_ORDER` | 按世界名 `%player_world%`、队伍名 `%player_scoreboardteam%` |
+| 子模式 | 配置 | 示例 |
+|---|---|---|
+| 数字排序 | `numeric: true` | 按等级 `%player_level%`、击杀数 `%statistic_player_kills%` |
+| 文本排序 | `numeric: false`（忽略大小写） | 按世界名 `%player_world%`、队伍名 `%player_scoreboardteam%` |
 
 ```yaml
 # 按等级倒序，同等级按名升序
@@ -104,14 +104,9 @@ sort-descending: true
 
 ### 跨服排序
 
-跨服模式下，本服与远程节点的玩家条目合并排序。每个节点在广播快照时会附带多键排序值（`sortValues` / `sortStringValues`），接收端直接使用这些预计算值进行排序，无需在接收端重新解析 PAPI。
+跨服模式下，本服与远程节点的玩家条目合并排序。排序值由发送端预计算并随快照传输，接收端直接按值排序，无需重新解析 PAPI（远程玩家不在本服在线列表中）。
 
-| 字段 | 类型 | 说明 |
-|---|---|---|
-| `sortValues` | `List<Double>` | 每个排序键的数值（NAME=0.0, PREM=组索引, PAPI=解析值） |
-| `sortStringValues` | `List<String>` | 每个排序键的字符串值（NAME=玩家名, PREM=组名, PAPI=解析值） |
-
-> 跨服排序时远程条目无法在接收端重新解析 PAPI（远程玩家不在本服在线列表中），因此排序值必须在发送端预计算并随快照传输。v1 协议仅传输首键值，v2 协议传输完整多键值列表。
+> 因此**所有节点必须使用相同的 sort-keys 配置**，否则跨服排序结果不一致。
 
 ## 过滤器 filters
 
@@ -137,7 +132,7 @@ sort-descending: true
 
 ### hide-vanished
 
-`hide-vanished: true` 自动隐藏隐身玩家。模块通过 Bukkit `vanished` metadata 判定隐身状态，兼容 Essentials、SuperVanish、PremiumVanish 等常见隐身插件。
+`hide-vanished: true` 自动隐藏隐身玩家，兼容 Essentials、SuperVanish、PremiumVanish 等常见隐身插件。
 
 ```yaml
 filters:
@@ -161,16 +156,9 @@ filters:
 
 `pinned.top` 与 `pinned.bottom` 将指定玩家分别排在所有 middle 之前与之后。三个分桶（top / middle / bottom）各自独立使用 `sort-keys` 内部排序。
 
-### 分桶流程
+### 分桶行为
 
-```
-所有玩家
-  ├─ 命中 pinned.top 规则 → top 桶
-  ├─ 命中 pinned.bottom 规则 → bottom 桶
-  └─ 其余 → middle 桶
-
-最终顺序: top（内部排序）→ middle（内部排序）→ bottom（内部排序）
-```
+玩家按规则分入三个桶：命中 `pinned.top` → top 桶，命中 `pinned.bottom` → bottom 桶，其余 → middle 桶。最终顺序为 top → middle → bottom，各桶内部独立使用 `sort-keys` 排序。
 
 ### 配置示例
 
@@ -203,13 +191,11 @@ pinned:
 | `include-unordered` | `boolean` | `true` | 未在 `group-order` 中列出的组是否仍输出 |
 | `header-pack` | `Object` | - | 每组前的头部模板，`{group}` 会被替换为组键，支持 PAPI |
 
-### 分组流程
+### 分组行为
 
-```
-1. 对每个玩家解析 group-by-papi → 得到组键（解析失败归 "default"）
-2. 按 group-order 顺序输出已列出的组
-3. 若 include-unordered: true，输出未列出的组（按解析顺序）
-```
+1. 对每个玩家解析 `group-by-papi` 得到组键（解析失败归 `default`）
+2. 按 `group-order` 顺序输出已列出的组
+3. `include-unordered: true` 时输出未列出的组（按解析顺序）
 
 ### header-pack 渲染
 
@@ -228,7 +214,7 @@ grouping:
 
 ### 跨服分组
 
-跨服模式下，每个节点在广播快照时会附带 `groupKey` 字段（由发送端预计算）。接收端直接使用快照中的 `groupKey` 进行分组，无需在接收端重新解析 PAPI。`header-pack` 的 PAPI 渲染优先使用组内第一个本服玩家作为 anchor，若组内无本服玩家则 PAPI 不解析。
+跨服模式下，组键由发送端预计算并随快照传输。`header-pack` 的 PAPI 渲染优先使用组内第一个本服玩家作为上下文，若组内无本服玩家则 PAPI 不解析。
 
 ## 分页 pagination
 

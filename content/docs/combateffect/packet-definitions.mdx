@@ -7,61 +7,36 @@ description: CombatEffect 包定义系统详解：触发器、接收者、条件
 
 > **付费模块**
 
-包定义（PacketDefinition）是 CombatEffect 模块的核心引擎。每个包定义描述了一次特效触发的完整规则——何时触发、发给谁、发什么内容、多久冷却一次。模块启动时从 `packets/` 目录批量加载所有 `*.yml` 文件，每个文件的根键即为包 ID。
+包定义（PacketDefinition）是 CombatEffect 模块的核心配置单元。每个包定义描述了一次特效触发的完整规则——何时触发、发给谁、发什么内容、多久冷却一次。模块启动时从 `packets/` 目录批量加载所有 `*.yml` 文件，每个文件的根键即为包 ID。
 
-## 架构概览
-
-```yaml
-# 包定义加载流程
-ArcartXCombatEffect.yml
-  └─ kill-effect.packets-directory: "packets"
-      └─ packets/*.yml（按文件名字母序加载）
-          └─ 每个根键 = 一个 PacketDefinition
-              ├─ triggers: 触发器列表
-              ├─ recipients: 接收者列表
-              ├─ ui-id + packet-handler: 目标 UI
-              ├─ conditions: 触发条件
-              ├─ cooldown: 冷却时间
-              └─ pack: 发包内容模板
-```
-
-| 源码类 | 职责 |
-|---|---|
-| `CombatEffectPacketConfiguration` | 从目录批量加载包定义，管理黑名单与实体战斗开关 |
-| `PacketDefinition` | 不可变 record，封装单个包定义的全部字段与匹配逻辑 |
-| `PacketTrigger` | 触发器类型枚举（8 种） |
-| `PacketRecipient` | 接收者类型枚举（attacker / target） |
-| `CombatPacketContext` | 战斗上下文，封装攻击者、目标、伤害值等，负责占位符渲染 |
-| `CombatEffectPacketService` | 事件监听与包分发服务，含冷却管理与手动触发 API |
+每个包定义包含：`triggers`（触发器列表）、`recipients`（接收者列表）、`ui-id` + `packet-handler`（目标 UI）、`conditions`（触发条件）、`cooldown`（冷却时间）、`pack`（发包内容模板）。
 
 ## 触发器类型
 
 模块支持 8 种触发器，每种对应不同的战斗事件或交互行为。`trigger` 字段为单值写法，`triggers` 字段为列表写法，两者可混用。
 
-| 触发器 | 配置值 | 触发时机 | 监听事件 | 条件字段 |
-|---|---|---|---|---|
-| 击杀 | `kill` | 玩家击杀活体实体时 | `EntityDeathEvent` / `TaczGunKillEvent` | 无 |
-| 攻击 | `attack` | 玩家攻击活体实体时 | `EntityDamageByEntityEvent` | 无 |
-| 死亡 | `death` | 玩家即将死亡进入缓冲期时 | `DeathBufferService` 内部触发 | 无 |
-| 连击 | `combo` | 连击计数达到条件时 | `ComboTrackerService` 内部触发 | `combo-min` / `combo-max` / `combo-repeat` |
-| 手动 | `manual` | 仅通过命令或 API 触发 | 无事件监听 | 无 |
-| 按键 | `keybind` | ArcartX 按键按下/释放时 | `ClientKeyPressEvent` 等 | `key-name` / `key-action` / `key-type` |
-| 状态 | `state` | Chronos 状态进入/离开时 | `PlayerEnterStateEvent` / `PlayerLeaveStateEvent` | `state-id` / `state-action` / `controller-id` |
-| 控制器 | `controller` | Chronos 控制器切换时 | `PlayerControllerChangeEvent` | `controller-id` |
+| 触发器 | 配置值 | 触发时机 | 条件字段 |
+|---|---|---|---|
+| 击杀 | `kill` | 玩家击杀活体实体时（含 TACZ 枪械击杀） | 无 |
+| 攻击 | `attack` | 玩家攻击活体实体时 | 无 |
+| 死亡 | `death` | 玩家即将死亡进入缓冲期时 | 无 |
+| 连击 | `combo` | 连击计数达到条件时 | `combo-min` / `combo-max` / `combo-repeat` |
+| 手动 | `manual` | 仅通过命令或 API 触发 | 无 |
+| 按键 | `keybind` | ArcartX 按键按下/释放时 | `key-name` / `key-action` / `key-type` |
+| 状态 | `state` | Chronos 状态进入/离开时 | `state-id` / `state-action` / `controller-id` |
+| 控制器 | `controller` | Chronos 控制器切换时 | `controller-id` |
 
-> `kill` 触发器同时监听 Bukkit 原生 `EntityDeathEvent` 与 `TaczGunKillEvent`。TACZ 击杀不保证 `LivingEntity.getKiller()` 返回枪手，因此必须通过独立事件准确获取击杀者。
+### 触发器匹配规则
 
-### 触发器匹配逻辑
+只有匹配成功的包定义才会被分发：
 
-每种触发器在 `PacketDefinition` 中有独立的匹配方法，只有匹配成功的包定义才会被分发：
-
-| 触发器 | 匹配方法 | 匹配条件 |
-|---|---|---|
-| `combo` | `matchesCombo(int comboCount)` | triggers 含 COMBO + comboCount 在 `combo-min`~`combo-max` 范围内 + repeat 逻辑 |
-| `keybind` | `matchesKeybind(String keyName, boolean isPress, String keyType)` | triggers 含 KEYBIND + keyName 通配符匹配 + keyType 匹配 + action 匹配 |
-| `state` | `matchesState(String stateId, boolean isEnter, String controllerId)` | triggers 含 STATE + stateId 通配符匹配 + controllerId 可选匹配 + action 匹配 |
-| `controller` | `matchesController(String controllerId)` | triggers 含 CONTROLLER + controllerId 通配符匹配（空则匹配所有） |
-| `kill` / `attack` / `death` | triggers 列表包含对应枚举即可 | 无额外条件 |
+| 触发器 | 匹配条件 |
+|---|---|
+| `combo` | 连击数在 `combo-min`~`combo-max` 范围内 + repeat 逻辑 |
+| `keybind` | `key-name` 通配符匹配 + `key-type` 匹配 + `key-action` 匹配 |
+| `state` | `state-id` 通配符匹配 + `controller-id` 可选匹配 + `state-action` 匹配 |
+| `controller` | `controller-id` 通配符匹配（空则匹配所有） |
+| `kill` / `attack` / `death` | 触发器列表包含对应类型即可，无额外条件 |
 
 ### 通配符匹配
 
@@ -80,20 +55,10 @@ ArcartXCombatEffect.yml
 
 每个包定义可指定一个或多个接收者。模块根据触发场景从攻击者和目标中解析出实际接收玩家。
 
-| 接收者 | 配置值 | 解析逻辑 | 说明 |
-|---|---|---|---|
-| 攻击者 | `attacker` / `killer` | 直接返回 attacker 玩家 | 按键/状态触发时为触发的玩家自身 |
-| 目标 | `target` | 目标为玩家时返回，否则返回 `null` | 仅 PVP 场景有效，非玩家目标自动跳过 |
-
-```java
-// PacketRecipient.resolve() 的解析逻辑
-public Player resolve(Player attacker, LivingEntity target) {
-    return switch (this) {
-        case ATTACKER -> attacker;
-        case TARGET -> target instanceof Player p ? p : null;
-    };
-}
-```
+| 接收者 | 配置值 | 说明 |
+|---|---|---|
+| 攻击者 | `attacker` / `killer` | 攻击者或击杀者（按键/状态触发时为触发的玩家自身） |
+| 目标 | `target` | 受害者；仅当目标为玩家时可接收，非玩家目标自动跳过 |
 
 > 接收者列表为空时默认为 `["attacker"]`。同一包定义可同时指定 `attacker` 和 `target`，在 PVP 场景下双方都会收到特效包。
 
@@ -127,11 +92,11 @@ public Player resolve(Player attacker, LivingEntity target) {
 
 按键类型对应 ArcartX 客户端三种按键事件：
 
-| 按键类型 | 配置值 | 监听事件 | 说明 |
-|---|---|---|---|
-| 客户端按键 | `client` | `ClientKeyPressEvent` / `ClientKeyReleaseEvent` | ArcartX 标准按键绑定 |
-| 简易按键 | `simple` | `ClientSimpleKeyPressEvent` / `ClientSimpleKeyReleaseEvent` | 轻量按键 |
-| 按键组 | `group` | `ClientKeyGroupPressEvent` | 按键组按下事件 |
+| 按键类型 | 配置值 | 说明 |
+|---|---|---|
+| 客户端按键 | `client` | ArcartX 标准按键绑定 |
+| 简易按键 | `simple` | 轻量按键 |
+| 按键组 | `group` | 按键组按下事件 |
 
 ### state / controller 条件
 
@@ -145,7 +110,7 @@ public Player resolve(Player attacker, LivingEntity target) {
 
 ## 冷却系统
 
-每个包定义可配置独立冷却时间（毫秒）。冷却以 `包ID:玩家UUID` 为 key 存储在 `ConcurrentHashMap` 中，同一玩家在冷却内不会重复收到此包。
+每个包定义可配置独立冷却时间（毫秒）。同一玩家在冷却时间内不会重复收到此包。
 
 ```yaml
 # 500ms 冷却 — 同一玩家 500ms 内不会重复收到此包
@@ -154,20 +119,13 @@ attack-effect:
   cooldown: 500
 ```
 
-| 冷却行为 | 说明 |
-|---|---|
-| 冷却 key | `packetId:playerUUID` |
-| 存储位置 | `CombatEffectPacketService.cooldownMap`（内存 `ConcurrentHashMap`） |
-| 冷却检查 | 发包前检查 `isOnCooldown()`，过期自动清理 |
-| 冷却设置 | 发包成功后设置 `setCooldown()`，时间为 `now + cooldownMs` |
-| 玩家退出 | `PlayerQuitEvent` 自动清理该玩家所有冷却 key |
-| `cooldown: 0` | 无冷却，每次触发都发送 |
-
-> 冷却仅在包发送成功后才设置。如果 `packetBridge.sendPacket()` 返回 `false`，不会设置冷却，下一帧仍可重试。
+- 冷却按包定义 + 玩家独立计算，玩家退出时自动清理
+- `cooldown: 0` 表示无冷却，每次触发都发送
+- 冷却仅在包发送成功后生效；发送失败不计入冷却
 
 ## 变量替换
 
-包内容（`pack`）中的字符串值支持变量替换。`CombatPacketContext.renderPayload()` 方法遍历模板 Map，将字符串值中的占位符替换为实际战斗数据。
+包内容（`pack`）中的字符串值支持变量替换，发送时按战斗上下文填充实际数据。
 
 ### 按触发器分组的内置变量
 
@@ -201,7 +159,7 @@ kill-effect:
 
 ## pack 模板格式
 
-`pack` 字段支持三种写法，由 `CombatEffectPacketConfiguration.parsePacketDefinition()` 解析：
+`pack` 字段支持三种写法：
 
 | 写法 | YAML 格式 | 渲染结果 | 适用场景 |
 |---|---|---|---|
@@ -224,62 +182,22 @@ pack:
   - "{target}"
 ```
 
-> 字典模式中，值为字符串时进行变量替换；值为非字符串（数字、布尔、列表）时原样保留。模板为空时 `renderPayload()` 返回空 Map。
+> 字典模式中，值为字符串时进行变量替换；值为非字符串（数字、布尔、列表）时原样保留。
 
-## 手动触发 API
+## 手动触发
 
-除事件自动触发外，模块提供两种手动触发方式，通过命令和 Capability 接口均可调用。
+除事件自动触发外，模块提供两种手动触发方式：
 
-### triggerPacketById
+- **按包 ID 触发**：触发已注册的包定义，绕过事件匹配，直接发给指定玩家，支持附加变量；可用 `/axs combateffect trigger` 命令或其他模块接口调用
+- **直接发包**：直接向玩家发送指定 UI 包，完全绕过包定义系统
 
-按包 ID 触发已注册的包定义，绕过事件匹配，直接发给指定玩家。支持附加变量合并到模板渲染。
+手动触发时 `{recipient}` 和 `{player}` 替换为目标玩家名，附加变量的 `{key}` 替换为对应值。
 
-```java
-// CombatEffectPacketService.triggerPacketById()
-public boolean triggerPacketById(String packetId, Player recipient, Map<String, String> variables)
-```
-
-| 参数 | 类型 | 说明 |
-|---|---|---|
-| `packetId` | `String` | 包定义 ID |
-| `recipient` | `Player` | 目标玩家 |
-| `variables` | `Map<String, String>` | 额外变量（合并到 pack 模板渲染），可为 `null` |
-
-手动触发的变量替换逻辑与事件触发略有不同：`{recipient}` 和 `{player}` 替换为目标玩家名，附加变量的 `{key}` 替换为对应值。
-
-### triggerDirect
-
-直接向玩家发送 UI 包，完全绕过包定义系统。
-
-```java
-// CombatEffectPacketService.triggerDirect()
-public boolean triggerDirect(String uiId, String packetHandler, Player recipient, Object payload)
-```
-
-| 参数 | 类型 | 说明 |
-|---|---|---|
-| `uiId` | `String` | 目标 UI ID |
-| `packetHandler` | `String` | UI 中的 handler 名称 |
-| `recipient` | `Player` | 目标玩家 |
-| `payload` | `Object` | 发包内容（`null` 时使用空 Map） |
-
-> 手动触发 API 同时通过 `CombatEffectTriggerable` Capability 暴露给其他模块，参考 [联动文档](/docs/combateffect/integration#capability-注册)。
+> 其他模块可通过 `CombatEffectTriggerable` Capability 调用手动触发，参考 [联动文档](/docs/combateffect/integration)。
 
 ## 实体战斗过滤
 
-包分发前，`CombatEffectPacketConfiguration.shouldProcessTarget()` 会检查目标是否应被处理：
-
-```java
-// 过滤逻辑
-public boolean shouldProcessTarget(boolean isPlayer, String mythicMobId, EntityType entityType) {
-    if (!entityCombatEnabled) return false;
-    if (isPlayer && !includePlayers) return false;
-    if (!isPlayer && !includeNonPlayerLiving) return false;
-    if (mythicMobId != null && !mythicMobId.isBlank() && blacklistedMythicMobIds.contains(mythicMobId)) return false;
-    if (entityType != null && blacklistedEntityTypes.contains(entityType)) return false;
-    return true;
-}
-```
+包分发前会检查目标是否应被处理：
 
 | 过滤规则 | 配置字段 | 说明 |
 |---|---|---|

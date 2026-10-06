@@ -15,7 +15,7 @@ Suite 大多数模块的 `ui-id` 字段都支持字符串和列表两种格式�
 
 ## 配置格式
 
-所有支持多 UI 的字段都使用统一的解析器（`UiIdParser`），兼容两种写法。
+所有支持多 UI 的字段都兼容两种写法。
 
 ### 单 UI（默认写法）
 
@@ -31,7 +31,7 @@ ui-id:
   - "ArcartX-Suite:boss_tracker_alt"
 ```
 
-从单 UI 切换到多 UI 不需要修改代码或 migration，只需把配置值改为列表即可。服务端内部统一处理为 `List<String>`。
+从单 UI 切换到多 UI 不需要修改代码或 migration，只需把配置值改为列表即可。
 
 ## 支持的模块与字段
 
@@ -58,13 +58,6 @@ ui-targets:
 ```
 
 `ui-targets` 优先级高于 `ui-id` + `packet-handler`，两者不要同时写。
-
-## 工作原理
-
-1. 模块启动时，为列表中每个 `ui-id` 分别向 ArcartX 注册 UI 文件
-2. 发包时调用 `ArcartXPacketBridge.sendPacketToAll(player, uiIds, handler, payload)` 遍历所有 UI 发送
-3. 打开 / 关闭 UI 同样通过 `openUiAll` / `closeUiAll` 批量操作
-4. 客户端回包（`Packet.send`）仍然只发给配置中的 `packet-id`，服务端统一处理
 
 ## 注意事项
 

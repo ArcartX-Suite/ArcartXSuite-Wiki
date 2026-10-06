@@ -21,74 +21,18 @@ Regions 模块的标志系统是区域保护的核心。模块提供 50 个标�
 
 `NONE` 是默认状态，表示该区域未对此标志做出决策。查询时会沿父链向上继承；若所有区域均为 `NONE`，则该位置无保护。
 
-### 状态解析
+命令中设置标志时，`allow` / `true` / `yes` 均视为允许，`deny` / `false` / `no` 均视为拒绝（不区分大小写），其他值视为 `NONE`（移除标志）。
 
-状态值通过 `RegionFlag.State.fromString()` 解析，不区分大小写：
+## 标志判定规则
 
-```java
-public static State fromString(String s) {
-    if (s == null) return NONE;
-    return switch (s.toLowerCase(Locale.ROOT)) {
-        case "allow", "true", "yes" -> ALLOW;
-        case "deny", "false", "no" -> DENY;
-        default -> NONE;
-    };
-}
-```
+当玩家在某坐标执行操作时，按以下规则判定标志：
 
-命令中设置标志时，`allow` / `true` / `yes` 均视为允许，`deny` / `false` / `no` 均视为拒绝，其他值视为 `NONE`（移除标志）。
-
-## 标志查询流程
-
-当玩家在某坐标执行操作时，`RegionManager` 按以下流程查询标志状态：
-
-```
-1. 获取该坐标的所有区域（按优先级降序排列）
-   └→ 使用空间索引定位目标点所在 cell
-   └→ 遍历 cell 内候选区域，精确 contains 校验
-   └→ 按优先级降序排序
-
-2. 遍历区域列表，对每个区域解析标志：
-   ├→ 区域自身设置了该标志 → 返回其值（ALLOW/DENY）
-   └→ 区域未设置（NONE）→ 沿父链向上继承
-       └→ 父区域设置了 → 返回父区域值
-       └→ 父区域也未设置 → 继续向上
-       └→ 到顶仍为 NONE → 检查下一个同坐标区域
-
-3. 所有区域均为 NONE → 返回 NONE（无保护）
-
-4. 玩家相关标志额外检查：
-   ├→ 玩家拥有 axs.regions.bypass 权限 → 直接返回 ALLOW
-   ├→ 标志为 DENY 且是成员豁免类标志 → 检查玩家是否为区域成员
-   └→ 成员豁免类标志：BLOCK_BREAK, BLOCK_PLACE, USE, CHEST_ACCESS,
-       VEHICLE_DESTROY, VEHICLE_PLACE, ITEM_DROP, ITEM_PICKUP, RIDE, SLEEP
-```
-
-### 两种查询方法
-
-| 方法 | 签名 | 说明 |
-|---|---|---|
-| `queryFlag` | `(world, x, y, z, flag)` → `State` | 纯坐标查询，不考虑玩家身份，用于环境/生物类标志 |
-| `queryFlagForPlayer` | `(loc, flag, player)` → `State` | 带玩家上下文查询，检查管理员绕过与成员豁免 |
-
-### 标志继承解析
-
-`resolveFlag` 方法实现递归继承，沿父链向上查找：
-
-```java
-private RegionFlag.State resolveFlag(Region region, RegionFlag flag) {
-    RegionFlag.State state = region.getFlag(flag);
-    if (state != RegionFlag.State.NONE) return state;
-    // 继承父区域
-    if (region.parentId() != null) {
-        Region parent = getRegion(region.parentId(), region.world());
-        if (parent != null) return resolveFlag(parent, flag);
-    }
-    return RegionFlag.State.NONE;
-}
-```
-
-父链最多遍历 64 层（由 `wouldCreateCycle` 的 guard 上限保证无无限循环）。
+1. 取该坐标的所有覆盖区域，按优先级从高到低逐个检查
+2. 区域自身设置了标志 → 采用其值（ALLOW/DENY）
+3. 区域未设置（NONE）→ 沿父区域链向上继承；父链全部未设置 → 检查下一个低优先级区域
+4. 所有区域均为 NONE → 无保护（允许操作）
+5. 玩家拥有 `axs.regions.bypass` 权限 → 一律允许
+6. 标志为 DENY 且属成员豁免类时，区域成员自动豁免
 
 ## 成员豁免
 
@@ -111,143 +55,110 @@ private RegionFlag.State resolveFlag(Region region, RegionFlag flag) {
 
 ### 成员判定
 
-成员判定通过 `Region.hasAccess()` 方法，支持玩家 UUID 和权限组两种方式：
-
-```java
-public boolean hasAccess(UUID uuid, Set<String> playerGroups) {
-    if (isOwner(uuid) || members.contains(uuid)) return true;
-    if (playerGroups != null) {
-        for (String group : playerGroups) {
-            if (ownerGroups.contains(group) || memberGroups.contains(group)) return true;
-        }
-    }
-    return false;
-}
-```
-
-玩家权限组通过 `axs.regions.group.<name>` 权限节点识别：
-
-```java
-private Set<String> getPlayerGroups(Player player) {
-    Set<String> groups = new HashSet<>();
-    for (var perm : player.getEffectivePermissions()) {
-        String p = perm.getPermission();
-        if (p.startsWith("axs.regions.group.") && perm.getValue()) {
-            groups.add(p.substring("axs.regions.group.".length()));
-        }
-    }
-    return groups;
-}
-```
+成员判定支持玩家和权限组两种方式。玩家权限组通过 `axs.regions.group.<name>` 权限节点识别，拥有该节点的玩家视为对应组的成员。
 
 ## 管理员绕过
 
-拥有 `axs.regions.bypass` 权限的玩家在 `queryFlagForPlayer` 中直接返回 `ALLOW`，跳过所有区域保护检查：
-
-```java
-if (player.hasPermission("axs.regions.bypass")) return RegionFlag.State.ALLOW;
-```
-
-此权限为全局绕过，影响所有标志类型，不区分区域。
+拥有 `axs.regions.bypass` 权限的玩家跳过所有区域保护检查。此权限为全局绕过，影响所有标志类型，不区分区域。
 
 ## 完整标志参考
 
 ### 战斗类（COMBAT）
 
-| 标志 Key | 说明 | 监听事件 | 成员豁免 |
-|---|---|---|---|
-| `pvp` | 玩家间伤害 | `EntityDamageByEntityEvent` | 否 |
-| `mob-damage` | 怪物对玩家伤害 | `EntityDamageByEntityEvent` | 否 |
-| `damage-animals` | 玩家伤害动物 | `EntityDamageByEntityEvent` | 否 |
-| `invincibility` | 玩家无敌 | - | 否 |
-| `fall-damage` | 摔落伤害 | `EntityDamageEvent`（FALL） | 否 |
+| 标志 Key | 说明 | 成员豁免 |
+|---|---|---|
+| `pvp` | 玩家间伤害 | 否 |
+| `mob-damage` | 怪物对玩家伤害 | 否 |
+| `damage-animals` | 玩家伤害动物 | 否 |
+| `invincibility` | 玩家无敌 | 否 |
+| `fall-damage` | 摔落伤害 | 否 |
 
 ### 方块类（BLOCK）
 
-| 标志 Key | 说明 | 监听事件 | 成员豁免 |
-|---|---|---|---|
-| `block-break` | 方块破坏 | `BlockBreakEvent` | 是 |
-| `block-place` | 方块放置 | `BlockPlaceEvent` | 是 |
-| `use` | 右键交互（门/按钮/拉杆等） | `PlayerInteractEvent` | 是 |
-| `chest-access` | 容器访问 | `PlayerInteractEvent`（容器检测） | 是 |
-| `trample` | 踩踏耕地 | - | 否 |
-| `vehicle-destroy` | 破坏矿车/船 | `VehicleDestroyEvent` | 是 |
-| `vehicle-place` | 放置矿车/船 | `VehicleCreateEvent` | 是 |
+| 标志 Key | 说明 | 成员豁免 |
+|---|---|---|
+| `block-break` | 方块破坏 | 是 |
+| `block-place` | 方块放置 | 是 |
+| `use` | 右键交互（门/按钮/拉杆等） | 是 |
+| `chest-access` | 容器访问 | 是 |
+| `trample` | 踩踏耕地 | 否 |
+| `vehicle-destroy` | 破坏矿车/船 | 是 |
+| `vehicle-place` | 放置矿车/船 | 是 |
 
 ### 环境类（ENVIRONMENT）
 
-| 标志 Key | 说明 | 监听事件 | 成员豁免 |
-|---|---|---|---|
-| `tnt` | TNT 爆炸 | `EntityExplodeEvent`（TNTPrimed） | 否 |
-| `creeper-explosion` | 苦力怕爆炸 | `EntityExplodeEvent`（Creeper） | 否 |
-| `other-explosion` | 其他爆炸（末影水晶等） | `EntityExplodeEvent`（其他） | 否 |
-| `fire-spread` | 火焰蔓延 | `BlockSpreadEvent` / `BlockBurnEvent` | 否 |
-| `lava-fire` | 岩浆点火 | `BlockIgniteEvent`（LAVA） | 否 |
-| `lightning` | 雷击起火 | `BlockIgniteEvent`（LIGHTNING） | 否 |
-| `snow-fall` | 雪覆盖 | `BlockFormEvent`（SNOW） | 否 |
-| `snow-melt` | 雪融化 | `BlockFadeEvent`（SNOW） | 否 |
-| `ice-form` | 冰生成 | `BlockFormEvent`（ICE） | 否 |
-| `ice-melt` | 冰融化 | `BlockFadeEvent`（ICE） | 否 |
-| `leaf-decay` | 树叶腐烂 | `LeavesDecayEvent` | 否 |
-| `grass-spread` | 草方块蔓延 | `BlockSpreadEvent`（GRASS_BLOCK） | 否 |
-| `mushroom-spread` | 蘑菇蔓延 | `BlockSpreadEvent`（MUSHROOM） | 否 |
-| `vine-growth` | 藤蔓生长 | `BlockSpreadEvent`（VINE） | 否 |
-| `crop-growth` | 作物生长 | `BlockGrowEvent` | 否 |
-| `water-flow` | 水流动 | `BlockFromToEvent`（WATER） | 否 |
-| `lava-flow` | 岩浆流动 | `BlockFromToEvent`（LAVA） | 否 |
-| `pistons` | 活塞移动 | `BlockPistonExtendEvent` / `BlockPistonRetractEvent` | 否 |
-| `soil-dry` | 耕地干燥 | `BlockFadeEvent`（FARMLAND） | 否 |
+| 标志 Key | 说明 | 成员豁免 |
+|---|---|---|
+| `tnt` | TNT 爆炸 | 否 |
+| `creeper-explosion` | 苦力怕爆炸 | 否 |
+| `other-explosion` | 其他爆炸（末影水晶等） | 否 |
+| `fire-spread` | 火焰蔓延 | 否 |
+| `lava-fire` | 岩浆点火 | 否 |
+| `lightning` | 雷击起火 | 否 |
+| `snow-fall` | 雪覆盖 | 否 |
+| `snow-melt` | 雪融化 | 否 |
+| `ice-form` | 冰生成 | 否 |
+| `ice-melt` | 冰融化 | 否 |
+| `leaf-decay` | 树叶腐烂 | 否 |
+| `grass-spread` | 草方块蔓延 | 否 |
+| `mushroom-spread` | 蘑菇蔓延 | 否 |
+| `vine-growth` | 藤蔓生长 | 否 |
+| `crop-growth` | 作物生长 | 否 |
+| `water-flow` | 水流动 | 否 |
+| `lava-flow` | 岩浆流动 | 否 |
+| `pistons` | 活塞移动 | 否 |
+| `soil-dry` | 耕地干燥 | 否 |
 
 ### 生物类（MOB）
 
-| 标志 Key | 说明 | 监听事件 | 成员豁免 |
-|---|---|---|---|
-| `mob-spawning` | 怪物生成 | `CreatureSpawnEvent`（Monster） | 否 |
-| `animal-spawning` | 动物生成 | `CreatureSpawnEvent`（Animals） | 否 |
-| `enderman-grief` | 末影人搬方块 | `EntityChangeBlockEvent`（Enderman） | 否 |
-| `ghast-fireball` | 恶魂火球 | - | 否 |
-| `wither-damage` | 凋灵破坏 | - | 否 |
+| 标志 Key | 说明 | 成员豁免 |
+|---|---|---|
+| `mob-spawning` | 怪物生成 | 否 |
+| `animal-spawning` | 动物生成 | 否 |
+| `enderman-grief` | 末影人搬方块 | 否 |
+| `ghast-fireball` | 恶魂火球 | 否 |
+| `wither-damage` | 凋灵破坏 | 否 |
 
 ### 玩家类（PLAYER）
 
-| 标志 Key | 说明 | 监听事件 | 成员豁免 |
-|---|---|---|---|
-| `entry` | 玩家进入 | `PlayerMoveEvent`（区域变化检测） | 否 |
-| `exit` | 玩家离开 | `PlayerMoveEvent`（区域变化检测） | 否 |
-| `enderpearl` | 末影珍珠传送 | `PlayerTeleportEvent`（ENDER_PEARL） | 否 |
-| `chorus-fruit` | 紫颂果传送 | `PlayerTeleportEvent`（CHORUS_FRUIT） | 否 |
-| `item-drop` | 丢弃物品 | `PlayerDropItemEvent` | 是 |
-| `item-pickup` | 拾取物品 | `PlayerPickupItemEvent` | 是 |
-| `exp-drop` | 经验球掉落 | - | 否 |
-| `hunger` | 饥饿消耗 | `FoodLevelChangeEvent` | 否 |
-| `heal` | 自然恢复 | `EntityRegainHealthEvent`（SATIATED/REGEN） | 否 |
-| `fly` | 允许飞行 | - | 否 |
-| `ride` | 骑乘实体 | `PlayerInteractEntityEvent` | 是 |
-| `sleep` | 使用床 | `PlayerInteractEvent`（BED 检测） | 是 |
-| `respawn-anchors` | 重生锚 | - | 否 |
+| 标志 Key | 说明 | 成员豁免 |
+|---|---|---|
+| `entry` | 玩家进入 | 否 |
+| `exit` | 玩家离开 | 否 |
+| `enderpearl` | 末影珍珠传送 | 否 |
+| `chorus-fruit` | 紫颂果传送 | 否 |
+| `item-drop` | 丢弃物品 | 是 |
+| `item-pickup` | 拾取物品 | 是 |
+| `exp-drop` | 经验球掉落 | 否 |
+| `hunger` | 饥饿消耗 | 否 |
+| `heal` | 自然恢复 | 否 |
+| `fly` | 允许飞行 | 否 |
+| `ride` | 骑乘实体 | 是 |
+| `sleep` | 使用床 | 是 |
+| `respawn-anchors` | 重生锚 | 否 |
 
 ### 杂项类（MISC）
 
-| 标志 Key | 说明 | 监听事件 | 成员豁免 |
-|---|---|---|---|
-| `notify-enter` | 进入时通知区域成员 | - | 否 |
-| `notify-exit` | 离开时通知区域成员 | - | 否 |
-| `greeting` | 进入消息（自定义文本） | `PlayerMoveEvent`（区域进入检测） | 否 |
-| `farewell` | 离开消息（自定义文本） | `PlayerMoveEvent`（区域离开检测） | 否 |
-| `potion-splash` | 药水瓶投掷 | `PotionSplashEvent` | 否 |
-| `send-chat` | 发送聊天 | - | 否 |
-| `receive-chat` | 接收聊天 | - | 否 |
+| 标志 Key | 说明 | 成员豁免 |
+|---|---|---|
+| `notify-enter` | 进入时通知区域成员 | 否 |
+| `notify-exit` | 离开时通知区域成员 | 否 |
+| `greeting` | 进入消息（自定义文本） | 否 |
+| `farewell` | 离开消息（自定义文本） | 否 |
+| `potion-splash` | 药水瓶投掷 | 否 |
+| `send-chat` | 发送聊天 | 否 |
+| `receive-chat` | 接收聊天 | 否 |
 
 ## 标志附加数据
 
-部分标志支持附加数据（`flagData`），通过 `Region.setFlagData()` 存储。当前使用附加数据的标志：
+部分标志支持附加数据（自定义文本）。当前使用附加数据的标志：
 
 | 标志 | 数据内容 | 设置方式 |
 |---|---|---|
 | `greeting` | 进入区域的自定义欢迎文本 | `/rg flag <区域> greeting allow &6欢迎来到出生点！` |
 | `farewell` | 离开区域的自定义告别文本 | `/rg flag <区域> farewell allow &c再见！` |
 
-附加数据存储在 `axs_rg_flags` 表的 `data` 列（`TEXT` 类型），保存时序列化为字符串。
+附加数据随标志一起保存，设置后长期有效。
 
 ## 标志设置与移除
 
@@ -272,55 +183,17 @@ if (player.hasPermission("axs.regions.bypass")) return RegionFlag.State.ALLOW;
 
 ### UI 方式
 
-管理员通过 `/rg admin` 打开管理面板，在区域编辑页可查看全部 50 个标志的当前状态，并通过 `set_flag` / `remove_flag` 动作修改标志。UI 推送的标志列表包含 `key`、`desc`、`category`、`state` 四个字段。
-
-### 编程方式
-
-```java
-Region region = regionManager.getRegion("spawn", "world");
-// 设置标志
-region.setFlag(RegionFlag.PVP, RegionFlag.State.DENY);
-// 设置附加数据
-region.setFlagData(RegionFlag.GREETING, "&6欢迎来到出生点！");
-// 移除标志
-region.setFlag(RegionFlag.PVP, RegionFlag.State.NONE);
-// 持久化
-regionManager.saveRegion(region);
-```
+管理员通过 `/rg admin` 打开管理面板，在区域编辑页可查看全部 50 个标志的当前状态并直接修改。
 
 ## 优先级与继承
 
 ### 优先级机制
 
-同一坐标可被多个区域覆盖。查询时按优先级降序遍历，高优先级区域的标志先被检查。若高优先级区域设置了该标志（非 `NONE`），则直接返回其值，不再检查低优先级区域。
-
-```java
-public List<Region> getRegionsAt(String world, int x, int y, int z) {
-    // ... 空间索引查询候选区域 ...
-    result.sort(Comparator.comparingInt(Region::priority).reversed());
-    return result;
-}
-```
+同一坐标可被多个区域覆盖。高优先级区域的标志先被检查。若高优先级区域设置了该标志（非 `NONE`），则直接采用其值，不再检查低优先级区域。
 
 ### 父子继承
 
-区域可设置父区域（须同世界），未设置的标志从父区域继承。继承通过 `resolveFlag` 递归实现，沿父链向上查找直到找到非 `NONE` 的值或到顶。
-
-设置父区域时自动检测继承环：
-
-```java
-private boolean wouldCreateCycle(Region region, Region newParent) {
-    Region cursor = newParent;
-    int guard = 0;
-    while (cursor != null && guard < 64) {
-        if (cursor == region) return true;
-        if (cursor.parentId() == null) return false;
-        cursor = manager.getRegion(cursor.parentId(), cursor.world());
-        guard++;
-    }
-    return false;
-}
-```
+区域可设置父区域（须同世界），未设置的标志从父区域继承，沿父链向上查找直到找到非 `NONE` 的值或到顶。设置父区域时自动检测继承环，若沿父链回到自身则拒绝设置。
 
 ### 继承示例
 
@@ -345,20 +218,7 @@ private boolean wouldCreateCycle(Region region, Region newParent) {
 
 ## 容器类型识别
 
-`chest-access` 标志通过 `isContainer()` 方法识别容器方块：
-
-```java
-private boolean isContainer(Material type) {
-    return type == Material.CHEST || type == Material.TRAPPED_CHEST
-        || type == Material.BARREL || type == Material.HOPPER
-        || type == Material.DROPPER || type == Material.DISPENSER
-        || type == Material.SHULKER_BOX || type.name().contains("SHULKER_BOX")
-        || type == Material.FURNACE || type == Material.BLAST_FURNACE || type == Material.SMOKER
-        || type == Material.BREWING_STAND;
-}
-```
-
-支持的容器类型：箱子、陷阱箱、木桶、漏斗、投掷器、发射器、各色潜影盒、熔炉、高炉、烟熏炉、酿造台。
+`chest-access` 标志覆盖的容器类型：箱子、陷阱箱、木桶、漏斗、投掷器、发射器、各色潜影盒、熔炉、高炉、烟熏炉、酿造台。
 
 ## 相关页面
 
@@ -366,4 +226,4 @@ private boolean isContainer(Material type) {
 - [命令与占位符](/docs/regions/commands) — 标志相关命令与 UI 数据包
 - [选区工具](/docs/regions/selection) — 选区工具与粒子可视化
 - [世界规则](/docs/regions/world-rules) — 独立于区域标志的世界级限制
-- [联动](/docs/regions/integration) — EventBus 事件与数据库表结构
+- [联动](/docs/regions/integration) — EventBus 事件与跨模块联动

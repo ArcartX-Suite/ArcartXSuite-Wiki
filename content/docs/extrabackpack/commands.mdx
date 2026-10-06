@@ -59,29 +59,9 @@ if (access != null && access.isAvailable(player)) {
 }
 ```
 
-## UI Packet 通信
+## UI 操作说明
 
-所有额外背包 UI 操作通过客户端 Packet（包 ID `AXS_BACKPACK`）触发，`data[0]` 为 action 名称。服务端 `ExtraBackpackService.handleClientPacket` 方法处理所有 action。
-
-### 客户端→服务端 Action
-
-| Action | 参数 | 需打开 UI | 需 Token | 说明 |
-| --- | --- | --- | --- | --- |
-| `open` / `refresh` | - | 否 | 否 | 刷新当前界面（重新签发 action token） |
-| `category` | `<分类ID>` | 否 | 否 | 切换分类页。传 `__vanilla__` 切换到原版背包标签页 |
-| `withdraw` | `<槽位号>` | 是 | 否 | 从当前分类页取出指定槽位物品到快捷栏 |
-| `withdraw_all` | `<槽位号>` | 是 | 否 | 取出指定槽位全部物品 |
-| `store` | `<快捷栏槽位>` | 是 | 否 | 将快捷栏指定槽位（0-8）的物品存入额外背包 |
-| `buy_slots` | `<数量>` `<token>` | 是 | 是 | 购买指定数量的仓库槽位（全页签共通，价格走仓库配置） |
-| `vanilla_info` | `<原版槽位号>` | 否 | 否 | 显示原版背包指定槽位的物品信息（`-1` 关闭） |
-| `vanilla_options` | `<原版槽位号>` | 否 | 否 | 显示原版背包指定槽位的操作选项（`-1` 关闭） |
-| `vanilla_store` | `<原版槽位号>` | 是 | 否 | 将原版背包指定槽位的物品存入额外背包 |
-| `vanilla_destroy` | `<原版槽位号>` `true` `<token>` | 是 | 是 | 销毁原版背包指定槽位的物品（需二级密码） |
-| `password_set` | `<旧密码>` `<新密码>` `<token>` | 是 | 是 | 设置二级密码（首次设置旧密码留空） |
-| `password_unlock` | `<密码>` | 是 | 否 | 解锁二级密码会话 |
-| `password_clear` | `<密码>` `<token>` | 是 | 是 | 清除二级密码 |
-| `password_panel_close` | - | 否 | 否 | 关闭二级密码面板 |
-| `close` | - | 否 | 否 | 关闭界面并持久化数据 |
+玩家通过 UI 界面完成全部操作：切换分类页、取出物品、存入快捷栏物品、购买槽位、销毁物品（需二级密码）、设置/解锁/清除二级密码。界面文件为 `ui/extra_backpack.yml`，可自定义外观，修改后 `/axs reload extrabackpack` 生效。
 
 > **需打开 UI**：该 action 要求玩家当前已打开额外背包 UI，否则返回 `请先打开额外背包界面` 提示。
 >

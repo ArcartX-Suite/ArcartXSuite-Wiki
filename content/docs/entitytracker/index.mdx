@@ -9,18 +9,17 @@ description: EntityTracker 实体追踪功能概览
 
 EntityTracker 是 Suite 的 Boss 追踪与伤害排行模块。它跟踪指定的 MythicMob 实体，通过 ArcartX 客户端 MOD 向玩家实时同步 Boss 血量、距离、目标、存活时间、伤害排行和死亡结算结果。同时提供玩家最近攻击目标的 HUD 显示，以及 Boss 掉落记录、掉落分配、跨服 Boss 排行与排行榜定时奖励等进阶功能。
 
-模块由两大子系统组成：
+模块包含两个独立功能：
 
-- **Boss 追踪子系统**：依赖 MythicMobs / MythicBukkit，监听 MythicMob 的生成、死亡、消失事件，管理 Boss 会话生命周期，定时刷新观察者 HUD 数据包，处理伤害排名与死亡结算。
-- **攻击目标 HUD 子系统**：不依赖 MythicMobs，监听玩家攻击任意 LivingEntity 的事件，在超时时间内显示目标实体的血量、类型、距离等信息。
+- **Boss 追踪**：依赖 MythicMobs / MythicBukkit，追踪 Boss 的生成、死亡、消失，向范围内的玩家推送 HUD 数据，处理伤害排名与死亡结算。
+- **攻击目标 HUD**：不依赖 MythicMobs，玩家攻击任意生物时在超时时间内显示目标实体的血量、类型、距离等信息。
 
-两个子系统共享 UI 配置节，但各自拥有独立的 UI ID、刷新间隔和显示格式。
+两个功能各自拥有独立的 UI ID、刷新间隔和显示格式。
 
 | 属性 | 值 |
 |---|---|
 | 模块 ID | `entitytracker` |
 | 版本 | 1.4.4 |
-| 主类 | `xuanmo.arcartxsuite.entitytracker.EntityTrackerModule` |
 | 配置文件 | `config.yml`、`messages.yml`、`bosses/`（Boss 定义目录） |
 | 命令入口 | 管理 `/axs entitytracker`（含 `rewards` 子命令组） |
 | 外部依赖 | PlaceholderAPI（必需）；MythicMobs（Boss 追踪必需） |
@@ -63,74 +62,11 @@ EntityTracker 是 Suite 的 Boss 追踪与伤害排行模块。它跟踪指定�
 
 > Boss 追踪子系统依赖 MythicMobs / MythicBukkit。若服务器未安装 MythicMobs，模块启动时会输出警告并跳过 Boss 追踪，仅运行攻击目标 HUD 子系统。两个子系统可独立运行。
 
-## 追踪机制详解
+## 功能行为
 
-### Boss 追踪生命周期
-
-```
-MythicMob 生成
-  → BossTrackerService.onSpawn()
-  → 在 bosses/ 目录查找匹配的 BossDefinition
-  → 创建 BossSession，分配 spawnOrder
-  → 发送 spawn 聊天卡片（若配置）
-  → 请求 HUD 刷新
-
-定时刷新循环（每 refresh-interval-ticks）
-  → 收集所有活跃 BossSession 快照
-  → 按世界分组
-  → 对每个在线玩家：
-    → 筛选可见 Boss（同世界 + 距离 ≤ viewer-range）
-    → 按配置 sort-mode 排序
-    → 截取前 max-visible-bars 个
-    → 构建 UI 数据包（init / update）
-    → 通过 PacketBridge 发送至客户端
-  → 无可见 Boss 时关闭 HUD
-
-玩家攻击 Boss
-  → EntityDamageByEntityEvent / 属性插件伤害事件
-  → BossSession.recordDamage()
-  → 请求 HUD 刷新
-
-MythicMob 死亡
-  → BossTrackerService.onDeath()
-  → BossDamageSettlementService.settle() 生成结算记录
-  → 按排名发放即时奖励（rewards）
-  → 跨服同步结算数据（若启用）
-  → 记录击杀与掉落（若启用）
-  → 发送 death 聊天卡片
-  → 移除 BossSession
-
-MythicMob 消失
-  → BossTrackerService.onDespawn()
-  → 发送 despawn 聊天卡片
-  → 移除 BossSession
-```
-
-### 攻击目标 HUD 生命周期
-
-```
-玩家攻击 LivingEntity
-  → EntityTargetHudService.onEntityDamage()
-  → 解析攻击者（支持投射物、属性插件等）
-  → 检查黑名单（MythicMob ID / EntityType）
-  → 检查 Boss 联动过滤（ignore-configured-bosses）
-  → 记录 TrackedTarget（目标 UUID + 最后攻击时间）
-
-定时刷新循环（每 refresh-interval-ticks）
-  → 对每个追踪中的玩家：
-    → 解析目标实体（存活、同世界、距离 ≤ max-view-distance）
-    → 检查超时（lastHitAgoMs > target-timeout-ms 则关闭）
-    → 构建 EntityTargetSnapshot
-    → 渲染 title-format / subtitle-format
-    → 通过 PacketBridge 发送 init / update 包
-
-超时 / 玩家退出 / 玩家死亡
-  → 关闭目标 HUD
-```
-
-### Boss 联动过滤
-
-当 `attack-target.entitytracker-link.ignore-configured-bosses` 为 `true` 时，已被 EntityTracker 追踪的 Boss（`bosses/` 目录中 `enabled: true` 的 MythicMob）不会触发攻击目标 HUD，避免两个 HUD 同时显示同一个实体。
+- **Boss 追踪**：Boss 生成时纳入追踪（需在 `bosses/` 目录中配置且 `enabled: true`），范围内玩家实时看到血量、距离、伤害排行；Boss 死亡时按排名结算发放奖励；玩家最多同时显示 `max-visible-bars` 个 Boss
+- **攻击目标 HUD**：玩家攻击生物时显示目标信息，超时未再次攻击自动关闭；可通过黑名单与 Boss 联动过滤
+- **Boss 联动过滤**：`attack-target.entitytracker-link.ignore-configured-bosses: true` 时（默认），已追踪的 Boss 不再显示攻击目标 HUD，避免重复
 
 ### 排序模式
 
@@ -139,7 +75,7 @@ MythicMob 消失
 | 生成顺序 | `spawn-order` | 按 Boss 生成先后排序（默认） |
 | 距离优先 | `distance` | 按玩家与 Boss 的距离升序排序 |
 | 血量百分比 | `health-percent` | 按 Boss 血量百分比升序排序（残血优先） |
-| 配置优先级 | `priority` | 按 BossDefinition 的 `priority` 字段降序排序 |
+| 配置优先级 | `priority` | 按 Boss 定义的 `priority` 字段降序排序 |
 | 混合 | `hybrid` | 综合排序，同时启用 Mohist 补扫机制 |
 
 ### 伤害门槛

@@ -228,7 +228,7 @@ hooks:
 | `title` | `title-id`、`duration`（默认 `permanent`）、`level`、`tier` | 称号奖励预览 |
 | `text` | — | 纯文本奖励（实际由 Chemdah agent 发放） |
 
-> 奖励物品解析使用 ArcartX 的 `IconResolver`，支持原版材质和外部物品库（NeigeItems/MythicMobs/Overture/MMOItems），详见 [/docs/guide/icons](/docs/guide/icons) 和 [/docs/guide/item-sources](/docs/guide/item-sources)。称号奖励预览通过 `TitleConfigQueryable` Capability 查询称号信息（显示名、品质、描述）。
+> 奖励物品支持原版材质和外部物品库（NeigeItems/MythicMobs/Overture/MMOItems），详见 [/docs/guide/icons](/docs/guide/icons) 和 [/docs/guide/item-sources](/docs/guide/item-sources)。称号奖励预览通过公开 Capability 查询称号信息（显示名、品质、描述）。
 
 ### 奖励预览解析流程
 

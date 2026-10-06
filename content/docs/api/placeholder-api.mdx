@@ -9,8 +9,6 @@ description: Suite PlaceholderAPI 扩展注册与占位符解析 API
 
 Suite 通过 `PlaceholderExpansionRegistry` 管理所有模块的 PAPI 扩展。模块重写 `createPlaceholderExpansion()` 返回 `PlaceholderExpansion` 子类，基类在 `onEnable` 阶段自动注册，`onDisable` 时自动注销。
 
-设计目标：模块不再直接依赖 `me.clip.placeholderapi.PlaceholderAPI` 类，通过 `axs-api` 的抽象接口完成占位符注册与解析，`axs-api` 本身不直接依赖 PlaceholderAPI。
-
 ## 核心接口
 
 | 接口/类 | 包路径 | 说明 |
@@ -76,68 +74,7 @@ String text2 = resolver.applyPlaceholders(offlinePlayer, "%player_name% 的等�
 3. 存在则调用 `context.expansionRegistry().register(expansion)` 注册
 4. `onDisable` 时自动 `unregisterAll()` 注销
 
-```java
-// AbstractAXSModule.onEnable 中的自动注册逻辑
-if (context.hasPlugin("PlaceholderAPI")) {
-    try {
-        Object expansion = createPlaceholderExpansion();
-        if (expansion != null) {
-            context.expansionRegistry().register(expansion);
-        }
-    } catch (LinkageError error) {
-        logger.warning(descriptor().name()
-            + " PlaceholderAPI 占位符不可用，已跳过注册: " + error.getMessage());
-    }
-} else {
-    logger.fine(descriptor().name()
-        + " 未检测到 PlaceholderAPI，跳过占位符注册。");
-}
-```
-
 > 默认 `createPlaceholderExpansion()` 返回 null（不注册）。需要提供占位符的模块重写此方法。
-
-## 注册表实现
-
-`PlaceholderExpansionRegistry` 有两种实现，宿主根据 PAPI 是否可加载选择：
-
-### DirectPlaceholderExpansionRegistry
-
-强引用实现，位于 `axs-placeholder` 子模块。直接调用 `PlaceholderExpansion.register()` / `unregister()`，避免反射带来的性能和类型安全问题。仅在服务器已安装 PlaceholderAPI 时使用。
-
-```java
-public final class DirectPlaceholderExpansionRegistry implements PlaceholderExpansionRegistry {
-    @Override
-    public boolean register(@NotNull Object expansion) {
-        if (!(expansion instanceof PlaceholderExpansion pe)) return false;
-        boolean success = pe.register();
-        if (success) registeredExpansions.add(pe);
-        return success;
-    }
-}
-```
-
-### DefaultPlaceholderExpansionRegistry
-
-反射调用实现，位于 `axs-core`。通过反射调用 `register()` / `unregister()` 方法，避免 `axs-api` 直接依赖 PlaceholderAPI。每个模块的 `ModuleContext` 持有独立实例。
-
-```java
-public final class DefaultPlaceholderExpansionRegistry implements PlaceholderExpansionRegistry {
-    @Override
-    public boolean register(@NotNull Object expansion) {
-        Object result = expansion.getClass().getMethod("register").invoke(expansion);
-        if (result instanceof Boolean registered && registered) {
-            registeredExpansions.add(expansion);
-            return true;
-        }
-        return false;
-    }
-}
-```
-
-| 实现 | 位置 | 方式 | 适用场景 |
-|------|------|------|----------|
-| `DirectPlaceholderExpansionRegistry` | `axs-placeholder` | 强引用直接调用 | PAPI 可加载时 |
-| `DefaultPlaceholderExpansionRegistry` | `axs-core` | 反射调用 | 避免 axs-api 直接依赖 PAPI |
 
 ## 代码示例
 
@@ -225,5 +162,5 @@ public class MarketModule extends AbstractAXSModule {
 - `persist()` 应返回 `true`，确保扩展在 PlaceholderAPI 重载后不会被注销。
 - 使用 `Supplier` 延迟引用服务，避免服务启动失败导致占位符注册失败。
 - `onPlaceholderRequest` 中 `player` 可能为 null（如控制台调用），需做空值判断。
-- Tab 模块额外提供了 `TabServerFallbackExpansion` 和 `TabPlayerFallbackExpansion` 两个 fallback 扩展，用于服务端占位符兜底。
+- Tab 模块额外提供服务端/玩家维度的占位符兜底扩展。
 - `unregisterAll()` 在模块 `onDisable` 时由基类自动调用，模块无需手动注销。

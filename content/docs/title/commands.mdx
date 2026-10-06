@@ -24,7 +24,7 @@ description: Title 命令、权限与 PlaceholderAPI 占位符
 
 ## 管理员命令
 
-管理员命令通过 `/axs title` 触发，由 `ModuleCommandHandler` 注册到本体 `/axs` 命令。
+管理员命令通过 `/axs title` 触发。
 
 | 命令 | 参数 | 说明 |
 |---|---|---|
@@ -129,60 +129,8 @@ Title 模块注册 `axstitle` 标识符的 PAPI 占位符，格式为 `%axstitle
 | `%axstitle_set_<setId>_total%` | `int` | 套装所需称号总数 |
 | `%axstitle_set_<setId>_active%` | `true` / `false` | 套装是否已激活 |
 
-## UI Packet 触发
+## 称号菜单 UI
 
-称号菜单 UI 通过 `AXS_TITLE_MENU` 数据包与客户端通讯。后端通过 `TitleMenuPacketFactory` 构建数据包，客户端通过 `packetHandler.init` / `packetHandler.update` 接收。
+称号菜单界面文件为 `ui/title_menu.yml`，可自定义外观。界面中的称号列表、分组筛选、品质筛选、套装进度、属性汇总文本等数据由服务端推送，自定义 UI 时请勿删除 `packetHandler` 节。属性文本的颜色前缀和空占位符可通过 `ui.attribute-line-color` 和 `ui.empty-attribute-placeholder` 配置。
 
-### 客户端 → 服务端动作
-
-UI 控件点击时发送动作包，首元素为动作名：
-
-| 动作 | 参数 | 说明 |
-|---|---|---|
-| `open` | — | 打开称号菜单 |
-| `select` | `<titleId>` | 选中称号（不装备，仅高亮详情） |
-| `equip` | `<titleId>` | 装备称号 |
-| `unequip_group` | `<groupId>` | 卸下指定分组称号 |
-| `unequip_all` | — | 卸下全部分组称号 |
-| `hide` | `<titleId>` | 隐藏称号 |
-| `unhide` | `<titleId>` | 取消隐藏称号 |
-| `set_display` | `<titleId>` | 设为主展示称号 |
-| `refresh` | — | 刷新菜单数据 |
-
-### 服务端 → 客户端数据包
-
-`TitleMenuPacketFactory.build()` 构建的完整数据包字段：
-
-| 字段 | 类型 | 说明 |
-|---|---|---|
-| `titles` | `Map<String, Object>` | 称号列表（key 为序号字符串），每项含 id/kind/display_name/chat_prefix/chat_suffix/tab_prefix/tab_suffix/description/source/group_id/group_name/group_sort/quality_id/quality_name/quality_sort/sort_order/owned/hidden/equipped/selected/permanent/remaining_text/display_attributes_text/collection_attributes_text |
-| `groups` | `Map<String, Object>` | 分组列表（含「全部分组」虚拟项），每项含 id/name/sort_order |
-| `qualities` | `Map<String, Object>` | 品质列表（含「全部品质」虚拟项），每项含 id/name/sort_order |
-| `filter_modes` | `Map<String, Object>` | 筛选模式（all/owned/hidden），每项含 id/name |
-| `sets` | `Map<String, Object>` | 套装列表，每项含 id/display_name/owned_count/total_count/active/progress/bonus_text/required_titles_text |
-| `equipped_by_group` | `Map<String, Object>` | 按分组列出的已装备称号，每项含 group_id/group_name/title_id/display_name/quality_name |
-| `selected_id` | `String` | 当前选中的称号 ID |
-| `selected_*` | 各类型 | 选中称号的详情字段（display_name/kind/chat_prefix/chat_suffix/tab_prefix/tab_suffix/group_id/group_name/quality_name/description/source/owned/hidden/remaining_text/can_equip/is_equipped/display_attributes_text/collection_attributes_text） |
-| `display_attributes_text` | `List<String>` | 当前所有已装备称号的展示属性汇总文本 |
-| `collection_attributes_text` | `List<String>` | 当前所有已拥有称号的收集属性汇总文本 |
-| `total_attributes_text` | `List<String>` | 展示属性与收集属性的合计汇总文本 |
-| `set_bonus_attributes_text` | `List<String>` | 已激活套装的加成属性文本 |
-| `equipped_summary` | `String` | 已装备称号摘要文本 |
-| `owned_count` | `int` | 已拥有称号数量 |
-| `hidden_count` | `int` | 已隐藏称号数量 |
-| `equipped_count` | `int` | 已装备称号数量 |
-| `max_title_count` | `int` | 称号最大数量（用于动态复制列表控件） |
-| `max_group_count` | `int` | 分组最大数量 |
-| `max_quality_count` | `int` | 品质最大数量 |
-| `max_set_count` | `int` | 套装最大数量 |
-| `max_equipped_count` | `int` | 已装备分组最大数量 |
-| `display_title_id` | `String` | 当前主展示称号 ID |
-| `display_title_name` | `String` | 当前主展示称号名称 |
-| `display_title_chat_prefix` | `String` | 当前主展示称号聊天前缀 |
-| `display_title_chat_suffix` | `String` | 当前主展示称号聊天后缀 |
-| `display_title_tab_prefix` | `String` | 当前主展示称号 TAB 前缀 |
-| `display_title_tab_suffix` | `String` | 当前主展示称号 TAB 后缀 |
-| `selected_display_title_id` | `String` | 玩家设置的展示称号 ID |
-| `selected_is_display_title` | `boolean` | 选中称号是否为主展示称号 |
-
-> 属性文本字段（`*_attributes_text`）统一为 `List<String>`，颜色前缀和空占位符由 `ui.attribute-line-color` 和 `ui.empty-attribute-placeholder` 配置。ArcartX Text 控件的 `texts` 字段接收 List 时自动按多行渲染。
+玩家可在菜单中执行：浏览/筛选称号、选中查看详情、装备/卸下、隐藏/取消隐藏、设为主展示称号、查看套装进度。

@@ -13,7 +13,6 @@ Lottery 是 Suite 的抽奖模块，提供两种抽奖模式：CS 开箱风格�
 |---|---|
 | 模块 ID | `lottery` |
 | 版本 | 1.4.4 |
-| 主类 | `xuanmo.arcartxsuite.lottery.LotteryModule` |
 | 配置文件 | `config.yml`、`messages.yml`、`lottery/`（奖池定义目录） |
 | 命令入口 | 玩家 `/lottery`；管理 `/axs lottery` |
 | 外部依赖 | PlaceholderAPI（必需） |
@@ -37,32 +36,15 @@ Lottery 是 Suite 的抽奖模块，提供两种抽奖模式：CS 开箱风格�
 | 抽奖历史记录 | 记录玩家抽卡/开箱历史，UI 可查看最近 100 条抽卡 / 20 条开箱记录 |
 | 待发放奖励领取 | 投递失败的奖励自动入队，玩家上线或执行 `/lottery claim` 领取 |
 | 概率模拟 | 管理员可模拟指定奖池抽奖统计（不扣费、不发奖、不保存状态） |
-| 数据库迁移 | 支持配置版本迁移（1→2→3），注册 `DatabaseMigratable` 能力 |
-| 玩家数据清除 | 注册 `PlayerDataPurgeable` 能力，支持单玩家/全量数据清除 |
+| 数据库迁移 | 支持配置版本迁移与 `/axs migrate` 存储迁移 |
+| 玩家数据清除 | 支持 `/axs purge` 单玩家/全量数据清除 |
 
 ## 依赖
 
 | 依赖类型 | 名称 | 说明 |
 |---|---|---|
-| 依赖（本体） | Suite | 必须运行本体，模块通过 `AbstractAXSModule` 加载 |
-| 外部依赖 | PlaceholderAPI | 占位符扩展依赖（`external-depends` 硬依赖，未安装时模块不加载） |
-| 软依赖 | 无 | `softdepends` 与 `depends` 均为空 |
-
-模块 `module.yml` 声明：
-
-```yaml
-id: lottery
-name: Lottery
-version: 1.4.4
-main: xuanmo.arcartxsuite.lottery.LotteryModule
-api-version: 1.0
-
-depends: []
-softdepends: []
-external-depends:
-  - PlaceholderAPI
-external-softdepends: []
-```
+| 外部依赖 | PlaceholderAPI | 硬依赖，未安装时模块不加载 |
+| 模块依赖 | 无 | 不依赖其他 Suite 模块 |
 
 ## 抽奖机制详解
 
@@ -83,14 +65,14 @@ GACHA 模式模拟原神祈愿，核心参数由奖池文件 `gacha` 节配置�
 | `fate-point-cap` | `0` | 命运点上限（武器池定轨机制），0 表示不启用 |
 | `shared-pity-group` | 无 | 共享保底组名，同组卡池共享保底计数 |
 
-**抽卡流程**（`GachaEngine.pull`）：
+**抽卡规则**：
 
-1. 每抽开始，`pity5star` 与 `pity4star` 计数 +1
-2. 计算 5 星概率：若当前 5 星保底计数 ≥ `pity-5star`，或随机数 < `calculate5StarProbability`（软保底区间内递增），则出 5 星
-3. 5 星判定：若 `guaranteedUp` 为 true（上次 5 星未命中 UP），或随机数 < `up-rate`，则出 UP 5 星；否则出常驻 5 星，并置 `guaranteedUp = true`（下次大保底）
-4. 武器池命运点：若 `fate-point-cap > 0` 且命中 UP 5 星但非定轨目标，`fatePoints +1`；若命中定轨目标，`fatePoints` 清零并移除定轨；`fatePoints >= fatePointCap` 时必出定轨目标
-5. 4 星判定：若 `pity4star` 达到硬保底，或随机数 < `base-4star-rate`，则出 4 星；按 `up-rate` 分流 UP 4 星与常驻 4 星
-6. 3 星：未命中 5/4 星时出 3 星
+1. 每抽开始，5 星与 4 星保底计数各 +1
+2. 若 5 星保底计数达到 `pity-5star`，必出 5 星；软保底区间内（≥ `soft-pity-start`）每抽概率按 `soft-pity-increment` 递增
+3. 出 5 星时：若上次 5 星未命中 UP（大保底），或按 `up-rate` 命中，则出 UP 5 星；否则出常驻 5 星，下次 5 星必为 UP
+4. 武器池命运点：`fate-point-cap > 0` 时，命中 UP 5 星但非定轨目标则命运点 +1；命中定轨目标清零；命运点满时必出定轨目标
+5. 4 星判定：达到 `pity-4star` 硬保底或按 `base-4star-rate` 命中则出 4 星；按 `up-rate` 分流 UP 4 星与常驻 4 星
+6. 未命中 5/4 星时出 3 星
 7. 同星级内多物品按 `weight` 加权随机选取
 
 **共享保底**：通过 `shared-pity-group`（奖池内显式声明）或顶层 `shared-pity-groups` 通配符匹配（如 `character_event_*`）实现跨池共享保底计数。共享组内任一卡池抽卡都会更新同一保底状态记录。
@@ -104,7 +86,7 @@ CASE 模式模拟 CS:GO 开箱，核心参数由奖池文件 `case` 节配置：
 | `rarity-settings` | 稀有度名称到权重设定的映射，每个稀有度含 `color`（显示颜色代码）与 `base-weight`（基础权重） |
 | `items` | 奖池中全部可用奖品列表，每个奖品含 `rarity`（稀有度名称）与 `weight`（同稀有度内相对权重） |
 
-**开箱流程**（`CaseOpeningEngine.openCase`）：
+**开箱流程**：
 
 1. 按稀有度 `base-weight` 加权随机选择一个稀有度
 2. 从该稀有度的所有物品中按 `weight` 加权随机选取一件
@@ -118,21 +100,21 @@ CASE 模式模拟 CS:GO 开箱，核心参数由奖池文件 `case` 节配置：
 
 ### 奖品投递
 
-奖品通过 `PrizeDistributor` 按 `delivery` 类型投递：
+奖品按 `delivery` 类型投递：
 
 | 投递方式 | 说明 |
 |---|---|
-| `DIRECT` | 直接发放物品到玩家背包，背包满时通过 `ItemRewardDispatcher` 转邮件或暂存 |
+| `DIRECT` | 直接发放物品到玩家背包，背包满时转邮件或暂存 |
 | `COMMAND` | 执行 `commands` 列表中的命令（支持 `{player}` / `{uuid}` / `{amount}` / `{item}` 占位符） |
-| `MAIL` | 通过 `MailDispatchable` 能力发送 `mail.presets` 指定的邮件预设 |
+| `MAIL` | 发送 `mail.presets` 指定的邮件预设（需 mail 模块） |
 
-投递失败时，物品序列化为 Base64 入队 `pending_claim` 表，玩家上线或 `/lottery claim` 时重新发放。
+投递失败的奖励自动入队，玩家上线或执行 `/lottery claim` 时重新发放。
 
 ## 相关文档
 
 - [配置](/docs/lottery/configuration) — 主配置、奖池配置、奖品配置详解
 - [命令与占位符](/docs/lottery/commands) — 玩家/管理员命令、权限、PAPI 占位符
-- [联动](/docs/lottery/integration) — 跨模块联动、Capability、数据库表结构
+- [联动](/docs/lottery/integration) — 跨模块联动与数据管理
 - [条件系统](/docs/guide/conditions) — 物品匹配器条件写法
 - [物品来源](/docs/guide/item-sources) — 物品来源（source）支持列表
-- [图标](/docs/guide/icons) — 图标（IconDefinition）配置写法
+- [图标](/docs/guide/icons) — 图标配置写法

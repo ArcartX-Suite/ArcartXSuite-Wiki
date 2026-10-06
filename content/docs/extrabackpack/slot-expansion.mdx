@@ -29,37 +29,30 @@ warehouses:
       amount: 100
 ```
 
-### 解锁数解析
+### 解锁数计算
 
-已解锁格数 = `base-slots` + `extra_slots`（`warehouse_personal` 表字段）：
-
-```java
-long unlocked = definition.baseSlots() + Math.max(0L, record.extraSlots());
-```
+已解锁格数 = `base-slots` + 已购买的额外表格数：
 
 | 条件 | 结果 |
 | --- | --- |
-| 新玩家 | `extra_slots = 0` → 解锁 `base-slots` 格 |
-| 每次购买 | `extra_slots + 1` → 解锁数 +1 |
-| 旧版等级制玩家 | 一次性迁移：`extra_slots += 旧等级容量 - base-slots`，`level` 回落默认值 |
-
-> 容量读取经 `personalUnlockedSlots()`，写入经 `addPersonalExtraSlots()` 原子递增，购买全程在仓库锁内完成，无并发漏洞。
+| 新玩家 | 解锁 `base-slots` 格 |
+| 每次购买 | 解锁数 +1 |
+| 旧版等级制玩家 | 自动迁移为等价格数 |
 
 ## 购买流程
 
-两个入口等价，都走 `WarehouseAccess.purchaseSlot()` → 逐格购买：
+两个入口等价，均为逐格购买：
 
-**背包 UI**：`⚙` 打开设置面板 → 数量输入 + 购买按钮 → `buy_slots` 包（带 action token）→ 循环 `purchaseSlot()` ×N。
-
-**仓库 UI**：左栏「+1 格」按钮（原等级行改造）→ `warehouse_upgrade` 包（带 action token）→ `purchasePersonalSlot()` 一次。
+- **背包 UI**：`⚙` 打开设置面板 → 输入数量 → 购买按钮
+- **仓库 UI**：左栏「+1 格」按钮单次购买一格
 
 ```
 扣款流程：
-1. 校验 unlocked < max-slots，否则提示已满
+1. 校验未达 max-slots 上限，否则提示已满
 2. 校验 slot-price 已配置，否则提示不可购买
-3. withdrawCost() 扣费（失败提示并终止）
-4. addPersonalExtraSlots(+1) 原子递增（失败退款）
-5. 刷新双方视图，发布 axs.extrabackpack.upgraded / axs.warehouse 事件
+3. 扣费（失败提示并终止）
+4. 槽位数 +1（写入失败自动退款）
+5. 刷新界面
 ```
 
 ## 对分类页的影响

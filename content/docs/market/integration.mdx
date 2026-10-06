@@ -21,37 +21,13 @@ Market 模块通过 `EventBusCapability` 发布事件，其他模块可通过 Ev
 
 > `auction_purchased` 在到期结算路径（`BID_WIN`）发布；此时买家通常已离线，`event.player()` 可能为 null，订阅方应以 payload 的 `buyer`/`buyer_uuid` 为准。
 
-### 事件发布机制
-
-事件通过 `EventBusCapability` 发布，由 Market 模块在 `MarketService` 中延迟查找：
-
-```java
-service.setEventBusProvider(() -> getCapability(EventBusCapability.class));
-```
-
-```java
-private void publishEvent(String topic, Player player, Map<String, String> payload) {
-    if (eventBusProvider == null) return;
-    EventBusCapability bus = eventBusProvider.get();
-    if (bus != null) {
-        bus.publish(topic, player, payload);
-    }
-}
-```
-
-<Callout type="info">
-EventBus 为延迟查找（`getCapability`），因模块加载顺序不定。若 EventBus 模块未加载，事件发布为空操作，不影响 Market 正常运行。
-</Callout>
-
 ### 信号派发
 
-Market 还通过 `SignalDispatchable` 派发信号：
+Market 还派发以下信号，可供 QuestGPS、条件触发器等模块监听：
 
 | 信号 | 触发时机 | 变量 |
 |---|---|---|
 | `market_listing_created` | 拍卖行上架成功 | `price`、`currency` |
-
-信号由 `SignalDispatchable` 派发，可供 QuestGPS、条件触发器等模块监听。
 
 ## Capability 注册
 
@@ -77,61 +53,18 @@ if (market != null) {
 }
 ```
 
-### DatabaseMigratable
+### 数据清理与迁移
 
-支持数据库迁移，供本体存储管理模块调用。
+- `/axs purge` 支持清理玩家市场数据
+- `/axs migrate` 支持跨源数据迁移
 
-| 方法 | 说明 |
-|---|---|
-| `moduleId()` | 返回 `market` |
-| `migrateDatabase(target, overwrite)` | 迁移数据到目标存储描述符 |
-| `currentDescriptor()` | 返回当前存储描述符 |
+### Mail 邮件联动
 
-### PlayerDataPurgeable
-
-支持玩家数据清理，供管理工具调用。
-
-| 方法 | 说明 |
-|---|---|
-| `moduleId()` | 返回 `market` |
-| `purgePlayerData(playerUuid)` | 删除指定玩家的所有市场数据 |
-| `purgeAllPlayerData()` | 删除所有玩家的市场数据 |
-
-### MailDispatchable（消费方）
-
-Market 模块消费 `MailDispatchable` Capability，用于到期物品通过邮件退回：
-
-```java
-java.util.function.Supplier<MailDispatchable> mailSupplier = () -> getCapability(MailDispatchable.class);
-```
-
-当 `expired-return-method: mail` 时，到期未售物品和背包满的物品通过邮件系统发放。若 Mail 模块未加载，则降级为待发放队列（玩家上线补发）。
+当 `expired-return-method: mail` 时，到期未售物品和背包满时无法发放的物品通过邮件系统退回。若 Mail 模块未加载，则降级为待发放队列（玩家上线补发）。
 
 ## 跨服同步
 
-### 跨服通道
-
-Market 通过 `CrossServerAPI.openChannel` 注册跨服通道：
-
-```java
-crossServerChannel = crossServer.openChannel(
-    "market",
-    config.crossServer(),
-    delivery -> handleCrossServerMessage(delivery.payload())
-);
-```
-
-### 跨服消息处理
-
-服务端收到跨服消息后，根据前缀分发处理：
-
-| 消息前缀 | 处理逻辑 |
-|---|---|
-| `BID_PLACED:<listingId>:<amount>:<bidder>` | 本地 CAS 更新竞价（`updateListingBidIfHigher`） |
-| `LISTING_CREATED/CANCELLED` | 失效本地 Redis 缓存 |
-| `PSHOP_LISTING_CREATED/SOLD/CANCELLED` | 失效玩家商店 Redis 缓存 |
-| `SHOP_LIMIT_UPDATE:<uuid>:<shopId>:<itemId>:<count>:<ts>:<resetTime>` | 本地 upsert 限购记录 |
-| `DYNAMIC_SHOP_UPDATE:<strategyKey>:<shopId>:<jsonData>` | 本地同步动态商品状态 |
+开启跨服同步后，竞价更新、挂单变更、限购记录与动态商品状态等数据在子服间实时同步。
 
 ### 跨服配置
 
@@ -161,51 +94,11 @@ cross-server:
 跨服同步支持 Redis + BungeeCord/Velocity Forward 双后端。单服无需开启跨服和 Redis。
 </Callout>
 
-## 数据库表结构
+## 数据存储
 
-Market 模块使用 JDBC 仓储（`JdbcMarketRepository`），支持 MySQL 和 SQLite 双模式。表前缀默认为 `axs_market_`。
+Market 模块将拍卖挂单、竞价记录、交易历史、收藏、限购记录、库存、回收统计与待发放队列存储在数据库中（SQLite 或 MySQL）。表前缀默认为 `axs_market_`。
 
-### 拍卖行相关表
-
-| 表名 | 说明 |
-|---|---|
-| `axs_market_listings` | 拍卖上架记录（物品数据、起拍价、当前竞价、卖家、到期时间、分类、拼音 token 等） |
-| `axs_market_bids` | 竞价记录（上架 ID、出价者、出价金额、时间） |
-| `axs_market_history` | 交易历史（上架 ID、卖家、买家、物品、成交价、税费、交易类型、时间） |
-| `axs_market_favorites` | 收藏记录（玩家、上架 ID） |
-| `axs_market_listings_fts` | 全文搜索索引（SQLite FTS5 或 MySQL FULLTEXT+ngram，不可用时降级 LIKE） |
-
-### 系统商店相关表
-
-| 表名 | 说明 |
-|---|---|
-| `axs_market_shop_limits` | 限购记录（玩家、商店 ID、商品 ID、已购数量、重置时间） |
-| `axs_market_shop_global_stock` | 全服共享库存（商店 ID、商品 ID、剩余库存） |
-| `axs_market_shop_player_stock` | 玩家独立库存（玩家、商店 ID、商品 ID、剩余库存） |
-
-### 玩家商店相关表
-
-| 表名 | 说明 |
-|---|---|
-| `axs_market_player_shop_listings` | 玩家商店上架记录 |
-| `axs_market_player_shop_history` | 玩家商店交易历史 |
-
-### 其他表
-
-| 表名 | 说明 |
-|---|---|
-| `axs_market_recycle_stats` | 回收统计（玩家、货币、总金额、总数量） |
-| `axs_market_pending_deliveries` | 待发放队列（玩家、物品数据/货币、原因） |
-| `axs_market_dynamic_shop_state` | 动态商品策略持久化状态 |
-
-### 全文搜索
-
-拍卖行搜索支持全文索引：
-- **SQLite**：使用 FTS5 虚拟表
-- **MySQL**：使用 FULLTEXT 索引 + ngram 分词器
-- **降级**：全文索引不可用时降级到 `LIKE` 查询（配合 `ESCAPE '\\'` 转义特殊字符）
-
-搜索关键字最大长度 100 字符，超长输入会被截断。
+拍卖行搜索使用数据库全文索引，不可用时自动降级为模糊查询。搜索关键字最大长度 100 字符。
 
 ## 与其他模块联动
 
@@ -240,32 +133,21 @@ Market 通过 `CurrencyBridgeAPI` 统一管理货币，支持：
 
 货币定义在宿主 `config.yml` 的 `currencies` 节，模块配置只引用货币 ID。
 
-### ItemSourceRegistry（物品来源）
+### 物品来源
 
-Market 通过 `ItemSourceRegistry` 识别和生成多种物品来源的物品：
+Market 可识别和生成多种物品来源的物品：MythicMobs、NeigeItems、Overture、MMOItems。配置见 [物品来源](/docs/guide/item-sources)。
 
-| 来源 | 方法 | 用途 |
-|---|---|---|
-| MythicMobs | `generateMythicItem` | 系统商店/回收表生成 MythicMobs 物品 |
-| NeigeItems | `generateNeigeItem` | 系统商店/回收表生成 NeigeItems 物品 |
-| Overture | `generateOvertureItem` | 系统商店/回收表生成 Overture 物品（需玩家上下文） |
-| MMOItems | `generateMmoItem` | 系统商店/回收表生成 MMOItems 物品 |
+### 物品发放降级链
 
-拍卖行和玩家商店上架的物品使用 `AuctionItemSerializer` 序列化：
-- Overture 物品优先使用原生 JSON 序列化（前缀 `OVERTURE:`）
-- 其余物品使用 Bukkit 原生序列化（Base64 编码）
-
-### ItemRewardDispatcher（物品发放）
-
-Market 通过 `ItemRewardDispatcher` 统一发放物品，发放优先级：
+物品发放按以下优先级执行：
 1. 放入玩家背包
 2. 背包满 → 转邮件（需 Mail 模块）
 3. 邮件不可用 → 掉落在玩家脚下
 4. 以上均失败 → 入待发放队列
 
-### ContentModerator（内容审核）
+### 内容审核
 
-Market 通过 `ContentModerator` 对拍卖行/玩家商店的留言进行敏感词过滤。若 ContentModerator 不可用，使用 `NoopContentModerator`（不拦截）。
+拍卖行/玩家商店的留言经过敏感词过滤。审核组件不可用时不过滤。
 
 ### LuckPerms（权限查询）
 

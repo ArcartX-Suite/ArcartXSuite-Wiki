@@ -7,15 +7,7 @@ description: Suite ARIA 脚本桥接 API，支持在配置中使用 Aria 脚本�
 
 ## 概述
 
-`AriaBridge` 是 Suite 与 ArcartX/Aria 脚本引擎的桥接层。通过反射从 `BlinkAriaHost`、`ArcartX`、`Aria` 插件中探测 Aria 引擎类。若未找到则 `available() == false`，相关条件/动作自动降级。
-
-Aria 为可选依赖，运行时从以下候选插件中按顺序探测引擎类：
-
-```
-BlinkAriaHost → ArcartX → Aria
-```
-
-探测逻辑：遍历候选插件，尝试在其 ClassLoader 中加载 `priv.seventeen.artist.aria.Aria` 类及 `eval` 方法，找到则初始化桥接。
+`AriaBridge` 是 Suite 与 ArcartX/Aria 脚本引擎的桥接层。Aria 为可选依赖，支持 `BlinkAriaHost`、`ArcartX`、`Aria` 三种来源；若均未安装则 `available() == false`，相关条件/动作自动降级。
 
 ## 核心接口
 
@@ -53,7 +45,7 @@ public interface AriaBridge {
 
 ## 绑定变量映射
 
-Java bindings 注入到 Aria `global` 命名空间，脚本中需用 `global.<name>` 访问。`DefaultAriaBridge` 按 Java 类型映射到 ARIA 原生 `IValue`：
+Java bindings 注入到 Aria `global` 命名空间，脚本中需用 `global.<name>` 访问。Java 类型按以下规则映射到 Aria 值：
 
 | Java 类型 | Aria 类型 | 说明 |
 |-----------|-----------|------|
@@ -63,11 +55,9 @@ Java bindings 注入到 Aria `global` 命名空间，脚本中需用 `global.<na
 | `Boolean` | `BooleanValue` | 布尔类型 |
 | 其它 | `ObjectValue(JavaObjectMirror)` | 对象镜像，脚本可通过 `.` / `[]` 访问成员 |
 
-> 旧实现统一用 `ObjectValue(JavaObjectMirror)` 包装所有类型，导致 `Number` 绑定值在 ARIA 数值表达式中被当作不可运算对象（`canMath()` 默认 false），乘法/加法结果归零。新实现按类型映射到原生 `IValue`，确保数值/字符串/布尔能正确参与 ARIA 运算。
-
 ### 默认注入的绑定变量
 
-`ScriptBindingsFactory` 为 Aria/JS 脚本构造变量绑定：
+脚本中默认注入以下绑定变量：
 
 | 变量名 | Java 类型 | 说明 |
 |--------|----------|------|
@@ -76,7 +66,7 @@ Java bindings 注入到 Aria `global` 命名空间，脚本中需用 `global.<na
 
 ## AriaPlayer 玩家门面对象
 
-`AriaPlayer` 是 Suite 自有的 Aria/JS 玩家门面对象，脚本中以裸名 `player` 访问。所有方法均为"单层调用"，返回原始值或执行副作用，避免 Aria 链式调用返回对象不自动回包的限制。
+`AriaPlayer` 是脚本中访问玩家的对象，脚本中以 `player` 使用。所有方法均为单层调用；如需链式调用，使用 `player.bukkit()` 获取原生 Bukkit Player。
 
 ### 基本信息
 
@@ -204,7 +194,7 @@ actions:
       global.player.console('give ' + global.player.getName() + ' diamond 1')
 ```
 
-> 条件求值时，`AriaScriptExecutor` 会通过 `ensureReturn` 包装脚本确保有返回值；动作执行时直接 `eval` 返回结果。
+> 条件求值时会自动补 `return` 确保有返回值；动作执行时直接返回结果。
 
 ## 降级处理
 
@@ -242,22 +232,9 @@ if (ariaBridge != null && ariaBridge.available()) {
 }
 ```
 
-### UnavailableAriaBridge
-
-当 `AriaBridge` 为 null 时，`DefaultScriptConditionEvaluator` 会使用 `UnavailableAriaBridge` 占位：
-
-```java
-private static final class UnavailableAriaBridge implements AriaBridge {
-    @Override public boolean available() { return false; }
-    @Override public String version() { return null; }
-    @Override public Object eval(String code, Map<String, Object> bindings) { return null; }
-}
-```
-
 ## 注意事项
 
 - 绑定变量注入到 `global.` 命名空间，脚本中必须用 `global.player` 而非裸名 `player` 访问（UI YAML 的 `action` / `packetHandler` 中除外，UI 引擎有自己的变量作用域）。
 - `AriaPlayer` 所有方法均为单层调用，避免 Aria 链式调用返回对象不自动回包的限制。如需链式调用，使用 `player.bukkit()` 获取原生 Bukkit Player。
-- `eval` 方法通过反射调用 Aria 引擎，每次调用创建新的 `Context`，绑定变量在本次调用内有效。
-- `unwrap` 方法将 Aria `IValue` 结果转回 Java 类型：`NumberValue` → `long`/`double`、`StringValue` → `String`、`BooleanValue` → `boolean`、`NoneValue` → `null`。
-- ARIA 条件求值前会先经过 `applyPlaceholders` 预处理占位符，因此脚本中可嵌入 `%placeholder%` 语法。
+- 每次 `eval` 调用相互独立，绑定变量仅在该次调用内有效。
+- ARIA 条件求值前会先解析占位符，因此脚本中可嵌入 `%placeholder%` 语法。

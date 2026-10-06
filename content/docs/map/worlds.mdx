@@ -15,7 +15,7 @@ Map 模块的世界配置与地图画面完全解耦：**地图地形由 ArcartX
 - 下发已点亮区域（战争迷雾数据）
 - 下发标点列表（锚点/路径点/标记点/第三方插件注册路径点）与详情数据
 
-mod 侧负责：区块地形扫描、地图纹理生成、缩放/平移/形状交互、标点与玩家箭头绘制、探索缓存落盘。
+mod 侧负责：区块地形扫描、地图纹理生成、缩放/平移/形状交互、标点与玩家箭头绘制、探索缓存。
 
 | 场景 | UI | 说明 |
 |---|---|---|
@@ -80,16 +80,14 @@ anchors:
 
 ### 世界选择逻辑
 
-当玩家打开地图或 HUD 时，服务端按以下优先级确定初始世界：
+当玩家打开地图或 HUD 时，按以下优先级确定初始世界：
 
-| 优先级 | 条件 | 说明 |
-|---|---|---|
-| 1 | 玩家请求指定世界 ID | 若该世界已配置则使用，否则返回空 |
-| 2 | 玩家视图状态中已选中的世界 | `MapPlayerViewState.selectedWorldId` 非空且已配置 |
-| 3 | 玩家当前所在的世界 | `player.getWorld().getName()` 对应的世界 ID 已配置 |
-| 4 | 配置中的第一个世界 | `worlds` 映射的第一个条目 |
+1. 玩家请求指定的世界 ID（已配置时使用）
+2. 玩家在地图中已选中的世界
+3. 玩家当前所在的世界（已配置时）
+4. 配置中的第一个世界
 
-> 若以上条件均不满足，地图菜单返回「当前世界未配置地图，且没有可用的默认地图」，HUD 返回「当前没有可显示的小地图世界」。
+> 均不满足时，地图菜单提示「当前世界未配置地图，且没有可用的默认地图」，HUD 提示「当前没有可显示的小地图世界」。
 
 ### 旧格式兼容
 
@@ -125,47 +123,14 @@ anchors:
     light-radius: 100
 ```
 
-服务端把已解锁锚点的点亮区域并集通过 HUD 快照的 `litRegions` 字段下发；UI 调用 `mapRenderer.setLitRegions(worldId, regions)` 传给 mod。不配置任何点亮字段 = 该锚点不参与点亮。
+服务端把已解锁锚点的点亮区域并集下发给客户端。不配置任何点亮字段 = 该锚点不参与点亮。
 
-## 渲染流程
+## 客户端渲染
 
-### 全屏地图渲染
-
-```
-MapService.syncMenu()
-  └→ MapSnapshotBuilder.build()
-       └→ 菜单快照（世界列表 + 锚点/路径点/标记点/第三方插件注册路径点 + 点亮区域 + 详情）
-  └→ PacketBridgeAPI.sendPacket(menuUiId, "init"/"update", payload)
-       └→ 客户端 UI packetHandler 接收数据
-            └→ axsmap.getMapRenderer() 获取 MapRenderer（懒加载缓存）
-            └→ setWorldId(worldId) / setWorldDimension(worldId, dimension)
-            └→ setLitRegions(worldId, litRegions)
-            └→ tick 每帧 setRegion(x, y, w, h, scale) 传地图渲染区屏幕坐标
-            └→ syncMarkers() → clearMarkers() + addMarker(...) 同步标点
-```
-
-### 小地图 HUD 渲染
-
-```
-MapService.syncHud()
-  └→ HudSnapshot（visible + worldId + dimension + litRegions + playerYaw + trackingText）
-  └→ PacketBridgeAPI.sendPacket(hudUiId, "init"/"update", payload)
-       └→ 客户端 UI packetHandler 接收数据
-            └→ axsmap.getMapRenderer() 获取 MapRenderer
-            └→ setWorldId / setWorldDimension / setLitRegions
-            └→ tick 每帧 setHudAnchor(anchorX, anchorY, scale) 传小地图锚点（按所选四角位置计算）
-                 └→ mod 按内部 hudSize 状态计算渲染区域，绘制圆形/方形小地图
-```
-
-### mod 渲染细节
-
-| 环节 | 说明 |
-|---|---|
-| 地形扫描 | mod 监听客户端区块加载（`ClientChunkEvents.CHUNK_LOAD`），把区块列标记为待扫描，避免已探索区域显示黑色空洞 |
-| 缓存落盘 | 断开连接时把各维度扫描结果写入 `arcartsuitemap/<维度>.dat`，下次进服跨世界查看大地图可直接显示已探索地形 |
-| 圆形遮罩 | 小地图圆形遮罩在 mod CPU 端生成视图纹理时应用，含 1px 抗锯齿与圆形描边 |
-| 世界名/坐标 | 由 `map_hud.yml` 的 Text 控件渲染：世界名走 `Placeholder.parse("%multiverse-core_alias%")`，坐标用 `Player.getPosX/Y/Z` 本地实时取 |
-| 看门狗 | HUD 停止调用 `setHudAnchor` 超过约 150ms 时 mod 自动停用渲染；UI `close` 时也主动调 `closeHud()` |
+- **地形扫描**：mod 扫描客户端区块实时生成地图纹理，已探索地形在断开连接时缓存，下次进服可直接显示
+- **标点同步**：锚点、路径点、标记点和第三方插件注册路径点以世界坐标下发，mod 根据缩放和视野自行绘制
+- **小地图**：按玩家选择的四角位置渲染，支持圆形/方形遮罩
+- **看门狗**：HUD 数据停止更新约 150ms 后 mod 自动停用渲染
 
 ### 小地图客户端按键
 
@@ -178,7 +143,7 @@ MapService.syncHud()
 | `N` | 洞穴切片深度循环（16 / 30 / 48 / 64） |
 | `B` | 雷达名称字号循环（小 / 中 / 大） |
 
-以下按键由 `MapInputHandler` 每帧轮询 GLFW 物理键，仅在小地图 HUD 激活且未打开任何界面时生效，不可改键：
+以下按键仅在小地图 HUD 激活且未打开任何界面时生效，不可改键：
 
 | 按键 | 作用 |
 |---|---|
@@ -188,7 +153,7 @@ MapService.syncHud()
 
 ### 大地图交互
 
-`MapInputHandler` 处理全屏地图的鼠标交互：滚轮缩放、左键拖拽平移、单击放置标记点（Pin）、右键复位视野。
+全屏地图的鼠标交互：滚轮缩放、左键拖拽平移、单击放置标记点（Pin）、右键复位视野。
 
 地图菜单左下角还提供三个功能按钮（需安装客户端 mod）：
 
@@ -222,37 +187,9 @@ MapService.syncHud()
 
 以上全部偏好（雷达开关、名称标签、逐类显隐、名称字号、洞穴深度、小地图缩放/形状/位置/尺寸）双端留存：
 
-- **客户端**：写入 `<游戏目录>/arcartxsuitemap/options.properties`（旧目录 `arcartxsuipmap` 的同名文件自动迁移），改动即落盘
-- **服务端**：每次改动经 `axsmap:setting` 插件通道上报单项 `key=value`，按玩家写入 `AXS_map_settings` 表；进服时服务端预载缓存并随 HUD `init` 包下发 `settings` 字典，UI 调 `applySetting` 逐项套回 mod（不回环上报）
-
-服务端只接收白名单键（`radar`、`radarNames`、`radarPlayers`、`radarHostile`、`radarPassive`、`radarNameScale`、`hudZoom`、`caveDepth`、`hudShape`、`hudPosition`、`hudSize`），单值限长 64 字符并要求 `arcartxsuite.map.use` 权限；换设备或重装客户端后偏好仍从服务端恢复。
-
-## 标点同步
-
-地图菜单的锚点、路径点、标记点和第三方插件注册路径点通过 `syncMarkers()` 同步到客户端 mod：
-
-```
-packetHandler init/update
-  └→ syncMarkers()
-       └→ MapRenderer.clearMarkers()
-       └→ 遍历 anchorRows        → addMarker(id, 'anchor',   displayName, x, z, selected, tracked, unlocked)
-       └→ 遍历 waypointRows      → addMarker(id, 'waypoint', name,        x, z, selected, tracked, true)
-       └→ 遍历 externalTargetRows→ addMarker(id, 'external', name,        x, z, selected, tracked, true)
-       └→ 遍历 pinRows           → addMarker(id, 'pin',      name,        x, z, selected, false,   true)
-```
-
-`addMarker()` 参数：`id` / `type`（`anchor`/`waypoint`/`external`/`pin`）/ `name` / 世界坐标 `x,z` / `selected` / `tracked` / `unlocked`（仅锚点有意义）。
-
-> 标点使用世界坐标，mod 根据当前缩放和视野中心自行计算标点在屏幕上的位置。
+- **客户端**：写入 `<游戏目录>/arcartxsuitemap/options.properties`，改动即保存
+- **服务端**：按玩家同步存储，进服时自动恢复——换设备或重装客户端后偏好仍保留
 
 ## 多世界切换
 
-1. 玩家在地图菜单点击世界列表项，UI 发送 `open_world` Packet
-2. `MapService.openWorld()` 验证世界是否已配置
-3. 更新 `MapPlayerViewState.selectedWorldId`，同时清除锚点/路径点/标记点/第三方插件注册路径点的选中状态
-4. 调用 `sync()` 重新构建快照并推送 `update` Packet
-5. UI 调用 `setWorldId()` + `setWorldDimension()` 通知 mod 切换到对应维度渲染
-
-### 世界列表排序
-
-世界列表按 `worlds/` 目录文件名加载顺序排列（文件名字母序）。菜单 UI 使用水平滚动列表展示世界项，每项显示世界名称和选中状态。
+玩家在地图菜单点击世界列表项即可切换世界视图，标点选中状态自动清除。世界列表按 `worlds/` 目录文件名字母序排列，每项显示世界名称和选中状态。

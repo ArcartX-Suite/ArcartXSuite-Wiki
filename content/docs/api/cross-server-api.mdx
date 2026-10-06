@@ -5,7 +5,7 @@ description: CrossServerAPI、CrossServerChannel、CrossServerEnvelope、CrossSe
 
 # 跨服 API
 
-Suite 提供统一跨服传输 API（Redis + BungeeCord Forward 双后端、统一信封与 HMAC 签名）。模块通过 `ModuleContext.crossServer()` 获取实例，无需自行连接 Redis 或注册 BungeeCord 频道。
+Suite 提供统一跨服传输 API（Redis + BungeeCord Forward 双后端、统一信封）。模块通过 `ModuleContext.crossServer()` 获取实例，无需自行连接 Redis 或注册 BungeeCord 频道。
 
 ## CrossServerAPI
 
@@ -63,7 +63,7 @@ public interface CrossServerChannel extends AutoCloseable {
 |------|------|
 | `moduleId()` | 模块 id |
 | `isActive()` | 至少一种后端（Redis / Proxy）已成功启动 |
-| `publish(payload)` | 发布跨服消息；宿主负责封装信封、签名与双后端发送 |
+| `publish(payload)` | 发布跨服消息；宿主负责封装信封与双后端发送 |
 | `close()` | 关闭通道 |
 
 ### 使用示例
@@ -88,7 +88,7 @@ channel.close();
 
 ## CrossServerChannelConfig
 
-模块级跨服通道配置。连接参数与签名密钥由宿主 `config.yml` 统一管理。
+模块级跨服通道配置。连接参数由宿主 `config.yml` 统一管理。
 
 ```java
 public record CrossServerChannelConfig(
@@ -132,8 +132,7 @@ public record CrossServerEnvelope(
     String nodeId,      // 来源子服节点 id
     String messageId,   // 消息唯一 id（UUID）
     long timestamp,     // 时间戳
-    String payload,     // 模块自定义 payload 字符串
-    String signature    // HMAC 签名
+    String payload      // 模块自定义 payload 字符串
 ) {
     public static final int PROTOCOL_VERSION = 1;
 }
@@ -141,7 +140,7 @@ public record CrossServerEnvelope(
 
 ## CrossServerDelivery
 
-经宿主跨服层校验、去重后投递给模块的消息。
+经宿主跨服层去重后投递给模块的消息。
 
 ```java
 public record CrossServerDelivery(
@@ -204,5 +203,5 @@ public class MyModule extends AbstractAXSModule {
 
 - 入站回调已在主线程调度，无需自行切换线程
 - payload 为字符串类型，模块可自行约定 JSON / YAML 等格式
-- 宿主负责 HMAC 签名与去重，模块无需关心消息伪造或重复投递
+- 宿主负责消息去重，模块无需关心重复投递
 - `close()` 应在模块 `stopService()` 中调用，避免通道泄漏

@@ -249,71 +249,21 @@ other:
 
 ### 快捷栏存入
 
-点击 UI 底部快捷栏区域的物品，触发 `store` action，将快捷栏指定槽位（0-8）的物品存入额外背包：
-
-| 步骤 | 说明 |
-| --- | --- |
-| 1. 读取快捷栏物品 | `inventory.getItem(hotbarSlot)` |
-| 2. 匹配分类 | `matchCategory(stack)` 确定目标分类页 |
-| 3. 存入分类页 | 先合并相同物品槽位，再写入空闲槽位 |
-| 4. 更新快捷栏 | 剩余物品留在快捷栏，或设为 `null` |
-| 5. 持久化 | `persist(uuid)` 保存到数据库 |
+点击 UI 底部快捷栏区域的物品，将快捷栏指定槽位（0-8）的物品存入额外背包：先匹配合适的分类页，然后先合并相同物品堆叠、再写入空闲槽位。
 
 > 快捷栏存入不使用兜底分类回退逻辑。若目标分类页已满，剩余物品留在快捷栏并提示 `该分类页已满`。
 
 ### 原版标签页存入
 
-在原版背包标签页右键物品，选择"存入"，触发 `vanilla_store` action：
+在原版背包标签页右键物品，选择"存入"，物品按分类匹配后存入对应分类页。目标分类页放不下时尝试兜底分类页；兜底分类也放不下时提示 `无可用额外槽位`。
 
-| 步骤 | 说明 |
-| --- | --- |
-| 1. 读取原版背包指定槽位物品 | `inventory.getItem(slot)` |
-| 2. 匹配分类并存入（含兜底回退） | `storeIntoBackpackWithFallback()` |
-| 3. 检查物品是否变化 | 重新读取槽位，确认物品未被修改 |
-| 4. 更新原版槽位 | 剩余物品设回原槽位 |
-| 5. 持久化与刷新 | `persist(uuid)` + `refresh(player)` |
+## 存入规则
 
-> 原版标签页存入使用兜底回退逻辑：目标分类页放不下时，尝试兜底分类页。若兜底分类也放不下，提示 `无可用额外槽位`。
+物品存入分类页时按以下规则处理：
 
-## 物品存入算法
-
-`storeIntoPage()` 方法负责将物品存入指定分类页的槽位数组，分两个阶段：
-
-### 阶段一：合并到相同物品
-
-遍历已有槽位，找到 `isSimilar()` 的物品堆叠，在 `maxStackSize` 限制内合并：
-
-```java
-for (int slot = 0; slot < page.length && working.getAmount() > 0; slot++) {
-    ItemStack existing = page[slot];
-    if (existing != null && existing.isSimilar(working)) {
-        int space = existing.getMaxStackSize() - existing.getAmount();
-        if (space > 0) {
-            int move = Math.min(space, working.getAmount());
-            existing.setAmount(existing.getAmount() + move);
-            working.setAmount(working.getAmount() - move);
-        }
-    }
-}
-```
-
-### 阶段二：写入空闲槽位
-
-遍历槽位，将剩余物品写入空闲槽位（`null` 或 air）：
-
-```java
-for (int slot = 0; slot < page.length && working.getAmount() > 0; slot++) {
-    if (page[slot] == null || page[slot].getType().isAir()) {
-        int move = Math.min(working.getMaxStackSize(), working.getAmount());
-        ItemStack placed = working.clone();
-        placed.setAmount(move);
-        page[slot] = placed;
-        working.setAmount(working.getAmount() - move);
-    }
-}
-```
-
-> 返回值为剩余未存入的物品（`amount > 0` 时非 `null`），由调用方决定后续处理（兜底分类页、返回原版背包、掉落地面）。
+1. 优先合并到已有的相同物品堆叠（不超过最大堆叠数）
+2. 剩余部分写入空闲槽位（按槽位顺序填充）
+3. 放不下的部分按场景处理：快捷栏存入留在快捷栏；原版存入尝试兜底分类页
 
 ## 配置示例
 

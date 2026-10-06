@@ -119,7 +119,7 @@ cmi exp Steve add 1.50*40/4+40
 
 ### 物品奖励配置
 
-在 `reward.item-rewards` 节下按档位定义物品列表，通过 `ItemSourceRegistry` 生成物品直接发放。物品来源详见 [物品库匹配](/docs/guide/item-sources) 指南。
+在 `reward.item-rewards` 节下按档位定义物品列表，通过统一物品来源生成并发放。物品来源详见 [物品库匹配](/docs/guide/item-sources) 指南。
 
 ```yaml
 reward:
@@ -191,7 +191,7 @@ Mail 模块不可用 → 溢出物品掉落地面
 | `overflowMailBody` | `"你的背包已满，挂机奖励物品通过邮件补发。"` | 溢出邮件正文 |
 | `overflowMailSenderName` | `"挂机奖励"` | 溢出邮件发件人名 |
 
-> `ItemSourceRegistry` 或 `ItemRewardDispatcher` 未注入时，物品奖励跳过并打印警告，不影响命令奖励的发放。
+> 物品来源/发放能力不可用时，物品奖励跳过并打印警告，不影响命令奖励的发放。
 
 ## 倍率系统
 

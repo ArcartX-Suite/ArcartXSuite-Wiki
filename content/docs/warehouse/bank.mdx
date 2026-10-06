@@ -280,34 +280,6 @@ UI 中产品的利率文本根据利率档位数量动态生成：
 
 同时发送 `tiers` 数组（包含每档的 min/max/rate），供 UI 端根据输入金额实时计算预期收益。
 
-## 数据库表结构
-
-### warehouse_bank_balances
-
-| 列名 | 类型 | 说明 |
-| --- | --- | --- |
-| `player_uuid` | `VARCHAR(36)` | 玩家 UUID |
-| `currency_id` | `VARCHAR(64)` | 货币 ID |
-| `balance` | `VARCHAR(64)` | 余额（`BigDecimal.toPlainString()` 存储） |
-| `updated_at` | `BIGINT` | 更新时间戳 |
-
-主键为 `(player_uuid, currency_id)`。余额以字符串存储以保留 `BigDecimal` 精度。
-
-### warehouse_fixed_deposits
-
-| 列名 | 类型 | 说明 |
-| --- | --- | --- |
-| `id` | `VARCHAR(36)` | 存款 UUID（主键） |
-| `player_uuid` | `VARCHAR(36)` | 玩家 UUID |
-| `product_id` | `VARCHAR(64)` | 产品 ID |
-| `currency_id` | `VARCHAR(64)` | 货币 ID |
-| `principal` | `VARCHAR(64)` | 本金 |
-| `interest_rate` | `VARCHAR(64)` | 利率 |
-| `created_at` | `BIGINT` | 创建时间戳 |
-| `matures_at` | `BIGINT` | 到期时间戳 |
-| `claimed` | `BOOLEAN` | 是否已领取 |
-| `claimed_at` | `BIGINT` | 领取时间戳 |
-
 ## 管理员操作
 
 管理员可通过 `/axs warehouse bank` 命令调整玩家银行余额：

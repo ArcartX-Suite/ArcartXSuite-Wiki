@@ -102,27 +102,12 @@ public interface ExtraBackpackAccess {
 | `itemStack` | `ItemStack` | 取出的物品（失败时为 `null`） |
 | `message` | string | 提示消息 |
 
-> `deposit` 与 `withdraw` 方法内部使用玩家级互斥锁（`playerLock`），确保同一玩家的操作串行执行，避免并发竞态。
+> `deposit` 与 `withdraw` 为线程安全操作，同一玩家的调用串行执行。
 
-### PlayerDataPurgeable
+### 数据清理与迁移
 
-支持 `/axs purge` 按玩家清除额外背包数据。
-
-| 方法 | 说明 |
-| --- | --- |
-| `purgePlayerData(UUID)` | 删除指定玩家的容量记录与槽位记录，返回删除行数 |
-| `purgeAllPlayerData()` | 删除全部玩家的数据，返回删除行数 |
-
-涉及的表：`extra_backpack_capacity`、`extra_backpack_slots`。
-
-### DatabaseMigratable
-
-支持 `/axs migrate` 跨数据库源迁移额外背包数据。
-
-| 方法 | 说明 |
-| --- | --- |
-| `migrateDatabase(StorageDescriptor, boolean)` | 将数据迁移到目标数据源，`overwrite` 控制是否覆盖已有数据 |
-| `currentDescriptor()` | 返回当前存储描述符 |
+- `/axs purge` 按玩家或全量清除额外背包数据
+- `/axs migrate` 支持跨数据库源迁移
 
 ## 跨服同步
 
@@ -136,56 +121,21 @@ ExtraBackpack 模块本身不实现跨服同步逻辑。当使用共享存储模
 
 > 内存态背包在玩家退出时持久化到数据库。玩家在子服 A 退出后，在子服 B 上线时会从数据库重新加载，实现跨服数据同步。
 
-## 数据库表结构
+## 数据存储
 
-### extra_backpack_capacity
-
-扩展背包容量表，记录每位玩家在每个分类下的当前容量。
-
-| 列名 | 类型 | 说明 |
-| --- | --- | --- |
-| `player_uuid` | VARCHAR(36) | 玩家 UUID |
-| `category_id` | VARCHAR(64) | 分类标识 |
-| `capacity` | BIGINT | 当前容量（槽位数） |
-| `updated_at` | BIGINT | 更新时间戳（毫秒） |
-
-主键：`(player_uuid, category_id)`
-
-写入使用 upsert 语法：SQLite `ON CONFLICT DO UPDATE` / MySQL `ON DUPLICATE KEY UPDATE`。
-
-### extra_backpack_slots
-
-扩展背包槽位物品表，记录每位玩家在每个分类下各槽位的物品数据。
-
-| 列名 | 类型 | 说明 |
-| --- | --- | --- |
-| `player_uuid` | VARCHAR(36) | 玩家 UUID |
-| `category_id` | VARCHAR(64) | 分类标识 |
-| `slot` | INTEGER | 槽位序号（从 0 开始） |
-| `item_data` | LONGTEXT | Base64 序列化物品数据 |
-| `updated_at` | BIGINT | 更新时间戳（毫秒） |
-
-主键：`(player_uuid, category_id, slot)`。索引：`idx_extra_backpack_slots_player (player_uuid, category_id, slot)`。
-
-保存策略：以事务方式先删除该玩家全部槽位记录，再批量插入新记录。失败时回滚。
+额外背包数据（分类容量与槽位物品）存储在数据库中（SQLite 或 MySQL）。共享存储模式下表名带统一前缀，自建模式使用 `storage.mysql.table-prefix`。
 
 ## 与其他模块联动
 
-| 联动模块 | 机制 | 说明 |
-| --- | --- | --- |
-| Warehouse | `ExtraBackpackAccess` Capability | Warehouse 可选获取额外背包访问能力，用于额外槽位背包物品交互（`softdepends: [warehouse]`） |
-| 核心 | `SecondaryPasswordAccess` Capability | ExtraBackpack 获取核心二级密码服务，销毁原版背包物品时验证二级密码 |
-| 核心 | `CurrencyBridgeAPI` | 扩容扣费依赖核心货币桥接，支持 Vault/PlayerPoints/XConomy 等 |
-| 核心 | `PacketBridgeAPI` | UI 注册、打开、关闭、Packet 收发均通过核心 PacketBridge |
-| 核心 | `ItemBridgeAPI` | 物品序列化为 JSON 格式用于 UI 图标渲染 |
-| 核心 | `PacketGuardAPI` | 客户端包安全校验 |
-| 核心 | `VanillaItemNameBridge` | 原版物品材质中文名翻译，用于 `material` 路径匹配 |
-| 核心 | `PlayerDataPurgeable` | 支持 `/axs purge` 清除玩家额外背包数据 |
-| 核心 | `DatabaseMigratable` | 支持 `/axs migrate` 跨数据库源迁移 |
+| 联动模块 | 说明 |
+| --- | --- |
+| Warehouse | Warehouse 可获取 `ExtraBackpackAccess` 能力，实现额外槽位背包物品交互 |
+| 核心二级密码 | 销毁原版背包物品时验证二级密码 |
+| 货币桥接 | 扩容扣费支持 Vault/PlayerPoints/XConomy 等 |
 
 ### 与核心二级密码联动
 
-ExtraBackpack 的二级密码由核心统一管理（`SecondaryPasswordAccess` Capability），不由模块自行存储密码。销毁原版背包物品的流程：
+ExtraBackpack 的二级密码由核心统一管理，不由模块自行存储密码。销毁原版背包物品的流程：
 
 1. 玩家在原版标签页右键物品，选择"销毁"
 2. 弹出销毁确认框，点击"确认"
@@ -200,7 +150,7 @@ ExtraBackpack 的二级密码由核心统一管理（`SecondaryPasswordAccess` C
 
 ### 与 Warehouse 模块联动
 
-ExtraBackpack 在 `module.yml` 中声明 `softdepends: [warehouse]`，表示 Warehouse 模块可选依赖 ExtraBackpack。当两个模块同时启用时：
+当两个模块同时启用时：
 
 - Warehouse 可通过 `getCapability(ExtraBackpackAccess.class)` 获取额外背包访问接口
 - Warehouse 的自动入库功能可将物品存入额外背包（按分类匹配规则）

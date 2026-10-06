@@ -119,74 +119,9 @@ cross-server:
 | `task-progress` | 任务实例的当前进度和完成状态 |
 | `claimed-rewards` | 已领取的奖励 ID 集合 |
 
-## 数据库表结构
+## 数据存储
 
-BattlePass 使用 5 张数据表，表名前缀为 `bp_`（共享存储模式）或配置的 `table-prefix`（自建存储模式）。
-
-### bp_player_progress 玩家进度表
-
-| 列名 | 类型 | 说明 |
-|---|---|---|
-| `player_uuid` | TEXT / VARCHAR(36) | 玩家 UUID |
-| `season_id` | TEXT / VARCHAR(64) | 赛季 ID |
-| `current_level` | INTEGER / INT | 当前等级（默认 1） |
-| `current_xp` | INTEGER / INT | 当前等级内经验（默认 0） |
-| `pass_tier` | TEXT / VARCHAR(16) | 档位（`FREE` / `PREMIUM` / `DELUXE`，默认 `FREE`） |
-| `unlocked_premium` | INTEGER / TINYINT(1) | 是否解锁高级（兼容字段，默认 0） |
-| `last_daily_reset_date` | TEXT / DATE | 上次每日重置日期 |
-| `last_weekly_reset_date` | TEXT / DATE | 上次每周重置日期 |
-| `current_week_number` | INTEGER / INT | 当前周序号（默认 1） |
-
-主键：`(player_uuid, season_id)`
-
-### bp_task_progress 任务进度表
-
-| 列名 | 类型 | 说明 |
-|---|---|---|
-| `player_uuid` | TEXT / VARCHAR(36) | 玩家 UUID |
-| `season_id` | TEXT / VARCHAR(64) | 赛季 ID |
-| `task_id` | TEXT / VARCHAR(64) | 任务模板 ID |
-| `completed_count` | INTEGER / INT | 完成次数（默认 0） |
-| `last_update` | TEXT / TIMESTAMP | 最后更新时间 |
-
-主键：`(player_uuid, season_id, task_id)`
-
-### bp_claimed_rewards 奖励领取记录表
-
-| 列名 | 类型 | 说明 |
-|---|---|---|
-| `player_uuid` | TEXT / VARCHAR(36) | 玩家 UUID |
-| `season_id` | TEXT / VARCHAR(64) | 赛季 ID |
-| `reward_id` | TEXT / VARCHAR(64) | 奖励 ID |
-| `claimed_at` | TEXT / TIMESTAMP | 领取时间 |
-
-主键：`(player_uuid, season_id, reward_id)`
-
-### bp_player_tasks 玩家任务实例表
-
-| 列名 | 类型 | 说明 |
-|---|---|---|
-| `player_uuid` | TEXT / VARCHAR(36) | 玩家 UUID |
-| `season_id` | TEXT / VARCHAR(64) | 赛季 ID |
-| `instance_id` | TEXT / VARCHAR(128) | 实例 ID（UUID + 分类 + 模板 ID + 日期） |
-| `template_id` | TEXT / VARCHAR(64) | 任务模板 ID |
-| `category` | TEXT / VARCHAR(16) | 任务分类（`DAILY` / `WEEKLY` / `SEASON`） |
-| `target_count` | INTEGER / INT | 完成所需次数（默认 1） |
-| `current_progress` | INTEGER / INT | 当前进度（默认 0） |
-| `completed` | INTEGER / TINYINT(1) | 是否完成（默认 0） |
-| `assigned_date` | TEXT / DATE | 分配日期 |
-| `week_number` | INTEGER / INT | 所属周序号（默认 0） |
-
-主键：`(player_uuid, season_id, instance_id)`
-
-### bp_season_settlement 赛季结算记录表
-
-| 列名 | 类型 | 说明 |
-|---|---|---|
-| `season_id` | TEXT / VARCHAR(64) | 赛季 ID |
-| `settled_at` | TEXT / TIMESTAMP | 结算时间 |
-
-主键：`season_id`
+玩家进度、任务进度与奖励领取记录存储在数据库中（SQLite 或 MySQL，共享/自建存储模式）。日常维护请使用 `/axs purge`、`/axs migrate` 命令。
 
 ## 与其他模块联动示例
 
@@ -269,7 +204,7 @@ daily-quest-specific:
 
 ### MythicMobs 联动
 
-BattlePass 内置 MythicMobs 事件监听器（`MythicMobEventListener`），在 MythicMobs / MythicBukkit 插件安装时自动注册。payload 包含 `mythicMobId` 字段，可通过 condition 精确匹配特定 MythicMobs 怪物：
+BattlePass 内置 MythicMobs 事件监听，在 MythicMobs / MythicBukkit 插件安装时自动注册。payload 包含 `mythicMobId` 字段，可通过 condition 精确匹配特定 MythicMobs 怪物：
 
 ```yaml
 daily-mythic-kill-specific:

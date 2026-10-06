@@ -15,7 +15,6 @@ Market 是 Suite 的核心经济交易模块，提供 **拍卖行**、**玩家�
 |---|---|
 | 模块 ID | `market` |
 | 版本 | 1.4.4 |
-| 主类 | `xuanmo.arcartxsuite.market.MarketModule` |
 | 配置文件 | `config.yml` |
 | 消息文件 | `messages.yml` |
 | 外部依赖 | PlaceholderAPI（必需，缺失时模块跳过加载） |
@@ -80,7 +79,6 @@ Market 模块包含四种不同的交易子系统，各自适用场景不同：
 | 手续费 | 上架费（固定金额） | 上架费（固定金额） |
 | 税率 | 成交价 5%（可配置 VIP 减免） | 成交价 5%（可配置 VIP 减免） |
 | 到期处理 | 有人竞价→成交结算；无人竞价→退回物品 | 到期→退回物品 |
-| 数据库表 | `axs_market_listings` | `axs_market_player_shop_listings` |
 | UI ID | `AXS:market_auction` | `AXS:market_player_shop` |
 
 ### 系统商店 vs 回收商店

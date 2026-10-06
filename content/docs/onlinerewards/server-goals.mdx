@@ -85,18 +85,9 @@ description: "OnlineRewards 全服签到目标/集体奖励系统：目标配置
             └→ 发布 EventBus 事件（axs.onlinerewards.server_goal_reached）
 ```
 
-### 防重复触发机制
+### 防重复触发
 
-模块通过数据库表 `online_rewards_server_goals` 记录每个目标的触发状态，防止同一目标同一天重复触发：
-
-| 列名 | 类型 | 说明 |
-|---|---|---|
-| `goal_date` | `VARCHAR(32)` | 目标日期（ISO 格式） |
-| `goal_id` | `VARCHAR(64)` | 目标 ID |
-| `triggered` | `TINYINT` | 是否已触发（1=已触发） |
-| `created_at` | `TIMESTAMP` | 创建时间 |
-
-> 主键：`(goal_date, goal_id)`。跨天后日期变化，所有目标可重新触发。
+模块记录每个目标每日的触发状态，防止同一目标同一天重复触发；跨天后所有目标可重新触发。
 
 ## 多渠道奖励发放
 
@@ -271,14 +262,7 @@ server-sign-in-goal:
 
 ### next_goal 计算逻辑
 
-```
-遍历所有 targets：
-  ├→ signedCount >= target.required && 未触发 → 跳过（即将触发）
-  ├→ signedCount < target.required → 记录为候选
-  └→ 取所有候选中 required 最小的值作为 next_goal
-
-如果所有目标都已触发或已达成 → 返回 0
-```
+`next_goal` 返回所有未达成目标中所需人数的最小值；所有目标都已触发或达成时返回 `0`。
 
 > 该占位符可用于 UI 中展示"距离下一个全服奖励还需 X 人签到"的进度提示。
 
@@ -309,24 +293,13 @@ eventBus.subscribe("axs.onlinerewards.server_goal_reached", (player, payload) ->
 
 > `player` 参数为触发签到的玩家（即达到阈值时最后一个签到的玩家），非所有在线玩家。
 
-## 数据库表结构
+## 数据存储
 
-### online_rewards_server_goals
-
-全服签到目标触发记录表，防止同一目标同一天重复触发。
-
-| 列名 | SQLite 类型 | MySQL 类型 | 说明 |
-|---|---|---|---|
-| `goal_date` | `TEXT` | `VARCHAR(32)` | 目标日期 |
-| `goal_id` | `TEXT` | `VARCHAR(64)` | 目标 ID |
-| `triggered` | `INTEGER` | `TINYINT` | 是否已触发（1=已触发） |
-| `created_at` | `TEXT` | `TIMESTAMP` | 创建时间 |
-
-> 主键：`(goal_date, goal_id)`
+全服签到目标的触发记录持久化到数据库，保证同一目标同一天不会重复触发。
 
 ## 跨服同步
 
-全服签到目标的签到人数统计基于共享数据库（`online_rewards_sign_ins` 表），因此多服环境下签到人数是全服汇总的。
+全服签到目标的签到人数统计基于共享数据库，因此多服环境下签到人数是全服汇总的。
 
 | 前提条件 | 说明 |
 |---|---|
@@ -345,4 +318,4 @@ eventBus.subscribe("axs.onlinerewards.server_goal_reached", (player, payload) ->
 5. **广播控制**：`broadcast` 顶层配置控制是否全服广播，每个目标也可自定义广播文本
 6. **QQ 广播**：QQ 群广播使用与全服广播相同的消息文本，需要 QQBot 模块可用
 7. **标题永久**：通过全服签到目标授予的标题为永久标题，来源标记为 `OnlineRewards:ServerGoal`
-8. **命令安全**：命令中的 `{player}` 变量会经过 `CommandSanitizer` 安全校验
+8. **命令安全**：命令中的 `{player}` 变量会经过安全校验

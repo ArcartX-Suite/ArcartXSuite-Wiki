@@ -15,7 +15,6 @@ Announcer（公告轮播）模块为服务器提供基于 ArcartX 客户端 HUD 
 |---|---|
 | 模块 ID | `announcer` |
 | 版本 | 1.4.4 |
-| 主类 | `xuanmo.arcartxsuite.announcer.AnnouncerModule` |
 | 配置文件 | `config.yml`、`messages.yml`、`announcer/`（轮播条目）、`subtitle/`（字幕组） |
 | 命令入口 | 管理 `/axs announcer`（无玩家命令） |
 | 外部依赖 | 无（ArcartX 客户端渲染 HUD / 字幕） |
@@ -51,7 +50,7 @@ Announcer（公告轮播）模块为服务器提供基于 ArcartX 客户端 HUD 
 | 可选联动 | QQBot 模块 | 公告自动转发到 QQ 群（`settings.forward-to-qq`） |
 | 可选联动 | 跨服传输 | 跨服广播，连接参数由宿主 `config.yml` 的 `cross-server` 节统一配置 |
 
-> 模块无硬依赖的 Java 库或外部插件，`module.yml` 中 `depends` 与 `softdepends` 均为空。ArcartX 客户端是运行时必须的，由宿主本体统一管理。
+> 模块无硬依赖的 Java 库或外部插件。ArcartX 客户端是运行时必须的。
 
 ## 公告轮播机制
 
@@ -75,17 +74,11 @@ Announcer（公告轮播）模块为服务器提供基于 ArcartX 客户端 HUD 
 
 ### 点击事件
 
-当公告条目配置了非空的 `click-command` 时，HUD 显示可点击区域。玩家点击后客户端发送 `AXS_announcer_click` 回包，携带当前公告条目 ID。服务端收到后查找对应条目，以控制台身份执行命令，`<player>` 占位符替换为点击者名称。
+当公告条目配置了非空的 `click-command` 时，HUD 显示可点击区域。玩家点击后以控制台身份执行该命令，`<player>` 占位符替换为点击者名称。
 
-### 文本宽度估算
+### 文本宽度
 
-服务端根据 `text-width-font-size` 配置的字号估算公告文本在 UI 自适应坐标系中的渲染宽度：
-
-- CJK 全角字符（`U+2E80` 及以上）宽度 ≈ `fontSize`
-- Latin 半角字符宽度 ≈ `fontSize × 0.55`
-- Minecraft 颜色代码（`§x` / `&x`）不占渲染宽度，直接跳过
-
-估算宽度随 `display` 包发送到客户端，驱动 HUD 滚动动画的起止逻辑。
+服务端会根据 `text-width-font-size` 估算公告文本的渲染宽度，用于驱动 HUD 滚动动画。一般无需调整；若滚动速度异常可微调该值。
 
 ## 字幕播放机制
 
@@ -95,12 +88,10 @@ Announcer（公告轮播）模块为服务器提供基于 ArcartX 客户端 HUD 
 
 ### 播放流程
 
-1. 通过命令 `/axs announcer subtitle play <玩家> <组ID>` 或 `SubtitlePlayable` 能力触发
-2. 服务端打开字幕 HUD（仅首次打开，后续播放复用已打开的 UI 避免重置动画）
-3. 按帧顺序逐帧发送 `play` 包，包含文本、动画字数、动画时长、背景显示开关
-4. 客户端按打字机效果逐字显示，动画完成后停留 `keep` 秒
-5. 下一帧延迟 = 动画时长（`time` 毫秒 → tick）+ 停留时间（`keep` 秒 → tick）
-6. 最后一帧播放完毕后发送 `close` 包，关闭字幕 HUD
+1. 通过命令 `/axs announcer subtitle play <玩家> <组ID>` 或其他模块触发
+2. 客户端按帧顺序逐帧显示字幕，打字机效果逐字出现
+3. 每帧动画时长为 `time`（毫秒），动画完成后停留 `keep` 秒再进入下一帧
+4. 全部帧播放完毕后自动关闭字幕 HUD
 
 ### 字幕组级 UI 覆盖
 

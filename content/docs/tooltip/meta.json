@@ -4,7 +4,6 @@
   "color": "#f97316",
   "pages": [
     "index",
-    "data-pipeline",
     "configuration",
     "commands",
     "integration",

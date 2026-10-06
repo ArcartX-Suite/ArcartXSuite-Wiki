@@ -7,23 +7,21 @@ description: 称号定义字段、分组品质体系、双属性系统与头顶�
 
 ## 称号定义结构
 
-每个称号由 `TitleDefinition` record 描述，包含基本信息、显示文本、属性加成与头顶显示参数。称号定义放在 `titles/` 目录下的 `.yml` 文件中，每个文件的根键为称号 ID，值为此称号的配置节。
+称号定义放在 `titles/` 目录下的 `.yml` 文件中，每个文件的根键为称号 ID，值为此称号的配置节。
 
 ### 称号 ID 规范
 
-- 称号 ID 统一转为小写（`normalizeId` 处理）
+- 称号 ID 统一转为小写
 - 建议使用小写英文、数字、下划线
-- `enabled: false` 的称号在加载时直接跳过，不会注册到内存
+- `enabled: false` 的称号在加载时直接跳过
 - 引用不存在的分组或品质的称号会被跳过并记录警告日志
 
-### 称号类型（TitleKind）
-
-`TitleKind` 枚举区分两种称号类型，影响 UI 渲染与属性处理：
+### 称号类型
 
 | 类型 | 配置值 | 说明 | chat-prefix / tab-prefix 用途 |
 |---|---|---|---|
-| `TEXT` | `text` | 纯文本称号，使用常规颜色码文本 | 直接显示文本，如 `&7[冒险者]&r ` |
-| `ICON` | `icon` | 图标称号，使用 ArcartX 自定义文字贴图格式 | 使用 `§k!%<id><icon>` 格式渲染贴图 |
+| 文本称号 | `text` | 纯文本称号，使用常规颜色码文本 | 直接显示文本，如 `&7[冒险者]&r ` |
+| 图标称号 | `icon` | 图标称号，使用 ArcartX 自定义文字贴图格式 | 使用 `§k!%<id><icon>` 格式渲染贴图 |
 
 > 无法识别的 `kind` 值默认回退为 `TEXT`。图标称号的贴图格式与 [/docs/guide/icons](/docs/guide/icons) 中描述的 ArcartX 文字贴图系统一致。
 
@@ -57,7 +55,7 @@ description: 称号定义字段、分组品质体系、双属性系统与头顶�
 | `overhead-prefix` | `String` | `""` | 头顶文本前缀（text 模式） |
 | `overhead-suffix` | `String` | `""` | 头顶文本后缀（text 模式） |
 
-## 分组体系（TitleGroupDefinition）
+## 分组体系
 
 分组是称号的顶层分类维度，每个分组相当于一个独立的装备槽位。
 
@@ -90,7 +88,7 @@ groups:
 
 > 推荐权限节点约定为 `arcartxsuite.title.group.<groupId>`。权限相关条件可参考 [/docs/guide/conditions](/docs/guide/conditions)。
 
-## 品质体系（TitleQualityDefinition）
+## 品质体系
 
 品质用于称号的分级展示与排序，不影响属性数值。
 
@@ -104,14 +102,14 @@ groups:
 
 ## 称号排序规则
 
-`TitleModuleConfiguration.orderedTitles()` 按以下优先级排序：
+称号按以下优先级排序：
 
 1. **分组排序权重**（`group.sort-order`，升序）
 2. **品质排序权重**（`quality.sort-order`，升序）
 3. **称号自身排序权重**（`title.sort-order`，升序）
 4. **称号 ID**（不区分大小写字母序）
 
-> 未找到对应分组或品质定义时，排序权重取 `Integer.MAX_VALUE`，排到最后。
+> 未找到对应分组或品质定义时，排到最后。
 
 ## 双属性系统
 
@@ -147,7 +145,7 @@ collection-attribute-lines:
 
 ### 持续药水效果（display-effects）
 
-装备称号期间持续生效的药水效果，经本体 `PotionAuraService` 按来源 `AXS_TITLE_DISPLAY` 周期刷新。卸下、切换、退出或模块重载时自动移除。
+装备称号期间持续生效的药水效果，周期自动刷新。卸下、切换、退出或模块重载时自动移除。
 
 ```yaml
 display-effects:
@@ -158,7 +156,7 @@ display-effects:
 
 ### Mod 属性加成（permanent-display-bonuses）
 
-**仅混合核心（Mohist / Arclight 等 Forge+Bukkit 环境）可用。** 向玩家挂载任意 Mod 注册的 Forge 实体属性修饰器（经本体 `ModAttributeService`，来源 `AXS_TITLE_PERMANENT`），可加成 `gunsmithlib:*`、`apothic_attributes:*`、`irons_spellbooks:*` 等任意 Mod 属性。
+**仅混合核心（Mohist / Arclight 等 Forge+Bukkit 环境）可用。** 向玩家挂载任意 Mod 注册的实体属性修饰器，可加成 `gunsmithlib:*`、`apothic_attributes:*`、`irons_spellbooks:*` 等任意 Mod 属性。
 
 **生效条件**：装备该称号 **且** 该称号为永久拥有（`expiresAt == null`）。限时称号即使当前有效也不生效——这是它与 `display-*` / `collection-*` 的本质区别。
 
@@ -221,7 +219,7 @@ VIP:
 
 ### 属性合并规则
 
-`TitleTextFormats` 在格式化属性时执行以下合并逻辑：
+属性文本格式化时执行以下合并逻辑：
 
 1. 从 `Map<String, Double>` 键值对生成 `属性名: +数值` 行
 2. 从 `List<String>` 文本行中提取非 Map 部分追加
@@ -233,17 +231,15 @@ VIP:
 
 ## 头顶显示配置
 
-### OverheadMode 枚举
+`overhead-mode` 控制装备后的头顶显示方式：
 
-`TitleDefinition.OverheadMode` 控制装备后的头顶显示方式：
+| 模式 | 配置值 | 说明 |
+|---|---|---|
+| 贴图 | `texture` | 在玩家头顶渲染自定义文字贴图，需 ArcartX 客户端支持 |
+| 文本 | `text` | 通过计分板前后缀显示 |
+| 关闭 | `none` | 无头顶效果 |
 
-| 模式 | 配置值 | 实现方式 | 依赖 |
-|---|---|---|---|
-| `TEXTURE` | `texture` | 通过 `WorldTextureBridge.spawnOnEntity()` 挂载贴图实体 | ArcartX 客户端 + WorldTextureBridge |
-| `TEXT` | `text` | 通过 Scoreboard Team 设置前后缀 | 纯服务端，无额外依赖 |
-| `NONE` | `none` | 无头顶效果 | — |
-
-> 无法识别的 `overhead-mode` 值默认回退为 `NONE`。当 `texture` 模式但 `WorldTextureBridge` 不可用时，自动降级为 `text` 模式。
+> 无法识别的 `overhead-mode` 值默认回退为 `none`。`texture` 模式不可用时自动降级为 `text` 模式。
 
 ### texture 模式参数
 
@@ -259,21 +255,18 @@ overhead-offset-y: 2.3                 # 贴图垂直偏移量（方块）
 
 ```yaml
 overhead-mode: text
-overhead-prefix: "&7[冒险者] "  # Scoreboard Team 前缀
-overhead-suffix: ""             # Scoreboard Team 后缀
+overhead-prefix: "&7[冒险者] "  # 头顶文本前缀
+overhead-suffix: ""             # 头顶文本后缀
 ```
 
-> text 模式使用 `AXS_T_<uuid前16位>` 作为 Scoreboard Team 名称，前缀和后缀经颜色码翻译后设置到 Team。
+## 称号文件加载
 
-## 称号文件扫描机制
+模块从 `titles-directory` 配置的目录（默认 `titles`）加载独立称号文件：
 
-`TitleModuleConfiguration.load()` 支持从 `titles-directory` 指定的目录扫描独立称号文件：
-
-1. 按 `titles-directory` 配置（默认 `titles`）定位目录
-2. 目录下所有 `.yml` 文件按文件名字母序排序后逐个加载
-3. 每个文件的根键为称号 ID，值为此称号的配置节
-4. 单个文件加载失败（如 `StackOverflowError`）时跳过该文件，不影响其他文件
-5. 主配置内联称号与目录文件称号合并到同一 `Map<String, TitleDefinition>`
+1. 目录下所有 `.yml` 文件按文件名字母序逐个加载
+2. 每个文件的根键为称号 ID，值为此称号的配置节
+3. 单个文件加载失败时跳过该文件，不影响其他文件
+4. 主配置内联称号与目录文件称号合并生效
 
 ```yaml
 # ArcartXTitle.yml 中指定称号目录

@@ -7,18 +7,11 @@ description: registerCapability/getCapability 机制及所有内置 Capability �
 
 Capability 是 Suite 推荐的跨模块通信机制。模块通过 `ModuleContext` 注册自己提供的能力接口，其他模块通过类型查找来调用，实现松耦合的模块间协作。
 
-## 工作原理
-
-```
-┌──────────┐  registerCapability   ┌──────────────┐  getCapability   ┌──────────┐
-│ Title    │ ─────────────────────→│  Capability  │←──────────────── │ EventPkt │
-│ Module   │  TitleGrantable.class │  Registry    │  TitleGrantable  │ Module   │
-└──────────┘                       └──────────────┘                  └──────────┘
-```
+## 使用方式
 
 1. **提供方**在 `startService()` 中注册 Capability
 2. **使用方**通过 `Supplier` 延迟查找，避免加载顺序问题
-3. 模块 `onDisable` 时宿主自动注销其注册的所有 Capability
+3. 模块 `onDisable` 时自动注销其注册的所有 Capability
 
 ### registerCapability / getCapability
 
@@ -38,7 +31,7 @@ if (title != null) {
 `context.getCapability()` 仅供 AXS 模块内部使用。面向**外部 Bukkit 插件**，Suite 提供统一静态门面 `AxsCapabilities`，并配合 `@PublicCapability` 注解做可见性过滤：
 
 - 只有标注 `@PublicCapability` 的接口才能被 `AxsCapabilities.get()` 返回；未标记的类型对外一律返回 `null`（模块内部 `getCapability` 不受限）
-- 宿主启动时把门面直连 `ModuleRegistry` 的 capability 注册表；模块热卸载后对应 capability 自动摘除，`get()` 返回 `null`
+- 模块热卸载后对应 capability 自动摘除，`get()` 返回 `null`
 - 公开 capability 的约定：入参用富对象（spec/record），阻塞操作返回 `CompletableFuture`
 
 ### 当前公开的 Capability
@@ -76,7 +69,7 @@ if (title != null) {
 | `OnlineRewardsQueryable` | onlinerewards | 签到/在线时长查询与操作 |
 | `InteractionState` | conversation | 对话交互状态查询 |
 
-> `MailDispatchable`、`PlayerDataPurgeable`、`DatabaseMigratable`、`PolygonSelectionCapability`、`ModuleAdminCapability` 等接口为内部专用（未标注 `@PublicCapability`），外部插件调用 `AxsCapabilities.get()` 会返回 `null`。完整对照见文末 [内置 Capability 能力图](#内置-capability-能力图)。
+> `MailDispatchable`、`PlayerDataPurgeable`、`DatabaseMigratable`、`PolygonSelectionCapability` 等接口为内部专用（未标注 `@PublicCapability`），外部插件调用 `AxsCapabilities.get()` 会返回 `null`。完整对照见文末 [内置 Capability 能力图](#内置-capability-能力图)。
 
 ### 外部插件接入
 
@@ -458,7 +451,7 @@ public interface FishingAccess {
 
 ### RegionQueryable
 
-区域查询能力（**公开 capability**）。由 Regions 模块实现。返回 API 侧只读 `RegionInfo` record（`owners`/`members` 为不可变集合拷贝），不暴露模块内部 `Region` 类型。请在 Bukkit 主线程调用——Region 内部成员集合非并发容器，快照拷贝遇异步并发修改可能抛出 `ConcurrentModificationException`。
+区域查询能力（**公开 capability**）。由 Regions 模块实现。返回只读 `RegionInfo` record（`owners`/`members` 为不可变集合拷贝）。请在 Bukkit 主线程调用——异步并发修改可能抛出 `ConcurrentModificationException`。
 
 ```java
 public interface RegionQueryable {
@@ -517,7 +510,7 @@ public interface LotteryAccess {
 }
 ```
 
-`CaseDrawResult` 屏蔽内部 `PoolItem` 类型：`itemKey`/`itemName` 无奖品时为 `null`，`poolIndex` 为 1 基索引（无奖品 `-1`）。
+`CaseDrawResult` 字段说明：`itemKey`/`itemName` 无奖品时为 `null`，`poolIndex` 为 1 基索引（无奖品 `-1`）。
 
 ### LoginViewQueryable
 
@@ -640,7 +633,6 @@ if (bus != null) {
 | `PlayerDataPurgeable` | 多模块 | — | 清除玩家数据（`/axs purge`） |
 | `DatabaseMigratable` | 多模块 | — | 跨库迁移（`/axs migrate`） |
 | `PolygonSelectionCapability` | 宿主/regions | — | 多边形选区管理 |
-| `ModuleAdminCapability` | 宿主 | — | 模块管理能力（`@Internal`） |
 
 ## 内置 Capability 能力图
 
@@ -683,6 +675,5 @@ if (bus != null) {
 | `PlayerDataPurgeable` | 多模块 | — | 宿主 `/axs purge` | 清除玩家数据 |
 | `DatabaseMigratable` | 多模块 | — | 宿主 `/axs migrate` | 跨库迁移 |
 | `PolygonSelectionCapability` | 宿主/regions | — | fishing 等 | 多边形选区管理 |
-| `ModuleAdminCapability` | 宿主 | — | 调试工具 | 模块管理（`@Internal`） |
 
 > "公开" = 标注 `@PublicCapability`，外部 Bukkit 插件可通过 `AxsCapabilities.get()` 获取；其余仅限 AXS 模块内部 `getCapability` 使用。

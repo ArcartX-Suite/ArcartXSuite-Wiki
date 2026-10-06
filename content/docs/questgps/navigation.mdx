@@ -5,39 +5,11 @@ description: QuestGPS GPS 导航、路标追踪、路径寻路与导航标记
 
 # 导航系统
 
-QuestGPS 的导航系统是模块的核心功能之一，将 Chemdah 任务的动态坐标或 overlay 静态坐标转化为玩家可感知的导航指引。导航系统由三层组成：路标导航（Waypoint）、导航标记（Marker）和指引 HUD（Guide）。
+QuestGPS 的导航系统将 Chemdah 任务的动态坐标或 overlay 静态坐标转化为玩家可感知的导航指引，由三部分组成：路标导航（Waypoint）、路径标记（Marker）和指引 HUD（Guide）。
 
-玩家**可同时追踪多个任务/子目标**（追踪态、到达判定、地图标记均并行），但**屏幕路标与路径标记链始终只跟随"最新激活且同世界"的主目标**——避免多条路线/多个信标误导玩家。
+玩家**可同时追踪多个任务/子目标**（追踪态、到达判定、地图标记均并行），但**屏幕路标与路径标记链始终只跟随"最新激活且同世界"的主目标**——避免多条路线误导玩家。
 
-## 导航架构
-
-```
-                    ┌─────────────────────────────────┐
-                    │      QuestGpsNavigationService   │
-                    │   （任务/子目标解析、追踪状态表）   │
-                    └──────────┬──────────┬───────────┘
-                               │          │
-              ┌────────────────┘          └────────────────┐
-              ▼                                            ▼
-    ┌──────────────────────┐                    ┌────────────────────┐
-    │ NavigationTargetService│                  │ NavigationMarkerService│
-    │ (axs-api 共享编排：     │                   │  (本体：A* 路径标记链) │
-    │  diff 推送/到达滞回/    │                   └──────────┬─────────┘
-    │  跨世界抑制/命令钩子)   │                              │
-    └──────────┬───────────┘                              │
-               │                              ┌──────────┴──────────┐
-               │                              │ AdyeshachNpcBridge  │
-               │                              │ API (私有实体渲染)  │
-               │                              └────────────────────┘
-               ▼
-    ┌──────────────────┐
-    │  WaypointRuntime │──▶ WaypointBridgeAPI (ArcartX 路标桥接)
-    └──────────────────┘
-```
-
-> `NavigationTargetService` 是 `axs-api` 中的共享编排服务（Map 模块同样使用），统一负责目标位置解析、diff 推送、到达滞回判定与命令钩子；`QuestGpsNavigationService` 只负责任务/子目标语义与坐标来源解析。
-
-### 导航坐标来源
+## 导航坐标来源
 
 导航坐标来源由 `navigation.mode` 控制，全局三选一：
 
@@ -47,39 +19,27 @@ QuestGPS 的导航系统是模块的核心功能之一，将 Chemdah 任务的�
 | `chemdah` | 仅使用 Chemdah tracker 动态坐标 | Chemdah tracker |
 | `overlay` | 仅使用 `quests/*.yml` 配置的静态坐标 | overlay YAML |
 
-> `hybrid` 模式下，若 Chemdah tracker 返回有效坐标则使用动态坐标，否则回退 overlay 配置坐标。Chemdah Tracker API 不可用时（如 Chemdah 版本过低），自动降级为 overlay 导航。
+> `hybrid` 模式下 Chemdah tracker 返回有效坐标则使用动态坐标，否则回退 overlay 坐标。Chemdah Tracker API 不可用时自动降级为 overlay 导航。
 
 ## 路标导航
 
-路标导航通过 ArcartX 的 `WaypointBridgeAPI` 实现，在客户端显示方向指引箭头。
+路标导航通过 ArcartX Waypoint 实现，在客户端显示方向指引箭头。
 
 ### 路标配置
 
 | 字段 | 类型 | 默认值 | 说明 |
 |---|---|---|---|
 | `navigation.enabled` | `boolean` | `true` | 是否启用导航功能 |
-| `navigation.quest-id-prefix` | `String` | `"AXS-questgps-"` | 路标 ID 前缀 |
 | `navigation.remove-on-finish` | `boolean` | `true` | 任务完成后自动移除导航 |
 | `navigation.mode` | `String` | `"hybrid"` | 导航坐标来源：`chemdah` / `overlay` / `hybrid` |
-| `navigation.refresh-ticks` | `int` | `10` | 目标刷新间隔（tick），驱动动态坐标解析、diff 推送与到达判定 |
-| `navigation.waypoint.enabled` | `boolean` | `true` | 是否向客户端推送路标；`false` 时仅保留追踪态/到达判定/路径标记，不发路标包 |
+| `navigation.refresh-ticks` | `int` | `10` | 目标刷新间隔（tick） |
+| `navigation.waypoint.enabled` | `boolean` | `true` | 是否向客户端推送路标；`false` 时仅保留追踪态/到达判定/路径标记 |
 | `navigation.waypoint.style-id` | `String` | `"default"` | ArcartX waypoint 路标样式 ID |
-| `navigation.waypoint.title-template` | `String` 或 `List<String>` | `""` | 路标标题模板（单行；支持 `%label%`/`%quest%`/`%objective%`/`%distance%`/`%world%`/`%x%`/`%y%`/`%z%`），留空直接显示目标名 |
+| `navigation.waypoint.title-template` | `String` 或 `List<String>` | `""` | 路标标题模板（`%label%`/`%quest%`/`%objective%`/`%distance%`/`%world%`/`%x%`/`%y%`/`%z%`），留空显示目标名 |
 | `navigation.world-hint-interval` | `int` | `30` | 目标在其他世界时的提示节流间隔（秒），0 = 不提示 |
 | `navigation.finish-range` | `double` | `0` | 到达触发半径（格），0 = 不启用到达判定 |
-| `navigation.finish-commands` | `List<String>` | `[]` | 到达命令（控制台执行，支持 `%player%` 占位符）；任务/子目标可在导航点中覆盖 |
-| `navigation.finish-rearm-buffer` | `double` | `3.0` | 到达判定滞回缓冲（格）：触发后须离开 `finish-range + 本值` 才重新武装，防边界抖动重复触发 |
-
-### 路标 ID 生成规则
-
-路标 ID 由前缀 + 任务 ID + 可选子任务 ID 拼接而成：
-
-```
-AXS-questgps-<questId>              # 任务级追踪
-AXS-questgps-<questId>__<taskId>    # 子任务级追踪
-```
-
-> 任务 ID 和子任务 ID 中的非字母数字字符会被替换为 `_`（`sanitize`），确保路标 ID 合法。
+| `navigation.finish-commands` | `List<String>` | `[]` | 到达命令（控制台执行，支持 `%player%` 占位）；任务/子目标可在导航点中覆盖 |
+| `navigation.finish-rearm-buffer` | `double` | `3.0` | 到达判定滞回缓冲：触发后须离开 `finish-range + 本值` 才重新武装 |
 
 ### 路标样式解析
 
@@ -90,53 +50,52 @@ AXS-questgps-<questId>__<taskId>    # 子任务级追踪
 3. 全局 `navigation.waypoint.style-id`
 4. ArcartX waypoint 默认样式
 
-> 样式 ID 须在 ArcartX waypoint 目录下有对应定义，详见 [/docs/guide/icons](/docs/guide/icons)。
+> 样式 ID 须在 ArcartX waypoint 目录下有对应定义，详见 [图标指南](/docs/guide/icons)。
 
 ### 任务级 vs 子任务级追踪
 
-| 追踪级别 | 触发方式 | 坐标来源 |
-|---|---|---|
-| 任务级（`trackQuest`） | UI Packet `track_quest` 或 `QuestGpsNavigable.trackQuest` | 任务 `navigation.point` 或 Chemdah tracker |
-| 子任务级（`trackTask`） | UI Packet `track_task` 或 `QuestGpsNavigable.trackTask` | 子任务 `tasks.<id>.navigation` 或 Chemdah tracker |
+| 追踪级别 | 坐标来源 |
+|---|---|
+| 任务级 | 任务 `navigation.point` 或 Chemdah tracker |
+| 子任务级 | 子任务 `tasks.<id>.navigation` 或 Chemdah tracker |
 
-> 任务级与子任务级追踪**互不覆盖**：同一玩家可同时追踪任务目标和多个子目标，以 `trackKey`（`questId` 或 `questId|taskId`，小写规范化）区分登记。
+> 任务级与子任务级追踪**互不覆盖**：同一玩家可同时追踪任务目标和多个子目标。
 
 ## 多目标追踪与单路标语义
 
-| 层 | 行为 | 说明 |
-|---|---|---|
-| 追踪态（数据） | 并行 | `trackingStates` 为 `玩家 → LinkedHashMap<trackKey, TrackingState>`，多个目标可并行登记，各自独立做位置解析与到达判定 |
-| 屏幕路标 | 仅主目标 | 只有"最新激活且同世界"的目标下发客户端路标；取消主目标后上一个同世界目标自动接管 |
-| 路径标记链 | 仅主目标 | 同上——屏幕上始终只有一条路线，避免多路线误导玩家 |
-| 指引 HUD | 并行展示 | 引导 HUD 最多展示 3 张追踪卡片（`quests{}` 字段），但只渲染主目标坐标 |
-| 地图标记 | 并行展示 | 所有追踪中任务的第三方插件注册路径点 `navigated=true`，可在面板按目标单独取消 |
+| 层 | 行为 |
+|---|---|
+| 追踪态 | 并行：多个任务/子目标可同时登记，各自独立做位置解析与到达判定 |
+| 屏幕路标 | 仅主目标；取消主目标后其余同世界目标自动接管 |
+| 路径标记链 | 仅主目标——屏幕上始终只有一条路线 |
+| 指引 HUD | 并行展示：最多展示 3 张追踪卡片，仅主目标渲染导航坐标 |
+| 地图标记 | 并行展示：所有追踪中任务的地图标记显示"导航中"，可按目标单独取消 |
 
-> 动态目标（Chemdah tracker / NPC）即使不是主目标，其坐标仍随 `refresh-ticks` 周期解析并同步到地图第三方插件注册路径点；HUD 卡片与到达判定不受影响。
+> 动态目标（Chemdah tracker / NPC）即使不是主目标，其坐标仍随 `refresh-ticks` 周期解析并同步到地图标记。
 
 ### 到达判定滞回与命令钩子
 
-- `finish-range > 0` 时，玩家进入半径触发**一次**到达回调与 `finish-commands`（控制台执行，支持 `%player%`/`%world%`/`%x%`/`%y%`/`%z%` 占位）。
-- 触发后进入"未武装"状态，须离开 `finish-range + finish-rearm-buffer` 才重新武装——防止玩家在半径边界抖动导致命令反复执行。
-- **到达不取消导航**：导航保持到玩家显式取消（菜单/地图"取消"按钮、`untrack_quest`/`untrack_task` 包、`remove-on-finish` 任务完成清理）。
-- 任务级与子目标级导航点可用 `finish-range`/`finish-commands` 覆盖全局配置。
+- `finish-range > 0` 时玩家进入半径触发**一次**到达回调与 `finish-commands`（控制台执行，支持 `%player%`/`%world%`/`%x%`/`%y%`/`%z%` 占位）
+- 触发后须离开 `finish-range + finish-rearm-buffer` 才重新武装——防止边界抖动重复执行
+- **到达不取消导航**：导航保持到玩家显式取消或任务完成（`remove-on-finish`）
+- 任务级与子目标级导航点可用 `finish-range`/`finish-commands` 覆盖全局配置
 
 ### NPC 动态目标
 
-导航点配置 `npc: "<Adyeshach NPC 名/ID>"` 时，目标坐标每轮刷新经 `AdyeshachNpcBridgeAPI.locateByName` 实时解析，跟随 NPC 移动；`world` 可留空（面板跨世界判定用 `locateNpcWorld` 推断目标世界）。NPC 不存在时该轮不推送路标（抑制而非报错）。
+导航点配置 `npc: "<Adyeshach NPC 名/ID>"` 时，目标坐标实时跟随 NPC 移动；`world` 可留空。NPC 不存在时该轮不显示路标。
 
 ### 跨世界处理与传送点
 
-- 目标世界与玩家不同时：路标与路径标记被抑制，按 `world-hint-interval` 节流提示"任务目标位于其他世界"。
-- 导航点配置 `teleport` 段（`world`/`x`/`y`/`z`）后，任务面板显示「传送并追踪」按钮（`cross_world_track` 包）：先传送到该点，再开始追踪。
-- `teleport` 未配置时跨世界目标仍可追踪，仅提示无传送点（`navigation-no-teleport`）。
-- 子目标未声明 `teleport` 时回退任务级 `navigation.point.teleport`。
+- 目标世界与玩家不同时：路标与路径标记被抑制，按 `world-hint-interval` 节流提示「任务目标位于其他世界」
+- 导航点配置 `teleport` 段后，任务面板显示「传送并追踪」按钮：先传送到该点，再开始追踪
+- 子目标未声明 `teleport` 时回退任务级 `navigation.point.teleport`
 
 ## 导航路径提示
 
-路径导航有两种互补的可视化方式，可同时启用或只开其一（独立开关）：
+路径导航有两种互补的可视化方式，可同时启用或只开其一：
 
-- **模型导航提示**（`navigation.model-marker`）：Adyeshach 私有实体 + ArcartX 模型渲染客户端导航标记，仅在追踪状态变更时发包，客户端独立渲染，零服务端 tick 开销。
-- **贴图导航提示**（`navigation.texture-marker`，1.5.0 新增）：沿寻路结果向玩家单人下发 ArcartX 世界贴图（WorldTexture）路径提示；无需 Adyeshach 实体，仅发包，天然玩家私有。
+- **模型导航提示**（`navigation.model-marker`）：Adyeshach 模型路径标记，仅追踪玩家可见。需 Adyeshach。
+- **贴图导航提示**（`navigation.texture-marker`）：沿路径向玩家单人下发贴图箭头，无需实体。
 
 ### 模型导航提示配置
 
@@ -149,216 +108,86 @@ AXS-questgps-<questId>__<taskId>    # 子任务级追踪
 | `navigation.model-marker.animation` | `String` | `"rotate"` | 循环播放的动画名称 |
 | `navigation.model-marker.y-offset` | `double` | `2.0` | 模型相对导航目标的 Y 轴偏移 |
 
-> 模型导航提示依赖 Adyeshach 插件。Adyeshach 不存在时该功能自动关闭，路标与贴图导航不受影响。
->
-> **1.5.0 变更**：配置键 `navigation.marker` 已重命名为 `navigation.model-marker`，升级时迁移引擎自动改名并保留用户值。
+> 需 Adyeshach 插件，不存在时该功能自动关闭，路标与贴图导航不受影响。
 
 ### 贴图导航提示配置
 
 | 字段 | 类型 | 默认值 | 说明 |
 |---|---|---|---|
-| `navigation.texture-marker.enabled` | `boolean` | `false` | 是否启用贴图路径提示（需资源包中存在 `texture` 对应贴图） |
+| `navigation.texture-marker.enabled` | `boolean` | `false` | 是否启用贴图路径提示（需资源包中存在对应贴图） |
 | `navigation.texture-marker.texture` | `String` | `"nav_arrow"` | 贴图资源 ID |
 | `navigation.texture-marker.width` / `height` | `double` | `100` | 贴图渲染宽/高 |
-| `navigation.texture-marker.facing` | `boolean` | `false` | `true` 始终面向玩家（billboard）；`false` 按 pitch/yaw 定向（贴地箭头） |
+| `navigation.texture-marker.facing` | `boolean` | `false` | `true` 始终面向玩家；`false` 按 pitch/yaw 定向（贴地箭头） |
 | `navigation.texture-marker.glowing` | `boolean` | `true` | 是否泛光 |
 | `navigation.texture-marker.y-offset` | `double` | `0.1` | 贴图相对路径点的 Y 轴偏移 |
-| `navigation.texture-marker.pitch` | `double` | `90` | 俯仰角（度；贴地渲染 90） |
-| `navigation.texture-marker.orient-to-path` | `boolean` | `true` | yaw 朝向下一个路径点（贴地箭头指示方向） |
-| `navigation.texture-marker.life-time` | `int` | `-1` | 贴图存活时长（-1 = 永续直到显式移除） |
-| `navigation.texture-marker.pulse.*` | — | 见下 | 循环缩放脉冲动画：`enabled`/`from`/`to`/`duration`/`stagger`（按路径点序号错开形成波浪效果） |
+| `navigation.texture-marker.pitch` | `double` | `90` | 俯仰角（贴地渲染 90） |
+| `navigation.texture-marker.orient-to-path` | `boolean` | `true` | 朝向下一个路径点 |
+| `navigation.texture-marker.life-time` | `int` | `-1` | 贴图存活时长（-1 = 永续直到移除） |
+| `navigation.texture-marker.pulse.*` | — | — | 循环缩放脉冲：`enabled`/`from`/`to`/`duration`/`stagger` |
 
 ### 路径寻路参数
 
-两种渲染方式各自带一组同语义的 `path-*` 参数（互不影响），A* 寻路算法沿路径放置标记模型/贴图：
+两种渲染方式各自带一组同语义的 `path-*` 参数（互不影响）：
 
 | 字段 | 类型 | 默认值 | 说明 |
 |---|---|---|---|
-| `navigation.<renderer>.path-interval` | `double` | `3.0` | 路径点间距（方块数，沿路径每隔多少格放一个标记/贴图） |
+| `navigation.<renderer>.path-interval` | `double` | `3.0` | 路径点间距（方块数） |
 | `navigation.<renderer>.path-max-markers` | `int` | `20` | 路径点最大数量（超出后截断远端） |
-| `navigation.<renderer>.path-update-ticks` | `int` | `10` | 路径更新间隔（tick，20=1秒，玩家移动后重新计算路径） |
-| `navigation.<renderer>.path-max-distance` | `double` | `64.0` | 路径最大渲染距离（方块数，超出此距离不显示） |
-| `navigation.<renderer>.path-reshow-buffer` | `double` | `8.0` | 距离滞回缓冲（格）：超距隐藏后，须回到 `path-max-distance - 本值` 以内才重新显示 |
-| `navigation.<renderer>.path-max-iterations` | `int` | `2000` | A* 寻路最大迭代次数（100-50000，越大越精确但越耗时） |
+| `navigation.<renderer>.path-update-ticks` | `int` | `10` | 路径更新间隔（tick） |
+| `navigation.<renderer>.path-max-distance` | `double` | `64.0` | 路径最大渲染距离 |
+| `navigation.<renderer>.path-reshow-buffer` | `double` | `8.0` | 超距隐藏后须回到 `path-max-distance - 本值` 以内才重新显示 |
+| `navigation.<renderer>.path-max-iterations` | `int` | `2000` | 寻路最大迭代次数（100-50000，越大越精确但越耗时） |
 
-> `<renderer>` 为 `model-marker` 或 `texture-marker`。`path-max-iterations` 配置校验范围为 100-50000，超出范围会被 `ValidationRule` 拒绝。
-
-### 标记服务
-
-QuestGPS 直接使用本体的 `NavigationMarkerService`（axs-api）渲染路径标记：
-
-```
-NavigationMarkerService (本体)
-    ├── AdyeshachNpcBridgeAPI (私有实体创建/销毁/传送)
-    └── A* 寻路引擎 (路径计算)
-```
-
-标记服务按 `(player, navKey)` 维护多组路径状态：同一玩家可登记多个目标的路径状态，但仅主目标处于 `showMarker`，其余目标隐藏；标记实体在坐标变化时 teleport 复用而非重建。标记 ID 前缀固定为 `questgps_path_`，ID 内嵌 sanitize 后的 navKey 段，用于区分其他模块的导航标记。
-
-## Chemdah 动态坐标
-
-### Tracker Bridge
-
-`ChemdahTrackerBridge` 桥接 Chemdah 原生任务追踪 API，供导航层消费动态坐标：
-
-| 方法 | 说明 |
-|---|---|
-| `startQuestTracking(player)` | 启动 Chemdah 任务追踪会话 |
-| `stopQuestTracking(player, questId)` | 停止指定任务追踪 |
-| `stopAll(player)` | 停止玩家所有追踪 |
-| `isTracking(player, questId)` | 检查是否正在追踪 |
-| `resolveTrackingLocation(player, questId)` | 解析当前追踪坐标 |
-
-> Chemdah Tracker API 不可用时（`probeAvailability` 返回 `false`），所有方法安全降级，导航回退 overlay 坐标。
-
-### 坐标解析流程
-
-```
-resolveTrackingLocation(player, questId)
-    │
-    ├── getSession(player, questId)       # 优先按任务 ID 查找会话
-    │   └── 失败 → getSession(player, QuestTrackingSession.SOURCE)  # 回退通用会话
-    │
-    └── session.getTargets()              # 遍历追踪目标
-        └── target.getCenter().getLocation(player)  # 解析坐标
-            └── 返回第一个有效的 Location
-```
-
-### 动态坐标刷新
-
-`hybrid` 和 `chemdah` 模式下，动态坐标由共享 `NavigationTargetService` 的刷新循环驱动（间隔为 `navigation.refresh-ticks`，默认 10 tick）：
-
-```
-NavigationTargetService.tick()
-    │
-    ├── 遍历所有在线玩家的目标集合
-    │   └── 逐目标调用 NavigationTarget.resolver 解析实时位置
-    │       └── resolver 链：Chemdah tracker → NPC(locateByName) → overlay 坐标
-    │       └── 解析结果缓存 resolverCacheMillis（默认 1.5s）降频
-    │
-    ├── 坐标/标题变化 → diff 推送路标（仅主目标实际下发）
-    ├── 位置变化 → positionChangedHandler → 地图第三方插件注册路径点 upsert
-    └── 到达判定（滞回武装/触发）
-```
-
-> resolver 结果有 1.5 秒缓存，NPC/任务坐标查询不会每轮真实执行；位置变化超过 0.05 格才上报 `positionChangedHandler`（供地图第三方插件注册路径点坐标跟随）。
+> `<renderer>` 为 `model-marker` 或 `texture-marker`。
 
 ## 指引 HUD
 
-追踪任务时，QuestGPS 会向客户端发送引导 HUD 数据包，在屏幕左上角常驻显示追踪中任务的卡片列表与主目标导航坐标。
+追踪任务时，QuestGPS 会在屏幕左上角常驻显示追踪卡片列表与主目标导航坐标。最多展示 3 张卡片，按激活顺序排列，主目标在最后。
 
-### HUD 数据包字段
+### HUD 可用字段
 
-| 字段 | 类型 | 说明 |
-|---|---|---|
-| `packetId` | `String` | Packet 标识符 |
-| `active` | `boolean` | HUD 是否激活显示（存在任一追踪态时为 true） |
-| `trackedCount` | `int` | 追踪中的目标总数 |
-| `quests` | `Map<String, Map>` | 追踪卡片字典（key = `"0"`,`"1"`,`"2"`… 按激活顺序），最多 3 张，见下表 |
-| `questCount` | `int` | `quests` 实际条数 |
-| `questName` | `String` | 主追踪（最新激活）目标名称 — 兼容字段 |
-| `hasNav` | `boolean` | 主目标是否有可用导航点 — 兼容字段 |
-| `navWorld` | `String` | 主目标导航点所在世界名 — 兼容字段 |
-| `navX` / `navY` / `navZ` | `int` | 主目标导航点坐标 — 兼容字段 |
+| 字段 | 说明 |
+|---|---|
+| `active` | HUD 是否激活显示 |
+| `trackedCount` | 追踪中的目标总数 |
+| `quests` | 追踪卡片字典（最多 3 张，字段见下） |
+| `questCount` | 卡片条数 |
+| `questName` / `hasNav` / `navWorld` / `navX` / `navY` / `navZ` | 主目标名称与导航点（兼容字段） |
 
-`quests` 单卡片字段：
-
-| 字段 | 类型 | 说明 |
-|---|---|---|
-| `questId` / `taskId` | `String` | 任务 ID / 子目标 ID（任务级追踪时 taskId 为空） |
-| `mode` | `String` | 追踪模式：`QUEST` / `TASK` |
-| `name` | `String` | 卡片标题（任务名，缺省回退 label） |
-| `label` | `String` | 追踪目标显示名 |
-| `progressText` | `String` | 进度文本（如 `"2/5"`） |
-| `taskText` | `String` | 当前未完成目标文案（全部完成时为 `"全部完成"`） |
-| `taskDesc` | `String` | 当前目标描述 |
-| `hasNav` / `navWorld` | `boolean` / `String` | 该追踪是否有导航点 / 所在世界 |
-| `navText` | `String` | 导航坐标摘要（如 `"world 100, 70, -50"`） |
-
-> 引导 HUD 最多展示 3 张追踪卡片，由 `QuestGpsGuidePacketFactory.DISPLAY_QUEST_LIMIT = 3` 控制。卡片按激活顺序排列，主目标（最新激活）在最后。
+`quests` 单卡片字段：`questId` / `taskId` / `mode`（`QUEST`/`TASK`）/ `name` / `label` / `progressText` / `taskText` / `taskDesc` / `hasNav` / `navWorld` / `navText`。
 
 ### HUD 生命周期
 
 | 事件 | 行为 |
 |---|---|
-| 开始追踪（`trackQuest` / `trackTask`） | 发送 `init` 包，打开引导 UI |
-| 追踪中刷新（`refreshViewer`） | 发送 `update` 包，更新 HUD 数据（含 `quests{}` 多卡片） |
-| 单目标取消（`untrack_quest` / `untrack_task` 包） | 移除该追踪态并 `update`；无剩余追踪时关闭 HUD |
-| 全部清除（`clearTrack`） | 关闭引导 UI |
-| 玩家退出（`PlayerQuitEvent`） | 清除追踪状态，关闭引导 UI |
+| 开始追踪 | 打开引导 UI |
+| 追踪中刷新 | 更新 HUD 数据 |
+| 单目标取消 | 移除该追踪；无剩余追踪时关闭 HUD |
+| 全部清除 / 玩家退出 | 关闭引导 UI |
 
 ## Map 模块目标同步
 
-QuestGPS 通过 `MapNavigable` Capability（公开 capability）与 Map 模块双向联动——地图负责展示与转发点击，导航执行仍在 QuestGPS：
+QuestGPS 与 Map 模块双向联动——地图负责展示与转发点击，导航执行仍在 QuestGPS：
 
-| 操作 | 方法 | 说明 |
-|---|---|---|
-| 同步目标 | `reconcileExternalTargets` | 把所有进行中任务**原子替换**为地图第三方插件注册路径点（source = `questgps`），追踪中的任务 `navigated=true` |
-| 坐标跟随 | `upsertExternalTarget` | Chemdah tracker 动态坐标变化时更新目标坐标（`select=false`，不打断选中） |
-| 导航回调 | `registerNavigationSource` | 注册 `questgps` 来源的 `MapNavigationHandler`：面板"导航"→ `handleMapNavigateRequest`（任务级/子任务级追踪），"取消"→ `handleMapCancelRequest`（停止追踪，标记保留） |
-| 打开地图 | UI Packet `open_map` | 调用 `MapNavigable.openMenuFor` 打开地图菜单并选中目标 |
-| 清空目标 | `clearExternalTargets` | 模块卸载时清空 `questgps` 来源的全部目标 |
-
-### 同步时机
-
-| 触发 | 行为 |
-|---|---|
-| `QuestEvents.Accept.Post` / `Fail.Post` / `Complete.Post` | 重算该玩家目标集合并 reconcile |
-| 玩家进服 | 延迟 40 tick 后 reconcile（等待 Chemdah 数据就绪） |
-| Chemdah tracker 坐标刷新 | `positionListener` → `upsertExternalTarget` 更新坐标 |
+- 所有进行中任务作为第三方路径点同步到地图（`source = questgps`），追踪中的任务显示"导航中"
+- 玩家在地图面板点击「导航」→ QuestGPS 开始任务/子任务追踪；点击「取消」→ 停止追踪（标记保留）
+- Chemdah tracker 动态坐标变化时地图标记自动跟随
+- 任务接受/完成/失败、玩家进服时自动重新同步
 
 ### 导航互斥
 
-互斥体现在**跨模块**层面——QuestGPS 与 Map 各自的导航不允许共存；而 QuestGPS 内部允许多个任务并行追踪（仅主目标有路标/路线）：
+QuestGPS 与 Map 各自的导航不允许共存（QuestGPS 内部可多任务并行）：
 
-- QuestGPS 开始任务导航 → 调 `MapNavigable.clearTrack(player)` 静默清除地图自身的锚点/路径点导航
-- 地图开始锚点/路径点导航 → 发布 `axs.map.nav_started`，QuestGPS 订阅后调用 `onMapNavigationStarted` **清空全部任务追踪**（任务目标标记保留在地图上）
+- QuestGPS 开始任务导航 → 地图自身的锚点/路径点导航静默清除
+- 地图开始锚点/路径点导航 → QuestGPS 全部任务追踪清空（任务标记保留在地图上）
 
-> Map 模块不存在时导航功能正常运行，仅跳过地图标记同步。`map-label` 字段用作地图标记的标题（任务有描述时描述面板展示 `description`）。
-
-## 导航状态管理
-
-### TrackingState
-
-每个玩家的追踪状态为 `Map<trackKey, TrackingState>`（LinkedHashMap 保序，key = `questId` 或 `questId|taskId` 小写规范化）。`TrackingState` record 字段：
-
-| 字段 | 类型 | 说明 |
-|---|---|---|
-| `active` | `boolean` | 是否正在追踪 |
-| `mode` | `TrackingMode` | 追踪模式：`NONE` / `QUEST` / `TASK` |
-| `questId` | `String` | 任务 ID |
-| `taskId` | `String` | 子任务 ID（任务级追踪时为空） |
-| `waypointId` | `String` | 路径点标识符 |
-| `label` | `String` | 追踪目标显示名称 |
-| `questName` | `String` | 所属任务显示名（多追踪 HUD 卡片标题用） |
-
-`trackKey()` 返回该状态在追踪表中的键；`matchesTask(questId, taskId)` 用于判定某个子目标追踪是否已登记。
-
-### NavigationPoint
-
-导航坐标点由 `NavigationPoint` record 表示：
-
-| 字段 | 类型 | 说明 |
-|---|---|---|
-| `waypointId` | `String` | 路径点标识符 |
-| `title` | `String` | 路径点标题 |
-| `styleId` | `String` | 路径点样式 ID |
-| `world` | `String` | 世界名称 |
-| `x` | `double` | X 坐标 |
-| `y` | `double` | Y 坐标 |
-| `z` | `double` | Z 坐标 |
-| `mapLabel` | `String` | 地图标记标签 |
-| `npcId` | `String` | Adyeshach NPC 名/ID（非空时跟随 NPC 实时位置） |
-| `finishRange` | `double` | 到达触发半径（< 0 继承全局 `finish-range`） |
-| `finishCommands` | `List<String>` | 到达命令（空列表继承全局 `finish-commands`） |
-| `teleport` | `TeleportPointDefinition` | 跨世界传送点（可空） |
+> Map 模块不存在时导航功能正常运行，仅跳过地图标记同步。`map-label` 字段用作地图标记的标题。
 
 ## 导航完整配置示例
 
 ```yaml
 navigation:
   enabled: true
-  quest-id-prefix: "AXS-questgps-"
   remove-on-finish: true
   mode: hybrid
   refresh-ticks: 10
@@ -423,9 +252,9 @@ example_mainline_quest:
       title: "初入岛屿"
       style-id: "default"
       map-label: "主线目标"
-      # npc: "长老"                 # 可选：跟随 Adyeshach NPC 实时位置（world 可留空）
-      # finish-range: 3             # 可选：到达触发半径（<0 继承全局）
-      # finish-commands:            # 可选：到达命令（控制台执行，%player% 占位）
+      # npc: "长老"                 # 可选：跟随 Adyeshach NPC 实时位置
+      # finish-range: 3             # 可选：到达触发半径
+      # finish-commands:            # 可选：到达命令
       #   - "say %player% 到达了目标"
       # teleport:                   # 可选：跨世界「传送并追踪」传送点
       #   world: "world_nether"
@@ -451,15 +280,15 @@ example_mainline_quest:
         map-label: "任务目标"
 ```
 
-> 子任务导航点会覆盖任务级 `navigation.point`。`hybrid` 模式下 Chemdah tracker 坐标优先于 overlay 配置坐标。导航坐标的样式 ID 须在 ArcartX waypoint 目录下有对应定义，详见 [/docs/guide/icons](/docs/guide/icons)。
+> 子任务导航点会覆盖任务级 `navigation.point`。`hybrid` 模式下 Chemdah tracker 坐标优先于 overlay 配置坐标。
 
 ## 依赖关系
 
 | 依赖 | 类型 | 不可用时的影响 |
 |---|---|---|
-| ArcartX Waypoint | 硬依赖 | 导航功能不可用（`navigationRuntimeReady` 返回 `false`） |
-| Adyeshach | 软依赖 | 导航标记关闭，路标导航正常 |
+| ArcartX Waypoint | 硬依赖 | 导航功能不可用 |
+| Adyeshach | 软依赖 | 模型导航标记关闭，路标导航正常 |
 | Chemdah Tracker API | 软依赖 | 回退 overlay 导航坐标 |
 | Map 模块 | 软依赖 | 跳过地图目标同步，导航正常 |
 
-> 导航运行时就绪状态可通过 `/axs questgps status` 查看 `导航就绪` 字段，或通过 UI Packet 的 `navigationReady` 字段获取。
+> 导航运行时就绪状态可通过 `/axs questgps status` 查看。

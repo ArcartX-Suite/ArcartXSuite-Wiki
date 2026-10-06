@@ -9,14 +9,14 @@ Warehouse 模块提供基于 NBT/PDC 路径的物品分类、多字段排序方�
 
 ## 物品分类
 
-### 分类匹配原理
+### 分类匹配
 
-物品存入仓库时，系统会自动判断其归属分类。分类匹配基于 `CategoryDefinition` 的 NBT 路径与匹配值列表，按 `priority`（优先级）从小到大依次尝试：
+物品存入仓库时自动判断归属分类，按 `priority` 升序依次匹配：
 
 1. 遍历所有非兜底分类（`fallback: false`），按 `priority` 升序排列
-2. 对每个分类，读取物品在 `nbt.path` 指定路径上的值
-3. 如果该值（小写化后）存在于 `nbt.values` 列表中，则归入此分类
-4. 所有分类均不匹配时，归入兜底分类（`default: true`，默认 ID 为 `other`）
+2. 读取物品在 `nbt.path` 指定路径上的值
+3. 该值（小写化后）存在于 `nbt.values` 列表中，则归入此分类
+4. 均不匹配时归入兜底分类（`default: true`，默认 ID `other`）
 
 ### 支持的 NBT 路径类型
 
@@ -30,7 +30,7 @@ Warehouse 模块提供基于 NBT/PDC 路径的物品分类、多字段排序方�
 | `display-name` / `name` | 读取物品显示名称 | `钻石剑` |
 | `custom-model-data` | 读取 CustomModelData 整数值 | `10001` |
 
-> 路径解析逻辑位于 `WarehouseService.resolvePath()`，PDC 读取优先尝试 STRING 类型，其次 INTEGER，最后 LONG。
+> PDC 值读取优先尝试字符串类型，其次整数类型。
 
 ### 分类配置
 

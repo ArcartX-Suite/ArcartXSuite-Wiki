@@ -50,20 +50,6 @@ welcome:
 
 带 ArcartX 客户端的玩家进入服务器，几秒后 HUD 应滚出公告文本。
 
-## 启动流程概览
-
-服务器启动时，Suite 按以下顺序初始化：
-
-1. 初始化智能配置诊断 `ConfigDiagnosticEngine`
-2. 初始化 `ClientPacketGuard`（客户端包防护）
-3. `BridgeLifecycleManager.initialize()` — 创建并初始化所有桥接实现
-4. `KeybindService.initialize()` — 注册全局按键
-5. `CrossServerService.start()` — 启动跨服通道
-6. `ClientEventLifecycleManager.start()` — 监听 ArcartX 客户端事件
-7. `ChatSignBypassService.initialize()` — Paper 1.21+ 签名绕过
-8. 创建 `ModuleRegistry`，按拓扑排序加载外部模块 Jar
-9. 完成
-
 ## 全量启用
 
 确认 1-2 个模块跑通后，逐个打开其他模块：

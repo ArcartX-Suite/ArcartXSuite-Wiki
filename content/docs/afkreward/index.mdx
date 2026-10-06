@@ -14,7 +14,6 @@ AfkReward 是 Suite 的挂机奖励模块，为服务器提供完整的区域挂
 |---|---|
 | 模块 ID | `afkreward` |
 | 版本 | 1.4.4 |
-| 主类 | `xuanmo.arcartxsuite.afkreward.AfkRewardModule` |
 | 配置文件 | `config.yml`、`area-default.yml`、`messages.yml` |
 | 命令入口 | 玩家 `/afk`；管理 `/axs afkreward` |
 | 外部依赖 | PlaceholderAPI（必需） |
@@ -117,10 +116,10 @@ AfkReward 提供两种挂机模式，两种模式可并存于同一区域：
 | 共享存储（推荐） | `storage.shared: true` | 使用本体 `config.yml` 的 storage 节配置，数据库连接由本体统一管控 |
 | 自建存储（不推荐） | `storage.shared: false` | 模块自建独立 HikariCP 连接池，支持 SQLite / MySQL |
 
-数据库表结构详见 [联动](/docs/afkreward/integration) 页面。
+数据存储与集成详见 [联动](/docs/afkreward/integration) 页面。
 
 ## 相关文档
 
 - [配置](/docs/afkreward/configuration) — 主配置文件、区域配置文件、倍率调度、反滥用策略详解
 - [命令与占位符](/docs/afkreward/commands) — 玩家命令、管理命令、PAPI 占位符、HUD UI 包
-- [联动](/docs/afkreward/integration) — EventBus 事件、Capability 注册、跨服同步、数据库表结构、模块集成
+- [联动](/docs/afkreward/integration) — EventBus 事件、Capability 注册、跨服同步、模块集成

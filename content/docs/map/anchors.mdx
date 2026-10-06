@@ -1,6 +1,6 @@
 ---
 title: 锚点系统
-description: 锚点定义、解锁费用、传送机制、权限控制、自动解锁与点亮区域
+description: 锚点定义、解锁费用、传送、权限控制、自动解锁与点亮区域
 ---
 
 # 锚点系统
@@ -9,21 +9,9 @@ description: 锚点定义、解锁费用、传送机制、权限控制、自动�
 
 锚点是 Map 模块的核心功能之一，表示地图上可解锁、可传送的标记点。每个锚点绑定一个世界坐标，玩家可通过消耗货币和物品解锁锚点，解锁后可消耗货币传送到锚点位置。锚点还可配置点亮区域，解锁后在小地图上照亮对应范围（战争迷雾）。
 
-锚点功能涉及以下组件：
-
-| 组件 | 类 | 职责 |
-|---|---|---|
-| 锚点定义 | `AnchorDefinition` | 配置层，描述锚点的坐标、费用、权限、自动解锁与点亮区域 |
-| 锚点存储 | `JdbcMapRepository` | 持久化锚点解锁记录到 `AXS_map_unlocks` 表 |
-| 解锁逻辑 | `MapService.unlockAnchor()` | 费用检查、原子插入、回滚机制 |
-| 传送逻辑 | `MapService.teleportAnchor()` | 权限校验、货币消耗、Bukkit 传送 |
-| 费用格式化 | `MapService.formatUnlockCostText()` | 生成 UI 显示的费用文本 |
-
-> 锚点定义在各世界文件 `data/map/worlds/<世界ID>.yml` 的 `anchors` 节中，**不再有独立的 `anchors/` 目录**，锚点所属世界由所在文件名决定。
+> 锚点定义在各世界文件 `data/map/worlds/<世界ID>.yml` 的 `anchors` 节中，锚点所属世界由所在文件名决定。
 
 ## 锚点定义
-
-### 文件结构
 
 锚点定义写在 `worlds/<世界ID>.yml` 的 `anchors` 节下，每个根键为锚点 ID：
 
@@ -96,120 +84,29 @@ anchors:
 | `light-region.points` | `List` | — | 点亮多边形顶点 `[[x,z],...]`（至少 3 点） |
 | `light-radius` | `double` | `0` | 以锚点为中心的圆形点亮半径（方块数） |
 
-> 锚点 ID 不区分大小写，内部统一转换为小写存储。同一锚点 ID 在多个世界文件中定义时，后加载的文件覆盖先加载的（按文件名字母序）。
->
-> 不配 `light-region` 和 `light-radius` = 该锚点不参与点亮。
+> 锚点 ID 不区分大小写。不配 `light-region` 和 `light-radius` 时该锚点不参与点亮。
 
 <Callout type="warn">
-`unlock.on-permission: true` 但锚点未设置 `permission` 时，自动解锁不会生效，模块启动时会输出警告日志。注意：**解锁记录 ≠ 使用权限**——`unlock.default` 自动解锁的玩家若锚点配了 `permission`，仍需有权限才能传送。
+`unlock.on-permission: true` 但锚点未设置 `permission` 时，自动解锁不会生效。注意：**解锁记录 ≠ 使用权限**——自动解锁的玩家若锚点配了 `permission`，仍需有权限才能传送。
 </Callout>
 
-## 解锁机制
+## 解锁与传送
 
-### 解锁流程
+### 解锁条件
 
-```
-玩家点击「解锁」按钮
-  └→ UI 发送 unlock_anchor Packet（含 action_token）
-       └→ MapUiPacketHandler.beginActionToken() 校验 token
-       └→ MapService.unlockAnchor()
-            1. 验证锚点存在且未已解锁
-            2. 验证权限与世界配置
-            3. 预检物品消耗（prepareItemConsumption）
-            4. 原子插入解锁记录（tryUnlockAnchor）
-            5. 扣除货币（chargeCurrencies）
-            6. 扣除物品（applyItemConsumption）
-            7. 若任一步骤失败，按序回滚
-            8. 刷新 UI
-```
+玩家在详情面板点击「解锁」时依次检查：锚点存在且未解锁、`permission` 权限、物品与货币余额充足。全部通过才扣除费用并写入解锁记录；任一步失败时自动回滚，不会出现"扣了费没解锁"的情况。
 
-### 解锁条件检查
+### 传送条件
 
-| 检查项 | 失败消息 | 说明 |
-|---|---|---|
-| 锚点是否存在 | `未找到锚点: {0}` | 锚点 ID 在配置中不存在 |
-| 是否已解锁 | `该锚点已解锁。` | 玩家已解锁过此锚点 |
-| 权限检查 | `你没有使用该锚点的权限。` | `permission` 字段非空且玩家无权限 |
-| 世界配置 | `锚点所在世界未配置地图: {0}` | 锚点所在世界未配置 |
-| 物品预检 | `缺少解锁所需物品。` | 背包中匹配物品不足 |
-| 货币余额 | `余额不足: {0}` | 货币余额低于解锁费用 |
-| 货币桥接 | `货币桥接不可用: {0}` | 货币系统未安装或不可用 |
-| 数据库写入 | `写入锚点解锁数据失败。` | 解锁记录写入数据库失败 |
+点击「传送」时检查：锚点存在且已解锁、权限、目标世界已加载、货币余额充足。传送失败时货币自动退还。
 
-### 原子性与回滚
+> 传送目标为锚点定义的 `x`/`y`/`z`，保留玩家当前视角朝向。
 
-解锁操作采用「先记录后扣费」策略，确保数据一致性：
+### 费用文本
 
-| 步骤 | 操作 | 失败时回滚 |
-|---|---|---|
-| 1 | 预检物品消耗 | 无需回滚（仅检查未实际扣除） |
-| 2 | 原子插入解锁记录 | `tryUnlockAnchor` 使用 `INSERT OR IGNORE` / `INSERT IGNORE`，已解锁时返回 `false` |
-| 3 | 扣除货币 | 回滚步骤 2：`removeUnlock` 删除解锁记录 |
-| 4 | 扣除物品 | 回滚步骤 3：`rollbackCurrencies` 退还货币；回滚步骤 2：`removeUnlock` |
-
-> 物品消耗使用「快照 + 差量」机制：先克隆背包内容，计算各槽位扣除量，最后一次性更新背包。失败时恢复原始背包快照。
-
-### 解锁费用文本
-
-UI 详情面板显示的解锁费用文本由 `formatUnlockCostText()` 生成：
-
-| 费用类型 | 格式 | 示例 |
-|---|---|---|
-| 仅货币 | `货币名 x数量` | `金币 x200` |
-| 多货币 | `货币名1 x数量 + 货币名2 x数量` | `金币 x200 + 点券 x5` |
-| 仅物品 | `物品条件 x数量` | `物品条件 x2` |
-| 货币 + 物品 | `货币名 x数量 + 物品条件 x数量` | `金币 x200 + 物品条件 x2` |
-| 无费用 | `免费解锁` | — |
-
-> 货币显示名来自 `CurrencyBridge.definition().displayName()`。货币金额使用 `BigDecimal.setScale(2, RoundingMode.DOWN)` 保留两位小数并去除尾随零。
-
-## 传送机制
-
-### 传送流程
-
-```
-玩家点击「传送」按钮
-  └→ UI 发送 teleport_anchor Packet（含 action_token）
-       └→ MapUiPacketHandler.beginActionToken() 校验 token
-       └→ MapService.teleportAnchor()
-            1. 验证锚点存在且已解锁
-            2. 验证权限与世界配置
-            3. 检查目标世界是否已加载
-            4. 扣除传送货币
-            5. 执行 Bukkit 传送
-            6. 若传送失败，回滚货币
-            7. 刷新 UI
-```
-
-### 传送条件检查
-
-| 检查项 | 失败消息 | 说明 |
-|---|---|---|
-| 锚点是否存在 | `未找到锚点: {0}` | 锚点 ID 在配置中不存在 |
-| 是否已解锁 | `该锚点尚未解锁。` | 玩家未解锁此锚点 |
-| 权限检查 | `你没有使用该锚点的权限。` | `permission` 字段非空且玩家无权限 |
-| 世界配置 | `锚点所在世界未配置地图: {0}` | 锚点所在世界未配置 |
-| 世界加载 | `目标世界当前未加载: {0}` | `Bukkit.getWorld()` 返回 `null` |
-| 货币余额 | `余额不足: {0}` | 货币余额低于传送费用 |
-| 传送执行 | `传送失败，请稍后重试。` | `Player.teleport()` 返回 `false` |
-
-### 传送坐标
-
-传送目标坐标为锚点定义的 `x` / `y` / `z`，保留玩家当前的 `yaw` 和 `pitch`。
-
-### 传送费用文本
-
-传送费用文本由 `formatTeleportCostText()` 生成，格式与解锁费用相同但仅包含货币（传送不支持物品消耗）：
-
-| 费用类型 | 格式 | 示例 |
-|---|---|---|
-| 有货币 | `货币名 x数量` | `金币 x10` |
-| 多货币 | `货币名1 x数量 + 货币名2 x数量` | `金币 x10 + 点券 x1` |
-| 无费用 | `免费传送` | — |
+详情面板自动生成费用文本：仅货币 `金币 x200`，多货币 `金币 x200 + 点券 x5`，含物品 `+ 物品条件 x2`，无费用显示 `免费解锁` / `免费传送`。
 
 ## 货币消耗
-
-### 货币配置
 
 ```yaml
 unlock-currencies:
@@ -219,30 +116,14 @@ unlock-currencies:
     amount: 5
 ```
 
-| 字段 | 类型 | 约束 | 说明 |
-|---|---|---|---|
-| `currency` | `String` | 非空，小写 | 货币 ID（通过 `CurrencyBridgeAPI` 解析） |
-| `amount` | `BigDecimal` | 必须 `> 0` | 消耗金额 |
-
-> 货币 ID 不区分大小写，内部统一转换为小写。`amount` 为 0 或负数的条目会被忽略。
-
-### 扣费流程
-
-1. **余额检查**：遍历所有货币费用，检查对应 `CurrencyBridge` 是否可用且余额充足
-2. **逐笔扣除**：按顺序调用 `bridge.withdraw(player, amount)` 扣除每笔货币
-3. **失败回滚**：任一笔扣除失败时，已成功扣除的货币通过 `bridge.deposit()` 退还
-
-| 失败场景 | 消息 | 回滚 |
+| 字段 | 类型 | 说明 |
 |---|---|---|
-| 桥接不可用 | `货币桥接不可用: {0}` | 已扣除的货币退还 |
-| 余额不足 | `余额不足: {0}` | 未开始扣除 |
-| 扣费失败 | `扣费失败: {0}` 或桥接返回的消息 | 已扣除的货币退还 |
+| `currency` | `String` | 货币 ID（不区分大小写） |
+| `amount` | `BigDecimal` | 消耗金额，必须 `> 0` |
 
-> 货币系统通过 `CurrencyBridgeAPI` 桥接，支持 Vault、PlayerPoints 等。参考 /docs/guide/conditions 了解货币条件配置。
+> 货币系统支持 Vault、PlayerPoints 等，通过宿主货币桥接解析。
 
 ## 物品消耗
-
-### 物品配置
 
 ```yaml
 unlock-items:
@@ -252,39 +133,19 @@ unlock-items:
         - "ender_pearl"
 ```
 
-| 字段 | 类型 | 约束 | 说明 |
-|---|---|---|---|
-| `amount` | `int` | 最小 1 | 消耗数量 |
-| `matcher` | `ItemMatcher` | 非空匹配器 | 物品匹配器配置 |
-
-> 物品匹配器配置参考 /docs/guide/item-sources 中的物品匹配器语法。空匹配器的条目会被忽略。
-
-### 物品消耗机制
-
-物品消耗采用「预检 + 快照 + 差量」三步机制：
-
-| 阶段 | 操作 | 说明 |
+| 字段 | 类型 | 说明 |
 |---|---|---|
-| 预检 | `prepareItemConsumption()` | 克隆背包，遍历所有匹配器计算各槽位扣除量，不足时返回失败 |
-| 扣除 | `applyItemConsumption()` | 根据差量数组更新背包，`setStorageContents()` 一次性写入 |
-| 回滚 | `rollbackItemConsumption()` | 恢复预检阶段保存的原始背包快照 |
+| `amount` | `int` | 消耗数量（最小 1） |
+| `matcher` | `ItemMatcher` | 物品匹配器配置 |
 
-> 物品匹配通过 `ItemMatcherAPI.matches()` 完成，支持 `material-ids`、`name-contains`、`lore-contains` 等匹配条件。
+> 物品匹配器语法详见 [物品来源](/docs/guide/item-sources)。
 
 ## 权限控制
 
-### 锚点权限
-
-每个锚点可通过 `permission` 字段设置使用权限：
-
 | 配置 | 效果 |
 |---|---|
-| `permission: ""` | 无权限限制，所有玩家可使用 |
+| `permission: ""` | 无权限限制 |
 | `permission: "arcartxsuite.map.vip"` | 仅拥有该权限的玩家可解锁和传送 |
-
-权限检查在解锁和传送操作中均会执行。无权限时提示「你没有使用该锚点的权限」。
-
-### 路径点/标记点上限权限
 
 路径点与标记点数量上限通过 `waypoints.limits` 按权限区分：
 
@@ -296,26 +157,23 @@ waypoints:
       max-count: 100
 ```
 
-最终上限取 `default-max-count` 与所有匹配权限的 `limits` 中的最大值。
+最终上限取 `default-max-count` 与所有匹配权限上限的最大值，按世界独立计算。
 
 | 权限节点 | 默认 | 说明 |
 |---|---|---|
-| `arcartxsuite.map.use` | 所有玩家 | 使用 `/map` 玩家命令的权限（plugin.yml 注册，默认 true） |
-| `arcartxsuite.map.admin` | OP | 管理/上限提升权限 |
+| `arcartxsuite.map.use` | 所有玩家 | 使用 `/map` 玩家命令 |
+| `arcartxsuite.map.admin` | OP | 管理权限 |
 
 ## 自动解锁
 
-### 配置
-
-自动解锁通过每个锚点的 `unlock` 节配置（配置版本 4 起，替代旧的全局 `default-unlocks` 节）：
+每个锚点可通过 `unlock` 节配置自动解锁：
 
 ```yaml
 anchors:
   spawn:
-    # ...
     unlock:
-      default: true          # 所有玩家进服时自动免费解锁
-      on-permission: false   # 拥有 permission 权限的玩家进服时自动免费解锁
+      default: true          # 所有玩家进服自动免费解锁
+      on-permission: false
 
   vip_hall:
     permission: "arcartxsuite.map.vip"
@@ -323,73 +181,17 @@ anchors:
       on-permission: true    # VIP 玩家进服自动解锁
 ```
 
-| 字段 | 类型 | 说明 |
-|---|---|---|
-| `unlock.default` | `boolean` | 所有玩家进服时自动免费解锁（不消耗解锁货币/物品） |
-| `unlock.on-permission` | `boolean` | 拥有锚点 `permission` 权限的玩家进服时自动免费解锁 |
+| 字段 | 说明 |
+|---|---|
+| `unlock.default` | 所有玩家进服时自动免费解锁（不消耗解锁费用） |
+| `unlock.on-permission` | 拥有锚点 `permission` 权限的玩家进服时自动免费解锁 |
 
-> 不配 `unlock` 节 = 不自动解锁，玩家需手动解锁。
-
-### 触发时机
-
-自动解锁在客户端初始化完成时触发（`ClientInitializedHandler`）：
-
-1. 玩家客户端初始化完成
-2. `MapService.handleClientInitialized()` 遍历所有锚点的 `unlock` 规则
-3. `default: true` 直接解锁；`on-permission: true` 且玩家有对应 `permission` 时解锁
-4. 已解锁的锚点跳过；有新解锁时刷新玩家数据缓存
-
-> 自动解锁不扣除任何费用，每个玩家一次会话只执行一次。
+> 自动解锁在客户端初始化完成时触发，每个玩家一次会话只执行一次。不配 `unlock` 节 = 需手动解锁。
 
 ## 锚点排序
 
-### 排序规则
-
-锚点在地图菜单中的排序由 `sort-order` 字段控制：
-
-1. 先按 `sortOrder` 升序排列
-2. 相同 `sortOrder` 的锚点按 `displayName` 字母顺序排列（不区分大小写）
-
-> 锚点仅在当前选中世界中显示。排序仅对同一世界内的锚点生效。
-
-## 数据持久化
-
-### 解锁记录表
-
-锚点解锁记录存储在 `AXS_map_unlocks` 表中：
-
-| 列 | SQLite 类型 | MySQL 类型 | 说明 |
-|---|---|---|---|
-| `uuid` | `TEXT NOT NULL` | `VARCHAR(36) NOT NULL` | 玩家 UUID |
-| `anchor_id` | `TEXT NOT NULL` | `VARCHAR(128) NOT NULL` | 锚点 ID |
-| `unlock_time` | `INTEGER NOT NULL` | `BIGINT NOT NULL` | 解锁时间戳（毫秒） |
-| **主键** | `(uuid, anchor_id)` | `(uuid, anchor_id)` | 联合主键 |
-
-### 解锁记录操作
-
-| 操作 | 方法 | SQL 语法 |
-|---|---|---|
-| 原子插入 | `tryUnlockAnchor()` | SQLite: `INSERT OR IGNORE`；MySQL: `INSERT IGNORE` |
-| 移除记录 | `removeUnlock()` | `DELETE FROM AXS_map_unlocks WHERE uuid = ? AND anchor_id = ?` |
-| 加载已解锁 | `loadUnlockedAnchors()` | `SELECT anchor_id FROM AXS_map_unlocks WHERE uuid = ?` |
-
-### 数据缓存
-
-为减少数据库查询，`MapService` 使用 `CachedPlayerMapData` 缓存玩家的解锁记录和路径点：
-
-| 缓存操作 | 触发时机 |
-|---|---|
-| 加载缓存 | 首次访问玩家数据时从数据库加载 |
-| 刷新缓存 | 解锁锚点、创建/删除路径点或标记点后调用 `invalidatePlayerDataCache()` |
-| 清除缓存 | 玩家退出服务器时移除 |
+锚点在地图菜单中按 `sort-order` 升序排列，相同值按 `display-name` 字母序（不区分大小写），仅对同一世界内生效。
 
 ## 玩家数据清除
 
-Map 模块注册 `PlayerDataPurgeable` Capability，支持 `/axs purge` 统一清理玩家地图数据：
-
-| 方法 | 说明 |
-|---|---|
-| `purgePlayerData(UUID)` | 删除指定玩家的解锁记录、路径点和标记点，返回删除行数 |
-| `purgeAllPlayerData()` | 删除所有玩家的解锁记录、路径点和标记点，返回删除行数 |
-
-> 清除操作在事务中执行。失败时返回 `-1`。
+`/axs purge` 支持按 UUID 或全量清理玩家地图数据（解锁记录、路径点、标记点）。

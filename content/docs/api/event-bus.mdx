@@ -18,7 +18,7 @@ description: Suite 跨模块事件总线 API，支持主题发布/订阅、通�
 | `SignalDispatchable` | 1 对 1 | 面向 EventPacket 规则引擎，触发信号 |
 | `EventBusCapability` | 1 对多 pub/sub | 面向所有模块，发布/订阅事件主题 |
 
-事件总线由宿主注册唯一实例，任何模块均可通过 `context.getCapability(EventBusCapability.class)` 获取并使用。
+任何模块均可通过 `context.getCapability(EventBusCapability.class)` 获取事件总线并使用。
 
 `EventBusCapability` 标注了 `@PublicCapability`，**外部 Bukkit 插件**也可经 `AxsCapabilities.get(EventBusCapability.class)` 订阅/发布主题（如 `axs.map.nav_started`）。详见 [Capability 参考 - 公开 Capability](./capability#公开-capability外部插件入口)。
 
@@ -111,57 +111,7 @@ public class MyModule extends AbstractAXSModule {
 }
 ```
 
-基类自动注册逻辑（`AbstractAXSModule.onEnable`）：
-
-```java
-// 3b. 注册 EventBus 发布者主题（在 startService 之前，确保其他模块可查询）
-List<String> topics = publishedTopics();
-if (topics != null && !topics.isEmpty()) {
-    EventBusCapability eventBus = context.getCapability(EventBusCapability.class);
-    if (eventBus != null) {
-        for (String topic : topics) {
-            eventBus.registerPublisher(topic);
-        }
-    }
-}
-```
-
 > 默认返回空列表。只有发布 EventBus 事件的模块才需要重写此方法。
-
-## 事件分发
-
-`SimpleEventBus` 是 `EventBusCapability` 的默认实现，使用 `ConcurrentHashMap` + `CopyOnWriteArrayList` 实现线程安全的订阅管理：
-
-```java
-public final class SimpleEventBus implements EventBusCapability {
-    private final ConcurrentHashMap<String, CopyOnWriteArrayList<Subscription>> subscriptions;
-    private final ConcurrentHashMap<String, Subscription> subscriptionById;
-    private final Set<String> publisherTopics; // ConcurrentHashMap.newKeySet()
-}
-```
-
-### 分发流程
-
-`publish` 方法依次执行：
-
-1. **自动追踪**：将 topic 加入 `publisherTopics`（运行时检测补充）
-2. **精确匹配**：查找 `subscriptions` 中与 topic 完全匹配的订阅列表，逐个分发
-3. **通配符匹配**：遍历所有以 `.*` 结尾的订阅模式，若 topic 以模式前缀开头则分发
-
-### 异常处理
-
-事件分发的异常会被捕获并打 warning 日志，**不会中断其它处理器**：
-
-```java
-private void dispatch(Subscription sub, BusEvent event) {
-    try {
-        sub.handler.handle(event);
-    } catch (Exception e) {
-        logger.warning("[EventBus] 处理器异常 topic=" + event.topic()
-            + " sub=" + sub.id + " : " + e.getMessage());
-    }
-}
-```
 
 ## 使用示例
 
@@ -275,7 +225,8 @@ protected void startService() throws Exception {
 ## 注意事项
 
 - 事件分发在**调用线程**同步执行，避免在 handler 中执行耗时操作。
+- 某个 handler 抛出异常不会中断其它 handler，但会输出 warning 日志。
 - `publish` 时 `player` 参数可为 null（如系统事件），订阅方需做空值判断。
 - `payload()` 方法在原始 payload 不是 `Map<String, String>` 时返回空 Map，需要类型安全数据时使用 `typedPayload()`。
-- 模块 `onDisable` 时应取消所有活跃订阅，避免内存泄漏（宿主会自动清理 Capability 注册，但订阅 ID 需模块自行管理）。
-- `BattlePass` 等模块会延迟 1 tick 启动 TaskEngine，确保所有模块的 `publishedTopics()` 已注册到 EventBus（模块加载顺序不确定）。
+- 模块 `onDisable` 时应取消所有活跃订阅，避免内存泄漏。
+- 模块加载顺序不确定，在 `startService` 中检测其他模块主题时建议使用 `hasPublisher` 判空并做好降级处理。

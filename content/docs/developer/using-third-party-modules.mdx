@@ -1,6 +1,6 @@
 ---
 title: 使用第三方模块
-description: 服主如何安装、启用、热加载第三方 Suite 模块 Jar，以及依赖、签名与排错。
+description: 服主如何安装、启用、热加载第三方 Suite 模块 Jar，以及依赖与排错。
 ---
 
 # 使用第三方模块
@@ -54,9 +54,9 @@ modules:
 | 命令 | 作用 |
 |------|------|
 | `/axs load <id>` | 从 `modules/` 扫描并首次加载模块 |
-| `/axs reload <id>` | 对模块执行 `onDisable` → `onEnable`（同一 ClassLoader） |
+| `/axs reload <id>` | 重载模块（等同于先禁用再启用） |
 | `/axs reload all` | 重载所有已加载模块 |
-| `/axs unload <id>` | 卸载模块并释放 ClassLoader |
+| `/axs unload <id>` | 卸载模块 |
 
 <Callout type="info" title="unload 与依赖">
 若模块 B `depends` 模块 A，卸载 A 前需先卸载 B。宿主会提示仍依赖 A 的模块列表。
@@ -94,29 +94,14 @@ external-depends: [PlaceholderAPI]
 
 若第三方模块文档写「需要 Mail 模块」，你应在 `config.yml` 中同时启用 `mail: enabled: true`。
 
-## 模块签名（可选）
-
-宿主支持对 `module.yml` 做 Ed25519 校验：开发者用私钥签名，服主在 `config.yml` 配置作者公钥后，无有效签名的 Jar 会被拒绝加载。
-
-```yaml
-module-signature-public-keys:
-  - "BASE64_ENCODED_ED25519_PUBLIC_KEY"
-```
-
-留空 `[]` 表示关闭（默认）。详见 [模块 Ed25519 签名](./module-signature)。
-
-<Callout type="warn" title="开启前请读完整说明">
-配置任意公钥后，所有模块（含官方云端模块）都必须带合法 `signature`，否则无法加载。
-</Callout>
-
 ## 云端模块 vs 本地 Jar
 
 | 来源 | 位置 | 说明 |
 |------|------|------|
-| 官方/云端授权 | 内存加载，无本地文件 | 通过云端授权下发 |
+| 官方/云端授权 | 无本地文件 | 通过云端授权自动下发 |
 | 第三方 / 自研 | `modules/*.jar` | 本文所述方式 |
 
-第三方自研模块通常以本地 Jar 分发；不要将未授权的加密 `.axb` 与云端体系混用。
+第三方自研模块通常以本地 Jar 分发，与云端授权下发的官方模块互不影响。
 
 ## 配置与数据目录
 
@@ -140,7 +125,7 @@ module-signature-public-keys:
 
 - 检查 Jar 是否在 `plugins/ArcartX-Suite/modules/`
 - 检查 `module.yml` 的 `id` 与 `config.yml` 键名是否一致（大小写敏感）
-- 查看控制台是否有 `ClassNotFoundException` 或签名失败
+- 查看控制台是否有 `ClassNotFoundException` 等加载报错
 
 ### UI / HUD 不显示
 
@@ -149,7 +134,7 @@ module-signature-public-keys:
 
 ### 与其他插件冲突
 
-第三方模块仍是独立 ClassLoader，一般不会与 `plugins/` 下其他 Jar 的类冲突；但若模块 `external-depends` 某插件，需保证版本兼容。
+第三方模块一般不会与 `plugins/` 下其他插件冲突；但若模块 `external-depends` 某插件，需保证版本兼容。
 
 ### 如何卸载干净
 
@@ -171,4 +156,3 @@ module-signature-public-keys:
 2. `module.yml` 中的 `depends` / `external-depends` 列表
 3. `config.yml` 中需添加的 `modules.<id>.enabled` 片段
 4. 若使用 Capability，说明需要启用哪些官方模块
-5. （可选）Ed25519 公钥与签名说明

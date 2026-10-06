@@ -11,7 +11,7 @@ description: ModuleContext 接口及其子接口的完整方法参考——桥�
 
 ## 接口拆分
 
-`ModuleContext` 按 ISP 原则拆分为多个职责子接口，模块可按需依赖窄接口：
+`ModuleContext` 拆分为多个职责子接口，模块可按需依赖窄接口：
 
 | 子接口 | 职责 |
 |--------|------|
@@ -83,7 +83,7 @@ if (bridge != null && bridge.isAvailable()) {
 
 | 方法 | 返回类型 | 稳定性 | 说明 |
 |------|----------|--------|------|
-| `storageManager()` | `StorageManager` | `@Stable` | 统一数据源管理器（HikariCP 连接池复用） |
+| `storageManager()` | `StorageManager` | `@Stable` | 统一数据源管理器 |
 
 ```java
 StorageManager storage = context.storageManager();
@@ -113,7 +113,7 @@ DataSource ds = storage.dataSource("mydb");
 | `expansionRegistry()` | `PlaceholderExpansionRegistry` | PAPI 扩展注册表 |
 | `registerClientPacketHandler(handler)` | `void` | 注册客户端包处理器 |
 | `registerClientPacketHandler(handler, priority)` | `void` | 带优先级注册 |
-| `registerClientPacketHandler(handler, priority, packetId, guardModule)` | `void` | 带 PacketGuard 注册 |
+| `registerClientPacketHandler(handler, priority, packetId, guardModule)` | `void` | 带包频率限制注册 |
 | `registerClientInitializedHandler(handler)` | `void` | 注册客户端初始化回调 |
 | `registerKeybindHandler(keyName, priority, handler)` | `void` | 注册按键事件处理器 |
 | `registerCapability(type, impl)` | `void` | 注册跨模块能力 |

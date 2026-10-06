@@ -17,27 +17,25 @@ Suite 支持将 SystemMail 作为邮件后端：未启用本模块时，其他�
 |---|---|
 | 模块 ID | `mail` |
 | 版本 | 1.4.4 |
-| 主类 | `xuanmo.arcartxsuite.mail.MailModule` |
 | 配置文件 | `config.yml` |
 | 消息文件 | `messages.yml` |
 | 外部依赖 | PlaceholderAPI（必需，缺失时模块跳过加载） |
 | 模块依赖 | 无（本体内置 API 即可运行） |
 | 配置版本 | 2 |
-| 数据库表前缀 | `mail_`（共享模式无前缀） |
+| 数据存储 | SQLite 或 MySQL（共享/自建存储模式） |
 | 命令入口 | 玩家 `/mail`；管理 `/axs mail` |
 | 对外能力 | `MailDispatchable`（邮件投递）、`AxsMailService`、`PlayerDataPurgeable`、`DatabaseMigratable` |
 | PAPI 前缀 | `%axsmail_*%` |
 
 ## SystemMail 降级模式
 
-当服务器**未启用本模块（mail）但安装了 SystemMail 插件**时，宿主会自动注册一个降级适配器（`SystemMailMailDispatchable`），把 `MailDispatchable` Capability 指向 SystemMail——所有依赖邮件发送能力的模块会**无感知地**改用 SystemMail 投递邮件，收件、查看、领取由 SystemMail 自身的收件箱提供。
+当服务器**未启用本模块（mail）但安装了 SystemMail 插件**时，宿主会自动注册降级适配器，所有依赖邮件发送能力的模块会**无感知地**改用 SystemMail 投递邮件，收件、查看、领取由 SystemMail 自身的收件箱提供。
 
-### 工作原理
+### 适配行为
 
-1. **自动检测**：宿主在模块加载前检测 SystemMail 是否已安装且 API 就绪（`SystemMailApi.isReady()`）
-2. **注册降级适配器**：检测通过即注册为 `MailDispatchable` 核心 Capability，控制台输出 `检测到 SystemMail 插件，已注册邮件降级适配器（MailDispatchable → SystemMail）`
-3. **模块无感知接管**：所有通过 `MailDispatchable.sendMail()` 发邮件的功能自动改走 SystemMail，模块侧零配置。涵盖 BattlePass 赛季奖励、Market 到期退回、OnlineRewards 在线奖励、EntityTracker Boss 结算、Fishing 奖励、Lottery 奖品、EventPacket 事件邮件、QQBot 通知等
-4. **本模块优先**：mail 模块正常加载时会覆盖降级适配器，所有邮件回到 AXS 邮箱，SystemMail 适配器不再生效；此时 SystemMail 自身的邮件仍保留在其收件箱中，两套邮箱互不影响
+1. **自动检测**：宿主在模块加载前检测 SystemMail 是否已安装且 API 就绪，检测通过即注册降级适配器，控制台输出提示
+2. **模块无感知接管**：所有模块发邮件的功能自动改走 SystemMail，模块侧零配置。涵盖 BattlePass 赛季奖励、Market 到期退回、OnlineRewards 在线奖励、EntityTracker Boss 结算、Fishing 奖励、Lottery 奖品、EventPacket 事件邮件、QQBot 通知等
+3. **本模块优先**：mail 模块正常加载时所有邮件回到 AXS 邮箱，SystemMail 降级适配不再生效；两套邮箱互不影响
 
 ### 发送内容映射
 

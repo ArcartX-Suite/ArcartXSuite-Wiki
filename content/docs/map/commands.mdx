@@ -29,7 +29,7 @@ description: Map 模块命令、权限、PAPI 占位符与 UI Packet
 
 ## 管理员命令
 
-管理命令通过 `/axs map <action>` 触发，由 `ModuleCommandHandler` 注册。
+管理命令通过 `/axs map <action>` 触发。
 
 | 命令 | 说明 |
 |---|---|
@@ -62,13 +62,13 @@ description: Map 模块命令、权限、PAPI 占位符与 UI Packet
 | 追踪中 | 当前正在导航的在线玩家数 |
 | Waypoint | 路径点运行时是否就绪（true/false） |
 
-> 路径点就绪状态：导航未启用时返回 `true`；导航启用时取决于 ArcartX Waypoint 桥接是否可用。
+> 路径点就绪状态：导航未启用时返回 `true`；导航启用时取决于 ArcartX Waypoint 是否可用。
 
 ## 权限节点
 
 | 权限节点 | 默认 | 说明 |
 |---|---|---|
-| `arcartxsuite.map.use` | 所有玩家 | 使用 `/map` 玩家命令的权限（plugin.yml 注册，默认 true） |
+| `arcartxsuite.map.use` | 所有玩家 | 使用 `/map` 玩家命令的权限 |
 | `arcartxsuite.map.admin` | OP | 路径点/标记点上限提升等管理权限 |
 
 > 管理命令通过 `/axs` 主命令的权限控制，无需额外权限节点。锚点的使用权限通过锚点定义的 `permission` 字段单独控制。
@@ -79,47 +79,11 @@ Map 模块**不提供独立的 PlaceholderAPI 占位符**。地图数据来自�
 
 > 小地图上的世界名由 UI 使用 `Placeholder.parse("%multiverse-core_alias%")` 解析（Multiverse-Core 提供）；坐标用 `Player.getPosX/Y/Z` 本地实时取值。
 
-## UI Packet 通讯
+## UI 可用数据字段
 
-Map 模块的 UI 交互通过 ArcartX Packet 通讯完成。客户端向服务端发送的 Packet 使用 `ui.packet-id`（默认 `AXS_MAP`）作为标识符，`data` 列表第一个元素为操作名。
+Map 模块的 UI 交互通过 ArcartX Packet 通讯完成。客户端向服务端发送的 Packet 使用 `ui.packet-id`（默认 `AXS_MAP`）作为标识符，写操作需携带服务端下发的 `action_token`。
 
-### 客户端 → 服务端操作
-
-| 操作名 | 参数 | 说明 | Token 校验 |
-|---|---|---|---|
-| `refresh` | — | 刷新菜单数据 | 否 |
-| `open_menu` | `data[1]` = 世界ID（可选） | 打开地图菜单 | 否 |
-| `open_world` | `data[1]` = 世界ID | 切换到指定世界 | 否 |
-| `select_anchor` | `data[1]` = 锚点ID | 选中锚点（显示详情） | 否 |
-| `select_waypoint` | `data[1]` = 路径点ID | 选中路径点（显示详情） | 否 |
-| `select_external` | `data[1]` = 目标ID | 选中第三方插件注册路径点（显示详情） | 否 |
-| `select_pin` | `data[1]` = 标记点ID | 选中标记点（显示详情） | 否 |
-| `deselect` | — | 取消当前选中 | 否 |
-| `unlock_anchor` | `data[1]` = 锚点ID, `data[2]` = action_token | 解锁锚点 | 是 |
-| `teleport_anchor` | `data[1]` = 锚点ID, `data[2]` = action_token | 传送到锚点 | 是 |
-| `track_anchor` | `data[1]` = 锚点ID | 追踪锚点导航（追加进多目标表并成为主目标） | 否 |
-| `track_waypoint` | `data[1]` = 路径点ID | 追踪路径点导航（追加进多目标表并成为主目标） | 否 |
-| `untrack` | `data[1]` = 类型（`anchor`/`waypoint`）, `data[2]` = 目标ID | 取消单个目标追踪，其余目标不受影响 | 否 |
-| `track_external` / `external_navigate` | `data[1]` = 目标ID | 第三方插件注册路径点"导航"——转发给来源的 `MapNavigationHandler.onNavigateRequest` 执行 | 否 |
-| `external_nav_cancel` | `data[1]` = 目标ID | 第三方插件注册路径点"取消"——转发给来源的 `onCancelRequest`，目标标记保留 | 否 |
-| `teleport_to_world` | `data[1]` = 世界ID | 传送到指定世界（就近已解锁锚点） | 否 |
-| `cross_world_navigate` | `data[1]` = `类型:目标ID` | 跨世界导航：先传送到目标世界再开始导航 | 否 |
-| `clear_track` | — | 清除全部导航追踪 | 否 |
-| `create_waypoint` | `data[1]` = action_token | 在当前位置创建路径点 | 是 |
-| `delete_waypoint` | `data[1]` = 路径点ID, `data[2]` = action_token | 删除指定路径点 | 是 |
-| `update_waypoint` | `data[1]` = 路径点ID, `data[2]` = 新名称, `data[3]` = 新描述, `data[4]` = action_token | 重命名/改描述 | 是 |
-| `create_pin` | `data[1]` = X, `data[2]` = Z, `data[3]` = action_token | 在指定地图坐标创建标记点 | 是 |
-| `delete_pin` | `data[1]` = 标记点ID, `data[2]` = action_token | 删除指定标记点 | 是 |
-| `update_pin` | `data[1]` = 标记点ID, `data[2]` = 新名称, `data[3]` = 新描述, `data[4]` = action_token | 重命名/改描述 | 是 |
-| `share_waypoint` | `data[1]` = 路径点ID | 分享路径点到聊天栏 | 否 |
-| `share_pin` | `data[1]` = 标记点ID | 分享标记点到聊天栏 | 否 |
-| `claim_share` | `data[1]` = 分享码 | 聊天卡片点击领取分享点位 | 否 |
-
-> Token 校验：`unlock_anchor` / `teleport_anchor` / `create_waypoint` / `delete_waypoint` / `update_waypoint` / `create_pin` / `delete_pin` / `update_pin` 八个写操作需要 action token 防重放。服务端在每次 `init`/`update` 包中下发 `action_token`，客户端写操作时需携带匹配的 token。Token 校验失败时操作被静默忽略。
->
-> `claim_share` 不经 token 校验（点击者未必开着地图菜单），分享码本身即凭据，服务端校验存在性、有效期与数量上限。
-
-### 服务端 → 客户端 Packet 字段
+### 菜单 Packet 字段（`init` / `update`）
 
 #### 菜单 Packet（`init` / `update`）
 
@@ -168,7 +132,7 @@ Map 模块的 UI 交互通过 ArcartX Packet 通讯完成。客户端向服务�
 | `maxPinCount` | `int` | 标记点行模板最大复制数 |
 | `action_token` | `String` | 写操作防重放令牌 |
 
-#### HUD Packet（`init` / `update`）
+### HUD Packet 字段（`init` / `update`）
 
 | 字段 | 类型 | 说明 |
 |---|---|---|
@@ -184,32 +148,13 @@ Map 模块的 UI 交互通过 ArcartX Packet 通讯完成。客户端向服务�
 
 > 玩家坐标不再经服务端下发——HUD 用 `Player.getPosX/Y/Z` 在客户端本地实时取值。
 
-## UI 客户端 Mod 交互
+## 客户端 Mod 要求
 
-地图画面渲染由 **ArcartX-Suite-Map 客户端 mod** 负责。mod 初始化后注册 Aria 全局函数 `axsmap.getMapRenderer()`，返回 `JavaObjectMirror` 包装的 `MapRenderer` 实例；UI 脚本懒加载缓存到 `var.mapRenderer` 后调用：
+地图画面渲染需安装 **ArcartX-Suite-Map 客户端 mod**。未安装时地图渲染区保持空白，列表与详情面板功能不受影响。
 
-| 方法 | 调用时机 | 说明 |
-|---|---|---|
-| `setRegion(x, y, w, h, scale)` | 大地图 UI `tick` 每帧 | 传递地图渲染区的屏幕坐标和缩放比例 |
-| `setHudAnchor(anchorX, anchorY, scale)` | HUD UI `tick` 每帧 | 传递小地图锚点（UI 按 `getHudPosition()` 所选四角位置计算）；mod 据此延伸 hudSize×hudSize 区域 |
-| `setWorldId(worldId)` | `packetHandler` init/update | 设置当前世界 ID |
-| `setWorldDimension(worldId, dimension)` | `packetHandler` init/update | 注册 worldId → MC 维度 key 映射 |
-| `setLitRegions(worldId, regions)` | `packetHandler` init/update | 下发已点亮区域多边形并集（传 `none` = 全亮） |
-| `clearMarkers()` + `addMarker(id, type, name, x, z, selected, tracked, unlocked)` | `packetHandler` init/update 后 | 同步标点（`anchor`/`waypoint`/`external`/`pin`） |
-| `getHudSize()` / `getHudShape()` | HUD UI `tick` | 读取 mod 内的小地图尺寸/形状供装饰控件使用 |
-| `getMode()` / `deactivate()` / `closeHud()` | HUD UI `tick`/`close` | 渲染模式管理与停用（`deactivate` 延迟防抖，`closeHud` 立即停用） |
-| `toggleRadar()` / `isRadarEnabled()` | 设置面板 / 按 `V` | 实体雷达开关（小地图 + 大地图圆点） |
-| `toggleRadarNames()` / `isRadarNames()` | 设置面板 | 实体名称标签开关 |
-| `toggleRadarPlayers()` / `toggleRadarHostile()` / `toggleRadarPassive()`（+ `isRadar*()`） | 设置面板 | 玩家 / 怪物 / 动物逐类显隐 |
-| `cycleRadarNameScale()` | 按 `B` | 雷达名称字号循环（0.45 / 0.65 / 0.85） |
-| `toggleMenuCaveView()` / `isMenuCaveView()` | 大地图图层按钮 | 地表 ↔ 洞穴切片视图切换 |
-| `cycleCaveDepth()` / `getCaveDepthText()` | 洞深按钮 / 按 `N` | 洞穴切片深度循环（16 / 30 / 48 / 64） |
-| `setHudShape()` / `setHudPosition()` / `adjustHudSize()` / `adjustHudZoom()`（+ `getHudPosition()` / `getHudZoom()`） | 设置面板 | 小地图形状 / 四角位置 / 尺寸 / 缩放调整 |
-| `applySetting(key, value)` | HUD `init` 包 `settings` 字典 | 服务端留存设置逐项套回 mod（只写本地不上报） |
+客户端默认按键：`V` 切实体雷达、`Z` 循环小地图缩放档、`N` 循环洞穴深度、`B` 循环雷达名称字号（可在 MC 控制设置中改键）；`[` 切形状、`+`/`-` 调尺寸、`,`/`.` 微调缩放（仅 HUD 激活且无界面打开时生效）。同一组选项也可在大地图顶栏「设置」面板中调整。
 
-> mod 未安装时 `axsmap.getMapRenderer()` 抛异常（UI 已用 `try/catch` 兜底），地图渲染区保持空白，列表与详情面板功能不受影响。HUD 停止调用 `setHudAnchor` 约 150ms 后 mod 看门狗自动停用渲染。
->
-> 客户端默认按键：`V` 切实体雷达、`Z` 循环小地图缩放档、`N` 循环洞穴深度、`B` 循环雷达名称字号（均为原版 KeyBinding，可在 MC 控制设置中改键）；`[` 切形状、`+`/`-` 调尺寸、`,`/`.` 微调缩放为固定轮询键，仅 HUD 激活且无界面打开时生效。同一组选项也可在大地图顶栏「设置」面板中调整。
+> 自定义地图 UI 时可参考官方 `map_menu.yml` / `map_hud.yml` 中的字段绑定方式。
 
 ## 消息文件
 

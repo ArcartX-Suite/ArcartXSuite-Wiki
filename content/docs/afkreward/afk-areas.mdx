@@ -56,11 +56,7 @@ multiplier:
 
 ## 区域边界判定
 
-区域边界为 X-Z 平面上的多边形，使用**射线法**（Ray Casting）判断玩家是否在区域内。每个点格式为 `x,z`（不含 Y 坐标），至少需要 3 个点。
-
-### 射线法原理
-
-`AfkArea.contains(int x, int z)` 遍历多边形所有边，统计从玩家位置向右水平射线与边的交点数量。交点数为奇数时玩家在多边形内，偶数时在外。
+区域边界为 X-Z 平面上的多边形，使用射线法判断玩家是否在区域内。每个点格式为 `x,z`（不含 Y 坐标），至少需要 3 个点。
 
 ```yaml
 pos:
@@ -79,41 +75,21 @@ pos:
 
 ### 多区域重叠
 
-服务端每秒（20 tick）遍历所有已启用区域，调用 `contains(world, x, z)` 判断玩家位置。多个区域重叠时，**第一个匹配的区域**生效（按 `LinkedHashMap` 配置顺序）。
+服务端每秒遍历所有已启用区域判断玩家位置。多个区域重叠时，**第一个匹配的区域**生效（按配置顺序）。
 
 ## REGION 模式（区域挂机）
 
 玩家进入配置的多边形区域后自动开始累计挂机时间，无需手动操作。
 
-### 状态流转
-
-```
-玩家进入区域
-  ↓
-findArea() 匹配区域 → 检查 enabled
-  ↓
-检查权限 axs.afkreward.area.<name>
-  ↓
-检查人数上限 reward.player.limit
-  ↓
-发送进入提示 + 触发 afk_enter_area 信号
-  ↓
-每秒累计挂机时间
-  ↓
-达到 round 分钟周期 → grantReward() 发放奖励
-  ↓
-玩家离开区域 → 清零计时 + 发送离开提示
-```
-
 ### 关键行为
 
 | 行为 | 说明 |
 |---|---|
-| 位置检测 | 每秒检测玩家 `getBlockX()` / `getBlockZ()`，视角转动不触发 |
+| 位置检测 | 每秒检测玩家方块坐标，视角转动不触发 |
 | 权限检查 | 进入时检查 `axs.afkreward.area.<name>`，无权限时提示一次 |
 | 人数限制 | `reward.player.enable` 为 `true` 时，超出 `limit` 则拒绝进入 |
 | 周期发奖 | 每累计 `round` 分钟发放一次奖励（实时发奖） |
-| 离开清零 | 离开区域时清零计时与 `lastRewardSeconds`，发送离开提示 |
+| 进入/离开信号 | 进入触发 `afk_enter_area` 信号并发送进入提示；离开时清零计时并发送离开提示 |
 
 > REGION 模式不限制玩家行为，玩家可在区域内自由活动、战斗、交互。
 
@@ -123,83 +99,58 @@ findArea() 匹配区域 → 检查 enabled
 
 ### 启动条件检查
 
-`startManualAfk()` 按以下顺序检查，任一失败则拒绝开始：
+`/afk start` 按以下顺序检查，任一失败则拒绝开始：
 
 | 检查项 | 配置字段 | 失败提示 |
 |---|---|---|
 | 战斗冷却 | `manual.combat-cooldown-seconds` | `hints.manual.in-combat` |
-| 区域有效性 | `enabled` + `hasTeleport()` + `manualEnabled` | `hints.manual.no-teleport` |
+| 区域有效性 | 区域启用 + 配置了 `teleport` + `manual-enabled` | `hints.manual.no-teleport` |
 | 区域权限 | `axs.afkreward.area.<name>` | `hints.no-permission-area` |
 | 人数上限 | `reward.player.limit` | `hints.player-limit` |
 | 重复挂机 | 已在挂机中 | `hints.manual.already` |
-| Essentials AFK 互斥 | `EssentialsQueryable.isAfk()` | `hints.manual.essentials-afk` |
+| Essentials AFK 互斥 | 玩家已处于 Essentials AFK 状态 | `hints.manual.essentials-afk` |
 
-> 战斗冷却通过 `markCombat()` 记录，玩家造成或受到伤害时刷新时间戳。冷却期内无法开始原地挂机。
+> 战斗冷却在玩家造成或受到伤害时刷新时间戳，冷却期内无法开始原地挂机。
 
-### 启动流程
+### 启动与结束
 
-```yaml
-# startManualAfk 执行流程
-1. 保存原始状态（walkSpeed、location）
-2. 设置 mode = MANUAL，记录 areaName、startTimeMillis
-3. 传送玩家至 area.teleport()
-4. 关闭碰撞 setCollidable(false)
-5. 设置移速 setWalkSpeed(0.0001f)（restrict-actions 为 true 时）
-6. 触发 afk_start 信号
-7. 发送开始提示
-```
+**启动**：保存原始状态（移速、位置）→ 传送至 `teleport` 点 → 关闭碰撞 → `restrict-actions` 为 `true` 时移速归零 → 触发 `afk_start` 信号并发送开始提示。
 
-### 结束与结算
-
-玩家执行 `/afk end` 或因区域删除/权限失效/时长上限强制结束时，`endManualAfk()` 执行结算：
-
-| 步骤 | 说明 |
-|---|---|
-| 计算奖励次数 | `computeRewardTimes()` = `totalSeconds / (round * 60)` |
-| 批量发奖 | 按计算次数循环发放命令与物品奖励 |
-| 恢复状态 | 恢复 `walkSpeed`、`collidable` |
-| 传送回原位 | `manual.return-on-end` 为 `true` 时传送回 `originalLocation` |
-| 全服广播 | `manual.broadcast-rewards` 为 `true` 且有奖励时广播 |
-| 落盘统计 | 保存玩家统计与区域统计 |
-| 删除 session | 从 `sessions` 表删除记录 |
-| 触发联动 | `afk_end` 信号 + 字幕 + 邮件预设 |
-| 刷新排行榜 | `refreshLeaderboard()` |
+**结束结算**（`/afk end` 或强制结束）：按 `挂机总秒数 / (round × 60)` 计算奖励次数并一次性发放 → 恢复移速与碰撞 → `manual.return-on-end: true` 时传送回挂机前位置 → `manual.broadcast-rewards: true` 时全服广播 → 触发 `afk_end` 信号、字幕与邮件预设 → 刷新排行榜。
 
 ### 强制结束原因
 
-MANUAL 模式可因以下原因被强制结束（`EndReason` 枚举）：
-
-| 原因 | 枚举值 | 触发条件 | 提示消息键 |
-|---|---|---|---|
-| 战斗 | `COMBAT` | 受到/造成伤害时触发（需手动配置） | `hints.manual.end-reason.combat` |
-| 区域删除 | `AREA_REMOVED` | 区域被删除或 `enabled` 设为 `false` | `hints.manual.end-reason.area_removed` |
-| 权限失效 | `NO_PERMISSION` | 权限复检时发现无 `axs.afkreward.area.<name>` | `hints.manual.end-reason.no_permission` |
-| 时长上限 | `TIME_LIMIT` | 触发 `anti-abuse.time-limit` 的 `KICK` 动作 | `hints.manual.end-reason.time_limit` |
-| 人数上限 | `FULL` | 区域人数达到上限 | `hints.manual.end-reason.full` |
+| 原因 | 触发条件 | 提示消息键 |
+|---|---|---|
+| 战斗 | 受到/造成伤害时触发（需手动配置） | `hints.manual.end-reason.combat` |
+| 区域删除 | 区域被删除或 `enabled` 设为 `false` | `hints.manual.end-reason.area_removed` |
+| 权限失效 | 权限复检时发现无区域权限 | `hints.manual.end-reason.no_permission` |
+| 时长上限 | 触发 `anti-abuse.time-limit` 的 `KICK` 动作 | `hints.manual.end-reason.time_limit` |
+| 人数上限 | 区域人数达到上限 | `hints.manual.end-reason.full` |
 
 > 权限复检间隔由 `manual.permission-recheck-seconds` 控制（默认 5 秒）。MANUAL 模式不检测位置，只累加时间并定期复查区域与权限。
 
 ## 行为保护（protections）
 
-MANUAL 挂机期间可封锁 15 种行为，每种行为对应一个事件监听器，在 `AfkRewardListener` 中取消对应事件。
+MANUAL 挂机期间可封锁以下行为：
 
-| 保护项 | 配置字段 | 监听事件 | 说明 |
-|---|---|---|---|
-| 移动 | `movement` | `PlayerMoveEvent` | 禁止坐标变化（视角转动允许） |
-| 传送 | `teleport` | `PlayerTeleportEvent` | 禁止传送（模块自身回传除外） |
-| 交互 | `interact` | `PlayerInteractEvent` | 禁止交互方块或空气 |
-| 破坏方块 | `block-break` | `BlockBreakEvent` | 禁止破坏方块 |
-| 打开容器 | `inventory` | `InventoryOpenEvent` | 禁止打开容器或背包界面 |
-| 受到伤害 | `receive-damage` | `EntityDamageEvent` | 受到伤害时无敌（取消事件） |
-| 造成伤害 | `deal-damage` | `EntityDamageByEntityEvent` | 禁止对其他实体造成伤害 |
-| 怪物锁定 | `entity-target` | `EntityTargetEvent` | 禁止被怪物锁定为目标 |
-| 进入载具 | `vehicle-enter` | `VehicleEnterEvent` | 禁止进入载具 |
-| 右键实体 | `interact-entity` | `PlayerInteractEntityEvent` | 禁止右键实体 |
-| 丢弃物品 | `drop-item` | `PlayerDropItemEvent` | 禁止丢弃物品 |
-| 副手换手 | `swap-hand` | `PlayerSwapHandItemsEvent` | 禁止副手换手 |
-| 拾取掉落物 | `pickup-item` | `EntityPickupItemEvent` | 禁止拾取掉落物 |
-| 获得经验 | `experience` | `PlayerExpChangeEvent` | 经验获取量设为 0 |
-| 碰撞 | `collidable` | — | `setCollidable(false)` |
+| 保护项 | 配置字段 | 说明 |
+|---|---|---|
+| 移动 | `movement` | 禁止坐标变化（视角转动允许） |
+| 传送 | `teleport` | 禁止传送（模块自身回传除外） |
+| 交互 | `interact` | 禁止交互方块或空气 |
+| 破坏方块 | `block-break` | 禁止破坏方块 |
+| 打开容器 | `inventory` | 禁止打开容器或背包界面 |
+| 受到伤害 | `receive-damage` | 受到伤害时无敌 |
+| 造成伤害 | `deal-damage` | 禁止对其他实体造成伤害 |
+| 怪物锁定 | `entity-target` | 禁止被怪物锁定为目标 |
+| 进入载具 | `vehicle-enter` | 禁止进入载具 |
+| 右键实体 | `interact-entity` | 禁止右键实体 |
+| 丢弃物品 | `drop-item` | 禁止丢弃物品 |
+| 副手换手 | `swap-hand` | 禁止副手换手 |
+| 拾取掉落物 | `pickup-item` | 禁止拾取掉落物 |
+| 获得经验 | `experience` | 经验获取量设为 0 |
+| 碰撞 | `collidable` | 关闭实体碰撞 |
 
 > 所有保护开关默认开启。`restrict-actions` 为 `true` 时额外设置移速为 0.0001，进一步限制移动。
 
@@ -226,40 +177,19 @@ teleport:
 | `teleport.yaw` | `double` | `0` | 视角水平偏转角 |
 | `teleport.pitch` | `double` | `0` | 视角俯仰角 |
 
-> `hasTeleport()` 方法判断区域是否支持原地挂机：`teleport` 配置缺失时返回 `false`，`/afk start` 会提示"该区域不支持原地挂机"。
+> `teleport` 配置缺失时该区域不支持原地挂机，`/afk start` 会提示"该区域不支持原地挂机"。
 
 ## 崩溃恢复
 
-服务器重启后，`AfkRewardService.start()` 调用 `recoverCrashedSessions()` 恢复上次未正常结束的 MANUAL 挂机。
-
-### 恢复流程
-
-```
-服务器启动
-  ↓
-recoverCrashedSessions()
-  ↓
-遍历在线玩家 → 从 sessions 表加载未完成 session
-  ↓
-计算挂机时长 = (服务器启动时间 - session.startTime) + session.startSeconds
-  ↓
-按 round 分钟计算奖励次数 → 一次性发放全部奖励
-  ↓
-发送恢复提示 hints.manual.recovered
-  ↓
-删除 session 记录
-```
-
-### session 持久化
+服务器重启后自动恢复上次未正常结束的 MANUAL 挂机：按实际挂机时长（含停机时间）计算奖励次数并一次性发放，然后清除记录。
 
 | 时机 | 操作 |
 |---|---|
-| 开始 MANUAL 挂机 | `saveSession()` 写入 `sessions` 表 |
-| 正常结束挂机 | `deleteSession()` 删除记录 |
-| 玩家退服（MANUAL 模式） | `saveSession()` 保存当前 session |
-| 服务关闭（`shutdown()`） | 遍历 MANUAL 模式在线玩家，`saveSession()` 保存 |
+| 开始 MANUAL 挂机 | 保存挂机记录到数据库 |
+| 正常结束挂机 | 删除记录 |
+| 玩家退服 / 服务关闭 | 保存当前挂机记录 |
 
-> session 表仅用于单服崩溃恢复，不跨服共享。共享存储模式下多子服共用同一数据库时，`sessions` 表按 `player_uuid` 主键存储，跨服切换时原子服的 session 会在重启时结算。
+> 挂机记录仅用于崩溃恢复，不跨服共享。
 
 ## 双模式对比
 
@@ -275,7 +205,7 @@ recoverCrashedSessions()
 | 广播 | 无 | 可选全服广播奖励 |
 | 信号 | `afk_enter_area` / `afk_leave_area` | `afk_start` / `afk_end` |
 
-> 两种模式共用同一套奖励档位与倍率配置。同一玩家同一时间只能处于一种模式（`startManualAfk` 会检查是否已在挂机中）。
+> 两种模式共用同一套奖励档位与倍率配置。同一玩家同一时间只能处于一种模式。
 
 ## 相关文档
 
