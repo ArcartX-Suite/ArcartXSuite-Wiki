@@ -22,14 +22,14 @@ abysses/<地牢ID>/
 ├── rewards.yml      ← 奖励集/宝箱
 ├── floors.yml       ← 楼层定义（mode: floors 多层房间地牢）
 ├── rooms.yml        ← 房间模板池（floors 模式）
-├── external/        ← 外部系统配套文件（可选，不加载——复制安装用）
-│   ├── chemdah/conversation/*.yml   → plugins/Chemdah/conversation/
-│   ├── chemdah/quest/*.yml          → plugins/Chemdah/quest/
+├── external/        ← 外部系统配套文件（可选；abyss 加载模板时自动部署）
+│   ├── chemdah/conversation/*.yml   → plugins/Chemdah/core/conversation/
+│   ├── chemdah/quest/*.yml          → plugins/Chemdah/core/quest/
 │   └── questgps/*.yml               → plugins/ArcartXSuite/data/questgps/quests/
 └── world/           ← 世界文件夹（可选，含 level.dat）
 ```
 
-> 除 `config.yml` 外所有文件均可省略，缺失时使用空配置。`external/` 不参与加载，是「这个副本需要哪些 Chemdah 会话/任务、questgps 呈现层」的随包清单——部署时按 external/README.md 拷到对应插件目录。
+> 除 `config.yml` 外所有文件均可省略，缺失时使用空配置。`external/` 是「这个副本需要哪些 Chemdah 会话/任务、questgps 呈现层」的随包清单——**abyss 在模板加载（启动/`/axs abyss reload`）时自动部署**：目标插件缺席整组跳过、目标文件已存在不覆盖，写入后自动 `chemdah reload` 并重载 questgps 模块。目录结构与上表一致即可被部署器识别。
 
 ## config.yml — 地牢主配置
 
@@ -634,4 +634,4 @@ rooms:
 
 **贯穿机制**：击杀掉全队金币（tasks.yml `monster_kill` 事件）、祭坛/商店 `%axsabyss_var_coins%` 条件扣费、每层 Boss 后 `buff_offer` 三选一天赋、`guide_point` 路标导航、portal 出口垫传送 + 走廊可回溯。
 
-**外部配套**（可选增强，见 `example/external/README.md`）：Chemdah 会话文件绑 `adyeshach guide`/`adyeshach merchant`（NPC 右键开真会话 UI）；Chemdah 任务 `sk_slayer` + questgps 呈现层（`quests.yml` 的 `slayer` 委托线）。缺依赖时自动降级：原版实体 NPC、聊天栏对话、委托线静默跳过。
+**外部配套**（随包自动部署，详见 `example/external/README.md`）：Chemdah 会话文件绑 `adyeshach guide`/`adyeshach merchant`（NPC 右键开真会话 UI）；Chemdah 任务 `sk_slayer` + questgps 呈现层（`quests.yml` 的 `slayer` 委托线）。abyss 加载模板时自动把 `external/` 部署到 `plugins/Chemdah/core/` 与 `data/questgps/quests/` 并触发重载。缺依赖时自动降级：原版实体 NPC、聊天栏对话、委托线静默跳过。
