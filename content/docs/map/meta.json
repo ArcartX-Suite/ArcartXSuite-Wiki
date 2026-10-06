@@ -9,6 +9,7 @@
     "anchors",
     "navigation",
     "commands",
-    "integration"
+    "integration",
+    "client-mod"
   ]
 }

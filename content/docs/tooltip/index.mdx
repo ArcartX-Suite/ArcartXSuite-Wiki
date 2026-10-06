@@ -12,11 +12,13 @@ Tooltip 是 Suite 的客户端动态提示数据桥接模块。它接收客户�
 | 属性 | 值 |
 |---|---|
 | 模块 ID | `tooltip` |
-| 版本 | 1.4.4 |
+| 版本 | 1.6.0 |
 | 主类 | `xuanmo.arcartxsuite.tooltip.TooltipModule` |
-| 配置文件 | 无（仅 `messages.yml` 消息文件） |
+| 配置文件 | `ArcartXTooltip.yml`（`gun-list.mode`）+ `messages.yml` |
 | 消息文件 | `messages.yml` |
-| 数据包 ID | `AXS_TOOLTIP_DATA` |
+| 数据包 ID | `AXS_TOOLTIP_DATA`（C→S）、`AXS_GUN_LIST`（C→S） |
+| 插件消息通道 | `axstooltip:gunui`（S→C，枪械 UI 模式推送） |
+| 注册 UI | `AXS:gun_list`（`ui/gun_list.yml`，ax 模式枪械浏览界面） |
 | 缓存 TTL | 60 秒 |
 | 模块依赖 | 无 |
 | 外部依赖 | 无 |
@@ -35,7 +37,8 @@ Tooltip 是 Suite 的客户端动态提示数据桥接模块。它接收客户�
 | 高优先级包处理 | 数据包处理器优先级为 50（数值越小越先执行），确保 tooltip 数据尽快缓存供其他模块使用 |
 | 线程安全缓存 | 缓存内部使用 `ConcurrentHashMap`，无需异步调度，包处理同步执行 |
 | 自动清理 | 缓存 TTL 60 秒自动过期，玩家退出时立即清理其全部缓存数据 |
-| 管理命令 | 提供 `/axs tooltip status` 查看模块缓存状态（缓存玩家数、数据包 ID、TTL） |
+| 管理命令 | `/axs tooltip status`（缓存/模式/通道）+ `/axs tooltip push <玩家>`（手动重推模式） |
+| 枪械浏览 UI | TACZ 配件"支持枪械"浏览：`gun-list.mode` 决定走 AX 自定义界面（`AXS:gun_list`）还是客户端本地 Forge 界面；模式经 `axstooltip:gunui` plugin message 进服推送、reload 后补推全部在线玩家 |
 
 ## 依赖
 

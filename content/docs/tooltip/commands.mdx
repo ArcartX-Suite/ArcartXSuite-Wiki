@@ -42,7 +42,7 @@ public final class TooltipModule extends AbstractAXSModule implements ModuleComm
 |---|---|---|
 | `commandId` | `tooltip` | 子命令 ID，与 `module.yml` 的 `id` 一致 |
 | `commandAliases` | `[]`（默认） | 无命令别名 |
-| `actions` | `help`、`status` | 支持的子命令动作列表，用于 Tab 补全 |
+| `actions` | `help`、`status`、`push` | 支持的子命令动作列表，用于 Tab 补全 |
 
 ### 命令参数结构
 
@@ -94,6 +94,8 @@ public final class TooltipModule extends AbstractAXSModule implements ModuleComm
 缓存玩家数: 3
 数据包 ID: AXS_TOOLTIP_DATA
 缓存 TTL: 60秒
+枪械 UI 模式: ax
+模式推送通道: axstooltip:gunui
 ```
 
 **缓存为空时输出**：
@@ -103,7 +105,27 @@ public final class TooltipModule extends AbstractAXSModule implements ModuleComm
 缓存玩家数: 0
 数据包 ID: AXS_TOOLTIP_DATA
 缓存 TTL: 60秒
+枪械 UI 模式: ax
+模式推送通道: axstooltip:gunui
 缓存为空，等待客户端 mod 发送数据
+```
+
+### `/axs tooltip push <玩家>`
+
+手动向指定玩家重新推送枪械 UI 模式（`axstooltip:gunui` plugin message）。用于验证推送链路是否打通，无需玩家重进。
+
+| 属性 | 值 |
+|---|---|
+| 命令 | `/axs tooltip push <玩家>` |
+| 权限 | `arcartxsuite.admin` |
+| 参数 | `<玩家>` 在线玩家名 |
+| 控制台 | 支持 |
+| 说明 | 重推模式；客户端日志应出现 `收到枪械 UI 模式推送` |
+
+**输出示例**：
+
+```
+◆ ArcartXSuite | 已向 Steve 推送枪械 UI 模式: ax
 ```
 
 ### 命令一览表
@@ -111,7 +133,8 @@ public final class TooltipModule extends AbstractAXSModule implements ModuleComm
 | 命令 | 权限 | 参数 | 说明 |
 |---|---|---|---|
 | `/axs tooltip help` | `arcartxsuite.admin` | 无 | 查看可用子命令 |
-| `/axs tooltip status` | `arcartxsuite.admin` | 无 | 查看模块缓存状态 |
+| `/axs tooltip status` | `arcartxsuite.admin` | 无 | 查看模块缓存状态与枪械 UI 模式 |
+| `/axs tooltip push` | `arcartxsuite.admin` | `<玩家>` | 手动重推枪械 UI 模式 |
 | `/axs tooltip` | `arcartxsuite.admin` | 无 | 无参数时默认显示 help |
 
 <Callout type="info">
@@ -134,8 +157,8 @@ Tooltip 模块支持二级 Tab 补全，补全逻辑由 `TooltipAdminCommand.onT
 
 | 补全位置 | 补全内容 | 示例 |
 |---|---|---|
-| `args[1]`（子命令动作） | `help`、`status` | 输入 `s` → 补全 `status` |
-| `args[2]+` | 无补全 | 返回 null |
+| `args[1]`（子命令动作） | `help`、`status`、`push` | 输入 `s` → 补全 `status` |
+| `args[2]`（push 时） | 在线玩家名 | `push s` → 补全 `steve` 等 |
 
 ```java
 public @Nullable List<String> onTabComplete(@NotNull CommandSender sender, @NotNull String[] args) {
@@ -169,7 +192,7 @@ Tooltip 模块**不提供**玩家命令。所有命令均为管理命令，需 `
 | 命令类型 | 可用命令 |
 |---|---|
 | 玩家命令 | 无 |
-| 管理命令 | `/axs tooltip help`、`/axs tooltip status` |
+| 管理命令 | `/axs tooltip help`、`/axs tooltip status`、`/axs tooltip push <玩家>` |
 
 ## 网络包
 
@@ -250,17 +273,39 @@ public boolean handleClientPacket(@NotNull Player player, @NotNull String packet
 包处理优先级为 50，高于默认值 0，确保 tooltip 数据在其他模块的包处理器之前缓存。这样依赖 tooltip 数据的模块在处理后续包时能立即读取到最新数据。
 </Callout>
 
-### UI 包
+### `AXS_GUN_LIST` 数据包
 
-Tooltip 模块**不发送** UI 包，不注册 UI 界面，不使用 `PacketBridgeAPI` 发送聊天卡片。
+客户端悬停 TACZ 配件按 Shift（且模式为 `ax`）时发送的打开请求包。
+
+| 属性 | 值 |
+|---|---|
+| 数据包 ID | `AXS_GUN_LIST` |
+| 方向 | 客户端 → 服务端 |
+| 负载 | `["open"]` 单动作（枪数据不走包，UI open 触发器调 `axstooltip.*` 客户端全局函数自取） |
+| 处理 | `GunListService.requestOpen` → `openUi(AXS:gun_list)` |
+
+### `axstooltip:gunui` 插件消息通道
+
+服务端 → 客户端的 Bukkit plugin message 通道，推送 `gun-list.mode`（`ax`/`mod`）：
+
+| 属性 | 值 |
+|---|---|
+| 通道名 | `axstooltip:gunui`（Messenger 注册 outgoing） |
+| 触发时机 | 客户端初始化完成回调（进服）+ 模块 reload 补推全部在线玩家 + `push` 命令手动重推 |
+| 客户端接收 | Mixin `GunUiModePayloadMixin` 拦截 `ClientPacketListener.handleCustomPayload` |
+| 兜底 | 收不到推送（模块未装）时客户端默认 `mod` 本地界面 |
+
+<Callout type="info">
+该机制与 Map 模块的 `axsmap:*` 自定义通道同构。经 Bungee/Velocity 代理时依赖代理转发 plugin message。
+</Callout>
+
+### UI 注册
+
+模块通过 `ModuleUiSpec` 注册 `arcartx/ui/gun_list.yml` → `ui/gun_list.yml`（`overwrite=false`），运行时绑定为 `AXS:gun_list`——Menu 型 UI，接管当前屏幕，ESC 原生关闭。
 
 | UI 相关 | 说明 |
 |---|---|
-| UI 界面 | 无 |
-| UI 包发送 | 无 |
+| UI 界面 | `AXS:gun_list`（枪械浏览，Menu 型） |
+| UI 包发送 | `openUi` 打开 + plugin message 模式推送 |
 | 聊天卡片 | 无 |
 | HUD | 无 |
-
-<Callout type="info">
-Tooltip 模块是纯数据桥接模块，不涉及任何 UI 渲染。tooltip 数据通过 Capability 提供给其他模块（如 Chat），由消费方模块负责 UI 展示。关于 UI 与图标系统的设计，详见 [/docs/guide/icons](/docs/guide/icons)。
-</Callout>

@@ -5,7 +5,28 @@ description: Tooltip 模块配置文件与消息文件详解
 
 # 配置
 
-Tooltip 模块**无主配置文件**，所有运行参数在代码中固定。模块仅使用一个消息文件 `messages.yml`，用于自定义管理命令的输出文本。
+Tooltip 模块使用两个配置文件：主配置 `ArcartXTooltip.yml`（枪械浏览 UI 模式）与消息文件 `messages.yml`（管理命令输出文本）。首次启动自动释放到 `plugins/ArcartX-Suite/data/tooltip/`。
+
+## 主配置文件（`ArcartXTooltip.yml`）
+
+```yaml
+# Tooltip 模块配置
+config-version: 1
+
+gun-list:
+  # TACZ 配件"支持枪械"浏览界面的 UI 模式（客户端按 Shift 触发）
+  #   ax  — 服务端下发 AX 自定义 UI（ui/gun_list.yml，可自定义皮肤布局）
+  #   mod — 客户端本地 Forge 界面（服务端只推模式，界面在客户端渲染）
+  mode: ax
+```
+
+| 键 | 类型 | 默认 | 说明 |
+|---|---|---|---|
+| `gun-list.mode` | string | `ax` | `ax` = 服务端 AX UI `AXS:gun_list`；`mod` = 客户端本地 Forge 界面；其它值按 `ax` 处理 |
+
+<Callout type="info">
+模式在**进服时**经 `axstooltip:gunui` plugin message 推送到客户端；`axs reload tooltip` 会重新读取配置并向全部在线玩家补推。客户端收不到推送时默认 `mod`。
+</Callout>
 
 ## 模块描述文件（`module.yml`）
 
@@ -14,7 +35,7 @@ Tooltip 模块**无主配置文件**，所有运行参数在代码中固定。�
 ```yaml
 id: tooltip
 name: Tooltip
-version: 1.4.4
+version: 1.6.0
 main: xuanmo.arcartxsuite.tooltip.TooltipModule
 api-version: 1.0
 
@@ -28,7 +49,7 @@ external-softdepends: []
 |---|---|---|---|
 | `id` | string | `tooltip` | 模块唯一标识符，用于命令路由与 Capability 注册 |
 | `name` | string | `Tooltip` | 模块显示名称 |
-| `version` | string | `1.4.4` | 模块版本号 |
+| `version` | string | `1.6.0` | 模块版本号 |
 | `main` | string | `xuanmo.arcartxsuite.tooltip.TooltipModule` | 模块主类全限定名 |
 | `api-version` | string | `1.0` | 使用的 ArcartXSuite API 版本 |
 | `depends` | list | `[]` | 模块硬依赖（空列表，无依赖） |
@@ -72,8 +93,16 @@ Tooltip 模块的部分核心参数在代码中硬编码，不可通过配置文
 | `admin.status-packet-id` | 数据包 ID | `{0}` - 数据包 ID 字符串 |
 | `admin.status-ttl` | 缓存 TTL | `{0}` - TTL 秒数 |
 | `admin.status-no-cache` | 缓存为空提示 | 无 |
+| `admin.status-gun-ui-mode` | 枪械 UI 模式 | `{0}` - ax/mod |
+| `admin.status-gun-ui-channel` | 模式推送通道 | `{0}` - `axstooltip:gunui` |
+| `admin.status-gun-ui-unavailable` | 枪械 UI 服务未启动 | 无 |
+| `admin.push-ok` | 推送成功 | `{0}` 玩家 `{1}` 模式 |
+| `admin.push-notfound` | 玩家不在线 | `{0}` 玩家名 |
+| `admin.push-unavailable` | 枪械 UI 服务未启动 | 无 |
+| `admin.push-usage` | push 用法 | 无 |
 | `help.title` | 帮助命令标题 | 无 |
 | `help.status` | status 子命令帮助 | `{0}` - 根命令标签 |
+| `help.push` | push 子命令帮助 | `{0}` - 根命令标签 |
 
 ### 消息键详细说明
 
@@ -190,42 +219,54 @@ admin:
   status-packet-id: "&7数据包 ID: &f{0}"
   status-ttl: "&7缓存 TTL: &f{0}秒"
   status-no-cache: "&7缓存为空，等待客户端 mod 发送数据"
+  status-gun-ui-mode: "&7枪械 UI 模式: &f{0}"
+  status-gun-ui-channel: "&7模式推送通道: &f{0}"
+  status-gun-ui-unavailable: "&7枪械 UI: &c服务未启动"
+  push-ok: "&a已向 &f{0} &a推送枪械 UI 模式: &f{1}"
+  push-notfound: "&c玩家 &f{0} &c不在线"
+  push-unavailable: "&c枪械 UI 服务未启动"
+  push-usage: "&c用法: /axs tooltip push <玩家>"
 
 # 帮助命令消息
 help:
   title: "&6Tooltip 管理"
   status: "&7{0} status&f - 查看模块状态"
+  push: "&7{0} push <玩家>&f - 手动重推枪械 UI 模式"
 ```
 
 ## 配置管理
 
 ### 配置规格声明
 
-Tooltip 模块在 `configSpec()` 中声明仅需消息文件，无主配置文件：
+Tooltip 模块在 `configSpec()` 中声明主配置 + 消息文件 + 配置版本：
 
 ```java
 @Override
 protected @NotNull ModuleConfig configSpec() {
     return ModuleConfig.builder()
+        .configFileName("ArcartXTooltip.yml")
         .messagesFileName("messages.yml")
+        .currentVersion(1)
         .build();
 }
 ```
 
 | 配置项 | 值 | 说明 |
 |---|---|---|
-| 主配置文件 | 无 | `loadConfiguration` 为空实现 |
+| 主配置文件 | `ArcartXTooltip.yml` | `loadConfiguration` 读 `gun-list.mode`（`mod`→MOD，其余→AX） |
 | 消息文件名 | `messages.yml` | 自动释放与加载 |
-| 配置版本号 | 无 | 无需版本迁移 |
+| 配置版本号 | `1` | `config-version` 字段 |
 
 ### 配置加载流程
 
 | 步骤 | 说明 |
 |---|---|
-| 1. 首次释放 | 模块首次启动时，将 jar 内 `messages.yml` 释放到磁盘 |
-| 2. 读取消息 | 宿主读取 `messages.yml` 并构建 `MessageProvider` |
-| 3. 注入命令 | `TooltipAdminCommand` 接收 `MessageProvider` 实例 |
-| 4. 运行时使用 | 管理命令执行时通过 `messages.get(key, args)` 获取消息文本 |
+| 1. 首次释放 | 模块首次启动时，将 `ArcartXTooltip.yml`/`messages.yml` 释放到磁盘 |
+| 2. 读取配置 | `loadConfiguration` 读 `gun-list.mode` → `GunListService.UiMode` |
+| 3. 读取消息 | 宿主读取 `messages.yml` 并构建 `MessageProvider` |
+| 4. 注入命令 | `TooltipAdminCommand` 接收 `MessageProvider` + `GunListService` 实例 |
+| 5. 运行时使用 | 管理命令执行时通过 `messages.get(key, args)` 获取消息文本 |
+| 6. reload | `axs reload tooltip` 重读配置并向全部在线玩家补推模式 |
 
 <Callout type="info">
 修改 `messages.yml` 后，使用 `/axs reload tooltip` 重载模块即可生效，无需重启服务器。消息文件支持 `&` 颜色码与 `{0}`、`{1}` 等位置参数。

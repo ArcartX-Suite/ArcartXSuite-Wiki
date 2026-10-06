@@ -7,6 +7,7 @@
     "data-pipeline",
     "configuration",
     "commands",
-    "integration"
+    "integration",
+    "client-mod"
   ]
 }

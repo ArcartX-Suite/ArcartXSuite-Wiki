@@ -1,0 +1,87 @@
+---
+title: 客户端 Mod
+description: ArcartX-Suite-Map 客户端 mod——地形渲染器、跨版本支持与网络通道
+---
+
+# 客户端 Mod（ArcartX-Suite-Map）
+
+ArcartX-Suite-Map 是 Map 模块的客户端渲染端。**地图画面完全由该 mod 在客户端实时渲染**——服务端不下发任何地图纹理；mod 扫描客户端已加载区块生成地形画面并持久化缓存，配合服务端推送的世界/锚点/路径点数据完成全屏大地图与 HUD 小地图。
+
+## 支持矩阵
+
+单一源码树，Stonecutter + Architectury Loom 构建 12 个目标：
+
+| Minecraft | Fabric | Forge | NeoForge |
+|-----------|:------:|:-----:|:--------:|
+| 1.20.1    | ✔      | ✔     | —        |
+| 1.20.4    | ✔      | ✔     | —        |
+| 1.21.1    | ✔      | —     | ✔        |
+| 1.21.4    | ✔      | —     | ✔        |
+| 1.21.8    | ✔      | —     | ✔        |
+| 1.21.11   | ✔      | —     | ✔        |
+
+## 前置依赖
+
+每个目标需要对应版本/加载器的 **ArcartX 客户端 Mod（2.7.77+）**：
+
+| 目标 | 需要的 ArcartX JAR |
+|---|---|
+| Fabric 各版本 | `ArcartX-Fabric-<mc>-2.7.77.jar` |
+| Forge 1.20.x | `ArcartX-Forge-<mc>-2.7.77.jar` |
+| NeoForge 1.21.x | `ArcartX-NeoForge-<mc>-2.7.77.jar` |
+
+## 客户端功能
+
+| 功能 | 说明 |
+|---|---|
+| 地形渲染 | 扫描客户端区块实时生成地形画面，已探索区域缓存落盘（服务器无图依赖） |
+| 小地图 HUD | 圆形/方形、四角位置、尺寸缩放可调；玩家位置箭头、世界名/坐标 |
+| 实体雷达 | 周围实体圆点+名称标签，玩家/怪物/动物逐类显隐 |
+| 洞穴图层 | 地下自动洞穴模式，切片深度 16/30/48/64 档 |
+| 标记渲染 | 锚点 `◎` / 路径点 `⚑` / 外部目标 `✦` / 标记点 `◈` |
+| 导航指示 | 路标箭头、目标距离、路径标记实体渲染 |
+| 客户端设置留存 | 雷达/外观偏好写本地 `options.properties`，经服务端按玩家同步 |
+
+## Aria 桥接
+
+ArcartX UI（`map_hud.yml`/`map_menu.yml`）通过全局函数调用 mod 的渲染器：
+
+| 函数 | 说明 |
+|---|---|
+| `axsmap.getMapRenderer()` | 获取地图渲染器实例，`var.mapRenderer.<method>(...)` 按名调用公开方法 |
+| `axsmap.getHitMarker()` | 命中标记渲染器 |
+
+<Callout type="info">
+`getMapRenderer()` 返回对象的公开方法名是 UI 反射契约——构建混淆时 `MapRenderer` 与 `data.**` 的 public 方法名会保留（`-keepclassmembers`），类名可混淆。
+</Callout>
+
+## 网络通道
+
+| 通道 | 方向 | 用途 |
+|---|---|---|
+| `axsmap:request` | C→S | 地形/标记数据请求 |
+| `axsmap:terrain` | S→C | 服务端下发数据 |
+
+Forge 端经 `LegacyForgePayloadMixin` 拦截 `ClientPacketListener` 收包 + `minecraft:register` 通告通道（Map 是 mixin 收包方案的先例，Tooltips 的 `axstooltip:gunui` 通道同构实现）。
+
+## 构建与分发
+
+```bat
+:: 构建全部 12 个目标
+gradlew chiseledBuild
+:: 构建单个目标
+gradlew :1.20.1-fabric:build
+```
+
+产物输出至 `build/distributions/<mod_version>/`，文件名 `Arcart-Suite-Map-<mc>-<loader>-<version>+<mc>.jar`。Java 工具链自动切换：1.20.x → Java 17，1.21.x → Java 21。
+
+构建链含 **ProGuard 混淆 + ASM 字符串加密**（`remapJar → obfuscateJar → stringEncryptJar`）：
+
+- 平台入口类（`platform.fabric/forge/neoforge.*Entrypoint`）与 `mixin.**` 整类保留
+- `platform.**` 胶水层整包保留（intermediary/SRG 名与 library 命名空间不一致，防 AbstractMethodError）
+- `MapRenderer`/`data.**` 的 public 成员保留（Aria 反射契约）
+- 其余类扁平化到 `internal` 包 + Il1O0 字典
+
+## 声明
+
+本项目为私有项目，保留所有权利。`libs/` 下 ArcartX JAR 版权归原作者所有，仅作编译依赖。
