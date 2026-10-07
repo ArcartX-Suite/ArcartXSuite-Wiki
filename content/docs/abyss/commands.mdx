@@ -77,6 +77,12 @@ description: Abyss 命令、权限与 PlaceholderAPI 占位符
 | `/axs abyss design save [world]` | 保存设计：YAML 回写地牢目录 + 模板重载；`world` 附加把实例世界回拷模板 `world/` |
 | `/axs abyss design ui` | 重开设计主面板（会话内任意时刻可用） |
 | `/axs abyss design exit` | 退出设计模式（未保存改动丢弃，等价面板「退出」） |
+| `/axs abyss region pos1` / `pos2` | 标记脚下方块为区域模板选区角点（两角任意顺序，跨世界自动重置） |
+| `/axs abyss region sel` | 查看当前选区 |
+| `/axs abyss region save <地牢> <名>` | 把选区快照存为 `abysses/<地牢>/regions/<名>.yml` |
+| `/axs abyss region list <地牢>` | 列出该地牢已存区域模板 |
+| `/axs abyss region info <地牢> <名>` | 模板尺寸/体积/材质数 |
+| `/axs abyss region remove <地牢> <名>` | 删除模板 |
 
 > `puzzle` 系列是**局内编辑**入口：只改当前副本实例的内存状态（进度/完成/锁定），不写回 `puzzles.yml`，不影响下一个副本实例。需要 `arcartxsuite.abyss.admin` 权限且玩家身在目标副本内。
 
@@ -97,6 +103,19 @@ description: Abyss 命令、权限与 PlaceholderAPI 占位符
 - 关闭面板（Esc）不退出设计模式；**重开**：标记杖左键空气 或 `/axs abyss design ui`；`/axs abyss design exit` 或面板「退出」才退出
 
 > 设计改动**不落盘即不生效**——对象增删改先记脏（未保存角标计数），保存确认后才写 YAML 并重载模板。
+
+### 区域模板（`/axs abyss region`）
+
+把**任意世界**里手工建好的建筑圈选成模板，副本 `world-init` 脚本里用 `paste_region` 铺进副本世界——免写几千行 `fillblocks`。
+
+1. 在主世界/建筑世界里搭好结构
+2. `/axs abyss region pos1` / `pos2` 分别站两角标记（脚下为角点，顺序任意；换世界自动重置选区）
+3. `/axs abyss region save <地牢> <名>` 快照到 `abysses/<地牢>/regions/<名>.yml`
+4. `scripts.yml` 任意段调用 `paste_region <名> <x,y,z>` 铺放（[用法详见地牢模板编写·区域模板](/docs/abyss/dungeons#区域模板-regions)）
+
+- 模板按地牢绑定，存于地牢目录 `regions/` 子目录，随地牢目录一起部署/迁移
+- 快照保留 **BlockData 完整状态**（楼梯朝向/栅栏连接/玻璃板贴合等）；**方块实体内容不迁移**（箱内物品/刷怪笼配置/告示牌文字这类 NBT 不复制）
+- 选区体积上限 131072 块（如 32×64×64）；模板名白名单 `[A-Za-z0-9_-]≤32`
 
 ## 权限节点
 

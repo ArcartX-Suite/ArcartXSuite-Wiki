@@ -11,8 +11,9 @@ Abyss 的副本流程由 `scripts.yml` 中的生命周期脚本驱动。每个�
 
 | 段名 | 触发时机 |
 |---|---|
-| `init` | 世界加载完成后、玩家传送前（虚空世界在此搭场景） |
-| `start` | 玩家已传送，副本正式开始 |
+| `world-init` | 世界就绪、区块预载完成后、玩家传送**之前**——造平台/铺场景专用（void 世界必须用它建落脚处；大量 fillblocks/paste_region 在此段跑） |
+| `init` | 全员进图后、副本激活前（玩法对象尚未初始化——**不要在这里搭地形**，玩家已落地） |
+| `start` | 副本激活（怪组已注册，AUTO_START 组已刷） |
 | `complete` | 通关（脚本 `complete_dungeon` 或怪物组条件触发） |
 | `fail` | 失败（脚本 `fail_dungeon`、团灭、超时 FAIL） |
 | `player-death` | 副本内玩家死亡（`{player}` = 死者，`@trigger` 指向该玩家） |
@@ -20,8 +21,10 @@ Abyss 的副本流程由 `scripts.yml` 中的生命周期脚本驱动。每个�
 | `exit` | 玩家离开副本（`@trigger` = 离开者） |
 
 ```yaml
-init:
+world-init:                      # 传送前跑——虚空世界在此建场景
   - "fillblocks -6,79,-6 6,79,6 END_STONE"
+
+init:
   - "message @all &7正在构建竞技场..."
 
 start:
@@ -153,6 +156,7 @@ global-thresholds:
 | `play_model_animation` | 播放模型动画 |
 | `setblock` | `setblock <x,y,z> <Material>` |
 | `fillblocks` | `fillblocks <x1,y1,z1> <x2,y2,z2> <Material>` |
+| `paste_region` | `paste_region <名> <x,y,z> [full]` 铺放 `/axs abyss region` 圈选的区域模板——默认跳过 AIR（结构嵌入地形），`full` 连空气覆盖（挖空腔体/虚空铺房） |
 
 ### 障碍物 / 交互点 / NPC / 任务
 
@@ -212,6 +216,7 @@ guide_pump_room:
 |---|---|
 | `grant_reward` | `grant_reward <选择器> <奖励集名>` 发放 `rewards.yml` 命名集 |
 | `open_chest_ui` | `open_chest_ui <选择器> <宝箱名>` 打开宝箱 UI |
+| `open_shop_ui` | `open_shop_ui <选择器> <商店id>` 打开 `shops.yml` 商店 UI（NPC click-script/台座入口） |
 | `time` / `weather` | 设置副本世界时间/天气 |
 
 ### 跨模块联动

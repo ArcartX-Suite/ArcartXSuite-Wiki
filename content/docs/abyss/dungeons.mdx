@@ -20,8 +20,10 @@ abysses/<地牢ID>/
 ├── npcs.yml         ← 副本 NPC
 ├── quests.yml       ← 副本任务
 ├── rewards.yml      ← 奖励集/宝箱
+├── shops.yml        ← 商店（open_shop_ui 调用）
 ├── floors.yml       ← 楼层定义（mode: floors 多层房间地牢）
 ├── rooms.yml        ← 房间模板池（floors 模式）
+├── regions/         ← 区域模板（/axs abyss region save 产出，paste_region 调用）
 ├── external/        ← 外部系统配套文件（可选；abyss 加载模板时自动部署）
 │   ├── chemdah/conversation/*.yml   → plugins/Chemdah/core/conversation/
 │   ├── chemdah/quest/*.yml          → plugins/Chemdah/core/quest/
@@ -448,7 +450,9 @@ guide:
 
 相关脚本动作：`spawn_npc` / `remove_npc`（动态生成/移除）、`npc_dialog <npc> [sel]`（同点击判定）、`open_conversation <npcId> [sel]`（强制开 Chemdah 会话，不要求 NPC 在 npcs.yml）、`play_cinematic <序列> [sel]`（播 conversation 电影序列）、`play_model_animation`（Adyeshach 模型动画）。
 
-> Adyeshach 缺席时副本仍可进入，NPC 退化为原版 `Villager` 实体 + 聊天栏对话；装 Adyeshach 未装 conversation 时对话同样走 `dialogs` 兜底。
+> **实体类型注意**：`VILLAGER`/`WANDERING_TRADER` 这类实体**自带原版交易 GUI**——Adyeshach 缺席时 NPC 降级为真实体，右键会先弹原版交易界面盖住自定义交互。接对话/商店的 NPC 推荐 `WITCH`（无交易界面，两条路径都安全）；`PLAYER` 型仅在 Adyeshach 在场时可用（降级路径会变 ZOMBIE）。
+>
+> Adyeshach 缺席时副本仍可进入，NPC 退化为原版实体 + 聊天栏对话；装 Adyeshach 未装 conversation 时对话同样走 `dialogs` 兜底。
 
 ## quests.yml — 副本任务（Chemdah/QuestGPS 适配层）
 
@@ -532,6 +536,40 @@ chest-rewards:
 
 宝箱 UI 支持单个/全部领取；玩家未领取关闭时服务端自动全发兜底，不吞奖励。
 
+## shops.yml — 副本商店
+
+`open_shop_ui <选择器> <商店id>` 打开自定义商店 UI（替代台座购买）：商品行列表展示图标/名称/描述/价格，顶部实时余额，金币不足自动置灰。
+
+```yaml
+shops:
+  caravan:                         # 商店 id
+    title: "旅行商队"               # 面板标题
+    currency-var: coins            # 结算变量（副本实例变量，击杀掉落攒的那种）
+    goods:
+      - id: heal
+        name: "&a治疗药剂"
+        icon: "material:SPLASH_POTION"   # material:<材质> 或物品描述
+        desc: ["&7恢复 12 点生命", "&75 秒再生"]
+        price: 8                   # 货币价格
+        script:                    # 购买成功后执行（@trigger=买家）
+          - "heal @trigger 12"
+          - "apply_potion @trigger REGENERATION 5 2"
+      - id: power
+        name: "&c力量药剂"
+        icon: "material:POTION"
+        price: 12
+        script:
+          - "random shop_power_lvl 1 3"
+          - "run_script shop_power_t1"   # 各档段首行 if_var 门控
+          - "run_script shop_power_t2"
+          - "run_script shop_power_t3"
+```
+
+- **结算模型**：服务端校验 token + 副本实例身份 + `currency-var` 余额 → 扣实例变量 → 跑 `script` → 回推余额刷新 UI；购买是原子扣费，伪造包/跨实例无效
+- **NPC 入口**：`npcs.yml` 的 `click-script` 里写 `open_shop_ui @trigger caravan`；同店多台座/多入口并存不冲突
+- **类型注意**：接商店的 NPC **不要用 `VILLAGER`/`WANDERING_TRADER`**——Adyeshach 缺席降级真实体时，右键会先弹原版交易 GUI 盖住交互；`WITCH` 无交易界面两条路径都安全
+- 商品 `script` 是完整动作行列表，随机档位/条件分支照常用 `random`+`if_var`+`run_script` 模式
+
 ## scripts.yml — 生命周期脚本
 
 段执行时机：
@@ -550,7 +588,7 @@ chest-rewards:
 
 ## floors.yml + rooms.yml — 多层房间地牢
 
-`config.yml` 设 `mode: floors` 后启用：地牢由若干**层（floor）**组成，每层是一条**房间链**，玩家逐房推进——进战斗房自动锁门刷怪，清完开门解锁出口，层末房清完进入下一层，最终层清完即通关（类元气骑士结构）。
+`config.yml` 设 `mode: floors` 后启用：地牢由若干**层（floor）**组成，每层是**房间图**——房间在世界里真实互连（走廊物理可走），玩家自由探索/回退，不必按 rooms 列表顺序访问（类元气骑士迷宫结构）。房间 `region`/`doors` 定义边界和物理门洞，拓扑由 world-init 的建筑布局决定——门洞后接走廊=真通路，挖死=假门/装饰。
 
 ### floors.yml
 
@@ -567,9 +605,11 @@ floors:
     name: "第 1 层"
     source: region              # region=固定区域 | pool=schematic 随机拼接
     spawn: "0,65,0,90,0"        # 层入口站位（region 绝对坐标）
-    rooms: [corridor_a, corridor_b]   # region 模式：rooms.yml 引用链
-    boss-room: boss_1           # 层末房（可选；不配则链尾房即层末）
-    advance: portal             # portal=踩出口传送 | auto=清完自动传送
+    rooms: [entry, combat_a, altar_a, combat_b, boss_1, chest_a]
+                                # region 模式：本层全部房间的引用集合（顺序不决定推进路线）
+    boss-room: boss_1           # 终点房（显式指定！不配则退回"链尾房"的线性语义）
+    advance: portal             # portal=终点房清完踩出口传送 | auto=清完自动传送
+    advance-timeout: 90         # portal 兜底：终点清完 90s 无人踩出口自动推层
     on-enter: [...]             # 层开始脚本
     on-clear: [...]             # 层清完脚本
   - id: f2
@@ -617,25 +657,45 @@ rooms:
 
 ### 运行规则
 
+- **房间图遍历**：引擎每 tick 扫描层内**全部**房间做进出检测——进任意房触发 on-enter/锁门，可回退/绕支线/走回头路；`rooms` 列表只是集合而非路线
+- **终点语义**：`boss-room` 显式指定层终点——终点房清完 → 层清 → 进下一层；**非终点房**清完只解锁自家门，不自动传送
+- **多门洞**：`doors` 是列表，一房可配任意多个门洞（锁门时全部填塞、清完还原原方块）；门洞是否通向真房间由 world-init 的建筑布局决定——封死=假门/装饰，通走廊=真通路
 - 房间物化：进本时按层生成房间链；pool 房沿轴粘贴，一切坐标（region/spawn/doors/groups/exit）自动按锚点偏移为绝对值
 - 怪组物化：房内组注册为 `f{层}_r{房序}_{模板id}:{组名}`；`trigger-after` 引用房内短名自动加前缀
 - 事件：`axs.abyss.room_enter` / `room_clear` / `floor_enter` / `floor_clear`
 - 脚本变量：`{floor}` `{floor_name}` `{floors_total}` `{room}` 写入实例变量
 - 脚本动作：`floor_next`（强制推层）/ `room_lock <房>` / `room_unlock <房>` / `room_status <房> <变量>`
-- 虚空防护：玩家掉出当前房底部 8 格以下自动拉回房中心
-- 最终层链尾房清完自动 `complete_dungeon`；中途判负/超时/全员死亡走现有失败流程
+- 虚空防护：玩家掉出**所在**房底部 8 格以下自动拉回该房中心
+- 无怪组的安全房进房即清（不广播"肃清"）；最终层终点房清完自动 `complete_dungeon`
+- Boss 之门模式：world-init 把终点房门洞封死 → 战斗房 `on-clear` 累加 `fN_cleared` 变量 → 首个肃清房触发 `fN_gate` 段 `fillblocks AIR` 开门（example 副本的实现方式，纯脚本无引擎依赖）
 
 
 ## 内置示例：元气试炼之地（example）
 
-`abysses/example/` 是一个**零外部资源**即可跑通的元气骑士式三层地牢——`world.template: void` 虚空世界，全部建筑由 `scripts.yml` 的 `world-init` 段用 `fillblocks` 程序化生成（11 间房 + 8 条封闭走廊，无需 schematic）。
+`abysses/example/` 是一个**零外部资源**即可跑通的元气骑士式**三层迷宫**地牢——`world.template: void` 虚空世界，全部建筑由 `scripts.yml` 的 `world-init` 段用 `fillblocks` 程序化生成（每层 7 房×3 层，24×24 房 + 8 宽走廊物理互连成图，无需 schematic）。
 
-| 层 | 房间链 | 演示点 |
+| 层 | 拓扑 | 演示点 |
 |---|---|---|
-| f1 苔痕前哨 | 起始房 → 战斗房 → 祭坛房 → Boss房 | 向导 NPC（Adyeshach+Chemdah 会话）、两波+休整预告、金币祭坛三选一、冲撞兽+定时增援 |
-| f2 熔岩矿道 | 三连战 → 商店 → 解谜房 → Boss房 | 三波递进休整、旅行商人+台座购物、序列拉杆封门机关、唤魔者+增援 |
-| f3 深渊王座 | 走廊决战 → 宝箱房 → 终层Boss | 灵魂沙/岩浆块陷阱带（obstacles）、宝箱 UI、凋零+两阶段增援 |
+| f1 苔痕前哨 | 入口—战斗A—战斗B—Boss / 入口—祭坛 / 战斗B—宝箱 | 向导 NPC（Adyeshach+Chemdah 会话+委托）、随机波次包+休整预告、金币祭坛三选一、Boss 之门（肃清任一战斗房开门） |
+| f2 熔岩矿道 | 入口—战斗A—战斗B—谜题 / 入口—商店 / 战斗B—战斗C—Boss | 商店 UI+台座购买、彩窗提示序列拉杆机关、唤魔者+增援 |
+| f3 深渊王座 | 入口—战斗A—Boss（环形）/ 祭坛—战斗B—宝箱厅 / 战斗B—精英 | 灵魂沙+岩浆块陷阱带（obstacles）、精英卫队房、终层独立宝箱池、凋零+两阶段增援 |
 
-**贯穿机制**：击杀掉全队金币（tasks.yml `monster_kill` 事件）、祭坛/商店 `%axsabyss_var_coins%` 条件扣费、每层 Boss 后 `buff_offer` 三选一天赋、`guide_point` 路标导航、portal 出口垫传送 + 走廊可回溯。
+**贯穿机制**：击杀掉全队金币（tasks.yml `monster_kill` 事件）、祭坛/商店 `%axsabyss_var_coins%` 条件扣费、每层 Boss 后 `buff_offer` 三选一天赋、`guide_point` 路标链（向导→东廊→首战）、portal 出口垫传送 + 走廊可回溯、房间可任意顺序探索。
 
 **外部配套**（随包自动部署，详见 `example/external/README.md`）：Chemdah 会话文件绑 `adyeshach guide`/`adyeshach merchant`（NPC 右键开真会话 UI）；Chemdah 任务 `sk_slayer` + questgps 呈现层（`quests.yml` 的 `slayer` 委托线）。abyss 加载模板时自动把 `external/` 部署到 `plugins/Chemdah/core/` 与 `data/questgps/quests/` 并触发重载。缺依赖时自动降级：原版实体 NPC、聊天栏对话、委托线静默跳过。
+
+## 区域模板 regions/
+
+手工搭好的建筑可以整片圈选存为模板，副本脚本一键铺放——比逐行 `fillblocks` 快几个量级。
+
+**管理**（见 [命令页·区域模板](/docs/abyss/commands#区域模板axs-abyss-region)）：`/axs abyss region pos1|pos2` 圈选 → `save <地牢> <名>` 存到 `abysses/<地牢>/regions/<名>.yml`。
+
+**使用**（scripts.yml 任意段，world-init 最常用）：
+
+```yaml
+world-init:
+  - "paste_region 神庙 0,60,0"         # 默认跳过 AIR——结构嵌入已有地形
+  - "paste_region 遗迹 100,60,0 full"  # full=连空气一起覆盖——虚空世界铺房/挖空腔体
+```
+
+模板是调色板（BlockData 串，保留朝向/状态）+ 逐层索引的 YAML——**方块实体内容不迁移**（箱内物品/刷怪笼/告示牌文字这些纯 NBT 不复制）。铺放同 `fillblocks` 免物理更新，不会触发邻接级联。

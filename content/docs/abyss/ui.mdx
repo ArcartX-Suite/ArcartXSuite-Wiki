@@ -1,11 +1,11 @@
 ---
 title: UI 界面
-description: Abyss 的 7 个 ArcartX UI 与客户端通讯协议
+description: Abyss 的 14 个 ArcartX UI 与客户端通讯协议
 ---
 
 # UI 界面
 
-Abyss 注册 7 个 ArcartX UI（`AXS:<id>`），首次启动导出到 `plugins/ArcartX-Suite/ui/`。UI ID 可在 `config.yml ui` 节修改（自动补 `AXS:` 前缀）。
+Abyss 注册 14 个 ArcartX UI（`AXS:<id>`），首次启动导出到 `plugins/ArcartX-Suite/ui/`。UI ID 可在 `config.yml ui` 节修改（自动补 `AXS:` 前缀）。
 
 ## UI 一览
 
@@ -13,11 +13,18 @@ Abyss 注册 7 个 ArcartX UI（`AXS:<id>`），首次启动导出到 `plugins/A
 |---|---|---|---|
 | `abyss_browser.yml` | `AXS:abyss_browser` | `/abyss` | 地牢浏览器：左侧地牢卡片滚动列表 + 右侧详情（难度/人数/条件/描述）+ 进入/队伍/刷新 |
 | `abyss_confirm.yml` | `AXS:abyss_confirm` | 浏览器点「进入」 | 进本确认：显示体力/门票/冷却/限时摘要 |
+| `abyss_lobby.yml` | `AXS:abyss_lobby` | `/party lobby` | 组队大厅：公开队伍列表 |
 | `abyss_party.yml` | `AXS:abyss_party` | `/party` 或浏览器「队伍」 | 队伍面板：成员列表（队长冠标/在线点/踢出/转让）+ 邀请输入 + 邀请接受 + 队聊 |
 | `abyss_chest.yml` | `AXS:abyss_chest` | 脚本 `open_chest_ui` | 宝箱：权重抽取的物品槽 + 单个/全部领取 |
+| `abyss_shop.yml` | `AXS:abyss_shop` | 脚本 `open_shop_ui` | 副本商店：商品行列表（图标/名称/描述/价格）+ 余额显示 + 金币不足置灰（`shops.yml` 配置） |
 | `abyss_hud.yml` | `AXS:abyss_hud` | 进本自动开启 | 副本 HUD：波次进度/存活怪/存活玩家/剩余时间条/任务追踪，每秒推送 |
+| `abyss_input.yml` | `AXS:abyss_input` | 脚本 `puzzle_prompt` | 输入型机关面板：掩码/长度/正则过滤 |
+| `abyss_buff.yml` | `AXS:abyss_buff` | 脚本 `buff_offer` | 增益选择：三选一卡片面板 |
 | `abyss_stats.yml` | `AXS:abyss_stats` | 副本结束（`auto-show`） | 战斗统计表：击杀/伤害/承伤/治疗按玩家分行 |
 | `abyss_leaderboard.yml` | `AXS:abyss_leaderboard` | `/abyss rank <地牢>` / 通关自动 | 排行榜：前三名金银铜高亮 |
+| `abyss_design.yml` | `AXS:abyss_design` | `/axs abyss design` | 设计模式主面板：流程节点链 + 对象列表 + 保存 |
+| `abyss_design_pick.yml` | `AXS:abyss_design_pick` | 设计面板「+添加对象」 | 对象类型选择卡片 |
+| `abyss_design_edit.yml` | `AXS:abyss_design_edit` | 设计面板「编辑」 | 字段表单编辑（文本/开关/枚举/坐标重标） |
 
 > 客户端需安装 ArcartX MOD 才能显示 UI；无客户端时 `/abyss` 回落为命令文本（列表/进本正常），宝箱直接发放不吞奖励。
 
@@ -39,6 +46,7 @@ Abyss 注册 7 个 ArcartX UI（`AXS:<id>`），首次启动导出到 `plugins/A
 | `party_chat` | `data[1]`=消息 | 队聊 |
 | `chest_claim` | — | 宝箱全部领取 |
 | `chest_claim_one` | `data[1]`=槽位索引 | 宝箱单个领取 |
+| `shop_buy` | `data[1]`=shopId, `data[2]`=商品索引, `data[3]`=action_token | 商店购买（校验副本身份/余额→扣货币→跑商品脚本→刷新） |
 | `open_stats` | — | 打开统计界面 |
 
 ## 服务端→客户端
@@ -51,6 +59,7 @@ Abyss 注册 7 个 ArcartX UI（`AXS:<id>`），首次启动导出到 `plugins/A
 | 确认 init | `init` | 选中地牢详情字段 |
 | 队伍 init/update | `init`/`update` | `memberRows`（uuid/name/leader/online）、邀请列表、队聊 |
 | 宝箱 init | `init` | `title`/`rows`/`items`（每槽 `itemJson`，空槽 AIR） |
+| 商店 init/update | `init`/`update` | `title`/`goods` 字典（name/iconJson/desc0-1/price）+ `coins` 余额；购买后回推余额 |
 | HUD update | `update` | 每秒推送：`progress`/`aliveMobs`/`alivePlayers`/`timeLeft`/`questRows` |
 | 统计 init | `init` | `rows` 字典（玩家名+击杀/伤害/承伤/治疗） |
 | 排行榜 init | `init` | `rows` 字典（玩家名+通关耗时+名次） |

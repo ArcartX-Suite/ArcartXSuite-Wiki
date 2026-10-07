@@ -84,6 +84,8 @@ abyss 向 EventBus 发布以下主题（`axs.abyss.*`），battlepass 任务等�
 | `axs.abyss.guide_arrive` | 玩家 | 到达 `guide_point` 导航目标 | `dungeon` `instance` `nav` |
 | `axs.abyss.buff_offer` | 玩家(触发者) | 增益池发起选择 | `dungeon` `instance` `pool` |
 | `axs.abyss.buff_pick` | 玩家 | 增益生效（面板选择/hud 直发/超时兜底均发） | `dungeon` `instance` `pool` `option` |
+| `axs.abyss.room_enter` / `room_clear` | 实例 | floors 模式进房/清房 | `dungeon` `instance` `floor` `room` |
+| `axs.abyss.floor_enter` / `floor_clear` | 实例 | floors 模式进层/层清 | `dungeon` `instance` `floor` |
 
 > **职责边界**：`global_*` 系列只提供「持久化计数 + 事件出口」。阈值命中后的全服事件玩法（防守战/阵营混战/全服 Boss 等）由 eventpacket 规则、regions 区域规则或外部玩法模块订阅实现——abyss 不承载副本实例之外的世界状态。
 
