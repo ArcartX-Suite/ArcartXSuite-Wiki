@@ -1,0 +1,193 @@
+---
+title: tip 配置示例
+description: 完整物品 tip yml——TACZ/神化区块、lore 隐藏、品质着色与按键提示
+---
+
+# tip 完整配置示例
+
+以下是配合客户端 mod `axstooltip.*` 函数的完整物品 tip 配置，可直接放入 `plugins/ArcartX-Suite/tips/` 使用（材质路径 `/tippz/` 按实际资源调整）。
+
+## 效果
+
+- 名称 + 物品图标 + 品质标签 + lore 列表
+- TACZ 区块（枪械属性/配件增益）与 Apotheosis 宝石描述自动插入
+- 按 **V**（可改键）隐藏 lore 介绍，右下角有小提示
+- 悬停 TACZ 配件按 **查看支持枪械** 键（默认 Shift）打开浏览界面
+- 品质行触发背景换色（`tippz/2-5.png` 示例）
+
+## 完整配置
+
+```yaml
+tip:
+  match: "default"
+  # 这里填写default则是默认匹配
+root_control:
+  type: "Tip"
+  attribute:
+    visible: true
+    width: 1920
+    height: 1080
+    autoScale: true
+  children:
+    panel:
+      # 以一个画布控件作为基础，方便我们下面的控件使用锚点对齐
+      type: Canvas
+      attribute:
+        # 宽度 = 四周间距(50) + max(顶行: 名称+槽位, 描述列: lore/TACZ/神化)
+        width: "50 + Math.max(val.display.width + val.slot.width, Math.max(Math.max(val.lore.width, val.tacz.width), val.apoth.width))"
+        # 高度 = max(槽位+40, 名称区(~100) + 各可见块高度+间距)
+        height: "Math.max(val.slot.height + 40, 100 + (axstooltip.loreVisible() ? val.lore.height + 10 : 0) + (axstooltip.hasTacz() ? val.tacz.height + 10 : 0) + (axstooltip.hasApoth() ? val.apoth.height + 10 : 0))"
+      children:
+        background1:
+          # 背景控件使用9SliceTexture，自动根据大小切分九宫格处理拉伸，如果根组件开启自动缩放，四角也会跟随缩放
+          type: 9SliceTexture
+          val: 背景
+          attribute:
+            textureWidth: 256
+            textureHeight: 256
+            normal: ~/tippz/1.png
+            shape: ~round_rect
+            radius: 20
+            left: 16
+            right: 16
+            top: 16
+            bottom: 16
+            point: ~stretch_all
+            # 使用stretch_all使该控件宽高完全跟随父级宽高
+        slot:
+          type: Slot
+          val: slot
+          attribute:
+            normal: ~255,255,255,0
+            width: 160
+            height: 160
+            slotType: ~Hover
+            itemScale: "0.9"
+            point: ~top_right
+            y: 20
+            x: -20
+        display:
+          type: Text
+          val: display
+          attribute:
+            texts: Tip.getDisplay()
+            fontSize: 64
+            point: ~top_left
+            y: 35
+            x: 25
+        品质品阶排列布局:
+          type: VGrid
+          attribute:
+            spaceBetweenY: 2
+            spaceBetweenX: 2
+            row: 999
+            # 面板因 lore 隐藏而变矮时收敛到面板内，避免标签悬出底边
+            y: "Math.max(60, Math.min(190, self.parent.height - 50))"
+            x: -20
+            point: ~top_right
+          children:
+            text1:
+              type: Text
+              val: text
+              attribute:
+                visible: var.品质显示
+                texts:
+                  - '~{var.品质}'
+                fontSize: 54
+        tacz信息:
+          # TACZ 枪械附加信息：由 axstooltip.getTaczLore() 直供（mod 已带 § 颜色码）
+          type: Text
+          val: tacz
+          attribute:
+            texts: axstooltip.getTaczLore()
+            fontSize: 38
+            # 配件按"查看支持枪械"键打开独立浏览 UI（tip 不再内嵌网格）
+            visible: axstooltip.hasTacz()
+            y: 90
+            x: 35
+        lore:
+          type: Text
+          val: lore
+          attribute:
+            texts: var.lore列表
+            fontSize: 38
+            # 按 V 键（可改键）隐藏 lore 介绍，只留 TACZ/神化词条区
+            visible: axstooltip.loreVisible()
+            # TACZ 区块存在时 lore 整体下移，否则保持原位
+            y: "90 + (axstooltip.hasTacz() ? val.tacz.height + 10 : 0)"
+            x: 35
+          action:
+            create: |-
+              //Message.chat(Tip.getLore())
+              //Message.chat(Tip.getLore().size())
+              var.i = Tip.getLore().size()
+              var.lore列表 = []
+              i = 0
+              while(i < var.i){
+                if(Tip.getLore().get(i).contains('品质')){
+                  var.品质显示 = true
+                  var.品质 = val.slot.getItemText("品质").replace('k!', '§')
+                  if(val.slot.getItemText("品质").contains('100007')){
+                    val.背景.normal = "/tippz/2.png"
+                  }elif(val.slot.getItemText("品质").contains('100008')){
+                    val.背景.normal = "/tippz/2.png"
+                  }elif(val.slot.getItemText("品质").contains('100009')){
+                    val.背景.normal = "/tippz/2.png"
+                  }elif(val.slot.getItemText("品质").contains('100010')){
+                    val.背景.normal = "/tippz/2.png"
+                  }elif(val.slot.getItemText("品质").contains('100011')){
+                    val.背景.normal = "/tippz/3.png"
+                  }elif(val.slot.getItemText("品质").contains('100012')){
+                    val.背景.normal = "/tippz/3.png"
+                  }elif(val.slot.getItemText("品质").contains('100013')){
+                    val.背景.normal = "/tippz/3.png"
+                  }elif(val.slot.getItemText("品质").contains('100014')){
+                    val.背景.normal = "/tippz/3.png"
+                  }elif(val.slot.getItemText("品质").contains('100015')){
+                    val.背景.normal = "/tippz/4.png"
+                  }elif(val.slot.getItemText("品质").contains('100016')){
+                    val.背景.normal = "/tippz/4.png"
+                  }elif(val.slot.getItemText("品质").contains('100017')){
+                    val.背景.normal = "/tippz/5.png"
+                  }elif(val.slot.getItemText("品质").contains('100018')){
+                    val.背景.normal = "/tippz/5.png"
+                  }
+                }else{
+                  var.lore列表.add(Tip.getLore().get(i).replace('k!', '§'))
+                }
+                i++
+              }
+
+        apoth信息:
+          # Apotheosis 宝石描述，放在 lore 之后；lore 隐藏时紧贴 TACZ 区/名称。
+          type: Text
+          val: apoth
+          attribute:
+            texts: axstooltip.getApothLore()
+            fontSize: 38
+            visible: axstooltip.hasApoth()
+            y: "98 + (axstooltip.loreVisible() ? val.lore.height : 0) + (axstooltip.hasTacz() ? val.tacz.height + 10 : 0)"
+            x: 35
+        按键提示:
+          # tip 右下角小提示：按 loreKeyName() 键 隐藏/显示 lore（跟随玩家改键）
+          type: Text
+          attribute:
+            point: ~bottom_right
+            x: -10
+            y: -10
+            fontSize: 32
+            through: true
+            # 只有 TACZ/神化物品才有 lore 隐藏开关的意义（普通物品按 V 不生效）
+            visible: "axstooltip.hasExtra() && ((var.lore列表 != none && var.lore列表.size() > 0) || axstooltip.loreHidden())"
+            texts: "'§8按 ' + axstooltip.loreKeyName() + (axstooltip.loreVisible() ? ' 隐藏说明' : ' 显示说明')"
+```
+
+## 要点说明
+
+| 要点 | 说明 |
+|---|---|
+| `create` 只执行一次 | lore 列表在控件创建时取快照；动态数值（弹药等）需走 `texts` 属性里的 aria 函数 |
+| lore 隐藏联动高度 | `panel.height` / `lore.y` / `apoth.y` 都包了 `axstooltip.loreVisible()` 三元——隐藏时面板自动收矮 |
+| 品质换背景 | lore 行含"品质"时抽出为 `var.品质`，按品质 ID 段切换 `tippz/2~5.png` |
+| 按键提示跟随改键 | `loreKeyName()` 返回当前绑定键名；枪械界面键名可用 `gunKeyName()` |
+| `k!` → `§` | 服务端下发的 lore 用 `k!` 转义颜色码，客户端替换回 `§` |
