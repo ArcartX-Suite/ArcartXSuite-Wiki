@@ -686,27 +686,23 @@ rooms:
 
 ### source: gen — 程序化生成
 
-`gen` 模式不需要任何预制几何：每次进本，Java 生成器在 void 世界里现场算出一张**每次都不一样的有机迷宫**——洞穴状房间、随机位置、随机连通图、蜿蜒走廊，然后由绘制器落块。
+`gen` 模式不需要任何预制几何：每次进本，Java 生成器在 void 世界里现场算出一张**每次都不一样的洞窟群迷宫**——一张蜿蜒的大洞穴网络当迷宫本体，战斗/功能房是洞壁上凸出的洞室，然后由绘制器落块。
 
 **生成流程**（纯数学，全部在玩家传送前完成）：
 
-1. **牌组**：`rooms`（保底主链）+ `optional-rooms`（按概率增删支线）+ `boss-room` 兜底必生成
-2. **布点**：拒绝采样自由散布（最小间距=两房半径和+廊道缓冲）；入口房压西南、Boss 房取最远候选；挤不下时自动缩径重试→网格扫描兜底——保底房永不丢
-3. **形状**：每房元胞自动机（CA）洞穴——随机初始填充 → 4 轮平滑 → 取含中心最大连通域 + 两格厚壳体环；半径/挑高按 `rooms.gen` 逐房可控
-4. **拓扑**：近邻 Prim 生成树保底连通 + `extra-edges` 概率加环路（真迷宫可绕圈可回退）
-5. **走廊**：两房壳体门位间折线（随机折点折向），廊带穿房壳即成门洞；穿到第三房壳体也自动登记为门（锁门/封门行为一致）
-6. **落点**：按 `gen.feature` 产出锚点（`center`/`spawn`/`altar`/`chest`/`merchant`/`lever_N`/`exit`/`guide`/`boss`）+ 洞内刷怪点 + Boss 出口金垫
-7. **封门**：`boss-room` 的全部门洞初始填壳体封死，战斗房 `on-clear` 跑 `room_open` 解锁（见下）
+1. **洞穴本体**：大栅格 CA 一次成型（边墙封底→多轮平滑→取最大连通域）——蜿蜒隧道+天然洞厅天然互连，它就是走廊系统，不存在"房间串在走廊上"的珠链结构
+2. **牌组**：`rooms`（保底主链）+ `optional-rooms`（按概率增删支线）+ `boss-room` 兜底必生成
+3. **洞室外凸**：每房在洞穴边缘取一个外凸点，CA 团块向洞外膨胀——团块与洞域的接触弧收窄成约 `corridor-width` 宽的门洞（其余接触格全部封墙，含斜向缝隙）；入口房压洞穴西南、Boss 房取洞内 BFS 最远的边缘带，支线房随机错开门口
+4. **落点**：按 `gen.feature` 产出锚点（`center`/`spawn`/`altar`/`chest`/`merchant`/`lever_N`/`exit`/`guide`/`boss`）+ 洞内刷怪点 + Boss 出口金垫
+5. **封门**：`boss-room` 的全部门洞初始填壳体封死，战斗房 `on-clear` 跑 `room_open` 解锁（见下）
 
 **`defaults.gen` 全局参数**（`floors[].gen` 可逐层覆写）：
 
 | 参数 | 默认 | 说明 |
 |---|---|---|
-| `cell-pitch` | `64` | 布点参考格距 |
-| `room-radius` | `[12,17]` | 洞穴半径区间（`rooms.gen.radius` 可逐房覆写） |
-| `corridor-width` | `5` | 走廊内空宽（奇数居中） |
-| `extra-edges` | `0.4` | 生成树外的环路概率（0=纯树状单向，1=全连通环） |
-| `ca-fill` / `ca-smooth` | `0.46` / `4` | CA 初始填充率 / 平滑迭代 |
+| `room-radius` | `[12,17]` | 洞室半径区间（`rooms.gen.radius` 可逐房覆写） |
+| `corridor-width` | `5` | 门洞开口宽（洞室与洞域接触弧收窄后的通道格数） |
+| `ca-fill` / `ca-smooth` | `0.46` / `4` | CA 初始填充率 / 平滑迭代（洞穴本体自动略调） |
 | `floor-y` | `60` | 地板层高 |
 | `base-height` / `tall-height` | `14` / `22` | 普通/挑高房净高（挑高房 `rooms.gen.tall: true`） |
 | `palette` | `moss` | 壳体/地板/廊墙/灯/柱/副材六件调色板：`moss`（苔石）/`deepslate`（深板岩）/`nether`（下界砖）/`sandstone`/`ice` |
@@ -717,7 +713,6 @@ rooms:
 | 写法 | 解析 |
 |---|---|
 | `anchor:<房ref>.<名>` | 房内锚点：`f1_start.spawn` / `f1_altar.altar` / `f2_puzzle.lever_3` / `f1_boss.exit` 等 |
-| `anchor:corr.<房a>-<房b>` | 走廊中点（ref 按字典序，例 `corr.f1_combat_a-f1_start`） |
 
 `config.yml` 的 `world.spawn`、floors 的 `spawn`、npcs/interacts/monsters 的 `location`、`guide_point`/`setblock`/`fillblocks` 等脚本动作坐标——**全部支持 `anchor:`**；可选房没抽中时锚点解析为 null，对应 NPC/交互点/引导自动静默失效（这正是"支线房增删"的配套语义）。
 
@@ -725,14 +720,14 @@ rooms:
 
 **脚本动作 `room_open <房ref>`**：清掉生成器对该房的封门格（Boss 闸门专用）。配合 `if_var` 计数器实现"肃清 N 房开门"。
 
-**障碍区绑定**（obstacles.yml）：`blocks` 之外新增 `zone:`——绑定生成器产出的命名区（example 里 `f3.boss_corridor_soul`/`magma` = Boss 入口走廊尾段前后两半），`zone-material` 指定填充材质；区未生成时该障碍静默跳过。
+**障碍区绑定**（obstacles.yml）：`blocks` 之外新增 `zone:`——绑定生成器产出的命名区（example 里 `f3.boss_corridor_soul`/`magma` = Boss 门洞外洞域带的近/远两半），`zone-material` 指定填充材质；区未生成时该障碍静默跳过。
 
 **一致性保障**：区块预载用生成计划实测包围盒；`world-init` 在绘制之后跑（可继续叠加修饰）；销毁实例时布局引用一并释放。
 
 
 ## 内置示例：元气试炼之地（example）
 
-`abysses/example/` 是一个**零外部资源**即可跑通的元气骑士式**三层程序化迷宫**地牢——`world.template: void` 虚空世界，`source: gen` 让生成器每实例现场造图：CA 洞穴房 + 随机布点 + 近邻生成树保底连通 + 环边支线 + 折线走廊（保底主链入口→战斗→Boss，祭坛/宝箱/支线房按概率增删——**同一副本，次次地形不同**）。
+`abysses/example/` 是一个**零外部资源**即可跑通的**三层洞窟群迷宫**地牢——`world.template: void` 虚空世界，`source: gen` 让生成器每实例现场造图：每层一张 CA 大洞穴网络（蜿蜒隧道+天然洞厅）+ 洞壁上凸出的洞室房间（保底主链入口→战斗→Boss，祭坛/宝箱/支线房按概率增删——**同一副本，次次地形不同**）。
 
 | 层 | 牌组 | 演示点 |
 |---|---|---|
