@@ -11,7 +11,7 @@ Abyss 的副本流程由 `scripts.yml` 中的生命周期脚本驱动。每个�
 
 | 段名 | 触发时机 |
 |---|---|
-| `world-init` | 世界就绪、区块预载完成后、玩家传送**之前**——造平台/铺场景专用（void 世界必须用它建落脚处；大量 fillblocks/paste_region 在此段跑） |
+| `world-init` | 世界就绪、区块预载完成、**gen 绘制完成**后、玩家传送**之前**——造平台/铺场景专用（void 世界必须用它建落脚处；source: gen 的层由生成器先画好，本段可再叠加修饰；大量 fillblocks/paste_region 在此段跑） |
 | `init` | 全员进图后、副本激活前（玩法对象尚未初始化——**不要在这里搭地形**，玩家已落地） |
 | `start` | 副本激活（怪组已注册，AUTO_START 组已刷） |
 | `complete` | 通关（脚本 `complete_dungeon` 或怪物组条件触发） |
@@ -148,15 +148,18 @@ global-thresholds:
 
 | 动作 | 用法 |
 |---|---|
-| `spawn_group` | `spawn_group <怪物组>` 触发波次 |
+| `spawn_group` | `spawn_group <怪物组>` 触发波次；floors 房内组可直接写 `<房ref>:<组>`（自动解析运行时房序——gen 模式房序洗牌时必须用 ref 写法） |
 | `kill_group` / `remove_group` | 击杀/跳过指定组（未刷出的组经 kill_group 视同完成走联动链；remove_group 静默移除不计完成） |
 | `group_alive_count` | `group_alive_count <组>` 存活数（配合 check） |
 | `kill_all_mobs` | 清全部副本怪 |
 | `cast_skill` | `cast_skill <怪物> <技能>` MythicMobs 技能 |
 | `play_model_animation` | 播放模型动画 |
-| `setblock` | `setblock <x,y,z> <Material>` |
-| `fillblocks` | `fillblocks <x1,y1,z1> <x2,y2,z2> <Material>` |
+| `setblock` | `setblock <x,y,z\|anchor:...> <Material>` |
+| `fillblocks` | `fillblocks <x1,y1,z1\|anchor:...> <x2,y2,z2\|anchor:...> <Material>` |
 | `paste_region` | `paste_region <名> <x,y,z> [full]` 铺放 `/axs abyss region` 圈选的区域模板——默认跳过 AIR（结构嵌入地形），`full` 连空气覆盖（挖空腔体/虚空铺房） |
+| `room_open` | `room_open <房ref>` 清掉 gen 生成器对该房的封门格（Boss 闸门专用；region/pool 模式的门洞封墙请继续用 fillblocks） |
+
+> **坐标参数支持锚点**（gen 模式）：凡 `x,y,z` 形参都可写 `anchor:<房ref>.<锚点名>`（如 `anchor:f1_start.spawn`、`anchor:f2_puzzle.lever_3`）或 `anchor:corr.<房a>-<房b>`（走廊中点）。未生成的可选房锚点解析为空——动作静默跳过。
 
 ### 障碍物 / 交互点 / NPC / 任务
 
@@ -185,7 +188,7 @@ global-thresholds:
 
 | 动作 | 用法 |
 |---|---|
-| `guide_point` | `guide_point <navId> <x,y,z> [到达半径] <标题...>` 全员登记导航目标（同 navId 覆盖） |
+| `guide_point` | `guide_point <navId> <x,y,z\|anchor:...> [到达半径] <标题...>` 全员登记导航目标（同 navId 覆盖；gen 模式可锚定房锚点/走廊中点） |
 | `guide_clear` | `guide_clear <navId\|all>` 撤下目标 |
 
 ```yaml
