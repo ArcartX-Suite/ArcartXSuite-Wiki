@@ -28,7 +28,6 @@ Abyss 是 Suite 的地牢副本模块，提供「模板定义 → 独立实例 �
 |---|---|
 | 独立副本实例 | 每个副本实例创建独立世界（`axs_abyss_<随机ID>`），多实例并行互不干扰，结束后自动卸载清理 |
 | 三种世界来源 | `void` 虚空生成 / `world/` 世界文件夹复制 / schematic 粘贴（需 WorldEdit 或 FAWE） |
-| 程序化迷宫 | floors `source: gen`——每次进本现场生成：CA 洞穴房 + 随机布点 + 随机连通图 + 折线走廊；保底链+支线房概率增删；`anchor:` 锚点语法贯穿全部坐标引用；可选调色板换肤 |
 | 怪物波次 | 怪物组按 `spawn-timing` 触发（自动/延迟/上一组结束/脚本），`vanilla:` 前缀强制原版，默认走 MythicMobs 并自动回退原版 |
 | 生命周期脚本 | `world-init` / `init` / `start` / `complete` / `fail` / `player-death` / `all-death` / `exit` 脚本段 + 70+ 内置动作 + `wait` 挂起 |
 | 区域模板 | `/axs abyss region pos1\|pos2\|save` 圈选任意世界建筑存为模板，`paste_region` 脚本动作铺进副本世界（保留方块朝向/状态） |
@@ -86,7 +85,7 @@ Abyss 是 Suite 的地牢副本模块，提供「模板定义 → 独立实例 �
 ## 快速开始
 
 1. 服务端启用 abyss 模块（宿主 `config.yml` → `modules.abyss.enabled: true`）
-2. 首次启动自动导出示例地牢 `abysses/example/`（虚空世界 + `source: gen` 程序化迷宫，无需任何外部依赖即可跑通——每局地形不同）
+2. 首次启动自动导出示例地牢 `abysses/example/`（虚空世界，无需任何外部依赖即可跑通）
 3. 玩家执行 `/abyss` 打开浏览器，或 `/abyss enter example` 直接进本
 4. 写自己的地牢：复制 `abysses/example/` 为 `abysses/<你的ID>/`，改 `config.yml` 等文件，`/axs abyss reload` 生效
 

@@ -603,15 +603,11 @@ defaults:
 floors:
   - id: f1
     name: "第 1 层"
-    source: region              # region=固定区域 | pool=schematic 随机拼接 | gen=程序化生成
-    spawn: "0,65,0,90,0"        # 层入口站位（region 绝对坐标；gen 可用 "anchor:<房>.spawn"）
+    source: region              # region=固定区域 | pool=schematic 随机拼接
+    spawn: "0,65,0,90,0"        # 层入口站位（region 绝对坐标）
     rooms: [entry, combat_a, altar_a, combat_b, boss_1, chest_a]
                                 # region 模式：本层全部房间的引用集合（顺序不决定推进路线）
-                                # gen 模式：保底牌组（必生成的主链房）
-    optional-rooms:             # gen 模式：支线房按概率增删（0~1）
-      altar_a: 0.75
-      chest_a: 0.75
-    boss-room: boss_1           # 终点房（显式指定！不配则退回"链尾房"的线性语义；gen 必在牌组外自动保底）
+    boss-room: boss_1           # 终点房（显式指定！不配则退回"链尾房"的线性语义）
     advance: portal             # portal=终点房清完踩出口传送 | auto=清完自动传送
     advance-timeout: 90         # portal 兜底：终点清完 90s 无人踩出口自动推层
     on-enter: [...]             # 层开始脚本
@@ -623,19 +619,12 @@ floors:
     boss-room: boss_2
     direction: x                # 拼接排列轴 x|z
     advance: portal
-  - id: f3
-    source: gen                 # 程序化生成（无需世界模板/预制件）
-    palette: nether             # 层调色板：moss|deepslate|nether|sandstone|ice（覆写 defaults.gen.palette）
-    gen:                        # 层内生成参数覆写（缺省用 defaults.gen）
-      tile-size: 44
-      double-door: 0.4
 ```
 
 | 字段 | 说明 |
 |---|---|
 | `source: region` | 房间已手工建在世界模板里，坐标写世界绝对值 |
 | `source: pool` | 虚空世界 + 房间 `.schem` 随机抽取粘贴（需 WorldEdit/FAWE，进本时校验） |
-| `source: gen` | **图块拼接生成**：每次进本由生成器现场拼接——网格多边形 + 方形大房 + 共享墙门洞（void 世界最佳） |
 | `advance: portal` | 层/房清完激活出口区，玩家踩 `exit` 传送；`advance-timeout` 超时自动推 |
 | `advance: auto` | 清完 3 秒后自动传送下一目标 |
 
@@ -647,23 +636,19 @@ rooms:
     type: combat                 # combat=锁门清怪 | safe/shop=不锁 | boss=战斗(语义标记)
     schematic: "rooms/a.schem"   # pool 模式必填（相对地牢目录）；region 忽略
     origin: "0,0,0"              # region 房间原点（默认 0,0,0 = 坐标写绝对值）
-    region: ["0,60,0", "29,80,29"]  # 房间 box 两角（相对 origin；gen 模式忽略）
-    spawn: "1,64,15,90,0"        # 进房站位（相对 origin；gen 模式忽略）
-    exit: ["29,63,13", "31,67,17"]  # 出口传送区（可选；gen 由生成器自动产出）
-    doors:                        # 物理门盒（gen 模式忽略——门洞由相邻房共享墙自动切出）
+    region: ["0,60,0", "29,80,29"]  # 房间 box 两角（相对 origin）
+    spawn: "1,64,15,90,0"        # 进房站位（相对 origin）
+    exit: ["29,63,13", "31,67,17"]  # 出口传送区（可选）
+    doors:                        # 物理门盒（锁=填 lock-material，开=还原原方块）
       - region: ["30,64,14", "30,66,16"]
         material: BARRIER
-    gen:                          # gen 模式专属：生成覆写
-      feature: combat            # entry|combat|altar|chest|shop|puzzle|elite|boss|plain
-      tall: true                 # 挑高（净高走 gen.tall-height）
-      prefab: "boss_room_a"      # 可选：regions/<名>.yml 手建内饰预制件（覆盖程序化内饰）
     wave-rest: 4                  # 房内 TRIGGERED 组休整兜底（组自身 delay/rest 优先）
     groups:                       # 房内怪组（格式同 monsters.yml，坐标相对 origin）
       wave1:
         spawn-timing: AUTO_START  # 房内语义：AUTO_START=锁门即刷 / DELAYED=锁门后延迟 / TRIGGERED=组联动
         monsters:
           - mob-id: vanilla:zombie
-            location: "15,64,15"     # region=相对原点 | gen 房可用 "auto"（洞内随机）/"center"/"anchor:<名>"
+            location: "15,64,15"
             amount: 4
     on-enter: [...]               # 玩家首次进房
     on-lock: [...]                # 锁门瞬间
@@ -682,64 +667,20 @@ rooms:
 - 脚本动作：`floor_next`（强制推层）/ `room_lock <房>` / `room_unlock <房>` / `room_status <房> <变量>`
 - 虚空防护：玩家掉出**所在**房底部 8 格以下自动拉回该房中心
 - 无怪组的安全房进房即清（不广播"肃清"）；最终层终点房清完自动 `complete_dungeon`
-- Boss 之门模式：world-init 把终点房门洞封死 → 战斗房 `on-clear` 累加 `fN_cleared` 变量 → 首个肃清房触发 `fN_gate` 段开门（region 用 `fillblocks AIR`，gen 用 `room_open <房ref>`）
-
-### source: gen — 程序化生成
-
-`gen` 模式不需要任何预制几何：每次进本，Java 生成器在 void 世界里现场拼出一张**每次都不一样的图块迷宫**——房间是预制尺寸的大方房，随机的是排列组合与内饰（roguelike 房间的工业级做法），然后由绘制器落块。
-
-**生成流程**（纯数学，全部在玩家传送前完成）：
-
-1. **牌组**：`rooms`（保底主链）+ `optional-rooms`（按概率增删支线）+ `boss-room` 兜底必生成
-2. **多边形**：`grid×grid`（默认 5×5）格位上随机长出一块连通多边形——每步向连通前沿均匀生长，胖形状自带环路，没有"房间串在走廊上"的珠链
-3. **图块落位**：每个格位放一间 `tile-size`（默认 40）边长的方形大房（内空 38×38 宽阔战场）——空间永远够打，形状由设计保证
-4. **共享墙切门**：相邻格的邻接关系即连通关系——在两房之间的共享墙段上随机位切 `door-half` 半宽的门洞（默认开口 5 宽 × 4 高 × 2 深），`double-door` 概率切第二道；**门对齐由构造保证，结构上不可能堵**；入口房压多边形直径一端、Boss 房压另一端（图上 BFS 最远跳数），支线房洗牌进其余格
-5. **落点**：按 `gen.feature` 产出锚点（`center`/`spawn`/`altar`/`chest`/`merchant`/`lever_N`/`exit`/`guide`/`boss`）+ 房内刷怪点 + Boss 出口金垫；内饰按 feature 轮换确定性变体（柱阵/十字掩体/中央台座/散石阵）
-6. **封门**：`boss-room` 的全部门洞初始填壳体封死，战斗房 `on-clear` 跑 `room_open` 解锁（见下）
-
-**`defaults.gen` 全局参数**（`floors[].gen` 可逐层覆写）：
-
-| 参数 | 默认 | 说明 |
-|---|---|---|
-| `tile-size` | `40` | 图块边长含边界墙线（内空 = tile-size-2） |
-| `grid` | `5` | 网格阶（grid×grid 格位供多边形生长；5 格网格放 5-8 房正好留空隙） |
-| `door-half` | `2` | 门洞半宽（开口宽 = 2×door-half+1） |
-| `double-door` | `0.25` | 共享墙切第二道门的概率 |
-| `floor-y` | `60` | 地板层高 |
-| `base-height` / `tall-height` | `14` / `22` | 普通/挑高房净高（挑高房 `rooms.gen.tall: true`） |
-| `palette` | `moss` | 壳体/地板/副材/灯/柱六件调色板：`moss`（苔石）/`deepslate`（深板岩）/`nether`（下界砖）/`sandstone`/`ice` |
-| `seed` | `0` | `0`=每实例随机种子；固定值=调试复现同一布局 |
-
-**预制件覆盖**（`rooms[].gen.prefab`）：手建内饰比程序化变体更好时，用 region 模板圈选存到 `regions/<名>.yml`，房间 `gen.prefab: <名>` 即可覆盖——模板居中铺放在房内空里（跳过 AIR、超尺寸自动退回程序化内饰）。
-
-**锚点语法**（gen 层坐标引用的核心——所有 `"x,y,z"` 位置都能写）：
-
-| 写法 | 解析 |
-|---|---|
-| `anchor:<房ref>.<名>` | 房内锚点：`f1_start.spawn` / `f1_altar.altar` / `f2_puzzle.lever_3` / `f1_boss.exit` 等 |
-
-`config.yml` 的 `world.spawn`、floors 的 `spawn`、npcs/interacts/monsters 的 `location`、`guide_point`/`setblock`/`fillblocks` 等脚本动作坐标——**全部支持 `anchor:`**；可选房没抽中时锚点解析为 null，对应 NPC/交互点/引导自动静默失效（这正是"支线房增删"的配套语义）。
-
-**怪组落点**（房内 `groups.monsters[].location`）：`auto`=洞内随机格 / `center`=房心 / `anchor:<名>`=房锚点 / `"x,y,z"`=绝对坐标（gen 房别用）。脚本里 `spawn_group`/`kill_group` 组名可以直接写 `<房ref>:<组>`（如 `f1_combat_a:w1a`），引擎自动解析本次实例的运行时组名——**gen 房序是洗牌结果，不要写死 `f0_rN_` 前缀**（region/pool 写死仍兼容）。
-
-**脚本动作 `room_open <房ref>`**：清掉生成器对该房的封门格（Boss 闸门专用）。配合 `if_var` 计数器实现"肃清 N 房开门"。
-
-**障碍区绑定**（obstacles.yml）：`blocks` 之外新增 `zone:`——绑定生成器产出的命名区（example 里 `f3.boss_corridor_soul`/`magma` = Boss 房门内侧 2-9 格陷阱带的近/远两半），`zone-material` 指定填充材质；区未生成时该障碍静默跳过。
-
-**一致性保障**：区块预载用生成计划实测包围盒；`world-init` 在绘制之后跑（可继续叠加修饰）；销毁实例时布局引用一并释放。
+- Boss 之门模式：world-init 把终点房门洞封死 → 战斗房 `on-clear` 累加 `fN_cleared` 变量 → 首个肃清房触发 `fN_gate` 段 `fillblocks AIR` 开门（example 副本的实现方式，纯脚本无引擎依赖）
 
 
 ## 内置示例：元气试炼之地（example）
 
-`abysses/example/` 是一个**零外部资源**即可跑通的**三层图块迷宫**地牢——`world.template: void` 虚空世界，`source: gen` 让生成器每实例现场拼图：每层 5×5 网格随机长出连通多边形，每格一间 40×40 大房，共享墙切门洞（保底主链入口→战斗→Boss 压多边形直径两端，祭坛/宝箱/支线房按概率增删——**同一副本，次次地形不同**）。
+`abysses/example/` 是一个**零外部资源**即可跑通的元气骑士式**三层迷宫**地牢——`world.template: void` 虚空世界，全部建筑由 `scripts.yml` 的 `world-init` 段用 `fillblocks` 程序化生成（每层 7 房×3 层，24×24 房 + 8 宽走廊物理互连成图，无需 schematic）。
 
-| 层 | 牌组 | 演示点 |
+| 层 | 拓扑 | 演示点 |
 |---|---|---|
-| f1 苔痕前哨（palette: moss） | 保底：入口+战斗A+战斗B+Boss；增删：祭坛/宝箱/战斗C | 向导 NPC（Adyeshach+Chemdah 会话+委托）、随机波次包+休整预告、金币祭坛三选一、Boss 之门（肃清任一战斗房 `room_open` 开门） |
-| f2 熔岩矿道（palette: deepslate） | 保底：入口+战斗A+商店+战斗B+Boss；增删：谜题/战斗C | 商店 NPC 右键开 ArcartX 购物 UI、彩窗提示序列拉杆机关、唤魔者+增援 |
-| f3 深渊王座（palette: nether） | 保底：入口+战斗A+战斗B+终Boss；增删：灵魂祭坛/宝箱厅/精英 | Boss 门内侧陷阱带（灵魂沙+岩浆块，obstacles `zone:` 绑定）、精英卫队房、终层独立宝箱池 |
+| f1 苔痕前哨 | 入口—战斗A—战斗B—Boss / 入口—祭坛 / 战斗B—宝箱 | 向导 NPC（Adyeshach+Chemdah 会话+委托）、随机波次包+休整预告、金币祭坛三选一、Boss 之门（肃清任一战斗房开门） |
+| f2 熔岩矿道 | 入口—战斗A—战斗B—谜题 / 入口—商店 / 战斗B—战斗C—Boss | 商店 UI+台座购买、彩窗提示序列拉杆机关、唤魔者+增援 |
+| f3 深渊王座 | 入口—战斗A—Boss（环形）/ 祭坛—战斗B—宝箱厅 / 战斗B—精英 | 灵魂沙+岩浆块陷阱带（obstacles）、精英卫队房、终层独立宝箱池、凋零+两阶段增援 |
 
-**贯穿机制**：击杀掉全队金币（tasks.yml `monster_kill` 事件）、祭坛/商店 `%axsabyss_var_coins%` 条件扣费、每层 Boss 后 `buff_offer` 三选一天赋、`guide_point` 路标链（锚点指向：向导→首战房）、portal 出口金垫推进 + 迷宫可回溯、房间可任意顺序探索。
+**贯穿机制**：击杀掉全队金币（tasks.yml `monster_kill` 事件）、祭坛/商店 `%axsabyss_var_coins%` 条件扣费、每层 Boss 后 `buff_offer` 三选一天赋、`guide_point` 路标链（向导→东廊→首战）、portal 出口垫传送 + 走廊可回溯、房间可任意顺序探索。
 
 **外部配套**（随包自动部署，详见 `example/external/README.md`）：Chemdah 会话文件绑 `adyeshach guide`/`adyeshach merchant`（NPC 右键开真会话 UI）；Chemdah 任务 `sk_slayer` + questgps 呈现层（`quests.yml` 的 `slayer` 委托线）。abyss 加载模板时自动把 `external/` 部署到 `plugins/Chemdah/core/` 与 `data/questgps/quests/` 并触发重载。缺依赖时自动降级：原版实体 NPC、聊天栏对话、委托线静默跳过。
 
