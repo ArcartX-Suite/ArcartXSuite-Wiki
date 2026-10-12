@@ -42,6 +42,11 @@ npcs:
 interacts:
   - "4,1,4: 拉杆机关"              # : 后是 interacts.yml 定义名（克隆定义到房内点）
 
+# ⚠ 锚点只声明"房内哪一格有东西"，不绑方块类型：
+#   - chests 点放什么都行——桶/末影箱/潜影盒/讲台/装饰块+粒子，右键即开箱
+#   - 增益祭坛（interacts 引用的交互点）不必放附魔台，信标/锻造台/画框皆可
+#   - interacts 段是全量交互定义：实体点击(RIGHT_CLICK_ENTITY)、手持信物
+#     (required-item)、条件(conditions)都支持——chests/npcs 只是快捷写法
 manual-clear: false     # true=事件房：不自动肃清，由脚本 procgen_clear_room 完成
 
 scripts:                # 房间脚本（abyss 脚本 DSL）
