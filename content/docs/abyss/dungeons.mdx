@@ -23,6 +23,7 @@ abysses/<地牢ID>/
 ├── shops.yml        ← 商店（open_shop_ui 调用）
 ├── floors.yml       ← 楼层定义（mode: floors 多层房间地牢）
 ├── rooms.yml        ← 房间模板池（floors 模式）
+├── procgen.yml      ← 随机拼装地牢配置（存在即启用 ProcGen 模式）
 ├── regions/         ← 区域模板（/axs abyss region save 产出，paste_region 调用）
 ├── external/        ← 外部系统配套文件（可选；abyss 加载模板时自动部署）
 │   ├── chemdah/conversation/*.yml   → plugins/Chemdah/core/conversation/
@@ -58,6 +59,7 @@ world:
 time-limit: 600              # 限时（秒），超时触发 timeout-action
 timeout-action: "FAIL"       # FAIL=判负 / KICK=踢出
 max-instances: 0             # 该地牢最大并行实例数，0=不限
+# cross-server: "dungeon-01"   # 可选：声明远程宿主节点（跨服副本，见 procgen 页「跨服副本」节）
 
 requirements:
   min-players: 1             # 最小进本人数

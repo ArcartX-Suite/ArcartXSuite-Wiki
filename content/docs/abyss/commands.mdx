@@ -80,6 +80,9 @@ description: Abyss 命令、权限与 PlaceholderAPI 占位符
 | `/axs abyss region pos1` / `pos2` | 标记脚下方块为区域模板选区角点（两角任意顺序，跨世界自动重置） |
 | `/axs abyss region sel` | 查看当前选区 |
 | `/axs abyss region save <地牢> <名>` | 把选区快照存为 `abysses/<地牢>/regions/<名>.yml` |
+| `/axs abyss capture <集> <房> <类型>` | 把 region 选区捕获为 procgen 房间构件（`room-sets/<集>/<房>.region.yml`+meta yml） |
+| `/axs abyss capture point <集> <房> <目标>` | 站房内补标锚点（`spawn`/`mob:<id>[:波]`/`chest:<id>`/`npc:<id>`/`interact:<id>`） |
+| `/axs abyss capture list <集>` | 列出房间集内构件 |
 | `/axs abyss region list <地牢>` | 列出该地牢已存区域模板 |
 | `/axs abyss region info <地牢> <名>` | 模板尺寸/体积/材质数 |
 | `/axs abyss region remove <地牢> <名>` | 删除模板 |

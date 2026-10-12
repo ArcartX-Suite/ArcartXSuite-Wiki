@@ -1,0 +1,173 @@
+---
+title: ProcGen 随机地牢
+description: 房间构件集随机拼装地牢——双格式构件、自动切门、波次封门、词缀、挑战、评级
+---
+
+# ProcGen 随机地牢
+
+`procgen.yml` 存在即启用随机拼装模式：每局从**房间构件集**中随机抽取手建房间，随机旋转后按「主链 + 支线」拼成不重样的地图，相邻墙自动切门并以走廊桥接。玩法侧战斗房封门多波次、词缀随机强化、限时挑战、潜行宝箱连战加赏、Boss 清完按探索/生存/速度评级。
+
+> 构件集是**全局共享池**：`plugins/ArcartX-Suite/data/abyss/room-sets/<集名>/`，多个副本可引用同一集。模块首次启动自动导出示例集 `room-sets/example/` + 示例地牢 `abysses/procgen/`。
+
+## 房间构件
+
+一个构件 = **一份几何 + 一份元数据**：
+
+```
+room-sets/<集>/
+├── combat_1.schem         ← WorldEdit/FAWE schematic（二选一）
+├── combat_1.region.yml    ← abyss 区域模板（二选一；/axs abyss capture 产物）
+└── combat_1.yml           ← 房间元数据（必需，同名）
+```
+
+`.schem` 在加载时经 WE/FAWE 剪贴板转换为内部区域模板，与 `.region.yml` 走同一条旋转铺放路径（BlockEntity 内容不迁移）。WE 缺席时 schem 构件跳过、region 构件不受影响。
+
+### 房间元数据 `<名>.yml`
+
+```yaml
+type: combat            # start/combat/elite/boss/shop/treasure/event/rest
+weight: 10              # 抽取权重
+spawn: "5,1,5"          # 仅 start 房需要（玩家落点，房内坐标）
+
+# 波次怪点：房内相对坐标 "x,y,z: mobId"（mobId=vanilla:* 或 MythicMobs）
+mobs:                   # 第 1 波
+  - "4,1,6: vanilla:zombie"
+mobs-wave-2:            # 第 2 波（依此类推 mobs-wave-N）
+  - "4,1,4: vanilla:skeleton"
+
+chests:                 # 宝箱锚点（右键开箱 UI；潜行右键=连战加赏）
+  - "4,1,4: abyss_chest"          # : 后是 rewards.yml 的 chest-rewards 名
+npcs:
+  - "4,1,3: 旅队商人"              # : 后是 npcs.yml 定义名
+interacts:
+  - "4,1,4: 拉杆机关"              # : 后是 interacts.yml 定义名（克隆定义到房内点）
+
+manual-clear: false     # true=事件房：不自动肃清，由脚本 procgen_clear_room 完成
+
+scripts:                # 房间脚本（abyss 脚本 DSL）
+  on-enter:             # 首次有人进房
+    - "message @trigger &e战斗开始！"
+  on-clear:             # 房间肃清
+    - "message @all &a已肃清"
+  on-wave:              # 按波次号触发（1 基）
+    "2":
+      - "message @all &c第二波来袭"
+```
+
+> 房内坐标系：**构件左下角为原点**，`x/z` 沿 footprint、`y` 向上。`/axs abyss capture` 自动写入 `capture-origin` 并支持 `point` 子命令补标锚点，不必手算坐标。
+
+## procgen.yml — 生成配置
+
+```yaml
+room-set: example       # 引用 room-sets/<集>
+length: standard        # short/standard/long 长度档；counts: 可精确覆盖
+# counts:
+#   combat: "4-6"       # 数字或范围
+#   elite: 1
+
+mob-level: "1-3"        # 怪等级（范围随机）
+seal-combat-doors: true # 战斗房进门封门
+seal-material: IRON_BARS
+wave-delay: 40          # 波次间隔 tick
+elite-level-bonus: 2    # 精英房怪等级 +N
+
+spawn-telegraph:        # 刷怪前预兆
+  delay: 20
+  particle: PORTAL
+  sound: "entity.evoker.prepare_summon"
+  volume: 0.8
+  pitch: 1.0
+
+modifiers:              # 词缀：进房时按概率强化
+  chance: 0.4
+  include-boss: false
+modifier-defs:
+  bloodlust:
+    mob-level-bonus: 2          # 该房怪等级加成
+    announce: "&4&l嗜血之厅！"    # 进房广播
+    on-enter: ["message @trigger &4怪物更加凶悍"]
+
+corridor:               # 走廊/门洞
+  length: 6             # 房间间距（0=相贴）
+  door-width: 5
+  door-height: 5
+  floor: STONE_BRICKS
+  wall: STONE_BRICKS
+  ceiling: STONE_BRICKS
+
+challenges:
+  timed:
+    chance: 0.3         # 战斗房进入时限时挑战概率
+    seconds: 60
+  encore: true          # 潜行右键宝箱→连战加赏（每房一次）
+  reward: "加赏礼包"     # 挑战达成奖励（rewards.yml 集名）
+
+grading:                # Boss 清完评级：探索50+生存30+速度20
+  par-seconds-per-room: 60
+  scripts:
+    S: ["grant_reward @all 深渊加赏"]
+    A: ["message @all &eA 级通关"]
+
+seed-mode: random       # random 每局随机 / daily 全服当日同图 / fixed 固定
+# seed-value: 12345     # seed-mode=fixed 时生效
+```
+
+## 运行时规则
+
+- **进房**：首次有人进房触发 `on-enter` + 词缀 roll；战斗房封门 → 预兆 → 首波
+- **波次**：怪组清完 → `wave-delay` 后下一波（`mobs-wave-N`），全波清完 → `on-clear` + 开门
+- **非战斗房**：进房即记已清（计入评级探索分）；`manual-clear` 房等 `procgen_clear_room` 动作
+- **宝箱**：右键开 UI（每人独立一份）；清房后**潜行右键**触发连战加赏（重打一波+额外奖）
+- **Boss 清完**：评级写 `procgen_grade`/`procgen_score` 变量 → 分级脚本 → 副本通关
+
+## 房间级脚本动作
+
+| 动作 | 说明 |
+|---|---|
+| `procgen_clear_room` | 手动完成触发者所在房（事件房出口） |
+| `procgen_open_doors` | 打开触发者所在房全部门洞 |
+| `procgen_seal_doors` | 封死触发者所在房全部门洞 |
+| `procgen_next_wave` | 立即触发下一波（不刷在清怪中） |
+| `procgen_reinforce <房idx> <波>` | 指定房重放某波怪（增兵） |
+| `procgen_chest <房idx> <宝箱id>` | 宝箱交互内部路由（自动由构件生成） |
+
+阶段机条件 `room_cleared:<房idx|构件名>` 对 procgen 房间同样可用。
+
+## 构件制作命令（`/axs abyss capture`）
+
+```
+# 1) 在游戏中框选区（复用 region 选区）
+/axs abyss region pos1        # 站一角
+/axs abyss region pos2        # 站对角
+
+# 2) 捕获为房间构件（自动写 region.yml + meta + 出生点）
+/axs abyss capture <集> <房名> <类型>
+    类型: start|combat|elite|boss|shop|treasure|event|rest
+
+# 3) 补标锚点（站房内目标点执行）
+/axs abyss capture point <集> <房> spawn            # 出生点
+/axs abyss capture point <集> <房> mob:vanilla:zombie       # 第1波怪点
+/axs abyss capture point <集> <房> mob:vanilla:skeleton:2   # 第2波怪点
+/axs abyss capture point <集> <房> chest:abyss_chest        # 宝箱点
+/axs abyss capture point <集> <房> npc:旅队商人              # NPC 点
+/axs abyss capture point <集> <房> interact:拉杆机关          # 交互点
+
+# 4) 查看/重载
+/axs abyss capture list <集>
+/axs abyss reload      # 房间集缓存随 reload 失效重载
+```
+
+> 墙不用预留门洞：生成时在相邻墙中点自动挖 `door-width×door-height` 门。构件边壳建议单层墙体。
+
+## 跨服副本（V1）
+
+副本 `config.yml` 加 `cross-server: <宿主节点id>` 即声明该副本由远程节点宿主：
+
+```yaml
+# 大厅服玩家 enter 此副本时 → 握手 → BungeeCord Connect 前送宿主服 → 自动开实例
+cross-server: "dungeon-01"    # 节点 id = 宿主 cross-server.node-id（约定=代理服名）
+```
+
+- 宿主节点上同一模板也需声明 `cross-server` 指向自己，两端配置需一致
+- 跨服组队：源节点请求携带全队 UUID，宿主等全部成员抵达（30s 超时按已到人数）统一开本
+- 依赖宿主 `CrossServerAPI` 通道（Redis/Proxy 双后端），未启用跨服的宿主上该副本按本地副本正常处理

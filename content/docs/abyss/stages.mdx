@@ -1,0 +1,80 @@
+---
+title: 阶段机（stages.yml）
+description: 事件驱动的副本流程主线——阶段/条件/超时/分支
+---
+
+# 阶段机
+
+`stages.yml`（或 `scripts.yml` 内联 `stages:` 段）定义副本的**流程主线**：按阶段推进，每阶段声明完成条件、超时与后续动作。事件驱动（怪组清完/交互触发/手动完成/超时即时判定），另加 2 秒慢扫兜底覆盖变量写入路径。
+
+## 文件结构
+
+```yaml
+# abysses/<地牢>/stages.yml
+entry: prepare              # 首阶段名
+
+prepare:
+  name: "准备阶段"
+  timeout: 300              # tick；0/缺省=不限时
+  on-start:                 # 进入本阶段执行（脚本行）
+    - "message @all &e准备中，30 秒后开始"
+  complete-when: "players_alive >= 1"   # 完成条件（空=仅手动 complete_stage）
+  next: wave_1              # 完成后进入的阶段
+
+wave_1:
+  name: "第一波"
+  complete-when: "group_cleared:wave_1"
+  on-complete:
+    - "message @all &a第一波肃清"
+  on-timeout:
+    - "message @all &c超时未完成"
+  next: boss
+  timeout-action: FAIL      # 可选：超时直接判负（缺省仅跑 on-timeout 不动阶段）
+
+boss:
+  name: "Boss 战"
+  complete-when: "group_cleared:boss"
+  next:                     # 分支：first match 即走（无 next 列表则阶段停在原地）
+    - when: "var:elite_kill == 1"
+      to: hidden_boss
+    - when: ""
+      to: done
+
+done:
+  name: "完成"
+  complete-when: ""         # 手动：complete_stage 动作或 complete 生命周期
+```
+
+## complete-when 条件
+
+| 形式 | 说明 |
+|---|---|
+| `group_cleared:<组名>` | 指定怪组已肃清（`onGroupComplete` 事件驱动） |
+| `room_cleared:<房间>` | floors 房间名或 procgen 房 idx/构件名 |
+| `var:<名> <op> <值>` | 实例变量比较，`op` ∈ `== != > >= < <=` |
+| `players_alive <op> N` | 存活人数比较（`>=` 等） |
+| `js:<expr>` | JavaScript 表达式（绑定 `instance`/`vars`/`players`） |
+| `aria:<expr>` | ARIA 表达式（同绑定） |
+| 空字符串 | 仅手动：`complete_stage` 动作推进 |
+
+## 阶段动作
+
+脚本行内可用的阶段控制动作：
+
+| 动作 | 说明 |
+|---|---|
+| `complete_stage` | 立即完成当前阶段 → 评估 `next` 分支 → 进入下一阶段 |
+| `set_stage <阶段名>` | 直接跳转指定阶段（跳过条件判定，跑 on-start） |
+
+## 与事件系统的协作
+
+- 怪组 `on-end`/`complete_stage`/`procgen_clear_room` 等动作触发后阶段机立即重估
+- `on-start`/`on-complete`/`on-timeout` 脚本行与 scripts.yml 同 DSL（`@all`/`@trigger`/selector/变量替换全可用）
+- 阶段名进入时广播 `dungeon.stage-enter`（`{stage}`=阶段显示名）
+- 实例变量 `abyss_stage` 实时写入当前阶段名（供脚本/PAPI/HUD 引用）
+
+## 设计模式与边界
+
+- 阶段机随 `startInstance` 初始化、`destroyInstance` 清理；watchdog 不走轮询
+- `timeout-action: FAIL` 阶段超时直接 `failDungeon`；缺省仅跑 `on-timeout` 脚本
+- procgen 副本可叠加 stages：例如「procgen 房全清 → complete_stage → 结算段」的混合编排
