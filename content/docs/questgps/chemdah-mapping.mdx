@@ -253,8 +253,14 @@ addon:
 
 每个字段可填一个或多个自定义信号名。接收规则使用 `trigger: command-signal`，并将 `signal` 填成相同名称。动作可用 `{quest_id}` 取任务 ID，派发命令时可用 `{player}` 取触发玩家名。发送、匹配和执行的完整配置见[实际发放物品](#实际发放物品)。同一份奖励只配置一个发放入口，避免 Chemdah 完成脚本与邮件各发一次。
 
+### 任务完成联动
+
+BattlePass 和 Abyss 通过 `axs.questgps.quest_completed` 接收任务完成事件，无需为它们配置 `hooks.completed`。规则应按 `quest_id` 匹配 Chemdah 任务 ID。`quest_name` 用于展示，依次取 `addon.axs-view.name`、Chemdah 原生任务名称和任务 ID。
+
+EventPacket 的自定义完成信号单独在 `hooks.completed` 声明。例如使用内置称号奖励示例时，添加 `questgps_quest_completed` 并启用同名信号的规则，动作中用 `{quest_id}` 获取任务 ID。单条信号发送失败会记录日志，后续信号和任务完成事件仍会继续处理。
+
 ## 保存与重载
 
-保存 Chemdah 任务文件后执行 `/chemdah reload`。QuestGPS 自动重新读取任务及其展示组件，更新菜单并清理当前追踪。使用 `/questgps` 检查任务和目标，接取后再测试追踪。修改 QuestGPS 全局样式或 UI 时执行 `/axs reload questgps`。
+保存 Chemdah 任务文件后执行 `/chemdah reload`。QuestGPS 会重新读取任务、更新菜单、清理当前追踪，并为在线玩家重建符合显示条件的地图任务标记。使用 `/questgps` 检查任务和目标，需要继续导航时重新选择追踪。修改 QuestGPS 全局样式或 UI 时执行 `/axs reload questgps`。
 
 未知字段、错误开关类型或无效坐标会输出带任务或目标 ID 的提示，对应展示选项无法使用时按日志修正后重载。先验证原生任务，再逐个添加展示选项。
