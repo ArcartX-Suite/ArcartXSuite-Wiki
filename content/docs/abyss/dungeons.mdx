@@ -385,36 +385,39 @@ guide:
 
 > **实体类型注意**：`VILLAGER`/`WANDERING_TRADER` 这类实体**自带原版交易 GUI**——Adyeshach 缺席时 NPC 降级为真实体，右键会先弹原版交易界面盖住自定义交互。接对话/商店的 NPC 推荐 `WITCH`（无交易界面，两条路径都安全）；`PLAYER` 型仅在 Adyeshach 在场时可用（降级路径会变 ZOMBIE）。
 
-## quests.yml — 副本任务（Chemdah/QuestGPS 适配层）
+## quests.yml — 接取副本委托与领取奖励
 
-**任务语义（目标/进度/完成判定）100% 由 Chemdah 任务定义承担**，abyss 不自建任务引擎。quests.yml 只是「副本编排面」：本地 id → Chemdah id 的映射 + 副本内钩子脚本。
+先在 Chemdah 任务文件中定义名称、说明、目标和完成条件。QuestGPS 直接读取这些信息，奖励预览也写在该任务的 `addon.axs-view` 中。副本的 `quests.yml` 用同一个任务 ID 登记副本内动作。沿用同一 ID 时可省略 `chemdah-id`。
 
 ```yaml
-slayer:                              # 副本本地任务 id（脚本动作都用这个）
-  chemdah-id: "sk_slayer"            # Chemdah 任务 id；缺省=本 key
-  name: "讨伐深渊魔物"                # HUD 任务行显示名
-  description: "深入地牢击杀魔物"
-  auto-track: true                   # 接取后自动 quest_track 追踪
-  on-accept:                         # 接取成功时跑（@trigger=该玩家）
-    - "message @trigger &a已接取委托"
-  on-complete:                       # Chemdah 完成 → EventBus 路由到此发副本侧奖励
+sk_slayer:
+  on-accept:
+    - "sound @trigger ENTITY_EXPERIENCE_ORB_PICKUP 1 1.2"
+  on-complete:
     - "grant_reward @trigger quest_pack"
-  manual-claim: false                # true=完成不自动发奖，须 submit_quest 回 NPC 领取
 ```
 
-**脚本动作**（均按本地 id 解析成 chemdah-id 后委托 questgps/Chemdah）：
+在副本 NPC 的 `click-script` 中写 `quest_step sk_slayer`。`@trigger` 指接取或领取任务的玩家，`quest_pack` 是同一副本 `rewards.yml` 中定义的奖励集。
+
+| 字段 | 用法 |
+| --- | --- |
+| `chemdah-id` | 仅在副本脚本使用不同 ID 时填写，值为 Chemdah 任务 ID |
+| `auto-track` | 默认 `true`，副本接取成功后加入 QuestGPS 追踪 |
+| `on-accept` | 通过副本脚本接取成功后执行的动作列表 |
+| `on-complete` | 发放奖励或执行其他副本动作的列表 |
+| `manual-claim` | 默认 `false`，完成时立即执行 `on-complete`。设为 `true` 后，需要通过 NPC 提交已完成的任务 |
+
+脚本参数中的任务 ID 填 `quests.yml` 的顶层键。
 
 | 动作 | 行为 |
 |---|---|
-| `accept_quest <任务> [sel]` | 通过 `QuestGpsNavigable.acceptQuest` 接取；成功跑 `on-accept`，`auto-track` 时顺带追踪 |
+| `accept_quest <任务> [sel]` | 接取任务，成功后执行 `on-accept`，按 `auto-track` 决定是否追踪 |
 | `submit_quest <任务> [sel]` | 已完成的 Chemdah 任务 → 跑 `on-complete` 领副本奖励（`manual-claim` 场景） |
-| `quest_step <任务> [sel]` | 未接取→接取；已完成未领→提交。NPC `click-script` 一站式用法 |
+| `quest_step <任务>` | NPC 点击时根据状态接取任务、提示进行中或提交已完成任务 |
 | `quest_track <任务> [步骤] [sel]` | QuestGPS 追踪卡片（整个任务或指定步骤） |
 | `quest_status <任务> <变量> [sel]` | 写 `NONE`/`ACTIVE`/`COMPLETED` 到实例变量，配合 `check` 分支 |
 
-**完成路由**：Chemdah 判定完成 → questgps 发 EventBus `axs.questgps.quest_completed` → abyss 反查 chemdah-id 命中本地任务 → `manual-claim: false` 直接跑 `on-complete`。
-
-> 副本任务的接取、完成和重复规则在 Chemdah 中配置，测试时应核对完成后能否再次接取。任务与展示选项都位于 `plugins/Chemdah/core/quest/` 的任务文件中，示例见模板 `external/` 目录。
+由副本发奖时，Chemdah 的完成脚本可以只发送提示。重复接取条件由 Chemdah 设置。副本示例任务位于模板的 `external/chemdah/quest/sk_slayer.yml`，其他展示字段见[Chemdah 任务配置](/docs/questgps/chemdah-mapping)。
 
 ### 命名奖励集
 
