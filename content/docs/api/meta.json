@@ -31,7 +31,7 @@
     "PickupInterceptor",
     "PickupNotifiable",
     "PropAccessible",
-    "QqBindCapable",
+    "QQBindCapable",
     "QQBotBroadcastable",
     "QQBotNotifiable",
     "QuestGpsNavigable",

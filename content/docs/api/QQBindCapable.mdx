@@ -1,5 +1,5 @@
 ---
-title: "QqBindCapable"
+title: "QQBindCapable"
 description: "查询与管理 QQ 绑定"
 ---
 
@@ -7,15 +7,15 @@ description: "查询与管理 QQ 绑定"
 | 项目 | 内容 |
 | --- | --- |
 | 提供模块 | [qqbot](/docs/qqbot) |
-| 完整类型 | `xuanmo.arcartxsuite.api.capability.QqBindCapable` |
+| 完整类型 | `xuanmo.arcartxsuite.api.capability.QQBindCapable` |
 
 ## 获取接口
 
 ```java
 import xuanmo.arcartxsuite.api.AxsCapabilities;
-import xuanmo.arcartxsuite.api.capability.QqBindCapable;
+import xuanmo.arcartxsuite.api.capability.QQBindCapable;
 
-QqBindCapable api = AxsCapabilities.get(QqBindCapable.class);
+QQBindCapable api = AxsCapabilities.get(QQBindCapable.class);
 if (api == null) {
     // 当前功能不可用，向玩家说明或使用你的替代流程。
     return;
@@ -29,7 +29,7 @@ if (api == null) {
 以下为公开调用契约，保留参数类型与空值标注。Java 类型与当前配套 API JAR 保持一致。
 
 ```java
-public interface QqBindCapable {
+public interface QQBindCapable {
 
     boolean isBound(@NotNull UUID playerUuid);
 
