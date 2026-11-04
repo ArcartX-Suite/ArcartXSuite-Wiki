@@ -1,11 +1,7 @@
 ---
-title: 攻击目标 HUD
-description: 攻击目标追踪、黑名单过滤、Boss 联动与显示模板
+title: "攻击目标 HUD"
+description: "调整攻击目标面板的显示条件、信息模板与消失时间。"
 ---
-
-# 攻击目标 HUD
-
-> **付费模块**（消费额度满 ¥150 获得授权）
 
 攻击目标 HUD 是 EntityTracker 的独立功能，**不依赖 MythicMobs**。玩家攻击任意生物时，在超时时间内向攻击者显示目标实体的血量、类型、距离等信息。即使未安装 MythicMobs 也可独立运行。
 
@@ -14,8 +10,6 @@ description: 攻击目标追踪、黑名单过滤、Boss 联动与显示模板
 玩家攻击生物时触发追踪：近战攻击直接判定，投射物解析实际射击者，属性插件伤害事件同样计入。
 
 > 攻击者不是玩家、已下线、已死亡、或攻击的是自己时不触发。
-
-## 过滤机制
 
 ### 黑名单过滤
 
@@ -141,23 +135,3 @@ attack-target:
 ```
 
 开启后输出发包详细日志，仅影响日志输出。生产环境建议关闭。
-
-## PlaceholderAPI 占位符
-
-| 占位符 | 说明 |
-|---|---|
-| `%axsentitytracker_has_target%` | 是否有当前攻击目标 |
-| `%axsentitytracker_target_title%` | 目标 HUD 标题 |
-| `%axsentitytracker_target_subtitle%` | 目标 HUD 副标题 |
-| `%axsentitytracker_target_display_name%` | 目标显示名称 |
-| `%axsentitytracker_target_health%` | 目标血量 |
-| `%axsentitytracker_target_max_health%` | 目标最大血量 |
-| `%axsentitytracker_target_health_percent%` | 目标血量百分比 |
-| `%axsentitytracker_target_distance%` | 与目标距离 |
-| `%axsentitytracker_target_entity_type%` | 目标实体类型 |
-| `%axsentitytracker_target_entity_type_name%` | 目标实体类型名称 |
-| `%axsentitytracker_target_mythic_mob_id%` | 目标 MythicMob ID |
-| `%axsentitytracker_target_is_player_target%` | 目标是否为玩家 |
-| `%axsentitytracker_target_world%` | 目标所在世界 |
-| `%axsentitytracker_target_active_count%` | 当前活跃目标追踪数 |
-| `%axsentitytracker_target_viewer_count%` | 当前目标 HUD 观察者数 |

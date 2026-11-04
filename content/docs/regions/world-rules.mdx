@@ -1,11 +1,7 @@
 ---
-title: 世界规则
-description: Regions 世界规则——按世界级别的禁飞、禁活塞、禁交互限制
+title: "世界规则"
+description: "为整个世界设置游戏规则，并与局部区域规则配合使用。"
 ---
-
-# 世界规则
-
-> **付费模块**
 
 世界规则提供独立于区域系统的世界级限制。与区域标志不同，世界规则不依赖区域选区，而是按世界名直接生效，覆盖飞行、活塞、物品交互三类限制。世界规则可通过管理员 UI 在线修改，修改自动保存到主配置文件。
 
@@ -21,9 +17,6 @@ description: Regions 世界规则——按世界级别的禁飞、禁活塞、�
 | 继承 | 支持父子继承 | 不支持继承 |
 | 成员豁免 | 支持 | 不支持（仅权限绕过） |
 | 管理方式 | 命令 + UI | UI 面板 + 配置文件 |
-| 持久化 | 数据库 | 主配置文件（`config.yml`） |
-
-## 规则类型
 
 ### 禁飞世界
 
@@ -61,18 +54,6 @@ world-rules:
       - CRAFTING_TABLE
 ```
 
-## 绕过权限
-
-| 权限节点 | 默认 | 绕过的规则 | 说明 |
-|---|---|---|---|
-| `axs.essentials.fly.bypass` | op | 禁飞世界 | 在禁飞世界中仍可飞行 |
-| `axs.essentials.interact.bypass` | op | 禁交互物品 | 可与禁交互物品交互 |
-| - | - | 禁活塞世界 | 无绕过权限，活塞限制不可绕过 |
-
-<Callout type="info">
-世界规则的绕过权限使用 `axs.essentials.*` 前缀，由 Essentials 模块提供（Essentials 为 Regions 的软依赖）。
-</Callout>
-
 ## 运行时管理
 
 世界规则通过管理员面板（`/rg admin`）的 `world_rules` 页面在线管理：
@@ -80,8 +61,6 @@ world-rules:
 - 切换各世界的禁飞 / 禁活塞状态
 - 按世界增删禁交互物品
 - 修改自动保存，无需手动编辑配置文件或执行重载命令
-
-## 配置示例
 
 ### 最小配置
 
@@ -134,4 +113,4 @@ world-rules:
 - [选区工具](/docs/regions/selection) — 选区工具与粒子可视化
 - [配置](/docs/regions/configuration) — 世界规则配置字段
 - [命令与占位符](/docs/regions/commands) — 命令与管理员 UI
-- [联动](/docs/regions/integration) — Essentials 模块集成与权限联动
+- [区域规则使用说明](/docs/regions) — Essentials 模块集成与权限联动

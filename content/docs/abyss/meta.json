@@ -1,16 +1,12 @@
-﻿{
-  "title": "Abyss 地牢副本",
-  "description": "虚空/模板世界副本实例、波次怪物、脚本化流程、队伍、ArcartX UI",
-  "color": "#ba8ce8",
+{
+  "title": "地牢副本",
   "pages": [
     "index",
     "configuration",
+    "commands",
     "dungeons",
     "procgen",
-    "stages",
     "scripting",
-    "ui",
-    "commands",
-    "integration"
+    "stages"
   ]
 }

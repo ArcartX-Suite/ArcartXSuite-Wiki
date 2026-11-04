@@ -1,15 +1,9 @@
 ---
-title: 奖励档位与物品奖励
-description: AfkReward 奖励档位匹配、命令占位符、物品奖励发放与倍率系统详解
+title: "奖励档位与物品奖励"
+description: "为不同挂机档位设置奖励周期、命令奖励、物品奖励与倍率。"
 ---
 
-# 奖励档位与物品奖励
-
-> **付费模块**
-
 AfkReward 模块的奖励系统由「档位匹配」「命令奖励」「物品奖励」「倍率计算」四个部分组成。每个区域在 `reward` 节下定义多个奖励档位（如 vip3/vip2/vip1/common），系统按权限从高到低匹配玩家所属档位，在结算时执行对应命令并发放物品。倍率系统通过基础倍率、周末倍率、定时调度与收益衰减共同决定最终结算倍率，影响命令中的占位符取值。
-
-## 奖励档位
 
 ### 档位定义
 
@@ -29,15 +23,15 @@ reward:
     presets: []
   # ── 以下为奖励档位（从高到低排列） ──
   vip3:
-    - "addbalance %player_name% 铜币 %axsafkreward_multiplier%*35+250"
-    - "cmi give %player_name% cobblestone 54"
-    - "cmi exp %player_name% add %axsafkreward_multiplier%*%player_level%/4+%player_level%"
+    - "addbalance {player} 铜币 {multiplier}*35+250"
+    - "cmi give {player} cobblestone 54"
+    - "cmi exp {player} add {multiplier}*%player_level%/4+%player_level%"
   vip2:
-    - "addbalance %player_name% 铜币 %axsafkreward_multiplier%*30+200"
+    - "addbalance {player} 铜币 {multiplier}*30+200"
   vip1:
-    - "addbalance %player_name% 铜币 %axsafkreward_multiplier%*25+150"
+    - "addbalance {player} 铜币 {multiplier}*25+150"
   common:
-    - "addbalance %player_name% 铜币 %axsafkreward_multiplier%*20+100"
+    - "addbalance {player} 铜币 {multiplier}*20+100"
 ```
 
 ### 档位匹配逻辑
@@ -81,28 +75,23 @@ reward:
 
 > 拥有 `axs.afkreward.not.player.limit` 权限的玩家可豁免人数上限（仅 MANUAL 模式 `startManualAfk` 检查时生效）。
 
-## 命令奖励
-
 ### 命令占位符
 
-命令以控制台身份执行（`Bukkit.dispatchCommand(ConsoleSender, cmd)`），支持以下占位符：
+命令以控制台身份执行。以下花括号变量由挂机奖励填入。使用 `%player_level%` 等 PlaceholderAPI 占位符时，请先确认在当前玩家上下文中可以解析。
 
 | 占位符 | 说明 | 示例值 |
 |---|---|---|
-| `%player_name%` | 玩家名（经过命令注入校验 `CommandSanitizer.validatePlayerName`） | `Steve` |
-| `%axsafkreward_multiplier%` | 当前结算倍率（保留两位小数） | `1.50` |
-| `%axsafk_multiplier%` | 同上（兼容旧写法） | `1.50` |
-
-> 玩家名经过 `CommandSanitizer.validatePlayerName()` 校验，防止命令注入。倍率占位符在 `replaceRewardPlaceholders()` 中替换为 `computeMultiplier()` 的计算结果。
+| `{player}` | 接收奖励的玩家名 | `Steve` |
+| `{multiplier}` | 当前结算倍率（保留两位小数） | `1.50` |
 
 ### 命令执行示例
 
 ```yaml
 reward:
   vip3:
-    - "addbalance %player_name% 铜币 %axsafkreward_multiplier%*35+250"
-    - "cmi give %player_name% cobblestone 54"
-    - "cmi exp %player_name% add %axsafkreward_multiplier%*%player_level%/4+%player_level%"
+    - "addbalance {player} 铜币 {multiplier}*35+250"
+    - "cmi give {player} cobblestone 54"
+    - "cmi exp {player} add {multiplier}*%player_level%/4+%player_level%"
 ```
 
 上述配置在倍率为 `1.50`、玩家 `Steve`、等级 `40` 时，实际执行的命令为：
@@ -114,8 +103,6 @@ cmi exp Steve add 1.50*40/4+40
 ```
 
 > 命令中的数学表达式由接收命令的插件（如 CMI、经济插件）自行解析，AfkReward 只负责占位符替换。
-
-## 物品奖励
 
 ### 物品奖励配置
 
@@ -192,8 +179,6 @@ Mail 模块不可用 → 溢出物品掉落地面
 | `overflowMailSenderName` | `"挂机奖励"` | 溢出邮件发件人名 |
 
 > 物品来源/发放能力不可用时，物品奖励跳过并打印警告，不影响命令奖励的发放。
-
-## 倍率系统
 
 ### 倍率配置
 
@@ -288,29 +273,6 @@ multiplier:
       multiplier: 3.0
 ```
 
-## 收益衰减
-
-衰减机制属于反滥用系统，但直接影响倍率计算，在此一并说明。详见 [反滥用与审计](/docs/afkreward/anti-abuse) 页面。
-
-| 字段 | 类型 | 默认值 | 说明 |
-|---|---|---|---|
-| `anti-abuse.decay.enable` | `boolean` | `false` | 是否启用收益衰减 |
-| `anti-abuse.decay.start-seconds` | `int` | `3600` | 衰减开始时间（秒） |
-| `anti-abuse.decay.factor-per-hour` | `double` | `0.2` | 每小时衰减因子 |
-| `anti-abuse.decay.min-multiplier` | `double` | `0.3` | 最低衰减倍率 |
-
-衰减计算：
-
-```
-elapsedHours = (当前挂机秒数 - start-seconds) / 3600
-decay = max(minMultiplier, 1.0 - factorPerHour * elapsedHours)
-最终倍率 *= decay
-```
-
-> 示例：`start-seconds=3600`（1 小时）、`factor-per-hour=0.2`、`min-multiplier=0.3`。挂机 2 小时后衰减系数 = `max(0.3, 1.0 - 0.2 * 1) = 0.8`；挂机 5 小时后 = `max(0.3, 1.0 - 0.2 * 4) = 0.2`，但受 `min-multiplier` 限制为 `0.3`。
-
-## 邮件集成
-
 ### 发奖邮件
 
 区域配置 `reward.mail.presets` 可在每次发奖后发送预设邮件（需 Mail 模块）：
@@ -341,6 +303,5 @@ manual:
 - [概览](/docs/afkreward) — 模块功能概览
 - [配置](/docs/afkreward/configuration) — 主配置文件与区域配置文件详解
 - [区域与双模式挂机](/docs/afkreward/afk-areas) — 区域定义、REGION 与 MANUAL 模式、行为保护与崩溃恢复
-- [反滥用与审计](/docs/afkreward/anti-abuse) — 时长限制、机器人检测、IP 限制、收益衰减与审计日志
 - [物品库匹配](/docs/guide/item-sources) — 统一物品来源系统配置指南
 - [图标配置](/docs/guide/icons) — 统一图标系统配置指南

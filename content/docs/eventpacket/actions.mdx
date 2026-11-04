@@ -1,9 +1,7 @@
 ---
-title: 动作详解
-description: EventPacket 13 种动作类型的参数、Capability 依赖与使用示例
+title: "动作详解"
+description: "将提示、命令、称号、邮件等动作组合成事件发生后的执行步骤。"
 ---
-
-> **付费模块**
 
 ## 概述
 
@@ -11,40 +9,25 @@ EventPacket 模块的动作（Action）是规则触发后执行的具体操作�
 
 每个动作包含 `type`（类型标识）和参数键值表，参数值支持上下文变量替换（`{变量名}` 语法），在执行前渲染。
 
-## 动作执行机制
-
-### 失败处理策略
-
-| 场景 | 行为 |
-|---|---|
-| 动作类型未知 | 跳过并输出警告日志，返回 `false` |
-| 目标 Capability 不可用 | 跳过，返回 `false` |
-| 玩家离线 | 跳过，返回 `false` |
-| 执行异常 | 捕获 `RuntimeException`，输出警告日志，返回 `false` |
-| 全部动作失败 | 规则不记录为已触发，不持久化、不计冷却 |
-| 部分动作失败 | 成功的动作生效，规则记录为已触发 |
-
-> `actions` 列表为空时规则直接视为触发成功（记录为已触发）。debug 模式下每个动作执行都会输出 `INFO` 级别日志，包含规则 ID、动作类型、玩家名和执行结果。
-
 ## 动作类型总览
 
-| 动作类型 | 说明 | Capability 依赖 | 提供模块 |
-|---|---|---|---|
-| `questgps.offer` | 推送任务到 QuestGPS | `QuestGpsNavigable` | QuestGPS |
-| `questgps.accept` | 接受指定任务 | `QuestGpsNavigable` | QuestGPS |
-| `questgps.open` | 打开 QuestGPS 菜单 | `QuestGpsNavigable` | QuestGPS |
-| `questgps.track` | 追踪任务或阶段 | `QuestGpsNavigable` | QuestGPS |
-| `subtitle.play` | 播放字幕组 | `SubtitlePlayable` | Subtitle / Announcer |
-| `chat.card` | 发送聊天卡片 | `ChatCardSendable` | Chat |
-| `title.give` | 发放称号 | `TitleGrantable` | Title |
-| `command.dispatch` | 派发命令 | 无（直接调用 Bukkit API） | 无 |
-| `ui-packet` | 向客户端发送 UI 数据包 | `PacketBridgeAPI` | 本体 PacketBridge |
-| `mail.send` | 发送邮件 | `MailDispatchable` | Mail |
-| `qq-broadcast` | QQ 群广播 | `QQBotBroadcastable` | QQBot |
-| `announcer.play` | 播放公告字幕组 | `SubtitlePlayable` | Subtitle / Announcer |
-| `combateffect.play` | 播放战斗特效 | `PacketBridgeAPI` | 本体 PacketBridge |
+| 动作类型 | 功能 | 所需模块 |
+| --- | --- | --- |
+| `questgps.offer` | 推送指定任务，可同时打开任务菜单 | QuestGPS 任务导航 |
+| `questgps.accept` | 为触发玩家接受任务 | QuestGPS 任务导航 |
+| `questgps.open` | 打开任务菜单 | QuestGPS 任务导航 |
+| `questgps.track` | 追踪任务或其中一个阶段 | QuestGPS 任务导航 |
+| `subtitle.play` | 为触发玩家播放字幕组 | Announcer 公告与字幕 |
+| `chat.card` | 发送指定聊天卡片 | Chat 聊天频道 |
+| `title.give` | 发放永久或限时称号 | Title 称号 |
+| `command.dispatch` | 按配置身份执行命令 | 命令所属插件需可用 |
+| `mail.send` | 给触发玩家派发邮件预设 | Mail 邮箱 |
+| `announcer.play` | 为触发玩家播放公告字幕组 | Announcer 公告与字幕 |
+| `qq-broadcast` | 将指定消息发送到 QQ 群 | QQBot 群服互联 |
+| `combateffect.play` | 向触发玩家展示配置的战斗效果界面 | ArcartX 与对应效果界面 |
+| `ui-packet` | 更新已有自定义界面的内容 | ArcartX 与匹配的自定义界面配置 |
 
-> 对应模块缺失或能力不可用时，动作直接跳过，不报错。
+> 依赖模块不可用、需要的在线玩家不存在或参数为空时，相关动作可能没有效果；未知类型和执行异常会记录日志。验证动作时同时检查日志和玩家实际结果。
 
 ## QuestGPS 动作
 
@@ -62,7 +45,7 @@ QuestGPS 系列动作用于与 QuestGPS 模块联动，实现任务推送、接�
 ```yaml
 actions:
   - type: questgps.offer
-    quest-id: "main/example_quest"
+    quest-id: "example_mainline_quest"
     open-menu: true
 ```
 
@@ -101,11 +84,9 @@ actions:
 ```yaml
 actions:
   - type: questgps.track
-    quest-id: "main/example_quest"
+    quest-id: "example_mainline_quest"
     task-id: "stage_1"
 ```
-
-## 字幕与公告动作
 
 ### subtitle.play — 播放字幕组
 
@@ -127,8 +108,6 @@ actions:
 
 ### announcer.play — 播放公告字幕组
 
-播放指定的公告字幕组，复用 `SubtitlePlayable` Capability。
-
 | 参数 | 类型 | 必填 | 默认值 | 说明 |
 |---|---|---|---|---|
 | `group-id` | String | 是 | — | 公告字幕组 ID |
@@ -139,8 +118,6 @@ actions:
   - type: announcer.play
     group-id: "server_announcement"
 ```
-
-## 聊天卡片动作
 
 ### chat.card — 发送聊天卡片
 
@@ -156,14 +133,12 @@ actions:
   - type: chat.card
     card-id: "quest_offer"
     data:
-      quest: "main/example_quest"
+      quest: "example_mainline_quest"
       title: "初入岛屿"
       level: "{new_number}"
 ```
 
 > `data` 参数值会被递归渲染，支持 Map 和 List 结构。
-
-## 称号动作
 
 ### title.give — 发放称号
 
@@ -190,11 +165,9 @@ actions:
 
 > 称号发放的来源标记为 `EventPacket`。
 
-## 命令派发动作
-
 ### command.dispatch — 派发命令
 
-以指定身份执行命令，支持控制台、玩家和 OP 三种执行模式。
+以指定身份执行命令，支持控制台、玩家和 OP 三种执行模式。命令中的 `{player}` 默认取触发玩家的名称，`{uuid}` 默认取该玩家的 UUID。若上下文已经传入同名变量，沿用传入值。
 
 | 参数 | 类型 | 必填 | 默认值 | 说明 |
 |---|---|---|---|---|
@@ -205,7 +178,7 @@ actions:
 actions:
   - type: command.dispatch
     executor: console
-    command: "say {player_name} 加入了服务器"
+    command: "say {player} 加入了服务器"
 ```
 
 ### 执行者模式
@@ -215,48 +188,6 @@ actions:
 | `console` | 以控制台身份执行 |
 | `player` | 以触发玩家身份执行 |
 | `op` | 临时赋予玩家 OP 权限执行，执行后立即恢复 |
-
-> 命令中的 `/` 前缀会被自动去除。命令分隔符（`;`、`|`、`&&`、`||`、换行符）会被清理以防止命令注入。
-
-## UI 数据包动作
-
-### ui-packet — 向客户端发送 UI 数据包
-
-通过 `PacketBridge` 向指定客户端 UI 的 `packetHandler` 发送数据包。
-
-| 参数 | 类型 | 必填 | 默认值 | 说明 |
-|---|---|---|---|---|
-| `ui-id` | String | 是 | — | 目标 UI ID |
-| `packet-handler` | String | 是 | — | 目标 packetHandler 名称，支持 `handler` 别名 |
-| `recipients` | list/string | 否 | `self` | 接收者列表 |
-| `pack` | any | 否 | （空） | 包数据（键值对或任意结构） |
-
-```yaml
-actions:
-  - type: ui-packet
-    ui-id: "示例UI"
-    packet-handler: "questCompleted"
-    recipients:
-      - self
-    pack:
-      player: "{player_name}"
-      quest: "{quest_id}"
-      time: "{timestamp_local}"
-```
-
-### 接收者解析
-
-`recipients` 支持列表和逗号分隔字符串两种格式：
-
-| 配置值 | 别名 | 说明 |
-|---|---|---|
-| `self` | `subject`、`player` | 仅触发者自身 |
-| `all-online` | `all` | 全部在线玩家 |
-| `others` | `other-online`、`other-players` | 除触发者外的在线玩家 |
-
-> `recipients` 为空时默认为 `self`。每个接收者会独立渲染 `pack` 数据（`{receiver_name}` 等变量按接收者替换）。UI 系统详见 [UI 图标](/docs/guide/icons)。
-
-## 邮件动作
 
 ### mail.send — 发送邮件
 
@@ -276,52 +207,40 @@ actions:
 
 ## QQ 广播动作
 
-### qq-broadcast — QQ 群广播
-
 向 QQ 群发送广播消息，可指定群号或发送到所有群。
+
+使用 `type: qq-broadcast`，消息填在 `message`。不指定群号会广播到所有已配置群；首次测试应填写明确的测试群号。
 
 | 参数 | 类型 | 必填 | 默认值 | 说明 |
 |---|---|---|---|---|
 | `message` | String | 是 | — | 广播消息内容 |
 | `group-id` | number/string | 否 | `0` | 目标群号，不填或 0 则发送到所有群 |
 
-```yaml
-actions:
-  - type: qq-broadcast
-    message: "玩家 {player_name} 达成了里程碑！"
-    group-id: 123456789
-```
-
-```yaml
-# 发送到所有群
-actions:
-  - type: qq-broadcast
-    message: "服务器即将维护，请做好准备！"
-```
-
 > `group-id` 支持数字和字符串两种类型，无法解析时发送到所有群。
-
-## 战斗特效动作
 
 ### combateffect.play — 播放战斗特效
 
-通过 `PacketBridge` 向客户端发送战斗特效数据包。
+使用 `type: combateffect.play`，配合已有的效果界面和其接受的内容格式，不会自动生成模型、音效或贴图资源。
 
 | 参数 | 类型 | 必填 | 默认值 | 说明 |
 |---|---|---|---|---|
 | `pack` | any | 是 | — | 特效包数据 |
 | `ui-id` | String | 否 | 模块默认 | 战斗特效 UI ID |
-| `packet-handler` | String | 否 | `play` | packetHandler 名称 |
-
-```yaml
-actions:
-  - type: combateffect.play
-    pack: "{player_name};CDK;{preset_name}"
-    # ui-id: "CombatEffect"
-    # packet-handler: "play"
-```
 
 > `ui-id` 不填时使用模块默认。`pack` 数据渲染后仅发送给触发玩家。
+
+### ui-packet — 更新自定义界面
+
+用于已有自定义界面的进阶配置，需要界面本身具备匹配的接收与更新逻辑。普通公告、邮件或称号操作优先使用各自专用动作。
+
+| 参数 | 用途 |
+| --- | --- |
+| `ui-id` | 目标界面 ID，必须为实际存在的界面 |
+| `packet-handler` | 界面已经定义的处理名称，也可用 `handler` |
+| `pack` | 该界面所需的内容，字段按界面定义填写 |
+| `recipients` | 目标接收范围，不填时为触发玩家 |
+
+该动作没有通用的 `pack` 模板，不能把别的模块界面内容直接复制到任意 UI。多个界面 ID 的配置规则另见[多界面配置](/docs/guide/multi-ui)。
 
 ## 动作参数渲染
 
@@ -333,26 +252,7 @@ actions:
 | List | 递归渲染每个元素 |
 | Map | 递归渲染键和值 |
 
-```yaml
-# 嵌套结构渲染示例
-actions:
-  - type: ui-packet
-    ui-id: "任务通知UI"
-    packet-handler: "questAccepted"
-    pack:
-      player: "{player_name}"          # → "Steve"
-      quest_id: "{quest_id}"           # → "main/tutorial"
-      details:
-        world: "{player_world}"        # → "world"
-        coords:
-          - "{player_x}"                # → "100"
-          - "{player_y}"                # → "64"
-          - "{player_z}"                # → "200"
-```
-
 > 未匹配的 `{变量名}` 原样保留，不会报错。渲染时以触发者自身作为接收者，`ui-packet` 动作除外——它按每个接收者独立渲染。上下文变量详见 [命令与占位符](/docs/eventpacket/commands#上下文变量)。
-
-## 动作组合示例
 
 ### 首次加入完整欢迎流程
 
@@ -367,66 +267,16 @@ first_join_welcome:
     - type: chat.card
       card-id: "quest_offer"
       data:
-        quest: "main/example_quest"
+        quest: "example_mainline_quest"
         title: "初入岛屿"
     - type: questgps.offer
-      quest-id: "main/example_quest"
+      quest-id: "example_mainline_quest"
       open-menu: true
     - type: mail.send
       preset-id: "new_player"
     - type: command.dispatch
       executor: console
-      command: "say 欢迎新玩家 {player_name} 加入服务器！"
-```
-
-### Boss 结算庆祝
-
-```yaml
-boss_settlement_celebration:
-  enabled: true
-  trigger: command-signal
-  signal: "boss_settlement"
-  repeatable: true
-  cooldown: "3s"
-  actions:
-    - type: subtitle.play
-      group-id: "boss_victory"
-    - type: mail.send
-      preset-id: "boss_reward_{boss_id}"
-    - type: title.give
-      title-id: "boss_slayer"
-      duration: "7d"
-    - type: combateffect.play
-      pack: "{player_name};BOSS;{boss_id}"
-    - type: qq-broadcast
-      message: "玩家 {player_name} 击败了 {boss_id}！"
-      group-id: 123456789
-```
-
-### 任务完成全服通知
-
-```yaml
-quest_completed_broadcast:
-  enabled: true
-  trigger: quest-complete
-  signal: "main/tutorial"
-  repeatable: false
-  actions:
-    - type: title.give
-      title-id: "quest_master"
-      duration: "permanent"
-    - type: ui-packet
-      ui-id: "全服通知UI"
-      packet-handler: "questCompleted"
-      recipients:
-        - all-online
-      pack:
-        player: "{player_name}"
-        quest: "{quest_id}"
-        time: "{timestamp_local}"
-    - type: command.dispatch
-      executor: console
-      command: "say {player_name} 完成了主线任务 {quest_id}！"
+      command: "say 欢迎新玩家 {player} 加入服务器！"
 ```
 
 ## 相关页面
@@ -434,5 +284,3 @@ quest_completed_broadcast:
 - [触发器详解](/docs/eventpacket/triggers) — 18 种触发器类型的工作机制
 - [定时服务](/docs/eventpacket/services) — 实体清理、定时命令与 PAPI 监听服务
 - [配置](/docs/eventpacket/configuration) — 规则字段表与动作类型枚举
-- [命令与占位符](/docs/eventpacket/commands) — 上下文变量与客户端回包预设
-- [联动](/docs/eventpacket/integration) — Capability 依赖与模块集成示例

@@ -1,13 +1,7 @@
 ---
-title: NPC 交互与选择器
-description: Conversation 模块 NPC 附近扫描、选择器交互与 NPC 外观自动配置
+title: "NPC 交互与选择器"
+description: "配置附近 NPC 的交互距离、选择器操作及 NPC 外观。"
 ---
-
-# NPC 交互与选择器
-
-> **付费模块**
-
-Conversation 模块周期性扫描玩家附近可交互的 NPC，通过选择器 HUD 展示候选列表，玩家使用按键选择并触发对话。同时支持 NPC 外观自动配置，在玩家看见 NPC 时自动应用模型与动画。
 
 ## 前置条件
 
@@ -19,8 +13,6 @@ Conversation 模块周期性扫描玩家附近可交互的 NPC，通过选择器
 | 选择器 UI 已注册 | `selector UI` 未就绪时降级 |
 | Adyeshach 插件可用 | NPC 桥接不可用时降级 |
 | Chemdah 插件已安装 | 对话打开器不可用时降级 |
-
-> `/axs conversation status` 可查看当前降级原因。
 
 ## 附近 NPC 扫描
 
@@ -38,8 +30,6 @@ Conversation 模块周期性扫描玩家附近可交互的 NPC，通过选择器
 | 向上导航 | `AXS_NAVIGATE_PREV` 按键或滚轮 |
 | 向下导航 | `AXS_NAVIGATE_NEXT` 按键或滚轮 |
 | 确认打开对话 | `AXS_INTERACT` 按键或点击 |
-
-> 导航为环绕式——到达列表末尾后回到开头。`AXS_INTERACT` 优先级高于拾取模块，确保对话中不会误触拾取。
 
 ## 防抖与冷却
 
@@ -83,9 +73,5 @@ npc-appearances:
 
 ## 相关文档
 
-- [概览](/docs/conversation) — 模块功能与对话机制
-- [配置](/docs/conversation/configuration) — 交互参数与 NPC 外观配置
-- [命令与占位符](/docs/conversation/commands) — 管理命令与权限
-- [联动](/docs/conversation/integration) — Adyeshach 桥接与按键路由
 - [条件系统](/docs/guide/conditions) — Chemdah 对话触发条件配置
 - [图标系统](/docs/guide/icons) — NPC 模型与图标配置

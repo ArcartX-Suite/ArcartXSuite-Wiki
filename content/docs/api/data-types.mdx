@@ -1,0 +1,213 @@
+---
+title: "请求与结果类型"
+description: "公开 API 的请求、结果、地图目标与导航回调类型。"
+---
+
+这些类型与所使用的 API JAR 配套。构造 record 时按下面的字段顺序传入参数；允许为空的字段保留 `@Nullable` 标注。代码段展示调用声明，使用时导入对应完整类型。
+
+业务结果必须结合返回值判断；发送邮件时应为同一业务奖励复用相同 `idempotencyKey`，避免重试造成重复投递。
+
+## 附件领取结果（AxsClaimResult）
+
+表示一次附件领取是否成功。先判断 `success`；失败时可读取 `message` 获取提示文字，提示可能为空。
+
+完整类型：`xuanmo.arcartxsuite.api.mail.AxsClaimResult`。
+
+```java
+public record AxsClaimResult(
+    boolean success,
+    @Nullable String message
+) {}
+```
+
+## 邮件删除结果（AxsDeleteResult）
+
+表示一次删除操作是否成功。`success` 为结果，`message` 用于说明未能删除的原因；不要只根据调用完成就认定邮件已删除。
+
+完整类型：`xuanmo.arcartxsuite.api.mail.AxsDeleteResult`。
+
+```java
+public record AxsDeleteResult(
+    boolean success,
+    @Nullable String message
+) {}
+```
+
+## 邮件投递回执（AxsDeliveryReceipt）
+
+`mailId` 为邮件标识，正数表示已经创建邮件；`recipientCount` 是收件人数，`duplicate` 表示相同业务标识的重复发送。处理 `isNoOp()` 返回的空操作结果后，再更新自己的奖励发放记录。
+
+完整类型：`xuanmo.arcartxsuite.api.mail.AxsDeliveryReceipt`。
+
+```java
+public record AxsDeliveryReceipt(
+    long mailId,
+    int recipientCount,
+    boolean duplicate
+) {}
+```
+
+## 邮件附件信息（AxsMailAttachmentView）
+
+用于展示邮件中的附件。根据 `type` 区分附件种类；货币附件可读取 `currencyId` 和 `amount`，`displayName` 为可选显示名称。
+
+完整类型：`xuanmo.arcartxsuite.api.mail.AxsMailAttachmentView`。
+
+```java
+public record AxsMailAttachmentView(
+    @NotNull Type type,
+    @Nullable String currencyId,
+    double amount,
+    @Nullable String displayName
+) {}
+```
+
+## 收件箱查询条件（AxsMailQuery）
+
+用于选择收件箱页码、每页数量、邮件状态与搜索文字。只查看还有可领附件的邮件时，使用 `hasAvailableAttachments` 条件。
+
+完整类型：`xuanmo.arcartxsuite.api.mail.AxsMailQuery`。
+
+```java
+public record AxsMailQuery(
+    int page,
+    int pageSize,
+    @Nullable AxsMailState state,
+    @Nullable String search,
+    boolean hasAvailableAttachments
+) {}
+```
+
+## 邮件发送请求（AxsMailRequest）
+
+完整类型：`xuanmo.arcartxsuite.api.mail.AxsMailRequest`。使用 Builder 创建发送请求，至少指定收件人、标题与稳定的业务去重标识。
+
+```java
+AxsMailRequest request = AxsMailRequest.builder("event:2026:reward:player-id", "活动奖励")
+    .recipient(playerId)
+    .content("感谢参与活动，请查收奖励。")
+    .sourcePlugin("MyPlugin")
+    .build();
+```
+
+Builder 的可用方法（声明速查）：
+
+```java
+    Builder recipient(@NotNull UUID uuid);
+    Builder recipients(@NotNull List<UUID> uuids);
+    Builder content(@NotNull String content);
+    Builder senderName(@Nullable String senderName);
+    Builder senderAvatar(@Nullable String senderAvatar);
+    Builder item(@NotNull ItemStack itemStack);
+    Builder items(@NotNull List<ItemStack> items);
+    Builder currency(@NotNull String provider, double amount);
+    Builder currency(@NotNull String provider, double amount, @Nullable String displayName);
+    Builder command(@NotNull String command, @NotNull CommandExecutor executor);
+    Builder command(@NotNull String command, @NotNull CommandExecutor executor, @Nullable String displayTitle, @Nullable String icon);
+    Builder sourcePlugin(@NotNull String sourcePlugin);
+    Builder deliverAt(@Nullable Instant deliverAt);
+    Builder expireAt(@Nullable Instant expireAt);
+    AxsMailRequest build();
+```
+
+`item` 添加 Bukkit 物品，`currency` 添加指定货币附件，`command` 添加命令附件。`deliverAt` 和 `expireAt` 使用 `Instant`；不设置时使用模块默认行为。
+
+## 邮件状态（AxsMailState）
+
+`UNREAD` 为未读，`READ` 为已读，`CLAIMED` 为已领取，`DELETED` 为已删除，`EXPIRED` 为已过期。按查询和展示需要选择状态。
+
+完整类型：`xuanmo.arcartxsuite.api.mail.AxsMailState`。
+
+```java
+public enum AxsMailState {
+
+    UNREAD,
+
+    READ,
+
+    CLAIMED,
+
+    DELETED,
+
+    EXPIRED
+}
+```
+
+## 邮件详情（AxsMailView）
+
+返回邮件的标题、正文、发件人、状态、附件和时间信息。`ownerUuid` 是收件玩家，`attachments` 是可展示的附件列表；允许为空的字段需先判空。
+
+完整类型：`xuanmo.arcartxsuite.api.mail.AxsMailView`。
+
+```java
+public record AxsMailView(
+    long id,
+    @NotNull UUID ownerUuid,
+    @Nullable String senderName,
+    @NotNull String subject,
+    @NotNull String body,
+    @NotNull AxsMailState state,
+    @NotNull List<AxsMailAttachmentView> attachments,
+    @NotNull Instant createdAt,
+    @Nullable Instant expiresAt,
+    @Nullable Instant claimedAt
+) {}
+```
+
+## 地图外部目标（MapExternalTargetSpec）
+
+完整类型：`xuanmo.arcartxsuite.api.capability.MapExternalTargetSpec`。描述第三方插件显示在地图上的目标。`source` 使用你的插件标识，`worldId` 使用地图中已配置的世界 ID；`targetId` 在该来源内保持唯一。
+
+```java
+public record MapExternalTargetSpec(
+    @NotNull String targetId,
+    @NotNull String source,
+    @NotNull String worldId,
+    @NotNull String title,
+    @Nullable String description,
+    double x,
+    double y,
+    double z,
+    @Nullable String iconId,
+    boolean navigated,
+    int sortOrder,
+    boolean useMapNavigation
+) {}
+```
+
+`useMapNavigation: true` 表示由地图提供导航；设为 `false` 时使用你的来源回调。更新或删除目标时继续使用相同的来源与目标 ID。
+
+## 地图导航请求（MapNavigationRequest）
+
+完整类型：`xuanmo.arcartxsuite.api.capability.MapNavigationRequest`。导航回调收到的目标信息。`targetType` 为 `anchor`、`waypoint` 或 `external`。
+
+```java
+public record MapNavigationRequest(
+    @NotNull String targetType,
+    @NotNull String targetId,
+    @NotNull String worldId,
+    @NotNull String title,
+    double x,
+    double y,
+    double z,
+    @NotNull String source
+) {}
+```
+
+## 地图导航回调（MapNavigationHandler / MapNavigationDelegate）
+
+两个类型均位于 `xuanmo.arcartxsuite.api.capability`。来源回调只处理该来源的目标，全局委托处理地图导航请求；开始导航的方法返回 `true` 表示由你的插件接管，返回 `false` 表示没有接管。
+
+```java
+public interface MapNavigationHandler {
+    boolean onNavigateRequest(@NotNull Player player, @NotNull String targetId);
+    default void onCancelRequest(@NotNull Player player, @NotNull String targetId) {}
+}
+
+public interface MapNavigationDelegate {
+    boolean onNavigateRequest(@NotNull Player player, @NotNull MapNavigationRequest request);
+    default void onCancelRequest(@NotNull Player player, @NotNull MapNavigationRequest request) {}
+}
+```
+
+自定义导航结束时更新目标的导航状态，并清理你创建的显示内容。插件停用时注销注册过的来源回调或委托，见 [MapNavigable](/docs/api/MapNavigable)。

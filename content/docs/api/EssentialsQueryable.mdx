@@ -1,0 +1,68 @@
+---
+title: "EssentialsQueryable"
+description: "查询挂机、隐身、禁言与昵称"
+---
+
+
+| 项目 | 内容 |
+| --- | --- |
+| 提供模块 | [essentials](/docs/essentials) |
+| 完整类型 | `xuanmo.arcartxsuite.api.capability.EssentialsQueryable` |
+
+## 获取接口
+
+```java
+import xuanmo.arcartxsuite.api.AxsCapabilities;
+import xuanmo.arcartxsuite.api.capability.EssentialsQueryable;
+
+EssentialsQueryable api = AxsCapabilities.get(EssentialsQueryable.class);
+if (api == null) {
+    // 当前功能不可用，向玩家说明或使用你的替代流程。
+    return;
+}
+```
+
+每次业务操作时重新获取接口；模块未加载或暂时不可用时返回 `null`。接入方式见[快速开始](/docs/api/quick-start)。
+
+## 方法声明
+
+以下为公开调用契约，保留参数类型与空值标注。Java 类型与当前配套 API JAR 保持一致。
+
+```java
+public interface EssentialsQueryable {
+
+    boolean isAfk(@NotNull UUID playerUuid);
+
+    boolean isVanished(@NotNull UUID playerUuid);
+
+    boolean isMuted(@NotNull UUID playerUuid);
+
+    @Nullable
+    String getNickname(@NotNull UUID playerUuid);
+
+    boolean isFlying(@NotNull UUID playerUuid);
+
+    boolean isGodMode(@NotNull UUID playerUuid);
+
+    @Nullable
+    Location getSpawn(@NotNull World world);
+}
+```
+
+## 参数与返回值
+
+| 方法 | 用途 | 参数 | 返回值 |
+| --- | --- | --- | --- |
+| `isAfk` | 查询玩家是否处于 AFK 状态。 | `playerUuid`：玩家 UUID（`UUID`） | `boolean`：用于判断上面所述的查询或操作结果（true / false） |
+| `isVanished` | 查询玩家是否处于隐身状态。 | `playerUuid`：玩家 UUID（`UUID`） | `boolean`：用于判断上面所述的查询或操作结果（true / false） |
+| `isMuted` | 查询玩家是否被禁言（Essentials 侧）。 | `playerUuid`：玩家 UUID（`UUID`） | `boolean`：用于判断上面所述的查询或操作结果（true / false） |
+| `getNickname` | 获取玩家自定义昵称，未设置时返回 null。 | `playerUuid`：玩家 UUID（`UUID`） | `String` 文字或标识符；没有对应结果时可为 null |
+| `isFlying` | 查询玩家是否处于飞行模式。 | `playerUuid`：玩家 UUID（`UUID`） | `boolean`：用于判断上面所述的查询或操作结果（true / false） |
+| `isGodMode` | 查询玩家是否处于无敌模式。 | `playerUuid`：玩家 UUID（`UUID`） | `boolean`：用于判断上面所述的查询或操作结果（true / false） |
+| `getSpawn` | 查询指定世界的出生点（经 Essentials 的 SpawnBackend：Multiverse-Core 已加载 时返回该世界的 MV spawn，否则返回本地存储的全局 spawn）。 未设置或 Essentials 模块未启用时返回 null——不回退世界默认出生点， 兜底策略由调用方决定。 | `world`：上下文世界（MV 后端按世界取 spawn；本地后端忽略该参数） | `Location` 结果对象；没有对应结果时可为 null |
+
+## 调用注意事项
+
+涉及 Bukkit 玩家、世界、物品或界面的调用放在 Bukkit 主线程执行；接口有明确线程说明时以该方法约定为准。
+
+先在对应模块配置中准备所引用的 ID，再调用接口。检查布尔值、结果对象或异常，只有成功后才更新第三方插件自己的业务状态。

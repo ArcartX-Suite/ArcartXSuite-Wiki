@@ -1,0 +1,147 @@
+---
+title: "邮件派发"
+description: "编写并测试邮件预设，在在线奖励、事件等功能中引用，区分发送与领取。"
+---
+
+邮件派发让其他功能把文字和附件发送到玩家收件箱。常见用途是活动礼包、任务通知、在线奖励和物品溢出补发。发送邮件与领取附件是两个步骤，验证时需要分别检查。
+
+## 使用前确认
+
+- 预设派发需要 Mail 模块成功启用，执行 `/axs status` 确认。
+- 货币附件引用主配置 `currencies` 中的 ID；物品附件引用可用的[物品来源](/docs/guide/item-sources)。
+- 首次测试只发给自己的测试账号，确认主题、正文、数量、有效期和领取结果后再配置批量派发。
+
+没有 Mail、仅使用兼容的 SystemMail 时，部分直接发送场景可提供基础物品邮件，但不能替代 AXS 邮件预设与货币附件。使用预设的联动不要省略 Mail 模块。
+
+## 编写一个最小预设
+
+在 `plugins/ArcartX-Suite/data/mail/presets/welcome_demo.yml` 中编写：
+
+```yaml
+preset:
+  id: welcome_demo
+  enabled: true
+  display-name: "欢迎礼包"
+  subject: "欢迎来到服务器"
+  body: |-
+    感谢加入我们的世界。
+    请领取附件中的苹果。
+  expires-after-days: 15
+  item-attachments:
+    - source: minecraft
+      id: APPLE
+      amount: 8
+```
+
+顶层 `preset:` 是固定名称；`preset.id` 才是其他模块引用的预设 ID，建议与文件名一致。`expires-after-days` 表示发送后的过期天数。该例只含原版物品，不依赖经济插件。
+
+需要金币附件时，在同一个 `preset` 中增加以下片段，前提是 `money` 已配置并可用：
+
+```yaml
+  currency-attachments:
+    - currency: money
+      amount: 88
+      description: "欢迎金币"
+```
+
+领取条件、领取命令和兑换码的完整字段见[邮件预设](/docs/mail/presets)。它们控制领取或兑换行为，不等同于派发条件。
+
+## 重载并单人测试
+
+```text
+/axs mail preset reload
+/axs mail preset info welcome_demo
+/axs mail preset send welcome_demo 测试玩家名
+```
+
+管理员操作需 `arcartxsuite.admin`。接收者打开[邮箱](/docs/mail)，确认出现邮件，再领取附件并核对苹果数量或余额变化。控制台提示已发送，只能说明派发步骤完成，不能代替附件领取验证。
+
+修改预设影响后续派发，已发送的邮件保留发送时的数据；改完 YAML 不会自动改掉玩家已有邮件。
+
+## 在其他功能中引用
+
+### 各模块实际用法
+
+| 模块 | 邮件入口或配置 | 发送时机与限制 |
+| --- | --- | --- |
+| [Mail](/docs/mail) | `preset send`、玩家写信、CDK 与公开邮件功能 | 自己提供预设和收件箱；多人派发需核对目标范围 |
+| [OnlineRewards](/docs/onlinerewards) | 奖励条目的 `mail.presets` | 在线阶段、签到与其他奖励分支分别读取各自条目；不是只配置第一阶段就覆盖所有奖励 |
+| [AfkReward](/docs/afkreward) | 区域 `reward.mail.presets`；主配置 `manual.end-mail.mail.presets` | 前者在区域发奖时发送，后者在手动挂机结束时发送，时机不同；结束邮件包含两层 `mail`，不能省略 |
+| [BattlePass](/docs/battlepass) | 奖励 `type: mail` + `mail.presets` | 也支持不引用预设、使用 `item` 与 `mail-subject`、`mail-body` 的直接附件模式；发送失败时可能转为该奖励配置的直接物品或命令，需分别验证 |
+| [Lottery](/docs/lottery) | 奖品 `delivery: MAIL` + `mail.presets` | 奖励由预设内容决定，不是把奖品图标自动寄给玩家；预设为空或派发失败会返回失败 |
+| [Fishing](/docs/fishing) | 任务、赛季等奖励的 `type: mail` + `mail.presets` | 此外首次收集某个 LEGENDARY 鱼种会尝试发送 `legendary_first_catch`；这些预设都需在 Mail 中存在 |
+| [EntityTracker](/docs/entitytracker) | 奖励动作 `type: mail`、`preset-id` | Boss 结算与排行奖励分别定义动作；收件人按对应奖励目标解析，不一定为在线操作者 |
+| [EventPacket](/docs/eventpacket) | 动作 `type: mail.send`、`preset-id` | 发送给触发规则的有效在线玩家，不是任意离线目标 |
+| [QQBot](/docs/qqbot) | 兑换 `prizes[].mail.presets`，以及群管理邮件派发入口 | 兑换目标取绑定玩家；同时检查绑定、积分、限制和派发结果 |
+
+上表列的是直接邮件与预设入口。其他模块通过物品发放处理背包溢出时也可能产生邮件，但不代表它们接受 `mail.presets` 字段。市场、拾取等功能的物品去向需按各自流程检查。
+
+### 配置片段不能通用复制
+
+挂机结束邮件写在 AfkReward 主配置的 `manual` 节中：
+
+```yaml
+manual:
+  end-mail:
+    mail:
+      presets:
+        - welcome_demo
+```
+
+抽奖则在一个已有奖品条目中填写：
+
+```yaml
+delivery: MAIL
+mail:
+  presets:
+    - welcome_demo
+```
+
+只有条目支持并选用了对应投递方式，字段才参与处理。不要把 `end-mail` 放进战令奖励，也不要把 `type: mail.send` 当成所有模块的通用类型。
+
+### 在线阶段奖励
+
+在 OnlineRewards 的 `rewards.yml` 某条奖励中使用 `mail.presets`：
+
+```yaml
+rewards:
+  - minutes: 5
+    name: "在线五分钟"
+    rewardText: "领取欢迎礼包"
+    mail:
+      presets:
+        - welcome_demo
+    commands: []
+```
+
+这是该模块文件的结构示例，应修改已有奖励，不要重复新增 `rewards`。先重载邮件预设，再执行 `/axs reload onlinerewards`，按[在线奖励](/docs/onlinerewards)的实际领取流程测试。
+
+### 事件动作
+
+在 EventPacket 规则的 `actions` 中使用：
+
+```yaml
+actions:
+  - type: mail.send
+    preset-id: welcome_demo
+```
+
+收件人为触发该规则的玩家，不是任意玩家列表。规则触发时需要有效的在线玩家上下文。完整规则入口和触发方式见[事件与动作](/docs/eventpacket)。
+
+## 多人派发
+
+Mail 支持 `all-online` 与 `all-registered` 两类目标，分别是在线玩家与已注册玩家。执行多人派发后，按提示在 30 秒内执行 `/axs mail preset send confirm` 确认。先核对目标范围再确认，完整命令见[邮件命令](/docs/mail/commands)。
+
+同一封活动邮件可以被再次派发，不要将重复执行命令当作检查成功与否的方法；先查看测试收件箱和派发结果。
+
+## 无法收到或领取
+
+| 现象 | 优先检查 |
+| --- | --- |
+| 找不到预设 | 文件路径、顶层 `preset`、ID、启用状态及重载日志 |
+| 其他模块触发了但没邮件 | 字段是否为该模块支持的结构、预设 ID、Mail 状态、触发者是否有效 |
+| 邮件到了但附件不正确 | 发送时的预设版本、物品来源、货币 ID 和数量；改预设后重新发送一封测试邮件 |
+| 附件无法领取 | 过期时间、领取条件、背包容量、数据库或经济服务异常 |
+| 只有基础物品邮件可用，预设失败 | 检查是否仅有 SystemMail，尚未启用 AXS Mail |
+
+报错关键字及处理见[日志与报错提示](/docs/guide/config-management#邮箱mail)。

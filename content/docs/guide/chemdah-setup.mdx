@@ -1,0 +1,165 @@
+---
+title: "Chemdah 对话与任务接入"
+description: "在 Chemdah 中绑定 NPC、编写对话和任务，QuestGPS 自动读取任务内容，特殊展示按需补充。"
+---
+
+Conversation 把 Chemdah 对话显示到 ArcartX 界面，QuestGPS 展示和导航 Chemdah 任务。任务逻辑、名称、分类、说明、目标与追踪都写在 Chemdah，QuestGPS 会自动读取。
+
+## 先明确修改哪些文件
+
+| 文件 | 用途 |
+| --- | --- |
+| `plugins/Chemdah/core/conversation/suite_demo.yml` | NPC 绑定、对话正文与回复脚本 |
+| `plugins/Chemdah/core/quest/suite_demo.yml` | 任务逻辑、名称、说明、目标与可选展示设置 |
+| `plugins/ArcartX-Suite/data/conversation/ArcartXConversation.yml` | 只在需要改对话主题名、界面或交互时调整 |
+| `plugins/ArcartX-Suite/data/questgps/ArcartXQuestGPS.yml` | 只在需要改全局布局、导航样式或门禁时调整 |
+
+先确认 ArcartX、Chemdah、Adyeshach 与需要的 Suite 模块正常启用。NPC 必须先存在于 Adyeshach；创建对话 YAML 不会创建 NPC 实体。
+
+## 第一步：让对话使用 ArcartX 界面
+
+Suite Conversation 默认主题名为 `ArcartXConversation`。在 Chemdah 对话文件顶层使用相同名称：
+
+```yaml
+__option__:
+  theme: ArcartXConversation
+  title: '{name}'
+```
+
+已有 `__option__` 时修改原小节，不要重复声明。主题由 Conversation 模块提供，通常不需要在 Chemdah 的主题配置中再定义一份。
+
+如果自行修改了 Suite 的 `theme.name`，Chemdah 文件中也要填写同名主题，再重载对应配置。NPC 外观配置只改变模型，不代替 Chemdah 的绑定。
+
+## 第二步：NPC 对话接取任务
+
+在 `plugins/Chemdah/core/conversation/suite_demo.yml` 中写：
+
+```yaml
+__option__:
+  theme: ArcartXConversation
+  title: '{name}'
+
+suite_demo_dialog:
+  npc id: 'adyeshach guide_demo'
+  npc:
+    - '村外有僵尸出没，你愿意帮忙清理吗？'
+  player:
+    - reply: '接取委托'
+      then: |
+        quest select "suite_demo_hunt"
+        quest accept
+    - reply: '先了解一下'
+      then: |
+        talk "击败三只僵尸，进度可以在任务面板查看。"
+```
+
+将 `guide_demo` 换成 Adyeshach 中真实 NPC ID。`npc id` 中有空格，不能改为 `npc-id`。对话 ID `suite_demo_dialog` 与任务 ID 是不同对象。
+
+`then` 使用 Chemdah 的脚本语法；这里选中任务 `suite_demo_hunt` 并尝试接取，是否允许接取仍由任务条件和玩家当前状态决定。它不是 Suite 的 YAML 动作列表。
+
+## 第三步：在同一份任务文件中写清内容
+
+在 `plugins/Chemdah/core/quest/suite_demo.yml` 中写：
+
+```yaml
+suite_demo_hunt:
+  meta:
+    name: "初次讨伐"
+    type: "主线"
+  task:
+    kills:
+      meta:
+        name: "击败三个僵尸"
+      objective: player kill
+      condition:
+        victim: zombie
+      goal:
+        amount: 3
+      addon:
+        track:
+          center: "world 100 64 100"
+          name: "讨伐区域"
+          description:
+            - "前往目的地击败僵尸。"
+  addon:
+    ui:
+      icon: iron_sword
+      description:
+        - "村外有僵尸出没，请清理三只。"
+  agent:
+    accepted: |
+      tell "你已接取初次讨伐。"
+    completed: |
+      tell "初次讨伐已完成。"
+```
+
+将 `world 100 64 100` 改成真实目的地。这段已经足以让 QuestGPS 展示任务，不需要再建立另一份任务定义。
+
+| 位置 | QuestGPS 如何使用 |
+| --- | --- |
+| 任务根 `suite_demo_hunt` | 对话、命令和其他功能引用的任务 ID |
+| 任务 `meta.name` / `meta.type` | 名称与分类，分类自动识别 |
+| 任务 `addon.ui.description` | 任务说明 |
+| `task.kills.meta.name` | 目标名称 |
+| 目标 `addon.track` | 追踪目的地与说明 |
+| Chemdah 的玩家任务状态及目标进度 | 菜单页、完成状态与支持的数字进度 |
+
+进度无需另外配置统计条。目标类型、筛选、次数和实际奖励仍按 Chemdah 规则执行，导航位置本身不会限定击杀范围。
+
+本例仅发送完成提示，没有配置物品奖励。若需要奖励，先配置并验证真实 Chemdah 完成行为，再按需添加一致的奖励预览。
+
+## 可选：只加需要的展示选项
+
+需要排序、显示放弃按钮或奖励预览时，在**该任务现有的 `addon` 中**增加 `axs-view`：
+
+```yaml
+addon:
+  ui:
+    icon: iron_sword
+    description:
+      - "村外有僵尸出没，请清理三只。"
+  axs-view:
+    sort-order: 10
+    allow-abandon: true
+    rewards:
+      - type: text
+        display-name: "完成提示"
+        text: "本例没有配置物品奖励。"
+```
+
+不需要重复名称、分类或目标。只改某个名称时，可以在相应任务或目标的 `addon.axs-view` 中填写 `name`，其他字段继续使用原生内容。
+
+任务示例、原生数据来源及可选字段见[Chemdah 任务配置](/docs/questgps/chemdah-mapping)。
+
+## 重载与验证
+
+修改以上 Chemdah 文件后，按所安装版本的命令帮助执行：
+
+```text
+/chemdah reload
+/questgps
+```
+
+QuestGPS 会自动刷新已加载任务。首次启用时也会识别已有任务；刷新后当前导航可能被清理，重新选择追踪即可。只有修改 Suite 全局设置时，才需要重载对应 Suite 模块。
+
+1. 查看 Chemdah 日志，确认两个文件都正常加载。
+2. 到真实 NPC 附近测试对话，检查主题、正文和回复。
+3. 接取任务，打开 QuestGPS，确认名称、分类和目标正确。
+4. 按条件完成有效击杀，核对进度和完成行为。
+5. 修改一处说明后重载，确认菜单刷新；移除任务时确认它不再出现在列表。
+
+已有任务状态可能影响重复接取，不要直接删除玩家数据作为测试步骤。
+
+## 常见问题
+
+| 现象 | 优先检查 |
+| --- | --- |
+| 对话仍显示聊天或箱子界面 | 对话文件 `__option__.theme` 是否与 Suite `theme.name` 一致 |
+| NPC 没有对话 | 实际 NPC ID、`npc id` 写法、对话开启条件及加载日志 |
+| 任务没有出现在列表 | Chemdah 是否加载该任务、模块是否启用、是否设置 `axs-view.visible: false` |
+| 说明没有显示 | 任务使用 `addon.ui.description`，目标可用 `addon.track.description`，并检查可选展示覆盖 |
+| 没有数字进度 | 目标是否提供数值进度、玩家是否已经接取；不能把未显示数字认定为零 |
+| 预览有奖励但没有到账 | 实际 Chemdah 完成与发奖行为，预览仅供展示 |
+| 可选展示设置没有生效 | 检查日志中的任务/目标 ID、字段类型和坐标，修正后重载 |
+
+Chemdah 原生语法可继续查阅[对话 Schema](https://plugins.ptms.ink/plugin/chemdah/start/conversation-schema)、[任务 Schema](https://plugins.ptms.ink/plugin/chemdah/start/quest-schema)、[脚本](https://plugins.ptms.ink/plugin/chemdah/start/module/script)和[追踪](https://plugins.ptms.ink/plugin/chemdah/start/quest/addon/track)。

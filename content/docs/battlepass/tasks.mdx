@@ -1,9 +1,7 @@
 ---
-title: 任务系统
-description: BattlePass 任务模板、条件、增量策略详解
+title: "任务系统"
+description: "定义日常、每周和赛季任务的完成条件、进度与经验奖励。"
 ---
-
-# 任务系统
 
 BattlePass 任务系统是战令经验的核心来源。任务模板按周期分为每日、每周、赛季三类，从任务池中按权重随机分配给玩家。每个任务通过事件触发驱动进度更新，支持条件过滤和增量策略。
 
@@ -20,19 +18,17 @@ BattlePass 任务系统是战令经验的核心来源。任务模板按周期分
 | `event-topic` | string | `""` | ArcartX EventBus 主题（业务语义事件） |
 | `bukkit-event` | section | 无 | 原版 Bukkit 事件降级配置 |
 | `required-count` | int | `1` | 完成所需次数（必须 `>` 0） |
-| `base-xp-reward` | int | `0` | 基础 XP 奖励（兼容旧字段 `xp-reward`） |
+| `base-xp-reward` | int | `0` | 基础 XP 奖励 |
 | `difficulty-multiplier` | float | 难度对应倍率 | 难度倍率（覆盖难度默认倍率，必须 `>` 0） |
 | `conditions` | list / section | `[]` | 触发条件列表 |
 | `increment-strategy` | section | `fixed 1` | 进度增量策略 |
 | `weight` | int | `1` | 任务分配权重（必须 `>` 0） |
-| `limits` | section | 无限制 | 触发频率限制 |
 
 ### bukkit-event 降级配置
 
 | 字段 | 类型 | 说明 |
 |---|---|---|
 | `event-classes` | list | Bukkit 事件全类名列表（支持多个事件类，任一触发即计入） |
-| `event-class` | string | 单个事件类名（兼容旧格式，优先使用 `event-classes`） |
 | `payload-fields` | section | payload 提取规则：key = payload 字段名，value = 表达式或原始 payload key |
 
 ### limits 触发限制
@@ -54,28 +50,6 @@ BattlePass 任务系统是战令经验的核心来源。任务模板按周期分
 2. **有 `bukkit-event`** → 使用 Bukkit 原版事件监听器（无论 `event-topic` 是否存在）
 3. **有 `event-topic` 但无发布者且无 `bukkit-event`** → 跳过（任务不会触发）
 4. **两者都没有** → 跳过
-
-### event-topic（ArcartX EventBus）
-
-`event-topic` 用于订阅其他 ArcartX 模块发布的业务语义事件。这些事件没有单个 Bukkit 事件能直接表达，如登录成功、钓鱼成功、Boss 击杀、拍卖成交等。
-
-常用事件主题：
-
-| 事件主题 | 发布模块 | payload 字段 |
-|---|---|---|
-| `axs.loginview.login_success` | loginview | — |
-| `axs.fishing.success` | fishing | — |
-| `axs.fishing.perfect` | fishing | — |
-| `axs.fishing.treasure` | fishing | — |
-| `axs.entitytracker.boss_kill` | entitytracker | — |
-| `axs.questgps.quest_completed` | questgps | `quest_id`, `quest_name` |
-| `axs.currency.spent` | 宿主核心 | `currency_id`, `amount` |
-| `axs.chat.chat_message_sent` | chat | — |
-| `axs.prop.prop_used` | prop | — |
-| `axs.warehouse.item_deposited` | warehouse | `amount` |
-| `axs.regions.region_change` | regions | `type` |
-| `axs.afkreward.reward_claimed` | afkreward | — |
-| `axs.market.listing_created` | market | — |
 
 ### bukkit-event（原版 Bukkit 事件）
 
@@ -137,14 +111,12 @@ BattlePass 任务系统是战令经验的核心来源。任务模板按周期分
 | `operator` | string | 是 | 比较操作符 |
 | `value` | string | 否 | 目标比较值 |
 | `values` | list | 否 | 集合比较的目标值列表（`in` / `not_in` 操作符使用） |
-| `ignore-case` | boolean | 否 | 是否忽略大小写（默认 false） |
 
 支持的操作符：
 
 | 操作符 | 别名 | 说明 |
 |---|---|---|
 | `equals` | `==` | 相等 |
-| `equals_ignore_case` | — | 忽略大小写相等 |
 | `not_equals` | `!=` | 不等 |
 | `contains` | — | 包含子串 |
 | `not_contains` | — | 不包含子串 |
@@ -195,6 +167,8 @@ BattlePass 任务系统是战令经验的核心来源。任务模板按周期分
 
 ### 条件配置示例
 
+以下是独立示例，不要把多个 `conditions` 小节重复追加到同一条任务中。
+
 ```yaml
 # 列表形式（推荐）
 conditions:
@@ -217,6 +191,11 @@ conditions:
     operator: exists
     value: ""
 
+```
+
+组合条件示例：
+
+```yaml
 # 组合条件
 conditions:
   - type: any_of
@@ -230,6 +209,11 @@ conditions:
         operator: equals
         value: SKELETON
 
+```
+
+取反条件示例：
+
+```yaml
 # 取反条件
 conditions:
   - type: event_payload
@@ -286,6 +270,11 @@ increment-strategy:
   max-per-event: 200
   scale: 1.0
 
+```
+
+累计消费任务另用以下片段：
+
+```yaml
 # 累计消费任务：每次消费按金额计入，单次最多 500
 increment-strategy:
   type: payload_value
@@ -293,8 +282,6 @@ increment-strategy:
   max-per-event: 500
   scale: 1.0
 ```
-
-## 任务分配规则
 
 ### 每日任务
 
@@ -316,8 +303,6 @@ increment-strategy:
 
 > 赛季时间窗口外（`start-date` 之前或 `end-date` 之后）不会累积任务进度。
 
-## 任务文件示例
-
 ### daily.yml 示例
 
 ```yaml
@@ -328,7 +313,8 @@ daily-login:
   difficulty: easy
   event-topic: "axs.loginview.login_success"
   bukkit-event:
-    event-class: "org.bukkit.event.player.PlayerJoinEvent"
+    event-classes:
+      - "org.bukkit.event.player.PlayerJoinEvent"
   required-count: 1
   base-xp-reward: 100
   conditions: []
@@ -444,55 +430,3 @@ weekly-region-explore:
     value: 1
   weight: 2
 ```
-
-### season.yml 示例
-
-```yaml
-# 千人斩（赛季大目标）
-season-kill-1000:
-  display-name: "千人斩"
-  description: "本赛季累计击杀1000个生物"
-  difficulty: hard
-  bukkit-event:
-    event-classes:
-      - "org.bukkit.event.entity.EntityDeathEvent"
-      - "xuanmo.arcartxsuite.api.event.TaczGunKillEvent"
-  required-count: 1000
-  base-xp-reward: 2000
-  conditions: []
-  increment-strategy:
-    type: fixed
-    value: 1
-
-# 赛季累计登录（limits 防刷）
-season-login-30:
-  display-name: "坚持不懈"
-  description: "本赛季累计登录30天"
-  difficulty: normal
-  event-topic: "axs.loginview.login_success"
-  bukkit-event:
-    event-class: "org.bukkit.event.player.PlayerJoinEvent"
-  required-count: 30
-  base-xp-reward: 3000
-  conditions: []
-  increment-strategy:
-    type: fixed
-    value: 1
-  limits:
-    max-per-day: 1
-```
-
-## 任务配置校验
-
-模块启动时对任务配置进行校验，发现问题时输出警告日志：
-
-| 校验项 | 处理方式 |
-|---|---|
-| `required-count` ≤ 0 | 回退为 1 |
-| `base-xp-reward` `<` 0 | 回退为 0 |
-| `difficulty` 值非法 | 回退为 EASY |
-| `difficulty-multiplier` ≤ 0 | 回退为难度默认倍率 |
-| `weight` ≤ 0 | 回退为 1 |
-| 既无 `event-topic` 也无 `bukkit-event` | 警告：任务永远不会触发 |
-| `task-id` 重复 | 丢弃后出现的任务 |
-| 增量策略类型未知 | 回退为 `fixed 1` |

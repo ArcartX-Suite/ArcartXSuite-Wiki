@@ -1,29 +1,33 @@
 ---
-title: 概览
-description: QQBot QQ机器人功能概览
+title: "QQ群互联"
+description: "同步群聊与游戏消息，提供账号绑定和群签到。"
 ---
 
-# QQBot QQ 群服互联
 
-## 模块简介
-
-QQBot 是 Suite 的 QQ 群服互联模块，通过 **OneBot 11 WebSocket 协议** 连接 QQ 机器人实现端（SnowLuma / NapCat / Lagrange 等），打通 QQ 群与 Minecraft 服务器之间的消息通道。模块提供双向消息同步、QQ-游戏账号绑定、群内指令查询、签到积分系统、服务器监控告警、群管理 moderation 等全方位功能，并可与其他模块通过 Capability 和 EventBus 深度联动。
-
-| 属性 | 值 |
-|---|---|
+| 项目 | 说明 |
+| --- | --- |
 | 模块 ID | `qqbot` |
-| 版本 | 1.5.0 |
-| 配置文件 | `config.yml` |
-| 消息文件 | `messages.yml` |
-| 外部依赖 | PlaceholderAPI（必需，`external-depends` 硬依赖，未安装时模块不加载） |
-| 软依赖模块 | `chat` |
-| 配置版本 | 4 |
-| 数据存储 | SQLite 或 MySQL（共享/自建存储模式） |
-| 命令入口 | 玩家 `/qqbot`；管理 `/axs qqbot` |
-| 对外能力 | `QqBindCapable`（QQ 绑定）、`QQBotBroadcastable`、`QQBotNotifiable`、`PlayerDataPurgeable`、`DatabaseMigratable` |
-| PAPI 前缀 | `%axsqqbot_*%` |
+| 主配置 | `plugins/ArcartX-Suite/data/qqbot/config.yml` |
+| 主要调整内容 | OneBot 连接、群号、消息模板与签到奖励 |
+| 重载 | `/axs reload qqbot` |
 
-## 功能特性
+## 开始前
+
+确认 ArcartX 客户端可用，且 `/axs status` 显示本模块已加载。本模块还需要安装 `PlaceholderAPI`。可选插件只在使用对应功能时安装，具体要求见功能配置页。
+
+## 第一次使用
+
+1. 准备 OneBot 11 连接信息。
+2. 填写测试群号。
+3. 重载后分别从游戏与群发送消息。
+
+## 检查是否配置成功
+
+确认双向消息各出现一次，再测试账号绑定。
+
+功能未生效时，先检查模块状态、所用定义 ID、玩家权限及客户端安装情况，随后对照[日志与报错提示](/docs/guide/config-management)逐项检查。
+
+## 可以配置的功能
 
 | 特性 | 说明 |
 |---|---|
@@ -36,77 +40,11 @@ QQBot 是 Suite 的 QQ 群服互联模块，通过 **OneBot 11 WebSocket 协议*
 | 签到积分系统 | 每日签到获得积分，连续签到加成，积分兑换奖品（通过邮件发放） |
 | 积分红包 | 群内拼手气红包，支持发红包/抢红包/过期退款 |
 | 积分转账 | 群成员之间积分转账 |
-| 群活跃度排行 | 按发言次数统计本周/本月活跃度排行 |
-| 服务器监控告警 | TPS 过低或内存过高时自动推送告警到群，带冷却防刷屏 |
-| 定时消息 | 固定间隔（interval）或每日定时（daily）推送消息到群 |
-| 击杀/死亡播报 | 游戏内击杀事件推送到 QQ 群，支持 Boss-only / PvP-only 过滤 |
-| 大额交易播报 | 订阅 Market 模块 EventBus 事件，拍卖成交价超阈值时推送 |
-| 入群欢迎 | 新成员加群自动 @ 并发送欢迎消息 |
-| 关键词自动回复 | FAQ 关键词匹配自动回复，支持精确/包含匹配 |
-| 群公告广播 | 管理员群内发布公告同步到游戏内（聊天栏 + 标题） |
-| 群管理 moderation | 群内踢出/封禁玩家，QQ 禁言同步游戏封禁 |
-| @ 提示 | 群内 @ 某 QQ 号，绑定玩家在线时游戏内收到 Title 提示 |
-| 黑名单 | 禁止指定 QQ 使用机器人所有功能，支持配置静态 + 数据库动态黑名单 |
-| SnowLuma 进程管理 | 支持 native（本地子进程）和 docker 两种模式自动管理 SnowLuma |
-| UI 面板 | 绑定中心、消息通知 HUD、管理后台三个 UI 界面 |
-| 周结算排行榜 | 每周日 23:59 自动推送积分 Top10 到所有群 |
 
-## 依赖
+## 继续配置
 
-| 依赖类型 | 名称 | 说明 |
-|---|---|---|
-| 外部依赖 | PlaceholderAPI | `external-depends` 硬依赖（未安装时模块不加载），提供 PAPI 占位符查询能力（群指令 `papi-query` 类型） |
-| 软依赖模块 | `chat` | 聊天模块，提供消息事件增强 |
-| Capability 依赖 | `MailDispatchable` | 签到积分兑换奖品时通过邮件系统发放奖励 |
-| Capability 依赖 | `EssentialsQueryable` | 查在线指令中显示 AFK / 隐身 / 无敌状态标签 |
-| Capability 依赖 | `EventBusCapability` | 订阅 Market 模块拍卖成交事件实现大额交易播报 |
-| Capability 依赖 | `QqBindCapable` | 向 loginview 等模块暴露 QQ 绑定状态查询 |
-
-## 连接行为
-
-- 支持 SnowLuma 内置进程（`auto-start: true` 自动启动）或外部 OneBot 实现端（`onebot.ws-url` 指向其 WS 地址）
-- 断线后按 `reconnect-interval-seconds` 自动重连
-- 群消息按顺序处理：黑名单拦截 → notice 事件（入群欢迎/禁言同步）→ 关键词 moderation → 群指令 → 关键词自动回复 → @ 提示 → 活跃度记录 → 消息同步
-
-## 账号绑定机制
-
-QQBot 使用 **验证码绑定** 方式关联 QQ 号与游戏账号：
-
-1. 群内发送 `#绑定 <游戏名>`，机器人回复 6 位验证码
-2. 玩家在游戏内执行 `/qqbot bind <验证码>` 完成绑定
-3. 绑定成功后自动加白名单（若启用）
-
-### 绑定规则
-
-| 规则 | 说明 |
-|---|---|
-| 验证码格式 | 6 位随机数字 |
-| 验证码有效期 | `binding.code-expire-seconds`（默认 300 秒） |
-| 每 QQ 绑定上限 | `binding.max-bindings-per-qq`（默认 1） |
-| 玩家名唯一 | 同一玩家名只能被一个 QQ 绑定 |
-| 自动白名单 | 绑定成功后自动执行 `whitelist add`；解绑后自动 `whitelist remove`（若启用） |
-
-> 其他模块可查询玩家的 QQ 绑定状态（如 loginview 二级验证联动）。
-
-## UI 面板
-
-QQBot 模块提供三个 UI 界面，通过 ArcartX UI 框架渲染：
-
-| UI | 文件 | UI ID | 说明 |
-|---|---|---|---|
-| 绑定中心 | `ui/qqbot_bind.yml` | `AXS:qqbot_bind` | 玩家查看绑定状态、申请验证码、解绑、查看群消息 |
-| 消息通知 HUD | `ui/qqbot_notify.yml` | `AXS:qqbot_notify` | 屏幕右上角弹出新群消息通知 |
-| 管理后台 | `ui/qqbot_admin.yml` | `AXS:qqbot_admin` | 管理员查看机器人状态、绑定列表、执行命令 |
-
-UI 通讯通过 PacketBridge 实现，绑定中心使用 `AXS_qqbot` 包 ID，管理后台使用 `AXS_qqbot_admin` 包 ID。
-
-## 快速上手
-
-1. 执行 `/axs qqbot snowluma install` 下载安装内置 SnowLuma 实现端（完整版自带 Node 运行时，含进度显示）
-2. 执行 `/axs qqbot snowluma start` 启动，浏览器打开 WebUI（默认 `http://127.0.0.1:5099`，账号 `admin`，临时密码见控制台或 `/axs qqbot snowluma password`）
-3. 在 WebUI 中登录 QQ 账号（Docker 模式请访问 noVNC 端口操作内嵌 QQ 客户端）
-4. 在 `groups` 列表中添加要监听的 QQ 群号，执行 `/axs reload qqbot` 重载模块
-5. 群内发送 `#帮助` 查看可用指令
-6. 群内发送 `#绑定 <游戏名>` 开始绑定流程
-
-> 使用其他 OneBot 实现端（NapCat/Lagrange 等）时，跳过前两步，启动实现端并将 `onebot.ws-url` 指向其 WS 地址即可，模块会自动重连。
+- [功能配置](/docs/qqbot/configuration)：字段含义与配置示例。
+- [命令与权限](/docs/qqbot/commands)：玩家操作、管理命令和权限。
+- [账号绑定与白名单](/docs/qqbot/binding-whitelist)：配置游戏账号与 QQ 的绑定流程，以及绑定后的白名单功能。
+- [消息同步与群通知](/docs/qqbot/message-sync)：设置群聊与游戏消息的同步方向、文字模板和群通知。
+- [签到积分与群管理](/docs/qqbot/signin-points)：配置群签到、积分、兑换、排行与常用群管理功能。

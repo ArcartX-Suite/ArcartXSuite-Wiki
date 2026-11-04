@@ -1,13 +1,19 @@
 ---
-title: "配置"
-description: "Announcer 配置文件详解与完整示例"
+title: "功能配置"
+description: "调整announcer/ 公告文字、播放间隔与 subtitle/ 字幕组；附字段解释、修改示例与重载步骤。"
 ---
+
+## 先改哪些内容
+
+announcer/ 公告文字、播放间隔与 subtitle/ 字幕组。先使用默认示例完成一次测试，再按本页逐项调整。
+
+配置位置：`plugins/ArcartX-Suite/data/announcer/config.yml`。定义文件与子目录均相对此模块目录。本文中的 YAML 片段用于修改对应小节，请保留文件中的其他设置。
+
+修改后执行 `/axs reload announcer`；涉及插件安装或全局设置的变更请重启后验证。
 
 ## 配置文件结构
 
 Announcer 模块的配置由主配置文件 `config.yml`、公告条目目录 `announcer/*.yml` 和字幕组目录 `subtitle/groups/*.yml` 三部分组成。主配置文件控制 UI 注册、轮播节奏、跨服通道与字幕子设置；公告条目目录存放可轮播的公告定义；字幕组目录存放打字机字幕帧序列。
-
-## 主配置（`config.yml`）
 
 ### UI 配置节（`ui`）
 
@@ -15,8 +21,6 @@ Announcer 模块的配置由主配置文件 `config.yml`、公告条目目录 `a
 
 | 配置项 | 类型 | 默认值 | 说明 |
 |---|---|---|---|
-| `ui.ui-id` | `string` / `list` | `AXS:announcer_hud` | 公告 HUD 的 UI ID，支持字符串（单 UI）或列表（多 UI 同时发包） |
-| `ui.subtitle-ui-id` | `string` / `list` | `AXS:subtitle_hud` | 字幕 HUD 的 UI ID，支持字符串或列表 |
 | `ui.register-ui-on-enable` | `boolean` | `true` | 启动/重载时是否自动注册 HUD（公告与字幕共用） |
 | `ui.overwrite-ui-files` | `boolean` | `false` | 是否强制覆盖 `plugins/ArcartX-Suite/ui/` 下的 HUD 文件（公告与字幕共用） |
 
@@ -47,10 +51,8 @@ Announcer 模块的配置由主配置文件 `config.yml`、公告条目目录 `a
 | 配置项 | 类型 | 默认值 | 说明 |
 |---|---|---|---|
 | `cross-server.enabled` | `boolean` | `false` | 是否启用跨服广播通道 |
-| `cross-server.redis.enabled` | `boolean` | 继承宿主全局 | 是否走 Redis 后端，不填则继承宿主 `config.yml` 的全局配置 |
-| `cross-server.proxy.enabled` | `boolean` | 继承宿主全局 | 是否走 Proxy Forward 后端，不填则继承宿主全局配置 |
-
-> 跨服通道连接参数（Redis 地址、Proxy 配置、签名密钥等）由宿主 `config.yml` 的 `cross-server` 节统一管理，模块仅控制是否启用及后端覆盖。详见 [跨服配置指南](/docs/guide/cross-server-setup)。
+| `cross-server.redis.enabled` | `boolean` | 继承Suite全局 | 是否走 Redis 后端，不填则继承Suite `config.yml` 的全局配置 |
+| `cross-server.proxy.enabled` | `boolean` | 继承Suite全局 | 是否走 Proxy Forward 后端，不填则继承Suite全局配置 |
 
 ### 字幕配置节（`subtitle.settings`）
 
@@ -70,7 +72,7 @@ Announcer 模块的配置由主配置文件 `config.yml`、公告条目目录 `a
 |---|---|---|---|
 | `enabled` | `boolean` | `true` | 是否启用该条目参与轮播 |
 | `text` | `string` | — | 公告展示文本，支持 PlaceholderAPI 变量与颜色代码 |
-| `click-command` | `string` | — | 点击公告时执行的命令，留空表示无点击事件；`<player>` 替换为点击者名 |
+| `click-command` | `string` | — | 点击公告时执行的命令，留空表示无点击事件；`{player}` 替换为点击者名 |
 
 > `enabled: false` 的条目不会下发到客户端，不参与轮播。`text` 为空的条目也会被过滤。
 
@@ -93,59 +95,6 @@ Announcer 模块的配置由主配置文件 `config.yml`、公告条目目录 `a
 
 > 顶层节点必须是数字，系统按数字从小到大顺序播放。非数字节点会被跳过。
 
-## 完整配置示例
-
-### 主配置示例
-
-```yaml
-config-version: 2
-
-# 统一 UI 配置节
-ui:
-  # 公告 HUD UI ID（单 UI）
-  ui-id: "AXS:announcer_hud"
-  # 多 UI 示例（同一 payload 同时发给多个 HUD）：
-  # ui-id:
-  #   - "AXS:announcer_hud"
-  #   - "AXS:announcer_hud_alt"
-
-  # 字幕 HUD UI ID
-  subtitle-ui-id: "AXS:subtitle_hud"
-
-  # 启动/重载时自动注册 HUD
-  register-ui-on-enable: true
-
-  # 是否强制覆盖 UI 文件
-  overwrite-ui-files: false
-
-settings:
-  debug: false
-  auto-play: true
-  check-interval-ticks: 20
-  cooldown-ms: 30000
-  between-entry-interval-ms: 30000
-  text-width-font-size: 60
-  forward-to-qq: false
-
-# 公告条目目录（相对模块数据目录）
-entries-directory: "announcer"
-
-# 跨服广播（仅手动广播跨服，自动轮播不跨服）
-cross-server:
-  enabled: false
-  # redis:
-  #   enabled: true
-  # proxy:
-  #   enabled: true
-
-# 字幕设置
-subtitle:
-  settings:
-    debug: false
-    groups-directory: "subtitle/groups"
-    show-background: true
-```
-
 ### 公告条目示例
 
 ```yaml
@@ -162,7 +111,7 @@ welcome:
 player:
   enabled: true
   text: "你好，%player_name%。"
-  click-command: "say <player> 点击了公告"
+  click-command: "say {player} 点击了公告"
 
 # 禁用条目示例
 disabled_entry:
@@ -208,16 +157,6 @@ disabled_entry:
   keep: 0.8
 ```
 
-## 配置版本迁移
-
-模块支持配置版本自动迁移，当前配置版本为 2。
-
-| 迁移 | 说明 |
-|---|---|
-| 1→2 | UI 配置抽离到统一 `ui` 节：`settings.ui-id` → `ui.ui-id`，`subtitle.settings.ui-id` → `ui.subtitle-ui-id`，合并注册/覆盖开关到 `ui.register-ui-on-enable` 与 `ui.overwrite-ui-files` |
-
-模块启动时自动检测 `config-version` 并执行迁移，无需手动干预。迁移规则定义在 `migrations/1-2.yml` 中。
-
 ## 消息文件（`messages.yml`）
 
 消息文件定义命令提示与状态文本，支持 `&` 颜色码和 `{0}` `{1}` 占位符。修改后执行 `/axs reload announcer` 生效。
@@ -230,5 +169,4 @@ disabled_entry:
 | `common.enabled` / `common.disabled` | 启用/未启用文本 |
 | `help.*` | 帮助命令各子命令说明 |
 | `status.*` | 状态命令各行输出 |
-| `broadcast.*` | 广播命令反馈消息 |
 | `subtitle.*` | 字幕命令反馈消息 |

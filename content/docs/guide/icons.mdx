@@ -1,9 +1,7 @@
 ---
-title: 图标配置
-description: Suite 统一图标系统配置指南，支持 Material、外部物品库、自定义贴图、头颅、发光等
+title: "图标配置"
+description: "设置原版物品、自定义物品或贴图图标的字段与显示效果。"
 ---
-
-# 图标配置
 
 ## 概述
 
@@ -33,19 +31,6 @@ description: Suite 统一图标系统配置指南，支持 Material、外部物�
 | `color` | 皮革染色 `#RRGGBB` | - |
 
 > 带斜杠的字段名互为别名，配置时任选其一。`name` 和 `lore` 中的 `&` 颜色码会自动转换为 `§`，PlaceholderAPI 占位符也会自动解析。
-
-## 解析优先级
-
-图标配置按以下顺序生效：
-
-1. **JSON 优先**：若配置了 `json` 字段，按 SNBT 格式直接生成物品，跳过其他来源
-2. **外部物品来源**：若配置了 `source` + `id`，生成对应物品库的物品（MythicMobs、NeigeItems、Overture、MMOItems 等）
-3. **原版 Material**：否则按 `material` 字段创建原版物品
-4. **属性叠加**：最后在生成的物品基础上叠加 `name`、`lore`、`customModelData`、`glow`、`skullTexture`、`color`、`nbt`、`texture`、`textureUrl` 等属性
-
-> 属性叠加阶段会覆盖外部物品自带的 `name`、`lore` 等属性。若希望保留外部物品原始属性，请勿在 `icon:` 中重复配置这些字段。
-
-## 配置示例
 
 ### 基础原版物品图标
 

@@ -1,0 +1,60 @@
+---
+title: "QQBotNotifiable"
+description: "接收群消息通知"
+---
+
+
+| 项目 | 内容 |
+| --- | --- |
+| 提供模块 | [qqbot](/docs/qqbot) |
+| 完整类型 | `xuanmo.arcartxsuite.api.capability.QQBotNotifiable` |
+
+## 获取接口
+
+```java
+import xuanmo.arcartxsuite.api.AxsCapabilities;
+import xuanmo.arcartxsuite.api.capability.QQBotNotifiable;
+
+QQBotNotifiable api = AxsCapabilities.get(QQBotNotifiable.class);
+if (api == null) {
+    // 当前功能不可用，向玩家说明或使用你的替代流程。
+    return;
+}
+```
+
+每次业务操作时重新获取接口；模块未加载或暂时不可用时返回 `null`。接入方式见[快速开始](/docs/api/quick-start)。
+
+## 方法声明
+
+以下为公开调用契约，保留参数类型与空值标注。Java 类型与当前配套 API JAR 保持一致。
+
+```java
+public interface QQBotNotifiable {
+
+    void registerListener(@NotNull QQGroupEventListener listener);
+
+    void unregisterListener(@NotNull QQGroupEventListener listener);
+
+    interface QQGroupEventListener {
+
+        void onGroupMessage(long groupId, long senderId, @NotNull String nickname, @NotNull String message) ;
+
+        void onMemberJoin(long groupId, long userId) ;
+
+        void onMemberLeave(long groupId, long userId) ;
+    }
+}
+```
+
+## 参数与返回值
+
+| 方法 | 用途 | 参数 | 返回值 |
+| --- | --- | --- | --- |
+| `registerListener` | 注册一个群事件监听器。 | `listener`：监听器实例 | 无返回值；按本行说明执行操作 |
+| `unregisterListener` | 注销一个群事件监听器。 | `listener`：监听器实例 | 无返回值；按本行说明执行操作 |
+
+## 调用注意事项
+
+涉及 Bukkit 玩家、世界、物品或界面的调用放在 Bukkit 主线程执行；接口有明确线程说明时以该方法约定为准。
+
+先在对应模块配置中准备所引用的 ID，再调用接口。检查布尔值、结果对象或异常，只有成功后才更新第三方插件自己的业务状态。

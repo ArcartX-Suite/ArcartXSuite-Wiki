@@ -1,0 +1,51 @@
+---
+title: "CombatEffectTriggerable"
+description: "触发配置好的战斗特效"
+---
+
+
+| 项目 | 内容 |
+| --- | --- |
+| 提供模块 | [combateffect](/docs/combateffect) |
+| 完整类型 | `xuanmo.arcartxsuite.api.capability.CombatEffectTriggerable` |
+
+## 获取接口
+
+```java
+import xuanmo.arcartxsuite.api.AxsCapabilities;
+import xuanmo.arcartxsuite.api.capability.CombatEffectTriggerable;
+
+CombatEffectTriggerable api = AxsCapabilities.get(CombatEffectTriggerable.class);
+if (api == null) {
+    // 当前功能不可用，向玩家说明或使用你的替代流程。
+    return;
+}
+```
+
+每次业务操作时重新获取接口；模块未加载或暂时不可用时返回 `null`。接入方式见[快速开始](/docs/api/quick-start)。
+
+## 方法声明
+
+以下为公开调用契约，保留参数类型与空值标注。Java 类型与当前配套 API JAR 保持一致。
+
+```java
+public interface CombatEffectTriggerable {
+
+    boolean triggerPacket(@NotNull String packetId, @NotNull Player recipient, @Nullable Map<String, String> variables);
+
+    boolean triggerDirect(@NotNull String uiId, @NotNull String packetHandler, @NotNull Player recipient, @Nullable Object payload);
+}
+```
+
+## 参数与返回值
+
+| 方法 | 用途 | 参数 | 返回值 |
+| --- | --- | --- | --- |
+| `triggerPacket` | 通过包 ID 触发已注册的战斗特效包定义。 | `packetId`：包定义 ID（如 `"kill-effect"`）；`recipient`：目标玩家；`variables`：额外变量（会合并到 pack 模板渲染中），可为 null | `true` 表示发送成功 |
+| `triggerDirect` | 直接向玩家发送 UI 包（绕过包定义，完全自定义）。 | `uiId`：ArcartX UI ID；`packetHandler`：目标 packetHandler 名称；`recipient`：目标玩家；`payload`：发包内容（字符串、列表或字典） | `true` 表示发送成功 |
+
+## 调用注意事项
+
+涉及 Bukkit 玩家、世界、物品或界面的调用放在 Bukkit 主线程执行；接口有明确线程说明时以该方法约定为准。
+
+先在对应模块配置中准备所引用的 ID，再调用接口。检查布尔值、结果对象或异常，只有成功后才更新第三方插件自己的业务状态。

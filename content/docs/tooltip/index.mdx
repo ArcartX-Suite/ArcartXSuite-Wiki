@@ -1,72 +1,45 @@
 ---
-title: 概览
-description: Tooltip 客户端动态提示数据采集与跨模块共享
+title: "物品提示"
+description: "展示兼容模组的物品说明与枪械浏览界面。"
 ---
 
-# Tooltip 物品提示
 
-## 模块简介
-
-Tooltip 是 Suite 的客户端动态提示数据桥接模块。它接收客户端 ArcartX-Suite-Tooltips 采集的 tooltip 文本行与结构化数据，按玩家与物品去重缓存后，向其他模块提供查询服务。典型应用场景包括 TACZ 枪械属性展示、Apotheosis 词缀预览、聊天物品展示中的动态 Lore 注入等。
-
-| 属性 | 值 |
-|---|---|
+| 项目 | 说明 |
+| --- | --- |
 | 模块 ID | `tooltip` |
-| 版本 | 1.6.0 |
-| 配置文件 | `ArcartXTooltip.yml`（`gun-list.mode`）+ `messages.yml` |
-| 消息文件 | `messages.yml` |
-| 数据包 ID | `AXS_TOOLTIP_DATA`（C→S）、`AXS_GUN_LIST`（C→S） |
-| 插件消息通道 | `axstooltip:gunui`（S→C，枪械 UI 模式推送） |
-| 注册 UI | `AXS:gun_list`（`ui/gun_list.yml`，ax 模式枪械浏览界面） |
-| 缓存 TTL | 60 秒 |
-| 模块依赖 | 无 |
-| 外部依赖 | 无 |
-| 命令入口 | 管理 `/axs tooltip` |
-| 对外能力 | `TooltipDataCapable`（tooltip 数据查询） |
+| 主配置 | `plugins/ArcartX-Suite/data/tooltip/config.yml` |
+| 主要调整内容 | 提示展示开关与枪械界面模式 |
+| 重载 | `/axs reload tooltip` |
 
-## 功能特性
+## 开始前
+
+确认 ArcartX 客户端可用，且 `/axs status` 显示本模块已加载。可选插件只在使用对应功能时安装，具体要求见功能配置页。
+
+## 第一次使用
+
+1. 安装对应客户端扩展。
+2. 启用需要的物品提示。
+3. 悬停兼容的测试物品。
+
+## 检查是否配置成功
+
+检查提示内容和物品名称是否正常显示。
+
+功能未生效时，先检查模块状态、所用定义 ID、玩家权限及客户端安装情况，随后对照[日志与报错提示](/docs/guide/config-management)逐项检查。
+
+## 可以配置的功能
 
 | 特性 | 说明 |
 |---|---|
 | 客户端 tooltip 采集 | 客户端 ArcartX-Suite-Tooltips 采集 tooltip 文本行和结构化数据并发送给服务端 |
 | 按物品指纹缓存 | 以玩家 + 物品注册名（如 `tacz:ak47`）为键去重缓存，避免同一物品重复处理 |
 | 结构化数据透传 | 保留客户端采集的 JSON 格式结构化数据（如 TACZ 枪属性的 damage、armorIgnore、headshotMultiplier 等字段），供业务逻辑直接解析使用 |
-| Lore 注入 | 将 tooltip 文本行注入物品 Lore，用于聊天物品预览等场景，支持 `&` 颜色码自动转换 |
-| 跨模块共享 | 其他模块可查询 tooltip 数据、结构化数据并执行 Lore 注入 |
 | 自动清理 | 缓存 60 秒自动过期，玩家退出时立即清理其全部缓存数据 |
 | 管理命令 | `/axs tooltip status`（缓存/模式/通道）+ `/axs tooltip push <玩家>`（手动重推模式） |
-| 枪械浏览 UI | TACZ 配件"支持枪械"浏览：`gun-list.mode` 决定走 AX 自定义界面（`AXS:gun_list`）还是客户端本地 Forge 界面；模式经 `axstooltip:gunui` plugin message 进服推送、reload 后补推全部在线玩家 |
 
-## 依赖
+## 继续配置
 
-| 依赖类型 | 名称 | 必需 | 说明 |
-|---|---|---|---|
-| 宿主 | ArcartXSuite 主插件 | 是 | 模块加载、网络包路由、Capability 注册 |
-| 客户端 | ArcartX-Suite-Tooltips | 是 | 客户端 Forge mod，采集 tooltip 数据并发送 `AXS_TOOLTIP_DATA` 网络包 |
-| 模块依赖 | 无 | - | Tooltip 不依赖任何其他模块即可独立运行 |
-| 外部依赖 | 无 | - | 无 PlaceholderAPI / Vault 等外部插件依赖 |
-
-<Callout type="info">
-Tooltip 模块本身无任何模块依赖与外部插件依赖。其核心数据来源是客户端 ArcartX-Suite-Tooltips，服务端仅负责接收、缓存与提供查询。若客户端未安装 mod，模块仍可正常启动，但缓存为空，所有查询返回空值。
-</Callout>
-
-## 使用流程
-
-1. 客户端 ArcartX-Suite-Tooltips 采集物品 tooltip 文本行与结构化数据并发送给服务端
-2. 服务端按玩家 + 物品注册名（如 `tacz:ak47`）去重缓存，缓存 60 秒自动过期，玩家退出时立即清理
-3. 其他模块查询并使用这些 tooltip 数据（如 Chat 物品展示时注入动态 Lore）
-
-<Callout type="info">
-tooltip 文本行中可能包含 Minecraft 颜色码，Lore 注入时自动转换。同类型物品共享一份 tooltip 数据；客户端未安装 mod 时缓存为空，相关功能自动降级。
-</Callout>
-
-### 与其他模块的关系
-
-| 消费方模块 | 联动场景 |
-|---|---|
-| Chat | 聊天物品展示 `[item]` 时，注入 tooltip 动态 Lore（TACZ 枪属性、Apotheosis 词缀等） |
-| 其他模块 | 可获取结构化 JSON 数据，解析后用于业务逻辑 |
-
-<Callout type="info">
-Tooltip 模块是纯数据提供方，不依赖其他模块。Tooltip 未加载时消费方自动降级（如聊天物品展示无动态 Lore）。
-</Callout>
+- [功能配置](/docs/tooltip/configuration)：字段含义与配置示例。
+- [命令与权限](/docs/tooltip/commands)：玩家操作、管理命令和权限。
+- [客户端 Mod](/docs/tooltip/client-mod)：安装物品提示客户端扩展，并选择枪械浏览界面的展示方式。
+- [tip 配置示例](/docs/tooltip/tip-example)：参考完整物品提示界面示例，调整说明文字与显示布局。

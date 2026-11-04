@@ -1,55 +1,57 @@
 ---
-title: Suite
-description: 面向 ArcartX 客户端的 30 模块 Minecraft 服务器插件套件
+title: "阅读顺序"
+description: "先掌握 Suite 本体使用，再学习通用配置，最后按需阅读开发者接入内容。"
 ---
 
-# Suite
+第一次接触 Suite，按下面三个阶段阅读。只配置服务器的使用者，完成前两个阶段即可按模块文档配置功能；需要编写桥接插件时，再进入开发者内容。
 
-import Link from 'next/link';
+## 第一步：了解本体如何使用
 
-Suite 是面向 ArcartX 客户端 MOD 生态的 Minecraft 服务器插件套件：一个插件覆盖 30 个功能领域，模块可按需启用，统一使用 ArcartX UI。
+先读[本体安装与配置](/docs/guide/first-run)，在同一篇中完成环境准备、安装、云端账号绑定、装备模块、启用开关与 `config.yml` 设置，不需要在多个入门页面之间跳转。
 
----
+| 文档 | 读完后能做什么 |
+| --- | --- |
+| [本体安装与配置](/docs/guide/first-run) | 完成安装与主配置，理解货币、存储、按键等全局功能，并检查模块是否正常启用 |
+| [常用命令](/docs/guide/commands) | 使用状态查询、同步、更新与重载等管理入口 |
+| [日志与报错提示](/docs/guide/config-management) | 看懂常见警告和失败提示，按原因定位问题 |
 
-## 功能概览
+这一阶段以 `/axs status` 状态正常、客户端能够实际使用所需功能为完成标准。
 
-- 统一管理 AttributePlus / CraneAttribute / MythicLib / Symphony 等属性桥接
-- MythicMobs / NeigeItems / MMOItems 等物品来源桥接
-- Vault / PlayerPoints 等经济桥接
-- 内置跨服传输（Redis + Proxy）、按键绑定服务、聊天签名绕过、账号类型识别等基础功能
+## 第二步：了解通用配置
 
----
+先读[通用功能概览](/docs/guide/shared-functions)，了解本体提供的可复用功能，再按实际需求阅读下面的配置说明。不需要一次填写所有示例。
 
-## 核心特性
+| 文档 | 主要用途 |
+| --- | --- |
+| [配置写法入门](/docs/guide/config-syntax) | 看懂缩进、类型、列表与映射，学会替换示例和核对结果 |
+| [区域选择](/docs/guide/region-selection) | 在游戏中圈定水域，区分多边形与两点选区 |
+| [邮件派发](/docs/guide/mail-delivery) | 创建邮件预设，并由在线奖励、事件等功能引用 |
+| [奖励发放排查](/docs/guide/rewards-and-commands) | 检查背包溢出、离线补发、邮件领取和命令变量 |
+| [属性与持续效果](/docs/guide/attributes-and-effects) | 区分属性插件、药水与模组属性，验证生效条件 |
+| [按键绑定](/docs/guide/keybinds) | 设置交互和地图按键，区分 Prop 槽位绑定 |
+| [物品匹配与消耗](/docs/guide/item-matching) | 识别现有物品，区分匹配、过滤、生成和费用 |
+| [通知与功能联动](/docs/guide/notifications-and-actions) | 按模块使用信号、字幕、聊天卡片、公告与 QQ 通知 |
+| [Chemdah 对话与任务接入](/docs/guide/chemdah-setup) | 配置 Chemdah 主题、NPC、任务与 Suite 映射 |
+| [内容过滤与提示文字](/docs/guide/text-moderation) | 核对已接入文本的实际行为，调整词库和语言提示 |
+| [占位符](/docs/guide/placeholders) | 在文字中显示玩家等级、邮件数、在线时间等动态数据 |
+| [条件配置](/docs/guide/conditions) | 根据玩家状态决定功能是否可用或内容是否显示 |
+| [物品来源](/docs/guide/item-sources) | 引用原版或物品插件提供的物品 |
+| [图标配置](/docs/guide/icons) | 为界面选择物品图标和展示样式 |
+| [货币系统](/docs/guide/currencies) | 连接经济插件，并在费用、奖励和商品中引用货币 |
+| [多界面配置](/docs/guide/multi-ui) | 在支持的功能中配置多个界面 |
+| [跨服功能使用](/docs/guide/cross-server-setup) | 开启模块支持的跨服业务，并在多个子服验证 |
 
-### 模块化
-全部 30 个模块支持热加载 / 热卸载，`config.yml` 一键开关，按需启用。
+随后从[模块目录](/docs#按功能找模块)选择目标功能，按“使用入门 → 功能配置 → 命令与权限”阅读。每次先跑通一个功能，再组合其他模块。
 
-### 开放 API
-提供公开 API（`axs-api`），支持开发第三方模块扩展功能，详见 [开发者指南](../developer/)。
+## 第三步：了解开发者内容
 
-### 跨模块联动
-模块间零配置联动。事件包、称号授予、邮件派发、聊天卡片、QQ 推送等能力可自由组合。
+需要让自己的插件调用 Suite 功能时，进入[第三方插件接入](/docs/api)。
 
-### ArcartX UI 原生
-所有模块统一使用 ArcartX 客户端 UI 渲染，实现游戏级沉浸式交互体验。
+| 文档 | 主要用途 |
+| --- | --- |
+| [接入概览](/docs/api) | 了解公开 API 可以调用哪些功能 |
+| [快速接入](/docs/api/quick-start) | 配置依赖、获取公开接口并完成首次调用 |
+| [调用示例](/docs/api/examples) | 参考完整示例编写桥接插件 |
+| [数据类型](/docs/api/data-types) | 查阅公开参数与返回数据的含义 |
 
-### 智能配置体检
-自动检测配置结构差异、类型错误、字段迁移，一键修复。
-
-### 跨服同步
-支持 Redis + Proxy 双后端跨服传输，Market 拍卖行、OnlineRewards 签到、Mail 邮件、Tab 列表等模块可跨服务器无缝同步。
-
----
-
-## 环境要求
-
-- **Java** 17+
-- **Minecraft** 1.20.1+（Spigot / Paper / Mohist / Arclight）
-- **ArcartX** 客户端 MOD
-
----
-
-## 快速开始
-
-<Link href="/docs/guide/installation">前往安装指南 →</Link>
+具体方法从公开接口参考中按功能查找。开发前先确认服务器上的对应模块已启用，并能通过普通使用流程正常工作。

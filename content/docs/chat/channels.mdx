@@ -1,11 +1,7 @@
 ---
-title: 频道系统
-description: Chat 频道模式、范围聊天、权限与跨服同步配置
+title: "频道系统"
+description: "创建聊天频道，设置接收范围、消息格式与收发权限。"
 ---
-
-# 频道系统
-
-> **付费模块**
 
 频道（Channel）是 Chat 模块的核心概念。每个频道是一个独立的聊天空间，拥有自己的模式、权限、格式模板和跨服策略。玩家同一时间只处于一个频道中，通过 `/chat channel <频道ID>` 切换。
 
@@ -101,7 +97,7 @@ spy-format: "&5[监听 {player_name} -> {target_name}] &r{message}"
 频道配置 `cross-server: true` 后开启跨服消息转发，私聊与频道消息均可跨服送达，消息自动去重不会重复展示。
 
 <Callout type="info">
-跨服转发需要宿主 `config.yml` 的 `cross-server` 节配置 Redis 或 Proxy 后端，单服无需开启。详见 [跨服部署](/docs/guide/cross-server-setup)。
+跨服转发需要Suite `config.yml` 的 `cross-server` 节配置 Redis 或 Proxy 后端，单服无需开启。详见 [跨服部署](/docs/guide/cross-server-setup)。
 </Callout>
 
 ## 频道切换

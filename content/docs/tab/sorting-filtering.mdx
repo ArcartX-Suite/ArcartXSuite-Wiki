@@ -1,15 +1,9 @@
 ---
-title: 排序与过滤
-description: Tab 模块多键复合排序、过滤器、置顶置底、分组与分页系统详解
+title: "排序与过滤"
+description: "配置在线列表的排序、筛选、置顶、分组与分页。"
 ---
 
-# 排序与过滤
-
-> **付费模块**
-
 Tab 模块的排序与过滤系统是决定 Tab 列表中玩家显示顺序与可见性的核心机制。模块支持多键复合排序、PAPI 表达式过滤、权限匹配、置顶 / 置底分桶、按 PAPI 分组以及客户端翻页，覆盖从简单按名排序到复杂多级排定的完整需求。
-
-## 排序系统 sort-keys
 
 ### 多键复合排序
 
@@ -72,36 +66,6 @@ sort-keys:
 
 > `prem-group` 列表中越靠前的组优先级越高。未在列表中出现的玩家组归入 `default`，`default` 在列表中的位置决定其优先级。如果 `default` 不在列表中，未列出玩家的优先级排在列表末尾之后。
 
-### PAPI 模式
-
-按 PlaceholderAPI 变量值排序，支持数字排序与文本排序两种子模式。
-
-| 子模式 | 配置 | 示例 |
-|---|---|---|
-| 数字排序 | `numeric: true` | 按等级 `%player_level%`、击杀数 `%statistic_player_kills%` |
-| 文本排序 | `numeric: false`（忽略大小写） | 按世界名 `%player_world%`、队伍名 `%player_scoreboardteam%` |
-
-```yaml
-# 按等级倒序，同等级按名升序
-sort-keys:
-  - { mode: papi, key: "%player_level%", numeric: true, order: desc }
-  - { mode: name }
-```
-
-> PAPI 数字排序时，无法解析为数字的值视为 `0.0`。文本排序时，PAPI 解析结果为空或等于原始表达式时视为空串。
-
-### 向后兼容
-
-旧字段 `sort-mode` / `sort-papi-key` / `sort-papi-numeric` / `sort-prem-group` / `sort-descending` 仍然向后兼容。模块在加载时检测 `sort-keys` 是否存在，若不存在则从旧字段构造单元素 `sort-keys` 列表。
-
-```yaml
-# 旧格式（等价于 sort-keys: [{ mode: papi, key: "%player_level%", numeric: true, descending: true }]）
-sort-mode: papi
-sort-papi-key: "%player_level%"
-sort-papi-numeric: true
-sort-descending: true
-```
-
 ### 跨服排序
 
 跨服模式下，本服与远程节点的玩家条目合并排序。排序值由发送端预计算并随快照传输，接收端直接按值排序，无需重新解析 PAPI（远程玩家不在本服在线列表中）。
@@ -130,7 +94,7 @@ sort-descending: true
 | `include` | OR（任一命中保留） | 玩家必须命中至少一条 include 规则才会保留；无 include 规则时全部保留 |
 | `exclude` | OR（任一命中剔除） | 玩家命中任意一条 exclude 规则即被剔除；无 exclude 规则时不剔除任何人 |
 
-### hide-vanished
+### 筛除隐身玩家（hide-vanished）
 
 `hide-vanished: true` 自动隐藏隐身玩家，兼容 Essentials、SuperVanish、PremiumVanish 等常见隐身插件。
 
@@ -143,14 +107,6 @@ filters:
     - { permission: "axs.tab.hide" }
     - { papi: "%player_gamemode%", equals: "SPECTATOR" }
 ```
-
-### PAPI 判定细节
-
-当 `equals` 留空时，过滤逻辑为：PAPI 渲染结果非空 **且** 不等于原始表达式（即占位符被实际解析了）。这可以过滤掉 PAPI 不可用或占位符无效的情况。
-
-当 `equals` 非空时，PAPI 渲染结果与 `equals` 值进行忽略大小写的字符串比较。
-
-> 条件系统的完整说明详见 [条件系统](/docs/guide/conditions)。Tab 过滤规则与条件系统使用不同的判定机制，过滤规则仅支持 PAPI 比较与权限检查。
 
 ## 置顶与置底 pinned
 
@@ -226,7 +182,6 @@ grouping:
 |---|---|---|---|
 | `enabled` | `boolean` | `false` | 是否启用分页 |
 | `page-size` | `int` | `80` | 每页行数 |
-| `packet-id` | `String` | `TAB_PAGE` | 翻页 Packet ID |
 | `next-action` | `String` | `next` | 翻到下一页的 action |
 | `prev-action` | `String` | `prev` | 翻到上一页的 action |
 | `set-action` | `String` | `set` | 设置指定页码的 action（需附带页码参数） |
@@ -246,8 +201,6 @@ grouping:
 
 当 viewer 当前页码超过总页数时（如玩家退服导致总页数减少），模块自动修正为最后一页并触发刷新。页码从 0 开始计数。
 
-> 翻页操作受 `client-refresh-guard` 限流保护，防止恶意高频翻页。限流配置详见 [配置](/docs/tab/configuration#客户端刷新防护)。
-
 ## max-entries 截断
 
 `max-entries` 限制 Tab 列表的最大条目数，在排序完成后、分页切片前执行截断。
@@ -260,7 +213,7 @@ grouping:
 
 > 截断发生在 pinned 分桶合并之后、分页切片之前。因此 `max-entries` 限制的是最终列表长度，而非每个分桶的长度。
 
-## omit-blank-values
+## 省略空值字段（omit-blank-values）
 
 `omit-blank-values: true` 时，pack 渲染结果为空字符串 / 空列表 / 空字典的条目会被跳过，不加入最终 payload。这对于按条件显示玩家（如仅显示有称号的玩家）很有用。
 
@@ -271,60 +224,6 @@ pack: "%axstitle_display% %player_name%"
 
 > 当玩家没有主展示称号时，`%axstitle_display%` 解析为空串，整个 pack 渲染结果为 `" Alice"`（前导空格）。`omit-blank-values` 判定的是整个渲染节点是否为空白，而非单个占位符是否为空。
 
-## 完整配置示例
-
-### 多键排序 + 过滤 + 置顶 + 分组
-
-```yaml
-enabled: true
-ui-targets:
-  - ui-id: "AXS:tab-rich"
-    packet-handler: "tab"
-max-entries: 80
-sort-keys:
-  - { mode: prem, prem-group: [admin, vip3, vip2, vip1, default] }
-  - { mode: papi, key: "%player_level%", numeric: true, order: desc }
-  - { mode: name }
-filters:
-  hide-vanished: true
-  exclude:
-    - { permission: "axs.tab.hide" }
-    - { papi: "%player_gamemode%", equals: "SPECTATOR" }
-pinned:
-  top:
-    - { permission: "axs.tab.pin-top" }
-grouping:
-  enabled: true
-  group-by-papi: "%vault_primary_group%"
-  group-order: ["admin", "vip3", "vip2", "vip1", "default"]
-  include-unordered: true
-  header-pack: "&6=== {group} ==="
-pagination:
-  enabled: true
-  page-size: 60
-pack:
-  uuid: "{player_uuid}"
-  name: "%axstab_pvp_color%%axstab_vanish_color%%player_name%"
-  ping: "%axstab_ping_icon%"
-  health: "%player_health%"
-```
-
 ### 竞技场按队伍排序
-
-```yaml
-enabled: true
-ui-targets:
-  - ui-id: "AXS:tab-arena"
-    packet-handler: "tab"
-sort-keys:
-  - { mode: papi, key: "%player_scoreboardteam%" }
-  - { mode: name }
-pack:
-  team: "%player_scoreboardteam%"
-  uuid: "{player_uuid}"
-  name: "%axstab_pvp_color%%axstab_vanish_color%%player_name%"
-  status: "%axstab_pvp%"
-  health: "%player_health%/%player_max_health%"
-```
 
 > 图标配置详见 [图标配置](/docs/guide/icons)，物品来源配置详见 [物品库匹配](/docs/guide/item-sources)。

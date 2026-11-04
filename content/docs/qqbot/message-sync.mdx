@@ -1,9 +1,7 @@
 ---
-title: 消息同步与群通知
-description: 双向消息同步、击杀死亡播报、自动回复、入群欢迎、群公告、@提示与自动审核
+title: "消息同步与群通知"
+description: "设置群聊与游戏消息的同步方向、文字模板和群通知。"
 ---
-
-# 消息同步与群通知
 
 QQBot 模块实现了 QQ 群与 Minecraft 服务器之间的双向消息同步，并提供击杀/死亡播报、关键词自动回复、入群欢迎、群公告广播、@提示和自动审核等丰富的群通知功能。
 
@@ -99,24 +97,9 @@ QQ → 游戏方向的消息会过滤 CQ 码（如 `[CQ:image,...]`），仅保�
 
 > `join-message` 或 `quit-message` 留空则不推送对应通知。
 
-## 击杀与死亡播报
-
 ### 击杀播报
 
 监听 `EntityDeathEvent`，当玩家击杀实体时推送到所有群。
-
-```yaml
-broadcast:
-  kill:
-    enabled: false
-    format: "🗡 {killer} 击杀了 {victim}"
-    boss-only: true
-    player-kill-only: false
-    boss-keywords:
-      - "Boss"
-      - "首领"
-      - "魔王"
-```
 
 #### 过滤优先级
 
@@ -134,13 +117,6 @@ broadcast:
 ### 死亡播报
 
 监听 `PlayerDeathEvent`，玩家死亡时推送到所有群。
-
-```yaml
-broadcast:
-  death:
-    enabled: false
-    format: "☠ {player} 死亡了"
-```
 
 | 占位符 | 说明 |
 |---|---|
@@ -166,7 +142,6 @@ auto-reply:
 | 字段 | 类型 | 说明 |
 |---|---|---|
 | `enabled` | boolean | 是否启用自动回复 |
-| `cooldown-seconds` | int | 同一群两次自动回复最小间隔（秒），防刷屏 |
 | `rules` | list | 回复规则列表 |
 
 ### 回复规则字段
@@ -279,23 +254,6 @@ moderation:
 
 > 自动审核在指令处理之前执行，命中关键词的消息不会进入指令路由。冷却按群维度独立计算。
 
-## 消息处理流水线总结
-
-群消息到达后，`QQBotService.handleOneBotEvent()` 按以下顺序处理：
-
-| 步骤 | 处理逻辑 | 命中后行为 |
-|---|---|---|
-| 1 | 黑名单拦截 | 命中则丢弃，不继续处理 |
-| 2 | notice 事件 | 入群欢迎 / 禁言同步，处理后返回 |
-| 3 | 自动 moderation | 命中关键词则撤回 + 禁言，不继续 |
-| 4 | 指令处理 | 匹配指令则执行，处理后返回 |
-| 5 | 自动回复 | 匹配关键词则回复（不阻断后续） |
-| 6 | @ 提示 | @ 了绑定玩家则发送游戏内提示（不阻断） |
-| 7 | 活跃度记录 | 记录群发言次数（不阻断） |
-| 8 | 消息同步 | QQ → 游戏内广播（受 sync-mode 控制） |
-
-> 步骤 5-8 为非阻断式处理，即使自动回复命中，消息同步仍会执行。
-
 ## 群消息通知 HUD
 
 当 QQ 群消息同步到游戏内时，同时通过 ArcartX UI 框架向所有在线玩家发送通知 HUD（屏幕右上角弹出新消息）。
@@ -303,8 +261,5 @@ moderation:
 | 配置 | 说明 |
 |---|---|
 | `ui.notify-enabled` | 是否启用通知 HUD（默认 `true`） |
-| `ui.notify-ui-id` | 通知 HUD 的 UI ID（默认 `AXS:qqbot_notify`） |
 
 通知 HUD 每条消息显示昵称、消息摘要（截断 60 字符）和时间，最多同时显示 4 条。群消息同时缓存最近 50 条供绑定中心 UI 查看。
-
-> 通知 HUD 通过 `QQBotUiService.broadcastNotification()` 实现，受 `ui.notify-enabled` 开关控制。禁用时消息仍会广播到游戏内聊天栏，只是不弹出 HUD。

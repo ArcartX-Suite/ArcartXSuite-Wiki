@@ -1,11 +1,7 @@
 ---
-title: 银行与定期存款
-description: 多货币活期银行、定期存款产品与阶梯利率详解
+title: "银行与定期存款"
+description: "为多种货币配置活期银行与定期存款的存取规则。"
 ---
-
-# 银行与定期存款
-
-Warehouse 模块内置多货币银行系统，支持活期存取和定期存款。银行界面（`AXS:warehouse_bank`）提供完整的活期余额查看、存取款、定期产品购买与到期领取功能。
 
 ## 功能概述
 
@@ -15,15 +11,10 @@ Warehouse 模块内置多货币银行系统，支持活期存取和定期存款�
 | 定期存款 | 可配置多种定期产品，按存入金额分档计息 |
 | 阶梯利率 | 每个产品支持多档利率，按金额区间匹配 |
 | 权限限制 | 定期产品可设置购买权限节点 |
-| 原子操作 | 银行余额增减使用数据库原子操作，防止并发超扣 |
-| 事务保证 | 定期存款领取在事务中原子执行，标记 claimed 并本息入账 |
-| 二级密码 | 提现和领取定期需二级密码解锁 |
-
-## 银行配置
 
 ### 货币配置
 
-银行展示的货币在 `bank.currencies` 节定义，这些货币 ID 必须在宿主 `config.yml` 的 `currencies` 节中已定义：
+银行展示的货币在 `bank.currencies` 节定义，这些货币 ID 必须在Suite `config.yml` 的 `currencies` 节中已定义：
 
 ```yaml
 bank:
@@ -124,65 +115,23 @@ bank:
 
 匹配利率为 6%，到期后本息 = 60000 + 60000 × 0.06 = 63600 money。
 
-## 活期银行
-
 ### 存款流程
 
 玩家通过银行界面发送 `bank_deposit` action 存入货币：
-
-1. 通过货币桥接（`CurrencyBridgeAPI`）从玩家背包扣款
-2. 调用 `repository.creditBankBalance()` 原子增加银行余额
-3. 如果数据库写入失败，自动回滚（通过 `bridge.deposit()` 退还款项）
 
 ### 取款流程
 
 玩家发送 `bank_withdraw` action 提取货币：
 
-1. 校验二级密码已解锁
 2. 校验金额有效且余额充足
-3. 调用 `repository.debitBankBalance()` 原子扣减余额
 4. 通过货币桥接放款到玩家背包
 5. 如果放款失败，自动回滚（通过 `creditBankBalance` 恢复余额）
 
-### 原子操作实现
-
-银行余额的增减使用数据库原子操作，避免并发超扣：
-
 **creditBankBalance（增加余额）**：
-
-```sql
--- SQLite
-INSERT INTO warehouse_bank_balances (player_uuid, currency_id, balance, updated_at)
-VALUES (?, ?, ?, ?)
-ON CONFLICT(player_uuid, currency_id) DO UPDATE SET
-    balance = CAST(balance AS REAL) + CAST(excluded.balance AS REAL),
-    updated_at = excluded.updated_at
-
--- MySQL
-INSERT INTO warehouse_bank_balances (player_uuid, currency_id, balance, updated_at)
-VALUES (?, ?, ?, ?)
-ON DUPLICATE KEY UPDATE
-    balance = balance + VALUES(balance),
-    updated_at = VALUES(updated_at)
-```
 
 **debitBankBalance（扣减余额）**：
 
-```sql
--- SQLite
-UPDATE warehouse_bank_balances
-SET balance = CAST(balance AS REAL) - ?, updated_at = ?
-WHERE player_uuid = ? AND currency_id = ? AND CAST(balance AS REAL) >= ?
-
--- MySQL
-UPDATE warehouse_bank_balances
-SET balance = CAST(balance AS DECIMAL(38,8)) - ?, updated_at = ?
-WHERE player_uuid = ? AND currency_id = ? AND CAST(balance AS DECIMAL(38,8)) >= ?
-```
-
 > `debitBankBalance` 仅在 `balance >= amount` 时成功（返回 `true`），否则返回 `false`，确保不会出现负余额。
-
-## 定期存款
 
 ### 购买流程
 
@@ -192,7 +141,6 @@ WHERE player_uuid = ? AND currency_id = ? AND CAST(balance AS DECIMAL(38,8)) >= 
 2. 校验金额在 `min-amount` ~ `max-amount` 范围内
 3. 匹配利率阶梯（`tierFor`）
 4. 校验银行余额充足
-5. 原子扣减活期余额（`debitBankBalance`）
 6. 创建定期存款记录（`createFixedDeposit`）
 7. 如果创建失败，自动回滚（`creditBankBalance` 恢复）
 
@@ -217,24 +165,13 @@ WHERE player_uuid = ? AND currency_id = ? AND CAST(balance AS DECIMAL(38,8)) >= 
 
 玩家发送 `fixed_claim` action 领取到期定期：
 
-1. 校验二级密码已解锁
 2. 校验定期存在且未领取且已到期（`maturesAt <= now`）
-3. 通过 `claimFixedDepositAtomic()` 原子执行领取
-
-### 原子领取实现
-
-`claimFixedDepositAtomic()` 在数据库事务中执行：
-
-**MySQL（支持 FOR UPDATE 行锁）**：
 
 1. `SELECT ... FOR UPDATE` 锁定定期记录行
 2. 检查 `claimed = false` 且 `matures_at <= now`
 3. 计算本息 = `principal + principal × interestRate`（精度 8 位，向下截断）
 4. `UPDATE ... SET claimed = true WHERE id = ? AND claimed = false`
 5. `creditBankBalance` 将本息入账
-6. 提交事务
-
-**SQLite（不支持 FOR UPDATE）**：
 
 降级为条件 UPDATE 方案：
 
@@ -242,7 +179,6 @@ WHERE player_uuid = ? AND currency_id = ? AND CAST(balance AS DECIMAL(38,8)) >= 
 2. `UPDATE ... SET claimed = true WHERE id = ? AND claimed = false AND matures_at <= ?`
 3. 如果 UPDATE 影响行数为 0，说明被并发领取，回滚
 4. `creditBankBalance` 将本息入账
-5. 提交事务
 
 ### 本息计算
 
@@ -253,32 +189,6 @@ payout = principal + principal × interestRate
 ```
 
 结果使用 `setScale(8, RoundingMode.DOWN)` 截断到 8 位小数，然后 `stripTrailingZeros()` 去除尾部零。
-
-## UI 数据包
-
-### 银行界面数据包
-
-银行界面（`buildBankPacket`）发送以下数据：
-
-| 字段 | 类型 | 说明 |
-| --- | --- | --- |
-| `balances` | `Map<string, Map>` | 各货币余额信息 |
-| `products` | `Map<string, Map>` | 可用定期产品列表 |
-| `fixedDeposits` | `Map<string, Map>` | 当前定期存款列表 |
-| `selectedCurrency` | string | 当前选中的货币 ID |
-| `action_token` | string | 操作令牌（防重放） |
-
-### 产品利率展示
-
-UI 中产品的利率文本根据利率档位数量动态生成：
-
-| 档位数 | 展示格式 | 示例 |
-| --- | --- | --- |
-| 0 档 | `—` | — |
-| 1 档 | `{rate}%` | `1%` |
-| 多档 | `{minRate}%~{maxRate}%` | `1%~2%` |
-
-同时发送 `tiers` 数组（包含每档的 min/max/rate），供 UI 端根据输入金额实时计算预期收益。
 
 ## 管理员操作
 
@@ -305,5 +215,4 @@ UI 中产品的利率文本根据利率档位数量动态生成：
 
 - [配置](/docs/warehouse/configuration) — 银行完整配置字段
 - [命令与占位符](/docs/warehouse/commands) — 管理员银行命令
-- [安全与自动化](/docs/warehouse/security) — 二级密码在银行操作中的作用
 - [货币配置](/docs/guide/currencies) — 全局货币定义与桥接

@@ -1,0 +1,260 @@
+---
+title: "Chemdah 任务配置"
+description: "查看 QuestGPS 自动读取的 Chemdah 数据，以及任务、目标、奖励和导航的可选配置。"
+---
+
+QuestGPS 自动展示 Chemdah 已加载的任务。任务定义、接取条件、目标数量和完成脚本都写在原任务文件中。需要覆盖界面文字、调整排序或配置奖励预览时，在同一文件的 `addon.axs-view` 中添加对应选项。
+
+## 从任务文件开始
+
+在 `plugins/Chemdah/core/quest/suite_demo.yml` 中写：
+
+```yaml
+suite_demo_hunt:
+  meta:
+    name: "初次讨伐"
+    type: "主线"
+  task:
+    kills:
+      meta:
+        name: "击败三个僵尸"
+      objective: player kill
+      condition:
+        victim: zombie
+      goal:
+        amount: 3
+      addon:
+        track:
+          center: "world 100 64 100"
+          name: "讨伐区域"
+          description:
+            - "前往目的地击败僵尸。"
+  addon:
+    ui:
+      icon: iron_sword
+      description:
+        - "村外有僵尸出没，请清理三只。"
+  agent:
+    accepted: |
+      tell "你已接取初次讨伐。"
+    completed: |
+      tell "初次讨伐已完成。"
+```
+
+将 `world 100 64 100` 换成实际目的地。任务 ID `suite_demo_hunt`、目标 ID `kills` 可自行命名，但在同一任务或其他引用中保持一致。已有任务时直接使用其现有定义，不必为 QuestGPS 再复制任务逻辑。
+
+想一次检查整个界面，可复制 QuestGPS 数据目录的 `examples/chemdah-quest.yml`。随新版模块导出的示例含五种物品来源、称号和文字奖励。若目录里已有早期示例，可在[奖励预览](#奖励预览)查看完整配置。
+
+## QuestGPS 读取哪些 Chemdah 数据
+
+| 数据 | 原生来源与取值顺序 |
+| --- | --- |
+| 任务名称 | `meta.name`，缺省用任务 ID |
+| 菜单分类 | `meta.type` 中首个可用分类，缺省使用全局备用分类（启用时） |
+| 任务路径 | Chemdah 提供的任务路径 |
+| 任务和目标说明 | 先读各自的 `addon.ui.description`，没有时读 `addon.track.description`。默认菜单只显示任务说明 |
+| 目标名称 | 依次取目标 `meta.name`、`addon.track.name` 或目标 ID |
+| 任务状态和目标进度 | 取玩家任务档案。支持数值进度的目标会附带当前值与目标值，例如 `2/3` |
+| 导航目的地 | 读取任务或目标的 `addon.track.center` 与追踪名称。可指定世界坐标或 Chemdah 支持的 NPC |
+
+## 默认菜单和 HUD 显示什么
+
+| 界面位置 | 可见信息 | 来源 |
+| --- | --- | --- |
+| 菜单页签与分类 | 可接取、进行中、已完成及数量，当前分类与分类列表 | 玩家任务档案和任务分类。分类默认取 `meta.type`，可通过 `addon.axs-view.category` 覆盖 |
+| 任务列表 | 任务总数、名称、状态、摘要和可导航提示 | 名称来自任务元数据或展示覆盖，其余随进度和导航可用性变化 |
+| 任务详情 | 名称、状态、任务路径、说明和当前导航摘要 | 路径由 Chemdah 提供，说明取 `addon.ui.description` 或展示覆盖，导航摘要随追踪变化 |
+| 任务目标 | 目标数、名称、进度或状态，已完成划线、正在追踪的行高亮 | 目标定义、玩家档案及追踪状态。可点击有可用目的地的目标行开始或取消追踪 |
+| 任务奖励 | 奖励条数、名称、说明、物品图标及大于 1 的数量角标 | `addon.axs-view.rewards`，见[完整奖励示例](#奖励预览) |
+| 底部操作 | 接取、放弃、追踪或传送并追踪、取消导航、打开地图 | 随任务状态、接取条件、目的地和可用地图功能显示。放弃还要求 `allow-abandon: true` |
+| 追踪 HUD | 追踪目标数、任务名称、进度摘要、当前目标和可用的导航提示 | 接取后启动追踪。目的地通常取目标 `addon.track.center`，名称可取 `addon.track.name` |
+
+原生 `addon.ui.icon` 可供 Chemdah 使用。默认 QuestGPS 任务列表使用文字行，奖励栏才有物品图标。
+
+
+## 在任务中添加 axs-view
+
+整项任务使用任务的 `addon.axs-view`，单个目标使用 `task.<目标ID>.addon.axs-view`。把配置合并到已有 `addon` 中。只填要调整的项，其他字段继续使用 Chemdah 数据。
+
+## 任务级可选字段
+
+以下路径以任务的 `addon.axs-view` 为起点。
+
+| 字段 | 类型与默认值 | 用途 |
+| --- | --- | --- |
+| `visible` | boolean，`true` | 是否在 QuestGPS 列表展示，不删除任务或玩家记录 |
+| `name` | 文本，未填时使用原生名称 | 单独覆盖界面名称，不改任务 ID |
+| `description` | 文本或文字列表，未填时使用原生说明 | 单独覆盖任务说明 |
+| `category` | 文本，未填时使用 `meta.type` | 按需改显示分类；分类自动识别 |
+| `sort-order` | 整数，`0` | 排序，越小越靠前 |
+| `allow-abandon` | boolean，`false` | 是否提供放弃按钮，实际操作仍受任务规则约束 |
+| `required-mainline` | 任务 ID 列表，`[]` | 此展示入口附加的前置主线要求 |
+| `rewards` | 配置列表，`[]` | 奖励预览，不负责实际发奖 |
+| `navigation` | 配置节，可省略 | 明确指定目的地或关闭此任务导航；详见下文 |
+| `hooks` | 配置节，可省略 | 在任务操作与状态变化时发送约定信号 |
+
+## 目标级可选字段
+
+位置为 `task.<目标ID>.addon.axs-view`。
+
+| 字段 | 用途 |
+| --- | --- |
+| `name` | 覆盖该目标的显示名称 |
+| `description` | 覆盖目标说明。默认任务菜单的目标行只显示名称和状态，自定义界面可读取说明 |
+| `sort-order` | 目标行排序 |
+| `navigation` | 覆盖此目标的目的地坐标或 NPC，字段见下方导航覆盖 |
+
+目标本身的类型、数量和完成条件仍写在 Chemdah 的 `objective`、`condition`、`goal` 中。不要在展示小节里重复定义目标，也不要把任务级的 `visible` 等字段套用到目标级。
+
+## 奖励预览
+
+把以下奖励放入同一 Chemdah 任务的 `addon.axs-view.rewards`。每个 `- type:` 是一行预览，按列表顺序显示。复制所需条目，并把外部物品和称号的示例 ID 换成服务器上的实际 ID。
+
+```yaml
+addon:
+  axs-view:
+    rewards:
+      - type: material
+        material: APPLE
+        amount: 2
+        display-name: "补给苹果"
+        text: "原版物品预览"
+        lore:
+          - "&7讨伐结束后的补给"
+      - type: mythicmobs
+        mythic-item-id: "MythicStarterSword"
+        fallback-material: IRON_SWORD
+        text: "MythicMobs 物品"
+      - type: neigeitems
+        neige-item-id: "NeigeStarterArmor"
+        fallback-material: LEATHER_CHESTPLATE
+        text: "NeigeItems 物品"
+      - type: overture
+        overture-item-id: "OvertureStarterGem"
+        fallback-material: AMETHYST_SHARD
+        text: "Overture 物品"
+      - type: mmoitems
+        type-id: "SWORD"
+        id: "LEGENDARY_SWORD"
+        fallback-material: GOLDEN_SWORD
+        text: "MMOItems 物品"
+      - type: title
+        title-id: "village_guard"
+        duration: permanent
+      - type: text
+        display-name: "完成提示"
+        text: "请返回村庄。"
+```
+
+这段会在菜单显示七条预览。实际发放在 Chemdah 的任务完成流程中配置。
+
+| 类型 | 必要识别字段 | 用途 |
+| --- | --- | --- |
+| `material` | `material` | 原版物品预览 |
+| `neigeitems` | `neige-item-id` | NeigeItems 物品 |
+| `mythicmobs` | `mythic-item-id` | MythicMobs 物品 |
+| `overture` | `overture-item-id` | Overture 物品 |
+| `mmoitems` | `type-id`、`id` | MMOItems 类型和物品 |
+| `title` | `title-id`，按需填 `duration` | 称号预览 |
+| `text` | `text`，可配 `display-name` | 不生成物品的文字说明 |
+
+| 字段 | 在奖励栏的表现 |
+| --- | --- |
+| `amount` | 默认 1，大于 1 时在图标位置显示数量角标 |
+| `display-name` | 奖励名称。留空时优先使用生成物品或称号的名称 |
+| `text` | 奖励右侧说明，原版或外部物品也可以填写 |
+| `lore` | 用于生成原版或备用物品的描述。外部物品成功生成时使用物品库自带的描述 |
+| `fallback-material` | 外部物品无法生成时使用的原版图标。未设有效备用材质时仍可显示名称和说明 |
+
+称号和文字条目显示名称与说明。外部物品图标需要对应插件与有效 ID，Overture 以当前查看者生成。默认界面各区域的显示内容见[菜单和 HUD](/docs/questgps/chemdah-mapping#默认菜单和-hud-显示什么)。
+
+### 实际发放物品
+
+可在 Chemdah 的 `agent.completed` 执行服务器已有的发奖脚本，也可使用完成信号派发 Mail 预设。采用后者时，在 `plugins/ArcartX-Suite/data/mail/presets/quest_hunt_reward.yml` 填写实际交付物品。下面使用和预览相同的物品 ID。
+
+```yaml
+preset:
+  id: quest_hunt_reward
+  enabled: true
+  subject: "初次讨伐奖励"
+  body: "请领取你的讨伐奖励。"
+  item-attachments:
+    - { source: minecraft, id: APPLE, amount: 2 }
+    - { source: mythic, id: MythicStarterSword, amount: 1 }
+    - { source: neige, id: NeigeStarterArmor, amount: 1 }
+    - { source: overture, id: OvertureStarterGem, amount: 1 }
+    - { source: mmoitems, id: "SWORD;LEGENDARY_SWORD", amount: 1 }
+```
+
+启用 Mail 和 EventPacket 后，把下面的 `hooks` 合并到该任务已有的 `addon.axs-view`。这里的 `demo_hunt_completed` 是你定义的信号名。
+
+```yaml
+addon:
+  axs-view:
+    hooks:
+      completed:
+        - demo_hunt_completed
+```
+
+再保存下方规则为 `plugins/ArcartX-Suite/data/eventpacket/rules/quest_hunt_reward_mail.yml`。玩家完成任务时，QuestGPS 发送信号。EventPacket 用 `signal` 匹配同名信号，再通过 `mail.send` 把指定预设发给完成任务的玩家。
+
+```yaml
+quest_hunt_reward_mail:
+  enabled: true
+  trigger: command-signal
+  signal: demo_hunt_completed
+  repeatable: false
+  actions:
+    - type: mail.send
+      preset-id: quest_hunt_reward
+```
+
+本例用于一次性任务。依次执行 `/axs mail preset reload`、`/axs reload eventpacket`、`/chemdah reload`，再用测试玩家完成任务并领取附件，核对物品 ID 和数量。称号须另配实际授予流程。详见[邮件预设](/docs/mail/presets)和[事件动作](/docs/eventpacket/actions)。
+
+## 导航覆盖
+
+通常填写 Chemdah 原生 `addon.track.center` 即可。需要界面专用目的地时，在 `axs-view.navigation` 中直接写：
+
+```yaml
+addon:
+  axs-view:
+    navigation:
+      world: world
+      x: 100
+      y: 64
+      z: 100
+      title: "讨伐区域"
+      style-id: default
+```
+
+明确配置的展示目的地优先；未配置时使用原生追踪。坐标不再额外嵌套一层，世界坐标需要填写完整的有限数值。NPC 动态目的地可用 `npc`；其他导航与到达设置见[导航系统](/docs/questgps/navigation)。
+
+关闭整个任务导航使用任务级 `navigation.enabled: false`。这不改变任务逻辑，也不会删除任务。目标级 `navigation` 使用相同的目的地字段。`enabled` 只在任务级填写。
+
+| 导航字段 | 用途 |
+| --- | --- |
+| `world`、`x`、`y`、`z` | 固定目的地，填写实际世界和完整坐标 |
+| `npc` | Adyeshach NPC 名称或 ID，例如 `guide_demo`。可省略世界和坐标 |
+| `title`、`map-label`、`style-id` | 导航标题、地图名称、全局样式 ID |
+| `finish-range`、`finish-commands` | 到达半径和到达命令，省略时使用全局设置 |
+| `teleport` | 跨世界时可用的传送落点，内填 `world/x/y/z` |
+
+## 生命周期信号
+
+`hooks` 用于把任务事件交给 EventPacket 处理。例如接取时播放提示，完成时发送邮件。QuestGPS 决定**何时发送**，EventPacket 的 `actions` 决定**收到后做什么**。只需要任务列表、进度和导航时，整个 `hooks` 都可以省略。只有信号、没有启用的同名规则时，联动动作不会执行。
+
+| 字段 | 发送时机 | 可用于 |
+| --- | --- | --- |
+| `triggered` | 通过 QuestGPS 向玩家推荐任务时 | 提醒玩家有新任务可查看 |
+| `accepted` | 玩家接取任务时 | 播放开场字幕 |
+| `abandoned` | 玩家放弃任务时 | 发送放弃后的提示 |
+| `completed` | 玩家完成任务时 | 发送完成提示或派发奖励邮件 |
+| `track-changed` | QuestGPS 开始或取消追踪时 | 更新追踪提示。两种变化都会触发 |
+
+每个字段可填一个或多个自定义信号名。接收规则使用 `trigger: command-signal`，并将 `signal` 填成相同名称。动作可用 `{quest_id}` 取任务 ID，派发命令时可用 `{player}` 取触发玩家名。发送、匹配和执行的完整配置见[实际发放物品](#实际发放物品)。同一份奖励只配置一个发放入口，避免 Chemdah 完成脚本与邮件各发一次。
+
+## 保存与重载
+
+保存 Chemdah 任务文件后执行 `/chemdah reload`。QuestGPS 自动重新读取任务及其展示组件，更新菜单并清理当前追踪。使用 `/questgps` 检查任务和目标，接取后再测试追踪。修改 QuestGPS 全局样式或 UI 时执行 `/axs reload questgps`。
+
+未知字段、错误开关类型或无效坐标会输出带任务或目标 ID 的提示，对应展示选项无法使用时按日志修正后重载。先验证原生任务，再逐个添加展示选项。

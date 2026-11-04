@@ -1,0 +1,91 @@
+---
+title: "AxsMarketService"
+description: "打开市场、查询与创建挂单"
+---
+
+
+| 项目 | 内容 |
+| --- | --- |
+| 提供模块 | [market](/docs/market) |
+| 完整类型 | `xuanmo.arcartxsuite.api.capability.AxsMarketService` |
+
+## 获取接口
+
+```java
+import xuanmo.arcartxsuite.api.AxsCapabilities;
+import xuanmo.arcartxsuite.api.capability.AxsMarketService;
+
+AxsMarketService api = AxsCapabilities.get(AxsMarketService.class);
+if (api == null) {
+    // 当前功能不可用，向玩家说明或使用你的替代流程。
+    return;
+}
+```
+
+每次业务操作时重新获取接口；模块未加载或暂时不可用时返回 `null`。接入方式见[快速开始](/docs/api/quick-start)。
+
+## 方法声明
+
+以下为公开调用契约，保留参数类型与空值标注。Java 类型与当前配套 API JAR 保持一致。
+
+```java
+public interface AxsMarketService {
+
+    enum MarketView {
+
+        AUCTION,
+
+        AUCTION_SELL,
+
+        SHOP_LIST,
+
+        SHOP,
+
+        RECYCLE,
+
+        HISTORY,
+
+        SELL,
+
+        PLAYER_SHOP,
+
+        MY_LISTINGS
+    }
+
+    void openUi(@NotNull Player player, @NotNull MarketView view);
+
+    @NotNull CompletableFuture<Boolean> createAuctionListing(@NotNull Player player, @NotNull ItemStack item,
+                              double startingBid, @Nullable String currency, long durationSeconds);
+
+    @NotNull CompletableFuture<Boolean> cancelListing(@NotNull Player player, long listingId);
+
+    @NotNull CompletableFuture<Boolean> searchAuction(@NotNull Player player, @Nullable String keyword);
+
+    int auctionCount();
+
+    int shopCount();
+
+    int myListingCount(@NotNull Player player);
+
+    boolean playerShopEnabled();
+}
+```
+
+## 参数与返回值
+
+| 方法 | 用途 | 参数 | 返回值 |
+| --- | --- | --- | --- |
+| `openUi` | 为玩家打开指定市场 UI 视图。 | `player`：目标玩家（`Player`）；`view`：调用参数（`MarketView`） | 无返回值；按本行说明执行操作 |
+| `createAuctionListing` | 替玩家创建一条拍卖挂单（从玩家手中取走物品）。 在调用线程同步执行（涉及背包与落库，须在 Bukkit 主线程调用）， 返回的 Future 已完成：`true` 上架成功，`false` 校验失败 （价格/货币/黑名单/数量上限等，失败原因已通过消息发送给玩家）。 防复制约束：`item` 必须与玩家主手物品匹配（type 相同且数量不超过 主手持量），上架从主手扣除——不支持给玩家上架其未持有的物品。 | `player`：卖家；`item`：上架物品；`startingBid`：起拍价；`currency`：货币 id，null 使用默认货币；`durationSeconds`：持续秒数 | `CompletableFuture<Boolean>`：在回调中读取结果，并处理异常 |
+| `cancelListing` | 取消玩家的一条拍卖挂单。 在调用线程同步执行（须主线程），返回的 Future 已完成： `true` 取消成功，`false` 挂单不存在/不属于该玩家/已成交等。 | `player`：目标玩家（`Player`）；`listingId`：对应条目的 ID（`long`） | `CompletableFuture<Boolean>`：在回调中读取结果，并处理异常 |
+| `searchAuction` | 打开拍卖 UI 并按关键字搜索。 在调用线程同步执行（须主线程），返回的 Future 已完成： `false` 表示市场服务不可用。 | `player`：目标玩家（`Player`）；`keyword`：调用参数（`String`），允许为 null | `CompletableFuture<Boolean>`：在回调中读取结果，并处理异常 |
+| `auctionCount` | 当前活跃拍卖挂单总数。 | 无参数 | `int` 数值，具体统计含义见本行用途 |
+| `shopCount` | 系统商店条目数。 | 无参数 | `int` 数值，具体统计含义见本行用途 |
+| `myListingCount` | 玩家当前自己的拍卖挂单数。 | `player`：目标玩家（`Player`） | `int` 数值，具体统计含义见本行用途 |
+| `playerShopEnabled` | 玩家商店功能是否启用。 | 无参数 | `boolean`：用于判断上面所述的查询或操作结果（true / false） |
+
+## 调用注意事项
+
+返回 `CompletableFuture` 的方法使用回调处理结果，不要在 Bukkit 主线程调用 `join()` 或 `get()`。回调中如需操作 Bukkit 玩家、世界或物品，将相应操作切回主线程。
+
+先在对应模块配置中准备所引用的 ID，再调用接口。检查布尔值、结果对象或异常，只有成功后才更新第三方插件自己的业务状态。

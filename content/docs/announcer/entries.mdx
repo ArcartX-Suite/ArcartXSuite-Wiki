@@ -1,9 +1,7 @@
 ---
 title: "公告条目与轮播"
-description: "Announcer 公告条目配置、轮播调度、手动广播与点击命令"
+description: "编写公告文字、点击命令，并调整自动轮播与手动广播。"
 ---
-
-> **付费模块** — 公告轮播是 Announcer 模块的核心功能，按配置顺序循环播放公告条目到 ArcartX 客户端 HUD，支持自动轮播、手动广播与点击执行命令。
 
 ## 条目配置
 
@@ -18,7 +16,7 @@ description: "Announcer 公告条目配置、轮播调度、手动广播与点�
 |---|---|---|---|
 | `enabled` | `boolean` | `true` | 是否启用该条目参与轮播 |
 | `text` | `string` | — | 公告展示文本，支持 PlaceholderAPI 变量与颜色代码 |
-| `click-command` | `string` | — | 点击公告时执行的命令，留空表示无点击事件；`<player>` 替换为点击者名 |
+| `click-command` | `string` | — | 点击公告时执行的命令，留空表示无点击事件；`{player}` 替换为点击者名 |
 
 ```yaml
 # data/announcer/default.yml
@@ -30,7 +28,7 @@ welcome:
 player:
   enabled: true
   text: "你好，%player_name%。"
-  click-command: "say <player> 点击了公告"
+  click-command: "say {player} 点击了公告"
 ```
 
 ```yaml
@@ -76,10 +74,10 @@ maintenance:
 welcome:
   enabled: true
   text: "欢迎来到服务器！点击此处领取新手礼包。"
-  click-command: "kit give <player> starter"
+  click-command: "kit give {player} starter"
 ```
 
-> `<player>` 占位符替换为点击者玩家名（经安全校验）。命令以控制台身份执行，拥有最高权限，请谨慎配置。
+> `{player}` 占位符替换为点击者玩家名（经安全校验）。命令以控制台身份执行，拥有最高权限，请谨慎配置。
 
 ## 文本滚动
 
@@ -92,7 +90,5 @@ welcome:
 `/axs announcer status` 可查看：活跃公告数、已初始化玩家数、待播队列长度、跨服通道状态。
 
 ## UI 自定义
-
-公告 HUD 支持自定义，修改 `ui/announcer_hud.yml` 即可调整布局与样式。自定义时保持 `packetHandler.display` 的变量赋值逻辑与点击区域绑定不变。
 
 > UI 自定义请参考 [图标指南](/docs/guide/icons)。若需在公告 HUD 中展示物品图标，可参考 [物品来源](/docs/guide/item-sources) 获取物品 JSON。公告显示条件可参考 [条件指南](/docs/guide/conditions)。

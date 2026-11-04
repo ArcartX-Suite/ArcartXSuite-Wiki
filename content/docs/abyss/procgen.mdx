@@ -1,9 +1,7 @@
 ---
-title: ProcGen 随机地牢
-description: 房间构件集随机拼装地牢——双格式构件、自动切门、波次封门、词缀、挑战、评级
+title: "ProcGen 随机地牢"
+description: "制作房间构件，并配置随机地牢的房间选择与连接规则。"
 ---
-
-# ProcGen 随机地牢
 
 `procgen.yml` 存在即启用随机拼装模式：每局从**房间构件集**中随机抽取手建房间，随机旋转后按「主链 + 支线」拼成不重样的地图，相邻墙自动切门并以走廊桥接。玩法侧战斗房封门多波次、词缀随机强化、限时挑战、潜行宝箱连战加赏、Boss 清完按探索/生存/速度评级。
 
@@ -117,14 +115,6 @@ seed-mode: random       # random 每局随机 / daily 全服当日同图 / fixed
 # seed-value: 12345     # seed-mode=fixed 时生效
 ```
 
-## 运行时规则
-
-- **进房**：首次有人进房触发 `on-enter` + 词缀 roll；战斗房封门 → 预兆 → 首波
-- **波次**：怪组清完 → `wave-delay` 后下一波（`mobs-wave-N`），全波清完 → `on-clear` + 开门
-- **非战斗房**：进房即记已清（计入评级探索分）；`manual-clear` 房等 `procgen_clear_room` 动作
-- **宝箱**：右键开 UI（每人独立一份）；清房后**潜行右键**触发连战加赏（重打一波+额外奖）
-- **Boss 清完**：评级写 `procgen_grade`/`procgen_score` 变量 → 分级脚本 → 副本通关
-
 ## 房间级脚本动作
 
 | 动作 | 说明 |
@@ -163,16 +153,3 @@ seed-mode: random       # random 每局随机 / daily 全服当日同图 / fixed
 ```
 
 > 墙不用预留门洞：生成时在相邻墙中点自动挖 `door-width×door-height` 门。构件边壳建议单层墙体。
-
-## 跨服副本（V1）
-
-副本 `config.yml` 加 `cross-server: <宿主节点id>` 即声明该副本由远程节点宿主：
-
-```yaml
-# 大厅服玩家 enter 此副本时 → 握手 → BungeeCord Connect 前送宿主服 → 自动开实例
-cross-server: "dungeon-01"    # 节点 id = 宿主 cross-server.node-id（约定=代理服名）
-```
-
-- 宿主节点上同一模板也需声明 `cross-server` 指向自己，两端配置需一致
-- 跨服组队：源节点请求携带全队 UUID，宿主等全部成员抵达（30s 超时按已到人数）统一开本
-- 依赖宿主 `CrossServerAPI` 通道（Redis/Proxy 双后端），未启用跨服的宿主上该副本按本地副本正常处理

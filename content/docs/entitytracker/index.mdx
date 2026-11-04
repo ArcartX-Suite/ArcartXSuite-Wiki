@@ -1,33 +1,33 @@
 ---
-title: 概览
-description: EntityTracker 实体追踪功能概览
+title: "Boss 与目标面板"
+description: "显示目标信息、Boss 伤害排名与结算奖励。"
 ---
 
-# EntityTracker 实体追踪
 
-## 模块简介
-
-EntityTracker 是 Suite 的 Boss 追踪与伤害排行模块。它跟踪指定的 MythicMob 实体，通过 ArcartX 客户端 MOD 向玩家实时同步 Boss 血量、距离、目标、存活时间、伤害排行和死亡结算结果。同时提供玩家最近攻击目标的 HUD 显示，以及 Boss 掉落记录、掉落分配、跨服 Boss 排行与排行榜定时奖励等进阶功能。
-
-模块包含两个独立功能：
-
-- **Boss 追踪**：依赖 MythicMobs / MythicBukkit，追踪 Boss 的生成、死亡、消失，向范围内的玩家推送 HUD 数据，处理伤害排名与死亡结算。
-- **攻击目标 HUD**：不依赖 MythicMobs，玩家攻击任意生物时在超时时间内显示目标实体的血量、类型、距离等信息。
-
-两个功能各自拥有独立的 UI ID、刷新间隔和显示格式。
-
-| 属性 | 值 |
-|---|---|
+| 项目 | 说明 |
+| --- | --- |
 | 模块 ID | `entitytracker` |
-| 版本 | 1.4.4 |
-| 配置文件 | `config.yml`、`messages.yml`、`bosses/`（Boss 定义目录） |
-| 命令入口 | 管理 `/axs entitytracker`（含 `rewards` 子命令组） |
-| 外部依赖 | PlaceholderAPI（必需）；MythicMobs（Boss 追踪必需） |
-| 模块依赖 | 无 |
-| 对外能力 | `BossTrackerQueryable`（Boss 会话查询）、`PlayerDataPurgeable`、`DatabaseMigratable` |
-| PAPI 前缀 | `%axsentitytracker_*%` |
+| 主配置 | `plugins/ArcartX-Suite/data/entitytracker/config.yml` |
+| 主要调整内容 | bosses/ 目标定义、显示模板和排名奖励 |
+| 重载 | `/axs reload entitytracker` |
 
-## 功能特性
+## 开始前
+
+确认 ArcartX 客户端可用，且 `/axs status` 显示本模块已加载。本模块还需要安装 `PlaceholderAPI`。可选插件只在使用对应功能时安装，具体要求见功能配置页。
+
+## 第一次使用
+
+1. 准备一个 MythicMobs 测试 Boss。
+2. 为其配置追踪条目。
+3. 攻击该目标。
+
+## 检查是否配置成功
+
+检查目标面板、伤害排名及击杀结算。
+
+功能未生效时，先检查模块状态、所用定义 ID、玩家权限及客户端安装情况，随后对照[日志与报错提示](/docs/guide/config-management)逐项检查。
+
+## 可以配置的功能
 
 | 特性 | 说明 |
 |---|---|
@@ -40,64 +40,12 @@ EntityTracker 是 Suite 的 Boss 追踪与伤害排行模块。它跟踪指定�
 | 多种排序模式 | 生成顺序、距离优先、血量百分比、配置优先级、混合排序 |
 | 聊天卡片 | Boss 生成/死亡/消失时发送 ArcartX 聊天卡片（需配置卡片模板 ID） |
 | 掉落记录系统 | 记录 Boss 掉落物品，支持统计与自动清理 |
-| 掉落分配系统 | 支持 DKP / ROLL / 优先级 / 手动四种分配模式 |
-| 跨服 Boss 排行 | 各服最高伤害同步至共享存储并经 CrossServer SDK 广播合并 |
-| 伤害阈值过滤 | 可配置最低伤害门槛（固定值或百分比），低于门槛不参与排名 |
-| 奖励动作 | 物品 / 命令 / 消息 / 邮件 / 信号五种奖励类型，支持变量替换与 PlaceholderAPI 二次解析 |
-| 物品奖励兜底 | 背包满时自动转邮件，无邮件则掉落（由 ItemRewardDispatcher 统一处理） |
-| 属性插件桥接 | 支持 AttributePlus / Crane / MythicLib / Symphony 等属性插件的伤害事件 |
-| Mohist 混合端兼容 | 自动补扫遗漏的 MythicMobs Boss，启动时高频补扫、稳定后降频 |
-| PlaceholderAPI | 提供 `%axsentitytracker_*%` 系列占位符 |
-| 数据库迁移 | 注册 DatabaseMigratable 能力，支持存储切换时数据迁移 |
-| 玩家数据清理 | 注册 PlayerDataPurgeable 能力，支持按 UUID 或全量清理玩家数据 |
 
-## 依赖
+## 继续配置
 
-| 依赖类型 | 名称 | 说明 |
-|---|---|---|
-| 外部硬依赖 | PlaceholderAPI | 占位符扩展（`external-depends` 硬依赖，未安装时模块不加载） |
-| 外部软依赖 | MythicMobs / MythicBukkit | Boss 追踪子系统必需；未安装时 Boss 追踪跳过，攻击目标 HUD 仍可使用 |
-| ArcartX 模块（可选） | Mail | 邮件类型奖励发放与物品奖励背包满转邮件（不可用时降级为掉落） |
-| ArcartX 宿主 | ArcartX 客户端 MOD | UI 面板与数据包通讯的必需前提 |
-
-> Boss 追踪子系统依赖 MythicMobs / MythicBukkit。若服务器未安装 MythicMobs，模块启动时会输出警告并跳过 Boss 追踪，仅运行攻击目标 HUD 子系统。两个子系统可独立运行。
-
-## 功能行为
-
-- **Boss 追踪**：Boss 生成时纳入追踪（需在 `bosses/` 目录中配置且 `enabled: true`），范围内玩家实时看到血量、距离、伤害排行；Boss 死亡时按排名结算发放奖励；玩家最多同时显示 `max-visible-bars` 个 Boss
-- **攻击目标 HUD**：玩家攻击生物时显示目标信息，超时未再次攻击自动关闭；可通过黑名单与 Boss 联动过滤
-- **Boss 联动过滤**：`attack-target.entitytracker-link.ignore-configured-bosses: true` 时（默认），已追踪的 Boss 不再显示攻击目标 HUD，避免重复
-
-### 排序模式
-
-| 模式 | 配置值 | 说明 |
-|---|---|---|
-| 生成顺序 | `spawn-order` | 按 Boss 生成先后排序（默认） |
-| 距离优先 | `distance` | 按玩家与 Boss 的距离升序排序 |
-| 血量百分比 | `health-percent` | 按 Boss 血量百分比升序排序（残血优先） |
-| 配置优先级 | `priority` | 按 Boss 定义的 `priority` 字段降序排序 |
-| 混合 | `hybrid` | 综合排序，同时启用 Mohist 补扫机制 |
-
-### 伤害门槛
-
-Boss 伤害排名支持三种门槛模式，通过 Boss 配置文件的 `damage-ranking.min-damage` 字段设置：
-
-| 模式 | 配置示例 | 说明 |
-|---|---|---|
-| 任意伤害 | 留空或无法解析 | 任何伤害均可参与排名 |
-| 绝对值 | `1000` | 伤害 ≥ 1000 才参与排名 |
-| 百分比 | `1%` | 伤害 ≥ Boss 最大血量的 1% 才参与排名 |
-
-### UI 资源
-
-模块导出 5 个 UI 文件至 `plugins/ArcartX-Suite/ui/` 目录：
-
-| UI 文件 | 用途 |
-|---|---|
-| `boss_tracker.yml` | Boss 追踪 HUD 面板 |
-| `attack_target_hud.yml` | 攻击目标 HUD 面板 |
-| `ranking_rewards.yml` | 排行榜奖励管理界面 |
-| `reward_editor.yml` | 奖励配置编辑器 |
-| `reward_history.yml` | 奖励发放历史界面 |
-
-> UI 文件支持多 UI ID 同时发包，在配置中将 `boss-ui-id` 或 `target-ui-id` 设为列表即可。详见 [配置](/docs/entitytracker/configuration) 页面。
+- [功能配置](/docs/entitytracker/configuration)：字段含义与配置示例。
+- [命令与权限](/docs/entitytracker/commands)：玩家操作、管理命令和权限。
+- [Boss 追踪机制](/docs/entitytracker/boss-tracking)：为指定 Boss 设置追踪面板、信息展示与排序方式。
+- [伤害排名与结算奖励](/docs/entitytracker/damage-ranking)：配置伤害排名、结算门槛、名次奖励与奖励补发。
+- [掉落分配与跨服排行](/docs/entitytracker/drop-allocation)：设置 Boss 掉落分配规则，查看跨服排行的使用要求。
+- [攻击目标 HUD](/docs/entitytracker/target-hud)：调整攻击目标面板的显示条件、信息模板与消失时间。

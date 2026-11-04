@@ -1,27 +1,33 @@
 ---
-title: 概览
-description: Chat 全频道聊天系统功能概览
+title: "聊天频道"
+description: "设置聊天频道、消息格式、私聊与物品展示。"
 ---
 
-# Chat 全频道聊天
 
-## 模块简介
-
-Chat 是 Suite 的全频道聊天系统，提供 **频道聊天**、**私聊回复**、**禁言管理**、**社交监听**、**提及通知**、**物品展示** 六合一聊天体验。模块通过 ArcartX 聊天卡片渲染提及、私聊、系统提示与物品预览，支持多频道定义、权限控制、跨服转发、敏感词过滤等高级功能。
-
-| 属性 | 值 |
-|---|---|
+| 项目 | 说明 |
+| --- | --- |
 | 模块 ID | `chat` |
-| 版本 | 1.4.4 |
-| 配置文件 | `config.yml` |
-| 消息文件 | `messages.yml` |
-| 配置版本号 | 2 |
-| 外部依赖 | PlaceholderAPI（必需，缺失时模块跳过加载） |
-| 模块依赖 | 无（本体内置 API 即可运行） |
-| 命令入口 | 玩家 `/chat`、`/msg`、`/reply`；管理 `/axs chat` |
-| 对外能力 | `ChatCardSendable`（发送聊天卡片）、`ChatMutable`（聊天修改管道）、`PlayerDataPurgeable`、`DatabaseMigratable` |
+| 主配置 | `plugins/ArcartX-Suite/data/chat/config.yml` |
+| 主要调整内容 | channels/ 频道、消息模板与频道权限 |
+| 重载 | `/axs reload chat` |
 
-## 功能特性
+## 开始前
+
+确认 ArcartX 客户端可用，且 `/axs status` 显示本模块已加载。本模块还需要安装 `PlaceholderAPI`。可选插件只在使用对应功能时安装，具体要求见功能配置页。
+
+## 第一次使用
+
+1. 编辑默认频道格式。
+2. 执行 `/chat channel <频道ID>`。
+3. 发送测试消息。
+
+## 检查是否配置成功
+
+确认频道接收范围、名称和物品展示符合预期。
+
+功能未生效时，先检查模块状态、所用定义 ID、玩家权限及客户端安装情况，随后对照[日志与报错提示](/docs/guide/config-management)逐项检查。
+
+## 可以配置的功能
 
 | 特性 | 说明 |
 |---|---|
@@ -33,104 +39,12 @@ Chat 是 Suite 的全频道聊天系统，提供 **频道聊天**、**私聊回�
 | 忽略列表 | 玩家可忽略指定玩家的消息，忽略关系双向生效（对方发消息你收不到） |
 | 提及功能 | `@玩家名` 提及识别，通过聊天卡片高亮提示被提及者；支持 `@all` 全员提及 |
 | @补全 HUD | 聊天栏输入 `@` 后自动弹出在线玩家候选列表，点击补全玩家名 |
-| 物品展示 | `[item]` 占位标记展示手持物品，支持 Tooltip 动态 Lore 注入 |
 | 聊天红包 | 玩家发放普通/拼手气货币红包（`/chat redpacket`），`/chat grab` 或点击卡片领取；管理员可发免扣款红包与 `chat/redpackets/` 预设奖励池红包 |
-| 自定义组件 | 通过正则匹配替换消息文本，实现表情符号、关键词高亮等扩展 |
-| 跨服转发 | 频道可配置 `cross-server: true`，通过 Redis / Proxy 通道跨服同步消息 |
-| 聊天卡片 | 提及、私聊、系统提示、物品预览均通过 ArcartX 聊天卡片渲染 |
-| 敏感词过滤 | 已迁移至宿主 `config.yml` 的 `moderation` 节，模块内配置仅向后兼容 |
-| 发言冷却 | 可配置连续发言冷却时间与重复消息判定窗口 |
-| Paper 兼容 | 自动检测 Paper `AsyncChatEvent` 并优先使用，兼容 Spigot / Mohist / Arclight |
-| 强制接管 | `force-takeover` 模式可强制接管其他聊天插件的消息广播 |
-| 数据迁移 | 支持 `/axs migrate` 数据迁移与 `/axs purge` 玩家数据清理 |
 
-## 依赖
+## 继续配置
 
-| 依赖类型 | 名称 | 必需 | 说明 |
-|---|---|---|---|
-| 模块依赖 | 无 | - | Chat 不依赖其他模块即可运行 |
-| 外部依赖 | PlaceholderAPI | 是 | 注册 `%axschat_xxx%` 占位符，频道格式与卡片文本可解析 PAPI；`external-depends` 硬依赖，未安装时模块不加载 |
-| 模块联动 | tab、tooltip、essentials | 否 | 缺失时对应联动功能自动降级 |
-| 宿主配置 | 跨服 / 存储 | 否 | 跨服转发与共享存储使用宿主 `config.yml` 统一配置 |
-
-## 频道机制
-
-Chat 模块的核心是 **频道（Channel）** 系统。每个频道是一个独立的聊天空间，由 `chat/channels/` 目录下的 yml 文件定义。
-
-### 频道模式
-
-| 模式 | 值 | 说明 | 典型场景 |
-|---|---|---|---|
-| 普通 | `normal` | 本地或全图广播，支持 `range` 距离限制 | 默认聊天频道 |
-| 全局 | `global` | 全服频道，默认开启跨服同步 | 公共聊天 / 跨服广播 |
-| 私聊 | `private` | 私聊频道，`/msg` 与 `/reply` 复用此频道格式 | 一对一私聊 |
-| 管理 | `staff` | 管理员频道，仅限有权限的玩家发送与接收 | 值班 / 内部沟通 |
-
-### 频道配置字段
-
-| 字段 | 类型 | 默认值 | 说明 |
-|---|---|---|---|
-| `enabled` | boolean | `true` | 是否启用此频道 |
-| `display-name` | string | 文件名 | UI / 消息中显示的频道名 |
-| `mode` | string | `normal` | 频道模式：`normal` / `global` / `private` / `staff` |
-| `send-permission` | string | `""` | 发送所需权限，空串表示无限制 |
-| `receive-permission` | string | 继承 `send-permission` | 接收所需权限 |
-| `cross-server` | boolean | `mode` 为 global/staff 时默认 `true` | 是否跨服传输 |
-| `range` | double | `0` | 本地聊天半径（0 表示全图），仅 normal 模式生效 |
-| `format` | string | `&7[{channel}] &f{player_name}&7: &r{message}` | 常规消息格式模板 |
-| `console-format` | string | `[{channel}] {player_name}: {message}` | 控制台消息格式模板 |
-| `sender-format` | string | `&d[私聊 -> {target_name}] ...` | 私聊发送者视角格式模板 |
-| `recipient-format` | string | `&d[私聊 <- {player_name}] ...` | 私聊接收者视角格式模板 |
-| `spy-format` | string | `&5[监听 {player_name} -> {target_name}] ...` | 监听视角格式模板 |
-
-### 格式模板变量
-
-格式模板中可使用以下变量占位符，渲染时自动替换：
-
-| 变量 | 说明 |
-|---|---|
-| `{channel}` | 频道显示名称 |
-| `{player_name}` | 发送者名称 |
-| `{player_display_name}` | 发送者显示名称 |
-| `{target_name}` | 私聊目标名称 |
-| `{message}` | 消息内容 |
-
-<Callout type="info">
-格式模板还支持 PlaceholderAPI 占位符，渲染时会按聊天上下文解析 PAPI。详见 [/docs/guide/conditions](/docs/guide/conditions)。
-</Callout>
-
-### 频道加载机制
-
-1. 模块启动时读取 `config.yml` 的 `channels-directory` 字段（默认 `chat/channels`）
-2. 扫描该目录下所有 `.yml` 文件，按文件名排序后逐个加载
-3. 文件名（去掉 `.yml` 后缀）即为频道 ID，自动转为小写
-4. `enabled: false` 的频道会被跳过
-5. 若默认频道 ID 不存在，自动回退到首个有效频道
-6. 首次启动时自动释放 `Normal.yml`、`Global.yml`、`Private.yml`、`Staff.yml` 四个默认频道
-
-### 消息处理
-
-玩家发送消息后，按所在频道依次执行：权限校验 → 禁言校验 → 冷却/重复消息判定 → 自定义组件替换 → 敏感词过滤 → @提及与 [item] 物品展示解析 → 格式模板渲染（含 PAPI）→ 按权限/忽略列表/距离分发给接收者 → 若频道开启 `cross-server` 则同步到其他子服。
-
-跨服消息自动去重，同一消息不会被多个节点重复展示。
-
-## 聊天卡片
-
-Chat 模块通过 ArcartX 聊天卡片渲染特殊消息类型。卡片定义文件位于 `chat_card/` 目录，首次启动自动释放。
-
-| 卡片 ID | 用途 | 触发场景 |
-|---|---|---|
-| `axs_chat_mention` | @提及通知卡片 | 玩家在聊天中被 `@提及` 时 |
-| `axs_chat_private` | 私聊通知卡片 | 收到或发送私聊消息时 |
-| `axs_chat_system` | 系统提示卡片 | 禁言提示、敏感词拦截等系统通知 |
-| `axs_item_preview` | 物品预览卡片 | 玩家在聊天中使用 `[item]` 时 |
-
-卡片配置中可使用 `self.parent.data['字段名']` 读取服务端推送的数据。卡片宽度与高度由 UI 侧根据 Text 控件实际渲染尺寸自适应。详见 [/docs/guide/icons](/docs/guide/icons)。
-
-## @补全 HUD
-
-当 `function.mention.enabled: true` 时，模块会注册一个 HUD 形式的 @补全界面（`axs_chat_completion`），挂载在原版聊天栏上：
-
-- 玩家在聊天栏输入 `@` 后，根据已输入的部分玩家名前缀匹配在线玩家
-- 最多显示 8 个候选条目，点击后自动补全玩家名
-- 兼容 Paper / Purpur 与 Spigot / Mohist / Arclight，自动适配
+- [功能配置](/docs/chat/configuration)：字段含义与配置示例。
+- [命令与权限](/docs/chat/commands)：玩家操作、管理命令和权限。
+- [频道系统](/docs/chat/channels)：创建聊天频道，设置接收范围、消息格式与收发权限。
+- [聊天格式化](/docs/chat/formatting)：定制聊天消息中的名称、颜色、物品展示和自定义文字组件。
+- [管理与审核](/docs/chat/moderation)：使用禁言、忽略列表和社交监听等工具管理聊天。

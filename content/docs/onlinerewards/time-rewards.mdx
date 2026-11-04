@@ -1,9 +1,7 @@
 ---
 title: "在线时长奖励"
-description: "OnlineRewards 在线时长奖励系统：阶段奖励、周/月累计奖励、离线储蓄、时长倍率与时刻奖励"
+description: "设置在线时长阶段奖励、累计奖励、倍率与排行榜。"
 ---
-
-> **付费模块** — 本页详细说明 OnlineRewards 模块的在线时长奖励系统，包括每日阶段奖励、周/月累计在线奖励、离线时长储蓄、在线时长倍率与时刻奖励的配置方法与触发逻辑。
 
 在线时长奖励系统以每分钟为粒度统计玩家的在线时长，并在达到配置的分钟阈值时自动发放奖励。系统支持四维时长统计（今日/本周/本月/总在线），配合阶段奖励、周期奖励、离线储蓄和时刻奖励构建完整的在线激励体系。
 
@@ -126,8 +124,6 @@ rewards:
 
 ### 进度推送
 
-模块通过 `ClientBridgeAPI` 向 ArcartX 客户端推送进度变量：
-
 | 变量名 | 默认值 | 说明 |
 |---|---|---|
 | `arcartx_online_time` | `0.0` ~ `1.0` | 当前进度（可通过 `variables.progress` 配置变量名） |
@@ -177,7 +173,7 @@ rewards:
 > 跨周/跨月时，状态引擎会清理 `repeat: true` 的奖励领取记录，保留 `repeat: false` 的领取记录。这样 `repeat: false` 的奖励终身只领一次，`repeat: true` 的奖励每个周期都可领取。
 
 ```yaml
-# ArcartXOnlineRewards.yml
+# config.yml
 weekly-rewards:
   - id: "weekly_2h"
     minutes: 120
@@ -284,7 +280,7 @@ monthly-rewards:
 | 未启用 | 120 分钟 | — | — | 0 分钟 |
 
 ```yaml
-# ArcartXOnlineRewards.yml
+# config.yml
 offline-savings:
   enabled: true
   max-minutes: 120
@@ -340,7 +336,7 @@ offline-savings:
 > 倍率最小为 1.0（配置值小于 1.0 时自动取 1.0）。倍率作用于每分钟 tick 的推进量，不影响阶段阈值的判定标准。
 
 ```yaml
-# ArcartXOnlineRewards.yml
+# config.yml
 time-bonus:
   permission-groups:
     - permission: "ArcartXSuite.onlinerewards.time.1_5"
@@ -382,7 +378,6 @@ time-bonus:
 | `commands` | `List<String>` | 控制台命令列表（支持 `{player}`） |
 | `mail.presets` | `List<String>` | 邮件预设 ID 列表 |
 | `item-rewards` | `List<Map>` | 物品奖励列表 |
-| `broadcast` | `String` | 触发时全服广播消息（空则不广播） |
 
 ### 调度模式
 
@@ -392,80 +387,6 @@ time-bonus:
 | `daily` | `time: "HH:mm"` | 每天指定时:分触发 | `time: "20:00"` = 每天 20:00 |
 | `weekly` | `time: "HH:mm"`, `day: monday` | 每周指定星期几的指定时:分触发 | `time: "20:00"`, `day: friday` = 每周五 20:00 |
 | `interval` | `interval-minutes` / `interval-seconds` / `interval-ticks`（三选一） | 固定间隔触发 | `interval-minutes: 30` = 每 30 分钟 |
-
-### 时刻奖励执行流程
-
-```
-调度触发（SchedulerAPI.scheduleCalendar）
-  │
-  ├→ 遍历所有在线玩家
-  │    ├→ 执行 commands（支持 {player} 变量）
-  │    ├→ 发送 mail.presets 邮件预设
-  │    └→ 发放 item-rewards 物品奖励
-  │
-  ├→ 全服广播 broadcast 消息（若非空）
-  └→ 输出调试日志（若 debug 开启）
-```
-
-> 时刻奖励只对触发时在线的玩家发放，离线玩家不会补发。
-
-```yaml
-# ArcartXOnlineRewards.yml
-time-based-rewards:
-  # 每天晚间 20:00 给在线玩家发放奖励
-  - id: "evening_reward"
-    enabled: true
-    schedule:
-      mode: daily
-      time: "20:00"
-    name: "晚间在线奖励"
-    rewardText: "晚间在线专属奖励"
-    commands:
-      - "say {player} 领取了晚间在线奖励"
-    mail:
-      presets: ["evening_bonus"]
-    item-rewards:
-      - source: "minecraft"
-        id: "GOLDEN_APPLE"
-        amount: 1
-    broadcast: "§e[时刻奖励] §f晚间在线奖励已发放！"
-
-  # 每周五 21:00 周末狂欢奖励
-  - id: "weekend_party"
-    enabled: true
-    schedule:
-      mode: weekly
-      time: "21:00"
-      day: friday
-    name: "周末狂欢奖励"
-    rewardText: "周末狂欢专属奖励"
-    commands:
-      - "say {player} 领取了周末狂欢奖励"
-    mail:
-      presets: ["weekend_party"]
-    broadcast: "§e[时刻奖励] §f周末狂欢奖励已发放！"
-
-  # 每 2 小时整点在线奖励
-  - id: "bi_hourly"
-    enabled: true
-    schedule:
-      mode: interval
-      interval-minutes: 120
-    name: "双小时在线奖励"
-    rewardText: "每 2 小时在线奖励"
-    commands:
-      - "give {player} experience_bottle 3"
-    broadcast: ""
-
-  # 每个整点触发
-  - id: "hourly_check"
-    enabled: false
-    schedule:
-      mode: hourly
-    name: "整点在线奖励"
-    commands:
-      - "say {player} 整点在线奖励"
-```
 
 ### schedule.day 支持的值
 

@@ -1,9 +1,7 @@
 ---
 title: "签到系统"
-description: "OnlineRewards 签到子系统详解：基础签到、里程碑、日期/节日奖励、补签卡与权限组加成"
+description: "配置每日、连续和累计签到奖励，以及补签卡的使用。"
 ---
-
-> **付费模块** — 本页详细说明 OnlineRewards 模块的签到子系统，包括基础签到、连续/累计签到里程碑、每月指定日期奖励、节日奖励、补签卡与权限组加成的配置方法与触发逻辑。
 
 签到系统是 OnlineRewards 模块的核心功能之一，配置文件为独立的 `sign-in.yml`。玩家每日可通过 `/signin` 命令或菜单 UI 执行签到，签到时系统按固定顺序收集并合并发放多层奖励。补签卡机制允许玩家对本月历史未签到日期进行补签，补签时同样触发完整的多层奖励链。
 
@@ -21,33 +19,6 @@ description: "OnlineRewards 签到子系统详解：基础签到、里程碑、�
 | 6 | 权限组加成 | `permission-bonus-groups` | 拥有对应权限时额外触发，多组取 `priority` 最高 |
 
 > 所有奖励层的命令、邮件预设、物品奖励会被合并到一次发放中，不会分多次发送。
-
-### 签到执行流程
-
-```
-玩家执行 /signin 或点击菜单签到按钮
-  │
-  ├→ 检查今日是否已签到（DB 记录 + 缓存状态双重校验）
-  │    └→ 已签到 → 返回重复签到消息，流程终止
-  │
-  ├→ 写入签到记录到 online_rewards_sign_ins 表
-  │    └→ 写入失败（如重复键冲突）→ 返回失败消息，流程终止
-  │
-  ├→ 重新计算连续签到天数与累计签到天数
-  │    ├→ 连续天数：从签到日期向前连续回溯，断签则归零
-  │    └→ 累计天数：历史所有签到记录总天数
-  │
-  ├→ 收集奖励链（基础 + 日期 + 节日 + 连续里程碑 + 累计里程碑 + 权限加成）
-  │    ├→ 合并 commands 列表 → 逐条以控制台身份执行
-  │    ├→ 合并 mail.presets 列表 → 通过 Mail 模块发送邮件
-  │    └→ 合并 item-rewards 列表 → 通过 ItemSourceRegistry 统一发放
-  │
-  ├→ 刷新排行榜缓存
-  ├→ 刷新菜单 UI
-  ├→ 发布跨服刷新通知（若启用）
-  ├→ 发送签到成功信号（SignalDispatchable）
-  └→ 检查全服签到目标（见 [全服签到目标](/docs/onlinerewards/server-goals)）
-```
 
 ## 基础签到
 
@@ -438,15 +409,6 @@ makeup:
 2024-11: 20 / 30 天
 ```
 
-### PlaceholderAPI 占位符
-
-| 占位符 | 返回值 | 说明 |
-|---|---|---|
-| `%axsonlinerewards_signin_signed_today%` | `boolean` | 今日是否已签到 |
-| `%axsonlinerewards_signin_streak%` | `int` | 当前连续签到天数 |
-| `%axsonlinerewards_signin_total%` | `int` | 累计签到天数 |
-| `%axsonlinerewards_signin_history_yyyy-MM_count%` | `int` | 指定月份签到天数 |
-
 ## 签到信号
 
 签到成功后，模块通过 `SignalDispatchable` 发送 `signin_success` 信号，其他模块可监听该信号触发联动逻辑。
@@ -458,7 +420,7 @@ makeup:
 | `date` | 签到日期 |
 | `day_of_month` | 当月第几天 |
 
-> 信号机制详见 [联动](/docs/onlinerewards/integration) 页面的 SignalDispatchable 章节。
+> 信号机制详见 [在线奖励与签到使用说明](/docs/onlinerewards) 页面的 SignalDispatchable 章节。
 
 ## 配置注意事项
 

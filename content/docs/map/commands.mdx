@@ -1,9 +1,7 @@
 ---
-title: 命令与占位符
-description: Map 模块命令、权限、PAPI 占位符与 UI Packet
+title: "命令与权限"
+description: "地图与传送锚点可用命令、参数填写方式和权限要求。"
 ---
-
-# 命令与占位符
 
 ## 玩家命令
 
@@ -72,81 +70,6 @@ description: Map 模块命令、权限、PAPI 占位符与 UI Packet
 | `arcartxsuite.map.admin` | OP | 路径点/标记点上限提升等管理权限 |
 
 > 管理命令通过 `/axs` 主命令的权限控制，无需额外权限节点。锚点的使用权限通过锚点定义的 `permission` 字段单独控制。
-
-## PlaceholderAPI 占位符
-
-Map 模块**不提供独立的 PlaceholderAPI 占位符**。地图数据来自配置文件、玩家位置、世界坐标、锚点和玩家路径点/标记点，均通过 Packet 发送给 UI 客户端渲染。
-
-> 小地图上的世界名由 UI 使用 `Placeholder.parse("%multiverse-core_alias%")` 解析（Multiverse-Core 提供）；坐标用 `Player.getPosX/Y/Z` 本地实时取值。
-
-## UI 可用数据字段
-
-Map 模块的 UI 交互通过 ArcartX Packet 通讯完成。客户端向服务端发送的 Packet 使用 `ui.packet-id`（默认 `AXS_MAP`）作为标识符，写操作需携带服务端下发的 `action_token`。
-
-### 菜单 Packet 字段（`init` / `update`）
-
-#### 菜单 Packet（`init` / `update`）
-
-| 字段 | 类型 | 说明 |
-|---|---|---|
-| `packetId` | `String` | Packet 标识符 |
-| `selectedWorldId` | `String` | 当前选中的世界 ID |
-| `selectedWorldName` | `String` | 当前选中的世界名称 |
-| `playerWorldId` | `String` | 玩家当前所在世界 ID |
-| `litEnabled` | `boolean` | 是否启用点亮（战争迷雾）机制 |
-| `litRegions` | `List` | 已点亮多边形区域并集 |
-| `worldRows` | `Map<String, Map>` | 世界列表，key=索引，value 含 `id`/`displayName`/`selected` |
-| `anchorRows` | `Map<String, Map>` | 锚点列表，key=索引，value 含 `id`/`displayName`/`description`/`x`/`y`/`z`/`unlocked`/`unlockCostText`/`teleportCostText`/`selected`/`tracked` |
-| `waypointRows` | `Map<String, Map>` | 路径点列表，key=索引，value 含 `id`/`name`/`x`/`y`/`z`/`selected`/`tracked` |
-| `externalTargetRows` | `Map<String, Map>` | 第三方插件注册路径点列表，key=索引，value 含 `id`/`source`/`name`/`description`/`x`/`y`/`z`/`selected`/`tracked`/`navigated` |
-| `pinRows` | `Map<String, Map>` | 标记点列表，key=索引，value 含 `id`/`name`/`description`/`x`/`z`/`selected` |
-| `waypointLimit` | `int` | 路径点数量上限 |
-| `waypointCount` | `int` | 当前路径点数量 |
-| `canCreateWaypoint` | `boolean` | 是否可创建新路径点 |
-| `shareEnabled` | `boolean` | 分享按钮是否可见 |
-| `clearTrackVisible` | `boolean` | 是否显示清除导航按钮 |
-| `trackingText` | `String` | 当前追踪状态文本 |
-| `detailSelectedType` | `String` | 详情面板选中类型（`anchor`/`waypoint`/`external`/`pin`/`none`） |
-| `detailSelectedId` | `String` | 详情面板选中 ID |
-| `detailTitle` | `String` | 详情标题 |
-| `detailDescription` | `String` | 详情描述 |
-| `detailUnlocked` | `boolean` | 是否已解锁 |
-| `detailUnlockCostText` | `String` | 解锁费用文本 |
-| `detailTeleportCostText` | `String` | 传送费用文本 |
-| `detailExternalTarget` | `boolean` | 是否为第三方插件注册路径点 |
-| `detailNavigated` | `boolean` | 是否导航中（驱动"导航 ↔ 取消"按钮切换） |
-| `detailCanUnlock` | `boolean` | 是否可执行解锁 |
-| `detailCanTeleport` | `boolean` | 是否可执行传送 |
-| `detailCanTrackAnchor` | `boolean` | 是否可追踪锚点 |
-| `detailCanTrackWaypoint` | `boolean` | 是否可追踪路径点 |
-| `detailCanTrackExternal` | `boolean` | 是否可追踪第三方插件注册路径点 |
-| `detailCanDeleteWaypoint` | `boolean` | 是否可删除路径点 |
-| `detailCanDeletePin` | `boolean` | 是否可删除标记点 |
-| `detailCanCreateWaypoint` | `boolean` | 是否可创建路径点 |
-| `detailClearTrackVisible` | `boolean` | 详情面板是否显示清除导航 |
-| `detailTrackingText` | `String` | 详情面板导航追踪文本 |
-| `maxWorldCount` | `int` | 世界行模板最大复制数 |
-| `maxAnchorCount` | `int` | 锚点行模板最大复制数 |
-| `maxWaypointCount` | `int` | 路径点行模板最大复制数 |
-| `maxExternalCount` | `int` | 第三方插件注册路径点行模板最大复制数 |
-| `maxPinCount` | `int` | 标记点行模板最大复制数 |
-| `action_token` | `String` | 写操作防重放令牌 |
-
-### HUD Packet 字段（`init` / `update`）
-
-| 字段 | 类型 | 说明 |
-|---|---|---|
-| `packetId` | `String` | Packet 标识符 |
-| `visible` | `boolean` | 小地图是否可见 |
-| `worldId` | `String` | 当前世界 ID |
-| `dimension` | `String` | MC 维度 key（供 mod 匹配本地维度） |
-| `litEnabled` | `boolean` | 是否启用点亮机制 |
-| `litRegions` | `List` | 已点亮多边形区域并集 |
-| `playerYaw` | `float` | 玩家朝向角度 |
-| `trackingText` | `String` | 导航追踪提示文本 |
-| `settings` | `Map<String, String>` | 仅 `init` 包携带：玩家地图设置字典（雷达/小地图外观等服务端留存偏好），UI 逐项 `applySetting` 套回 mod |
-
-> 玩家坐标不再经服务端下发——HUD 用 `Player.getPosX/Y/Z` 在客户端本地实时取值。
 
 ## 客户端 Mod 要求
 

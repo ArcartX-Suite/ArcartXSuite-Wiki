@@ -3,56 +3,83 @@ export interface ModuleInfo {
   name: string;
   displayName: string;
   description: string;
-  category: 'free' | 'paid' | 'bonus';
   color: string;
 }
 
 export const modules: ModuleInfo[] = [
-  // ── 免费模块 ──
-  { slug: 'rgb', name: 'RGB', displayName: 'RGB 渐变文本', description: '渐变文本渲染，PAPI 输出扫光效果', category: 'free', color: '#f472b6' },
-  { slug: 'pickup', name: 'Pickup', displayName: 'Pickup 拾取提示', description: '物品拾取 HUD 弹出提示 + 扫描器模式', category: 'free', color: '#84cc16' },
-  { slug: 'announcer', name: 'Announcer', displayName: 'Announcer 播报', description: '公告 / 字幕轮播系统，可点击执行命令', category: 'free', color: '#f59e0b' },
-  { slug: 'loginview', name: 'LoginView', displayName: 'LoginView 登录界面', description: 'ArcartX UI 登录/注册面板，支持 AuthMe 桥接', category: 'free', color: '#3b82f6' },
-  { slug: 'onlinerewards', name: 'OnlineRewards', displayName: 'OnlineRewards 在线奖励', description: '在线奖励 / 每日签到 / 连续签到 / 补签卡', category: 'free', color: '#22c55e' },
-  { slug: 'combateffect', name: 'CombatEffect', displayName: 'CombatEffect 战斗特效', description: '战斗特效（击杀/连击/伤害飘字），四插件属性来源自动检测', category: 'free', color: '#ef4444' },
-  { slug: 'eventpacket', name: 'EventPacket', displayName: 'EventPacket 事件引擎', description: '事件引擎，18种触发器 × 13种动作自由组合', category: 'free', color: '#a855f7' },
-  { slug: 'prop', name: 'Prop', displayName: 'Prop 快捷道具', description: '快捷道具栏，客户端按键绑定临时属性加成', category: 'free', color: '#06b6d4' },
-  { slug: 'essentials', name: 'Essentials', displayName: 'Essentials 基础工具', description: '基础工具（传送/家/Warp/一键砍树/背包整理/UI 菜单）', category: 'free', color: '#14b8a6' },
-  { slug: 'regions', name: 'Regions', displayName: 'Regions 区域保护', description: '区域保护（57 个标志/优先级继承/世界规则）', category: 'free', color: '#eab308' },
-  { slug: 'afkreward', name: 'AfkReward', displayName: 'AfkReward 挂机奖励', description: '区域挂机 + 原地挂机双模式、周期命令奖励、排行榜', category: 'free', color: '#94a3b8' },
-  { slug: 'tooltip', name: 'Tooltip', displayName: 'Tooltip 动态提示桥接', description: '物品提示桥接（TACZ/Apotheosis tooltip 采集）', category: 'free', color: '#f97316' },
+  { slug: 'rgb', name: 'RGB', displayName: '渐变文本', description: '用渐变和扫光文字装饰聊天、称号与在线列表。', color: '#f472b6' },
+  { slug: 'pickup', name: 'Pickup', displayName: '拾取提示', description: '显示拾取通知，或让玩家主动扫描附近掉落物。', color: '#84cc16' },
+  { slug: 'announcer', name: 'Announcer', displayName: '公告与字幕', description: '轮播服务器公告，或为指定玩家播放字幕。', color: '#f59e0b' },
+  { slug: 'loginview', name: 'LoginView', displayName: '登录界面', description: '为玩家提供登录、注册、条款确认与登录后传送界面。', color: '#3b82f6' },
+  { slug: 'onlinerewards', name: 'OnlineRewards', displayName: '在线奖励与签到', description: '按在线时长、签到记录和全服目标发放奖励。', color: '#22c55e' },
+  { slug: 'combateffect', name: 'CombatEffect', displayName: '战斗特效', description: '展示伤害数字、连击提示与击杀特效。', color: '#ef4444' },
+  { slug: 'eventpacket', name: 'EventPacket', displayName: '事件与动作', description: '把进服、任务和自定义信号组合成公告、奖励等动作。', color: '#a855f7' },
+  { slug: 'prop', name: 'Prop', displayName: '快捷道具', description: '通过快捷栏与按键使用道具，获得即时或持续效果。', color: '#06b6d4' },
+  { slug: 'essentials', name: 'Essentials', displayName: '基础工具', description: '配置传送、家、传送点、玩家状态与常用管理功能。', color: '#14b8a6' },
+  { slug: 'regions', name: 'Regions', displayName: '区域规则', description: '为选定区域设置建造、交互、传送等游戏规则。', color: '#557c53' },
+  { slug: 'afkreward', name: 'AfkReward', displayName: '挂机奖励', description: '在指定区域或原地挂机时，按周期发放奖励。', color: '#94a3b8' },
+  { slug: 'tooltip', name: 'Tooltip', displayName: '物品提示', description: '展示兼容模组的物品说明与枪械浏览界面。', color: '#f97316' },
 
-  // ── 付费模块 ──
-  { slug: 'title', name: 'Title', displayName: 'Title 称号', description: '分组称号系统，有效期/品质/套装属性/头顶显示/聊天Tab前缀', category: 'paid', color: '#fbbf24' },
-  { slug: 'conversation', name: 'Conversation', displayName: 'Conversation 对话桥', description: 'NPC 对话引擎，Chemdah + Adyeshach 联动，ArcartX UI 渲染', category: 'paid', color: '#c084fc' },
-  { slug: 'mail', name: 'Mail', displayName: 'Mail 邮箱', description: '邮件系统，玩家写信/预设派发/CDK兑换/物品附件/跨服广播', category: 'paid', color: '#60a5fa' },
-  { slug: 'warehouse', name: 'Warehouse', displayName: 'Warehouse 仓库银行', description: '仓库银行，个人/共享仓库、多货币银行、定期存款、二级密码', category: 'paid', color: '#34d399' },
-  { slug: 'questgps', name: 'QuestGPS', displayName: 'QuestGPS 任务导航', description: 'Chemdah SSOT + overlay 白名单；动态分类菜单、路径寻路、指引 HUD', category: 'paid', color: '#818cf8' },
-  { slug: 'map', name: 'Map', displayName: 'Map 地图', description: '大地图 / 锚点传送 / 玩家路径点 / 小地图 HUD', category: 'paid', color: '#2dd4bf' },
-  { slug: 'market', name: 'Market', displayName: 'Market 全球市场', description: '全球市场插件，系统商店 + 玩家拍卖行 + 回收商店，多货币跨服同步', category: 'paid', color: '#fb7185' },
-  { slug: 'qqbot', name: 'QQBot', displayName: 'QQBot 群服互联', description: 'QQ 群服互联插件，OneBot 11 双向消息同步、QQ-游戏账号绑定', category: 'paid', color: '#5b8def' },
-  { slug: 'menu', name: 'Menu', displayName: 'Menu 通用菜单', description: '配置驱动 ArcartX 菜单系统，ESC 替换、命令/物品绑定', category: 'paid', color: '#f472b6' },
-  { slug: 'fishing', name: 'Fishing', displayName: 'Fishing 钓鱼', description: '钓鱼系统插件，星露谷风格钓鱼小游戏、多水域生态、钓鱼图鉴', category: 'paid', color: '#38bdf8' },
-  { slug: 'lottery', name: 'Lottery', displayName: 'Lottery 抽奖', description: '抽奖系统插件，CS 开箱滚动动画 + 原神祈愿卡池，纯色块 UI、保底机制', category: 'paid', color: '#fbbf24' },
-  { slug: 'battlepass', name: 'BattlePass', displayName: 'BattlePass 战令', description: '战令系统，三层通行证 + 日/周/赛季任务池 + ArcartX UI 面板', category: 'paid', color: '#a78bfa' },
+  { slug: 'title', name: 'Title', displayName: '称号', description: '发放、装备与展示称号，配置分组、品质及套装效果。', color: '#557c53' },
+  { slug: 'conversation', name: 'Conversation', displayName: 'NPC 对话', description: '用图形界面展示 NPC 对话、回复选项与过场演出。', color: '#c084fc' },
+  { slug: 'mail', name: 'Mail', displayName: '邮箱', description: '发送邮件与物品附件，配置预设邮件和兑换码。', color: '#60a5fa' },
+  { slug: 'warehouse', name: 'Warehouse', displayName: '仓库与银行', description: '管理个人物资、共享仓库与多货币银行。', color: '#34d399' },
+  { slug: 'questgps', name: 'QuestGPS', displayName: '任务导航', description: '浏览 Chemdah 任务、追踪目标并显示导航提示。', color: '#818cf8' },
+  { slug: 'map', name: 'Map', displayName: '地图与传送锚点', description: '浏览世界地图，管理路径点、导航与锚点传送。', color: '#2dd4bf' },
+  { slug: 'market', name: 'Market', displayName: '商店与拍卖', description: '提供系统商店、回收商店与玩家拍卖交易。', color: '#fb7185' },
+  { slug: 'qqbot', name: 'QQBot', displayName: 'QQ群互联', description: '同步群聊与游戏消息，提供账号绑定和群签到。', color: '#5b8def' },
+  { slug: 'menu', name: 'Menu', displayName: '功能菜单', description: '创建功能导航，绑定命令、物品或 ESC 菜单。', color: '#f472b6' },
+  { slug: 'fishing', name: 'Fishing', displayName: '钓鱼', description: '配置钓鱼小游戏、鱼类、水域、鱼竿和鱼饵。', color: '#38bdf8' },
+  { slug: 'lottery', name: 'Lottery', displayName: '抽奖与开箱', description: '创建抽奖池、开箱动画、保底规则与积分兑换。', color: '#557c53' },
+  { slug: 'battlepass', name: 'BattlePass', displayName: '战令', description: '配置赛季任务、经验等级与不同档位的奖励。', color: '#a78bfa' },
 
-  // ── 福利模块 ──
-  { slug: 'chat', name: 'Chat', displayName: 'Chat 聊天', description: '全频道聊天系统', category: 'bonus', color: '#22d3ee' },
-  { slug: 'tab', name: 'Tab', displayName: 'Tab 在线列表', description: '自定义 Tab 列表面板', category: 'bonus', color: '#67e8f9' },
-  { slug: 'entitytracker', name: 'EntityTracker', displayName: 'EntityTracker 实体追踪', description: 'Boss / 目标追踪面板', category: 'bonus', color: '#fde047' },
-  { slug: 'extrabackpack', name: 'ExtraBackpack', displayName: 'ExtraBackpack 额外背包', description: '扩展背包（多分类额外槽位）', category: 'bonus', color: '#8b5cf6' },
-  { slug: 'vanilla', name: 'VanillaUI', displayName: 'VanillaUI 原版界面替换', description: '原版界面替换（工作台/熔炉 UI 化）', category: 'bonus', color: '#10b981' },
-  { slug: 'abyss', name: 'Abyss', displayName: 'Abyss 地牢副本', description: '实例化地牢副本：楼层模式/随机房间/作战方案/怪物波次/队伍/结算统计', category: 'bonus', color: '#fb923c' },
+  { slug: 'chat', name: 'Chat', displayName: '聊天频道', description: '设置聊天频道、消息格式、私聊与物品展示。', color: '#557c53' },
+  { slug: 'tab', name: 'Tab', displayName: '在线列表', description: '自定义玩家在线列表、排序、分组和显示内容。', color: '#557c53' },
+  { slug: 'entitytracker', name: 'EntityTracker', displayName: 'Boss 与目标面板', description: '显示目标信息、Boss 伤害排名与结算奖励。', color: '#557c53' },
+  { slug: 'extrabackpack', name: 'ExtraBackpack', displayName: '额外背包', description: '提供分类物品存储与可购买的容量扩展。', color: '#8b5cf6' },
+  { slug: 'vanilla', name: 'VanillaUI', displayName: '原版界面替换', description: '替换工作台、熔炉等原版界面，提供配方浏览与填充。', color: '#10b981' },
+  { slug: 'abyss', name: 'Abyss', displayName: '地牢副本', description: '配置地牢、怪物波次、阶段任务、队伍与结算奖励。', color: '#fb923c' },
 ];
 
-export const categoryLabels: Record<ModuleInfo['category'], string> = {
-  free: '免费模块',
-  paid: '付费模块',
-  bonus: '福利模块',
-};
-
-export const categoryColors: Record<ModuleInfo['category'], string> = {
-  free: '#22c55e',
-  paid: '#f59e0b',
-  bonus: '#a855f7',
+export const taskGroups: Record<string, string[]> = {
+  "界面与展示": [
+    "rgb",
+    "pickup",
+    "announcer",
+    "loginview",
+    "tooltip",
+    "menu",
+    "tab",
+    "vanilla"
+  ],
+  "成长与奖励": [
+    "onlinerewards",
+    "afkreward",
+    "title",
+    "lottery",
+    "battlepass"
+  ],
+  "玩法与交互": [
+    "combateffect",
+    "eventpacket",
+    "prop",
+    "conversation",
+    "questgps",
+    "map",
+    "fishing",
+    "entitytracker",
+    "abyss"
+  ],
+  "管理与社交": [
+    "essentials",
+    "regions",
+    "qqbot",
+    "chat"
+  ],
+  "经济与物品": [
+    "mail",
+    "warehouse",
+    "market",
+    "extrabackpack"
+  ]
 };

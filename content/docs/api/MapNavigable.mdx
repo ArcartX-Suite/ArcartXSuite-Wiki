@@ -1,0 +1,98 @@
+---
+title: "MapNavigable"
+description: "注册地图点位、导航目标与回调"
+---
+
+
+| 项目 | 内容 |
+| --- | --- |
+| 提供模块 | [map](/docs/map) |
+| 完整类型 | `xuanmo.arcartxsuite.api.capability.MapNavigable` |
+
+## 获取接口
+
+```java
+import xuanmo.arcartxsuite.api.AxsCapabilities;
+import xuanmo.arcartxsuite.api.capability.MapNavigable;
+
+MapNavigable api = AxsCapabilities.get(MapNavigable.class);
+if (api == null) {
+    // 当前功能不可用，向玩家说明或使用你的替代流程。
+    return;
+}
+```
+
+每次业务操作时重新获取接口；模块未加载或暂时不可用时返回 `null`。接入方式见[快速开始](/docs/api/quick-start)。
+
+## 方法声明
+
+以下为公开调用契约，保留参数类型与空值标注。Java 类型与当前配套 API JAR 保持一致。
+
+```java
+public interface MapNavigable {
+
+    void upsertExternalTarget(
+        @NotNull Player player,
+        @NotNull MapExternalTargetSpec spec,
+        boolean select
+    );
+
+    void upsertExternalTargets(@NotNull Player player, @NotNull List<MapExternalTargetSpec> specs);
+
+    void reconcileExternalTargets(
+        @NotNull Player player,
+        @NotNull String source,
+        @NotNull List<MapExternalTargetSpec> specs
+    );
+
+    void clearExternalTargets(@NotNull Player player, @NotNull String source, boolean syncView);
+
+    void setExternalNavigated(@NotNull Player player, @NotNull String targetId, boolean navigated);
+
+    boolean navigateExternalTarget(@NotNull Player player, @NotNull String targetId);
+
+    void registerNavigationSource(
+        @NotNull org.bukkit.plugin.Plugin owner,
+        @NotNull String source,
+        @NotNull MapNavigationHandler handler
+    );
+
+    void unregisterNavigationSource(@NotNull String source);
+
+    void setNavigationDelegate(
+        @NotNull org.bukkit.plugin.Plugin owner,
+        @NotNull MapNavigationDelegate delegate
+    );
+
+    void clearNavigationDelegate(@NotNull org.bukkit.plugin.Plugin owner);
+
+    boolean hasNavigationDelegate();
+
+    void clearTrack(@NotNull Player player);
+
+    void openMenuFor(@NotNull Player player, @NotNull String targetId);
+}
+```
+
+## 参数与返回值
+
+| 方法 | 用途 | 参数 | 返回值 |
+| --- | --- | --- | --- |
+| `upsertExternalTarget` | 设置/更新外部导航目标（`MapExternalTargetSpec` 全字段版本）。 外部目标在地图上渲染为紫色标记，不占用玩家路径点数量上限。 | `player`：目标玩家；`spec`：目标规格；`select`：是否同时设置为当前选中 | 无返回值；按本行说明执行操作 |
+| `upsertExternalTargets` | 批量设置外部导航目标（一次视图同步，适用于推送多个目标）。 | `player`：目标玩家；`specs`：目标规格列表 | 无返回值；按本行说明执行操作 |
+| `reconcileExternalTargets` | 用给定集合原子替换某来源的全部外部目标（reconcile）。 与"先 `#clearExternalTargets` 再 `#upsertExternalTargets`"的区别： 单次视图同步，且选中态按最终集合回收——仍存在的目标保持选中不闪断。 适合来源周期性全量推送"当前所有目标"的场景。 | `player`：目标玩家；`source`：来源标识；`specs`：最终目标集合（空列表 = 清空该来源全部目标） | 无返回值；按本行说明执行操作 |
+| `clearExternalTargets` | 清除指定来源的所有外部导航目标。 | `player`：目标玩家；`source`：来源标识；空字符串表示清除全部来源；`syncView`：是否立即同步视图 | 无返回值；按本行说明执行操作 |
+| `navigateExternalTarget` | 由地图内置导航栈开始导航指定外部目标（"地图代导航"命令式入口）。 与 spec 的 `useMapNavigation` 标志等价，适用于来源想在 `MapNavigationHandler#onNavigateRequest` 里按需决策的场景； 也可独立调用。效果等同玩家在面板点击"导航"： 地图建立客户端路标与路径标记、记录导航态、目标按钮切换为"取消"。 到达判定/命令钩子/标题模板使用地图 `navigation.*` 配置。 本方法不经过全局委托（委托只拦截面板点击）；取消时来源不会收到 `onCancelRequest`（该导航由地图执行）。 | `player`：目标玩家；`targetId`：已推送的外部目标 id | `true` 表示导航已开始（已在导航同目标也返回 true）； `false` 表示目标不存在或地图导航不可用 |
+| `registerNavigationSource` | 注册外部目标导航回调（按 source 归属）。 玩家在地图面板点击该来源目标的"导航"/"取消"时回调 handler。 同一 source 重复注册会覆盖旧 handler。 | `owner`：归属插件（用于插件禁用时自动注销回调）；`source`：来源标识（须与 spec 中的 source 一致）；`handler`：导航回调 | 无返回值；按本行说明执行操作 |
+| `unregisterNavigationSource` | 注销指定来源的导航回调。 | `source`：来源标识 | 无返回值；按本行说明执行操作 |
+| `setNavigationDelegate` | 注册全局导航委托（全量接管导航点击）。 注册后玩家在地图上点击任意"导航"（锚点/路径点/标记点/外部目标）都先回调 delegate；`onNavigateRequest` 返回 `false` 时交还原处理方。 全服同一时间只有一个委托：重复注册由后者覆盖；插件禁用时自动注销。 | `owner`：归属插件（插件禁用时自动注销）；`delegate`：委托实现 | 无返回值；按本行说明执行操作 |
+| `clearNavigationDelegate` | 注销导航委托（仅当当前委托属于该插件时生效）。 | `owner`：注册时使用的插件实例 | 无返回值；按本行说明执行操作 |
+| `hasNavigationDelegate` | 当前是否已注册全局导航委托。 | 无参数 | `true` 表示所有导航点击会先经委托 |
+| `clearTrack` | 清除玩家当前的地图导航（锚点/路径点/外部目标追踪）。 来源开始自身导航时调用，实现导航互斥。 | `player`：目标玩家 | 无返回值；按本行说明执行操作 |
+| `openMenuFor` | 为玩家打开地图菜单并选中指定目标。 targetId 依次匹配外部目标 → 玩家路径点 → 标记点，命中则切到目标所在世界 并选中；未命中或为空时按默认世界打开。 | `player`：目标玩家；`targetId`：目标 id（可为空字符串） | 无返回值；按本行说明执行操作 |
+
+## 调用注意事项
+
+涉及 Bukkit 玩家、世界、物品或界面的调用放在 Bukkit 主线程执行；接口有明确线程说明时以该方法约定为准。
+
+先在对应模块配置中准备所引用的 ID，再调用接口。检查布尔值、结果对象或异常，只有成功后才更新第三方插件自己的业务状态。

@@ -1,7 +1,15 @@
 ---
-title: 配置
-description: 配置文件详解与示例
+title: "功能配置"
+description: "调整menus/ 菜单、按钮图标、说明与点击动作；附字段解释、修改示例与重载步骤。"
 ---
+
+## 先改哪些内容
+
+menus/ 菜单、按钮图标、说明与点击动作。先使用默认示例完成一次测试，再按本页逐项调整。
+
+配置位置：`plugins/ArcartX-Suite/data/menu/config.yml`。定义文件与子目录均相对此模块目录。本文中的 YAML 片段用于修改对应小节，请保留文件中的其他设置。
+
+修改后执行 `/axs reload menu`；涉及插件安装或全局设置的变更请重启后验证。
 
 ## 配置文件
 
@@ -10,9 +18,6 @@ description: 配置文件详解与示例
 | 配置项 | 类型 | 默认值 | 说明 |
 | --- | --- | --- | --- |
 | `debug.enabled` | boolean | `false` | 是否输出调试日志 |
-| `ui.panel-ui-id` | string | `AXS:menu_panel` | 面板布局 UI 的 ID |
-| `ui.esc-ui-id` | string | `AXS:menu_esc` | ESC 布局 UI 的 ID |
-| `ui.packet-id` | string | `AXS_MENU` | 客户端通信包标识符 |
 | `ui.register-ui-on-enable` | boolean | `true` | 启动时是否自动注册 UI |
 | `ui.overwrite-ui-files` | boolean | `false` | 是否强制覆盖用户已修改的 UI 文件 |
 | `client.esc-menu-id` | string | `esc_main` | ESC 暂停界面绑定的默认菜单 ID（layout 为 esc 的菜单定义） |
@@ -65,7 +70,7 @@ description: 配置文件详解与示例
 | --- | --- |
 | `command: <命令>` | 以玩家身份执行命令 |
 | `chat: <消息>` | 以玩家身份发送聊天消息（`/` 开头为命令） |
-| `connect: <服务器名>` | 通过 BungeeCord Plugin Messaging 切换子服 |
+| `connect: <服务器名>` | 将玩家切换到指定子服 |
 | `console: <命令>` | 以控制台身份执行命令 |
 | `op: <命令>` | 以玩家身份临时给予 OP 执行，用完自动收回 |
 | `message: <消息>` | 向玩家发送聊天消息（支持颜色代码） |
@@ -75,8 +80,6 @@ description: 配置文件详解与示例
 | `page: <页面id>` | 切换到同菜单内的另一页 |
 | `signal: <名称>` | 触发 EventPacket command-signal 信号 |
 | `signal: <名称>\|键=值` | 触发信号并传递变量 |
-| `aria: <脚本>` | 执行 Aria 脚本（注入 AXS player 门面到 `global.` 命名空间） |
-| `js: <脚本>` | 执行 JavaScript（注入 player 门面与 Bukkit，需 classpath 有 JS 引擎） |
 | `delay: <tick>` | 延迟 N tick 后执行后续动作（1 tick = 50ms） |
 
 图标 `icon` 支持的来源：
@@ -90,10 +93,6 @@ description: 配置文件详解与示例
 | 直接 NBT | `json` | 直接提供物品 NBT JSON |
 
 ## 全屏功能导航与悬停详情（1.5.0）
-
-内置 `AXS:menu_panel` 已改为全屏导航：左侧功能列表，右侧通高详情面板。`panel` 与 `full` 仍使用该 UI ID。内置新版采用单列宽幅条目；`columns` 仍保留在数据包中，供 ESC 或自定义 UI 使用，不再控制内置全屏列表的列数。
-
-内置 `AXS:menu_esc`（ESC 暂停界面）现为图标驱动布局：左侧通高窄工具栏（返回 / 页脚按钮图标 / ESC 提示），右侧为资料头部（圆形头像 / 昵称 / 等级+经验条 / 生命 / UID）、分区标题行与固定 4 列深色方格按钮网格（`columns` 配置对内置 esc 渲染不生效）。菜单按钮统一渲染 `icon` 配置的物品图标、标签收进方格内；悬停时底部操作说明行显示 `details.summary`（缺省回退 `description` 首行），不满足使用条件时显示禁用原因；`footer-buttons` 同样以图标渲染。
 
 鼠标停留在功能上后切换详情，离开后保留当前详情；点击左侧功能才执行动作。禁用功能仍可预览，但不会发送执行请求。长说明独立滚动，页脚较多时支持横向滚动。刷新按按钮 ID 保留预览，切换页面时重置滚动位置。
 
@@ -135,8 +134,6 @@ warehouse:
     - "delay: 10"
     - "command: warehouse open"
 ```
-
-此次新增可选字段，不需要迁移菜单配置，主配置版本仍为 `2`。没有 `details` 的旧按钮使用默认介绍；动作、权限与写操作令牌校验保持不变。新增详情数据随 `init/update` 一起发送，悬停不发起服务端请求，也不下发动作脚本或条件表达式。
 
 升级需同时更新 menu 模块与 UI 资源。`ui.overwrite-ui-files: false` 时，已修改的服务器 UI 不会被强制覆盖；请先备份、比较并更新对应 UI 文件，再执行 `/axs reload menu`。已有 `menus/` 文件不会自动覆盖，示例详情需按需加入。模块二进制通过 GitHub CI 构建、云端下发，不在本地构建 JAR。
 

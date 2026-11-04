@@ -1,13 +1,24 @@
 ---
-title: 条件系统
-description: Suite 统一条件系统配置指南，支持 PAPI、ARIA、JS、上下文变量四种条件类型
+title: "条件系统"
+description: "用占位符、比较表达式与条件列表控制功能的可用条件。"
 ---
-
-# 条件系统
 
 ## 概述
 
-条件系统是 Suite 多模块共用的条件判断功能。菜单按钮的显示、邮件的领取、事件规则的匹配、任务完成判定等场景，都使用同一套条件语法。
+Suite 的多个模块使用本页的条件写法，但不能把所有名为 `conditions` 的字段都视为同一种格式。任务进度、物品匹配、区域进入要求和界面展示可能使用不同的判断入口。
+
+## 已核对的使用位置
+
+| 模块 | 字段或入口 | 判断时机 |
+| --- | --- | --- |
+| Menu | 菜单 `open-requirements`；按钮 `requirements`、`use-conditions` | 分别控制打开、显示和实际使用，不应混为一个开关 |
+| Mail | 预设 `claim-conditions` | 领取附件前检查，不是邮件发送前的限制 |
+| Prop | 道具 `conditions`、支持该结构的自动触发条件 | 道具使用或自动触发；还需通过使用方式、权限与冷却等检查 |
+| Market | 商品支持的条件配置 | 结合购买、查看等商品流程使用，具体位置按商品配置 |
+| EventPacket | 规则 `conditions`、PAPI 监听服务条件 | 触发后判断，部分上下文条件依赖当前事件提供的变量 |
+| Abyss | 进入要求的 `conditions`、`leader-conditions`，以及交互等支持的条件 | 队员、队长与具体交互对象分别判断，脚本动作中的条件还需按副本语法填写 |
+
+BattlePass 的玩家状态、事件载荷等任务条件，以及各模块自己的物品费用和区域条件，另有字段与解析规则。不要直接复制本页示例替换它们。某种条件类型能被解析，也不代表该场景一定提供所需的玩家或上下文数据。
 
 系统支持 **4 种条件类型**：
 
@@ -22,23 +33,7 @@ description: Suite 统一条件系统配置指南，支持 PAPI、ARIA、JS、�
 
 > ARIA 由 ArcartX 内置提供，Suite 硬依赖 ArcartX，正常启动后 Aria 随之可用，无需额外安装插件，推荐优先使用。JS 条件需要 JVM classpath 上有 JS 引擎（Java 15 起已移除 Nashorn），无引擎时 JS 条件恒为 `false`。
 
-## 条件类型
-
-### PAPI
-
-通过 PlaceholderAPI 占位符进行判断，是最常用的条件类型。占位符会被解析为实际值后再参与比较。
-
-语法示例：
-
-```yaml
-- "%player_level% >= 10"
-```
-
-- 占位符必须以 `%` 开头和结尾
-- 占位符与运算符、期望值之间用空格分隔
-- 支持 PlaceholderAPI 提供的所有占位符（如 `%player_level%`、`%vault_eco_balance%`、`%luckperms_groups%` 等）
-
-### ARIA
+### Aria 脚本条件
 
 通过 Aria 脚本引擎进行判断。Aria 是 ArcartX 内置的轻量脚本语言，脚本中可通过全局变量 `player` 访问当前玩家。
 
@@ -54,7 +49,7 @@ description: Suite 统一条件系统配置指南，支持 PAPI、ARIA、JS、�
 
 > 需要 ArcartX/Aria 插件。由于 Suite 硬依赖 ArcartX，正常启动后即可使用。
 
-### JS
+### JavaScript 脚本条件
 
 通过 JVM 的 `javax.script` 引擎执行 JavaScript 进行判断。脚本中同样可访问 `player` 变量。
 
@@ -70,7 +65,7 @@ description: Suite 统一条件系统配置指南，支持 PAPI、ARIA、JS、�
 
 > 除非确有 JS 引擎，否则请优先使用 ARIA。
 
-### CONTEXT
+### 上下文变量条件（CONTEXT）
 
 从上下文字典中取值进行比较，主要用于 EventPacket 事件规则等场景。事件触发时会携带一个上下文字典（payload），CONTEXT 条件从中取值与期望值比较。
 
@@ -175,8 +170,6 @@ use-conditions:
 
 > 这些配置节的语法完全一致，只是命名随模块语义不同。配置时按模块文档选择对应节名即可。
 
-## 实际示例
-
 ### Menu 菜单按钮显示条件
 
 菜单按钮的 `requirements` 控制按钮是否可见，`use-conditions` 控制是否可点击：
@@ -206,20 +199,6 @@ mails:
       - "aria: player.getWorld() == 'world'"
     rewards:
       money: 1000
-```
-
-### EventPacket 事件规则条件
-
-EventPacket 规则的 `conditions` 使用 CONTEXT 类型从事件 payload 中取值：
-
-```yaml
-rules:
-  - id: "quest-complete-check"
-    conditions:
-      - "{quest-id} == main_1"
-      - "{value} >= 10"
-    actions:
-      - "command: say 任务完成"
 ```
 
 ### BattlePass 任务条件

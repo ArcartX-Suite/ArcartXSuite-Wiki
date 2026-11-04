@@ -1,9 +1,7 @@
 ---
-title: 命令与占位符
-description: Pickup 命令、权限、PAPI 占位符与 UI 包
+title: "命令与权限"
+description: "拾取提示可用命令、参数填写方式和权限要求。"
 ---
-
-# 命令与占位符
 
 ## 玩家命令
 
@@ -38,7 +36,7 @@ description: Pickup 命令、权限、PAPI 占位符与 UI 包
 
 ## 管理员命令
 
-管理员命令通过宿主 `/axs` 命令执行：
+管理员命令通过Suite `/axs` 命令执行：
 
 | 命令 | 说明 | 权限 |
 | --- | --- | --- |
@@ -48,7 +46,7 @@ description: Pickup 命令、权限、PAPI 占位符与 UI 包
 
 > 重载时模块会先停止当前服务（关闭所有玩家 HUD/菜单），再重新加载配置并启动服务。扫描模式下重载会为所有在线玩家重新打开常驻 HUD。
 >
-> 持久启用/禁用模块通过宿主 `config.yml` 的 `modules.pickup.enabled` 控制；`/axs load`/`/axs unload` 仅做本次运行期的热加载/热卸载。
+> 持久启用/禁用模块通过Suite `config.yml` 的 `modules.pickup.enabled` 控制；`/axs load`/`/axs unload` 仅做本次运行期的热加载/热卸载。
 
 ## 权限节点表
 
@@ -56,10 +54,6 @@ description: Pickup 命令、权限、PAPI 占位符与 UI 包
 | --- | --- | --- |
 | `arcartxsuite.pickup.use` | op | 使用 `/pickup` 命令与切换拾取功能 |
 | `arcartxsuite.admin` | op | 使用 `/axs reload\|load\|unload pickup` 管理命令 |
-
-## PlaceholderAPI
-
-本模块无独立 PlaceholderAPI 占位符输出。提示内容来自拾取事件和 ItemStack 序列化，不注册 PAPI 扩展。
 
 ## UI 界面
 

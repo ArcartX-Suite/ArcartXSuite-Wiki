@@ -1,0 +1,57 @@
+---
+title: "ConversationPlayable"
+description: "播放 NPC 对话与电影序列"
+---
+
+
+| 项目 | 内容 |
+| --- | --- |
+| 提供模块 | [conversation](/docs/conversation) |
+| 完整类型 | `xuanmo.arcartxsuite.api.capability.ConversationPlayable` |
+
+## 获取接口
+
+```java
+import xuanmo.arcartxsuite.api.AxsCapabilities;
+import xuanmo.arcartxsuite.api.capability.ConversationPlayable;
+
+ConversationPlayable api = AxsCapabilities.get(ConversationPlayable.class);
+if (api == null) {
+    // 当前功能不可用，向玩家说明或使用你的替代流程。
+    return;
+}
+```
+
+每次业务操作时重新获取接口；模块未加载或暂时不可用时返回 `null`。接入方式见[快速开始](/docs/api/quick-start)。
+
+## 方法声明
+
+以下为公开调用契约，保留参数类型与空值标注。Java 类型与当前配套 API JAR 保持一致。
+
+```java
+public interface ConversationPlayable {
+
+    boolean openConversation(@NotNull Player player, @NotNull String npcId);
+
+    boolean hasConversation(@NotNull String npcId);
+
+    boolean playCinematic(@NotNull Player player, @NotNull String sequenceId);
+
+    boolean stopCinematic(@NotNull Player player);
+}
+```
+
+## 参数与返回值
+
+| 方法 | 用途 | 参数 | 返回值 |
+| --- | --- | --- | --- |
+| `openConversation` | 为玩家强制打开绑定到指定 NPC 的 Chemdah 会话（ArcartX 对话 UI）。 | `player`：目标玩家；`npcId`：Adyeshach NPC id（`entity.getId()`；也可按 displayName/customName 匹配） | 是否成功发起（NPC 不存在/未绑定会话/玩家已在会话中返回 false） |
+| `hasConversation` | 查询指定 NPC 是否绑定了至少一个 Chemdah 会话。 | `npcId`：Adyeshach NPC id | `boolean`：用于判断上面所述的查询或操作结果（true / false） |
+| `playCinematic` | 为玩家播放电影序列（data/conversation/cinematics/&lt;id&gt;.yml 定义）。 | `player`：目标玩家；`sequenceId`：序列 id | 是否成功开始播放 |
+| `stopCinematic` | 停止玩家当前播放的电影序列。 | `player`：目标玩家（`Player`） | 是否有正在播放的序列被停止 |
+
+## 调用注意事项
+
+涉及 Bukkit 玩家、世界、物品或界面的调用放在 Bukkit 主线程执行；接口有明确线程说明时以该方法约定为准。
+
+先在对应模块配置中准备所引用的 ID，再调用接口。检查布尔值、结果对象或异常，只有成功后才更新第三方插件自己的业务状态。

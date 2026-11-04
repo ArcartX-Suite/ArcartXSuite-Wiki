@@ -1,35 +1,37 @@
 ---
-title: 概览
-description: RGB 渐变文本模块功能概览
+title: "渐变文本"
+description: "用渐变和扫光文字装饰聊天、称号与在线列表。"
 ---
 
-# RGB 渐变文本
 
-## 模块简介
-
-RGB 是 Suite 的渐变文本渲染模块，提供 **逐字渐变** 与 **动态扫光** 两种文本效果，通过 PlaceholderAPI 对外暴露。模块将 `entries` 目录下定义的渐变色条目渲染为带 ArcartX 颜色码的彩色文本，可直接用于聊天、TAB 列表、称号、UI 文本等任何支持 PlaceholderAPI 的场景。
-
-模块为纯计算型服务，无数据库、无跨服同步、无 UI 交互，启动时加载条目配置后即可通过占位符输出渲染结果。
-
-| 属性 | 值 |
-|---|---|
+| 项目 | 说明 |
+| --- | --- |
 | 模块 ID | `rgb` |
-| 版本 | 1.4.4 |
-| 配置文件 | `config.yml` |
-| 条目目录 | `entries/`（相对模块数据目录） |
-| 外部依赖 | PlaceholderAPI（必需） |
-| 模块依赖 | 无 |
-| 数据库 | 无（纯计算型，不持久化） |
-| 跨服同步 | 无 |
-| 命令入口 | 无模块命令（宿主 `/axs reload rgb` 重载配置） |
-| 对外能力 | `RgbRenderable`（渐变文本渲染） |
-| PAPI 前缀 | `%axsrgb_*%` |
+| 主配置 | `plugins/ArcartX-Suite/data/rgb/config.yml` |
+| 主要调整内容 | entries/ 中的文字、颜色与动画间隔 |
+| 重载 | `/axs reload rgb` |
 
-## 功能特性
+## 开始前
+
+确认 ArcartX 客户端可用，且 `/axs status` 显示本模块已加载。本模块还需要安装 `PlaceholderAPI`。可选插件只在使用对应功能时安装，具体要求见功能配置页。
+
+## 第一次使用
+
+1. 编辑默认文字条目。
+2. 将该条目的占位符放进支持 PlaceholderAPI 的文本。
+3. 在游戏内查看颜色效果。
+
+## 检查是否配置成功
+
+将默认条目的 text 改为服务器名称，检查引用处是否显示新文字。
+
+功能未生效时，先检查模块状态、所用定义 ID、玩家权限及客户端安装情况，随后对照[日志与报错提示](/docs/guide/config-management)逐项检查。
+
+## 可以配置的功能
 
 | 特性 | 说明 |
 |---|---|
-| 逐字渐变 | 文本按字符（codePoint）分配颜色梯度，支持两色到任意多色渐变（如红 → 黄 → 蓝） |
+| 逐字渐变 | 文本按字符（字符）分配颜色梯度，支持两色到任意多色渐变（如红 → 黄 → 蓝） |
 | 动态扫光 | 在渐变基础上叠加移动的高亮光带，可配置扫光颜色、宽度和强度 |
 | 动画帧切换 | 每隔 `switch-interval-ticks` tick 切换到下一帧，形成动态流光效果；设为 `0` 则显示静态渐变 |
 | PAPI 嵌套 | `text` 字段先按目标玩家解析 PlaceholderAPI（如 `%player_name%`），再叠加 RGB 渐变 |
@@ -39,46 +41,8 @@ RGB 是 Suite 的渐变文本渲染模块，提供 **逐字渐变** 与 **动态
 | 颜色格式兼容 | 支持 `#RRGGBB`、`§#RRGGBB`、`RRGGBB` 三种颜色输入格式 |
 | 条目热重载 | 通过 `/axs reload rgb` 可热重载条目配置，无需重启服务器 |
 
-## 依赖
+## 继续配置
 
-| 依赖类型 | 名称 | 必需 | 说明 |
-|---|---|---|---|
-| 外部依赖 | PlaceholderAPI | 是 | RGB 模块通过 PAPI 占位符 `%axsrgb_<entryId>%` 输出渲染结果，是硬依赖 |
-| 模块依赖 | 无 | - | RGB 不依赖其他 Suite 模块即可运行 |
-<Callout type="warn">
-PlaceholderAPI 是 RGB 模块的**硬依赖**。若未安装 PlaceholderAPI，模块仍可加载，但无法通过占位符输出任何渲染结果，模块失去实际意义。
-</Callout>
-
-## RGB 文本说明
-
-### 渐变与扫光
-
-- **逐字渐变**：文本按字符在 `gradient-colors` 调色板中逐字插值，支持两色到任意多色，形成平滑渐变。
-- **动态扫光**：在渐变上叠加移动的高亮光带，由 `shine-color`、`shine-width`、`shine-strength` 控制。
-- **动画帧**：`switch-interval-ticks` 控制帧切换速度。`0` 为静态渐变；`2` 约每 100ms 一帧（较快）；`3` 约每 150ms 一帧（适中）。
-
-### 条目引用
-
-条目的 `text` 字段先按目标玩家解析 PAPI 占位符，再叠加渐变，因此可嵌套 `%axsrgb_<otherId>%` 引用其他条目。
-
-<Callout type="info">
-条目可以互相引用，但**不能形成环**（如 a 引用 b、b 又引用 a）。检测到环时渲染结果为空串，调试模式下会输出警告日志。渲染文本最大 1024 字符，超长自动截断。
-</Callout>
-
-<Callout type="warn">
-RGB 颜色需要玩家安装 ArcartX 客户端才能显示。未安装客户端的玩家会看到原始颜色码文本。
-</Callout>
-
-## 快速上手
-
-1. 安装 PlaceholderAPI 和 ArcartX 客户端模组
-2. 启动服务器，模块自动生成 `config.yml` 和 `entries/default.yml`
-3. 编辑 `entries/default.yml` 添加自定义渐变色条目
-4. 执行 `/axs reload rgb` 热重载
-5. 在聊天/TAB/称号/UI 中使用 `%axsrgb_<entryId>%` 输出渲染文本
-
-## 相关页面
-
-- [配置](/docs/rgb/configuration) — 主配置与条目定义详解
-- [命令与占位符](/docs/rgb/commands) — 命令、权限与 PAPI 占位符
-- [联动](/docs/rgb/integration) — 模块集成与 API 调用
+- [功能配置](/docs/rgb/configuration)：字段含义与配置示例。
+- [命令与权限](/docs/rgb/commands)：玩家操作、管理命令和权限。
+- [渲染效果说明](/docs/rgb/rendering)：为文字设置渐变颜色、扫光宽度、亮度与动画速度。

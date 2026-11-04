@@ -1,9 +1,15 @@
 ---
-title: 配置
-description: Pickup 配置文件详解与示例
+title: "功能配置"
+description: "调整通知模式、扫描范围、物品过滤与提示样式；附字段解释、修改示例与重载步骤。"
 ---
 
-# 配置
+## 先改哪些内容
+
+通知模式、扫描范围、物品过滤与提示样式。先使用默认示例完成一次测试，再按本页逐项调整。
+
+配置位置：`plugins/ArcartX-Suite/data/pickup/config.yml`。定义文件与子目录均相对此模块目录。本文中的 YAML 片段用于修改对应小节，请保留文件中的其他设置。
+
+修改后执行 `/axs reload pickup`；涉及插件安装或全局设置的变更请重启后验证。
 
 ## 配置文件概览
 
@@ -11,24 +17,19 @@ Pickup 模块的配置文件为 `config.yml`，位于 `data/pickup/config.yml`�
 
 当前配置版本为 `3`，版本号字段路径为 `config-version`。配置版本低于 3 时启动自动迁移。
 
-## 主配置字段表
-
-### settings 节
+### 基础设置（settings）
 
 | 配置项 | 类型 | 默认值 | 校验规则 | 说明 |
 | --- | --- | --- | --- | --- |
 | `settings.debug` | boolean | `false` | — | 是否输出调试日志，包含发包详情、HUD 打开状态、拾取流程诊断 |
 | `settings.mode` | string | `notification` | 枚举：`notification` / `scanner` | 工作模式，不区分大小写，非 `scanner` 一律视为 `notification` |
 
-### ui 节
+### 界面显示（ui）
 
 统一管理所有 UI ID 与注册行为，从 `notification` / `scanner` 嵌套节抽离（配置版本 2→3 迁移）。
 
 | 配置项 | 类型 | 默认值 | 说明 |
 | --- | --- | --- | --- |
-| `ui.notification-ui-id` | string | `AXS:pickup_hud` | 通知模式目标 HUD 的 UI ID |
-| `ui.scanner-ui-id` | string | `AXS:loot_panel` | 扫描模式目标 HUD 的 UI ID |
-| `ui.interact-ui-id` | string | `AXS:loot_interact` | 扫描模式交互菜单的 UI ID（按键打开的透明菜单） |
 | `ui.register-ui-on-enable` | boolean | `true` | 插件启动/重载时是否自动注册 UI |
 | `ui.overwrite-ui-files` | boolean | `false` | 是否强制覆盖 UI 文件（通知模式 `pickup_hud.yml` 按配置动态生成；扫描模式 `loot_panel.yml` / `loot_interact.yml` 按资源导出） |
 
@@ -52,9 +53,6 @@ Pickup 模块的配置文件为 `config.yml`，位于 `data/pickup/config.yml`�
 | `scanner.warehouse-auto-deposit` | boolean | `false` | — | 拾取后是否尝试存入仓库（需 Warehouse 模块启用） |
 | `scanner.pickup-delay-ticks` | int | `40` | — | 物品落地后多久开始显示在面板（ticks，防止刚扔出的物品立即被扫描） |
 | `scanner.merge-same-items` | boolean | `true` | — | 同类物品是否合并显示（相同材质+名称合并数量） |
-| `scanner.keybind.name` | string | `AXS_PICKUP_PICK` | — | 拾取按键注册名，须与宿主 `config.yml` 的 `keybinds` 节中注册的按键 name 一致 |
-
-> `scanner.keybind.name` 留空时默认使用 `AXS_INTERACT`（宿主全局交互键，与对话模块共享，拾取优先级更高）。若想用独立按键，填 `AXS_PICKUP_PICK`（宿主 `config.yml` 的 `keybinds.pickup-pick` 注册的专用键）。无论填哪个，对应按键都必须在宿主 `config.yml` 的 `keybinds` 节中注册，否则按键无法触发。
 
 ### filter 节（过滤系统，仅扫描模式生效）
 
@@ -91,29 +89,6 @@ Pickup 模块的配置文件为 `config.yml`，位于 `data/pickup/config.yml`�
 | `filter.nbt-whitelist.nbt-keys` | list | `[]` | NBT 键白名单（非空时启用，物品 NBT 中必须包含至少一个指定键才显示） |
 
 > 五维过滤按顺序依次检查：最小数量 → 材质黑/白名单 → 名称正则 → Lore 正则 → NBT 键。白名单规则仅在配置非空时生效。过滤配置基于 `ItemMatcher` 体系，详见 [物品匹配条件](/docs/guide/conditions)。
-
-## 校验规则
-
-模块在 `configSpec()` 中声明了以下 `ValidationRule`，配置诊断引擎会自动校验：
-
-| 路径 | 类型 | 约束 | 说明 |
-| --- | --- | --- | --- |
-| `notification.max-visible` | INT | 范围 1~16 | 超出范围记 `VALUE_OUT_OF_RANGE`（WARN） |
-| `notification.entry-ttl-ms` | INT | 范围 500~30000 | 超出范围记 `VALUE_OUT_OF_RANGE`（WARN） |
-| `scanner.scan-radius` | DOUBLE | 范围 1.0~32.0 | 超出范围记 `VALUE_OUT_OF_RANGE`（WARN） |
-| `scanner.scan-interval-ticks` | INT | 范围 1~100 | 超出范围记 `VALUE_OUT_OF_RANGE`（WARN） |
-| `scanner.max-display` | INT | 范围 1~16 | 超出范围记 `VALUE_OUT_OF_RANGE`（WARN） |
-
-> 类型不匹配时引擎会尝试自动转换（如 `"10"` → INT 10），转换成功记 `TYPE_MISMATCH`（WARN）并修正值，转换失败记 `TYPE_MISMATCH`（ERROR）。详见 [配置管理](/docs/guide/config-management)。
-
-## 配置版本迁移
-
-| 迁移 | 操作 | 说明 |
-| --- | --- | --- |
-| 1 → 2 | `remove scanner.keybind.default-key` | 移除从未被代码使用的废弃字段 |
-| 2 → 3 | `move` × 7 | 将 `notification.ui-id` / `scanner.ui-id` / `scanner.interact-ui-id` 等 UI 配置从嵌套节移到统一 `ui` 顶层节，`register-ui-on-enable` 与 `overwrite-ui-file`（单数）合并为 `ui.register-ui-on-enable` 与 `ui.overwrite-ui-files`（复数） |
-
-## 完整配置示例
 
 ### 通知模式
 

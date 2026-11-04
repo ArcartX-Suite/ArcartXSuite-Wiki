@@ -1,30 +1,36 @@
 ---
-title: "概览"
-description: "Lottery 抽奖系统功能概览"
+title: "抽奖与开箱"
+description: "创建抽奖池、开箱动画、保底规则与积分兑换。"
 ---
 
-# Lottery 抽奖系统
 
-## 模块简介
-
-Lottery 是 Suite 的抽奖模块，提供两种抽奖模式：CS 开箱风格（CASE）与原神祈愿风格（GACHA）。CASE 模式按七档稀有度权重抽取物品，配有滚动动画 UI；GACHA 模式支持 5 星/4 星保底、软保底、UP 概率与跨池共享保底。模块还包含积分系统与积分兑换商店。
-
-| 属性 | 值 |
-|---|---|
+| 项目 | 说明 |
+| --- | --- |
 | 模块 ID | `lottery` |
-| 版本 | 1.4.4 |
-| 配置文件 | `config.yml`、`messages.yml`、`lottery/`（奖池定义目录） |
-| 命令入口 | 玩家 `/lottery`；管理 `/axs lottery` |
-| 外部依赖 | PlaceholderAPI（必需） |
-| 模块依赖 | 无 |
-| 对外能力 | `LotteryAccess`、`PlayerDataPurgeable`、`DatabaseMigratable` |
-| PAPI 前缀 | `%axslottery_*%` |
+| 主配置 | `plugins/ArcartX-Suite/data/lottery/config.yml` |
+| 主要调整内容 | pools/ 奖池、奖品权重、消耗与保底参数 |
+| 重载 | `/axs reload lottery` |
 
-## 功能特性
+## 开始前
+
+确认 ArcartX 客户端可用，且 `/axs status` 显示本模块已加载。本模块还需要安装 `PlaceholderAPI`。可选插件只在使用对应功能时安装，具体要求见功能配置页。
+
+## 第一次使用
+
+1. 复制一个默认奖池。
+2. 设置测试奖品与消耗。
+3. 执行 `/lottery open <奖池ID>`。
+
+## 检查是否配置成功
+
+完成一次测试抽奖，核对消耗、奖品和记录。
+
+功能未生效时，先检查模块状态、所用定义 ID、玩家权限及客户端安装情况，随后对照[日志与报错提示](/docs/guide/config-management)逐项检查。
+
+## 可以配置的功能
 
 | 特性 | 说明 |
 |---|---|
-| CASE 开箱 | CS:GO 风格开箱，七档稀有度权重抽取（COMMON/UNCOMMON/RARE/EPIC/LEGENDARY/MYTHIC/SPECIAL），滚动动画 UI，支持箱子物品右键开启与钥匙消耗 |
 | GACHA 祈愿 | 原神风格祈愿，5 星/4 星硬保底、软保底递增、UP 概率、大保底/小保底、武器池命运点定轨机制，支持单抽与十连 |
 | 多资源消耗 | 单次抽奖可同时消耗货币（CURRENCY）、物品（ITEM，含物品匹配器）、积分（POINT）三类资源 |
 | 积分系统 | 每次抽奖按稀有度/星级累积积分，积分可在兑换商店兑换奖品 |
@@ -32,89 +38,13 @@ Lottery 是 Suite 的抽奖模块，提供两种抽奖模式：CS 开箱风格�
 | 跨池共享保底 | 同组 Gacha 池共享保底计数（通配符匹配池 ID 或奖池内显式声明 `shared-pity-group`） |
 | 奖品投递 | 支持直接发放（DIRECT）、命令执行（COMMAND）、邮件发放（MAIL）三种投递方式 |
 | 物品库支持 | 奖品与图标支持原版 / MythicMobs / NeigeItems / Overture / MMOItems |
-| 开箱物品右键开启 | CASE 池可配置 `case-item`，玩家手持匹配物品右键直接打开开箱 UI |
 | 抽奖历史记录 | 记录玩家抽卡/开箱历史，UI 可查看最近 100 条抽卡 / 20 条开箱记录 |
 | 待发放奖励领取 | 投递失败的奖励自动入队，玩家上线或执行 `/lottery claim` 领取 |
-| 概率模拟 | 管理员可模拟指定奖池抽奖统计（不扣费、不发奖、不保存状态） |
-| 数据库迁移 | 支持配置版本迁移与 `/axs migrate` 存储迁移 |
-| 玩家数据清除 | 支持 `/axs purge` 单玩家/全量数据清除 |
 
-## 依赖
+## 继续配置
 
-| 依赖类型 | 名称 | 说明 |
-|---|---|---|
-| 外部依赖 | PlaceholderAPI | 硬依赖，未安装时模块不加载 |
-| 模块依赖 | 无 | 不依赖其他 Suite 模块 |
-
-## 抽奖机制详解
-
-### GACHA 抽卡机制
-
-GACHA 模式模拟原神祈愿，核心参数由奖池文件 `gacha` 节配置：
-
-| 参数 | 默认值 | 说明 |
-|---|---|---|
-| `pool-type` | `CHARACTER` | 卡池类型：`CHARACTER`（角色池）/ `WEAPON`（武器池）/ `STANDARD`（常驻池） |
-| `pity-5star` | `90` | 5 星硬保底抽数，达到必出 5 星 |
-| `pity-4star` | `10` | 4 星硬保底抽数，达到必出 4 星 |
-| `soft-pity-start` | `73` | 软保底起始抽数，之后每抽 5 星概率递增 |
-| `soft-pity-increment` | `0.06` | 软保底每抽概率增量 |
-| `base-5star-rate` | `0.006` | 5 星基础概率（0.6%） |
-| `base-4star-rate` | `0.051` | 4 星基础概率（5.1%） |
-| `up-rate` | `0.5` | UP 物品在对应星级中的占比概率（50%） |
-| `fate-point-cap` | `0` | 命运点上限（武器池定轨机制），0 表示不启用 |
-| `shared-pity-group` | 无 | 共享保底组名，同组卡池共享保底计数 |
-
-**抽卡规则**：
-
-1. 每抽开始，5 星与 4 星保底计数各 +1
-2. 若 5 星保底计数达到 `pity-5star`，必出 5 星；软保底区间内（≥ `soft-pity-start`）每抽概率按 `soft-pity-increment` 递增
-3. 出 5 星时：若上次 5 星未命中 UP（大保底），或按 `up-rate` 命中，则出 UP 5 星；否则出常驻 5 星，下次 5 星必为 UP
-4. 武器池命运点：`fate-point-cap > 0` 时，命中 UP 5 星但非定轨目标则命运点 +1；命中定轨目标清零；命运点满时必出定轨目标
-5. 4 星判定：达到 `pity-4star` 硬保底或按 `base-4star-rate` 命中则出 4 星；按 `up-rate` 分流 UP 4 星与常驻 4 星
-6. 未命中 5/4 星时出 3 星
-7. 同星级内多物品按 `weight` 加权随机选取
-
-**共享保底**：通过 `shared-pity-group`（奖池内显式声明）或顶层 `shared-pity-groups` 通配符匹配（如 `character_event_*`）实现跨池共享保底计数。共享组内任一卡池抽卡都会更新同一保底状态记录。
-
-### CASE 开箱机制
-
-CASE 模式模拟 CS:GO 开箱，核心参数由奖池文件 `case` 节配置：
-
-| 参数 | 说明 |
-|---|---|
-| `rarity-settings` | 稀有度名称到权重设定的映射，每个稀有度含 `color`（显示颜色代码）与 `base-weight`（基础权重） |
-| `items` | 奖池中全部可用奖品列表，每个奖品含 `rarity`（稀有度名称）与 `weight`（同稀有度内相对权重） |
-
-**开箱流程**：
-
-1. 按稀有度 `base-weight` 加权随机选择一个稀有度
-2. 从该稀有度的所有物品中按 `weight` 加权随机选取一件
-3. 物品的 `rarity` 必须匹配已配置的稀有度名称，否则该物品无法被抽出（记录警告）
-
-**箱子物品与钥匙**：
-
-- `case-item`：定义玩家手持触发开箱 UI 的物品匹配规则与消耗数量，右键空气或方块时触发
-- `requires-key`：`true` 时开箱消耗 = 箱子 + 钥匙（`cost` 配置）；`false` 时仅消耗箱子
-- 十连开箱按倍数扣除箱子与钥匙数量
-
-### 奖品投递
-
-奖品按 `delivery` 类型投递：
-
-| 投递方式 | 说明 |
-|---|---|
-| `DIRECT` | 直接发放物品到玩家背包，背包满时转邮件或暂存 |
-| `COMMAND` | 执行 `commands` 列表中的命令（支持 `{player}` / `{uuid}` / `{amount}` / `{item}` 占位符） |
-| `MAIL` | 发送 `mail.presets` 指定的邮件预设（需 mail 模块） |
-
-投递失败的奖励自动入队，玩家上线或执行 `/lottery claim` 时重新发放。
-
-## 相关文档
-
-- [配置](/docs/lottery/configuration) — 主配置、奖池配置、奖品配置详解
-- [命令与占位符](/docs/lottery/commands) — 玩家/管理员命令、权限、PAPI 占位符
-- [联动](/docs/lottery/integration) — 跨模块联动与数据管理
-- [条件系统](/docs/guide/conditions) — 物品匹配器条件写法
-- [物品来源](/docs/guide/item-sources) — 物品来源（source）支持列表
-- [图标](/docs/guide/icons) — 图标配置写法
+- [功能配置](/docs/lottery/configuration)：字段含义与配置示例。
+- [命令与权限](/docs/lottery/commands)：玩家操作、管理命令和权限。
+- [CASE 开箱机制](/docs/lottery/case-opening)：配置箱子识别、钥匙消耗、稀有度和开箱流程。
+- [GACHA 保底与概率](/docs/lottery/gacha-pity)：设置抽奖概率、保底次数与共享保底组，并检查概率示例。
+- [奖品投递与兑换商店](/docs/lottery/prize-delivery)：选择奖品投递方式，并配置待领取奖品与积分兑换商店。

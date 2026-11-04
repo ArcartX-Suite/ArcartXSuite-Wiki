@@ -1,11 +1,7 @@
 ---
-title: 扫描模式
-description: 扫描模式配置、五维过滤、物品合并与拾取流程
+title: "扫描模式"
+description: "设置扫描范围与物品过滤，了解玩家如何选择并拾取附近物品。"
 ---
-
-# 扫描模式
-
-> **付费模块**
 
 扫描模式（`settings.mode: scanner`）是 Pickup 模块的核心交互模式。该模式禁用原版自动拾取，周期性扫描玩家附近掉落物，经五维过滤筛选后推送到客户端 HUD 面板，玩家通过按键打开透明交互菜单，使用鼠标点击或滚轮切换选中并拾取目标物品。
 
@@ -126,19 +122,8 @@ filter:
 | `disable-auto-pickup: false` | 不拦截，玩家正常自动拾取 |
 | 玩家手动关闭拾取功能（`/pickup off`） | 不拦截自动拾取，HUD 与菜单关闭 |
 
-## HUD 生命周期
-
-| 事件 | 行为 |
-| --- | --- |
-| 玩家登录且客户端就绪 | 自动打开常驻 HUD |
-| 玩家退出 | 清理玩家状态 |
-| 手动关闭（`/pickup off`） | 关闭 HUD 与菜单 |
-| 手动开启（`/pickup on`） | 重新打开 HUD |
-| 模块重载 | 重新打开所有玩家 HUD |
-
 ## 相关文档
 
 - [概览](/docs/pickup) — 模块功能概览与模式对比
 - [配置](/docs/pickup/configuration) — 完整配置字段表
 - [命令与占位符](/docs/pickup/commands) — `/pickup` 命令与权限
-- [联动](/docs/pickup/integration) — Warehouse 联动与 EventBus 事件

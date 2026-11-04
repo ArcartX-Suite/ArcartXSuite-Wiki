@@ -1,9 +1,7 @@
 ---
-title: 命令与占位符
-description: QQBot 命令、权限与 PlaceholderAPI 占位符
+title: "命令与权限"
+description: "QQ群互联可用命令、参数填写方式和权限要求。"
 ---
-
-# QQBot 命令与占位符
 
 QQBot 模块提供游戏内命令和 QQ 群内指令两套命令体系，以及 PlaceholderAPI 占位符。
 
@@ -24,8 +22,6 @@ QQBot 模块提供游戏内命令和 QQ 群内指令两套命令体系，以及 
 | `/qqbot admin` | `/qqbot admin` | 打开管理后台 UI 面板（需管理员权限） |
 | `/qqbot at` | `/qqbot at <QQ号> <消息>` | 通过 QQ 群向指定 QQ 号发送 @ 消息 |
 
-### 玩家命令详解
-
 #### `/qqbot bind <验证码>`
 
 使用在 QQ 群内通过 `#绑定 <游戏名>` 获取的验证码完成绑定。
@@ -34,7 +30,7 @@ QQBot 模块提供游戏内命令和 QQ 群内指令两套命令体系，以及 
 - 绑定成功后自动加白名单（若 `whitelist.auto-add-on-bind` 启用）
 - 验证码与玩家名必须匹配，否则提示"该验证码不是为你生成的"
 
-#### `/qqbot unbind`
+#### 解除 QQ 绑定（`/qqbot unbind`）
 
 解除当前玩家的 QQ 绑定。
 
@@ -48,10 +44,6 @@ QQBot 模块提供游戏内命令和 QQ 群内指令两套命令体系，以及 
 - QQ 号必须为有效数字
 - 消息发送到所有已配置群
 
-## 管理员命令
-
-管理员通过 `/axs qqbot <子命令>` 执行管理操作。这些命令通过 `ModuleCommandHandler` 注册到 `/axs` 命令体系中。
-
 ### 管理员子命令
 
 | 命令 | 用法 | 说明 |
@@ -63,9 +55,7 @@ QQBot 模块提供游戏内命令和 QQ 群内指令两套命令体系，以及 
 | `/axs qqbot snowluma` | `/axs qqbot snowluma <子命令>` | SnowLuma 进程管理 |
 | `/axs qqbot blacklist` | `/axs qqbot blacklist <add\|remove\|list> [QQ]` | 黑名单管理 |
 
-### 管理员命令详解
-
-#### `/axs qqbot status`
+#### 查看群服连接状态（`/axs qqbot status`）
 
 查看机器人运行状态，包括：
 
@@ -104,7 +94,7 @@ SnowLuma 进程/容器管理：
 | `password` | 查看 WebUI 登录信息（地址 / 账号 admin / 临时密码）；`password reset` 重置密码（删除 webui.json 并重启，生成新临时密码） |
 | `check-update` | 检查是否有新版本（异步执行） |
 
-#### `/axs qqbot blacklist <add|remove|list> [QQ]`
+#### 管理 QQ 黑名单（`/axs qqbot blacklist <add|remove|list> [QQ]`）
 
 黑名单管理（操作数据库动态黑名单）：
 
@@ -227,52 +217,6 @@ custom-commands:
     permission: 1
     type: "server-command"
     command: "{args}"
-```
-
-#### papi-query 类型
-
-查询在线玩家的 PAPI 占位符值，`placeholders` 列表按顺序替换到 `format` 中的 `{0}`、`{1}`... 位置：
-
-```yaml
-custom-commands:
-  查玩家:
-    permission: 0
-    type: "papi-query"
-    usage: "#查玩家 [玩家名]"
-    placeholders:
-      - "%player_level%"
-      - "%vault_eco_balance%"
-      - "%player_health%"
-      - "%player_food_level%"
-    format: "玩家: {name}\n等级: {0}\n金币: {1}\n生命: {2}\n饥饿: {3}"
-```
-
-- 不指定玩家名时，自动通过 QQ 绑定关系解析玩家名
-- 玩家不在线时提示"找不到玩家"
-
-## PlaceholderAPI 占位符
-
-QQBot 模块向 PlaceholderAPI 注册了 `axsqqbot` 标识符的占位符：
-
-| 占位符 | 返回值 | 说明 |
-|---|---|---|
-| `%axsqqbot_connected%` | `true` / `false` | 机器人是否已连接 |
-| `%axsqqbot_connected_display%` | `已连接` / `未连接` | 机器人连接状态（中文显示） |
-| `%axsqqbot_bound_qq%` | QQ 号 / 空 | 当前玩家绑定的 QQ 号 |
-| `%axsqqbot_is_bound%` | `true` / `false` | 当前玩家是否已绑定 QQ |
-| `%axsqqbot_bound_name%` | 玩家名 / 空 | 当前玩家绑定的游戏名 |
-| `%axsqqbot_group_count%` | 数字 | 已配置的监听群数量 |
-
-### 占位符使用示例
-
-```yaml
-# 在计分板中显示 QQ 绑定状态
-绑定状态: %axsqqbot_is_bound%
-QQ号码: %axsqqbot_bound_qq%
-机器人: %axsqqbot_connected_display%
-
-# 在 Tab 列表中显示
-Tab标题: "QQ群服互联 - %axsqqbot_group_count% 个群"
 ```
 
 ## 命令权限体系总结

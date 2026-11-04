@@ -1,38 +1,45 @@
-# ArcartXSuite-Wiki
+# Suite 使用文档
 
-ArcartX-Suite 官方文档，基于 Next.js + Fumadocs 构建。
+面向服主、管理员与第三方 Bukkit 插件作者的 ArcartX Suite 文档。
 
-## 开发
+## 内容组织
 
-```bash
-npm install
+- **使用指南**：按本体使用、通用配置、开发者内容的顺序阅读；安装、模块启用与主配置合并为同一篇教程。
+- **模块使用**：按用途分组，每个模块先提供操作步骤，再提供配置、命令和功能专题。
+- **第三方插件接入**：依赖声明、最小插件示例、公开接口、参数与返回值。
+
+模块入口使用明确的功能名称。首页支持中文功能搜索和用途筛选，文档搜索支持中文、命令与接口名称。全站固定使用 Suite 紫金深色主题，不提供日间模式或主题切换。
+
+## 本地开发
+
+安装 Node.js 20 或更新的兼容版本，然后执行：
+
+```text
+npm ci
 npm run dev
 ```
 
-访问 http://localhost:3000
+访问终端输出地址下的 `/ArcartXSuite-Wiki/`。站点使用现有 GitHub Pages 子路径。
 
-## 构建
+## 验证与构建
 
-```bash
-npm run build
+```text
+npm run check:docs
+npm run rebuild
+npm run preview
 ```
 
-## 部署
+文档检查覆盖中文标题、具体用途简介、相关链接说明、空表格、站内链接和目录锚点，并检查 30 个模块的必需页面与公开内容边界。生产构建同时检查 MDX、TypeScript 和静态页面导出，输出为 `out/`。
 
-### Docker
+构建时生成的 `/search-index.json` 包含当前公开文档的检索文本，供浏览器本地搜索。新增或移除页面无需手动维护搜索索引。
 
-```bash
-docker build -t arcartxsuite-wiki .
-docker run -p 3000:3000 arcartxsuite-wiki
-```
+## 文档维护
 
-### GitHub Actions
+1. 每个模块首页回答用途、文件位置、第一次怎么用、如何确认成功。
+2. 配置页先列常用设置，再提供字段参考；明确片段所在文件和是否需要重载。
+3. 保留用户实际需要的命令、权限、依赖、单位和使用限制。
+4. 公开 API 以配套发行版的接口声明为准，示例处理功能不可用与失败结果。
+5. 不发布内部实现、私有接口、通信协议或安全防护细节；变更时同时检查源码文档、搜索索引与导出页面。
+6. 提交前运行文档检查和完整构建。已有工作流在 `main` 更新后发布到 GitHub Pages。
 
-push 到 main 分支会自动触发构建。
-
-## 技术栈
-
-- Next.js 15
-- Fumadocs（文档框架）
-- Tailwind CSS
-- TypeScript
+技术栈：Next.js、Fumadocs、React、TypeScript、Tailwind CSS。

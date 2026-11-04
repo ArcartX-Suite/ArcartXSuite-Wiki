@@ -1,0 +1,72 @@
+---
+title: "FishingAccess"
+description: "操作钓鱼小游戏、经验、图鉴与奖励"
+---
+
+
+| 项目 | 内容 |
+| --- | --- |
+| 提供模块 | [fishing](/docs/fishing) |
+| 完整类型 | `xuanmo.arcartxsuite.api.capability.FishingAccess` |
+
+## 获取接口
+
+```java
+import xuanmo.arcartxsuite.api.AxsCapabilities;
+import xuanmo.arcartxsuite.api.capability.FishingAccess;
+
+FishingAccess api = AxsCapabilities.get(FishingAccess.class);
+if (api == null) {
+    // 当前功能不可用，向玩家说明或使用你的替代流程。
+    return;
+}
+```
+
+每次业务操作时重新获取接口；模块未加载或暂时不可用时返回 `null`。接入方式见[快速开始](/docs/api/quick-start)。
+
+## 方法声明
+
+以下为公开调用契约，保留参数类型与空值标注。Java 类型与当前配套 API JAR 保持一致。
+
+```java
+public interface FishingAccess {
+
+    boolean isInMinigame(@NotNull UUID playerUuid);
+
+    boolean startMinigame(@NotNull Player player);
+
+    int collectionCount(@NotNull UUID playerUuid);
+
+    int totalFishTypes();
+
+    void giveXp(@NotNull UUID playerUuid, int amount);
+
+    int fatigue(@NotNull UUID playerUuid);
+
+    void setFatigue(@NotNull UUID playerUuid, int value);
+
+    boolean claimReward(@NotNull Player player, @NotNull String rewardId);
+
+    @NotNull String sellAllFish(@NotNull Player player);
+}
+```
+
+## 参数与返回值
+
+| 方法 | 用途 | 参数 | 返回值 |
+| --- | --- | --- | --- |
+| `isInMinigame` | 查询玩家是否正处于钓鱼小游戏中。 | `playerUuid`：玩家 UUID（`UUID`） | `boolean`：用于判断上面所述的查询或操作结果（true / false） |
+| `startMinigame` | 让玩家开始钓鱼小游戏。 | `player`：目标玩家（`Player`） | 是否成功启动（鱼竿/条件不满足时返回 false） |
+| `collectionCount` | 玩家图鉴已解锁的鱼类数量。 | `playerUuid`：玩家 UUID（`UUID`） | `int` 数值，具体统计含义见本行用途 |
+| `totalFishTypes` | 图鉴鱼类总数。 | 无参数 | `int` 数值，具体统计含义见本行用途 |
+| `giveXp` | 为玩家增加钓鱼经验。 | `playerUuid`：玩家 UUID（`UUID`）；`amount`：数量或数值（`int`） | 无返回值；按本行说明执行操作 |
+| `fatigue` | 查询玩家当前疲劳值。 | `playerUuid`：玩家 UUID（`UUID`） | `int` 数值，具体统计含义见本行用途 |
+| `setFatigue` | 设置玩家疲劳值。 | `playerUuid`：玩家 UUID（`UUID`）；`value`：调用参数（`int`） | 无返回值；按本行说明执行操作 |
+| `claimReward` | 为玩家领取指定赛季奖励。 | `player`：目标玩家（`Player`）；`rewardId`：对应条目的 ID（`String`） | 是否成功领取 |
+| `sellAllFish` | 卖出玩家背包内全部鱼获。 | `player`：目标玩家（`Player`） | 结果提示消息 |
+
+## 调用注意事项
+
+涉及 Bukkit 玩家、世界、物品或界面的调用放在 Bukkit 主线程执行；接口有明确线程说明时以该方法约定为准。
+
+先在对应模块配置中准备所引用的 ID，再调用接口。检查布尔值、结果对象或异常，只有成功后才更新第三方插件自己的业务状态。

@@ -1,6 +1,6 @@
 ---
-title: 安全管理
-description: Essentials 模块安全管理详解 — 封禁、禁言、踢出、警告自动封禁、强制执行与背包查看
+title: "安全管理"
+description: "通过封禁、禁言、踢出、警告等命令管理玩家。"
 ---
 
 ## 功能概述
@@ -18,8 +18,6 @@ description: Essentials 模块安全管理详解 — 封禁、禁言、踢出、
 | 警告 | `warn` | `axs.essentials.warn` |
 | 强制执行 | `sudo` | `axs.essentials.sudo` |
 | 背包查看 | `inv` | `axs.essentials.inv` |
-
-## 封禁系统
 
 ### 永久封禁（ban）
 
@@ -45,7 +43,7 @@ description: Essentials 模块安全管理详解 — 封禁、禁言、踢出、
 
 `/essentials unban <玩家>` 删除封禁记录。命令仅对在线玩家生效，离线玩家需通过管理员面板的 unban 操作（按 UUID 解除）。
 
-> 封禁记录写入数据库，但**不拦截离线封禁玩家的加入**。如需加入时拦截，需配合宿主或代理层的封禁门扩展开发。
+> 封禁记录写入数据库，但**不拦截离线封禁玩家的加入**。如需加入时拦截，需配合Suite或代理层的封禁门扩展开发。
 
 ## 禁言系统
 

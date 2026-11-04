@@ -1,9 +1,7 @@
 ---
 title: "全服签到目标"
-description: "OnlineRewards 全服签到目标/集体奖励系统：目标配置、达成触发、多渠道奖励发放与 EventBus 事件"
+description: "设置全服签到人数目标，并配置达标后的奖励。"
 ---
-
-> **付费模块** — 本页详细说明 OnlineRewards 模块的全服签到目标/集体奖励系统，包括目标配置、达成触发逻辑、多渠道奖励发放（命令/邮件/物品/聊天卡片/字幕/标题/QQ广播）与 EventBus 事件订阅。
 
 全服签到目标是 OnlineRewards 模块的社会化激励功能。每当有玩家签到时，系统统计今日全服签到人数，当签到人数达到某个目标的 `required` 阈值时，给所有在线玩家发放该目标的奖励。每个目标每天只触发一次，通过数据库记录防止重复触发。
 
@@ -15,7 +13,6 @@ description: "OnlineRewards 全服签到目标/集体奖励系统：目标配置
 | 防重复触发 | 每个目标每天只触发一次（数据库记录） |
 | 多渠道奖励 | 命令、邮件预设、物品、聊天卡片、字幕组、标题、QQ广播 |
 | 全服广播 | 达成目标时全服广播消息 |
-| EventBus 事件 | 发布 `axs.onlinerewards.server_goal_reached` 事件供其他模块订阅 |
 | 占位符查询 | 提供当前签到人数与下一个目标所需人数的占位符 |
 
 ## 配置结构
@@ -27,7 +24,6 @@ description: "OnlineRewards 全服签到目标/集体奖励系统：目标配置
 | 字段 | 类型 | 默认值 | 说明 |
 |---|---|---|---|
 | `server-sign-in-goal.enabled` | `boolean` | `true` | 是否启用全服签到目标 |
-| `server-sign-in-goal.broadcast` | `boolean` | `true` | 达成目标时是否全服广播 |
 | `server-sign-in-goal.targets` | `List<Map>` | 见下 | 目标列表 |
 
 ### 目标字段
@@ -46,44 +42,6 @@ description: "OnlineRewards 全服签到目标/集体奖励系统：目标配置
 | `chat-cards` | `List<String>` | 聊天卡片 ID 列表 |
 | `subtitle-groups` | `List<String>` | 字幕组 ID 列表 |
 | `title-ids` | `List<String>` | 标题 ID 列表 |
-| `broadcast` | `String` | 达成时的广播文本（支持 `{player}`） |
-
-## 触发流程
-
-```
-玩家签到成功
-  │
-  └→ checkServerSignInGoals(triggerPlayer)
-       │
-       ├→ 检查 server-sign-in-goal.enabled 是否为 true
-       │    └→ 未启用 → 直接返回
-       │
-       ├→ 查询今日全服签到人数（repository.countSignInRecords）
-       │    └→ 查询失败 → 记录日志并返回
-       │
-       └→ 遍历 targets 列表
-            │
-            ├→ signedCount < target.required → 跳过该目标
-            │
-            ├→ 检查该目标今日是否已触发（repository.isServerGoalTriggered）
-            │    └→ 已触发 → 跳过该目标
-            │
-            ├→ 记录触发状态（repository.saveServerGoalTriggered）
-            │
-            ├→ 全服广播（broadcastServerGoal）
-            │    ├→ Bukkit.broadcastMessage（若 broadcast 为 true）
-            │    └→ QQBot.sendToAllGroups（若 QQBot 可用）
-            │
-            ├→ 遍历所有在线玩家（executeServerGoalCommands）
-            │    ├→ 执行 commands（支持 {player} 变量）
-            │    ├→ 发送 mail.presets 邮件预设
-            │    ├→ 发放 item-rewards 物品奖励
-            │    ├→ 发送 chat-cards 聊天卡片
-            │    ├→ 播放 subtitle-groups 字幕组
-            │    └→ 授予 title-ids 标题
-            │
-            └→ 发布 EventBus 事件（axs.onlinerewards.server_goal_reached）
-```
 
 ### 防重复触发
 
@@ -103,8 +61,6 @@ commands:
   - "give {player} diamond 1"
   - "eco give {player} 100"
 ```
-
-> 玩家名称会经过 `CommandSanitizer.validatePlayerName` 安全校验，防止命令注入。
 
 ### 邮件预设（mail.presets）
 
@@ -171,88 +127,6 @@ title-ids:
 
 > 标题授予方式为永久（`"permanent"`），来源标记为 `"OnlineRewards:ServerGoal"`。
 
-### QQ 群广播
-
-当 QQBot 模块可用时，达成目标会通过 `QQBotBroadcastable.sendToAllGroups(message)` 向所有 QQ 群广播消息。
-
-> 广播消息使用目标的 `broadcast` 字段内容，支持 `{player}` 变量替换为触发签到的玩家名。
-
-## 配置示例
-
-```yaml
-# ArcartXOnlineRewards.yml
-server-sign-in-goal:
-  enabled: true
-  broadcast: true
-  targets:
-    # 10 人签到目标
-    - id: "goal_10"
-      required: 10
-      name: "今日 10 人签到"
-      rewardText: "全服 10 人签到达成奖励"
-      commands:
-        - "say {player} 领取了全服 10 人签到奖励"
-        - "give {player} diamond 1"
-      mail:
-        presets: ["server_goal_10_mail"]
-      item-rewards:
-        - source: "minecraft"
-          id: "GOLDEN_APPLE"
-          amount: 1
-      chat-cards: []
-      subtitle-groups: []
-      title-ids: []
-      broadcast: "§e[全服签到] §f今日 10 人签到 §7已达成！"
-
-    # 50 人签到目标 — 更丰富的奖励
-    - id: "goal_50"
-      required: 50
-      name: "今日 50 人签到"
-      rewardText: "全服 50 人签到达成大奖"
-      commands:
-        - "say {player} 领取了全服 50 人签到大奖"
-        - "give {player} nether_star 1"
-        - "eco give {player} 500"
-      mail:
-        presets: ["server_goal_50_mail"]
-      item-rewards:
-        - source: "minecraft"
-          id: "NETHER_STAR"
-          amount: 1
-        - source: "mythic"
-          id: "legendary_chest"
-          amount: 1
-      chat-cards:
-        - "server_goal_50_card"
-      subtitle-groups:
-        - "server_goal_50_subtitle"
-      title-ids:
-        - "server_goal_50_title"
-      broadcast: "§e[全服签到] §f今日 50 人签到 §7已达成！全服狂欢！"
-
-    # 100 人签到目标 — 终极奖励
-    - id: "goal_100"
-      required: 100
-      name: "今日 100 人签到"
-      rewardText: "全服 100 人签到终极奖励"
-      commands:
-        - "say {player} 领取了全服 100 人签到终极奖励"
-        - "give {player} dragon_egg 1"
-      mail:
-        presets: ["server_goal_100_mail"]
-      item-rewards:
-        - source: "minecraft"
-          id: "DRAGON_EGG"
-          amount: 1
-      chat-cards:
-        - "server_goal_100_card"
-      subtitle-groups:
-        - "server_goal_100_subtitle"
-      title-ids:
-        - "server_goal_100_title"
-      broadcast: "§e[全服签到] §6今日 100 人签到 §7已达成！全服终极狂欢！"
-```
-
 ## 占位符
 
 | 占位符 | 返回值 | 说明 |
@@ -266,48 +140,15 @@ server-sign-in-goal:
 
 > 该占位符可用于 UI 中展示"距离下一个全服奖励还需 X 人签到"的进度提示。
 
-## EventBus 事件
-
-全服签到目标达成时，模块通过 `EventBusCapability` 发布事件，其他模块可订阅对应 Topic 接收事件。
-
-### axs.onlinerewards.server_goal_reached
-
-| Payload 字段 | 类型 | 说明 |
-|---|---|---|
-| `goal_id` | `String` | 目标 ID |
-| `goal_name` | `String` | 目标名称 |
-| `required` | `String` | 所需签到人数 |
-| `signed_count` | `String` | 实际签到人数 |
-
-```java
-// 订阅示例（其他模块中）
-eventBus.subscribe("axs.onlinerewards.server_goal_reached", (player, payload) -> {
-    String goalId = payload.get("goal_id");
-    String goalName = payload.get("goal_name");
-    int required = Integer.parseInt(payload.get("required"));
-    int signedCount = Integer.parseInt(payload.get("signed_count"));
-    // 处理全服签到目标达成事件
-    // 例如：触发自定义成就、记录日志等
-});
-```
-
-> `player` 参数为触发签到的玩家（即达到阈值时最后一个签到的玩家），非所有在线玩家。
-
-## 数据存储
-
-全服签到目标的触发记录持久化到数据库，保证同一目标同一天不会重复触发。
-
 ## 跨服同步
 
 全服签到目标的签到人数统计基于共享数据库，因此多服环境下签到人数是全服汇总的。
 
 | 前提条件 | 说明 |
 |---|---|
-| `storage.shared: true` | 必须使用共享存储模式 |
-| MySQL 共享数据库 | 各子服共享同一数据库 |
 | `cross-server.enabled: true` | 启用跨服同步通知 |
 
-> 跨服同步详见 [联动](/docs/onlinerewards/integration) 页面的跨服同步章节。
+> 跨服同步详见 [在线奖励与签到使用说明](/docs/onlinerewards) 页面的跨服同步章节。
 
 ## 配置注意事项
 
@@ -315,7 +156,6 @@ eventBus.subscribe("axs.onlinerewards.server_goal_reached", (player, payload) ->
 2. **仅在线玩家**：奖励只发放给达成时在线的玩家，离线玩家不会补发
 3. **防重复**：每个目标每天只触发一次，通过数据库记录保证
 4. **签到触发**：目标检查在每次玩家签到成功后触发，补签也会触发检查
-5. **广播控制**：`broadcast` 顶层配置控制是否全服广播，每个目标也可自定义广播文本
 6. **QQ 广播**：QQ 群广播使用与全服广播相同的消息文本，需要 QQBot 模块可用
 7. **标题永久**：通过全服签到目标授予的标题为永久标题，来源标记为 `OnlineRewards:ServerGoal`
 8. **命令安全**：命令中的 `{player}` 变量会经过安全校验

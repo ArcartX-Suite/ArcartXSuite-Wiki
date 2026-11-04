@@ -1,9 +1,15 @@
 ---
-title: 配置
-description: Title 配置文件详解
+title: "功能配置"
+description: "调整titles/ 称号定义、分组、品质与套装；附字段解释、修改示例与重载步骤。"
 ---
 
-# Title 配置
+## 先改哪些内容
+
+titles/ 称号定义、分组、品质与套装。先使用默认示例完成一次测试，再按本页逐项调整。
+
+配置位置：`plugins/ArcartX-Suite/data/title/config.yml`。定义文件与子目录均相对此模块目录。本文中的 YAML 片段用于修改对应小节，请保留文件中的其他设置。
+
+修改后执行 `/axs reload title`；涉及插件安装或全局设置的变更请重启后验证。
 
 ## 配置文件结构
 
@@ -16,37 +22,17 @@ Title 模块的配置文件位于 `plugins/ArcartX-Suite/data/title/` 目录下�
 | `titles/` | 称号定义目录，每个 `.yml` 文件可包含多个称号定义 |
 | `ui/title_menu.yml` | 称号菜单 UI 配置 |
 
-## 主配置字段表
-
-### settings
+### 称号基础设置（settings）
 
 | 字段 | 类型 | 默认值 | 说明 |
 |---|---|---|---|
 | `debug` | `boolean` | `false` | 是否输出称号模块调试日志 |
 | `expiration-cleanup-interval-ticks` | `int` | `1200` | 后台过期清理周期（ticks），20 ticks = 1 秒，最小值 20 |
 
-### storage
+### 界面设置（ui）
 
 | 字段 | 类型 | 默认值 | 说明 |
 |---|---|---|---|
-| `shared` | `boolean` | `true` | 是否使用共享存储模式（复用本体数据源） |
-| `mode` | `String` | `sqlite` | 存储模式（`sqlite` / `mysql`），仅 `shared: false` 时生效 |
-| `sqlite.file` | `String` | `titles.db` | SQLite 文件名（相对模块数据目录），仅 `shared: false` 且 `mode: sqlite` 时生效 |
-| `mysql.host` | `String` | `127.0.0.1` | MySQL 主机地址 |
-| `mysql.port` | `int` | `3306` | MySQL 端口 |
-| `mysql.database` | `String` | `arcartxsuite` | MySQL 数据库名 |
-| `mysql.username` | `String` | `root` | MySQL 用户名 |
-| `mysql.password` | `String` | `""` | MySQL 密码 |
-| `mysql.table-prefix` | `String` | `axs_title_` | MySQL 表名前缀 |
-| `pool-size` | `int` | `4` | JDBC 连接池大小（SQLite 建议 1），范围 1-100 |
-
-> `shared: true`（推荐）时复用本体 `config.yml` 的 `storage` 节配置，上述字段全部忽略。`shared: false` 时模块自建独立 HikariCP 连接池。
-
-### ui
-
-| 字段 | 类型 | 默认值 | 说明 |
-|---|---|---|---|
-| `ui-id` | `String` | `AXS:title_menu` | 称号菜单 UI ID |
 | `register-ui-on-enable` | `boolean` | `true` | 启用时是否自动注册 UI |
 | `overwrite-ui-files` | `boolean` | `false` | 启用时是否覆盖用户已修改的 UI 文件 |
 | `attribute-line-color` | `String` | `&0` | 属性列表每行的统一颜色前缀 |
@@ -54,18 +40,9 @@ Title 模块的配置文件位于 `plugins/ArcartX-Suite/data/title/` 目录下�
 
 ### 属性桥接配置
 
-四个属性桥接配置节结构相同，均只有一个 `source-prefix` 字段：
+使用称号属性前，先安装对应的属性插件。称号中的属性名称和数值需要与该插件的配置对应；具体写法见[称号属性定义](/docs/title/title-definitions)。
 
-| 配置节 | 默认前缀 | 展示属性源名 | 收集属性源名 |
-|---|---|---|---|
-| `attributeplus` | `AXS_TITLE` | `AXS_TITLE_DISPLAY` | `AXS_TITLE_COLLECTION` |
-| `mythiclib` | `AXS_TITLE` | `AXS_TITLE_DISPLAY_<STAT>` | `AXS_TITLE_COLLECTION_<STAT>` |
-| `craneattribute` | `AXS_TITLE` | `AXS_TITLE_DISPLAY` | `AXS_TITLE_COLLECTION` |
-| `symphony` | `AXS_TITLE` | `AXS_TITLE_DISPLAY_<attr>` | `AXS_TITLE_COLLECTION_<attr>` |
-
-> 属性桥接是否生效由本体 `config.yml` 的 `attribute-bridges.<plugin>` 统一管理，模块侧仅配置源名称前缀。MythicLib 的前缀会经过规范化（非字母数字字符替换为下划线，转大写）。
-
-### display-title
+### 展示称号（display-title）
 
 | 字段 | 类型 | 默认值 | 说明 |
 |---|---|---|---|
@@ -73,7 +50,7 @@ Title 模块的配置文件位于 `plugins/ArcartX-Suite/data/title/` 目录下�
 | `separator` | `String` | ` ` | 多组拼接时的分隔符 |
 | `empty-text` | `String` | `""` | 无展示称号时的占位文本 |
 
-### groups
+### 称号分组（groups）
 
 分组字典，key 为分组 ID（小写英文、数字、下划线）：
 
@@ -83,7 +60,7 @@ Title 模块的配置文件位于 `plugins/ArcartX-Suite/data/title/` 目录下�
 | `sort-order` | `int` | 索引位置 | 排序权重，越小越靠前 |
 | `permission` | `String` | `""` | 访问权限节点，空表示所有人可用 |
 
-### qualities
+### 称号品质（qualities）
 
 品质字典，key 为品质 ID：
 
@@ -92,7 +69,7 @@ Title 模块的配置文件位于 `plugins/ArcartX-Suite/data/title/` 目录下�
 | `name` | `String` | 品质 ID | 品质显示名称，支持颜色码 |
 | `sort-order` | `int` | 索引位置 | 排序权重，越小越靠前 |
 
-### sets
+### 称号套装（sets）
 
 套装字典，key 为套装 ID：
 
@@ -104,7 +81,7 @@ Title 模块的配置文件位于 `plugins/ArcartX-Suite/data/title/` 目录下�
 | `bonus-attributes` | `Map<String, Double>` | — | 套装激活后的奖励属性 |
 | `bonus-attribute-lines` | `List<String>` | — | 奖励属性文本行 |
 
-### titles-directory
+### 称号定义目录（titles-directory）
 
 | 字段 | 类型 | 默认值 | 说明 |
 |---|---|---|---|
@@ -119,9 +96,9 @@ Title 模块的配置文件位于 `plugins/ArcartX-Suite/data/title/` 目录下�
 adventurer:
   # 是否启用该称号
   enabled: true
-  # 所属分组 ID，必须已在 ArcartXTitle.yml 的 groups 中定义
+  # 所属分组 ID，必须已在 config.yml 的 groups 中定义
   group: "adventure"
-  # 品质 ID，必须已在 ArcartXTitle.yml 的 qualities 中定义
+  # 品质 ID，必须已在 config.yml 的 qualities 中定义
   quality: "common"
   # 称号类型：text 纯文本 / icon 贴图称号
   kind: "text"
@@ -199,8 +176,6 @@ adventurer:
 
 > 引用不存在的分组或品质的称号会被跳过并记录警告。`enabled: false` 的称号不加载。
 
-## 属性配置
-
 ### 属性键值对与文本行
 
 属性支持两种配置形式，可同时使用：
@@ -232,90 +207,3 @@ display-attribute-lines:
 | MythicLib | `<prefix>_DISPLAY_<STAT>` | `<prefix>_COLLECTION_<STAT>` |
 | CraneAttribute | `<prefix>_DISPLAY` | `<prefix>_COLLECTION` |
 | Symphony | `<prefix>_DISPLAY_<attr>` | `<prefix>_COLLECTION_<attr>` |
-
-## 完整配置示例
-
-```yaml
-config-version: 2
-
-settings:
-  debug: false
-  expiration-cleanup-interval-ticks: 1200
-
-storage:
-  shared: true
-
-ui:
-  ui-id: "AXS:title_menu"
-  register-ui-on-enable: true
-  overwrite-ui-files: false
-  attribute-line-color: "&0"
-  empty-attribute-placeholder: "暂无属性"
-
-attributeplus:
-  source-prefix: "AXS_TITLE"
-
-mythiclib:
-  source-prefix: "AXS_TITLE"
-
-craneattribute:
-  source-prefix: "AXS_TITLE"
-
-symphony:
-  source-prefix: "AXS_TITLE"
-
-display-title:
-  groups: []
-  separator: " "
-  empty-text: ""
-
-groups:
-  adventure:
-    name: "&f冒险类&7"
-    sort-order: 10
-    permission: ""
-  exploration:
-    name: "&f探索类&7"
-    sort-order: 20
-    permission: ""
-  activity:
-    name: "&f活动类&7"
-    sort-order: 30
-    permission: ""
-
-qualities:
-  common:
-    name: "&f普通"
-    sort-order: 10
-  legendary:
-    name: "&6传说"
-    sort-order: 20
-  mythic:
-    name: "&c神话"
-    sort-order: 30
-
-sets:
-  adventure_set:
-    display-name: "&f冒险套装"
-    required-titles:
-      - adventurer
-      - explorer
-    completion-threshold: 2
-    bonus-attributes:
-      attack: 10
-    bonus-attribute-lines:
-      - "&c套装攻击力: +10"
-
-titles-directory: "titles"
-```
-
-## 配置版本迁移
-
-模块通过 `config-version` 标识配置结构版本，低于当前版本时由迁移引擎自动升级：
-
-| 迁移 | 说明 |
-|---|---|
-| `0 → 1` | 初始迁移，补充缺失的 `ui.ui-id` 默认值 |
-| `1 → 2` | `storage.mode` 重命名为 `storage.shared`，值从 `sqlite`/`mysql` 映射为 `true`/`false` |
-
-> 当前配置版本为 `2`。迁移使用 `set-if-missing`（仅写入缺失值）和 `rename`（重命名路径）操作，不覆盖用户已有配置。

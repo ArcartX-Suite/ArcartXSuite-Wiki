@@ -1,0 +1,99 @@
+---
+title: "AbyssPartyAccess"
+description: "管理副本队伍、成员与自定义组队模式"
+---
+
+
+| 项目 | 内容 |
+| --- | --- |
+| 提供模块 | [abyss](/docs/abyss) |
+| 完整类型 | `xuanmo.arcartxsuite.api.capability.AbyssPartyAccess` |
+
+## 获取接口
+
+```java
+import xuanmo.arcartxsuite.api.AxsCapabilities;
+import xuanmo.arcartxsuite.api.capability.AbyssPartyAccess;
+
+AbyssPartyAccess api = AxsCapabilities.get(AbyssPartyAccess.class);
+if (api == null) {
+    // 当前功能不可用，向玩家说明或使用你的替代流程。
+    return;
+}
+```
+
+每次业务操作时重新获取接口；模块未加载或暂时不可用时返回 `null`。接入方式见[快速开始](/docs/api/quick-start)。
+
+## 方法声明
+
+以下为公开调用契约，保留参数类型与空值标注。Java 类型与当前配套 API JAR 保持一致。
+
+```java
+public interface AbyssPartyAccess {
+
+    @Nullable PartySnapshot partyOf(@NotNull UUID player);
+
+    boolean isInParty(@NotNull UUID player);
+
+    boolean isLeader(@NotNull UUID player);
+
+    @Nullable PartySnapshot getParty(@NotNull UUID partyId);
+
+    @NotNull List<PartySnapshot> publicParties();
+
+    @NotNull PartySnapshot createParty(@NotNull Player leader, @Nullable String name,
+                                       @NotNull String mode, int maxSize);
+
+    boolean disband(@NotNull UUID partyId);
+
+    @Nullable String addMember(@NotNull UUID partyId, @NotNull UUID player);
+
+    boolean removeMember(@NotNull UUID partyId, @NotNull UUID player);
+
+    boolean transferLeader(@NotNull UUID partyId, @NotNull UUID newLeader);
+
+    void registerJoinValidator(@NotNull String mode, @NotNull JoinValidator validator);
+
+    void unregisterJoinValidator(@NotNull String mode);
+
+    @FunctionalInterface
+    interface JoinValidator {
+
+        @Nullable String check(@NotNull PartySnapshot party, @NotNull UUID applicant);
+    }
+
+    record PartySnapshot(
+        @NotNull UUID id,
+        @NotNull String name,
+        @NotNull String mode,
+        @NotNull UUID leader,
+        @NotNull List<UUID> members,
+        int maxSize,
+        @Nullable String dungeonId
+    ) {}
+}
+```
+
+## 参数与返回值
+
+| 方法 | 用途 | 参数 | 返回值 |
+| --- | --- | --- | --- |
+| `partyOf` | 玩家所在队伍快照；不在队伍中返回 null。 | `player`：目标玩家（`UUID`） | `PartySnapshot` 结果对象；没有对应结果时可为 null |
+| `isInParty` | 玩家是否在队伍中。 | `player`：目标玩家（`UUID`） | `boolean`：用于判断上面所述的查询或操作结果（true / false） |
+| `isLeader` | 玩家是否是队长。 | `player`：目标玩家（`UUID`） | `boolean`：用于判断上面所述的查询或操作结果（true / false） |
+| `getParty` | 按队伍 id 查询快照。 | `partyId`：队伍 ID（`UUID`） | `PartySnapshot` 结果对象；没有对应结果时可为 null |
+| `publicParties` | 组队大厅公开队伍列表。 | 无参数 | `List<PartySnapshot>`：符合条件的结果集合 |
+| `createParty` | 创建指定模式/人数上限的队伍。 | `leader`：队长（玩家已有队伍时返回原队快照，不更改模式）；`name`：队伍名（null 自动生成）；`mode`：队伍模式："free"自由组队（默认）/"guild"公会组队/自定义命名空间； 地牢模板 `requirements.party-mode` 可按此值限制进本队伍类型；`maxSize`：人数上限（&lt;=0 取全局 party.max-members） | `PartySnapshot` 结果对象 |
+| `disband` | 解散队伍。 | `partyId`：队伍 ID（`UUID`） | `boolean`：用于判断上面所述的查询或操作结果（true / false） |
+| `addMember` | 直加成员（跳过邀请流程；仍经过该 mode 的 `JoinValidator` 与人数上限检查）。 | `partyId`：队伍 ID（`UUID`）；`player`：目标玩家（`UUID`） | null=成功；非 null=失败原因（"party not found"/"already in party"/"party full"/校验器拒绝原因） |
+| `removeMember` | 移除成员（支持离线）。 | `partyId`：队伍 ID（`UUID`）；`player`：目标玩家（`UUID`） | `boolean`：用于判断上面所述的查询或操作结果（true / false） |
+| `transferLeader` | 转让队长（目标须为成员）。 | `partyId`：队伍 ID（`UUID`）；`newLeader`：新队长 UUID（`UUID`） | `boolean`：用于判断上面所述的查询或操作结果（true / false） |
+| `registerJoinValidator` | 按队伍模式注册加入校验器：玩家通过邀请/大厅/审批/直加进入该模式队伍前回调。 公会插件示例：`registerJoinValidator("guild", (party, applicant) -> sameGuild(party.leader(), applicant) ? null : "仅同公会成员可加入")` 同 mode 重复注册覆盖旧值；插件禁用时请 `#unregisterJoinValidator`。 | `mode`：模式（`String`）；`validator`：加入条件回调（`JoinValidator`） | 无返回值；按本行说明执行操作 |
+| `unregisterJoinValidator` | 注销该模式的加入校验器。 | `mode`：模式（`String`） | 无返回值；按本行说明执行操作 |
+| `check` |  | `party`：目标队伍快照；`applicant`：待加入玩家 | null=允许加入；非 null=拒绝原因（会发给申请人） |
+
+## 调用注意事项
+
+涉及 Bukkit 玩家、世界、物品或界面的调用放在 Bukkit 主线程执行；接口有明确线程说明时以该方法约定为准。
+
+先在对应模块配置中准备所引用的 ID，再调用接口。检查布尔值、结果对象或异常，只有成功后才更新第三方插件自己的业务状态。

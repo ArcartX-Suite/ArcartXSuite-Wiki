@@ -2,7 +2,7 @@ import { createMDX } from 'fumadocs-mdx/next';
 
 const withMDX = createMDX();
 
-const basePath = '/ArcartXSuite-Wiki';
+const basePath = process.env.WIKI_BASE_PATH ?? '/ArcartXSuite-Wiki';
 
 /** @type {import('next').NextConfig} */
 const config = {

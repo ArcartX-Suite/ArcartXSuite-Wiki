@@ -1,9 +1,7 @@
 ---
-title: 称号定义与属性
-description: 称号定义字段、分组品质体系、双属性系统与头顶显示配置详解
+title: "称号定义与属性"
+description: "定义称号名称、分组、品质、排序、属性与头顶展示。"
 ---
-
-# 称号定义与属性
 
 ## 称号定义结构
 
@@ -111,8 +109,6 @@ groups:
 
 > 未找到对应分组或品质定义时，排到最后。
 
-## 双属性系统
-
 ### 展示属性（Display Attributes）
 
 展示属性仅在装备该称号时生效，卸下后失效。用于体现「佩戴称号获得的力量」。
@@ -150,7 +146,7 @@ collection-attribute-lines:
 ```yaml
 display-effects:
   急迫: 1        # 中文别名或英文枚举名均可
-  speed: 2       # 支持新旧枚举名（新版 haste / 旧版 fast_digging 双向兼容）
+  speed: 2       # 二级速度效果
   村庄英雄: 1
 ```
 
@@ -171,7 +167,7 @@ permanent-display-bonuses:
 
 > 数值语义由对应 Mod 定义，AXS 原样写入修饰器不做换算。属性未注册（Mod 未安装）时记日志跳过，不影响其他条目。
 >
-> 完整属性 ID 表（GunsmithLib / ApothicAttributes / Iron's Spellbooks / TACZ）见 [/docs/api/mod-attributes](/docs/api/mod-attributes)。
+> 完整属性 ID 表（GunsmithLib / ApothicAttributes / Iron's Spellbooks / TACZ）见 /docs/api/mod-attributes。
 
 ### 三层加成完整示例（VIP 称号）
 
@@ -269,13 +265,9 @@ overhead-suffix: ""             # 头顶文本后缀
 4. 主配置内联称号与目录文件称号合并生效
 
 ```yaml
-# ArcartXTitle.yml 中指定称号目录
+# config.yml 中指定称号目录
 titles-directory: "titles"
 ```
-
-> 首次启动时，若 `titles/` 目录为空，模块自动从 jar 内导出 `adventure.yml`、`exploration.yml`、`activity.yml` 三个默认示例文件。
-
-## 完整称号定义示例
 
 ### 文本称号示例
 

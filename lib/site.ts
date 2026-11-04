@@ -1,3 +1,1 @@
-import { source } from '@/lib/source';
-
-export const BASE_URL = 'https://arcartx-suite.github.io/ArcartXSuite-Wiki/';
+export const BASE_URL = (process.env.WIKI_SITE_URL ?? 'https://arcartx-suite.github.io/ArcartXSuite-Wiki').replace(/\/$/, '') + '/';

@@ -1,0 +1,69 @@
+---
+title: "AxsMailService"
+description: "异步发送、查询、领取与删除邮件"
+---
+
+
+| 项目 | 内容 |
+| --- | --- |
+| 提供模块 | [mail](/docs/mail) |
+| 完整类型 | `xuanmo.arcartxsuite.api.mail.AxsMailService` |
+
+## 获取接口
+
+```java
+import xuanmo.arcartxsuite.api.AxsCapabilities;
+import xuanmo.arcartxsuite.api.mail.AxsMailService;
+
+AxsMailService api = AxsCapabilities.get(AxsMailService.class);
+if (api == null) {
+    // 当前功能不可用，向玩家说明或使用你的替代流程。
+    return;
+}
+```
+
+每次业务操作时重新获取接口；模块未加载或暂时不可用时返回 `null`。接入方式见[快速开始](/docs/api/quick-start)。
+
+## 方法声明
+
+以下为公开调用契约，保留参数类型与空值标注。Java 类型与当前配套 API JAR 保持一致。
+
+```java
+public interface AxsMailService {
+
+    @NotNull CompletableFuture<AxsDeliveryReceipt> send(@NotNull AxsMailRequest request);
+
+    @NotNull CompletableFuture<AxsDeliveryReceipt> sendDurable(@NotNull AxsMailRequest request);
+
+    @NotNull CompletableFuture<AxsMailView> getMail(@NotNull UUID playerId, long mailId);
+
+    @NotNull CompletableFuture<List<AxsMailView>> getInbox(@NotNull UUID playerId, @NotNull AxsMailQuery query);
+
+    @NotNull CompletableFuture<Integer> getUnreadCount(@NotNull UUID playerId);
+
+    @NotNull CompletableFuture<AxsMailView> markRead(@NotNull UUID playerId, long mailId);
+
+    @NotNull CompletableFuture<AxsClaimResult> claim(@NotNull UUID playerId, long mailId);
+
+    @NotNull CompletableFuture<AxsDeleteResult> delete(@NotNull UUID playerId, long mailId);
+}
+```
+
+## 参数与返回值
+
+| 方法 | 用途 | 参数 | 返回值 |
+| --- | --- | --- | --- |
+| `send` | 发送一封系统邮件。 收件人无需在线，邮件存入收件箱，玩家上线后查看领取附件。 使用 `AxsMailRequest#idempotencyKey()` 作为去重标识。 | `request`：邮件发送请求 | 异步回执，`AxsDeliveryReceipt#isNoOp()` 为 true 表示模块未就绪 |
+| `sendDurable` | 恢复持久化的邮件发送意图。 语义与 `#send` 相同，区别在于允许更早的 `deliverAt` （用于调用方从自己的持久化记录恢复发送）。 AXS mail 模块当前实现中与 `#send` 行为一致。 | `request`：邮件发送请求 | 异步回执 |
+| `getMail` | 查询玩家自己的单封邮件。 | `playerId`：玩家 UUID；`mailId`：邮件 ID | 异步邮件视图，不存在时返回 `null` |
+| `getInbox` | 查询玩家收件箱。 | `playerId`：玩家 UUID；`query`：查询条件 | 异步邮件视图列表 |
+| `getUnreadCount` | 查询玩家未读邮件数量。 | `playerId`：玩家 UUID | 异步未读数量 |
+| `markRead` | 标记邮件为已读并返回详情。 如果邮件已经是已读或更后状态，不改变状态但仍返回邮件视图。 | `playerId`：玩家 UUID；`mailId`：邮件 ID | 异步邮件视图，不存在时返回 `null` |
+| `claim` | 领取邮件的全部可领附件。 领取物品附件需要玩家在线（发放到背包）。玩家离线时返回 `AxsClaimResult#playerOffline()`。 | `playerId`：玩家 UUID；`mailId`：邮件 ID | 异步领取结果 |
+| `delete` | 删除没有受保护附件的邮件。 还有未领取附件时返回 `AxsDeleteResult#protectedAttachments()`。 | `playerId`：玩家 UUID；`mailId`：邮件 ID | 异步删除结果 |
+
+## 调用注意事项
+
+返回 `CompletableFuture` 的方法使用回调处理结果，不要在 Bukkit 主线程调用 `join()` 或 `get()`。回调中如需操作 Bukkit 玩家、世界或物品，将相应操作切回主线程。
+
+先在对应模块配置中准备所引用的 ID，再调用接口。检查布尔值、结果对象或异常，只有成功后才更新第三方插件自己的业务状态。

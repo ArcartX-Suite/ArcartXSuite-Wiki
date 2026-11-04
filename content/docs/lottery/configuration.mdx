@@ -1,7 +1,15 @@
 ---
-title: "配置"
-description: "Lottery 配置文件详解"
+title: "功能配置"
+description: "调整pools/ 奖池、奖品权重、消耗与保底参数；附字段解释、修改示例与重载步骤。"
 ---
+
+## 先改哪些内容
+
+pools/ 奖池、奖品权重、消耗与保底参数。先使用默认示例完成一次测试，再按本页逐项调整。
+
+配置位置：`plugins/ArcartX-Suite/data/lottery/config.yml`。定义文件与子目录均相对此模块目录。本文中的 YAML 片段用于修改对应小节，请保留文件中的其他设置。
+
+修改后执行 `/axs reload lottery`；涉及插件安装或全局设置的变更请重启后验证。
 
 ## 配置文件总览
 
@@ -11,49 +19,9 @@ Lottery 模块涉及以下配置文件：
 |---|---|---|
 | 主配置 | `config.yml` | 模块顶层配置（存储、UI、奖池目录、共享保底组） |
 | 消息配置 | `messages.yml` | 本地化消息文本 |
-| 奖池配置 | `lottery/pools/*.yml` | 每个文件定义一个奖池（GACHA 或 CASE） |
 | 兑换商店 | `lottery/exchange/*.yml` | 积分兑换商店商品 |
 | UI 配置 | `ui/lottery_gacha.yml` 等 | 祈愿/开箱界面（详见 UI 文档） |
 | 迁移脚本 | `migrations/1-2.yml`、`2-3.yml` | 配置版本迁移规则 |
-
-## 主配置（ArcartXLottery.yml）
-
-```yaml
-config-version: 3  # 配置文件版本号
-
-# ─── UI 配置 ────────────────────────────────────────
-ui:
-  overwrite-ui-files: false         # 是否强制覆盖用户已修改的 UI 文件
-  gacha-ui-id: "AXS:lottery_gacha"  # 祈愿（GACHA）界面 UI ID
-  case-ui-id: "AXS:lottery_case"    # 开箱（CASE）界面 UI ID
-  # wish-ui-id: "AXS:lottery_wish"  # 祈愿（WISH 全屏版）界面 UI ID（可选）
-
-# 奖池文件所在目录（相对模块数据目录）
-pools-directory: "lottery/pools"
-exchange-directory: "lottery/exchange"
-
-# ─── 数据存储 ────────────────────────────────────────
-storage:
-  shared: true  # true=共享本体数据源（推荐），false=自建连接池
-
-  # —— shared: false 时配置以下字段 ——
-  # mode: "sqlite"
-  # sqlite:
-  #   file: "lottery.db"
-  # pool-size: 1
-  # mysql:
-  #   host: "127.0.0.1"
-  #   port: 3306
-  #   database: "arcartxsuite"
-  #   username: "root"
-  #   password: ""
-  #   table-prefix: "axs_lottery_"
-
-# ─── 原神跨池共享保底组 ────────────────────────────────────────
-shared-pity-groups:
-  character_events: "character_event_*"
-  weapon_events: "weapon_event_*"
-```
 
 ### 主配置字段表
 
@@ -61,36 +29,9 @@ shared-pity-groups:
 |---|---|---|---|
 | `config-version` | `int` | `3` | 配置文件版本号，用于触发自动迁移 |
 | `ui.overwrite-ui-files` | `boolean` | `false` | 是否在模块启动时强制覆盖用户已修改的 UI 文件 |
-| `ui.gacha-ui-id` | `String` | `AXS:lottery_gacha` | 祈愿界面绑定的 UI ID |
-| `ui.case-ui-id` | `String` | `AXS:lottery_case` | 开箱界面绑定的 UI ID |
-| `ui.wish-ui-id` | `String` | `AXS:lottery_wish` | 祈愿全屏版界面绑定的 UI ID（可选） |
 | `pools-directory` | `String` | `lottery/pools` | 奖池文件目录（相对模块数据目录） |
 | `exchange-directory` | `String` | `lottery/exchange` | 兑换商店文件目录 |
-| `storage.shared` | `boolean` | `true` | 是否使用共享存储模式 |
-| `storage.mode` | `String` | `sqlite` | 存储模式（`sqlite` 或 `mysql`），仅 `shared: false` 时生效 |
-| `storage.sqlite.file` | `String` | `lottery.db` | SQLite 文件名，仅 `shared: false` 时生效 |
-| `storage.mysql.host` | `String` | `127.0.0.1` | MySQL 主机地址 |
-| `storage.mysql.port` | `int` | `3306` | MySQL 端口 |
-| `storage.mysql.database` | `String` | `arcartxsuite` | MySQL 数据库名 |
-| `storage.mysql.username` | `String` | `root` | MySQL 用户名 |
-| `storage.mysql.password` | `String` | 空 | MySQL 密码 |
-| `storage.mysql.table-prefix` | `String` | `axs_lottery_` | 表名前缀 |
-| `storage.pool-size` | `int` | `1` | 连接池大小（SQLite 建议 1） |
 | `shared-pity-groups` | `Map<String, String>` | 见示例 | 共享保底组：key 为分组 ID，value 为匹配奖池 ID 的通配符 |
-
-### 存储模式说明
-
-- **`shared: true`（推荐）**：模块使用本体统一数据源，连接由本体 `config.yml` 的 `storage` 节管控，性能较好。模块仅提供表前缀 `axs_lottery_`。
-- **`shared: false`**：模块自建独立 HikariCP 连接池，不复用本体连接。需配置 `mode` / `sqlite` / `mysql` 等字段。向后兼容：若 `shared` 字段不存在但 `mode=mysql` 存在，视为 `shared: false`。
-
-### 配置版本迁移
-
-模块支持配置版本自动迁移，迁移脚本位于 `migrations/` 目录：
-
-| 迁移 | 说明 |
-|---|---|
-| `1-2.yml` | `storage.sqlite-file-name` → `storage.sqlite.file`，扁平 `mysql-*` 字段 → `mysql` 子节 |
-| `2-3.yml` | `storage.mode` 重命名为 `storage.shared`，值 `mysql` → `false`、`sqlite` → `true` |
 
 ## 奖池配置
 
@@ -101,11 +42,9 @@ shared-pity-groups:
 | 字段 | 类型 | 默认值 | 说明 |
 |---|---|---|---|
 | `id` | `String` | 必填 | 奖池唯一标识 |
-| `type` | `String` | `GACHA` | 奖池类型：`GACHA`（原神祈愿）或 `CASE`（CS 开箱） |
 | `enabled` | `boolean` | `true` | 是否启用 |
 | `display-name` | `String` | `id` | 显示名称 |
 | `description` | `String` | 空 | 描述文本（支持 `\n` 换行） |
-| `up-item-icon` | `IconDefinition` | 无 | UP 物品图标，未配置时自动使用 UP 5 星奖品（CASE 为最高稀有度奖品） |
 | `up-item-desc` | `String` | 空 | UP 物品描述文本 |
 | `cost` | `CostConfig` | 无 | 消耗配置 |
 | `points` | `Map<String, PointDefinition>` | 无 | 积分产出规则 |
@@ -158,8 +97,6 @@ cost:
 ```
 
 ### 积分配置（points）
-
-积分按 `id` 在所有奖池间共享余额。每次抽奖按 `per-pull`（固定产出）与 `rarity`（按稀有度产出）累积积分。GACHA 的 `rarity` key 使用星级（`3`/`4`/`5`），CASE 使用奖池中定义的稀有度名称（如 `COMMON`/`RARE`）。
 
 ```yaml
 points:
@@ -239,34 +176,6 @@ gacha:
 | `standard-4star-items` | `List<PoolItem>` | 无 | 常驻 4 星奖品列表 |
 | `star3-items` | `List<PoolItem>` | 无 | 3 星奖品列表（必填） |
 
-### CASE 奖池配置（case 节）
-
-```yaml
-case:
-  rarity-settings:
-    COMMON:
-      color: "&f"
-      base-weight: 15625
-    RARE:
-      color: "&9"
-      base-weight: 625
-    SPECIAL:
-      color: "&6"
-      base-weight: 2
-
-  items:
-    stone_sword:
-      name: "石纹短剑"
-      rarity: COMMON
-      item:
-        source: minecraft
-        id: "STONE_SWORD"
-      delivery: DIRECT
-      icon:
-        material: STONE_SWORD
-        name: "石纹短剑"
-```
-
 | 字段 | 类型 | 说明 |
 |---|---|---|
 | `rarity-settings` | `Map<String, RaritySetting>` | 稀有度名称到权重设定的映射 |
@@ -274,55 +183,11 @@ case:
 | `rarity-settings.<name>.base-weight` | `int` | 基础权重，必须为正数 |
 | `items` | `List<PoolItem>` | 奖池中全部可用奖品列表 |
 
-### CASE 箱子物品配置（case-item 与 requires-key）
-
-```yaml
-case-item:
-  matcher:
-    material-ids:
-      - CHEST
-    nbt-values:
-      lottery: "case_box"
-  amount: 1
-  display-name: "战术武器箱"
-  icon:
-    material: CHEST
-    name: "战术武器箱"
-
-requires-key: true
-```
-
 | 字段 | 类型 | 默认值 | 说明 |
 |---|---|---|---|
-| `case-item.matcher` | `ItemMatcher` | 必填 | 识别玩家手持箱子物品的匹配器 |
-| `case-item.amount` | `int` | `1` | 单次开箱消耗的箱子数量（十连按倍数扣除） |
-| `case-item.display-name` | `String` | `箱子` | UI 显示名称 |
-| `case-item.icon` | `IconDefinition` | 无 | UI 图标 |
 | `requires-key` | `boolean` | `false` | 是否需要钥匙开启；`true` 时消耗 = 箱子 + `cost` 配置的钥匙 |
 
 ## 奖品配置（PoolItem）
-
-每个奖品由 `PoolItem` 定义，适用于 GACHA 各星级列表与 CASE 物品列表：
-
-```yaml
-star_character:
-  name: "星辰"
-  item:
-    source: minecraft
-    id: "minecraft:nether_star"
-    # nbt: "{CustomTag:'value'}"  # 仅 minecraft 源有效
-  icon:
-    material: NETHER_STAR
-    name: "星辰"
-  delivery: DIRECT
-  amount: 1
-  weight: 1
-  rarity: COMMON  # 仅 CASE 奖池使用
-  commands: []  # 仅 COMMAND 投递使用
-  extra-commands: []  # 投递成功后执行的附加命令
-  mail:
-    presets: []  # 仅 MAIL 投递使用
-```
 
 | 字段 | 类型 | 默认值 | 说明 |
 |---|---|---|---|
@@ -335,7 +200,6 @@ star_character:
 | `icon` | `IconDefinition` | 无 | 奖品图标，未配置时用 `item` 生成的物品 |
 | `amount` | `int` | `1` | 发放数量（正整数） |
 | `weight` | `int` | `1` | 奖池内相对权重（正整数） |
-| `rarity` | `String` | 无 | CASE 奖池中的稀有度名称 |
 | `commands` | `List<String>` | 无 | COMMAND 投递执行的命令列表 |
 | `extra-commands` | `List<String>` | 无 | 投递成功后执行的附加命令 |
 | `mail.presets` | `List<String>` | 无 | MAIL 投递使用的邮件预设 ID 列表 |
@@ -381,8 +245,6 @@ items:
 | `cost` | `List<CostEntry>` | 必填 | 兑换消耗条目（支持配置节写法或直接列表写法） |
 | `limit` | `int` | `0` | 限购次数：0=无限制，`>`0=每人最多可兑换次数 |
 | `reward` | `PoolItem` | 必填 | 兑换奖励（结构同奖池奖品） |
-
-## 完整配置示例
 
 ### GACHA 角色池示例
 
@@ -441,55 +303,4 @@ gacha:
   up-4star-items: { ... }
   standard-4star-items: { ... }
   star3-items: { ... }
-```
-
-### CASE 开箱池示例
-
-```yaml
-id: "default_weapon_case"
-type: CASE
-enabled: true
-display-name: "常规武器箱"
-case-item:
-  matcher:
-    neige-item-ids:
-      - lottery_case_box
-  amount: 1
-  display-name: "常规武器箱"
-requires-key: true
-cost:
-  single:
-    - type: ITEM
-      amount: 1
-      display-name: "CaseKey"
-      matcher:
-        neige-item-ids:
-          - lottery_case_key
-  ten:
-    - type: ITEM
-      amount: 10
-      display-name: "CaseKey"
-      matcher:
-        neige-item-ids:
-          - lottery_case_key
-points:
-  dust:
-    display-name: "尘辉"
-    per-pull: 1
-    rarity: { COMMON: 1, RARE: 2, EPIC: 4 }
-case:
-  rarity-settings:
-    COMMON: { color: "&f", base-weight: 15625 }
-    UNCOMMON: { color: "&b", base-weight: 3125 }
-    RARE: { color: "&9", base-weight: 625 }
-    EPIC: { color: "&5", base-weight: 125 }
-    LEGENDARY: { color: "&d", base-weight: 25 }
-    MYTHIC: { color: "&c", base-weight: 5 }
-    SPECIAL: { color: "&6", base-weight: 2 }
-  items:
-    skin_p250_sand:
-      name: "P250 | 沙漠风暴"
-      rarity: COMMON
-      item: { source: minecraft, id: "minecraft:stone" }
-      delivery: DIRECT
 ```

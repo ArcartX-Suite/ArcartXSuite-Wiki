@@ -1,0 +1,100 @@
+---
+title: "常用接入示例"
+description: "打开菜单、发放称号与异步查询邮件的实际用法。"
+---
+
+以下片段放在你的插件业务方法中执行，前提是已按[快速开始](/docs/api/quick-start)配置依赖。
+
+## 打开功能菜单
+
+```java
+import xuanmo.arcartxsuite.api.AxsCapabilities;
+import xuanmo.arcartxsuite.api.capability.MenuOpenable;
+
+MenuOpenable menus = AxsCapabilities.get(MenuOpenable.class);
+boolean opened = menus != null && menus.openMenu(player, "example");
+if (!opened) player.sendMessage("菜单暂不可用。");
+```
+
+`player` 为当前在线玩家，`example` 为菜单 ID。
+
+## 发放限时称号
+
+```java
+import xuanmo.arcartxsuite.api.AxsCapabilities;
+import xuanmo.arcartxsuite.api.capability.TitleGrantable;
+
+TitleGrantable titles = AxsCapabilities.get(TitleGrantable.class);
+boolean granted = titles != null && titles.giveTitle(
+    player.getUniqueId(), "hero", "7d", "MyPlugin");
+if (!granted) player.sendMessage("称号未发放，请稍后重试。");
+```
+
+先在 Title 中创建 `hero`。有效期格式及重复授予行为见[称号使用说明](/docs/title/player-state)。调用成功后再记录你的活动奖励已发放状态。
+
+## 异步查询未读邮件
+
+```java
+import java.util.UUID;
+import org.bukkit.Bukkit;
+import org.bukkit.entity.Player;
+import org.bukkit.plugin.java.JavaPlugin;
+import xuanmo.arcartxsuite.api.AxsCapabilities;
+import xuanmo.arcartxsuite.api.mail.AxsMailService;
+
+public void showUnread(JavaPlugin plugin, Player player) {
+    AxsMailService mail = AxsCapabilities.get(AxsMailService.class);
+    if (mail == null) {
+        player.sendMessage("邮箱暂不可用。");
+        return;
+    }
+    UUID playerId = player.getUniqueId();
+    mail.getUnreadCount(playerId).whenComplete((count, error) -> {
+        if (!plugin.isEnabled()) return;
+        Bukkit.getScheduler().runTask(plugin, () -> {
+            Player online = Bukkit.getPlayer(playerId);
+            if (online == null) return;
+            online.sendMessage(error == null
+                ? "未读邮件：" + count
+                : "查询失败，请稍后重试。");
+        });
+    });
+}
+```
+
+查询完成时玩家可能已离线，所以回到主线程后重新查找玩家。[邮件接口](/docs/api/AxsMailService)还提供发送、读取、领取与删除方法；相关请求与结果类型见[数据类型](/docs/api/data-types)。
+
+## 发送活动奖励邮件
+
+以下片段在主线程准备请求。`playerId` 为收件人的 UUID，`rewardKey` 为你保存的稳定业务标识，例如活动 ID、奖励档位与玩家 UUID 的组合。同一次奖励重试时继续使用相同标识。
+
+```java
+import xuanmo.arcartxsuite.api.AxsCapabilities;
+import xuanmo.arcartxsuite.api.mail.AxsMailRequest;
+import xuanmo.arcartxsuite.api.mail.AxsMailService;
+
+AxsMailService mail = AxsCapabilities.get(AxsMailService.class);
+if (mail == null) return;
+
+AxsMailRequest request = AxsMailRequest.builder(rewardKey, "活动奖励")
+    .recipient(playerId)
+    .content("感谢参与，请查收附件。")
+    .item(rewardItem)
+    .sourcePlugin("MyPlugin")
+    .build();
+
+mail.send(request).whenComplete((receipt, error) -> {
+    if (error != null) {
+        // 记录失败并安排重试；重试保持 rewardKey 不变。
+        return;
+    }
+    if (receipt.isNoOp()) {
+        // 邮件服务暂不可用，保留待发记录。
+        return;
+    }
+    // receipt.mailId() 是邮件标识；duplicate() 表示本次是重复请求。
+    // 在此更新你自己的奖励发放记录，勿直接操作 Bukkit 玩家对象。
+});
+```
+
+`rewardItem` 是你准备好的 Bukkit `ItemStack`。先在测试服确认邮件、附件和重复请求的结果，再接入正式奖励流程。

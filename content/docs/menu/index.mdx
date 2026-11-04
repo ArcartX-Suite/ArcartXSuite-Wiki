@@ -1,25 +1,33 @@
 ---
-title: 概览
-description: Menu 通用菜单框架功能概览
+title: "功能菜单"
+description: "创建功能导航，绑定命令、物品或 ESC 菜单。"
 ---
 
-# Menu 通用菜单
 
-## 模块简介
-
-Menu 是 Suite 的通用菜单框架，通过 `menus/` 目录下的 YAML 文件定义多页菜单、按钮动作、打开条件与命令绑定。模块采用类 TrMenu 的配置驱动方式，支持居中面板（panel）与左侧滑出（esc）两种布局，可替换原版 ESC 暂停界面，并允许将菜单绑定到游戏命令或背包物品上触发。
-
-| 属性 | 值 |
-|---|---|
+| 项目 | 说明 |
+| --- | --- |
 | 模块 ID | `menu` |
-| 版本 | 1.5.0 |
-| 配置文件 | `config.yml`、`messages.yml`、`menus/`（菜单定义目录） |
-| 命令入口 | 玩家 `/menu`；管理 `/axs menu` |
-| 外部依赖 | PlaceholderAPI（可选） |
-| 模块依赖 | 无 |
-| 对外能力 | `MenuOpenable`（其他模块按 ID 打开菜单） |
+| 主配置 | `plugins/ArcartX-Suite/data/menu/config.yml` |
+| 主要调整内容 | menus/ 菜单、按钮图标、说明与点击动作 |
+| 重载 | `/axs reload menu` |
 
-## 功能特性
+## 开始前
+
+确认 ArcartX 客户端可用，且 `/axs status` 显示本模块已加载。可选插件只在使用对应功能时安装，具体要求见功能配置页。
+
+## 第一次使用
+
+1. 复制默认菜单并设置独立 ID。
+2. 改动一个按钮的文字与动作。
+3. 执行 `/menu open <菜单ID>`。
+
+## 检查是否配置成功
+
+检查按钮文字、点击动作、翻页和关闭。
+
+功能未生效时，先检查模块状态、所用定义 ID、玩家权限及客户端安装情况，随后对照[日志与报错提示](/docs/guide/config-management)逐项检查。
+
+## 可以配置的功能
 
 - 配置驱动菜单：一个 `.yml` 文件可包含多个菜单（用 `---` 分隔），每个菜单支持多页分页
 - 两种布局模式：`panel`（居中弹出面板，适合功能菜单/商店）与 `esc`（左侧滑出，专用于替换暂停界面）
@@ -30,4 +38,10 @@ Menu 是 Suite 的通用菜单框架，通过 `menus/` 目录下的 YAML 文件�
 - ESC 界面替换：`match-esc: true` 的菜单会拦截 ESC 键并替代原版暂停界面，支持底部固定按钮（如游戏选项、退出游戏）
 - 图标系统：支持原版材质、CustomModelData、头颅材质、皮革颜色、物品库（NeigeItems/MythicMobs/Overture/MMOItems）、ArcartX 自定义贴图（url NBT）、直接 NBT JSON
 - 自定义 UI：菜单可引用自定义 UI 文件，启动时自动注册
-- 对外提供 `MenuOpenable` Capability，供其他模块以编程方式打开/刷新菜单
+
+## 继续配置
+
+- [功能配置](/docs/menu/configuration)：字段含义与配置示例。
+- [命令与权限](/docs/menu/commands)：玩家操作、管理命令和权限。
+- [动作系统](/docs/menu/actions)：为菜单按钮配置命令、消息、音效、菜单跳转与延迟动作。
+- [绑定系统](/docs/menu/bindings)：将菜单绑定到命令、背包物品或 ESC，并设置按钮的显示条件。

@@ -1,12 +1,9 @@
 {
-  "title": "Tooltip 物品提示",
-  "description": "客户端 tooltip 数据采集与跨模块共享",
-  "color": "#f97316",
+  "title": "物品提示",
   "pages": [
     "index",
     "configuration",
     "commands",
-    "integration",
     "client-mod",
     "tip-example"
   ]

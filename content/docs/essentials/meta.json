@@ -1,14 +1,11 @@
 {
-  "title": "Essentials 基础工具",
-  "description": "基础工具（传送/家/Warp/一键砍树/背包整理/UI 菜单）",
-  "color": "#14b8a6",
+  "title": "基础工具",
   "pages": [
     "index",
     "configuration",
     "commands",
-    "player-management",
-    "teleport",
     "moderation",
-    "integration"
+    "player-management",
+    "teleport"
   ]
 }

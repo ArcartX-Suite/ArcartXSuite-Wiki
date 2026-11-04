@@ -1,127 +1,50 @@
 ---
-title: 概览
-description: Warehouse 仓库系统功能概览
+title: "仓库与银行"
+description: "管理个人物资、共享仓库与多货币银行。"
 ---
 
-# Warehouse 仓库系统
 
-## 模块简介
-
-Warehouse 是 Suite 的仓库与银行模块，通过 ArcartX UI 提供个人仓库、共享仓库、多货币银行、定期存款、二级密码等完整功能。所有业务操作均在 AXUI 界面内完成，玩家通过 `/warehouse`（别名 `/wh`、`/axswarehouse`）打开主界面。
-
-模块采用槽位聚合存储模型——相同物品（基于序列化哈希匹配）自动堆叠到同一槽位，单槽聚合上限为 `Integer.MAX_VALUE`，配合多级容量升级实现近乎无限的存储空间。物品分类基于 NBT/PDC 路径匹配，支持拼音/首字母搜索，排序方案可自定义。
-
-| 属性 | 值 |
-|---|---|
+| 项目 | 说明 |
+| --- | --- |
 | 模块 ID | `warehouse` |
-| 版本 | 1.4.4 |
-| 配置版本 | 4（当前 schema） |
-| 配置文件 | `config.yml`、`messages.yml` |
-| 命令入口 | 玩家 `/warehouse`（别名 `/wh`、`/axswarehouse`）；管理 `/axs warehouse` |
-| 外部依赖 | PlaceholderAPI（必需） |
-| 模块依赖 | 无 |
-| 对外能力 | `WarehouseAccess`（仓库槽位读写）、`WarehouseAutoDepositable`（自动入库）、`PlayerDataPurgeable`、`DatabaseMigratable` |
-| PAPI 前缀 | `%axswarehouse_*%` |
+| 主配置 | `plugins/ArcartX-Suite/data/warehouse/config.yml` |
+| 主要调整内容 | 仓库容量、分类、共享成员权限与银行规则 |
+| 重载 | `/axs reload warehouse` |
 
-## 功能特性
+## 开始前
+
+确认 ArcartX 客户端可用，且 `/axs status` 显示本模块已加载。本模块还需要安装 `PlaceholderAPI`。可选插件只在使用对应功能时安装，具体要求见功能配置页。
+
+## 第一次使用
+
+1. 保留默认分类。
+2. 执行 `/warehouse open`。
+3. 存入并取出一个普通物品。
+
+## 检查是否配置成功
+
+检查物品数量与分类，再逐项启用共享仓库或银行。
+
+功能未生效时，先检查模块状态、所用定义 ID、玩家权限及客户端安装情况，随后对照[日志与报错提示](/docs/guide/config-management)逐项检查。
+
+## 可以配置的功能
 
 | 功能 | 说明 |
 | --- | --- |
 | 个人仓库 | 每位玩家拥有独立仓库，支持多级容量升级（货币付费），按 NBT 路径自动分类存储，可自定义仓库名称 |
 | 共享仓库 | 玩家可创建共享仓库并邀请其他玩家加入，支持所有者/成员/观众三种角色，编辑互斥锁防止并发冲突，可转让所有权 |
 | NBT 分类 | 按物品 NBT/PDC 路径自动匹配分类（装备/材料/消耗品等），支持自定义分类规则与优先级，未匹配物品归入兜底分类 |
-| 银行系统 | 多货币活期银行，存取需二级密码验证，余额以 `BigDecimal` 精确存储，支持原子增减 |
-| 定期存款 | 多利率档位定期产品，按存入金额分档计息，支持权限限制与到期领取，事务保证本息原子入账 |
-| 二级密码 | 仓库存取/银行操作可要求二级密码验证，支持会话解锁机制（可配置有效期），密码由核心统一管理 |
 | 自动存入 | 拾取物品时自动存入仓库，MythicMobs 自定义掉落物走独立战利品通道；提供服务器级总开关与战利品开关，关闭时管理界面隐藏对应玩家开关 |
 | 展示柜 | 将仓库中的物品展示到聊天卡片，供其他玩家查看，支持冷却与数量限制 |
 | 搜索排序 | 支持拼音/首字母搜索，按时间/名称/数量/材质/分类/仓库等多字段排序，排序方案可自定义 |
-| 跨服编辑锁 | MySQL 共享库多子服时，共享仓库编辑锁经跨服通道同步，防止不同子服并发编辑冲突 |
 | 黑名单 | 按材质/物品库 ID/名称/Lore/NBT 键拦截不可存入的物品，支持正则匹配 |
 | 共享仓库转让 | 所有者可将共享仓库转让给其他成员，需对方确认，支持过期自动失效 |
 | 管理员工具 | `/axs warehouse` 提供状态查看、为玩家打开仓库、查看仓库详情、删除仓库、银行余额管理 |
-| 数据迁移 | 支持 `/axs migrate` 跨数据库源迁移，支持 `/axs purge` 按玩家/全量清除数据 |
 
-## 依赖表
+## 继续配置
 
-| 依赖 | 类型 | 说明 |
-| --- | --- | --- |
-| ArcartX 客户端 MOD | 硬依赖 | 提供 UI 渲染与 PacketBridge，三套界面通过 ArcartX UI 呈现 |
-| PlaceholderAPI | 外部硬依赖 | 提供 PlaceholderAPI 占位符（`%axswarehouse_*%`），`external-depends` 硬依赖，未安装时模块不加载 |
-
-物品库为可选功能，黑名单的 `mythic-item-ids` / `neige-item-ids` / `overture-item-ids` 按需依赖对应插件：
-
-| 物品来源 | 对应插件 |
-| --- | --- |
-| `mythic` | MythicMobs |
-| `neige` | NeigeItems |
-| `overture` | Overture |
-
-## 仓库界面
-
-Warehouse 模块提供三套独立的 ArcartX UI 界面：
-
-| 界面 | UI ID | 配置路径 | 功能 |
-| --- | --- | --- | --- |
-| 仓库存取界面 | `AXS:warehouse_storage` | `ui.ui-id` | 仓库浏览、存取物品、搜索排序、分类筛选、容量升级 |
-| 仓库管理界面 | `AXS:warehouse_manage` | `ui.manage-ui-id` | 共享仓库管理、成员管理、转让、二级密码设置、自动入库开关 |
-| 银行界面 | `AXS:warehouse_bank` | `ui.bank-ui-id` | 活期存取、定期存款购买与领取、多货币切换 |
-
-### 存取行为
-
-**存入**：物品经黑名单校验（命中规则拒绝）→ 相同物品自动合并到已有槽位 → 剩余写入空闲槽位 → 容量不足时失败。
-
-**取出**：启用二级密码时先校验会话 → 校验槽位与数量 → 物品放入背包 → 更新槽位。
-
-### 仓库槽位与容量
-
-个人仓库采用**逐格解锁模型**：玩家从 `base-slots`（默认 32）格起步，按 `slot-price` 逐格付费购买至 `max-slots`（默认 999）。
-
-```yaml
-warehouses:
-  personal:
-    base-slots: 32            # 初始解锁槽位数
-    max-slots: 999            # 可购买槽位上限
-    slot-price:
-      currency: "points"      # 每格所需货币
-      amount: 100             # 每格价格
-```
-
-容量即最大槽位数，每个槽位可聚合大量相同物品。共享仓库仍使用 `shared.levels` 等级制升级，不受本模型影响。
-
-### 共享仓库
-
-共享仓库支持多人协作，核心概念：
-
-| 概念 | 说明 |
-| --- | --- |
-| 所有者（owner） | 创建者，拥有全部管理权限，可转让/删除仓库 |
-| 成员（member） | 可存取物品，无管理权限 |
-| 观众（viewer） | 只读访问，无法存取 |
-| 编辑锁 | 同一时刻仅一人可编辑，其他人以只读模式打开 |
-| 权限分层 | 通过 `permission-tiers` 配置不同权限组的仓库/成员上限 |
-
-> 启用跨服时编辑锁状态自动同步至所有子服。
-
-## 存储模式
-
-数据存储支持 SQLite 与 MySQL，通过 `storage.shared` 配置：
-
-| 模式 | 配置 | 说明 |
-| --- | --- | --- |
-| 共享模式（推荐） | `shared: true` | 使用本体统一数据源，连接由本体 `config.yml` 的 `storage` 节管控，性能较好 |
-| 自建模式 | `shared: false` | 模块独立数据源，可配置 SQLite 或 MySQL |
-
-> **迁移提示**：配置版本 2→3 的迁移会自动将旧的 `storage.mode`（`sqlite`/`mysql`）重映射为 `storage.shared`（`true`/`false`）。
-
-### 原子操作
-
-银行余额的增减使用数据库原子操作，避免并发超扣：
-
-- **creditBankBalance**：`INSERT ... ON CONFLICT DO UPDATE SET balance = balance + ?`（SQLite）/ `ON DUPLICATE KEY UPDATE balance = balance + VALUES(balance)`（MySQL）
-- **debitBankBalance**：`UPDATE ... SET balance = balance - ? WHERE balance >= ?`，仅余额充足时成功
-- **claimFixedDepositAtomic**：事务内 `SELECT ... FOR UPDATE`（MySQL）或条件 UPDATE（SQLite），标记 claimed 并本息入账
-
-### 数据落库
-
-仓库数据采用延迟落库策略，通过 `settings.flush-interval-ticks`（默认 100 ticks = 5 秒）控制落库间隔。玩家退出时自动保存其状态。
+- [功能配置](/docs/warehouse/configuration)：字段含义与配置示例。
+- [命令与权限](/docs/warehouse/commands)：玩家操作、管理命令和权限。
+- [银行与定期存款](/docs/warehouse/bank)：为多种货币配置活期银行与定期存款的存取规则。
+- [分类与搜索](/docs/warehouse/categories)：设置仓库物品分类、排序与搜索，便于玩家查找物资。
+- [共享仓库](/docs/warehouse/shared-warehouse)：创建共享仓库，配置容量、成员角色和所有权转让。

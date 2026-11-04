@@ -1,9 +1,7 @@
 ---
-title: 钓鱼区域
-description: Fishing 钓鱼池与区域配置
+title: "钓鱼区域"
+description: "划定钓鱼区域，配置该水域的鱼群、宝藏与进入条件。"
 ---
-
-# 钓鱼区域
 
 水域定义文件位于 `plugins/ArcartX-Suite/data/fishing/waters/` 目录下，文件名格式为 `water-<id>.yml`。每个水域定义一片可钓鱼的多边形区域及其鱼类池、宝藏池、难度公式等属性。
 
@@ -76,8 +74,6 @@ description: Fishing 钓鱼池与区域配置
 
 如果所有候选鱼都被过滤掉，系统会回退到仅按季节过滤，再回退到全部鱼池。
 
-## 区域条件配置
-
 ### 等级限制
 
 - `min-player-level`：低于此等级的玩家无法在此水域钓鱼，会收到提示消息
@@ -86,8 +82,6 @@ description: Fishing 钓鱼池与区域配置
 ### 权限限制
 
 `require-permission` 配置进入此水域钓鱼所需的权限节点。玩家无此权限时无法在此水域启动小游戏。
-
-## 水域配置示例
 
 ### 默认水域
 

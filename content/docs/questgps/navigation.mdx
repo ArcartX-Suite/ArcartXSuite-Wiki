@@ -1,65 +1,32 @@
 ---
-title: 导航系统
-description: QuestGPS GPS 导航、路标追踪、路径寻路与导航标记
+title: "导航系统"
+description: "设置任务导航坐标、路标、模型或贴图路径提示。"
 ---
 
-# 导航系统
-
-QuestGPS 的导航系统将 Chemdah 任务的动态坐标或 overlay 静态坐标转化为玩家可感知的导航指引，由三部分组成：路标导航（Waypoint）、路径标记（Marker）和指引 HUD（Guide）。
-
-玩家**可同时追踪多个任务/子目标**（追踪态、到达判定、地图标记均并行），但**屏幕路标与路径标记链始终只跟随"最新激活且同世界"的主目标**——避免多条路线误导玩家。
+通常在 Chemdah 任务或目标的 `addon.track.center` 填写目的地即可。QuestGPS 自动使用原生追踪位置，提供屏幕路标、路径标记与任务指引。
 
 ## 导航坐标来源
 
-导航坐标来源由 `navigation.mode` 控制，全局三选一：
+Chemdah 的固定坐标示例：
 
-| 模式 | 说明 | 坐标来源 |
-|---|---|---|
-| `hybrid`（默认） | Chemdah tracker 动态坐标优先，overlay 配置坐标作回退 | Chemdah tracker → overlay YAML |
-| `chemdah` | 仅使用 Chemdah tracker 动态坐标 | Chemdah tracker |
-| `overlay` | 仅使用 `quests/*.yml` 配置的静态坐标 | overlay YAML |
+```yaml
+addon:
+  track:
+    center: "world 100 64 100"
+    name: "讨伐区域"
+```
 
-> `hybrid` 模式下 Chemdah tracker 返回有效坐标则使用动态坐标，否则回退 overlay 坐标。Chemdah Tracker API 不可用时自动降级为 overlay 导航。
+NPC 动态目标可写 `center: "adyeshach guide_demo"`。放在任务还是具体目标中，按 Chemdah 的追踪逻辑选择；完整任务见[Chemdah 任务配置](/docs/questgps/chemdah-mapping)。
 
-## 路标导航
+如果需要 QuestGPS 专用目的地，在同一任务或目标的 `addon.axs-view.navigation` 中直接填写 `world`、`x`、`y`、`z`，也可填写有效 NPC。明确填写的展示目的地优先，未填写时使用原生追踪。
 
-路标导航通过 ArcartX Waypoint 实现，在客户端显示方向指引箭头。
+## 全局表现设置
 
-### 路标配置
+在 `ArcartXQuestGPS.yml` 中调整 `navigation` 的开启、刷新周期、路标样式和路径标记。具体字段见[功能配置](/docs/questgps/configuration#导航基础设置)。任务坐标仍写在 Chemdah 文件中。
 
-| 字段 | 类型 | 默认值 | 说明 |
-|---|---|---|---|
-| `navigation.enabled` | `boolean` | `true` | 是否启用导航功能 |
-| `navigation.remove-on-finish` | `boolean` | `true` | 任务完成后自动移除导航 |
-| `navigation.mode` | `String` | `"hybrid"` | 导航坐标来源：`chemdah` / `overlay` / `hybrid` |
-| `navigation.refresh-ticks` | `int` | `10` | 目标刷新间隔（tick） |
-| `navigation.waypoint.enabled` | `boolean` | `true` | 是否向客户端推送路标；`false` 时仅保留追踪态/到达判定/路径标记 |
-| `navigation.waypoint.style-id` | `String` | `"default"` | ArcartX waypoint 路标样式 ID |
-| `navigation.waypoint.title-template` | `String` 或 `List<String>` | `""` | 路标标题模板（`%label%`/`%quest%`/`%objective%`/`%distance%`/`%world%`/`%x%`/`%y%`/`%z%`），留空显示目标名 |
-| `navigation.world-hint-interval` | `int` | `30` | 目标在其他世界时的提示节流间隔（秒），0 = 不提示 |
-| `navigation.finish-range` | `double` | `0` | 到达触发半径（格），0 = 不启用到达判定 |
-| `navigation.finish-commands` | `List<String>` | `[]` | 到达命令（控制台执行，支持 `%player%` 占位）；任务/子目标可在导航点中覆盖 |
-| `navigation.finish-rearm-buffer` | `double` | `3.0` | 到达判定滞回缓冲：触发后须离开 `finish-range + 本值` 才重新武装 |
+## 任务级与目标级
 
-### 路标样式解析
-
-路标样式 ID 按以下优先级解析：
-
-1. 子任务配置的 `tasks.<id>.navigation.style-id`
-2. 任务配置的 `navigation.point.style-id`
-3. 全局 `navigation.waypoint.style-id`
-4. ArcartX waypoint 默认样式
-
-> 样式 ID 须在 ArcartX waypoint 目录下有对应定义，详见 [图标指南](/docs/guide/icons)。
-
-### 任务级 vs 子任务级追踪
-
-| 追踪级别 | 坐标来源 |
-|---|---|
-| 任务级 | 任务 `navigation.point` 或 Chemdah tracker |
-| 子任务级 | 子任务 `tasks.<id>.navigation` 或 Chemdah tracker |
-
-> 任务级与子任务级追踪**互不覆盖**：同一玩家可同时追踪任务目标和多个子目标。
+任务的 `addon.axs-view.navigation` 可补充整个任务的目的地；目标的同名小节可补充该目标目的地。坐标直接放入小节，不额外套层。全局或任务导航关闭时不建立该任务导航。
 
 ## 多目标追踪与单路标语义
 
@@ -75,7 +42,7 @@ QuestGPS 的导航系统将 Chemdah 任务的动态坐标或 overlay 静态坐�
 
 ### 到达判定滞回与命令钩子
 
-- `finish-range > 0` 时玩家进入半径触发**一次**到达回调与 `finish-commands`（控制台执行，支持 `%player%`/`%world%`/`%x%`/`%y%`/`%z%` 占位）
+- `finish-range > 0` 时玩家进入半径触发**一次**到达回调与 `finish-commands`（控制台执行，支持 `{player}`/`{world}`/`{x}`/`{y}`/`{z}` 占位）
 - 触发后须离开 `finish-range + finish-rearm-buffer` 才重新武装——防止边界抖动重复执行
 - **到达不取消导航**：导航保持到玩家显式取消或任务完成（`remove-on-finish`）
 - 任务级与子目标级导航点可用 `finish-range`/`finish-commands` 覆盖全局配置
@@ -88,7 +55,7 @@ QuestGPS 的导航系统将 Chemdah 任务的动态坐标或 overlay 静态坐�
 
 - 目标世界与玩家不同时：路标与路径标记被抑制，按 `world-hint-interval` 节流提示「任务目标位于其他世界」
 - 导航点配置 `teleport` 段后，任务面板显示「传送并追踪」按钮：先传送到该点，再开始追踪
-- 子目标未声明 `teleport` 时回退任务级 `navigation.point.teleport`
+- 子目标未声明 `teleport` 时回退任务级 `addon.axs-view.navigation.teleport`
 
 ## 导航路径提示
 
@@ -156,15 +123,6 @@ QuestGPS 的导航系统将 Chemdah 任务的动态坐标或 overlay 静态坐�
 
 `quests` 单卡片字段：`questId` / `taskId` / `mode`（`QUEST`/`TASK`）/ `name` / `label` / `progressText` / `taskText` / `taskDesc` / `hasNav` / `navWorld` / `navText`。
 
-### HUD 生命周期
-
-| 事件 | 行为 |
-|---|---|
-| 开始追踪 | 打开引导 UI |
-| 追踪中刷新 | 更新 HUD 数据 |
-| 单目标取消 | 移除该追踪；无剩余追踪时关闭 HUD |
-| 全部清除 / 玩家退出 | 关闭引导 UI |
-
 ## Map 模块目标同步
 
 QuestGPS 与 Map 模块双向联动——地图负责展示与转发点击，导航执行仍在 QuestGPS：
@@ -173,15 +131,6 @@ QuestGPS 与 Map 模块双向联动——地图负责展示与转发点击，导
 - 玩家在地图面板点击「导航」→ QuestGPS 开始任务/子任务追踪；点击「取消」→ 停止追踪（标记保留）
 - Chemdah tracker 动态坐标变化时地图标记自动跟随
 - 任务接受/完成/失败、玩家进服时自动重新同步
-
-### 导航互斥
-
-QuestGPS 与 Map 各自的导航不允许共存（QuestGPS 内部可多任务并行）：
-
-- QuestGPS 开始任务导航 → 地图自身的锚点/路径点导航静默清除
-- 地图开始锚点/路径点导航 → QuestGPS 全部任务追踪清空（任务标记保留在地图上）
-
-> Map 模块不存在时导航功能正常运行，仅跳过地图标记同步。`map-label` 字段用作地图标记的标题。
 
 ## 导航完整配置示例
 
@@ -239,48 +188,47 @@ navigation:
 
 ### 任务级导航配置
 
+以下是已有 Chemdah 任务的局部片段，保留其原有目标与完成行为，只合并展示设置。
+
 ```yaml
 example_mainline_quest:
-  enabled: true
-  navigation:
-    enabled: true
-    point:
-      world: "world"
-      x: 0
-      y: 80
-      z: 0
-      title: "初入岛屿"
-      style-id: "default"
-      map-label: "主线目标"
-      # npc: "长老"                 # 可选：跟随 Adyeshach NPC 实时位置
-      # finish-range: 3             # 可选：到达触发半径
-      # finish-commands:            # 可选：到达命令
-      #   - "say %player% 到达了目标"
-      # teleport:                   # 可选：跨世界「传送并追踪」传送点
-      #   world: "world_nether"
-      #   x: 0
-      #   y: 64
-      #   z: 0
+  addon:
+    axs-view:
+      navigation:
+        enabled: true
+        world: "world"
+        x: 0
+        y: 80
+        z: 0
+        title: "初入岛屿"
+        style-id: "default"
+        map-label: "主线目标"
+        # npc: "长老"              # 可选：动态 NPC 目的地
+        # finish-range: 3
+        # finish-commands:
+        #   - "say {player} 到达了目标"
 ```
 
 ### 子任务级导航配置
 
 ```yaml
 example_mainline_quest:
-  tasks:
-    "0":
-      sort-order: 10
-      navigation:
-        world: "world"
-        x: 12
-        y: 80
-        z: -8
-        title: "与长老对话"
-        style-id: "default"
-        map-label: "任务目标"
+  task:
+    kills:
+      addon:
+        axs-view:
+          sort-order: 10
+          navigation:
+            world: "world"
+            x: 12
+            y: 80
+            z: -8
+            title: "目标位置"
+            style-id: "default"
+            map-label: "任务目标"
 ```
 
-> 子任务导航点会覆盖任务级 `navigation.point`。`hybrid` 模式下 Chemdah tracker 坐标优先于 overlay 配置坐标。
+> 明确配置的展示目的地优先于原生追踪。目标和任务分别配置所需位置；任务级导航会优先考虑当前目标的展示目的地。
 
 ## 依赖关系
 
@@ -288,7 +236,7 @@ example_mainline_quest:
 |---|---|---|
 | ArcartX Waypoint | 硬依赖 | 导航功能不可用 |
 | Adyeshach | 软依赖 | 模型导航标记关闭，路标导航正常 |
-| Chemdah Tracker API | 软依赖 | 回退 overlay 导航坐标 |
+| Chemdah Tracker API | 软依赖 | 仅使用明确配置的展示目的地 |
 | Map 模块 | 软依赖 | 跳过地图目标同步，导航正常 |
 
 > 导航运行时就绪状态可通过 `/axs questgps status` 查看。

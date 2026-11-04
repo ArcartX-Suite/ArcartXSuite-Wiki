@@ -1,20 +1,29 @@
 {
-  "title": "服主指南",
+  "title": "使用指南",
   "pages": [
     "index",
-    "installation",
-    "module-enablement",
+    "---本体使用---",
     "first-run",
     "commands",
+    "config-management",
+    "---通用配置---",
+    "shared-functions",
+    "config-syntax",
+    "region-selection",
+    "mail-delivery",
+    "rewards-and-commands",
+    "attributes-and-effects",
+    "keybinds",
+    "item-matching",
+    "notifications-and-actions",
+    "chemdah-setup",
+    "text-moderation",
     "placeholders",
     "conditions",
     "item-sources",
     "icons",
     "currencies",
-    "config-management",
     "multi-ui",
-    "cross-server-setup",
-    "proxy-usage",
-    "cloud-modules"
+    "cross-server-setup"
   ]
 }

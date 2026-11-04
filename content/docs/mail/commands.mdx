@@ -1,6 +1,6 @@
 ---
-title: 命令与占位符
-description: Mail 命令、权限与 PlaceholderAPI 占位符
+title: "命令与权限"
+description: "邮箱可用命令、参数填写方式和权限要求。"
 ---
 
 ## 玩家命令
@@ -21,7 +21,7 @@ description: Mail 命令、权限与 PlaceholderAPI 占位符
 
 ## 管理员命令
 
-管理员命令通过宿主统一命令系统调度，前缀为 `/axs mail`，需要 `arcartxsuite.admin` 权限。
+管理员命令通过Suite统一命令系统调度，前缀为 `/axs mail`，需要 `arcartxsuite.admin` 权限。
 
 ### 通用子命令
 
@@ -87,74 +87,3 @@ description: Mail 命令、权限与 PlaceholderAPI 占位符
 | `arcartxsuite.mail.send` | op | 玩家写信权限（需 `player-send.require-permission: true`） |
 | `arcartxsuite.mail.cdk` | op | CDK 兑换权限（需 `cdk.require-permission: true`） |
 | `arcartxsuite.admin` | op | 管理员命令和管理 UI 权限 |
-
-## PlaceholderAPI 占位符
-
-Mail 模块注册的 PAPI 占位符前缀为 `axsmail`，需要安装 PlaceholderAPI 插件。
-
-| 占位符 | 说明 |
-|---|---|
-| `%axsmail_unread_count%` | 当前玩家未读邮件数 |
-| `%axsmail_claimable_count%` | 当前玩家可领取邮件数（含附件或领取命令且状态为 UNREAD/READ） |
-| `%axsmail_total_count%` | 当前玩家收件箱总邮件数（不含已删除） |
-
-### 可消费的 PAPI 占位符
-
-Mail 模块在以下场景消费 PAPI 占位符：
-
-- **领取条件**：`claim-conditions` 中的内联格式 `%placeholder% <op> <value>` 会解析 PAPI 后判断
-- **货币余额**：`currencies.<id>.balance-placeholder` 用于读取余额
-
-### 内置变量
-
-领取命令（`claim-commands`）等命令支持玩家相关 token：
-
-| 变量 | 说明 |
-|---|---|
-| `<player>` | 玩家名称 |
-
-## UI Packet 触发
-
-Mail 模块通过 ArcartX 客户端包 `AXS_MAIL` 与客户端 UI 通信。客户端 UI 通过发送 packet action 触发服务端操作。
-
-### 收件箱 UI Packet
-
-| Action | 参数 | 说明 |
-|---|---|---|
-| `open` | 无 | 打开收件箱 |
-| `refresh` | 无 | 刷新收件箱列表 |
-| `filter` | `<filter>` | 切换筛选模式（`ALL`/`UNREAD`/`CLAIMABLE`/`SYSTEM`/`PLAYER`/`PRESET`/`CDK`） |
-| `select` | `<mailId>` | 选中邮件（自动标记为已读） |
-| `claim` | `<mailId>` | 领取指定邮件附件 |
-| `delete` | `<mailId>` | 删除指定邮件 |
-| `claimall` | 无 | 一键领取所有 |
-| `deleteall` | 无 | 一键删除所有 |
-| `cdk` | `<code>` | 兑换 CDK |
-| `logs` | 无 | 打开邮件日志 |
-| `compose` | 无 | 打开写信界面 |
-
-### 写信 UI Packet
-
-| Action | 参数 | 说明 |
-|---|---|---|
-| `compose-send` | `<sessionId> <recipient> <subject> <body> <vaultAmount> <actionToken>` | 发送邮件 |
-| `compose-add-attachment` | `<slot> <count\|all>` | 从背包添加物品到附件 |
-| `compose-remove-attachment` | `<index>` | 从附件移除物品退回背包 |
-| `password-unlock` | `<password>` | 解锁二级密码 |
-
-### 管理 UI Packet
-
-| Action | 参数 | 说明 |
-|---|---|---|
-| `admin` | 无 | 打开管理 UI |
-| `admin-preset-list` | 无 | 刷新预设列表 |
-| `admin-preset-new` | 无 | 新建预设（清空编辑区） |
-| `admin-preset-get` | `<presetId>` | 加载预设到编辑区 |
-| `admin-preset-cancel` | 无 | 取消编辑（退回物品） |
-| `admin-preset-save` | `<id> <enabled> <displayName> <subject> <body> <expiresAfterDays> <currencyAttachments> <claimCommands> <claimConditions> <cdks>` | 保存预设 |
-| `admin-preset-delete` | `<presetId>` | 删除预设 |
-| `admin-preset-send` | `<presetId> <target>` | 派发预设 |
-| `admin-add-attachment` | `<slot> <count\|all>` | 管理员添加物品附件 |
-| `admin-remove-attachment` | `<index>` | 管理员移除物品附件 |
-
-> 管理 UI Packet 需要玩家拥有 `arcartxsuite.admin` 权限，否则服务端静默丢弃。

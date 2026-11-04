@@ -1,13 +1,9 @@
 ---
-title: 玩家管理
-description: 飞行、无敌、治疗、速度、隐身、AFK、容器与背包查看
+title: "玩家管理"
+description: "管理玩家状态、昵称、背包查看以及常用物品和容器操作。"
 ---
 
-# 玩家管理
-
 Essentials 提供一组玩家状态管理与便捷操作功能。
-
-## 状态切换
 
 ### 飞行（Fly）
 
@@ -67,20 +63,6 @@ Essentials 提供一组玩家状态管理与便捷操作功能。
 ## 背包查看（/invsee）
 
 `/invsee <玩家>` 查看并实时修改其他在线玩家的背包：以 36 格界面展示主背包（前 27 格）与快捷栏（后 9 格），支持拾取、放置、Shift 移动、数字键交换等常规背包操作，改动直接同步到目标玩家。目标下线时界面自动关闭。
-
-## PlaceholderAPI 占位符
-
-模块注册 `axsessentials` 前缀的 PAPI 占位符：
-
-| 占位符 | 返回值 |
-|--------|--------|
-| `%axsessentials_afk%` | `true` / `false` |
-| `%axsessentials_afk_symbol%` | `&7[AFK]` 或空 |
-| `%axsessentials_vanish%` | `true` / `false` |
-| `%axsessentials_vanish_symbol%` | `&b[V]` 或空 |
-| `%axsessentials_flying%` | `true` / `false` |
-| `%axsessentials_god%` | `true` / `false` |
-| `%axsessentials_nick%` | 玩家显示名 |
 
 ## UI 菜单
 

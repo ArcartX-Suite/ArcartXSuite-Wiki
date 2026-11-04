@@ -1,24 +1,25 @@
 ---
-title: 电影序列
-description: Conversation 模块电影序列（Cinematic）配置：动作类型、序列定义与播放行为
+title: "电影序列"
+description: "按顺序编排传送、镜头移动、字幕、音效与 NPC 动画，制作过场演出。"
 ---
 
-# 电影序列
+电影序列用于为玩家播放一段有顺序的过场演出。你可以组合镜头移动、标题、声音和 NPC 动作；动作名称仍填写英文 `type` 值，下面用中文解释每种动作的用途。
 
-> **付费模块**
+## 第一次播放
 
-电影序列（Cinematic）是 Conversation 模块内置的过场动画回放功能，可编排一系列动作（传送、摄像机移动、标题、音效、NPC 动画、字幕等）按顺序对玩家播放。播放时自动显示 letterbox 黑边 UI 营造沉浸感，结束后恢复玩家状态。
+1. 在 `plugins/ArcartX-Suite/data/conversation/config.yml` 中确认 `cinematic.enabled: true`。
+2. 在模块的 `cinematics/` 目录新建 `intro.yml`，放入下文「序列定义」中的示例。
+3. 执行 `/axs reload conversation`，再用 `/axs conversation cinematic list` 确认出现 `intro`。
+4. 在游戏中执行 `/axs conversation cinematic play intro`。控制台播放时需追加玩家名。
+5. 用 `/axs conversation cinematic stop` 停止自己正在播放的序列。先检查标题、等待时长和结束后的状态，再增加其他动作。
 
 ## 播放行为
 
-- 通过 `/axs conversation cinematic play <序列ID>` 播放；同一玩家同一时间只能播放一个序列
 - 播放前自动记录玩家状态（游戏模式、速度、位置等），播放结束 / 玩家退出 / 强制停止时恢复
 - 每个动作执行完毕后按 `delay-after-ms` 等待，再执行下一个动作；`wait` 动作本身不做任何操作，只等待
 - 播放时自动显示 letterbox 黑边（UI ID 由 `ui.letterbox-ui-id` 配置，支持字符串或列表），结束自动隐藏
 
 ## 序列定义
-
-序列定义文件存放于 `data/conversation/cinematics/*.yml`，模块启动 / 重载时加载：
 
 - 每个文件可包含 `cinematic.cinematics` 或顶层 `cinematics` 节
 - 文件按文件名排序加载，后加载文件中同 ID 的序列覆盖先前的
@@ -65,14 +66,13 @@ cinematic:
 | `speed` | 设置行走 / 飞行速度 | `walk-speed`, `fly-speed` |
 | `lock_movement` | 锁定 / 解锁玩家移动 | `locked` |
 | `subtitle` | 播放 Announcer 字幕组 | `group-id`（需 Announcer 模块） |
-| `ui_packet` | 发送包到 ArcartX 客户端 UI | `ui-id`, `handler`, `payload` |
 | `arcartx_sound` | 播放 ArcartX 资源包自定义音效 | `resource-path`, `category`, `at-player`, `pitch` |
 
 > `delay-after-ms` 是每个动作执行**完毕后**的等待毫秒数，而非执行前的延迟。
 
-## 动作详解
+### 传送玩家（teleport）
 
-### teleport
+将玩家传送到指定世界与坐标，适合设置过场的起点或切换场景。先在测试区域检查落点和朝向。
 
 ```yaml
 - type: teleport
@@ -87,9 +87,9 @@ cinematic:
 
 `world` 找不到时回退到玩家当前世界。`yaw` / `pitch` 可选，默认 0。
 
-### camera_path
+### 镜头移动路径（camera_path）
 
-沿路径点平滑移动视角。
+让玩家视角沿多个坐标点移动，形成镜头推进、环绕等过场效果。总播放时长由 `duration-ms` 控制。
 
 | 字段 | 类型 | 默认值 | 说明 |
 | --- | --- | --- | --- |
@@ -112,7 +112,9 @@ cinematic:
   delay-after-ms: 1000
 ```
 
-### title
+### 主标题与副标题（title）
+
+在屏幕中央显示主标题与副标题，适合章节名称或剧情提示。淡入、停留和淡出的单位都是 tick。
 
 | 字段 | 类型 | 默认值 | 说明 |
 | --- | --- | --- | --- |
@@ -122,7 +124,9 @@ cinematic:
 | `stay` | int | `60` | 停留时间（tick） |
 | `fade-out` | int | `10` | 淡出时间（tick） |
 
-### sound
+### 播放音效（sound）
+
+在玩家当前位置或指定坐标播放音效。先填写音效名称，再调整音量与音调。
 
 | 字段 | 类型 | 默认值 | 说明 |
 | --- | --- | --- | --- |
@@ -133,7 +137,9 @@ cinematic:
 | `pitch` | float | `1.0` | 音调 |
 | `at-player` | boolean | `true` | 是否在玩家位置播放 |
 
-### game_mode
+### 切换游戏模式（game_mode）
+
+在演出期间切换玩家的游戏模式，例如使用旁观模式观看场景。演出停止或结束后恢复播放前的状态。
 
 ```yaml
 - type: game_mode
@@ -143,7 +149,9 @@ cinematic:
 
 `mode` 无法解析时默认 `SPECTATOR`。
 
-### npc_animation
+### 播放 NPC 动画（npc_animation）
+
+让指定 Adyeshach NPC 播放一次动画。NPC 名称和动画名称必须与服务器已有配置一致。
 
 | 字段 | 类型 | 默认值 | 说明 |
 | --- | --- | --- | --- |
@@ -155,7 +163,9 @@ cinematic:
 
 > 需 Adyeshach。NPC 未找到时动作静默跳过。
 
-### npc_model
+### 设置 NPC 模型（npc_model）
+
+修改指定 Adyeshach NPC 的显示模型和缩放。先准备模型资源，再填写 NPC 名称与模型 ID。
 
 | 字段 | 类型 | 默认值 | 说明 |
 | --- | --- | --- | --- |
@@ -163,7 +173,9 @@ cinematic:
 | `model` | string | — | 模型 ID |
 | `scale` | double | `1.0` | 缩放比例 |
 
-### command
+### 执行命令（command）
+
+在动作执行到此处时运行一条命令，可选择控制台或玩家身份；命令中不填写开头的斜杠。
 
 ```yaml
 - type: command
@@ -174,14 +186,18 @@ cinematic:
 
 `as-console: true` 以控制台身份执行，`false` 以玩家身份执行。`{player}` 替换为玩家名。
 
-### speed
+### 调整移动速度（speed）
+
+调整演出期间玩家的行走或飞行速度。未填写的速度项保持不变，结束后按序列恢复规则处理。
 
 | 字段 | 类型 | 说明 |
 | --- | --- | --- |
 | `walk-speed` | float | 行走速度（0.0 ~ 1.0），可选 |
 | `fly-speed` | float | 飞行速度（0.0 ~ 1.0），可选 |
 
-### lock_movement
+### 锁定与恢复移动（lock_movement）
+
+控制玩家在演出期间能否自行移动。使用 `locked: true` 锁定，使用 `false` 恢复移动。
 
 ```yaml
 - type: lock_movement
@@ -191,7 +207,9 @@ cinematic:
 
 锁定时行走 / 飞行速度设为 0，解锁时恢复默认值。
 
-### subtitle
+### 播放字幕组（subtitle）
+
+播放 Announcer 中已配置的字幕组，适合显示对白或旁白；`group-id` 必须对应实际字幕组。
 
 ```yaml
 - type: subtitle
@@ -201,29 +219,9 @@ cinematic:
 
 播放 Announcer 字幕组（打字机效果），需 Announcer 模块；未安装时动作自动跳过。
 
-### ui_packet
+### 播放自定义音效（arcartx_sound）
 
-发送包到 ArcartX 客户端 UI。
-
-| 字段 | 类型 | 说明 |
-| --- | --- | --- |
-| `ui-id` | string | 目标 UI ID |
-| `handler` | string | UI 包处理器名 |
-| `payload` | map | 任意键值对载荷 |
-
-```yaml
-- type: ui_packet
-  ui-id: AXS:custom_hud
-  handler: show_title
-  payload:
-    text: "过场动画"
-    color: gold
-  delay-after-ms: 2000
-```
-
-### arcartx_sound
-
-播放 ArcartX 资源包自定义音效。
+播放 ArcartX 资源包中的自定义声音。填写资源路径，并确认客户端已获得对应声音文件。
 
 | 字段 | 类型 | 默认值 | 说明 |
 | --- | --- | --- | --- |
@@ -236,6 +234,35 @@ cinematic:
 | `keep-time-ms` | int | `5000` | 持续时间（毫秒） |
 | `at-player` | boolean | `true` | 是否在玩家位置播放 |
 
+### 快捷栏提示（action_bar）
+
+在快捷栏上方显示一条短提示，适合显示目标或演出提醒。
+
+```yaml
+- type: action_bar
+  message: "请留意前方的 NPC"
+  delay-after-ms: 1500
+```
+
+### 等待后续动作（wait）
+
+不改变玩家状态，只等待 `delay-after-ms` 指定的毫秒数后继续下一条动作。
+
+```yaml
+- type: wait
+  delay-after-ms: 2000
+```
+
+### 聊天栏消息（message）
+
+向观看演出的玩家发送聊天文字，适合补充剧情说明。
+
+```yaml
+- type: message
+  message: "&7新的旅程即将开始。"
+  delay-after-ms: 1000
+```
+
 ## 玩家状态恢复
 
 播放前自动记录：游戏模式、行走 / 飞行速度、飞行状态、位置。播放结束 / 玩家退出 / 强制停止时全部恢复。
@@ -246,8 +273,4 @@ cinematic:
 
 ## 相关文档
 
-- [概览](/docs/conversation) — 模块功能与对话机制
-- [配置](/docs/conversation/configuration) — 主配置文件与电影序列配置
-- [命令与占位符](/docs/conversation/commands) — 电影序列管理命令
-- [联动](/docs/conversation/integration) — 电影序列动作依赖
 - [条件系统](/docs/guide/conditions) — Chemdah 对话触发条件配置

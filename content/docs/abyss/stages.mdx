@@ -1,9 +1,7 @@
 ---
-title: 阶段机（stages.yml）
-description: 事件驱动的副本流程主线——阶段/条件/超时/分支
+title: "阶段机（stages.yml）"
+description: "配置关卡阶段的完成条件与进入、完成时执行的动作。"
 ---
-
-# 阶段机
 
 `stages.yml`（或 `scripts.yml` 内联 `stages:` 段）定义副本的**流程主线**：按阶段推进，每阶段声明完成条件、超时与后续动作。事件驱动（怪组清完/交互触发/手动完成/超时即时判定），另加 2 秒慢扫兜底覆盖变量写入路径。
 
@@ -72,9 +70,3 @@ done:
 - `on-start`/`on-complete`/`on-timeout` 脚本行与 scripts.yml 同 DSL（`@all`/`@trigger`/selector/变量替换全可用）
 - 阶段名进入时广播 `dungeon.stage-enter`（`{stage}`=阶段显示名）
 - 实例变量 `abyss_stage` 实时写入当前阶段名（供脚本/PAPI/HUD 引用）
-
-## 设计模式与边界
-
-- 阶段机随 `startInstance` 初始化、`destroyInstance` 清理；watchdog 不走轮询
-- `timeout-action: FAIL` 阶段超时直接 `failDungeon`；缺省仅跑 `on-timeout` 脚本
-- procgen 副本可叠加 stages：例如「procgen 房全清 → complete_stage → 结算段」的混合编排

@@ -1,11 +1,7 @@
 ---
-title: 伤害排名与结算奖励
-description: 伤害追踪、伤害门槛、死亡结算与排行榜定时奖励
+title: "伤害排名与结算奖励"
+description: "配置伤害排名、结算门槛、名次奖励与奖励补发。"
 ---
-
-# 伤害排名与结算奖励
-
-> **付费模块**（消费额度满 ¥150 获得授权）
 
 EntityTracker 的伤害排名系统在 Boss 生命周期内实时追踪玩家伤害，在 Boss 死亡时按排名发放即时奖励，并支持按周/月周期发放排行榜定时奖励。奖励动作支持物品、命令、消息、邮件、信号五种类型，变量替换后还会经过 PlaceholderAPI 二次解析。
 
@@ -61,54 +57,9 @@ damage-ranking:
 
 排行榜定时奖励独立于即时死亡结算，按周/月周期发放，通过 Boss 配置文件的 `damage-ranking.ranking-rewards` 配置：
 
-```yaml
-damage-ranking:
-  ranking-rewards:
-    weekly:                 # 周奖励
-      enabled: false
-      ranks:
-        1:
-          actions:
-            - type: command
-              command: "points give {player} 100"
-            - type: message
-              target: "broadcast"
-              text: "&6&l恭喜 {player} 获得本周 {boss_display_name} 伤害冠军！"
-    monthly:                # 月奖励
-      enabled: false
-      ranks:
-        1:
-          actions:
-            - type: command
-              command: "points give {player} 500"
-```
-
 ### 调度配置
 
 全局调度设置在主配置文件的 `new-features.ranking-rewards.schedule` 中：
-
-```yaml
-new-features:
-  ranking-rewards:
-    schedule:
-      weekly:
-        enabled: true
-        day-of-week: "MONDAY"    # MONDAY ~ SUNDAY
-        hour: 0
-        minute: 0
-      monthly:
-        enabled: true
-        day-of-month: 1
-        hour: 0
-        minute: 0
-    timezone: "Asia/Shanghai"
-    reward-settings:
-      auto-distribute: true
-      max-retry-count: 3
-      retry-interval-minutes: 30
-      broadcast-rewards: true
-      detailed-logging: true
-```
 
 | 调度字段 | 说明 |
 |---|---|
@@ -125,7 +76,6 @@ new-features:
 | `auto-distribute` | `true` | 是否自动发放奖励 |
 | `max-retry-count` | `3` | 发放失败重试次数 |
 | `retry-interval-minutes` | `30` | 重试间隔（分钟） |
-| `broadcast-rewards` | `true` | 是否广播奖励发放结果 |
 | `detailed-logging` | `true` | 是否记录详细日志 |
 
 > 定时奖励的排行数据从数据库中的玩家最高伤害记录查询，而非实时伤害追踪。
@@ -163,16 +113,9 @@ new-features:
 
 ### 消息奖励
 
-```yaml
-- type: message
-  target: "player"       # player / broadcast / console
-  text: "&6你在 {boss_display_name} 伤害排名第 {rank} 名。"
-```
-
 | `target` 值 | 说明 |
 |---|---|
 | `player` | 发送给获奖玩家 |
-| `broadcast` | 全服广播 |
 | `console` | 输出到控制台 |
 
 ### 邮件奖励
@@ -201,7 +144,7 @@ new-features:
 
 | 变量 | 说明 |
 |---|---|
-| `{player}` / `{player_name}` / `{player_uuid}` / `{player_display_name}` | 获奖玩家信息 |
+| `{player}` / `{uuid}` / `{player_display_name}` | 获奖玩家信息 |
 | `{boss_id}` / `{boss_display_name}` / `{entity_uuid}` | Boss 信息 |
 | `{rank}` / `{rank_text}` | 排名 |
 | `{damage}` / `{damage_percent}` / `{taken_damage}` | 伤害数据 |

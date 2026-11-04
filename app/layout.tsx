@@ -1,31 +1,22 @@
 import './global.css';
 import type { ReactNode } from 'react';
-import { RootProvider } from 'fumadocs-ui/provider';
+import { WikiProvider } from '@/components/WikiProvider';
 import { I18nProvider } from 'fumadocs-ui/i18n';
-import { HomeBackground } from '@/components/HomeBackground';
-import { BgmPlayer } from '@/components/BgmPlayer';
 
 export const metadata = {
   title: {
-    default: 'Suite 文档',
+    default: 'Suite 使用文档',
     template: '%s | Suite',
   },
-  description: 'Suite 是面向 ArcartX 客户端的 30 模块 Minecraft 服务器插件套件',
+  description: 'ArcartX Suite 使用手册：模块功能、操作步骤、配置示例与命令速查。',
 };
 
 export default function Layout({ children }: { children: ReactNode }) {
   return (
-    <html lang="zh-CN" className="dark" suppressHydrationWarning>
+    <html lang="zh-CN" className="dark" style={{ colorScheme: 'dark' }}>
       <body>
-        <HomeBackground />
-        <BgmPlayer />
-        <RootProvider
-          theme={{
-            enabled: false,
-            defaultTheme: 'dark',
-          }}
-        >
-          <I18nProvider
+        <a href="#main-content" className="skip-link">跳至正文</a>
+        <I18nProvider
             locale="zh"
             translations={{
               search: '搜索',
@@ -36,13 +27,11 @@ export default function Layout({ children }: { children: ReactNode }) {
               chooseLanguage: '选择语言',
               nextPage: '下一页',
               previousPage: '上一页',
-              chooseTheme: '主题',
               editOnGithub: '在 GitHub 上编辑',
             }}
           >
-            {children}
-          </I18nProvider>
-        </RootProvider>
+            <WikiProvider>{children}</WikiProvider>
+        </I18nProvider>
       </body>
     </html>
   );

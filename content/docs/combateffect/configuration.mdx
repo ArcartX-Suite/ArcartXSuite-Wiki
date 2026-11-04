@@ -1,9 +1,15 @@
 ---
-title: 配置
-description: CombatEffect 配置文件详解与完整示例
+title: "功能配置"
+description: "调整伤害飘字样式、连击设置与特效定义；附字段解释、修改示例与重载步骤。"
 ---
 
-# 配置文件
+## 先改哪些内容
+
+伤害飘字样式、连击设置与特效定义。先使用默认示例完成一次测试，再按本页逐项调整。
+
+配置位置：`plugins/ArcartX-Suite/data/combateffect/config.yml`。定义文件与子目录均相对此模块目录。本文中的 YAML 片段用于修改对应小节，请保留文件中的其他设置。
+
+修改后执行 `/axs reload combateffect`；涉及插件安装或全局设置的变更请重启后验证。
 
 CombatEffect 模块的配置文件位于模块数据目录下，首次启动时自动导出默认配置。配置采用动态同步策略（`SyncPolicy` 动态节），以下配置节变更时可热重载：`kill-effect`、`combo-tracker`、`death-buffer`、`keybind-trigger`、`state-trigger`、`digis-display`。
 
@@ -25,8 +31,6 @@ CombatEffect 模块的配置文件位于模块数据目录下，首次启动时�
 | `damage_display/ArcartXSuite-disadvantaged.yml` | 元素克制劣势飘字样式 | 是 |
 
 > UI 文件导出到 `plugins/ArcartX-Suite/data/combateffect/ui/`，damage_display 文件导出到 `plugins/ArcartX/damage_display/`（ArcartX 插件目录）。`ui.overwrite-ui-files` 为 `true` 时强制覆盖用户已修改的 UI 文件。
-
-## 主配置 ArcartXCombatEffect.yml
 
 ### config-version 与 ui
 
@@ -81,8 +85,6 @@ CombatEffect 模块的配置文件位于模块数据目录下，首次启动时�
 |---|---|---|---|
 | `keybind-trigger.enabled` | boolean | `false` | 是否启用 ArcartX 按键触发（需 ArcartX） |
 | `state-trigger.enabled` | boolean | `false` | 是否启用 Chronos 状态/控制器触发（需 Chronos） |
-
-### digis-display 伤害飘字
 
 #### 伤害来源配置
 
@@ -161,47 +163,10 @@ CombatEffect 模块的配置文件位于模块数据目录下，首次启动时�
 | `digis-display.heal-display.heal-merge.min-amount` | double | `1.0` | 合并后最小显示阈值 |
 | `digis-display.heal-display.heal-merge.max-entries` | int | `500` | 最大缓存条目数 |
 
-## 包定义字段（packets/*.yml）
-
-包定义目录下每个 `*.yml` 文件可包含多个包定义，根键即为包 ID。
-
-| 字段 | 类型 | 默认值 | 说明 |
-|---|---|---|---|
-| `enabled` | boolean | `true` | 是否启用此包定义 |
-| `trigger` | string | — | 触发器类型（单值写法） |
-| `triggers` | `List<String>` | — | 触发器列表（多值写法，与 `trigger` 可混用） |
-| `ui-id` | string | `""` | 目标 ArcartX UI ID |
-| `packet-handler` | string | `""` | UI 中的 packetHandler 名称 |
-| `recipients` | `List<String>` | `["attacker"]` | 接收者列表：`attacker` / `killer` / `target` |
-| `cooldown` | long | `0` | 冷却时间（毫秒），0 = 无冷却 |
-| `conditions` | map | — | 触发条件（按触发器类型有不同可用字段） |
-| `pack` | string / list / map | — | 发包内容，支持变量替换 |
-
-### conditions 条件字段
-
-| 触发器 | 可用条件字段 | 说明 |
-|---|---|---|
-| `combo` | `combo-min` / `combo-max` / `combo-repeat` | 最低/最高连击数，是否重复触发 |
-| `keybind` | `key-name` / `key-action` / `key-type` | 按键名称（支持通配符）、动作、按键类型 |
-| `state` | `state-id` / `state-action` / `controller-id` | 状态 ID（通配符）、动作、控制器 ID |
-| `controller` | `controller-id` | 控制器 ID（通配符） |
-
-| 条件字段 | 类型 | 默认值 | 说明 |
-|---|---|---|---|
-| `combo-min` | int | `0` | 最低连击数（含） |
-| `combo-max` | int | `2147483647` | 最高连击数（含） |
-| `combo-repeat` | boolean | `false` | `true` 在范围内每击触发；`false` 仅达到 `combo-min` 时触发一次 |
-| `key-name` | string | — | 按键名称，支持 `*` 通配符（如 `attack_*`） |
-| `key-action` | string | `press` | `press` / `release` / `both` |
-| `key-type` | string | `client` | `client` / `simple` / `group` |
-| `state-id` | string | — | 状态 ID，支持 `*` 通配符 |
-| `state-action` | string | `enter` | `enter` / `leave` / `both` |
-| `controller-id` | string | — | 控制器 ID，支持 `*` 通配符 |
-
 ## 完整配置示例
 
 ```yaml
-# ArcartXCombatEffect.yml
+# config.yml
 config-version: 1
 
 ui:
@@ -323,119 +288,6 @@ digis-display:
       max-entries: 500
 ```
 
-## 包定义完整示例
-
-```yaml
-# packets/default.yml
-
-# 击杀特效 — 玩家击杀活体实体时向攻击者发送
-kill-effect:
-  enabled: true
-  trigger: kill
-  ui-id: "AXS:combat_kill_effect"
-  packet-handler: "kill"
-  recipients:
-    - killer
-  pack: ""
-
-# 命中特效 — 玩家攻击时触发，500ms 冷却
-attack-effect:
-  enabled: false
-  trigger: attack
-  ui-id: "AXS:combat_kill_effect"
-  packet-handler: "attack"
-  recipients:
-    - attacker
-  cooldown: 500
-  pack: ""
-
-# 连击 5 — 达到 5 连击时触发一次
-combo-5:
-  enabled: true
-  trigger: combo
-  ui-id: "AXS:combo_effect"
-  packet-handler: "combo"
-  recipients:
-    - attacker
-  conditions:
-    combo-min: 5
-    combo-max: 2147483647
-    combo-repeat: false
-  pack:
-    combo_count: "{combo_count}"
-
-# 连击 10 — 里程碑特效
-combo-10:
-  enabled: true
-  trigger: combo
-  ui-id: "AXS:combo_effect"
-  packet-handler: "combo_milestone"
-  recipients:
-    - attacker
-  conditions:
-    combo-min: 10
-    combo-max: 2147483647
-    combo-repeat: false
-  pack:
-    combo_count: "{combo_count}"
-
-# 死亡缓冲 — 发给被击杀的玩家
-death-buffer-victim:
-  enabled: true
-  trigger: death
-  ui-id: "AXS:death_buffer"
-  packet-handler: "death"
-  recipients:
-    - target
-  pack:
-    killer: "{attacker}"
-    victim: "{target}"
-
-# 死亡缓冲 — 发给击杀者
-death-buffer-killer:
-  enabled: true
-  trigger: death
-  ui-id: "AXS:combat_kill_effect"
-  packet-handler: "kill"
-  recipients:
-    - attacker
-  pack:
-    killer: "{attacker}"
-    victim: "{target}"
-
-# 按键触发 — 按下 attack_* 按键时触发
-skill-burst:
-  enabled: true
-  trigger: keybind
-  ui-id: "AXS:combat_kill_effect"
-  packet-handler: "attack"
-  recipients:
-    - attacker
-  conditions:
-    key-name: "attack_*"
-    key-action: "press"
-    key-type: "client"
-  cooldown: 1000
-  pack:
-    player: "{player}"
-    key_name: "{key_name}"
-
-# 状态触发 — 进入 "狂暴" 状态时触发
-berserk-effect:
-  enabled: true
-  trigger: state
-  ui-id: "AXS:combat_kill_effect"
-  packet-handler: "attack"
-  recipients:
-    - attacker
-  conditions:
-    state-id: "狂暴"
-    state-action: "enter"
-  pack:
-    player: "{player}"
-    state_id: "{state_id}"
-```
-
 ## damage_display 飘字样式
 
 飘字样式文件导出到 `plugins/ArcartX/damage_display/` 目录，由 ArcartX 客户端读取。每个样式文件定义数字贴图、宽高、随机偏移与小数位数：
@@ -474,6 +326,4 @@ ArcartXSuite-damage:
 ## 相关文档
 
 - [概览](/docs/combateffect) — 模块功能与战斗特效机制
-- [命令与占位符](/docs/combateffect/commands) — 命令、权限、UI 包通讯
-- [联动](/docs/combateffect/integration) — EventBus 事件、Capability、跨模块联动
 - [条件系统](/docs/guide/conditions) — 统一条件系统配置指南

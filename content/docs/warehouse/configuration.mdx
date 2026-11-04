@@ -1,17 +1,21 @@
 ---
-title: 配置
-description: Warehouse 配置文件详解
+title: "功能配置"
+description: "调整仓库容量、分类、共享成员权限与银行规则；附字段解释、修改示例与重载步骤。"
 ---
 
-# Warehouse 配置
+## 先改哪些内容
 
-配置文件位于 `plugins/ArcartX-Suite/modules/ArcartXWarehouse.yml`，修改后执行 `/axs reload warehouse` 生效。
+仓库容量、分类、共享成员权限与银行规则。先使用默认示例完成一次测试，再按本页逐项调整。
+
+配置位置：`plugins/ArcartX-Suite/data/warehouse/config.yml`。定义文件与子目录均相对此模块目录。本文中的 YAML 片段用于修改对应小节，请保留文件中的其他设置。
+
+修改后执行 `/axs reload warehouse`；涉及插件安装或全局设置的变更请重启后验证。
+
+配置文件位于 `plugins/ArcartX-Suite/data/warehouse/config.yml`，修改后执行 `/axs reload warehouse` 生效。
 
 当前配置版本（`config-version`）为 **4**，模块支持自动迁移（0→1、1→2、2→3、3→4）。
 
-## 主配置字段表
-
-### settings 节
+### 基础设置（settings）
 
 | 字段 | 类型 | 默认值 | 说明 |
 | --- | --- | --- | --- |
@@ -19,56 +23,21 @@ description: Warehouse 配置文件详解
 | `flush-interval-ticks` | int | `100` | 数据落库间隔（ticks，20 = 1 秒），最小 20 |
 | `transfer-confirm-expire-hours` | long | `24` | 共享仓库转让确认等待时长（小时），`<=0` 表示永不过期 |
 
-### cross-server 节
+### 跨服功能（cross-server）
 
 | 字段 | 类型 | 默认值 | 说明 |
 | --- | --- | --- | --- |
-| `enabled` | boolean | `false` | 是否启用跨服共享仓库编辑锁。MySQL 共享库 + 多子服时建议开启。连接参数见宿主 `config.yml` 的 `cross-server` 节 |
+| `enabled` | boolean | `false` | 是否启用共享仓库的跨服功能；使用前先完成各子服的部署配置 |
 
-### ui 节
+### 界面显示（ui）
 
 | 字段 | 类型 | 默认值 | 说明 |
 | --- | --- | --- | --- |
-| `ui-id` | string | `AXS:warehouse_storage` | 仓库存取界面 UI ID |
-| `manage-ui-id` | string | `AXS:warehouse_manage` | 仓库管理界面 UI ID |
-| `bank-ui-id` | string | `AXS:warehouse_bank` | 银行界面 UI ID |
-| `packet-id` | string | `AXS_WAREHOUSE` | 客户端通信包标识符 |
 | `register-ui-on-enable` | boolean | `true` | 启动时是否自动注册 UI |
 | `overwrite-ui-files` | boolean | `false` | 是否强制覆盖用户已修改的 UI 文件 |
 | `page-size` | int | `72` | 仓库网格每页显示的槽位数量（控件按此数量动态创建），最小 1 |
 
-### storage 节
-
-| 字段 | 类型 | 默认值 | 说明 |
-| --- | --- | --- | --- |
-| `shared` | boolean | `true` | 是否使用本体共享数据源（推荐）。`true` 时忽略下方所有字段 |
-| `mode` | string | `sqlite` | 自建模式存储引擎：`sqlite` 或 `mysql`（仅 `shared: false` 时生效） |
-| `sqlite.file` | string | `warehouse.db` | SQLite 文件名（相对模块数据目录） |
-| `mysql.host` | string | `127.0.0.1` | MySQL 主机地址 |
-| `mysql.port` | int | `3306` | MySQL 端口 |
-| `mysql.database` | string | `arcartxsuite` | MySQL 数据库名 |
-| `mysql.username` | string | `root` | MySQL 用户名 |
-| `mysql.password` | string | `""` | MySQL 密码 |
-| `mysql.table-prefix` | string | `axs_warehouse_` | MySQL 表名前缀 |
-| `pool-size` | int | `4` | JDBC 连接池大小（SQLite 建议 1），范围 1-100 |
-
-> **向后兼容**：如果 `shared` 字段不存在但 `mode=mysql`，自动视为 `shared: false`。
-
-### security 节（已移除）
-
-二级密码策略已全部迁移到**宿主核心**统一管理，配置位置为 `plugins/ArcartX-Suite/config.yml` 的 `security.secondary-password` 节：
-
-```yaml
-security:
-  secondary-password:
-    min-length: 4              # 二级密码最小长度
-    max-length: 32             # 二级密码最大长度
-    unlock-timeout-seconds: 1800  # 解锁后会话有效时长（秒，默认 30 分钟）
-```
-
-所有模块（Warehouse、ExtraBackpack 等）共用同一策略与解锁会话。模块内的旧 `security` 节会被配置同步自动清理（`obsoletePath`）。
-
-### pickup 节
+### 自动入库（pickup）
 
 | 字段 | 类型 | 默认值 | 说明 |
 | --- | --- | --- | --- |
@@ -82,14 +51,12 @@ security:
 >
 > `enabled` 与 `mythic-loot-enabled` 为**服务器级开关**，优先级高于玩家个人设置：关闭时对应功能全服失效，管理界面同时隐藏对应开关，玩家无法在 UI 中看到或切换它。
 
-### search 节
+### 物品搜索（search）
 
 | 字段 | 类型 | 默认值 | 说明 |
 | --- | --- | --- | --- |
 | `page-size` | int | `18` | 搜索结果每页显示数量，最小 4 |
 | `default-sort` | string | `time` | 默认排序方案 ID（对应 `sort-profiles` 中的 key） |
-
-### showcase 节
 
 | 字段 | 类型 | 默认值 | 说明 |
 | --- | --- | --- | --- |
@@ -97,7 +64,6 @@ security:
 | `cooldown-seconds` | int | `60` | 每次展示后的冷却时间（秒），最小 5 |
 | `max-items` | int | `9` | 单次展示卡片最多显示的物品数量，最小 1 |
 | `card-id` | string | `""` | 展示卡片使用的 ArcartX 卡片 ID，留空使用模块内置默认卡片 |
-| `permission` | string | `arcartxsuite.warehouse.showcase` | 使用展示柜功能所需的权限节点 |
 
 ## 仓库分类配置
 
@@ -128,7 +94,6 @@ warehouses:
 
 > **已解锁格数 = `base-slots` + `extra_slots`（数据库字段）**。玩家每点一次购买消耗 `slot-price` 并 `extra_slots + 1`。共享仓库仍使用 `shared.levels` 等级制，不受本模型影响。
 
-> **已移除字段**：个人仓库的 `default-level`、`levels` 旧等级制容量表与 `migration` 迁移标记节已随逐格解锁上线一并移除，配置同步时由 `obsoletePath` 自动清理。
 
 ## 物品分类配置
 
@@ -173,8 +138,6 @@ categories:
 > 物品注册键指 Bukkit `Material.getKey()` 的全名（`命名空间:ID`）：原版物品为 `minecraft:<id>`，混合服 mod 物品为 `<modid>:<id>`（如 `tacz:modern_kinetic_gun`）。若只需精确匹配原版物品也可写 `nbt.path: "material"` + `values`（材质枚举名）。
 >
 > **注意**：`categoryId` 在物品入库时计算并随槽位记录持久化。新配规则生效后，已入库物品仍保持旧分类，重新存取一次（取出再存入）才会按新规则归类。
-
-## 权限配置
 
 ### 共享仓库权限分层
 
@@ -273,180 +236,4 @@ blacklist:
   name-regex: []                # 物品显示名匹配任意正则即拦截
   lore-regex: []                # 物品 Lore 匹配任意正则即拦截
   nbt-keys: []                  # PDC 或原始 NBT 中存在任意 key 即禁止存入
-```
-
-## 完整配置示例
-
-```yaml
-config-version: 4
-settings:
-  debug: false
-  flush-interval-ticks: 100
-  transfer-confirm-expire-hours: 24
-
-cross-server:
-  enabled: false
-
-ui:
-  ui-id: "AXS:warehouse_storage"
-  manage-ui-id: "AXS:warehouse_manage"
-  bank-ui-id: "AXS:warehouse_bank"
-  packet-id: "AXS_WAREHOUSE"
-  register-ui-on-enable: true
-  overwrite-ui-files: false
-  page-size: 72
-
-storage:
-  shared: true
-
-pickup:
-  enabled: true
-  auto-store-on-pickup: true
-  auto-store-mythic-loot: false
-  mythic-loot-enabled: true
-  notify-on-auto-store: true
-
-search:
-  page-size: 18
-  default-sort: "time"
-
-warehouses:
-  personal:
-    display-name: "&6个人仓库"
-    default-owned: true
-    default-level: 1
-    levels:
-      "1":
-        capacity: 1000
-        upgrade:
-          currency: "points"
-          amount: 500
-      "2":
-        capacity: 2500
-        upgrade:
-          currency: "points"
-          amount: 1200
-      "3":
-        capacity: 6000
-
-categories:
-  equipment:
-    display-name: "装备"
-    priority: 10
-    nbt:
-      path: "pdc:arcartx:item_category"
-      values: ["equipment", "weapon", "armor"]
-  material:
-    display-name: "材料"
-    priority: 20
-    nbt:
-      path: "pdc:arcartx:item_category"
-      values: ["material"]
-  consumable:
-    display-name: "消耗品"
-    priority: 30
-    nbt:
-      path: "pdc:arcartx:item_category"
-      values: ["consumable", "food", "potion"]
-  other:
-    display-name: "其它"
-    priority: 9999
-    default: true
-
-bank:
-  currencies:
-    - money
-    - points
-  deposit-products:
-    money_stable_1d:
-      enabled: true
-      display-name: "稳健 1 日"
-      description: "低门槛短期定存。"
-      currency: "money"
-      duration-seconds: 86400
-      min-amount: 100
-      max-amount: 0
-      permission: ""
-      interest-tiers:
-        tier_1:
-          min: 100
-          max: 9999
-          rate: 0.01
-        tier_2:
-          min: 10000
-          max: 99999
-          rate: 0.015
-        tier_3:
-          min: 100000
-          max: 0
-          rate: 0.02
-
-shared:
-  enabled: true
-  create-cost:
-    currency: "points"
-    amount: 1000
-  default-level: 1
-  levels:
-    "1":
-      capacity: 2000
-      upgrade:
-        currency: "points"
-        amount: 800
-    "2":
-      capacity: 5000
-      upgrade:
-        currency: "points"
-        amount: 1800
-    "3":
-      capacity: 10000
-  role-names:
-    owner: "所有者"
-    member: "成员"
-    viewer: "观众"
-  permission-tiers:
-    default:
-      permission: ""
-      priority: 0
-      max-owned: 1
-      max-members: 6
-    vip:
-      permission: "ArcartXSuite.warehouse.shared.vip"
-      priority: 10
-      max-owned: 3
-      max-members: 12
-
-sort-profiles:
-  time:
-    fields:
-      - "updated:desc"
-      - "name:asc"
-  name:
-    fields:
-      - "name:asc"
-  amount:
-    fields:
-      - "amount:desc"
-      - "updated:desc"
-
-showcase:
-  enabled: true
-  cooldown-seconds: 60
-  max-items: 9
-  card-id: ""
-  permission: "arcartxsuite.warehouse.showcase"
-
-blacklist:
-  material-ids: []
-  mythic-item-ids: []
-  neige-item-ids: []
-  overture-item-ids: []
-  kinds: []
-  name-contains:
-    - "绑定不可存"
-  lore-contains:
-    - "不可存入仓库"
-  name-regex: []
-  lore-regex: []
-  nbt-keys: []
 ```

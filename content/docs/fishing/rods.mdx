@@ -1,9 +1,7 @@
 ---
-title: 鱼竿配置
-description: Fishing 鱼竿系统配置
+title: "鱼竿配置"
+description: "识别自定义鱼竿，设置绿条高度、经验、耐久等钓鱼加成。"
 ---
-
-# 鱼竿配置
 
 鱼竿定义文件位于 `plugins/ArcartX-Suite/data/fishing/rods/` 目录下，每个 `.yml` 文件定义一种鱼竿。
 
@@ -12,7 +10,6 @@ description: Fishing 鱼竿系统配置
 鱼竿物品由外部物品库（NeigeItems/MythicMobs 等）生成，配置文件仅用于**识别物品**和**设置效果**。识别方式：
 
 1. **优先用 ItemMatcher 匹配**：通过 `match` 块配置的匹配规则识别玩家手持物品
-2. **回退到 PDC 标签**：未配置 `match` 或 `match` 为空时，通过 PDC 标签 `axs_fishing_rod_id` 识别
 
 当玩家手持物品不匹配任何鱼竿定义时，使用默认鱼竿（`RodDefinition.DEFAULT`，无任何加成）。
 
@@ -21,7 +18,7 @@ description: Fishing 鱼竿系统配置
 | 字段 | 类型 | 默认值 | 说明 |
 | --- | --- | --- | --- |
 | `id` | string | 文件名 | 鱼竿唯一标识符 |
-| `match` | map | - | 物品匹配规则（[ItemMatcher](/docs/guide/conditions) 标准格式） |
+| `match` | map | - | 物品匹配规则，写法与示例见[物品匹配与消耗](/docs/guide/item-matching) |
 | `treasure-chance-bonus` | double | `0.0` | 宝藏概率加成（加到基础概率上） |
 | `green-bar-height-bonus` | int | `0` | 绿条高度加成（像素） |
 | `catch-duration-bonus` | int | `0` | 小游戏持续时间加成（ticks） |
@@ -40,7 +37,7 @@ description: Fishing 鱼竿系统配置
 
 ### match 物品匹配规则
 
-`match` 块使用 ItemMatcher 标准格式，所有列表为"或"关系，命中任一即匹配：
+`match` 中不同字段需要同时满足；单个列表内通常任选一项，`nbt-values` 内多个键值则全部满足。不要同时填入两种物品库 ID 并期待任选其一。
 
 | 字段 | 说明 |
 | --- | --- |
@@ -50,22 +47,29 @@ description: Fishing 鱼竿系统配置
 | `material-ids` | 原版材质名列表（如 `[fishing_rod]`） |
 | `name-contains` | 显示名需包含的子串列表 |
 | `lore-contains` | Lore 需包含的子串列表 |
-| `nbt-keys` | NBT/PDC 键白名单 |
-| `nbt-values` | NBT 键值对精确匹配 |
-| `name-regex` / `lore-regex` | 正则匹配 |
+| `nbt-keys` | 列表，检查标签存在，例如 `nbt-keys: [rod_id]`；真实物品需要已带有该键 |
+| `nbt-values` | 映射，检查具体值，多个键值全部满足；完整写法见下方例子 |
+| `name-regex` / `lore-regex` | 字符串列表；完整名称可写 `name-regex: ['^青玉钓竿$']` |
 
-未配置 `match` 或 `match` 为空时，回退到 PDC 标签 `axs_fishing_rod_id` 识别。
+例如，实际鱼竿已有 `rod_id` 标签，值为 `jade_rod`：
+
+```yaml
+match:
+  material-ids:
+    - fishing_rod
+  nbt-values:
+    "rod_id": "jade_rod"
+```
+
+它同时要求材质为鱼竿且标签值正确。标签名不是显示名称，此片段也不会给物品新增数据。如何获取真实标签、正则如何加引号，以及哪些写法会误匹配，见[物品匹配教程](/docs/guide/item-matching#nbtpdc-标签从哪里获取)。
 
 ### 鱼竿耐久度
 
 鱼竿耐久度消耗受饵料 `max-durability-bonus` 影响。当玩家使用鱼竿钓鱼时，`PlayerItemDamageEvent` 被拦截：
 
-- 获取鱼竿上挂载的饵料（通过 PDC 标签 `axs_fishing_bait_id`）
 - 计算耐久度加成值
 - `新损耗 = max(0, 原损耗 - 加成值)`
 - 新损耗为 0 时取消事件，否则修改损耗值
-
-## 鱼竿配置示例
 
 ### 基础木制钓竿
 

@@ -1,9 +1,7 @@
 ---
-title: 奖励系统
-description: BattlePass 等级奖励与赛季结算奖励
+title: "奖励系统"
+description: "配置各等级、各档位的战令奖励及赛季结束奖励。"
 ---
-
-# 奖励系统
 
 BattlePass 奖励分为两类：**等级奖励**（玩家达到指定等级后主动领取）和**赛季结算奖励**（赛季结束时按等级阈值自动发放）。两类奖励都支持 item / command / currency / mail 四种奖励类型。
 
@@ -35,8 +33,6 @@ rewards:
 - DELUXE 档：需解锁 DELUXE 档位
 - 每个奖励只能领取一次（通过 `claimedRewards` 集合记录）
 - 支持一键领取所有已解锁等级的可领奖励
-
-## 奖励类型详解
 
 ### item 物品奖励
 
@@ -112,8 +108,6 @@ premium:
 
 ### currency 货币奖励
 
-向玩家发放指定货币，通过 `CurrencyBridgeAPI` 执行。
-
 | 字段 | 类型 | 说明 |
 |---|---|---|
 | `type` | string | 固定为 `currency` |
@@ -141,7 +135,7 @@ deluxe:
   amount: 20
 ```
 
-> 货币 ID 需在宿主 `config.yml` 的 `currencies` 节中配置。货币桥接不可用时奖励发放失败并记录警告。
+> 货币 ID 需在Suite `config.yml` 的 `currencies` 节中配置。货币桥接不可用时奖励发放失败并记录警告。
 
 ### mail 邮件奖励
 
@@ -279,8 +273,6 @@ rewards:
 - 通过 `bp_season_settlement` 表记录已结算赛季，重启后不会重复结算
 - 结算奖励使用 `settlement_<settlementId>_<tier>` 作为领取记录 key，防止补发时重复
 
-## 奖励领取流程
-
 ### 玩家主动领取
 
 1. 玩家通过 `/bp claim <等级>` 或 UI 面板发起领取
@@ -292,7 +284,6 @@ rewards:
 
 ### 一键领取
 
-- `/bp claim` UI 中的"一键领取"按钮，或通过 Packet `claim_all` action
 - 遍历所有已解锁等级中当前可领的全部档位奖励
 - 按等级升序、档位升序依次发放
 

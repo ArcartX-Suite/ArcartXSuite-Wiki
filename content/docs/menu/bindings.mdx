@@ -1,11 +1,7 @@
 ---
-title: 绑定系统
-description: Menu 模块命令绑定、物品绑定、ESC 拦截与自定义 UI 目标详解
+title: "绑定系统"
+description: "将菜单绑定到命令、背包物品或 ESC，并设置按钮的显示条件。"
 ---
-
-# 绑定系统
-
-> **付费模块**
 
 Menu 模块的绑定系统是菜单触发的入口层。除了通过 `/menu open <菜单ID>` 命令手动打开菜单外，模块支持三种自动触发方式：命令绑定（输入命令打开菜单）、物品绑定（手持物品交互打开菜单）和 ESC 拦截（按 ESC 键替换原版暂停界面）。此外，菜单可配置自定义 UI 目标，将同一份菜单数据发送到不同的客户端 UI。
 
@@ -199,96 +195,23 @@ footer-buttons:
 
 > `client-action` 与 `actions` 可共存：`client-action` 由客户端 UI 直接处理，`actions` 由服务端执行。
 
-## 自定义 UI 目标
-
-默认情况下，菜单根据 `layout` 自动选择对应的 UI（`panel` → `menu_panel`，`esc` → `menu_esc`），使用内置的 `init` / `update` 生命周期 handler。菜单可通过 `ui-id` / `ui-targets` 配置自定义 UI 目标。
-
 ### 简写格式
-
-单 UI 目标，指定 UI ID 和可选的 packet handler：
-
-```yaml
-id: my_menu
-ui-id: "my_custom_panel"
-packet-handler: "menu"
-```
 
 | 字段 | 说明 |
 |---|---|
 | `ui-id` | 自定义 UI 的注册 ID |
-| `packet-handler` | 自定义 packet handler 名称，留空时使用 `init` / `update` |
 
 ### 多 UI 目标
 
 同一份菜单 payload 同时发送给多个 UI，第一个 UI 用于 `open` / `close` 操作：
 
-```yaml
-id: my_menu
-ui-targets:
-  - ui-id: "my_custom_panel"
-    packet-handler: "menu"
-  - ui-id: "menu_hud"
-    packet-handler: "overlay"
-```
-
 | 字段 | 说明 |
 |---|---|
 | `ui-id` | 目标 UI 的注册 ID（必填） |
-| `packet-handler` | packet handler 名称，留空时使用 `init` / `update` |
-
-> `ui-targets` 优先级高于 `ui-id + packet-handler`，两者不要同时配置。
 
 ### UI 注册
 
 自定义 UI 文件需放置在 `ArcartXSuite/ui/` 目录下，文件名为 `<ui-id>.yml`。模块启动时自动注册所有 `ui-targets` 中声明的非内置 UI：文件不存在或注册失败时记录警告。
-
-> 自定义 UI 的 `ui-id` 应使用不带命名空间前缀的 ID（如 `my_panel` 而非 `AXS:my_panel`）。
-
-### Payload 分发
-
-| 配置 | 分发方式 |
-|---|---|
-| 无 `ui-targets` | 发送到默认 UI，handler 为 `init`（首次）或 `update`（刷新） |
-| 有 `ui-targets` | 遍历每个 target，handler 为 `packet-handler` 或 `init` / `update` |
-
-### UI 数据包结构
-
-| Payload 字段 | 类型 | 说明 |
-|---|---|---|
-| `packetId` | `String` | 数据包 ID（`ui.packet-id`） |
-| `menuId` | `String` | 菜单 ID |
-| `layout` | `String` | 布局类型（`panel` / `esc`） |
-| `title` | `String` | 菜单标题（PAPI 解析后） |
-| `pageId` | `String` | 当前页面 ID |
-| `pageTitle` | `String` | 页面标题（PAPI 解析后） |
-| `pageIndex` | `int` | 当前页索引 |
-| `pageCount` | `int` | 总页数 |
-| `columns` | `int` | 每行按钮列数 |
-| `hasPrev` | `boolean` | 是否有上一页 |
-| `hasNext` | `boolean` | 是否有下一页 |
-| `buttonRows` | `Map<String, Object>` | 按钮行数据 |
-| `buttonCount` | `int` | 当前页按钮数 |
-| `footerRows` | `Map<String, Object>` | 底栏行数据 |
-| `footerCount` | `int` | 底栏按钮数 |
-| `maxButtonCount` | `int` | 每页按钮上限 |
-| `maxFooterCount` | `int` | 底栏按钮总数 |
-
-### 客户端数据包动作
-
-客户端 UI 向服务端发送的动作（自定义菜单 UI 时参考）：
-
-| 客户端动作 | 说明 |
-|---|---|
-| `refresh` | 刷新当前菜单数据 |
-| `esc_open` | 打开默认 ESC 菜单 |
-| `close` | 关闭当前菜单 |
-| `page <token>` | 翻页（`prev` / `next` / 页面 ID） |
-| `click <buttonId>` | 普通按钮点击 |
-| `footer <buttonId>` | 底栏按钮点击 |
-
-> 数据包 ID 需匹配 `ui.packet-id`（默认 `AXS_MENU`）。
-
-## 按钮可见性与排序
 
 ### 可见性过滤
 
@@ -334,23 +257,6 @@ buttons:
 
 > 图标解析结果以 `itemJson` 字段发送给客户端 UI，`hasIcon` 标识是否包含有效图标。详见 [图标配置](/docs/guide/icons)。
 
-## 会话管理
-
-每个玩家同时持有一个菜单会话：
-
-| 事件 | 行为 |
-|---|---|
-| 打开菜单 | 创建会话，记录当前菜单与页码 |
-| 关闭菜单 | 移除会话，执行 `close-actions` |
-| 玩家退出 | 移除会话（不执行 `close-actions`） |
-| 翻页 | 更新页码并刷新界面 |
-
-### 点击冷却
-
-按钮点击受 `settings.click-cooldown-ms` 配置保护（默认 300ms），冷却期内的点击被忽略。设为 `0` 可禁用冷却。
-
-## 完整绑定示例
-
 ### 命令 + 物品 + ESC 三重绑定
 
 ```yaml
@@ -392,7 +298,7 @@ pages:
 ### 全局物品绑定
 
 ```yaml
-# ArcartXMenu.yml
+# config.yml
 settings:
   item-binds:
     - menu: main_menu
@@ -435,29 +341,4 @@ footer-buttons:
     text: "&f退出游戏"
     order: 1
     client-action: "quit"
-```
-
-### 自定义 UI 目标
-
-```yaml
-id: hud_menu
-title: "&fHUD 菜单"
-layout: panel
-
-# 同时发送到面板 UI 和 HUD 覆盖层
-ui-targets:
-  - ui-id: "menu_panel"
-    packet-handler: "init"
-  - ui-id: "menu_hud"
-    packet-handler: "overlay"
-
-pages:
-  - id: main
-    title: "&fHUD"
-    buttons:
-      toggle:
-        text: "&f切换显示"
-        order: 0
-        actions:
-          - "signal: toggle_hud"
 ```

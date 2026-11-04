@@ -1,9 +1,7 @@
 ---
-title: 命令与占位符
-description: QuestGPS 命令、权限与 PlaceholderAPI 占位符
+title: "命令与权限"
+description: "任务导航可用命令、参数填写方式和权限要求。"
 ---
-
-# 命令与占位符
 
 ## 玩家命令
 
@@ -20,8 +18,6 @@ description: QuestGPS 命令、权限与 PlaceholderAPI 占位符
 
 ## 管理员命令
 
-管理命令通过 `/axs questgps <action>` 触发，由 `ModuleCommandHandler` 注册。
-
 | 命令 | 说明 |
 |---|---|
 | `/axs questgps help` | 显示管理命令帮助 |
@@ -34,7 +30,7 @@ description: QuestGPS 命令、权限与 PlaceholderAPI 占位符
 
 | 输出项 | 说明 |
 |---|---|
-| 配置任务数 | `quests/*.yml` 中已登记的任务总数 |
+| 原生任务数 | 当前识别的 Chemdah 任务总数 |
 | 追踪中 | 当前正在追踪任务的在线玩家数 |
 | 导航就绪 | 导航运行时是否就绪（true/false） |
 
@@ -45,92 +41,6 @@ description: QuestGPS 命令、权限与 PlaceholderAPI 占位符
 | `arcartxsuite.questgps.use` | 所有玩家 | 使用 `/questgps` 玩家命令的权限 |
 
 > 管理命令通过 `/axs` 主命令的权限控制，无需额外权限节点。
-
-## PlaceholderAPI 占位符
-
-QuestGPS **不提供独立的 PlaceholderAPI 占位符**。任务名称、目标、状态和奖励均由 Chemdah 任务系统提供，本模块整理后通过 Packet 发送给 UI 客户端渲染。
-
-> 如需在聊天/计分板等场景显示任务信息，请使用 Chemdah 自身的 PAPI 占位符。
-
-## UI Packet 触发
-
-QuestGPS 的 UI 交互通过 ArcartX Packet 通讯完成。客户端向服务端发送的 Packet 使用 `ui.packet-id`（默认 `AXS_QUESTGPS`）作为标识符，`data` 列表第一个元素为操作名。
-
-### 客户端→服务端操作
-
-| 操作名 | 参数 | 说明 |
-|---|---|---|
-| `refresh` | — | 刷新菜单数据 |
-| `switch_category` | `data[1]` = 分类 ID | 切换分类 Tab |
-| `switch_page` | `data[1]` = 页面 ID（`available`/`active`/`completed`） | 切换分页 |
-| `select_quest` | `data[1]` = 任务 ID | 选中任务（显示详情） |
-| `accept_quest` | `data[1]` = 任务 ID | 接取任务 |
-| `abandon_quest` | `data[1]` = 任务 ID | 放弃任务 |
-| `track_quest` | `data[1]` = 任务 ID | 追踪任务级导航（与其他追踪并行） |
-| `track_task` | `data[1]` = 任务 ID, `data[2]` = 子目标 ID | 追踪子任务级导航（与其他追踪并行） |
-| `untrack_quest` | `data[1]` = 任务 ID | 取消该任务全部追踪（任务级+其子目标级），其余目标不受影响 |
-| `untrack_task` | `data[1]` = 任务 ID, `data[2]` = 子目标 ID | 取消指定子目标追踪 |
-| `cross_world_track` | `data[1]` = 任务 ID | 跨世界追踪：目标在其他世界时先传送到该导航点的 `teleport` 传送点再开始追踪 |
-| `clear_track` | — | 清除全部导航追踪 |
-| `open_map` | — | 打开地图菜单（Map 模块不可用时刷新菜单） |
-
-### 服务端→客户端 Packet 字段
-
-#### 菜单 Packet（init / update）
-
-| 字段 | 类型 | 说明 |
-|---|---|---|
-| `packetId` | `String` | Packet 标识符 |
-| `categories` | `Map<String, Map>` | 分类字典，key=分类ID，value含 `id`/`name`/`sort_order`/`selected` |
-| `pages` | `Map<String, Map>` | 分页字典，key=页面ID，value含 `id`/`name`/`count`/`selected` |
-| `quests` | `Map<String, Map>` | 任务字典，key=任务ID，value含 `id`/`name`/`summary`/`state`/`trackable`/`selected` |
-| `tasks` | `Map<String, Map>` | 目标字典，key=目标ID，value含 `id`/`text`/`description`/`status`/`completed`/`trackable`/`tracked` |
-| `rewards` | `Map<String, Map>` | 奖励字典，key=奖励ID，value含 `id`/`title`/`description`/`type`/`amount`/`itemJson`/`material` |
-| `categoryId` | `String` | 当前选中分类 ID |
-| `pageId` | `String` | 当前选中页面 ID |
-| `categoryName` | `String` | 当前分类显示名 |
-| `pageName` | `String` | 当前页面显示名 |
-| `availableCount` | `int` | 可接取任务数 |
-| `activeCount` | `int` | 进行中任务数 |
-| `completedCount` | `int` | 已完成任务数 |
-| `questCount` | `int` | 当前列表任务总数 |
-| `navigationReady` | `boolean` | 导航功能是否就绪 |
-| `selected_quest_id` | `String` | 当前选中任务 ID（兼容字段） |
-| `selectedQuestId` | `String` | 当前选中任务 ID |
-| `selectedQuestName` | `String` | 当前选中任务名称 |
-| `selectedQuestState` | `String` | 当前选中任务状态文本 |
-| `selectedQuestPath` | `String` | 当前选中任务路径 |
-| `selectedQuestDescriptionText` | `String` | 当前选中任务描述（换行拼接） |
-| `trackSummary` | `String` | 追踪摘要文本 |
-| `canAccept` | `boolean` | 是否可接取任务 |
-| `canAbandon` | `boolean` | 是否可放弃任务 |
-| `canTrackQuest` | `boolean` | 是否可追踪任务 |
-| `canTrackTask` | `boolean` | 是否可追踪目标 |
-| `canClearTrack` | `boolean` | 是否可清除追踪 |
-| `questTracked` | `boolean` | 当前任务是否已追踪（任务级或任一子目标级） |
-| `detailCrossWorld` | `boolean` | 选中任务的导航目标是否在其他世界 |
-| `detailTeleportAvailable` | `boolean` | 选中任务导航点是否配置了 `teleport` 传送点（驱动「传送并追踪」按钮） |
-| `detailTargetWorld` | `String` | 选中任务导航目标所在世界名 |
-| `taskCount` | `int` | 目标总数 |
-| `rewardCount` | `int` | 奖励总数 |
-
-#### 引导 HUD Packet（init / update）
-
-| 字段 | 类型 | 说明 |
-|---|---|---|
-| `packetId` | `String` | Packet 标识符 |
-| `active` | `boolean` | HUD 是否激活显示（存在任一追踪态时为 true） |
-| `trackedCount` | `int` | 追踪中的目标总数 |
-| `quests` | `Map<String, Map>` | 追踪卡片字典（key=`"0"`,`"1"`… 按激活顺序），每项含 `questId`/`taskId`/`mode`/`name`/`label`/`progressText`/`taskText`/`taskDesc`/`hasNav`/`navWorld`/`navText` |
-| `questCount` | `int` | `quests` 实际条数 |
-| `questName` | `String` | 主追踪（最新激活）目标名称 — 兼容字段 |
-| `hasNav` | `boolean` | 主目标是否有可用导航点 — 兼容字段 |
-| `navWorld` | `String` | 主目标导航点所在世界名 — 兼容字段 |
-| `navX` | `int` | 主目标导航点 X 坐标 — 兼容字段 |
-| `navY` | `int` | 主目标导航点 Y 坐标 — 兼容字段 |
-| `navZ` | `int` | 主目标导航点 Z 坐标 — 兼容字段 |
-
-> 引导 HUD 最多展示 3 张追踪卡片，由 `QuestGpsGuidePacketFactory.DISPLAY_QUEST_LIMIT = 3` 控制。多目标并行追踪时卡片按激活顺序排列，屏幕路标/路径标记链仅跟随最新激活的同世界目标。
 
 ## 消息文件
 
@@ -149,7 +59,7 @@ QuestGPS 的 UI 交互通过 ArcartX Packet 通讯完成。客户端向服务端
 | `help.status` | status 命令帮助 | `{0}` = 主命令别名 |
 | `help.open` | open 命令帮助 | `{0}` = 主命令别名 |
 | `status.title` | 状态标题 | — |
-| `status.configured-quests` | 配置任务数 | `{0}` = 任务总数 |
+| `status.configured-quests` | 原生任务数 | `{0}` = 已识别任务总数 |
 | `status.tracking-players` | 追踪中玩家数 | `{0}` = 玩家数 |
 | `status.nav-ready` | 导航就绪 | `{0}` = true/false |
 | `open.usage` | open 命令用法 | — |

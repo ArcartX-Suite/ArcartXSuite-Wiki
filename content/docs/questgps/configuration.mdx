@@ -1,451 +1,84 @@
 ---
-title: 配置
-description: QuestGPS 配置文件详解
+title: "功能配置"
+description: "仅配置 QuestGPS 全局界面、分类样式、导航表现与可选门禁；具体任务写在 Chemdah 文件中。"
 ---
 
-# 配置
+全局配置位于 `plugins/ArcartX-Suite/data/questgps/ArcartXQuestGPS.yml`。**具体任务写在 Chemdah 文件中**，最小例子见[Chemdah 任务配置](/docs/questgps/chemdah-mapping)。
 
-QuestGPS 的配置文件为 `config.yml`，位于模块数据目录下。任务定义文件位于 `quests/` 子目录。
+模块会生成 `data/questgps/examples/chemdah-quest.yml` 供参考。需要使用这个示例时，将其复制到 Chemdah 的 `core/quest/` 目录并修改真实世界和目标；示例文件本身不会自动创建任务。
 
-## 主配置字段表
+## 第一次需要修改什么
 
-### debug
+先保留默认全局配置，确认 Chemdah 任务能出现在菜单。需要改界面或整服导航样式时再调整本页；单任务排序、名称覆盖和奖励预览放在该任务的[展示小节](/docs/questgps/chemdah-mapping#在任务中添加-axs-view)。
 
-| 字段 | 类型 | 默认值 | 说明 |
-|---|---|---|---|
-| `debug.enabled` | `boolean` | `false` | 开启开发者调试日志 |
+修改全局设置后执行 `/axs reload questgps`。只改 Chemdah 任务文件时执行 Chemdah 重载，QuestGPS 会自动刷新。
 
-### ui
+## 界面与日志
 
-| 字段 | 类型 | 默认值 | 说明 |
-|---|---|---|---|
-| `ui.menu-ui-id` | `String` 或 `List<String>` | `"AXS:questgps_menu"` | 任务菜单 UI ID，支持列表多 UI 同时发包 |
-| `ui.guide-ui-id` | `String` 或 `List<String>` | `"AXS:questgps_guide"` | 导航引导 HUD UI ID，支持列表 |
-| `ui.packet-id` | `String` | `"AXS_QUESTGPS"` | 客户端↔服务端 Packet 标识符 |
-| `ui.register-ui-on-enable` | `boolean` | `true` | 模块启动时是否注册 UI |
-| `ui.overwrite-ui-files` | `boolean` | `false` | 是否覆盖已释放的 UI 文件 |
+| 字段 | 默认值 | 用途 |
+| --- | --- | --- |
+| `debug.enabled` | `false` | 输出模块诊断日志 |
+| `ui.menu-ui-id` | `AXS:questgps_menu` | 任务菜单，可使用 ID 或 ID 列表 |
+| `ui.guide-ui-id` | `AXS:questgps_guide` | 任务指引 HUD，可使用 ID 或列表 |
+| `ui.register-ui-on-enable` | `true` | 模块启用或重载时注册界面 |
+| `ui.overwrite-ui-files` | `false` | 是否覆盖已存在的默认界面文件 |
 
-### presentation
+自定义界面前先备份文件。多个界面的规范写法见[多界面配置](/docs/guide/multi-ui)。
 
-| 字段 | 类型 | 默认值 | 说明 |
-|---|---|---|---|
-| `presentation.source` | `String` | `"chemdah"` | UI 展示数据来源：`chemdah`（读 Chemdah）或 `overlay`（读 YAML），全局二选一无链式回退 |
+## 分类样式
 
-> 已废弃字段：`name-source`、`description-source`、`task-text-source`、`task-description-source`、`rewards-source`，请改用 `presentation.source`。
-
-### category
-
-| 字段 | 类型 | 默认值 | 说明 |
-|---|---|---|---|
-| `category.source` | `String` | `"chemdah"` | 分类数据来源：`chemdah`（meta.type）或 `overlay`（quests/*.yml 的 category），全局二选一 |
-| `category.fallback.enabled` | `boolean` | `true` | 未匹配分类的任务是否归入兜底分类 |
-| `category.fallback.id` | `String` | `"uncategorized"` | 兜底分类 ID |
-| `category.fallback.display-name` | `String` | `"未分类"` | 兜底分类显示名 |
-| `category.fallback.sort-order` | `int` | `1000` | 兜底分类排序值 |
-
-> 已废弃字段：`category.id-prefix-rules`，分类仅由 `category.source` 指定的一种数据源决定。
-
-### discovery
-
-| 字段 | 类型 | 默认值 | 说明 |
-|---|---|---|---|
-| `discovery.mode` | `String` | `"overlay"` | 任务列表发现模式：`overlay`（白名单）或 `auto`（扫描全部 Chemdah 模板） |
-
-### categories
-
-自定义分类注册表，每个分类的配置：
-
-| 字段 | 类型 | 默认值 | 说明 |
-|---|---|---|---|
-| `categories.<id>.display-name` | `String` | `<id>` | 分类 Tab 显示名 |
-| `categories.<id>.sort-order` | `int` | `300` | 排序值，越小越靠前 |
-
-> 删除 `categories` 段可关闭分类 Tab 功能。分类 ID 统一小写处理。
-
-### navigation
-
-| 字段 | 类型 | 默认值 | 说明 |
-|---|---|---|---|
-| `navigation.enabled` | `boolean` | `true` | 是否启用导航功能 |
-| `navigation.quest-id-prefix` | `String` | `"AXS-questgps-"` | 路标 ID 前缀 |
-| `navigation.remove-on-finish` | `boolean` | `true` | 任务完成后自动移除导航 |
-| `navigation.mode` | `String` | `"hybrid"` | 导航坐标来源：`chemdah` / `overlay` / `hybrid` |
-| `navigation.refresh-ticks` | `int` | `10` | 目标刷新间隔（tick），驱动动态坐标解析、diff 推送与到达判定 |
-| `navigation.world-hint-interval` | `int` | `30` | 目标在其他世界时的提示节流间隔（秒），0 = 不提示 |
-| `navigation.finish-range` | `double` | `0` | 到达触发半径（格），0 = 不启用到达判定 |
-| `navigation.finish-commands` | `List<String>` | `[]` | 到达命令（控制台执行，`%player%` 占位） |
-| `navigation.finish-rearm-buffer` | `double` | `3.0` | 到达判定滞回缓冲（格）：触发后须离开 `finish-range + 本值` 才重新武装 |
-
-> 多目标追踪语义：玩家可同时追踪多个任务/子目标（追踪态与到达判定并行），但屏幕路标与路径标记链只跟随"最新激活且同世界"的主目标。详见 [导航系统](/docs/questgps/navigation)。
-
-### navigation.waypoint
-
-ArcartX 路标（目标点光柱 + 标题）渲染配置，样式在 ArcartX `waypoint/` 目录下定义：
-
-| 字段 | 类型 | 默认值 | 说明 |
-|---|---|---|---|
-| `navigation.waypoint.enabled` | `boolean` | `true` | 是否向客户端推送路标；`false` 时导航仅保留追踪态/到达判定/路径标记，不发路标包 |
-| `navigation.waypoint.style-id` | `String` | `"default"` | ArcartX waypoint 路标样式 ID |
-| `navigation.waypoint.title-template` | `String` 或 `List<String>` | `""` | 路标标题模板（单行；`%label%`/`%quest%`/`%objective%`/`%distance%`/`%world%`/`%x%`/`%y%`/`%z%`），留空直接显示目标名；列表写法将按空格拼接 |
-
-### navigation.model-marker
-
-模型导航提示配置（Adyeshach 私有实体 + ArcartX 模型渲染路径标记）：
-
-> **1.5.0 变更**：原 `navigation.marker` 已重命名为 `navigation.model-marker`（与新增的 `navigation.texture-marker` 成对命名）。旧配置的 `config-version: 2` 升级时由迁移引擎自动改名并保留用户值，无需手动处理。
-
-| 字段 | 类型 | 默认值 | 说明 |
-|---|---|---|---|
-| `navigation.model-marker.enabled` | `boolean` | `true` | 是否启用模型导航提示 |
-| `navigation.model-marker.model-id` | `String` | `"nav_beacon"` | ArcartX 模型 ID |
-| `navigation.model-marker.scale` | `double` | `1.0` | 模型缩放比例 |
-| `navigation.model-marker.default-state` | `String` | `"idle"` | 模型默认状态名称 |
-| `navigation.model-marker.animation` | `String` | `"rotate"` | 循环播放的动画名称 |
-| `navigation.model-marker.y-offset` | `double` | `2.0` | 模型相对导航目标的 Y 轴偏移 |
-| `navigation.model-marker.path-interval` | `double` | `3.0` | 路径标记间距（方块数） |
-| `navigation.model-marker.path-max-markers` | `int` | `20` | 路径标记最大数量 |
-| `navigation.model-marker.path-update-ticks` | `int` | `10` | 路径更新间隔（tick，20=1秒） |
-| `navigation.model-marker.path-max-distance` | `double` | `64.0` | 路径最大渲染距离（方块数） |
-| `navigation.model-marker.path-reshow-buffer` | `double` | `8.0` | 距离滞回缓冲（格）：超距隐藏后须回到 `path-max-distance - 本值` 以内才重新显示 |
-| `navigation.model-marker.path-max-iterations` | `int` | `2000` | A* 寻路最大迭代次数（100-50000） |
-
-### navigation.texture-marker
-
-贴图导航提示配置（1.5.0 新增）：沿寻路结果向玩家单人下发 ArcartX 世界贴图（WorldTexture）路径提示。与 `model-marker` 模型导航互补，可同开也可独立开关；无需 Adyeshach 实体，仅发包，天然玩家私有：
-
-| 字段 | 类型 | 默认值 | 说明 |
-|---|---|---|---|
-| `navigation.texture-marker.enabled` | `boolean` | `false` | 是否启用贴图路径提示（需资源包中存在 `texture` 对应贴图） |
-| `navigation.texture-marker.texture` | `String` | `"nav_arrow"` | 贴图资源 ID（ArcartX 自定义文字贴图格式 `§k!%<id><type>`，或资源包中注册的贴图名） |
-| `navigation.texture-marker.width` | `double` | `100` | 贴图渲染宽度 |
-| `navigation.texture-marker.height` | `double` | `100` | 贴图渲染高度 |
-| `navigation.texture-marker.facing` | `boolean` | `false` | 是否始终面向玩家（billboard）；`false` = 按 `pitch`/`yaw` 定向（贴地箭头） |
-| `navigation.texture-marker.glowing` | `boolean` | `true` | 是否泛光 |
-| `navigation.texture-marker.y-offset` | `double` | `0.1` | 贴图相对路径点的 Y 轴偏移（方块数） |
-| `navigation.texture-marker.pitch` | `double` | `90` | 俯仰角（度）；贴地渲染用 90，`facing=true` 时一般忽略 |
-| `navigation.texture-marker.orient-to-path` | `boolean` | `true` | yaw 是否朝向下一个路径点（贴地箭头指示前进方向） |
-| `navigation.texture-marker.life-time` | `int` | `-1` | 贴图存活时长（-1 = 永续直到显式移除） |
-| `navigation.texture-marker.pulse.enabled` | `boolean` | `true` | 是否启用循环缩放脉冲动画 |
-| `navigation.texture-marker.pulse.from` | `double` | `0.8` | 脉冲起始缩放倍率 |
-| `navigation.texture-marker.pulse.to` | `double` | `1.2` | 脉冲目标缩放倍率 |
-| `navigation.texture-marker.pulse.duration` | `int` | `20` | 脉冲单段时长（客户端动画单位） |
-| `navigation.texture-marker.pulse.stagger` | `int` | `2` | 逐级延迟（每个路径点相对前一点的动画延迟；0 = 同步） |
-| `navigation.texture-marker.path-interval` | `double` | `3.0` | 路径贴图间距（方块数） |
-| `navigation.texture-marker.path-max-markers` | `int` | `20` | 路径贴图最大数量 |
-| `navigation.texture-marker.path-update-ticks` | `int` | `10` | 路径更新间隔（tick） |
-| `navigation.texture-marker.path-max-distance` | `double` | `64.0` | 路径最大渲染距离（方块数） |
-| `navigation.texture-marker.path-reshow-buffer` | `double` | `8.0` | 距离滞回缓冲（格），同 `model-marker` |
-| `navigation.texture-marker.path-max-iterations` | `int` | `2000` | A* 寻路最大迭代次数（100-50000） |
-
-### database
-
-为 Chemdah 免费版提供 MySQL 存储支持：
-
-| 字段 | 类型 | 默认值 | 说明 |
-|---|---|---|---|
-| `database.enabled` | `boolean` | `false` | `true` 时由 QuestGPS 为 Chemdah 注册 MySQL 存储 |
-| `database.load-in-join-event` | `boolean` | `true` | 玩家进服时加载 Chemdah 档案 |
-| `database.release-in-quit-event` | `boolean` | `true` | 玩家退服时释放档案 |
-| `database.disable-auto-save` | `boolean` | `false` | `false` 允许 Chemdah 定时自动保存 |
-| `database.disable-auto-create-table` | `boolean` | `false` | `false` 首次使用时自动建表 |
-
-> 大多数服：Chemdah `config.yml` 用 `database.use=LOCAL` → 保持 `enabled: false`。要用 MySQL：Chemdah 设 `database.use=SQL`，此处 `enabled: true`。
-
-### gate
-
-主线门禁配置，`required-mainline-quest-ids` 为空时整段门禁关闭：
-
-| 字段 | 类型 | 默认值 | 说明 |
-|---|---|---|---|
-| `gate.required-mainline-quest-ids` | `List<String>` | `[]` | 须完成的 Chemdah 任务 ID（全部完成才过关） |
-| `gate.blocked-categories` | `List<String>` | `["side", "encounter"]` | 未过关时锁定的分类 ID |
-| `gate.blocked-command-prefixes` | `List<String>` | `["warp", "rtp", "shop"]` | 未过关时拦截的命令前缀（不含 `/`） |
-| `gate.blocked-module-entries` | `List<String>` | `[]` | 未过关时锁定的模块入口 ID |
-| `gate.blocked-event-rule-ids` | `List<String>` | `[]` | 未过关时不触发的 EventPacket 规则 ID |
-| `gate.deny-message` | `String` | `"&c你需要先完成必要主线任务。"` | 拦截提示消息 |
-| `gate.deny-chat-card` | `String` | `""` | 可选，ArcartX 聊天卡片 ID |
-| `gate.deny-subtitle` | `String` | `""` | 可选，Suite announcer 字幕组 ID |
-
-### quests-directory
-
-| 字段 | 类型 | 默认值 | 说明 |
-|---|---|---|---|
-| `quests-directory` | `String` | `"quests"` | 任务定义目录，相对模块数据目录 |
-
-## 任务定义配置
-
-任务定义文件位于 `quests/` 目录，每个 `*.yml` 文件可包含多个任务，根键即为任务 ID（对应 Chemdah `Template.getId()`）。
-
-### 任务级字段
-
-| 字段 | 类型 | 默认值 | 说明 |
-|---|---|---|---|
-| `enabled` | `boolean` | `true` | `false` 时不进任务菜单（overlay 白名单模式） |
-| `sort-order` | `int` | `0` | 菜单排序，越小越靠前 |
-| `allow-abandon` | `boolean` | `false` | 是否显示「放弃」按钮 |
-| `category` | `String` | — | 仅 `category.source=overlay` 时必填，须与 `categories` 段 ID 一致 |
-| `display-name-override` | `String` | `""` | 仅 `presentation.source=overlay` 时生效 |
-| `description` | `String` 或 `List<String>` | `[]` | 任务描述，支持多行 |
-| `required-mainline` | `List<String>` | `[]` | 接取前须完成的主线 Chemdah ID 列表 |
-| `presentation.source` | `String` | — | 单任务覆盖全局 `presentation.source`：`chemdah` 或 `overlay` |
-
-### hooks（任务生命周期信号桥接）
-
-| 字段 | 类型 | 说明 |
-|---|---|---|
-| `hooks.triggered` | `List<String>` | 任务出现在菜单/被 offer 时派发的信号名列表 |
-| `hooks.accepted` | `List<String>` | Chemdah 接取成功时派发的信号名列表 |
-| `hooks.abandoned` | `List<String>` | 任务放弃/失败时派发的信号名列表 |
-| `hooks.completed` | `List<String>` | 任务完成时派发的信号名列表 |
-| `hooks.track-changed` | `List<String>` | 开始/取消导航追踪时派发的信号名列表 |
-
-### navigation（任务级导航）
-
-| 字段 | 类型 | 默认值 | 说明 |
-|---|---|---|---|
-| `navigation.enabled` | `boolean` | `true` | 是否启用此任务的导航 |
-| `navigation.point.world` | `String` | — | 世界名（为空则不创建导航点） |
-| `navigation.point.x` | `double` | — | X 坐标 |
-| `navigation.point.y` | `double` | — | Y 坐标 |
-| `navigation.point.z` | `double` | — | Z 坐标 |
-| `navigation.point.title` | `String` | `""` | 路标标题 |
-| `navigation.point.style-id` | `String` | `""` | 路标样式 ID（覆盖全局 `navigation.waypoint.style-id`） |
-| `navigation.point.map-label` | `String` | `""` | 同步到地图模块第三方插件注册路径点的标题 |
-| `navigation.point.npc` | `String` | `""` | Adyeshach NPC 名/ID，设置后导航点跟随该 NPC 实时位置（`world` 可留空） |
-| `navigation.point.finish-range` | `double` | `-1` | 到达触发半径覆盖（小于 0 继承全局 `finish-range`） |
-| `navigation.point.finish-commands` | `List<String>` | `[]` | 到达命令覆盖（空列表继承全局 `finish-commands`） |
-| `navigation.point.teleport` | `Map` | — | 跨世界传送点（`world`/`x`/`y`/`z`）；目标在其他世界时面板显示「传送并追踪」 |
-
-## 目标配置
-
-`tasks` 段的 key 为 Chemdah 子目标 ID（常为 `"0"`、`"1"`…）：
-
-| 字段 | 类型 | 默认值 | 说明 |
-|---|---|---|---|
-| `tasks.<id>.display-text` | `String` | `""` | 目标显示文案（仅 `presentation.source=overlay` 时生效） |
-| `tasks.<id>.description` | `String` 或 `List<String>` | `[]` | 目标描述 |
-| `tasks.<id>.sort-order` | `int` | `0` | 目标排序 |
-| `tasks.<id>.navigation.world` | `String` | — | 子目标独立导航点世界 |
-| `tasks.<id>.navigation.x` | `double` | — | X 坐标 |
-| `tasks.<id>.navigation.y` | `double` | — | Y 坐标 |
-| `tasks.<id>.navigation.z` | `double` | — | Z 坐标 |
-| `tasks.<id>.navigation.title` | `String` | `""` | 路标标题 |
-| `tasks.<id>.navigation.style-id` | `String` | `""` | 路标样式 ID |
-| `tasks.<id>.navigation.map-label` | `String` | `""` | 地图标记标题 |
-| `tasks.<id>.navigation.npc` | `String` | `""` | Adyeshach NPC 名/ID，设置后导航点跟随该 NPC 实时位置 |
-| `tasks.<id>.navigation.finish-range` | `double` | `-1` | 到达触发半径覆盖（小于 0 继承全局 `finish-range`） |
-| `tasks.<id>.navigation.finish-commands` | `List<String>` | `[]` | 到达命令覆盖（空列表继承全局） |
-| `tasks.<id>.navigation.teleport` | `Map` | — | 跨世界传送点（`world`/`x`/`y`/`z`）；未配置时回退任务级 `navigation.point.teleport` |
-
-> 子目标导航点会覆盖任务级 `navigation.point`。hybrid 模式下 Chemdah tracker 坐标优先，其次 NPC 实时定位，最后 overlay 静态坐标。
-
-## 奖励配置
-
-`rewards` 为列表，每个奖励的字段：
-
-| 字段 | 类型 | 默认值 | 说明 |
-|---|---|---|---|
-| `type` | `String` | `"text"` | 奖励类型（见下表） |
-| `amount` | `int` | `1` | 数量 |
-| `display-name` | `String` | `""` | 显示名 |
-| `lore` | `List<String>` | `[]` | Lore 描述 |
-| `text` | `String` | `""` | 文本描述（type=text 时显示） |
-| `fallback-material` | `String` | `""` | 物品解析失败时的回退材质 |
-
-### 奖励类型
-
-| 类型 | 特有字段 | 说明 |
-|---|---|---|
-| `neigeitems` | `neige-item-id` | NeigeItems 物品预览 |
-| `mythicmobs` / `mythicitems` | `mythic-item-id` 或 `mythicmobs-item-id` 或 `item-id` | MythicMobs 物品预览 |
-| `overture` | `overture-item-id` 或 `overture-id` | Overture 物品预览 |
-| `mmoitems` | `type-id`（或 `mmo-type`/`mmoitems-type`）+ `id`（或 `mmo-id`/`mmoitems-id`） | MMOItems 物品预览 |
-| `material` / `itemstack` | `material` | 原版材质物品预览 |
-| `title` | `title-id`、`duration`（默认 `permanent`）、`level`、`tier` | 称号奖励预览 |
-| `text` | — | 纯文本奖励（实际由 Chemdah agent 发放） |
-
-> 奖励预览仅用于 UI 展示，不执行发放。实际发奖由 Chemdah agent（kether 脚本）执行。
-
-## 完整配置示例
+分类自动识别 Chemdah 的 `meta.type`，无需为每个分类重复登记。`categories` 仅用于按需覆盖同 ID 分类的名称和顺序：
 
 ```yaml
-# 配置文件版本号（用于迁移脚本识别版本，勿手动修改）
-config-version: 2
-
-debug:
-  enabled: false
-
-ui:
-  menu-ui-id: "AXS:questgps_menu"
-  guide-ui-id: "AXS:questgps_guide"
-  packet-id: "AXS_QUESTGPS"
-  register-ui-on-enable: true
-  overwrite-ui-files: false
-
-presentation:
-  source: chemdah
-
-category:
-  source: chemdah
-  fallback:
-    enabled: true
-    id: "uncategorized"
-    display-name: "未分类"
-    sort-order: 1000
-
-discovery:
-  mode: auto
-
 categories:
-  mainline:
-    display-name: "主线"
-    sort-order: 0
-  side:
-    display-name: "支线"
-    sort-order: 100
-  encounter:
-    display-name: "奇遇"
-    sort-order: 200
-
-navigation:
-  enabled: true
-  quest-id-prefix: "AXS-questgps-"
-  remove-on-finish: true
-  mode: hybrid
-  refresh-ticks: 10
-  world-hint-interval: 30
-  finish-range: 0
-  finish-commands: []
-  finish-rearm-buffer: 3.0
-  waypoint:
-    enabled: true
-    style-id: "default"
-    title-template: ""
-  model-marker:
-    enabled: true
-    model-id: "waypoint"
-    scale: 1.0
-    default-state: "idle"
-    animation: "rotate"
-    y-offset: 0.0
-    path-interval: 3.0
-    path-max-markers: 20
-    path-update-ticks: 10
-    path-max-distance: 64
-    path-reshow-buffer: 8
-    path-max-iterations: 2000
-  texture-marker:
-    enabled: false
-    texture: "nav_arrow"
-    width: 100
-    height: 100
-    facing: false
-    glowing: true
-    y-offset: 0.1
-    pitch: 90
-    orient-to-path: true
-    life-time: -1
-    pulse:
-      enabled: true
-      from: 0.8
-      to: 1.2
-      duration: 20
-      stagger: 2
-    path-interval: 3.0
-    path-max-markers: 20
-    path-update-ticks: 10
-    path-max-distance: 64
-    path-reshow-buffer: 8
-    path-max-iterations: 2000
-
-database:
-  enabled: false
-  load-in-join-event: true
-  release-in-quit-event: true
-  disable-auto-save: false
-  disable-auto-create-table: false
-
-gate:
-  required-mainline-quest-ids: []
-  blocked-categories:
-    - side
-    - encounter
-  blocked-command-prefixes:
-    - "warp"
-    - "rtp"
-    - "shop"
-  blocked-module-entries: []
-  blocked-event-rule-ids: []
-  deny-message: "&c你需要先完成必要主线任务。"
-  deny-chat-card: ""
-  deny-subtitle: ""
-
-quests-directory: "quests"
+  daily:
+    display-name: "日常委托"
+    sort-order: 20
 ```
 
-### 任务定义示例（overlay 展示 + 奖励预览）
+未命中具体分类时，`category.fallback` 控制是否进入“未分类”，包含 `enabled`、`id`、`display-name`、`sort-order`。默认开启，ID 为 `uncategorized`。
 
-```yaml
-example_daily_quest:
-  enabled: true
-  sort-order: 10
-  allow-abandon: true
-  required-mainline: []
-  category: daily
-  display-name-override: "采集药草"
-  description:
-    - "&7在野外采集 10 株药草。"
-  presentation:
-    source: overlay
-  hooks:
-    triggered:
-      - "questgps_quest_triggered"
-    accepted:
-      - "questgps_quest_accepted"
-    completed:
-      - "questgps_quest_completed"
-  rewards:
-    - type: neigeitems
-      neige-item-id: "herb_bundle"
-      amount: 10
-      display-name: "&a药草捆"
-      fallback-material: "WHEAT"
-    - type: material
-      material: "GOLD_INGOT"
-      amount: 3
-      display-name: "&e金币"
-    - type: title
-      title-id: "herbalist"
-      duration: "permanent"
-      display-name: "&e称号: 采药人"
-    - type: text
-      display-name: "&a经验"
-      text: "&7实际由 Chemdah agent 发放"
-  navigation:
-    enabled: true
-    point:
-      world: "world"
-      x: 100
-      y: 70
-      z: -50
-      title: "药草产地"
-      style-id: "default"
-      map-label: "日常目标"
-      # npc: "药师"                 # 可选：跟随 Adyeshach NPC 实时位置
-      # finish-range: 3             # 可选：到达触发半径覆盖
-      # finish-commands: ["say %player% 到达了药草产地"]
-      # teleport: { world: "world", x: 100, y: 70, z: -50 }  # 可选：跨世界传送点
-  tasks:
-    "0":
-      sort-order: 10
-      navigation:
-        world: "world"
-        x: 105
-        y: 70
-        z: -48
-        title: "药草采集点"
-        style-id: "default"
-        map-label: "日常目标"
-```
+## 导航基础设置
 
-> 奖励物品支持原版材质和外部物品库（NeigeItems/MythicMobs/Overture/MMOItems），详见 [/docs/guide/icons](/docs/guide/icons) 和 [/docs/guide/item-sources](/docs/guide/item-sources)。
+明确填写的任务展示目的地优先，否则使用 Chemdah 原生追踪；没有坐标时不伪造目的地。全局参数控制是否显示以及刷新与到达表现。
+
+| 字段 | 默认值 | 用途 |
+| --- | --- | --- |
+| `navigation.enabled` | `true` | 是否启用导航 |
+| `navigation.remove-on-finish` | `true` | 任务结束时清理对应导航 |
+| `navigation.refresh-ticks` | `10` | 目标刷新周期，单位 tick |
+| `navigation.world-hint-interval` | `30` | 异世界目标提示间隔，单位秒 |
+| `navigation.finish-range` | `0` | 到达触发半径，`0` 不启用 |
+| `navigation.finish-commands` | `[]` | 到达时执行的控制台命令 |
+| `navigation.finish-rearm-buffer` | `3` | 再次触发到达前需离开的缓冲范围 |
+| `navigation.waypoint.enabled` | `true` | 是否显示屏幕路标 |
+| `navigation.waypoint.style-id` | `default` | 使用的 ArcartX 路标样式 |
+| `navigation.waypoint.title-template` | 空文本 | 路标标题模板，不填时显示目标名称 |
+
+## 路径标记
+
+`navigation.model-marker` 使用 Adyeshach 模型，`navigation.texture-marker` 使用 ArcartX 贴图。两者可分别开启，默认关闭；资源 ID 必须真实存在。
+
+| 小节 | 常用字段 |
+| --- | --- |
+| 模型标记 | `enabled`、`model-id`、`scale`、`default-state`、`animation`、`y-offset` |
+| 贴图标记 | `enabled`、`texture`、`width`、`height`、`facing`、`glowing`、`y-offset`、`pitch`、`life-time` |
+| 两者各自的路径参数 | `path-interval`、`path-max-markers`、`path-update-ticks`、`path-max-distance`、`path-reshow-buffer`、`path-max-iterations` |
+
+具体资源与动态目标用法见[导航系统](/docs/questgps/navigation)。先测试屏幕路标，确认坐标正确，再开启路径标记。
+
+## 可选主线门禁
+
+`gate.required-mainline-quest-ids` 为空时关闭门禁。需要新手流程限制时，填写须完成的 Chemdah 任务 ID，再选择要限制的入口。
+
+| 字段 | 用途 |
+| --- | --- |
+| `gate.required-mainline-quest-ids` | 必须完成的任务 ID 列表 |
+| `gate.blocked-categories` | 未完成时锁定的分类 ID |
+| `gate.blocked-command-prefixes` | 要限制的命令前缀，不带 `/` |
+| `gate.blocked-module-entries` | 已支持门禁的模块入口 ID |
+| `gate.blocked-event-rule-ids` | 未满足要求时不触发的 EventPacket 规则 |
+| `gate.deny-message` | 拦截提示文字 |
+| `gate.deny-chat-card` / `gate.deny-subtitle` | 按需使用的卡片或字幕组 ID |
+
+完整例子见[主线门禁](/docs/questgps/gate)。玩家任务数据仍由 Chemdah 保存，QuestGPS 只读取状态，不单独配置任务数据库。

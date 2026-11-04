@@ -1,9 +1,7 @@
 ---
-title: 鱼饵配置
-description: Fishing 鱼饵系统配置
+title: "鱼饵配置"
+description: "识别鱼饵物品，设置鱼类吸引倍率、宝藏概率与饵料消耗方式。"
 ---
-
-# 鱼饵配置
 
 鱼饵定义文件位于 `plugins/ArcartX-Suite/data/fishing/baits/` 目录下，每个 `.yml` 文件定义一种鱼饵。
 
@@ -42,13 +40,13 @@ description: Fishing 鱼饵系统配置
 | `id` | string | 文件名 | 鱼饵唯一标识符 |
 | `display-name` | string | id | 显示名称 |
 | `item` | map | `minecraft:string` | UI 图标显示用物品（[IconDefinition](/docs/guide/icons) 格式） |
-| `match` | map | - | 物品匹配规则（[ItemMatcher](/docs/guide/conditions) 标准格式） |
+| `match` | map | - | 物品匹配规则，写法与示例见[物品匹配与消耗](/docs/guide/item-matching) |
 | `default` | boolean | `false` | 是否为默认饵料（玩家无饵料时自动使用） |
 | `fish-attract-modifiers` | map | - | 鱼类吸引倍率映射（鱼种 ID → 修正系数） |
 | `treasure-chance-boost` | double | `0.0` | 宝藏概率额外加成 |
 | `max-durability-bonus` | int | `0` | 鱼竿最大耐久度加成 |
 
-### fish-attract-modifiers
+### 鱼类吸引倍率（fish-attract-modifiers）
 
 `fish-attract-modifiers` 是一个映射，key 为鱼种 ID，value 为吸引倍率：
 
@@ -61,8 +59,6 @@ description: Fishing 鱼饵系统配置
 ### match 物品匹配规则
 
 与鱼竿的 `match` 块格式相同，详见 [鱼竿配置](/docs/fishing/rods#match-物品匹配规则)。
-
-## 鱼饵使用机制
 
 ### 选鱼时的权重计算
 
@@ -84,8 +80,6 @@ description: Fishing 鱼饵系统配置
 ```
 
 结果 clamp 到 [0, 1]。
-
-## 鱼饵配置示例
 
 ### 默认饵料（蚯蚓）
 

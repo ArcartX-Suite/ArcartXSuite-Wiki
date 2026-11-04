@@ -1,9 +1,7 @@
 ---
-title: 锚点系统
-description: 锚点定义、解锁费用、传送、权限控制、自动解锁与点亮区域
+title: "锚点系统"
+description: "配置传送锚点的坐标、解锁条件、费用与显示顺序。"
 ---
-
-# 锚点系统
 
 ## 概述
 
@@ -33,12 +31,15 @@ anchors:
     unlock:
       default: true          # 所有玩家进服自动免费解锁
       on-permission: false
-    unlock-currencies: []
-    teleport-currencies:
-      - currency: "money"
-        amount: 10
-    unlock-items: []
-    light-radius: 100        # 解锁后点亮半径 100 范围
+      currencies: []
+      items: []
+    teleport:
+      currencies:
+        - currency: "money"
+          amount: 10
+      items: []
+    light:
+      radius: 100
 
   mine:
     enabled: true
@@ -49,21 +50,24 @@ anchors:
     description: "示例锁定锚点，演示货币 + 物品解锁。"
     permission: ""
     sort-order: 10
-    unlock-currencies:
-      - currency: "money"
-        amount: 200
-      - currency: "points"
-        amount: 5
-    teleport-currencies:
-      - currency: "money"
-        amount: 30
-    unlock-items:
-      - amount: 2
-        matcher:
-          material-ids:
-            - "ender_pearl"
-    light-region:
-      points: [[100, -70], [160, -70], [160, -10], [100, -10]]
+    unlock:
+      default: false
+      currencies:
+        - currency: "money"
+          amount: 200
+        - currency: "points"
+          amount: 5
+      items:
+        - amount: 2
+          match:
+            material-ids: [ender_pearl]
+    teleport:
+      currencies:
+        - currency: "money"
+          amount: 30
+    light:
+      region:
+        points: [[100, -70], [160, -70], [160, -10], [100, -10]]
 ```
 
 ### 字段说明
@@ -78,19 +82,17 @@ anchors:
 | `sort-order` | `int` | 当前锚点数 | 排序权重（越小越靠前） |
 | `unlock.default` | `boolean` | `false` | 所有玩家进服时自动免费解锁 |
 | `unlock.on-permission` | `boolean` | `false` | 拥有 `permission` 权限的玩家进服时自动免费解锁 |
-| `unlock-currencies` | `List` | `[]` | 解锁需消耗的货币列表 |
-| `teleport-currencies` | `List` | `[]` | 传送需消耗的货币列表 |
-| `unlock-items` | `List` | `[]` | 解锁需消耗的物品列表 |
-| `light-region.points` | `List` | — | 点亮多边形顶点 `[[x,z],...]`（至少 3 点） |
-| `light-radius` | `double` | `0` | 以锚点为中心的圆形点亮半径（方块数） |
+| `unlock.currencies` | `List` | `[]` | 手动解锁需消耗的货币列表 |
+| `teleport.currencies` | `List` | `[]` | 传送需消耗的货币列表 |
+| `unlock.items` / `teleport.items` | `List` | `[]` | 解锁或传送的物品费用，每项包含 `amount` 与 `match` |
+| `light.region.points` | `List` | — | 点亮多边形顶点 `[[x,z],...]`（至少 3 点） |
+| `light.radius` | `double` | `0` | 以锚点为中心的圆形点亮半径（方块数） |
 
-> 锚点 ID 不区分大小写。不配 `light-region` 和 `light-radius` 时该锚点不参与点亮。
+> 锚点 ID 不区分大小写。不配置点亮区域或半径时，该锚点不参与点亮。
 
 <Callout type="warn">
 `unlock.on-permission: true` 但锚点未设置 `permission` 时，自动解锁不会生效。注意：**解锁记录 ≠ 使用权限**——自动解锁的玩家若锚点配了 `permission`，仍需有权限才能传送。
 </Callout>
-
-## 解锁与传送
 
 ### 解锁条件
 
@@ -109,11 +111,12 @@ anchors:
 ## 货币消耗
 
 ```yaml
-unlock-currencies:
-  - currency: "money"
-    amount: 200
-  - currency: "points"
-    amount: 5
+unlock:
+  currencies:
+    - currency: "money"
+      amount: 200
+    - currency: "points"
+      amount: 5
 ```
 
 | 字段 | 类型 | 说明 |
@@ -121,24 +124,25 @@ unlock-currencies:
 | `currency` | `String` | 货币 ID（不区分大小写） |
 | `amount` | `BigDecimal` | 消耗金额，必须 `> 0` |
 
-> 货币系统支持 Vault、PlayerPoints 等，通过宿主货币桥接解析。
+> 货币系统支持 Vault、PlayerPoints 等，通过Suite货币桥接解析。
 
 ## 物品消耗
 
 ```yaml
-unlock-items:
-  - amount: 2
-    matcher:
-      material-ids:
-        - "ender_pearl"
+unlock:
+  items:
+    - amount: 2
+      match:
+        material-ids:
+          - "ender_pearl"
 ```
 
 | 字段 | 类型 | 说明 |
 |---|---|---|
 | `amount` | `int` | 消耗数量（最小 1） |
-| `matcher` | `ItemMatcher` | 物品匹配器配置 |
+| `match` | `map` | 物品匹配规则 |
 
-> 物品匹配器语法详见 [物品来源](/docs/guide/item-sources)。
+> 物品匹配器语法详见[物品匹配与消耗](/docs/guide/item-matching)。两种费用片段应合并到同一个 `unlock` 小节，不要重复声明。
 
 ## 权限控制
 

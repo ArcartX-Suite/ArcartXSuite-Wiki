@@ -1,0 +1,103 @@
+---
+title: "快速开始"
+description: "构建一个通过命令打开 Suite 菜单的最小 Bukkit 插件。"
+---
+
+## 准备依赖
+
+准备与你的服务器版本配套的 `axs-api` JAR，将其放入插件工程的 `libs/` 目录，并统一命名为 `axs-api.jar`。使用 `compileOnly`，不要将 API 类打包或重定位进插件产物。
+
+Gradle Kotlin DSL：
+
+```kotlin
+repositories {
+    mavenCentral()
+    maven("https://hub.spigotmc.org/nexus/content/repositories/snapshots/")
+}
+
+dependencies {
+    compileOnly(files("libs/axs-api.jar"))
+    compileOnly("org.spigotmc:spigot-api:1.20.1-R0.1-SNAPSHOT")
+    compileOnly("org.jetbrains:annotations:24.1.0")
+}
+
+java {
+    toolchain.languageVersion.set(JavaLanguageVersion.of(17))
+}
+```
+
+Spigot API 与 Java 版本按实际目标服务端调整。此处使用本地 JAR，不假设存在可用的公共 Maven 坐标。
+
+## 声明插件依赖
+
+在你自己插件的 `plugin.yml` 中声明 Suite 的插件名 `ArcartX-Suite`。这是普通 Bukkit 插件，产物放入服务器 `plugins/`。
+
+```yaml
+name: SuiteBridgeExample
+version: 1.0.0
+main: example.SuiteBridgeExample
+api-version: '1.20'
+depend: [ArcartX-Suite]
+commands:
+  servermenu:
+    description: 打开服务器菜单
+    permission: suitebridge.menu
+permissions:
+  suitebridge.menu:
+    default: true
+```
+
+## 完整最小示例
+
+下面的命令为玩家打开 Menu 模块中 `id: example` 的菜单。
+
+```java
+package example;
+
+import java.util.Objects;
+import org.bukkit.entity.Player;
+import org.bukkit.plugin.java.JavaPlugin;
+import xuanmo.arcartxsuite.api.AxsCapabilities;
+import xuanmo.arcartxsuite.api.capability.MenuOpenable;
+
+public final class SuiteBridgeExample extends JavaPlugin {
+    @Override
+    public void onEnable() {
+        Objects.requireNonNull(getCommand("servermenu")).setExecutor(
+            (sender, command, label, args) -> {
+                if (!(sender instanceof Player player)) {
+                    sender.sendMessage("请在游戏中使用此命令。");
+                    return true;
+                }
+                MenuOpenable menu = AxsCapabilities.get(MenuOpenable.class);
+                if (menu == null) {
+                    player.sendMessage("菜单功能暂不可用。");
+                    return true;
+                }
+                if (!menu.openMenu(player, "example")) {
+                    player.sendMessage("菜单未能打开，请联系管理员检查配置。");
+                }
+                return true;
+            });
+    }
+}
+```
+
+## 游戏内验证
+
+1. 在 Suite 中启用 Menu，确认 `example` 菜单存在。
+2. 安装你的插件并重启，使用匹配的 ArcartX 客户端进入。
+3. 执行 `/servermenu`，应打开配置菜单。
+4. 在测试服关闭 Menu，再执行命令，应显示功能不可用提示。
+5. 重新启用或重载 Menu，确认后续调用恢复正常。
+
+## 可选接入
+
+若你的插件在没有 Suite 时仍能工作，可将 `depend` 改为 `softdepend`。将所有 Suite 类型引用放在单独的适配类中，仅在 Bukkit 确认 `ArcartX-Suite` 已启用后创建该适配类。仅判空接口不能替代插件缺席时的类加载处理。
+
+## 调用约定
+
+- 每次操作时获取接口，避免长时间缓存实例。
+- 需要 Bukkit 对象的操作放在主线程执行。
+- 异步方法使用回调，并处理失败结果。
+- 配置 ID、对象参数和返回类型以对应接口页及配套 JAR 为准。

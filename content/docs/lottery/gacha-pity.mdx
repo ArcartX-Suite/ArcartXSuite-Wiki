@@ -1,9 +1,7 @@
 ---
 title: "GACHA 保底与概率"
-description: "GACHA 抽卡保底规则、软保底概率递增、UP 大小保底、武器池命运点定轨与共享保底组"
+description: "设置抽奖概率、保底次数与共享保底组，并检查概率示例。"
 ---
-
-> **付费模块**：Lottery 为付费模块，需通过 Suite 云端下发获取。模块依赖本体 Suite 运行，不可独立使用。
 
 ## 概述
 
@@ -98,16 +96,6 @@ shared-pity-groups:
   weapon_events: "weapon_event_*"
 ```
 
-### 解析优先级
-
-| 优先级 | 来源 | 说明 |
-|---|---|---|
-| 1 | 奖池内 `shared-pity-group` | 显式声明，最高优先 |
-| 2 | 顶层 `shared-pity-groups` 通配符 | `*` 匹配池 ID |
-| 3 | 原始池 ID | 无共享，独立保底 |
-
-> 共享组内任一卡池抽卡都会更新同一保底计数（以组名为准）。
-
 ## 概率计算示例
 
 UI 详情页展示的综合基础概率：
@@ -117,7 +105,6 @@ UI 详情页展示的综合基础概率：
 | GACHA 5 星 | `base-5star-rate × (item.weight / 同星级总权重)` |
 | GACHA 4 星 | `base-4star-rate × (item.weight / 同星级总权重)` |
 | GACHA 3 星 | `(1 - base-5star-rate - base-4star-rate) × (item.weight / 同星级总权重)` |
-| CASE | `(rarity.base-weight / 稀有度总权重) × (item.weight / 同稀有度总权重)` |
 
 > 展示的基础概率未含软保底递增与硬保底修正，实际概率随保底计数递增。
 
@@ -137,7 +124,6 @@ P(UP 5星) = 0.006 × 0.5 = 0.003 = 0.3%
 |---|---|
 | 次数范围 | `1` ~ `100000` |
 | GACHA 统计维度 | 星级（`3star` / `4star` / `5star`） |
-| CASE 统计维度 | 稀有度名称（如 `COMMON` / `RARE`） |
 
 模拟结果包含保底递增效果，统计更接近实际体验。
 
@@ -146,6 +132,5 @@ P(UP 5星) = 0.006 × 0.5 = 0.003 = 0.3%
 - [概览](/docs/lottery) — 模块功能概览
 - [配置](/docs/lottery/configuration) — 奖池配置字段详解
 - [命令与占位符](/docs/lottery/commands) — `simulate` 命令与保底占位符
-- [联动](/docs/lottery/integration) — 存储模式与数据管理
-- [CASE 开箱机制](/docs/lottery/case-opening) — CASE 开箱
+- [抽奖与开箱使用说明](/docs/lottery) — 存储模式与数据管理
 - [奖品投递与兑换](/docs/lottery/prize-delivery) — 奖品发放与兑换商店

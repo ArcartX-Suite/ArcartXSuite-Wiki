@@ -1,11 +1,7 @@
 ---
-title: 通知模式 HUD
-description: 通知模式 HUD 配置与自定义
+title: "通知模式 HUD"
+description: "调整拾取通知的内容、显示时间与 HUD 样式。"
 ---
-
-# 通知模式 HUD
-
-> **付费模块**
 
 通知模式（`settings.mode: notification`）是 Pickup 模块的轻量拾取提示模式。玩家正常拾取地面掉落物时，HUD 以滚动队列展示最近 N 条拾取记录，每条包含物品图标、名称与数量，超时后自动消失。
 
@@ -36,11 +32,7 @@ description: 通知模式 HUD 配置与自定义
 
 ## Warehouse 补发
 
-Warehouse 模块自动入库拦截拾取时，会主动补发 HUD 提示，玩家仍能看到拾取通知，体验与手动拾取一致。详见 [联动](/docs/pickup/integration)。
-
-## EventBus 事件
-
-每次实际拾取发布 `axs.pickup.item_pickup` 事件（`material`、`amount`），供其他模块订阅。详见 [联动](/docs/pickup/integration)。
+Warehouse 模块自动入库拦截拾取时，会主动补发 HUD 提示，玩家仍能看到拾取通知，体验与手动拾取一致。详见 [拾取提示使用说明](/docs/pickup)。
 
 ## 玩家开关
 

@@ -1,42 +1,50 @@
 ---
-title: 配置
-description: Conversation 模块配置文件详解与示例
+title: "功能配置"
+description: "调整对话界面、NPC 交互距离与电影序列；附字段解释、修改示例与重载步骤。"
 ---
 
-# 配置
+## 先改哪些内容
 
-## 配置文件
+对话界面、NPC 交互距离与电影序列。先使用默认示例完成一次测试，再按本页逐项调整。
 
-模块主配置文件为 `config.yml`，消息文件为 `messages.yml`，均位于 `data/conversation/` 目录。电影序列定义文件位于 `data/conversation/cinematics/` 目录。
+配置位置：`plugins/ArcartX-Suite/data/conversation/ArcartXConversation.yml`。定义文件与子目录均相对此模块目录。本文中的 YAML 片段用于修改对应小节，请保留文件中的其他设置。
 
-### 主配置（`config.yml`）
+Chemdah 侧需要修改的文件、主题与 NPC 绑定，先按[Chemdah 对话与任务接入](/docs/guide/chemdah-setup)完成。只调整本页 UI 字段不会自动创建对话。
 
-#### debug 节
+修改后执行 `/axs reload conversation`；涉及插件安装或全局设置的变更请重启后验证。
+
+#### 调试日志（debug）
 
 | 配置项 | 类型 | 默认值 | 说明 |
 | --- | --- | --- | --- |
 | `debug.enabled` | boolean | `false` | 是否输出对话桥接调试日志（收发包、生命周期、状态摘要） |
 
-#### theme 节
+#### 对话主题（theme）
 
 | 配置项 | 类型 | 默认值 | 说明 |
 | --- | --- | --- | --- |
-| `theme.name` | string | `ArcartXConversation` | 注册到 Chemdah ConversationTheme 的主题名 |
+| `theme.name` | string | `ArcartXConversation` | 与 Chemdah 对话文件顶层 `__option__.theme` 填写相同名称 |
 
-#### ui 节
+在 `plugins/Chemdah/core/conversation/` 中对应对话文件的顶层填写：
+
+```yaml
+__option__:
+  theme: ArcartXConversation
+  title: '{name}'
+```
+
+保留已有对话节点与回复脚本。此主题由 Conversation 模块提供，无需在 Chemdah 中再复制一套同名主题定义；完整 NPC 绑定及接取任务示例见[接入教程](/docs/guide/chemdah-setup)。
+
+#### 界面显示（ui）
 
 | 配置项 | 类型 | 默认值 | 说明 |
 | --- | --- | --- | --- |
-| `ui.packet-id` | string | `AXS_CONVERSATION` | 客户端通信标识，HUD 菜单与交互回包都通过此标识通信 |
-| `ui.dialog-ui-id` | string/list | `AXS:conversation_dialog` | 主对话 Menu 的 UI ID，支持字符串或列表（多 UI 同时发包） |
-| `ui.selector-ui-id` | string/list | `AXS:conversation_selector` | NPC 选择器 HUD 的 UI ID，支持列表格式 |
-| `ui.letterbox-ui-id` | string/list | `AXS:conversation_letterbox` | 电影序列 letterbox 黑边 UI ID |
 | `ui.register-ui-on-enable` | boolean | `true` | 启用 / 重载时是否自动向 ArcartX 注册 UI 文件 |
 | `ui.overwrite-ui-files` | boolean | `false` | 是否强制覆盖已存在的 UI 文件 |
 
 > `dialog-ui-id` / `selector-ui-id` / `letterbox-ui-id` 均支持字符串或列表格式。列表格式时同一个 payload 会同时发送给多个 UI。
 
-#### interaction 节
+#### NPC 交互（interaction）
 
 | 配置项 | 类型 | 默认值 | 范围 | 说明 |
 | --- | --- | --- | --- | --- |
@@ -48,7 +56,7 @@ description: Conversation 模块配置文件详解与示例
 | `interaction.reply-debounce-ms` | long | `250` | ≥ 0 | 回复确认防抖间隔（毫秒） |
 | `interaction.suppress-reopen-ms` | long | `500` | ≥ 0 | 回复后抑制选择器重新打开的时长（毫秒） |
 
-#### cinematic 节
+#### 过场演出开关（cinematic）
 
 | 配置项 | 类型 | 默认值 | 说明 |
 | --- | --- | --- | --- |
@@ -73,56 +81,6 @@ description: Conversation 模块配置文件详解与示例
 >
 > **模式 B（一次性播放）**：填写 `animation` + `animation-speed`（> 0），调用 `playAnimation(animation, speed, transitionTime, keepTime)`，此时 `state` 字段被忽略。
 
-## 配置示例
-
-### 完整主配置
-
-```yaml
-config-version: 2
-
-debug:
-  enabled: false
-
-theme:
-  name: ArcartXConversation
-
-ui:
-  packet-id: "AXS_CONVERSATION"
-  dialog-ui-id: "AXS:conversation_dialog"
-  selector-ui-id: "AXS:conversation_selector"
-  letterbox-ui-id: "AXS:conversation_letterbox"
-  register-ui-on-enable: true
-  overwrite-ui-files: false
-
-interaction:
-  enabled: true
-  scan-range: 6.0
-  scan-period-ticks: 10
-  selector-sticky-ms: 1500
-  open-cooldown-ms: 350
-  reply-debounce-ms: 250
-  suppress-reopen-ms: 500
-
-cinematic:
-  enabled: true
-```
-
-### 多 UI 配置示例
-
-```yaml
-ui:
-  packet-id: "AXS_CONVERSATION"
-  dialog-ui-id:
-    - "AXS:conversation_dialog"
-    - "AXS:conversation_dialog_alt"
-  selector-ui-id:
-    - "AXS:conversation_selector"
-    - "AXS:conversation_selector_alt"
-  letterbox-ui-id: "AXS:conversation_letterbox"
-  register-ui-on-enable: true
-  overwrite-ui-files: false
-```
-
 ### NPC 外观配置示例
 
 ```yaml
@@ -142,10 +100,6 @@ npc-appearances:
     transition-time: 100
     keep-time: -1
 ```
-
-## 电影序列配置
-
-电影序列定义文件存放于 `data/conversation/cinematics/*.yml`，每个文件可包含 `cinematic.cinematics` 或顶层 `cinematics` 节。模块按文件名排序加载并合并，后加载文件中同 ID 的序列会覆盖先前的。
 
 ### 序列字段
 
@@ -174,7 +128,6 @@ npc-appearances:
 | `speed` | 设置行走 / 飞行速度 | `walk-speed`, `fly-speed` |
 | `lock_movement` | 锁定 / 解锁玩家移动（设置速度为 0） | `locked` |
 | `subtitle` | 播放 Announcer 字幕组（需 Announcer 模块） | `group-id` |
-| `ui_packet` | 发送包到 ArcartX 客户端 UI | `ui-id`, `handler`, `payload` |
 | `arcartx_sound` | 播放 ArcartX 资源包自定义音效 | `resource-path`, `category`, `at-player`, `pitch`, `keep-time-ms` |
 
 ### 电影序列示例
@@ -242,24 +195,3 @@ cinematic:
           keep-time-ms: 5000
           delay-after-ms: 1000
 ```
-
-## 配置迁移
-
-模块支持配置版本自动迁移。当前配置版本为 2，v1 → v2 迁移将 UI 配置从 `client` / `cinematic` 嵌套节抽离到统一 `ui` 节：
-
-| v1 路径 | v2 路径 |
-| --- | --- |
-| `client.packet-id` | `ui.packet-id` |
-| `client.dialog-ui-id` | `ui.dialog-ui-id` |
-| `client.selector-ui-id` | `ui.selector-ui-id` |
-| `client.register-ui-on-enable` | `ui.register-ui-on-enable` |
-| `client.overwrite-ui-files` | `ui.overwrite-ui-files` |
-| `cinematic.letterbox-ui-id` | `ui.letterbox-ui-id` |
-
-> 迁移由模块自动执行，`config-version` 不要手动修改。
-
-## 相关文档
-
-- [概览](/docs/conversation) — 模块功能与对话机制
-- [命令与占位符](/docs/conversation/commands) — 管理命令、权限、UI 通讯包结构
-- [联动](/docs/conversation/integration) — Capability、电影序列动作、模块联动

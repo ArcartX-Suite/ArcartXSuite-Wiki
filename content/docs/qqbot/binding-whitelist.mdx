@@ -1,9 +1,7 @@
 ---
-title: 账号绑定与白名单
-description: QQ-游戏账号验证码绑定流程、白名单联动、登录门控与 UI 面板
+title: "账号绑定与白名单"
+description: "配置游戏账号与 QQ 的绑定流程，以及绑定后的白名单功能。"
 ---
-
-# 账号绑定与白名单
 
 QQBot 模块通过验证码方式关联 QQ 号与 Minecraft 游戏账号，并联动服务器白名单实现绑定即准入的闭环管理。模块同时提供绑定中心、消息通知和管理后台三个 UI 面板，通过 ArcartX UI 框架实现可视化操作。
 
@@ -62,33 +60,6 @@ Minecraft 服务端                   QQ 群
 | 验证码防碰撞 | 生成时检查重复，确保唯一 |
 | 验证码玩家名匹配 | 游戏内确认时校验玩家名与验证码生成时的玩家名一致 |
 
-## 绑定服务详解
-
-`QQBotBindService` 负责绑定流程的核心逻辑，验证码存储在内存 `ConcurrentHashMap` 中，定时清理过期验证码。
-
-### 核心方法
-
-| 方法 | 说明 |
-|---|---|
-| `requestBind(qqId, playerName)` | QQ 群发起绑定，生成验证码 |
-| `requestBindFromGame(playerName)` | 游戏内发起绑定，生成验证码（qqId 暂为 0） |
-| `confirmBind(player, code)` | 游戏内确认绑定，校验并写入数据库 |
-| `unbindByQq(qqId)` | QQ 群发起解绑 |
-| `unbindByPlayer(uuid)` | 游戏内解绑 |
-| `unbindByPlayer(playerName)` | 按玩家名解绑（管理操作） |
-| `findByQq(qqId)` | 按 QQ 号查询绑定 |
-| `findByPlayer(uuid)` | 按 UUID 查询绑定 |
-| `findByPlayerName(name)` | 按玩家名查询绑定 |
-| `cleanupExpiredCodes()` | 清理过期验证码 |
-
-### 绑定校验逻辑
-
-发起绑定时校验：绑定功能是否启用（`binding.enabled`）、该 QQ 已绑定数量是否达到上限（`max-bindings-per-qq`）、目标玩家名是否已被其他 QQ 绑定。
-
-确认绑定时校验：验证码是否存在、是否过期、玩家名是否与验证码生成时的玩家名匹配。
-
-> 验证码为一次性使用；玩家名不匹配时验证码不会被消耗。过期验证码由模块自动清理。
-
 ## 白名单联动
 
 绑定和解绑时可自动操作 Minecraft 服务器白名单，实现绑定即准入的闭环管理。
@@ -127,36 +98,6 @@ whitelist:
 | `#白名单列表` | `#白名单列表` | 查看白名单列表 |
 
 > 输入纯数字时自动通过绑定关系解析玩家名，无需手动查找。非群管理/群主执行时提示无权限。
-
-## QqBindCapable Capability
-
-模块注册了 `QqBindCapable` Capability，供 loginview 等模块查询绑定状态和确认绑定。
-
-| 方法 | 返回值 | 说明 |
-|---|---|---|
-| `isBound(UUID)` | boolean | 查询玩家是否已绑定 QQ |
-| `getBoundQqId(UUID)` | Long | 获取玩家绑定的 QQ 号（未绑定返回 null） |
-| `confirmBind(Player, code)` | BindResult | 确认绑定（含自动加白名单逻辑） |
-
-### BindResult 记录
-
-| 字段 | 类型 | 说明 |
-|---|---|---|
-| `success` | boolean | 是否绑定成功 |
-| `qqId` | Long | 绑定的 QQ 号（成功时） |
-| `message` | String | 结果消息 |
-
-> `confirmBind` 成功时会自动执行白名单添加命令（若 `whitelist.auto-add-on-bind` 启用），保持与 `/qqbot bind` 行为一致。
-
-## 登录审计
-
-模块记录玩家登录时的账号类型（微软正版 / LittleSkin / 离线）与 QQ 绑定状态，仅供审计，不拦截登录。实际的 QQ 绑定验证由 LoginView 模块在登录面板中统一管控。
-
-> Mixed Auth Mode 需在启动脚本中为 authlib-injector API 地址加上 `?mixed` 后缀，并设置 `online-mode=true`。
-
-## 绑定数据存储
-
-绑定记录存储在数据库中，同一 QQ 与同一玩家不可重复绑定。`/axs purge` 可清理玩家绑定数据（积分、签到等按 QQ 号关联的数据不在清理范围）。
 
 ## UI 面板
 

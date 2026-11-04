@@ -1,13 +1,10 @@
 ---
-title: 效果系统
-description: Prop 模块效果类型详解，含 10 种效果格式、解析流程、属性聚合与持续时间管理
+title: "效果系统"
+description: "为快捷道具设置即时效果、属性加成、持续时间与效果组合。"
 ---
 
-# 效果系统
-
-> **付费模块**
 >
-> Prop 模块属于 Suite 付费模块，需在宿主 `config.yml` 中开启 `modules.prop.enabled` 并完成授权后生效。
+> Prop 模块属于 Suite 付费模块，需在Suite `config.yml` 中开启 `modules.prop.enabled` 并完成授权后生效。
 
 效果系统是 Prop 模块的核心能力。每个道具定义中的 `effects` 列表以 `type|payload` 格式编写，模块按行解析并分类执行。效果分为两大类：
 
@@ -38,8 +35,6 @@ description: Prop 模块效果类型详解，含 10 种效果格式、解析流�
 - **即时效果**逐行执行
 - **属性效果**先聚合再一次性提交给对应属性插件——同属性多行值会累加
 
-## 即时效果详解
-
 ### 命令（`cmd`）
 
 以控制台身份执行任意 Bukkit 命令。`{player}` 占位符替换为玩家名（经安全校验）。
@@ -50,8 +45,6 @@ effects:
   - "cmd|give {player} diamond 1"
   - "cmd|lp user {player} parent add vip"
 ```
-
-> 玩家名安全校验会过滤非法字符，确保 `{player}` 替换后不会产生命令注入风险。
 
 ### 消息（`msg`）
 
@@ -106,41 +99,23 @@ effects:
 
 ### 药水（`potion`）
 
-附加药水效果，格式为 `<效果名>:<等级>`。持续时间由道具的 `Duration` 字段决定（秒）。等级从 0 开始（0 = I 级，1 = II 级）。
+附加药水效果，格式为 `<效果名>:<等级>`。持续时间由道具的 `Duration` 字段决定（秒）。当前等级从 1 开始（1 = I 级，2 = II 级），与称号药水等级写法一致。
 
 ```yaml
 Duration: 30
 
 effects:
-  - "potion|SPEED:2"           # 速度 III，持续 30 秒
-  - "potion|REGENERATION:1"     # 生命恢复 II，持续 30 秒
-  - "potion|STRENGTH:0"         # 力量 I，持续 30 秒
-  - "potion|JUMP_BOOST:1"       # 跳跃提升 II，持续 30 秒
+  - "potion|SPEED:2"           # 速度 II，持续 30 秒
+  - "potion|REGENERATION:1"     # 生命恢复 I，持续 30 秒
+  - "potion|STRENGTH:1"         # 力量 I，持续 30 秒
+  - "potion|JUMP_BOOST:1"       # 跳跃提升 I，持续 30 秒
 ```
-
-#### 药水效果名兼容映射
-
-Minecraft 1.20.2 重命名了部分药水效果名。Prop 模块内置旧名 → 新名映射，配置中可继续使用旧名：
-
-| 旧名（1.20.1 及以下） | 新名（1.20.2+） |
-|----------------------|-----------------|
-| `SLOW` | `SLOWNESS` |
-| `FAST_DIGGING` | `HASTE` |
-| `SLOW_DIGGING` | `MINING_FATIGUE` |
-| `INCREASE_DAMAGE` | `STRENGTH` |
-| `JUMP` | `JUMP_BOOST` |
-| `CONFUSION` | `NAUSEA` |
-| `HEAL` | `INSTANT_HEAL` |
-| `HARM` | `INSTANT_DAMAGE` |
-| `DAMAGE_RESISTANCE` | `RESISTANCE` |
-
-> 两个版本名都支持，无需根据服务器版本修改配置。
 
 ## 属性效果详解
 
-属性效果通过宿主属性桥接对接三个属性插件。对应插件未安装或未启用桥接时，效果静默跳过（调试模式有日志）。
+属性效果通过Suite属性桥接对接三个属性插件。对应插件未安装或未启用桥接时，效果静默跳过（调试模式有日志）。
 
-### AttributePlus（`ap`）
+### AttributePlus 属性加成（`ap`）
 
 属性行列表（如 `物理伤害:10`）作为来源添加到玩家属性数据中，持续 `Duration` 秒后自动移除。
 
@@ -156,12 +131,12 @@ effects:
 
 > 来源 ID 由道具显示名生成。多个道具若显示名处理结果相同，会共享同一个来源 ID，后添加的覆盖前者。
 
-### MythicLib（`ml` / `mythiclib`）
+### MythicLib 属性加成（`ml` / `mythiclib`）
 
 附加 MythicLib 临时 modifier，持续 `Duration` 秒后自动关闭。**同属性多行的值会累加**。
 
 ```yaml
-# ArcartXProp.yml
+# config.yml
 mythiclib:
   source-prefix: "AXS_PROP"
 
@@ -176,10 +151,8 @@ effects:
 ```
 
 > 仅处理已注册的 MythicLib 属性，未注册的属性记录警告并跳过。
->
-> `source-prefix` 在 `config.yml` 的 `mythiclib.source-prefix` 中配置，默认 `AXS_PROP`。
 
-### Symphony（`sy` / `symphony`）
+### Symphony 属性加成（`sy` / `symphony`）
 
 附加 Symphony 属性修改，持续 `Duration` 秒后自动移除并重算。payload 以 `%` 结尾时为百分比修饰。
 
@@ -199,8 +172,6 @@ effects:
 - 属性效果的持续时间由道具的 `Duration` 字段控制（秒），到期自动移除
 - `Duration: 0` 时立即移除
 - 玩家退出服务器时，全部活跃临时属性自动清除；重新上线需再次使用道具才能获得加成
-
-## 效果组合示例
 
 ### 综合增益道具
 
@@ -291,13 +262,11 @@ effects:
 | `ArcartXProp MythicLib 效果已跳过 -> hooked=false` | MythicLib 未挂钩，效果被跳过 |
 | `ArcartXProp Symphony 效果已跳过 -> hooked=false` | Symphony 未挂钩，效果被跳过 |
 
-> 属性插件未安装或未在宿主 `config.yml` 的 `attribute-bridges` 中启用时，对应属性效果会被静默跳过。调试模式下会输出跳过日志，帮助排查属性效果不生效的问题。
-
 ## 延伸阅读
 
 - [配置](/docs/prop/configuration) — 完整配置字段说明与效果格式速查
 - [按键绑定系统](/docs/prop/keybinds) — 客户端按键注册与槽位绑定
-- [联动](/docs/prop/integration) — 属性桥接状态查询与跨模块集成
+- [快捷道具使用说明](/docs/prop) — 属性桥接状态查询与跨模块集成
 - [条件系统](/docs/guide/conditions) — 使用条件的完整语法（PAPI / ARIA / JS / CONTEXT）
 - [物品库匹配](/docs/guide/item-sources) — 统一物品来源系统
 - [图标系统](/docs/guide/icons) — UI 图标配置

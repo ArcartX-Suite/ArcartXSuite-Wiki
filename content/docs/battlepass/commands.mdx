@@ -1,9 +1,7 @@
 ---
-title: 命令与占位符
-description: BattlePass 命令、权限与 PlaceholderAPI 占位符
+title: "命令与权限"
+description: "战令可用命令、参数填写方式和权限要求。"
 ---
-
-# 命令与占位符
 
 ## 玩家命令
 
@@ -60,8 +58,6 @@ description: BattlePass 命令、权限与 PlaceholderAPI 占位符
 | 第 3 参数 | 在线玩家名（`reset` / `unlock` / `addexp` / `setexp` / `removeexp` / `setlevel` 子命令） |
 | 第 4 参数 | `unlock` 子命令补全 `premium` / `deluxe` |
 
-### 命令详解
-
 #### status 查看模块状态
 
 显示当前赛季 ID、活跃玩家数、跨服同步状态、奖励配置数量。
@@ -113,78 +109,3 @@ BattlePass 模块的命令权限设计：
 | `/axs battlepass` 系列命令 | 管理命令，通过 `/axs` 总命令权限控制 | 管理员可用 |
 
 > 玩家命令（`/bp` / `/battlepass`）不需要任何权限节点。管理命令通过 ArcartXSuite 的 `/axs` 命令权限体系控制，通常需要 OP 或管理员权限。
-
-## PlaceholderAPI 占位符
-
-BattlePass 注册了 `axsbattlepass` 标识的 PlaceholderAPI 扩展，提供以下占位符：
-
-| 占位符 | 说明 | 示例值 |
-|---|---|---|
-| `%axsbattlepass_season%` | 当前赛季 ID | `season-1` |
-| `%axsbattlepass_season_display%` | 赛季显示名称 | `第一赛季` |
-| `%axsbattlepass_level%` | 玩家当前等级 | `25` |
-| `%axsbattlepass_max_level%` | 赛季最大等级 | `100` |
-| `%axsbattlepass_xp%` | 玩家当前等级内经验值 | `340` |
-| `%axsbattlepass_xp_per_level%` | 升到下一级所需总经验 | `500` |
-| `%axsbattlepass_xp_needed%` | 升到下一级还需的经验 | `160` |
-| `%axsbattlepass_premium%` | 是否已解锁高级档位 | `已激活` / `未激活` |
-| `%axsbattlepass_deluxe%` | 是否已解锁典藏档位 | `已激活` / `未激活` |
-| `%axsbattlepass_tier%` | 当前档位中文名 | `免费` / `高级` / `典藏` |
-| `%axsbattlepass_active_tasks%` | 当前活跃（未完成）任务数 | `3` |
-
-### 占位符使用示例
-
-```
-# 显示战令等级进度
-&7战令等级: &f%axsbattlepass_level%/%axsbattlepass_max_level% &7经验: &f%axsbattlepass_xp%/%axsbattlepass_xp_per_level%
-
-# 显示档位状态
-&7战令档位: &f%axsbattlepass_tier% &7高级: %axsbattlepass_premium% &7典藏: %axsbattlepass_deluxe%
-
-# 显示赛季信息
-&7当前赛季: &f%axsbattlepass_season_display% &7活跃任务: &f%axsbattlepass_active_tasks%
-```
-
-> 占位符需要安装 PlaceholderAPI 插件。PAPI 不可用时占位符返回空串，模块仍可正常运行。
-
-## UI Packet 触发
-
-BattlePass 通过 ArcartX UI 客户端包与 UI 面板交互。客户端发送 `AXS_BATTLEPASS` 标识的 Packet，服务端 `BattlePassPacketHandler` 处理以下 action：
-
-| Packet action | 说明 | 对应 UI |
-|---|---|---|
-| `open_main` | 打开主界面 | `AXS:battlepass_main` |
-| `open_tasks` | 打开任务列表 | `AXS:battlepass_tasks` |
-| `open_rewards` | 打开奖励列表 | `AXS:battlepass_rewards` |
-| `open_settlement` | 打开赛季结算界面 | `AXS:battlepass_settlement` |
-| `claim` | 领取指定等级奖励 | 主界面 / 奖励界面 |
-| `claim_all` | 一键领取所有可领奖励 | 奖励界面 |
-| `refresh` | 刷新主界面数据 | 主界面 |
-| `refresh_tasks` | 刷新任务列表数据 | 任务界面 |
-| `refresh_rewards` | 刷新奖励列表数据 | 奖励界面 |
-| `refresh_settlement` | 刷新结算界面数据 | 结算界面 |
-
-### claim Packet 数据格式
-
-```
-["claim", "<等级>", "<action_token>"]
-```
-
-`action_token` 由服务端在打开 UI 时生成，防止重复领取。领取成功后生成新 token。
-
-### claim_all Packet 数据格式
-
-```
-["claim_all", "<action_token>"]
-```
-
-### 服务端推送
-
-服务端通过 `PacketBridgeAPI.sendPacket` 向 UI 推送数据：
-
-- **主界面数据**：赛季信息、玩家等级、经验、档位、进度
-- **任务列表数据**：每日 / 每周 / 赛季任务实例及进度
-- **奖励列表数据**：各等级三档奖励及领取状态
-- **结算界面数据**：赛季结算奖励及档位信息
-
-> UI 数据推送在打开 UI 后延迟 2 tick 异步执行，确保 UI 已就绪。加载失败时自动重试（最多 3 次，间隔 1 秒）。

@@ -1,0 +1,68 @@
+---
+title: "BossTrackerQueryable"
+description: "查询活跃 Boss 与伤害数据"
+---
+
+
+| 项目 | 内容 |
+| --- | --- |
+| 提供模块 | [entitytracker](/docs/entitytracker) |
+| 完整类型 | `xuanmo.arcartxsuite.api.capability.BossTrackerQueryable` |
+
+## 获取接口
+
+```java
+import xuanmo.arcartxsuite.api.AxsCapabilities;
+import xuanmo.arcartxsuite.api.capability.BossTrackerQueryable;
+
+BossTrackerQueryable api = AxsCapabilities.get(BossTrackerQueryable.class);
+if (api == null) {
+    // 当前功能不可用，向玩家说明或使用你的替代流程。
+    return;
+}
+```
+
+每次业务操作时重新获取接口；模块未加载或暂时不可用时返回 `null`。接入方式见[快速开始](/docs/api/quick-start)。
+
+## 方法声明
+
+以下为公开调用契约，保留参数类型与空值标注。Java 类型与当前配套 API JAR 保持一致。
+
+```java
+public interface BossTrackerQueryable {
+
+    boolean isTrackedBoss(@NotNull UUID entityUuid);
+
+    int activeSessionCount();
+
+    int activeViewerCount();
+
+    @NotNull List<BossSessionInfo> activeSessions(@Nullable String mobIdFilter);
+
+    record BossSessionInfo(
+        @NotNull UUID entityUuid,
+        @NotNull String mythicMobId,
+        @NotNull String displayName,
+        double health,
+        double maxHealth,
+        int participantCount,
+        int trackedPlayerCount,
+        double totalDamage
+    ) {}
+}
+```
+
+## 参数与返回值
+
+| 方法 | 用途 | 参数 | 返回值 |
+| --- | --- | --- | --- |
+| `isTrackedBoss` | 查询实体是否为被追踪的配置 Boss。 | `entityUuid`：实体 UUID（`UUID`） | `boolean`：用于判断上面所述的查询或操作结果（true / false） |
+| `activeSessionCount` | 当前活跃 Boss 会话数。 | 无参数 | `int` 数值，具体统计含义见本行用途 |
+| `activeViewerCount` | 正在观看 Boss 面板的玩家总数。 | 无参数 | `int` 数值，具体统计含义见本行用途 |
+| `activeSessions` | 当前活跃 Boss 会话列表。 | `mobIdFilter`：MythicMob id 过滤，null 表示不过滤 | `List<BossSessionInfo>`：符合条件的结果集合 |
+
+## 调用注意事项
+
+涉及 Bukkit 玩家、世界、物品或界面的调用放在 Bukkit 主线程执行；接口有明确线程说明时以该方法约定为准。
+
+先在对应模块配置中准备所引用的 ID，再调用接口。检查布尔值、结果对象或异常，只有成功后才更新第三方插件自己的业务状态。

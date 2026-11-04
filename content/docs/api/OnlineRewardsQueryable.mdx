@@ -1,0 +1,72 @@
+---
+title: "OnlineRewardsQueryable"
+description: "查询与操作签到、在线奖励"
+---
+
+
+| 项目 | 内容 |
+| --- | --- |
+| 提供模块 | [onlinerewards](/docs/onlinerewards) |
+| 完整类型 | `xuanmo.arcartxsuite.api.capability.OnlineRewardsQueryable` |
+
+## 获取接口
+
+```java
+import xuanmo.arcartxsuite.api.AxsCapabilities;
+import xuanmo.arcartxsuite.api.capability.OnlineRewardsQueryable;
+
+OnlineRewardsQueryable api = AxsCapabilities.get(OnlineRewardsQueryable.class);
+if (api == null) {
+    // 当前功能不可用，向玩家说明或使用你的替代流程。
+    return;
+}
+```
+
+每次业务操作时重新获取接口；模块未加载或暂时不可用时返回 `null`。接入方式见[快速开始](/docs/api/quick-start)。
+
+## 方法声明
+
+以下为公开调用契约，保留参数类型与空值标注。Java 类型与当前配套 API JAR 保持一致。
+
+```java
+public interface OnlineRewardsQueryable {
+
+    boolean hasSignedToday(@NotNull UUID playerUuid);
+
+    int todayOnlineMinutes(@NotNull UUID playerUuid);
+
+    int weeklyOnlineMinutes(@NotNull UUID playerUuid);
+
+    int monthlyOnlineMinutes(@NotNull UUID playerUuid);
+
+    boolean signIn(@NotNull Player player);
+
+    boolean makeupSignIn(@NotNull Player player, @NotNull String date);
+
+    boolean addMakeupCards(@NotNull Player player, int amount);
+
+    void grantDailyRewards(@NotNull Player player);
+
+    boolean addOnlineMinutes(@NotNull Player player, int minutes);
+}
+```
+
+## 参数与返回值
+
+| 方法 | 用途 | 参数 | 返回值 |
+| --- | --- | --- | --- |
+| `hasSignedToday` | 查询玩家今日是否已签到。 | `playerUuid`：玩家 UUID（`UUID`） | `boolean`：用于判断上面所述的查询或操作结果（true / false） |
+| `todayOnlineMinutes` | 查询玩家今日已在线分钟数。 | `playerUuid`：玩家 UUID（`UUID`） | `int` 数值，具体统计含义见本行用途 |
+| `weeklyOnlineMinutes` | 查询玩家本周已在线分钟数。 | `playerUuid`：玩家 UUID（`UUID`） | `int` 数值，具体统计含义见本行用途 |
+| `monthlyOnlineMinutes` | 查询玩家本月已在线分钟数。 | `playerUuid`：玩家 UUID（`UUID`） | `int` 数值，具体统计含义见本行用途 |
+| `signIn` | 为玩家执行签到（如果当天未签到）。 | `player`：目标玩家（`Player`） | 是否成功签到（已签到返回 false） |
+| `makeupSignIn` | 为玩家执行补签（指定日期必须是本月今天之前）。 | `player`：目标玩家（`Player`）；`date`：调用参数（`String`） | 是否成功补签 |
+| `addMakeupCards` | 为玩家增加补签卡数量。 | `player`：目标玩家（`Player`）；`amount`：数量或数值（`int`） | `boolean`：用于判断上面所述的查询或操作结果（true / false） |
+| `grantDailyRewards` | 为玩家发放今日在线阶段奖励（如果已达到阶段）。 | `player`：目标玩家（`Player`） | 无返回值；按本行说明执行操作 |
+| `addOnlineMinutes` | 给玩家增加在线时长（可用于联动活动或 GM 补偿）。 | `player`：目标玩家（`Player`）；`minutes`：调用参数（`int`） | `boolean`：用于判断上面所述的查询或操作结果（true / false） |
+
+## 调用注意事项
+
+涉及 Bukkit 玩家、世界、物品或界面的调用放在 Bukkit 主线程执行；接口有明确线程说明时以该方法约定为准。
+
+先在对应模块配置中准备所引用的 ID，再调用接口。检查布尔值、结果对象或异常，只有成功后才更新第三方插件自己的业务状态。

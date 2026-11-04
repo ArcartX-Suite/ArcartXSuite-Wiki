@@ -1,26 +1,33 @@
 ---
-title: 概览
-description: Map 地图模块功能概览
+title: "地图与传送锚点"
+description: "浏览世界地图，管理路径点、导航与锚点传送。"
 ---
-# Map 地图
 
-## 模块简介
 
-Map 是 Suite 的地图模块，提供全屏地图菜单和小地图 HUD，支持多世界切换、锚点解锁与传送、玩家自定义路径点、单击标记点（Pin）、点位分享、导航追踪与路径标记、区域点亮（战争迷雾），以及外部模块/插件注入的第三方插件注册路径点。
-
-**地图画面完全由客户端 mod 实时渲染**——服务端不需要任何地图纹理图片。Map 模块负责管理世界配置、锚点定义、路径点/标记点持久化、导航状态与第三方插件注册路径点，通过 Packet 把地图快照推送到 ArcartX UI；UI 再通过 Aria 全局函数 `axsmap.getMapRenderer()` 调用 **ArcartX-Suite-Map 客户端 mod** 完成地形画面渲染。
-
-| 属性 | 值 |
-|---|---|
+| 项目 | 说明 |
+| --- | --- |
 | 模块 ID | `map` |
-| 版本 | 1.6.0 |
-| 配置文件 | `config.yml`、`messages.yml`、`worlds/`（世界地图定义目录） |
-| 命令入口 | 玩家 `/map`（别名 `/axsmap`）；管理 `/axs map` |
-| 外部依赖 | Multiverse-Core（可选，世界别名）；地图渲染需 ArcartX-Suite-Map 客户端 mod |
-| 模块依赖 | 无 |
-| 对外能力 | `MapNavigable`（注册第三方导航目标）、`MapAnchorUnlockable`、`PlayerDataPurgeable`、`DatabaseMigratable` |
+| 主配置 | `plugins/ArcartX-Suite/data/map/config.yml` |
+| 主要调整内容 | 世界显示范围、anchors/ 锚点与传送费用 |
+| 重载 | `/axs reload map` |
 
-## 功能特性
+## 开始前
+
+确认 ArcartX 客户端可用，且 `/axs status` 显示本模块已加载。可选插件只在使用对应功能时安装，具体要求见功能配置页。
+
+## 第一次使用
+
+1. 安装地图客户端扩展。
+2. 配置一个世界和锚点。
+3. 执行 `/map open`。
+
+## 检查是否配置成功
+
+检查地图显示、锚点位置及测试传送落点。
+
+功能未生效时，先检查模块状态、所用定义 ID、玩家权限及客户端安装情况，随后对照[日志与报错提示](/docs/guide/config-management)逐项检查。
+
+## 可以配置的功能
 
 | 特性 | 说明 |
 |---|---|
@@ -29,85 +36,15 @@ Map 是 Suite 的地图模块，提供全屏地图菜单和小地图 HUD，支�
 | 实体雷达 | 小地图与大地图以圆点显示周围实体并可附加名称标签；按 V 或设置面板开关，支持玩家/怪物/动物逐类显隐与名称字号档位 |
 | 洞穴图层 | 玩家在地下时小地图自动进入洞穴模式；大地图左下角可手动切换地表↔洞穴视图，洞穴切片深度 16/30/48/64 档位（按 N 或"深"按钮循环） |
 | 地图设置面板 | 大地图顶栏"设置"按钮展开居中双栏面板：小地图外观（形状/四角位置/尺寸/缩放）+ 实体显示（雷达/名称标签/类别） |
-| 玩家设置留存 | 雷达与小地图外观等客户端偏好写本地 `options.properties` 并经服务端按玩家留存（`AXS_map_settings` 表），重进服/换设备自动恢复 |
 | 客户端实时渲染 | 地形画面由 ArcartX-Suite-Map mod 扫描客户端区块实时生成，无需地图纹理图片，已探索区域缓存落盘 |
 | 多世界支持 | 每个世界一个 `worlds/<世界ID>.yml` 配置文件；维度按 Bukkit `world.getKey()` 自动解析，Multiverse 别名自动补显示名 |
-| 战争迷雾 | 锚点可配置 `light-region` / `light-radius` 点亮区域，未探索区域在小地图上遮罩 |
-| 锚点系统 | 可配置锚点，支持货币 + 物品解锁费用、传送费用、权限控制、自动解锁与排序 |
-| 锚点传送 | 已解锁锚点可消耗货币传送到指定坐标，支持多货币消耗 |
-| 玩家路径点 | 玩家可创建自定义路径点（含 Y 坐标，可导航），按权限设置数量上限 |
-| 标记点（Pin） | 玩家可在地图上单击放置标记点（仅 X/Z，纯标记不可导航），与路径点共用上限 |
-| 点位分享 | 路径点/标记点可通过聊天卡片或文本广播分享，其他玩家点击或 `/map claim <分享码>` 领取 |
-| 导航追踪 | 追踪锚点/路径点，通过 ArcartX Waypoint 创建客户端路标导航；支持多目标并行登记（仅主目标渲染路标/路线） |
-| 到达判定 | 滞回式到达判定（`finish-range`/`finish-rearm-buffer`），可配 `finish-commands` 控制台命令钩子；到达不自动取消导航 |
-| 路径标记 | 可选 Adyeshach 导航标记模型，沿导航路径放置标记实体 |
-| 第三方插件注册路径点 | 通过 `MapNavigable` 公开 Capability 供 QuestGPS / 外部插件推送导航目标；点击"导航"由来源回调执行 |
-| 导航互斥 | 跨来源互斥：QuestGPS 起导航清地图导航，地图起导航通过 EventBus 通知来源停止（模块内部可多目标并行，仅主目标渲染路标/路线） |
-| 入服 HUD | 玩家进服后可自动显示小地图 HUD，支持延迟 tick 配置 |
-| 按键绑定 | 打开地图 / 切换小地图按键由宿主 `config.yml` 的 `keybinds` 节统一注册 |
-| 数据持久化 | 锚点解锁记录、路径点、标记点持久化到 SQLite/MySQL，支持共享存储与自建存储 |
-| 玩家数据清除 | 注册 `PlayerDataPurgeable` Capability，支持 `/axs purge` 统一清理 |
-| 数据库迁移 | 注册 `DatabaseMigratable` Capability，支持跨源数据库迁移 |
+| 战争迷雾 | 锚点可配置 `light.region` / `light.radius` 点亮区域，未探索区域在小地图上遮罩 |
 
-## 依赖
+## 继续配置
 
-| 依赖类型 | 名称 | 说明 |
-|---|---|---|
-| 核心 | ArcartX | UI 渲染框架，提供 UI 注册、Packet 通讯、按键绑定 |
-| 客户端 mod | **ArcartX-Suite-Map** | 地图画面渲染客户端 mod（Fabric 1.20.1）。**未安装时地图渲染区空白**，列表/详情/传送等功能不受影响 |
-| 外部软依赖 | Multiverse-Core | `display-name` 留空时用其 colourless alias 自动补世界显示名；小地图世界名经 `%multiverse-core_alias%` PAPI 显示 |
-| 外部软依赖 | Vault | 锚点解锁/传送货币消耗（通过 CurrencyBridge） |
-| 外部软依赖 | Adyeshach | 导航标记模型渲染（不可用时关闭标记功能，路标导航仍可用） |
-| ArcartX 模块（可选） | QuestGPS | 通过 `MapNavigable` 向地图注入任务导航目标 |
-| ArcartX 能力（可选） | ArcartX Waypoint | 路标导航，不可用时导航功能不可用 |
-
-> 模块本身仅依赖 ArcartX 核心。Vault、Adyeshach、QuestGPS 等不存在时对应功能自动降级或跳过。
-
-### 客户端 mod 要求
-
-玩家客户端需安装 **ArcartX-Suite-Map** mod 才能看到地图画面：
-
-| 项目 | 要求 |
-|---|---|
-| 加载器 | Fabric Loader ≥ 0.16.5 |
-| 游戏版本 | Minecraft 1.20.1 |
-| 前置 mod | Fabric API + ArcartX 客户端 mod |
-| 运行环境 | 仅客户端（`environment: client`），服务端无需安装 |
-
-mod 初始化后注册 Aria 全局函数 `axsmap.getMapRenderer()` 供 UI 脚本获取 `MapRenderer` 实例；未安装该 mod 的玩家打开地图时渲染区保持空白，UI 的列表、详情、解锁、传送、分享功能不受影响。
-
-## 地图渲染
-
-地图画面完全由客户端 mod 渲染：服务端下发世界、锚点、路径点、点亮区域等数据，mod 扫描客户端区块生成地形纹理并绘制标点与玩家箭头。已探索地形在断开连接时缓存，下次进服可直接显示。
-
-- **菜单**：全屏大地图，含世界列表、标点列表、详情面板
-- **小地图 HUD**：按玩家选择的四角位置显示，含世界名、坐标、朝向与导航状态
-
-> 玩家坐标由客户端本地实时取值，世界名走 `%multiverse-core_alias%` PAPI。
-
-## UI 界面
-
-Map 模块注册两个 ArcartX UI 界面：
-
-| UI | 资源路径 | 用途 |
-|---|---|---|
-| 地图菜单 | `arcartx/ui/map_menu.yml` → `ui/map_menu.yml` | 全屏地图菜单，世界列表 + 地图渲染区 + 锚点/路径点/标记点/第三方插件注册路径点列表 + 详情面板 |
-| 小地图 HUD | `arcartx/ui/map_hud.yml` → `ui/map_hud.yml` | 屏幕四角常驻小地图装饰边框（默认右上角，设置面板可换位）、世界名与坐标；地形画面由 mod 绘制 |
-
-> UI ID 可通过 `ui.menu-ui-id` / `ui.hud-ui-id` 配置项自定义。`ui.overwrite-ui-files: true` 时模块启动会覆盖用户已修改的 UI 文件。
-
-## 配置版本与迁移
-
-| 当前版本 | 说明 |
-|---|---|
-| 4 | `default-unlocks` 节移除，自动解锁改为 `worlds/<world>.yml` 锚点的 `unlock` 节 |
-
-模块内置配置迁移脚本，自动将旧版本配置升级到当前版本。迁移历史：
-
-| 版本 | 迁移内容 |
-|---|---|
-| 1 → 2 | `client` 节的 UI 配置字段整体迁移到统一 `ui` 节 |
-| 2 → 3 | `storage.mode` 重命名为 `storage.shared`，值从 `sqlite`/`mysql` 映射为 `true`/`false` |
-| 3 → 4 | 移除全局 `default-unlocks` 节，自动解锁改为各世界文件锚点的 `unlock.default` / `unlock.on-permission` |
-
-> 配置版本号由 `config-version` 字段管理，不要手动修改。
+- [功能配置](/docs/map/configuration)：字段含义与配置示例。
+- [命令与权限](/docs/map/commands)：玩家操作、管理命令和权限。
+- [锚点系统](/docs/map/anchors)：配置传送锚点的坐标、解锁条件、费用与显示顺序。
+- [客户端 Mod](/docs/map/client-mod)：安装地图客户端扩展，并了解大地图、小地图和玩家操作入口。
+- [导航追踪与路径标记](/docs/map/navigation)：设置导航目标、路标和路径提示，并说明玩家如何开始与取消追踪。
+- [世界与地图渲染](/docs/map/worlds)：配置可浏览的世界、地图范围、显示比例与地图渲染选项。

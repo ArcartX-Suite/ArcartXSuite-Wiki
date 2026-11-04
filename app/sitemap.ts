@@ -1,10 +1,11 @@
 import type { MetadataRoute } from 'next';
 import { source } from '@/lib/source';
+import { BASE_URL } from '@/lib/site';
 
 export const dynamic = 'force-static';
 
 export default function sitemap(): MetadataRoute.Sitemap {
-  const baseUrl = 'https://arcartx-suite.github.io/ArcartXSuite-Wiki';
+  const baseUrl = BASE_URL.slice(0, -1);
 
   const pages = source.getPages();
   const urls: MetadataRoute.Sitemap = [

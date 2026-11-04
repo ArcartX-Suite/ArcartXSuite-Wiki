@@ -1,0 +1,68 @@
+---
+title: "RegionQueryable"
+description: "查询位置所在区域与区域规则"
+---
+
+
+| 项目 | 内容 |
+| --- | --- |
+| 提供模块 | [regions](/docs/regions) |
+| 完整类型 | `xuanmo.arcartxsuite.api.capability.RegionQueryable` |
+
+## 获取接口
+
+```java
+import xuanmo.arcartxsuite.api.AxsCapabilities;
+import xuanmo.arcartxsuite.api.capability.RegionQueryable;
+
+RegionQueryable api = AxsCapabilities.get(RegionQueryable.class);
+if (api == null) {
+    // 当前功能不可用，向玩家说明或使用你的替代流程。
+    return;
+}
+```
+
+每次业务操作时重新获取接口；模块未加载或暂时不可用时返回 `null`。接入方式见[快速开始](/docs/api/quick-start)。
+
+## 方法声明
+
+以下为公开调用契约，保留参数类型与空值标注。Java 类型与当前配套 API JAR 保持一致。
+
+```java
+public interface RegionQueryable {
+
+    @NotNull List<RegionInfo> regionsAt(@NotNull String world, int x, int y, int z);
+
+    @NotNull List<RegionInfo> regionsInWorld(@NotNull String world);
+
+    @NotNull List<RegionInfo> allRegions();
+
+    int countRegionsByOwner(@NotNull UUID owner);
+
+    record RegionInfo(
+        @NotNull String id,
+        @NotNull String world,
+        int minX, int minY, int minZ,
+        int maxX, int maxY, int maxZ,
+        int priority,
+        @Nullable String parentId,
+        @NotNull Set<UUID> owners,
+        @NotNull Set<UUID> members
+    ) {}
+}
+```
+
+## 参数与返回值
+
+| 方法 | 用途 | 参数 | 返回值 |
+| --- | --- | --- | --- |
+| `regionsAt` | 查询指定坐标命中的全部区域（按优先级排序）。 | `world`：调用参数（`String`）；`x`：调用参数（`int`）；`y`：调用参数（`int`）；`z`：调用参数（`int`） | `List<RegionInfo>`：符合条件的结果集合 |
+| `regionsInWorld` | 查询指定世界中的全部区域。 | `world`：调用参数（`String`） | `List<RegionInfo>`：符合条件的结果集合 |
+| `allRegions` | 查询全部区域。 | 无参数 | `List<RegionInfo>`：符合条件的结果集合 |
+| `countRegionsByOwner` | 统计某玩家作为 owner 的区域数量。 | `owner`：调用方插件（`UUID`） | `int` 数值，具体统计含义见本行用途 |
+
+## 调用注意事项
+
+涉及 Bukkit 玩家、世界、物品或界面的调用放在 Bukkit 主线程执行；接口有明确线程说明时以该方法约定为准。
+
+先在对应模块配置中准备所引用的 ID，再调用接口。检查布尔值、结果对象或异常，只有成功后才更新第三方插件自己的业务状态。

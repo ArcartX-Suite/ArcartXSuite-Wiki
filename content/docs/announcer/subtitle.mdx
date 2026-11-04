@@ -1,9 +1,7 @@
 ---
 title: "字幕系统"
-description: "Announcer 字幕打字机播放系统详解：字幕组结构、帧序列、播放生命周期与 UI 动画"
+description: "编写多段字幕的文字、打字速度与停留时间，并为玩家播放。"
 ---
-
-> **付费模块** — 字幕系统是 Announcer 模块内置的打字机字幕播放子系统，按字幕组顺序逐帧推送打字机动画字幕到 ArcartX 客户端 HUD，支持跨模块通过 `SubtitlePlayable` 能力触发。
 
 ## 播放行为
 
@@ -69,101 +67,6 @@ description: "Announcer 字幕打字机播放系统详解：字幕组结构、�
   keep: 0.8
 ```
 
-## 播放生命周期
-
-### 播放触发
-
-字幕播放可通过两种方式触发：
-
-| 触发方式 | 调用入口 | 说明 |
-|---|---|---|
-| 管理员命令 | `/axs announcer subtitle play <玩家> <组ID>` | 手动为指定玩家播放 |
-| 跨模块调用 | `SubtitlePlayable.playGroup(player, groupId)` | 其他模块通过 Capability 调用 |
-
-### 播放流程
-
-1. **查找字幕组**：根据组 ID 从已加载的字幕组映射中查找，不存在则返回 `false`
-2. **终止旧序列**：若该玩家已有活跃播放会话，取消旧会话的定时任务（不发 `close` 包，新的 `play` 直接覆盖客户端状态）
-3. **解析 UI ID**：优先使用字幕组级 `ui-id`，为空则使用全局 `ui.subtitle-ui-id`
-4. **打开 HUD**：仅对尚未打开的 UI 调用 `openUi`（避免重复 `openUi` 触发 `load` action 重置动画状态）
-5. **创建播放会话**：实例化 `ActiveSubtitlePlayback`，记录玩家、字幕组、解析后的 UI ID
-6. **逐帧播放**：按帧顺序发送 `play` 包，每帧播完后调度下一帧
-
-### 帧调度时序
-
-每帧的下一帧延迟由动画时长与停留时间共同决定：
-
-```yaml
-# 下一帧延迟（tick）= 动画时长（time 毫秒 → tick）+ 停留时间（keep 秒 → tick）
-delayTicks = (frame.timeMs / 50) + (frame.keepSeconds * 20)
-```
-
-| 阶段 | 动作 | 耗时 |
-|---|---|---|
-| 打字机动画 | 客户端按 `time` 毫秒逐字显示 | `time` 毫秒 |
-| 停留等待 | 动画完成后停留 `keep` 秒 | `keep` 秒 |
-| 切换下一帧 | 发送下一帧 `play` 包 | 即时 |
-| 播放完毕 | 最后一帧 `time + keep` 后发送 `close` 包，关闭 HUD | — |
-
-### 可见长度计算
-
-当 `length` 为 `0` 或负数时，服务端按可见文本长度自动计算：
-
-1. 去除 Minecraft 颜色代码（`§x` 和 `&x` 格式）
-2. 计算剩余字符数作为可见长度
-
-```yaml
-# 示例：text: "&f欢迎，%player_name%。"
-# 去除颜色代码后: "欢迎，%player_name%。"
-# 可见长度: 10（PAPI 变量在解析后计算）
-```
-
-> PAPI 变量在发送前已解析为实际文本，因此可见长度基于解析后的文本计算。
-
-## HUD 通信
-
-### play 包（服务端 → 客户端）
-
-| 字段 | 类型 | 说明 |
-|---|---|---|
-| `text` | `String` | 字幕文本（已渲染 PAPI） |
-| `length` | `int` | 打字机动画总字数（`0` = 自动计算后的实际值） |
-| `time` | `int` | 打字机动画时长（毫秒） |
-| `showBackground` | `boolean` | 是否显示字幕背景板（来自 `subtitle.settings.show-background`） |
-
-### close 包（服务端 → 客户端）
-
-`close` 包无字段，仅通知客户端关闭字幕 HUD 并清空字幕状态变量。
-
-### 客户端动画实现
-
-字幕 HUD 通过 `Lerp` 插值器实现打字机效果：
-
-```yaml
-# 收到 play 包时创建动画插值器
-var.subtitleAnimation = Lerp(0, var.subtitleLength, var.subtitleTime)
-
-# Text 控件通过 limit 属性逐字显示
-字幕文字:
-  type: Text
-  attribute:
-    limit: var.subtitleAnimation
-    texts: "var.subtitleText"
-```
-
-`Lerp(0, length, time)` 创建一个从 `0` 到 `length`、持续 `time` 毫秒的线性插值器。Text 控件的 `limit` 属性限制显示的字符数，随插值器从 `0` 递增到 `length`，实现逐字显示效果。
-
-### 客户端状态变量
-
-| 变量名 | 初始值 | 说明 |
-|---|---|---|
-| `subtitleVisible` | `false` | 是否显示字幕 |
-| `subtitleText` | `none` | 字幕文本 |
-| `subtitleLength` | `0` | 动画总字数 |
-| `subtitleTime` | `0` | 动画时长（毫秒） |
-| `subtitleShowBackground` | `false` | 是否显示背景板 |
-| `subtitleAnimation` | `Lerp(0, 0, 1)` | 打字机动画插值器 |
-
 ## HUD 布局结构
 
 字幕 HUD 为 HUD 模式，`defaultOpen: false`（不随启动自动打开，播放时按需打开），鼠标不穿透，渲染层级 1。
@@ -200,42 +103,6 @@ controls:
 ```
 
 > 字幕面板位于屏幕中下方（`y: 380`），宽度 `1280`，高度 `72`。背景板为 Frosted 玻璃效果圆角矩形，可通过 `show-background` 配置开关。
-
-## 播放会话行为
-
-- 每个玩家同一时间只有一个字幕序列在播放；新播放请求会终止旧序列
-- 玩家退出、客户端重新初始化或模块停止时，播放会话自动清理
-- 客户端重新初始化后下次播放会自动重新打开 HUD，避免状态不同步
-
-## 跨模块调用
-
-### SubtitlePlayable 能力
-
-模块启动时注册 `SubtitlePlayable` 能力，供其他模块通过 `getCapability()` 获取：
-
-```java
-SubtitlePlayable subtitle = getCapability(SubtitlePlayable.class);
-if (subtitle != null) {
-    boolean ok = subtitle.playGroup(player, "welcome_subtitle");
-    // true = 播放成功，false = 字幕组不存在
-}
-```
-
-| 方法签名 | 返回值 | 说明 |
-|---|---|---|
-| `playGroup(Player player, String groupId)` | `boolean` | 为指定玩家播放字幕组，`true` 表示播放成功 |
-
-### 已知消费方
-
-| 模块 | 调用场景 |
-|---|---|
-| EventPacket | 事件包触发字幕 |
-| OnlineRewards | 全服签到目标达成 |
-| Conversation | 对话剧情字幕 |
-| QuestGps | 任务引导字幕 |
-| AfkReward | AFK 奖励字幕 |
-
-## 调试
 
 ### 调试日志
 
@@ -279,7 +146,6 @@ Subtitle close -> Steve | ui=[AXS:subtitle_hud]
 
 字幕 HUD 支持自定义，修改 `ui/subtitle_hud.yml` 即可调整布局与样式。自定义时需注意：
 
-- 保持 `packetHandler.play` 与 `packetHandler.close` 的变量赋值逻辑不变
 - `Lerp` 插值器的参数顺序为 `Lerp(start, end, durationMs)`
 - Text 控件的 `limit` 属性必须绑定到 `var.subtitleAnimation`
 - 背景板的 `visible` 应绑定到 `var.subtitleShowBackground`

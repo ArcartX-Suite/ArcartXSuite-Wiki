@@ -1,9 +1,15 @@
 ---
-title: 配置
-description: Fishing 配置文件详解
+title: "功能配置"
+description: "调整fishes/ 鱼类、pools/ 水域、rods/ 鱼竿与 baits/ 鱼饵；附字段解释、修改示例与重载步骤。"
 ---
 
-# 配置文件
+## 先改哪些内容
+
+fishes/ 鱼类、pools/ 水域、rods/ 鱼竿与 baits/ 鱼饵。先使用默认示例完成一次测试，再按本页逐项调整。
+
+配置位置：`plugins/ArcartX-Suite/data/fishing/config.yml`。定义文件与子目录均相对此模块目录。本文中的 YAML 片段用于修改对应小节，请保留文件中的其他设置。
+
+修改后执行 `/axs reload fishing`；涉及插件安装或全局设置的变更请重启后验证。
 
 Fishing 模块的配置文件位于 `plugins/ArcartX-Suite/data/fishing/` 目录下。
 
@@ -24,32 +30,11 @@ Fishing 模块的配置文件位于 `plugins/ArcartX-Suite/data/fishing/` 目录
 
 模块首次启动时会自动从 jar 导出默认配置文件。用户已修改的文件不会被覆盖（除非 `ui.overwrite-ui-files` 为 `true`）。
 
-## 主配置完整字段表
-
-### 调试与存储
-
-| 配置项 | 类型 | 默认值 | 说明 |
-| --- | --- | --- | --- |
-| `debug` | boolean | `false` | 开启后输出钓鱼事件、小游戏状态、发包详情等详细日志 |
-| `config-version` | int | `5` | 配置文件版本号（用于迁移） |
-| `storage.shared` | boolean | `true` | 是否共享存储模式（推荐，由本体统一管控数据源） |
-| `storage.mode` | string | `sqlite` | `shared: false` 时的存储模式（`sqlite` / `mysql`） |
-| `storage.sqlite.file` | string | `fishing.db` | SQLite 文件名（相对模块数据目录） |
-| `storage.pool-size` | int | `1` | JDBC 连接池大小（SQLite 建议 1） |
-| `storage.mysql.host` | string | `127.0.0.1` | MySQL 主机地址 |
-| `storage.mysql.port` | int | `3306` | MySQL 端口 |
-| `storage.mysql.database` | string | `arcartxsuite` | MySQL 数据库名 |
-| `storage.mysql.username` | string | `root` | MySQL 用户名 |
-| `storage.mysql.password` | string | - | MySQL 密码 |
-| `storage.mysql.table-prefix` | string | `axs_fishing_` | MySQL 表名前缀 |
-
-> `storage.shared: true` 时使用本体 `config.yml` 的 `storage` 节配置，无需填写 MySQL 信息。`shared: false` 时模块自建独立 HikariCP 连接池（不推荐）。
-
 ### 跨服同步
 
 | 配置项 | 类型 | 默认值 | 说明 |
 | --- | --- | --- | --- |
-| `cross-server.enabled` | boolean | `false` | 是否启用跨服同步（需配合宿主 `cross-server` 节使用） |
+| `cross-server.enabled` | boolean | `false` | 是否启用跨服同步（需配合Suite `cross-server` 节使用） |
 
 ### 钓鱼小游戏核心参数
 
@@ -184,13 +169,6 @@ global.base_rate * (1.0 - 0.5 * math.pow(global.level / 100, 2.5) + 0.5 * math.p
 | --- | --- | --- | --- |
 | `ui.register-ui-on-enable` | boolean | `true` | 启动时自动注册 UI |
 | `ui.overwrite-ui-files` | boolean | `false` | 是否覆盖用户已修改的 UI 文件 |
-| `ui.main-ui-id` | string | `AXS:fishing_main` | 主界面 UI ID |
-| `ui.minigame-ui-id` | string | `AXS:fishing_minigame` | 小游戏 UI ID |
-| `ui.collection-ui-id` | string | `AXS:fishing_collection` | 图鉴 UI ID |
-| `ui.talents-ui-id` | string | `AXS:fishing_talents` | 天赋树 UI ID |
-| `ui.rewards-ui-id` | string | `AXS:fishing_rewards` | 赛季奖励 UI ID |
-| `ui.tasks-ui-id` | string | `AXS:fishing_tasks` | 任务列表 UI ID |
-| `ui.baits-ui-id` | string | `AXS:fishing_baits` | 饵料管理 UI ID |
 | `commands.enabled` | boolean | `true` | 是否注册 `/fishing` 命令 |
 | `commands.base-permission` | string | `axs.fishing.use` | 使用命令的基础权限 |
 
@@ -217,83 +195,17 @@ global.base_rate * (1.0 - 0.5 * math.pow(global.level / 100, 2.5) + 0.5 * math.p
 - 逃离概率最终值 = 逃离概率 / 效率系数
 - 绿条高度最终值 = 绿条高度 × 效率系数
 
-## 完整配置示例
+## 钓鱼参数示例
+
+修改原有 `fishing` 小节中的这些字段，其余参数先保持默认：
 
 ```yaml
-config-version: 5
-debug: false
-
-storage:
-  shared: true
-
-cross-server:
-  enabled: false
-
 fishing:
   replace-vanilla: true
-  minigame-tick-interval: 1
   catch-duration-ticks: 120
-  catch-duration-difficulty-scale: 0.01
   fishing-cooldown-ticks: 100
-  bar-gravity: 0.3
-  bar-click-force: -0.3
-  bar-force-multiplier: 0.03
-  bar-damping: 0.8
-  bar-bounce-damping: 0.7
   base-green-bar-height: 60
-  height-per-level: 1
-  difficulty-bar-shrink: 0.4
-  fish-edge-bounce: 1.5
-  progress-gain:
-    base-rate: 0.04
-    formula: "global.base_rate * (0.43 + 0.35 * math.pow(global.level / 100, 2.5) - 0.35 * math.pow(global.difficulty / 100, 2.5)) * (1.5 + 0.4 * (0.5 - 0.5 * math.cos(global.progress * math.PI())))"
-  progress-drain:
-    base-rate: 0.04
-    formula: "global.base_rate * (1.0 - 0.5 * math.pow(global.level / 100, 2.5) + 0.5 * math.pow(global.difficulty / 100, 2.5)) * (1 + 0.5 * global.progress + 0.2 * (1 - global.progress) * (1 - global.progress))"
-  streak-threshold: 20
-  streak-bonus-per-step: 0.1
-  streak-max-bonus: 0.5
   treasure-chance: 0.15
-  perfect-bonus-multiplier: 1.5
-  max-level: 100
-  level-modifier-scale: 0.05
-  fish-speed-level-scale: 1.0
-  flee-chance-level-scale: 1.0
-  flee-speed-level-scale: 1.0
-  progress-gain-level-scale: 0.01
-  progress-drain-level-scale: 0.01
-  flee-base-chance: 0.1
-  flee-chance-per-difficulty: 0.1
-  flee-base-speed: 0.04
-  flee-speed-per-difficulty: 0.03
-  flee-min-duration: 15
-  flee-max-duration: 35
-  flee-check-min-interval: 20
-  flee-check-max-interval: 50
-  flee-cooldown-min: 30
-  flee-cooldown-max: 70
-
-season:
-  season-id: "fishing-s1"
-  display-name: "第一赛季"
-  max-level: 100
-  xp-curve:
-    - level: 1
-      formula: "50 * global.level * (1 + 2.0 * math.pow(math.pow(global.level / 100, 2) * (3 - 2 * global.level / 100), 1.5))"
-  start-date: "2026-01-01"
-  end-date: "2030-12-31"
-
-ui:
-  register-ui-on-enable: true
-  overwrite-ui-files: false
-  main-ui-id: "AXS:fishing_main"
-  minigame-ui-id: "AXS:fishing_minigame"
-  collection-ui-id: "AXS:fishing_collection"
-  talents-ui-id: "AXS:fishing_talents"
-  rewards-ui-id: "AXS:fishing_rewards"
-  tasks-ui-id: "AXS:fishing_tasks"
-
-commands:
-  enabled: true
-  base-permission: "axs.fishing.use"
 ```
+
+先测试默认难度，再逐项调整。鱼类、水域、鱼竿和鱼饵的具体内容见对应专题页。

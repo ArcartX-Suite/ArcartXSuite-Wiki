@@ -1,9 +1,7 @@
 ---
-title: 命令与占位符
-description: Tooltip 模块命令与权限
+title: "命令与权限"
+description: "物品提示可用命令、参数填写方式和权限要求。"
 ---
-
-# 命令与占位符
 
 Tooltip 模块通过 `/axs` 命令系统注册管理子命令，提供模块状态查询功能。模块不注册 PlaceholderAPI 占位符，也不提供玩家命令。
 
@@ -19,7 +17,7 @@ Tooltip 模块通过 `/axs` 命令系统注册管理子命令，提供模块状�
 无参数或未知子命令时，默认显示 `help` 内容。所有子命令均需 `arcartxsuite.admin` 权限，控制台可用。
 </Callout>
 
-### `/axs tooltip status`
+### 查看物品提示状态（`/axs tooltip status`）
 
 查看 Tooltip 模块缓存运行状态。
 
@@ -69,17 +67,11 @@ Tooltip 模块通过 `/axs` 命令系统注册管理子命令，提供模块状�
 | 第 2 参数 | 子命令动作：`help`、`status`、`push` |
 | 第 3 参数（`push` 时） | 在线玩家名 |
 
-## PlaceholderAPI
-
-Tooltip 模块**不注册** PlaceholderAPI 占位符，也不依赖 PlaceholderAPI。tooltip 数据通过模块间共享接口提供，详见 [联动](/docs/tooltip/integration)。
-
 ## 玩家命令
 
 Tooltip 模块**不提供**玩家命令。
 
 ## 枪械浏览界面
-
-模块注册 `AXS:gun_list` 枪械浏览界面（Menu 型，ESC 关闭）：
 
 - `gun-list.mode: ax` 时使用 AX 自定义界面（`ui/gun_list.yml`）
 - `gun-list.mode: mod` 时使用客户端本地 Forge 界面

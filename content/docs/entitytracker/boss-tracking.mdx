@@ -1,26 +1,9 @@
 ---
-title: Boss 追踪机制
-description: Boss 会话生命周期、HUD 显示、排序模式、Mohist 兼容与聊天卡片
+title: "Boss 追踪机制"
+description: "为指定 Boss 设置追踪面板、信息展示与排序方式。"
 ---
 
-# Boss 追踪机制
-
-> **付费模块**（消费额度满 ¥150 获得授权）
-
 Boss 追踪子系统是 EntityTracker 的核心功能，依赖 MythicMobs / MythicBukkit。它监听 MythicMob 的生成、死亡、消失事件，为每个被追踪的 Boss 推送 HUD 数据，并在 Boss 死亡时触发伤害结算。
-
-## 会话生命周期
-
-每个活跃的 MythicMob 实体对应一个追踪会话：
-
-| 阶段 | 处理行为 |
-|---|---|
-| 生成 | 匹配 Boss 定义 → 纳入追踪 → 发送生成聊天卡片（若配置）→ 刷新 HUD |
-| 伤害 | 记录伤害数据 → 刷新 HUD |
-| 死亡 | 生成结算记录 → 发放即时奖励 → 跨服同步 → 发送死亡卡片 → 移除 |
-| 消失 | 发送消失卡片 → 移除 |
-
-> 只有在 `bosses/` 目录中配置了对应 MythicMob ID 且 `enabled: true` 的 Boss 才会被追踪。模块启动时会扫描已存在的 MythicMob，将启动前已生成的 Boss 纳入追踪；已死亡或无效的实体会自动清理。
 
 ## HUD 显示
 

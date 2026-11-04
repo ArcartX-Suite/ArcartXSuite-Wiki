@@ -1,9 +1,15 @@
 ---
-title: 配置
-description: Tab 模块完整配置字段说明与示例
+title: "功能配置"
+description: "调整tabs/ 面板、排序字段、过滤条件与显示模板；附字段解释、修改示例与重载步骤。"
 ---
 
-# 配置
+## 先改哪些内容
+
+tabs/ 面板、排序字段、过滤条件与显示模板。先使用默认示例完成一次测试，再按本页逐项调整。
+
+配置位置：`plugins/ArcartX-Suite/data/tab/config.yml`。定义文件与子目录均相对此模块目录。本文中的 YAML 片段用于修改对应小节，请保留文件中的其他设置。
+
+修改后执行 `/axs reload tab`；涉及插件安装或全局设置的变更请重启后验证。
 
 Tab 模块的配置分为主配置文件 `config.yml` 和 Tab 定义文件（`tabs/` 目录下每个 `.yml`）。
 
@@ -13,9 +19,7 @@ Tab 模块的配置分为主配置文件 `config.yml` 和 Tab 定义文件（`ta
 
 > 修改配置后执行 `/axs reload tab` 生效。配置诊断规则会在重载时自动校验，报告写入 `diagnosis/` 目录。
 
-## 主配置 config.yml
-
-### settings 节
+### 基础设置（settings）
 
 | 字段 | 类型 | 默认值 | 说明 |
 |---|---|---|---|
@@ -29,11 +33,11 @@ Tab 模块的配置分为主配置文件 `config.yml` 和 Tab 定义文件（`ta
 | `cross-server` | `boolean` | `false` | 跨服玩家列表全局默认开关，每个 Tab 定义可用 `cross-server` 覆盖 |
 | `stale-snapshot-ms` | `long` | `30000` | 远程服务端快照过期时间（毫秒），超过此时间未收到新快照的远程节点条目将被移除。最小 5000 |
 
-### settings.style 节
+### 列表视觉样式（settings.style）
 
 视觉风格配置不修改 pack 渲染逻辑，仅通过 PAPI 占位符暴露状态给 pack 使用。
 
-#### pvp-highlight
+#### 战斗状态高亮（pvp-highlight）
 
 | 字段 | 类型 | 默认值 | 说明 |
 |---|---|---|---|
@@ -41,14 +45,14 @@ Tab 模块的配置分为主配置文件 `config.yml` 和 Tab 定义文件（`ta
 | `window-ms` | `long` | `5000` | PVP 高亮有效窗口（毫秒），玩家最近一次参与 PVP 后在此窗口内视为 PVP 状态 |
 | `color` | `String` | `&c` | PVP 高亮颜色，通过 `%axstab_pvp_color%` 输出 |
 
-#### vanish-grey
+#### 隐身玩家显示（vanish-grey）
 
 | 字段 | 类型 | 默认值 | 说明 |
 |---|---|---|---|
 | `enabled` | `boolean` | `false` | 是否启用隐身灰化 |
 | `color` | `String` | `&7` | 隐身灰色颜色，通过 `%axstab_vanish_color%` 输出 |
 
-#### ping-icon
+#### 网络延迟图标（ping-icon）
 
 | 字段 | 类型 | 默认值 | 说明 |
 |---|---|---|---|
@@ -75,7 +79,7 @@ style:
       - { max-ms: 9999, icon: "&c▮▯▯▯" }
 ```
 
-### settings.privacy 节
+### 列表隐私显示（settings.privacy）
 
 隐私脱敏仅影响 `%axstab_uuid%` 与 `%axstab_ip%` 占位符。
 
@@ -84,21 +88,21 @@ style:
 | `hide-uuid` | `boolean` | `false` | 隐藏 UUID（截断为前 8 位 + `...`） |
 | `hide-ip` | `boolean` | `false` | 隐藏 IP（最后一段替换为 `***`） |
 
-### settings.debug-tools 节
+### 列表展示调试工具（settings.debug-tools）
 
 | 字段 | 类型 | 默认值 | 说明 |
 |---|---|---|---|
 | `dry-run` | `boolean` | `false` | 渲染流程跑全（过滤 / 排序 / 置顶 / 分组 / 分页 / PAPI 解析），但不真正发包给客户端。仅在 `debug: true` 时记录跳过日志 |
 
-### cross-server 节
+### 跨服功能（cross-server）
 
-跨服连接参数见宿主 `plugins/ArcartX-Suite/config.yml` 的 `cross-server` 节。
+跨服连接参数见Suite `plugins/ArcartX-Suite/config.yml` 的 `cross-server` 节。
 
 | 字段 | 类型 | 默认值 | 说明 |
 |---|---|---|---|
-| `enabled` | `boolean` | `false` | 是否启用跨服玩家列表聚合（需宿主 cross-server 配置支持） |
+| `enabled` | `boolean` | `false` | 是否启用跨服玩家列表聚合（需Suite cross-server 配置支持） |
 
-### tabs-directory
+### 在线列表定义目录（tabs-directory）
 
 | 字段 | 类型 | 默认值 | 说明 |
 |---|---|---|---|
@@ -114,35 +118,11 @@ style:
 |---|---|---|---|
 | `enabled` | `boolean` | `true` | 是否启用此 Tab 定义 |
 | `ui-targets` | `List<Map>` | - | UI 发包目标列表，同一个 payload 可同时发给多个 UI |
-| `ui-id` | `String` | - | 旧格式：单个 UI ID（向后兼容，等价于 `ui-targets` 单元素） |
-| `packet-handler` | `String` | - | 旧格式：UI 端接收包的 handler 名称 |
-| `client-refresh-packet-id` | `String` | `TAB` | 客户端回包请求刷新的 Packet ID，留空则关闭客户端刷新入口 |
-| `client-refresh-action` | `String` | `update` | 客户端回包请求刷新的 action 名称 |
 | `max-entries` | `int` | `-1` | 最大条目数，`-1` 表示不限制 |
 | `omit-blank-values` | `boolean` | `false` | pack 渲染结果为空字符串时是否跳过该玩家 |
 | `cross-server` | `Boolean` | `null` | 是否启用跨服聚合，`null` 时使用全局 `settings.cross-server` |
 | `view` | `String` | `default` | 视图名称，玩家通过 `/tab view` 切换，只有 view 匹配时才推送 |
 | `pack` | `Object` | - | 打包模板，支持字符串 / 列表 / 字典三种形态 |
-
-#### ui-targets 元素字段
-
-| 字段 | 类型 | 说明 |
-|---|---|---|
-| `ui-id` | `String` | 对应的 UI ID（如 `AXS:tab`） |
-| `packet-handler` | `String` | UI 端接收包的 handler 名称 |
-
-### 客户端刷新防护
-
-`client-refresh-guard` 节配置客户端主动刷新的频率限制。
-
-| 字段 | 类型 | 默认值 | 说明 |
-|---|---|---|---|
-| `enabled` | `boolean` | `true` | 是否启用频率限制 |
-| `window-ms` | `long` | `1500` | 时间窗口（毫秒），在此窗口内最多允许 `max-hits` 次请求 |
-| `max-hits` | `int` | `1` | 时间窗口内最大允许请求次数 |
-| `mode` | `String` | `silent` | 超限模式：`silent` 静默丢弃 / `notify` 提示玩家。`punish` 不支持，自动降级为 `notify` |
-| `notify-message` | `String` | `&cTAB 刷新过快，请稍后再试。` | 超限提示消息（`mode: notify` 时生效） |
-| `notify-cooldown-ms` | `long` | `3000` | 超限提示消息冷却时间（毫秒） |
 
 ### 排序 sort-keys
 
@@ -156,7 +136,6 @@ style:
 | `prem-group` | `List<String>` | `["default"]` | prem 模式的优先级列表，未列出的玩家归 `default`，支持别名 `prem-group` |
 | `order` | `String` | `asc` | 排序方向：`asc` 升序 / `desc` 降序，也支持 `descending: true` |
 
-> 旧字段 `sort-mode` / `sort-papi-key` / `sort-papi-numeric` / `sort-prem-group` / `sort-descending` 仍然向后兼容，会自动构造为单元素 `sort-keys`。
 
 ### 过滤器 filters
 
@@ -204,7 +183,6 @@ style:
 |---|---|---|---|
 | `enabled` | `boolean` | `false` | 是否启用分页 |
 | `page-size` | `int` | `80` | 每页行数 |
-| `packet-id` | `String` | `TAB_PAGE` | 翻页 Packet ID |
 | `next-action` | `String` | `next` | 翻到下一页的 action |
 | `prev-action` | `String` | `prev` | 翻到上一页的 action |
 | `set-action` | `String` | `set` | 设置指定页码的 action（需附带页码参数） |
@@ -218,12 +196,10 @@ style:
 
 > 聚合模式下 Tab 不展开玩家列表，每个服务器（含本服与每个远程节点）只占一行，常用于大区 BungeeCord / Velocity 网络的"服务器总览"视图。
 
-## 完整配置示例
-
 ### 最简配置（基础在线列表）
 
 ```yaml
-# ArcartXTab.yml
+# config.yml
 settings:
   refresh-interval-ticks: 20
   server-id: "survival"
@@ -231,71 +207,10 @@ settings:
 tabs-directory: "tabs"
 ```
 
-```yaml
-# tabs/online-tab.yml
-enabled: true
-ui-targets:
-  - ui-id: "AXS:tab"
-    packet-handler: "tab"
-sort-keys:
-  - { mode: name }
-pack: "%axstitle_display% %player_name%"
-```
-
-### 多键排序 + 过滤 + 置顶
-
-```yaml
-# tabs/ranked.yml
-enabled: true
-ui-targets:
-  - ui-id: "AXS:tab-rich"
-    packet-handler: "tab"
-max-entries: 80
-sort-keys:
-  - { mode: prem, prem-group: [admin, vip3, vip2, vip1, default] }
-  - { mode: papi, key: "%player_level%", numeric: true, order: desc }
-  - { mode: name }
-filters:
-  hide-vanished: true
-  exclude:
-    - { permission: "axs.tab.hide" }
-    - { papi: "%player_gamemode%", equals: "SPECTATOR" }
-pinned:
-  top:
-    - { permission: "axs.tab.pin-top" }
-pack:
-  uuid: "{player_uuid}"
-  name: "%axstab_pvp_color%%axstab_vanish_color%%player_name%"
-  ping: "%axstab_ping_icon%"
-  health: "%player_health%"
-```
-
-### 分组 + 分页
-
-```yaml
-# tabs/grouped.yml
-enabled: true
-ui-targets:
-  - ui-id: "AXS:tab"
-    packet-handler: "tab"
-sort-keys:
-  - { mode: name }
-grouping:
-  enabled: true
-  group-by-papi: "%vault_primary_group%"
-  group-order: ["admin", "vip3", "vip2", "vip1", "default"]
-  include-unordered: true
-  header-pack: "&6=== {group} ==="
-pagination:
-  enabled: true
-  page-size: 60
-pack: "%axstitle_display% %player_name%"
-```
-
 ### 跨服聚合（服务器总览）
 
 ```yaml
-# ArcartXTab.yml
+# config.yml
 settings:
   refresh-interval-ticks: 20
   server-id: "lobby-01"
@@ -304,38 +219,6 @@ settings:
   leave-grace-ms: 2000
 cross-server:
   enabled: true
-```
-
-```yaml
-# tabs/overview.yml
-enabled: true
-ui-targets:
-  - ui-id: "AXS:tab"
-    packet-handler: "tab"
-cross-server: true
-aggregate:
-  enabled: true
-  line-pack: "&b{server-display} &7- &f{server-online} 人在线"
-pack: "{server-id}"
-```
-
-### 竞技场红蓝双队
-
-```yaml
-# tabs/arena.yml
-enabled: true
-ui-targets:
-  - ui-id: "AXS:tab-arena"
-    packet-handler: "tab"
-sort-keys:
-  - { mode: papi, key: "%player_scoreboardteam%" }
-  - { mode: name }
-pack:
-  team: "%player_scoreboardteam%"
-  uuid: "{player_uuid}"
-  name: "%axstab_pvp_color%%axstab_vanish_color%%player_name%"
-  status: "%axstab_pvp%"
-  health: "%player_health%/%player_max_health%"
 ```
 
 ## 内置变量

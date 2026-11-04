@@ -1,13 +1,11 @@
 ---
-title: 世界与地图渲染
-description: 世界配置目录、客户端 mod 实时渲染、点亮区域（战争迷雾）与 HUD 交互详解
+title: "世界与地图渲染"
+description: "配置可浏览的世界、地图范围、显示比例与地图渲染选项。"
 ---
-
-# 世界与地图渲染
 
 ## 概述
 
-Map 模块的世界配置与地图画面完全解耦：**地图地形由 ArcartX-Suite-Map 客户端 mod 扫描客户端区块实时渲染**，服务端不需要、也不再支持地图纹理图片配置（`texture`/`image-width`/`pixel-offset-x` 等旧字段已废弃）。
+**地图地形由 ArcartX-Suite-Map 客户端扩展实时渲染**，服务端配置世界、锚点与探索范围，玩家在客户端调整缩放和视野。
 
 服务端只负责：
 
@@ -24,15 +22,13 @@ mod 侧负责：区块地形扫描、地图纹理生成、缩放/平移/形状�
 
 > mod 未安装时渲染区保持空白，UI 的列表、详情面板、解锁、传送、分享等功能不受影响。
 
-## 世界配置
-
 ### 目录结构
 
 每个世界一个独立文件，放在 `data/map/worlds/` 目录下（目录名由 `worlds-directory` 配置，默认 `worlds`），**文件名即世界 ID**（对应 Bukkit world name，大小写不敏感）：
 
 ```
 data/map/
-  ArcartXMap.yml
+  config.yml
   worlds/
     world.yml            ← 世界 ID = world
     bskyblock_world.yml  ← 世界 ID = bskyblock_world
@@ -60,12 +56,13 @@ anchors:
     unlock:
       default: true
       on-permission: false
-    unlock-currencies: []
-    teleport-currencies: []
-    unlock-items: []
-    # light-region:
-    #   points: [[-50, -50], [50, -50], [50, 50], [-50, 50]]
-    # light-radius: 100
+      currencies: []
+      items: []
+    teleport:
+      currencies: []
+      items: []
+    light:
+      radius: 100
 ```
 
 | 字段 | 类型 | 默认值 | 说明 |
@@ -75,7 +72,7 @@ anchors:
 | `anchors` | `Map` | — | 该世界的锚点列表（见 [锚点系统](./anchors)） |
 
 <Callout type="info">
-维度（dimension）完全自动按 Bukkit `world.getKey()` 解析下发给客户端 mod，无需配置。旧版本的 `texture`、`image-width/height`、`pixel-offset-x/z`、`default-zoom`、`hud-zoom`、`hud-size` 字段已全部废弃——缩放与偏移由玩家在客户端用鼠标滚轮/拖拽实时控制。
+世界维度自动识别，无需手动填写。缩放与视野由玩家在客户端用鼠标滚轮和拖拽调整。
 </Callout>
 
 ### 世界选择逻辑
@@ -89,20 +86,6 @@ anchors:
 
 > 均不满足时，地图菜单提示「当前世界未配置地图，且没有可用的默认地图」，HUD 提示「当前没有可显示的小地图世界」。
 
-### 旧格式兼容
-
-若 `worlds/` 目录为空或不存在世界文件，模块回退读取 `ArcartXMap.yml` 中的内联 `worlds` 节（仅取 `enabled`/`display-name`，纹理字段被忽略）：
-
-```yaml
-# ArcartXMap.yml — 旧格式降级，不推荐
-worlds:
-  world:
-    enabled: true
-    display-name: "主世界"
-```
-
-> 内联 `worlds` 节不含 `anchors`——锚点必须写在 `worlds/<worldId>.yml` 的 `anchors` 节中。
-
 ## 点亮区域（战争迷雾）
 
 锚点可配置点亮区域：玩家解锁该锚点后，小地图上对应区域从迷雾中亮起。未点亮的区域由 mod 渲染遮罩。
@@ -111,16 +94,17 @@ worlds:
 
 | 字段 | 格式 | 说明 |
 |---|---|---|
-| `light-region.points` | `[[x,z], ...]` | 多边形顶点列表（至少 3 点），世界坐标 |
-| `light-radius` | 数值 | 以锚点为中心的圆形点亮半径（方块数） |
+| `light.region.points` | `[[x,z], ...]` | 多边形顶点列表（至少 3 点），世界坐标 |
+| `light.radius` | 数值 | 以锚点为中心的圆形点亮半径（方块数） |
 
 ```yaml
 anchors:
   spawn:
     # ...
-    light-region:
-      points: [[-50, -50], [50, -50], [50, 50], [-50, 50]]
-    light-radius: 100
+    light:
+      region:
+        points: [[-50, -50], [50, -50], [50, 50], [-50, 50]]
+      radius: 100
 ```
 
 服务端把已解锁锚点的点亮区域并集下发给客户端。不配置任何点亮字段 = 该锚点不参与点亮。
@@ -162,8 +146,6 @@ anchors:
 | 浏览标记（☰） | 展开 / 收起标记浏览面板 |
 | 图层（地表 / 洞穴） | 大地图地表 ↔ 洞穴切片视图切换；仅影响大地图浏览，小地图始终跟随玩家实际位置 |
 | 深 N | 洞穴切片深度循环（16 / 30 / 48 / 64，等价按 N） |
-
-## 地图设置与实体雷达
 
 ### 地图设置面板
 

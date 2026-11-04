@@ -1,6 +1,6 @@
 ---
-title: "命令与占位符"
-description: "Lottery 命令、权限与 PlaceholderAPI 占位符"
+title: "命令与权限"
+description: "抽奖与开箱可用命令、参数填写方式和权限要求。"
 ---
 
 ## 玩家命令
@@ -29,14 +29,12 @@ description: "Lottery 命令、权限与 PlaceholderAPI 占位符"
 
 ## 管理员命令
 
-管理员命令通过 `/axs lottery` 触发，由 `LotteryAdminCommand` 处理，实现 `ModuleCommandHandler` 接口。`args[0]` 为模块 ID（`lottery`），`args[1]` 开始为子命令。
-
 | 命令 | 参数 | 说明 |
 |---|---|---|
 | `/axs lottery` | 无 | 显示帮助信息 |
 | `/axs lottery help` | 无 | 显示帮助信息 |
-| `/axs lottery status` | 无 | 查看全部已加载奖池的状态（ID、类型、显示名） |
 | `/axs lottery reset <玩家> <奖池ID>` | `<玩家>` `<奖池ID>` | 重置指定玩家在指定奖池的抽奖状态（GACHA 重置保底计数，CASE 重置开箱次数） |
+| `/axs lottery status` | 无 | 查看全部已加载奖池的状态（ID、类型、显示名） |
 | `/axs lottery give-points <玩家> <积分ID> <数量>` | `<玩家>` `<积分ID>` `<数量>` | 向指定玩家发放积分 |
 | `/axs lottery simulate <奖池ID> <次数>` | `<奖池ID>` `<次数>` | 模拟指定奖池抽奖统计（不扣费、不发奖、不保存状态），次数范围 1-100000 |
 
@@ -50,10 +48,6 @@ description: "Lottery 命令、权限与 PlaceholderAPI 占位符"
 | `args[3]`（`reset`） | 全部已加载奖池 ID |
 | `args[3]`（`give-points`） | 全部奖池中定义的积分点 ID |
 
-### 管理员命令权限
-
-管理员命令通过 `/axs` 主命令分发，权限由本体的 `ArcartXSuiteCommand` 控制。模块通过 `ModuleCommandHandler.commandId()` 注册为 `lottery`，具备管理权限的发送者可执行全部子命令。
-
 ## 权限节点表
 
 Lottery 模块的权限通过本体命令框架管控，无模块独立权限节点：
@@ -65,45 +59,15 @@ Lottery 模块的权限通过本体命令框架管控，无模块独立权限节
 
 > 玩家命令无独立权限校验，所有在线玩家均可执行 `/lottery` 系列命令。
 
-## PAPI 占位符
-
-Lottery 模块通过 `LotteryPlaceholderExpansion` 注册 PlaceholderAPI 占位符，标识符为 `axslottery`。占位符格式为 `%axslottery_<type>_<poolId>%`。
-
-| 占位符 | 参数 | 说明 | 离线玩家 |
-|---|---|---|---|
-| `%axslottery_pity5_<poolId>%` | `<poolId>` 奖池 ID | 当前 5 星保底抽数 | 需在线（离线返回 `0`） |
-| `%axslottery_pity4_<poolId>%` | `<poolId>` 奖池 ID | 当前 4 星保底抽数 | 需在线（离线返回 `0`） |
-| `%axslottery_opens_<poolId>%` | `<poolId>` 奖池 ID | CASE 奖池累计开箱次数 | 需在线（离线返回 `0`） |
-| `%axslottery_guaranteed_<poolId>%` | `<poolId>` 奖池 ID | 下次 5 星是否大保底（必出 UP），返回 `是`/`否` | 需在线（离线返回 `否`） |
-| `%axslottery_fatepoints_<poolId>%` | `<poolId>` 奖池 ID | 当前命运点数（武器池定轨） | 需在线（离线返回 `0`） |
-| `%axslottery_point_<pointId>%` | `<pointId>` 积分 ID | 指定积分的余额 | 支持离线（返回数值，异常返回 `0`） |
-| `%axslottery_points_<pointId>%` | `<pointId>` 积分 ID | 同上（`points` 别名） | 支持离线 |
-
-### 占位符示例
-
-```text
-%axslottery_pity5_character_event_1%      → 5 星保底抽数（如 42）
-%axslottery_pity4_character_event_1%      → 4 星保底抽数（如 7）
-%axslottery_guaranteed_character_event_1% → 是 / 否
-%axslottery_fatepoints_weapon_event_1%    → 命运点数（如 1）
-%axslottery_opens_default_weapon_case%    → 累计开箱次数（如 128）
-%axslottery_point_stardust%               → 星尘积分余额（如 350）
-```
-
-> `guaranteed` 占位符的 `是`/`否` 文本由 `messages.yml` 的 `placeholder.guaranteed-yes` / `placeholder.guaranteed-no` 定义。
-
 ## UI 打开方式
 
 | 触发方式 | 说明 |
 |---|---|
-| `/lottery open <奖池ID>` | 打开指定奖池 UI（GACHA 用 `gacha-ui-id`，CASE 用 `case-ui-id`） |
 | `/lottery info <奖池ID>` | 打开 UI 并自动跳转详情页 |
 | `/lottery history <奖池ID>` | 打开 UI 并自动跳转历史页 |
-| 手持 `case-item` 右键 | CASE 池专用，右键空气或方块时匹配手持物品，打开对应 CASE UI |
 
 ## 相关文档
 
 - [概览](/docs/lottery) — 模块功能概览
 - [配置](/docs/lottery/configuration) — 配置文件详解
-- [联动](/docs/lottery/integration) — 跨模块联动与 Capability
 - [占位符通用说明](/docs/guide/placeholders) — PlaceholderAPI 通用使用指南

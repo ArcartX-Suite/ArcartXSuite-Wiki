@@ -1,31 +1,16 @@
 ---
-title: 主线门禁
-description: QuestGPS 主线门禁系统、分类锁定、命令拦截与模块入口锁定
+title: "主线门禁"
+description: "按主线任务进度设置分类和玩法入口的解锁条件。"
 ---
 
-# 主线门禁
-
 QuestGPS 的主线门禁（Gate）机制是一种新手引导式的玩法限制系统。通过配置 `gate` 段，可以要求玩家先完成指定的主线任务，再解锁其他分类 Tab、命令、模块入口和 EventPacket 事件规则。
-
-## 门禁概述
-
-主线门禁的核心逻辑是：玩家须完成 `gate.required-mainline-quest-ids` 中列出的所有 Chemdah 任务，才视为「过关」。未过关时，以下拦截生效：
-
-| 拦截类型 | 说明 |
-|---|---|
-| 分类锁定 | 未过关时，指定分类 Tab 不可查看/接取 |
-| 命令拦截 | 未过关时，以指定前缀开头的命令被拦截 |
-| 模块入口锁定 | 未过关时，其他模块入口被锁定（通过 Capability 查询） |
-| 事件规则锁定 | 未过关时，EventPacket 事件规则不触发（通过 Capability 查询） |
-
-> `gate.required-mainline-quest-ids` 为空列表时，整段门禁关闭，所有拦截均不生效。
 
 ## 配置字段
 
 | 字段 | 类型 | 默认值 | 说明 |
 |---|---|---|---|
 | `gate.required-mainline-quest-ids` | `List<String>` | `[]` | 须完成的 Chemdah 任务 ID（全部完成才过关） |
-| `gate.blocked-categories` | `List<String>` | `["side", "encounter"]` | 未过关时锁定的分类 ID |
+| `gate.blocked-categories` | `List<String>` | `[]` | 未过关时锁定的分类 ID |
 | `gate.blocked-command-prefixes` | `List<String>` | `["warp", "rtp", "shop"]` | 未过关时拦截的命令前缀（不含 `/`） |
 | `gate.blocked-module-entries` | `List<String>` | `[]` | 未过关时锁定的模块入口 ID |
 | `gate.blocked-event-rule-ids` | `List<String>` | `[]` | 未过关时不触发的 EventPacket 规则 ID |
@@ -33,13 +18,9 @@ QuestGPS 的主线门禁（Gate）机制是一种新手引导式的玩法限制�
 | `gate.deny-chat-card` | `String` | `""` | 可选，ArcartX 聊天卡片 ID |
 | `gate.deny-subtitle` | `String` | `""` | 可选，Suite announcer 字幕组 ID |
 
-> 分类 ID 须与 `categories` 段注册的 ID 一致。命令前缀不含 `/`，如 `"warp"` 会拦截 `/warp`、`/warpall` 等命令。
-
-## 过关判定
+> 分类 ID 使用 Chemdah 类型或明确覆盖的分类。命令前缀不含 `/`，如 `"warp"` 会拦截 `/warp`、`/warpall` 等命令。
 
 ### 判定逻辑
-
-玩家是否「过关」由 `QuestGpsService.mainlineGateSatisfied` 方法判定：
 
 ```
 mainlineGateSatisfied(player)
@@ -60,18 +41,17 @@ mainlineGateSatisfied(player)
 
 ### 单任务前置
 
-除全局门禁外，每个任务还可单独配置 `required-mainline` 字段，要求玩家先完成指定主线才能接取：
+除全局门禁外，每个任务的 `addon.axs-view` 可配置 `required-mainline`，为该展示入口附加前置主线要求：
 
 ```yaml
 example_side_quest:
-  enabled: true
-  required-mainline:
-    - "example_mainline_quest"
+  addon:
+    axs-view:
+      required-mainline:
+        - "example_mainline_quest"
 ```
 
 > 单任务前置仅在接取时检查，不影响任务在菜单中的显示。门禁拦截的分类 Tab 中的任务不会显示。
-
-## 分类锁定
 
 ### 拦截行为
 
@@ -84,8 +64,6 @@ example_side_quest:
 | 接取锁定分类中的任务 | 拦截接取操作，发送 `deny-message` 提示 |
 
 > 已过关的玩家不受分类锁定限制。锁定的分类 Tab 中的任务不会出现在任务列表中。
-
-## 命令拦截
 
 ### 拦截行为
 
@@ -101,20 +79,9 @@ example_side_quest:
 
 命令前缀匹配不区分大小写、自动忽略 `/` 与首尾空白。前缀不含 `/`，如配置 `"warp"` 会拦截 `/warp`、`/warpall`、`/warpxxx` 等所有以 `warp` 开头的命令。
 
-## 模块入口锁定
-
 ### 拦截行为
 
 其他模块在打开自身 UI 前，可调用 `QuestGpsNavigable.moduleEntryLocked` 检查入口是否被门禁锁定：
-
-```java
-QuestGpsNavigable questGps = getCapability(QuestGpsNavigable.class);
-if (questGps != null && questGps.moduleEntryLocked(player, "market")) {
-    player.sendMessage("请先完成主线任务");
-    return;
-}
-// 正常打开商店 UI...
-```
 
 ### 入口 ID 约定
 
@@ -127,19 +94,9 @@ if (questGps != null && questGps.moduleEntryLocked(player, "market")) {
 
 > 入口 ID 由各模块自行约定，QuestGPS 仅负责存储和查询。模块开发者需与服主协商一致的 ID 命名。
 
-## 事件规则锁定
-
 ### 拦截行为
 
 EventPacket 模块在触发规则前，可调用 `QuestGpsNavigable.eventRuleLocked` 检查规则是否被门禁锁定：
-
-```java
-QuestGpsNavigable questGps = getCapability(QuestGpsNavigable.class);
-if (questGps != null && questGps.eventRuleLocked(player, "first_join_offer_mainline")) {
-    return; // 跳过规则触发
-}
-// 正常触发 EventPacket 规则...
-```
 
 ### 规则 ID 约定
 
@@ -163,54 +120,6 @@ if (questGps != null && questGps.eventRuleLocked(player, "first_join_offer_mainl
 | 字幕 | `gate.deny-subtitle` | 非空时播放（需 Announcer 模块） |
 
 > 聊天卡片和字幕为可选增强提示。Chat/Announcer 模块不存在时自动跳过，仅发送聊天消息。
-
-## Capability 接口
-
-主线门禁的查询方法通过 `QuestGpsNavigable` 公开能力暴露：
-
-| 方法 | 参数 | 返回值 | 说明 |
-|---|---|---|---|
-| `eventRuleLocked` | `Player`, `String ruleId` | `boolean` | 检查 EventPacket 事件规则是否被门禁锁定 |
-| `moduleEntryLocked` | `Player`, `String moduleEntryId` | `boolean` | 检查模块入口是否被门禁锁定 |
-
-> 已过关玩家调用这两个方法始终返回 `false`。能力接口的完整说明详见 [联动](/docs/questgps/integration)。
-
-## 完整门禁配置示例
-
-```yaml
-gate:
-  # 玩家须完成的 Chemdah 任务 ID（全部完成才过关）
-  required-mainline-quest-ids:
-    - "example_mainline_quest"
-
-  # 未过关时锁定的分类 Tab
-  blocked-categories:
-    - side
-    - encounter
-
-  # 未过关时拦截的命令前缀（不含 /）
-  blocked-command-prefixes:
-    - "warp"
-    - "rtp"
-    - "shop"
-
-  # 未过关时锁定的模块入口
-  blocked-module-entries:
-    - "market"
-    - "regions_warp"
-
-  # 未过关时不触发的 EventPacket 规则
-  blocked-event-rule-ids:
-    - "first_join_offer_mainline"
-    - "kill_zombie_trigger_encounter"
-
-  # 拦截提示
-  deny-message: "&c你需要先完成必要主线任务。"
-  deny-chat-card: "mainline_gate_deny"
-  deny-subtitle: "mainline_gate_subtitle"
-```
-
-## 典型使用场景
 
 ### 新手引导
 

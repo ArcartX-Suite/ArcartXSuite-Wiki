@@ -1,88 +1,42 @@
 ---
-title: 槽位扩容
-description: ExtraBackpack 槽位容量模型——与仓库共通的逐格解锁机制
+title: "槽位扩容"
+description: "在仓库配置中设置共用容量和单格价格，通过背包或仓库界面购买槽位。"
 ---
 
-# 槽位扩容
+ExtraBackpack 与玩家个人仓库共用容量。分类页用于筛选显示物品，不分别出售独立容量；在背包或仓库入口扩容，影响的是同一份个人可用格数。
 
-> **福利模块**
+## 配置容量与价格
 
-ExtraBackpack 的容量与玩家个人仓库完全共通：**背包格子就是仓库格子**。容量由仓库统一管理——初始 `base-slots` 格，玩家按 `slot-price` 逐格付费购买至 `max-slots`。背包 UI 与仓库 UI 提供双入口购买，效果完全相同。
-
-## 容量模型
-
-| 字段 | 配置路径 | 说明 |
-| --- | --- | --- |
-| 初始槽位 | `warehouses.personal.base-slots` | 玩家初始解锁格数（默认 32） |
-| 购买上限 | `warehouses.personal.max-slots` | 逐格购买可达的最大格数（默认 999） |
-| 单格价格 | `warehouses.personal.slot-price.amount` | 每格价格 |
-| 价格货币 | `warehouses.personal.slot-price.currency` | 扣费货币 ID |
+在 Warehouse 的 `plugins/ArcartX-Suite/data/warehouse/ArcartXWarehouse.yml` 中修改对应小节：
 
 ```yaml
-# ArcartXWarehouse.yml（仓库配置统一管理，不在 ExtraBackpack 配置中）
 warehouses:
   personal:
     base-slots: 32
     max-slots: 999
     slot-price:
-      currency: "points"
+      currency: points
       amount: 100
 ```
 
-### 解锁数计算
-
-已解锁格数 = `base-slots` + 已购买的额外表格数：
-
-| 条件 | 结果 |
+| 字段 | 功能 |
 | --- | --- |
-| 新玩家 | 解锁 `base-slots` 格 |
-| 每次购买 | 解锁数 +1 |
-| 旧版等级制玩家 | 自动迁移为等价格数 |
+| `base-slots` | 玩家初始解锁格数 |
+| `max-slots` | 可购买的最大格数 |
+| `slot-price.currency` | 扣费货币 ID，需与全局货币配置一致 |
+| `slot-price.amount` | 每格价格 |
 
-## 购买流程
+以上是片段，在现有 `warehouses.personal` 中修改，保留其他仓库设置。分类的显示与物品识别另见[分类配置](/docs/extrabackpack/categories)。
 
-两个入口等价，均为逐格购买：
+## 玩家怎样购买
 
-- **背包 UI**：`⚙` 打开设置面板 → 输入数量 → 购买按钮
-- **仓库 UI**：左栏「+1 格」按钮单次购买一格
+- 背包界面：打开设置面板，按界面输入购买数量并确认。
+- 仓库界面：使用增加格数的购买按钮。
 
-```
-扣款流程：
-1. 校验未达 max-slots 上限，否则提示已满
-2. 校验 slot-price 已配置，否则提示不可购买
-3. 扣费（失败提示并终止）
-4. 槽位数 +1（写入失败自动退款）
-5. 刷新界面
-```
+购买前需确认货币可用、余额足够且未达到上限。购买后同时查看背包与仓库的可用格数，核对扣费和实际增加数量。
 
-## 对分类页的影响
+## 分类页与总容量
 
-容量共通后，分类页配置中的以下字段**不再生效**（保留解析以兼容旧配置）：
+分类页不是独立的容量分区，不能把各页显示的空格相加当成总容量。分类的 `slots.max` 控制该页网格显示上限，应结合实际仓库容量设置，不在分类中重复配置价格。
 
-| 字段 | 旧语义 | 现状 |
-| --- | --- | --- |
-| `slots.initial` | 分类初始容量 | 弃用——容量由仓库统一管理 |
-| `price.per-slot` / `price.currency` | 分类扩容价格 | 弃用——价格由仓库 `slot-price` 统一配置 |
-| `slots.max` | 分类容量上限 | 语义变为「该页网格显示上限」，应 ≥ 仓库 `max-slots` |
-
-分类页现在是**过滤器**：每页显示匹配该页规则的仓库槽位 + 剩余空格；空格在所有页签间共享（同一空闲池）。
-
-## 管理命令与 API
-
-| 操作 | 入口 | 说明 |
-| --- | --- | --- |
-| 赠送槽位 | `/axs extrabackpack give <玩家> <分类> <数量>` | `WarehouseAccess.grantSlots()`，分类参数兼容保留（全仓共通） |
-| 重置槽位 | `/axs extrabackpack reset <玩家> <分类>` | `WarehouseAccess.resetSlots()`，`extra_slots` 归零 |
-| 查询 | `/axs extrabackpack info <玩家>` | 显示已解锁/已用格数（仓库快照） |
-| PAPI | `%axsextrabackpack_used%` / `%axsextrabackpack_capacity%` | 仓库 used / unlocked |
-
-## 与旧版的差异
-
-| 维度 | 旧模型（1.4.x） | 新模型（1.5.0） |
-| --- | --- | --- |
-| 存储 | `extra_backpack_slots` 独立表 | 直写 `warehouse_slots`（个人仓库） |
-| 分类页 | 独立容量分区 | 仓库内容过滤器 |
-| 扩容粒度 | 每分类独立价格/上限 | 全仓统一逐格解锁 |
-| 价格配置 | `categories.*.price` | `warehouses.personal.slot-price` |
-| 仓库联动 | 仅拾取溢出兜底 | 完全共通存储，两 UI 互为镜像 |
-| 旧数据 | — | `extrabackpack.db` 弃用（旧表数据不再读取） |
+修改容量与价格后重载对应模块，并用普通测试账号验证余额不足、正常购买和达到上限三种情况。已有玩家数据时，修改基础容量前先备份并确认实际显示结果。

@@ -1,9 +1,7 @@
 ---
-title: 命令与占位符
-description: VanillaUI 命令、权限、PlaceholderAPI 占位符与 UI 通讯包
+title: "命令与权限"
+description: "原版界面替换可用命令、参数填写方式和权限要求。"
 ---
-
-# 命令与占位符
 
 ## 玩家命令
 
@@ -22,7 +20,7 @@ VanillaUI 模块无独立玩家命令。界面替换由 UI YAML 的 `match` 规�
 
 ## 管理命令
 
-VanillaUI 模块无独立管理命令，通过宿主 `/axs` 命令统一管理：
+VanillaUI 模块无独立管理命令，通过Suite `/axs` 命令统一管理：
 
 | 命令 | 权限 | 说明 |
 | --- | --- | --- |
@@ -41,14 +39,6 @@ VanillaUI 模块无独立管理命令，通过宿主 `/axs` 命令统一管理�
 
 > VanillaUI 模块本身不定义独立权限节点。玩家使用工作台/熔炉界面替换功能无需任何权限，所有在线玩家均可使用。
 
-## PlaceholderAPI 占位符
-
-VanillaUI 模块**不注册** PlaceholderAPI 占位符。模块专注于界面替换与配方书功能，不对外暴露可查询的占位符数据。
-
-> 关于 PlaceholderAPI 占位符的通用知识，参考 [占位符系统](/docs/guide/placeholders)。
-
 ## UI 自定义说明
 
 界面文件 `ui/vanilla_crafting.yml` 与 `ui/vanilla_furnace.yml` 可自定义外观（颜色、布局、文字等）。修改后通过 `/axs reload vanilla` 重载生效；开启 `ui.overwrite-ui-files` 会覆盖为默认模板。
-
-配方书中的分类图标、配方数据与熔炉状态由服务端自动推送，UI 文件内的 `packetHandler` 脚本负责接收渲染，自定义 UI 时请勿删除 `packetHandler` 节。关于 UI 通讯处理的通用知识，参考 [多 UI 管理](/docs/guide/multi-ui) 与 [图标系统](/docs/guide/icons)。

@@ -1,13 +1,9 @@
 ---
-title: 商店系统
-description: Market 商店配置与商品管理
+title: "商店系统"
+description: "创建系统商店与回收表，配置商品价格、换货与动态调价。"
 ---
 
-# 商店系统
-
 Market 的商店系统包含 **系统商店** 和 **回收商店** 两个子系统。系统商店允许管理员通过 YAML 文件定义商品，玩家使用货币购买；回收商店允许玩家将物品出售给系统换取货币。
-
-## 系统商店
 
 ### 商店文件结构
 
@@ -117,9 +113,7 @@ command_reward:
 1. 玩家打开商店 UI，选择商品并输入购买数量
 2. 服务端校验数量（1~2304，防止整数溢出）
 3. 检查限购记录（`long` 运算防止 `int` 溢出绕过）
-4. 检查库存（`global` 模式原子扣减，`per-player` 模式独立扣减）
 5. 计算价格（含折扣，全程 `BigDecimal` 避免浮点误差）
-6. 扣款（`CurrencyBridge.withdraw`）
 7. 生成物品（`ShopItemFactory.create`）
 8. 放入背包，溢出部分按比例退款 + 恢复库存
 9. 更新限购记录 + 跨服广播
@@ -132,8 +126,6 @@ command_reward:
 </Callout>
 
 ### 货币支持
-
-系统商店支持多货币，每个商品可独立指定 `currency` 字段。货币 ID 由 CurrencyBridgeAPI 统一管理，支持 Vault、PlayerPoints、Xconomy、Rondo 等多种经济系统。
 
 商品未指定 `currency` 时，使用 `shop.default-currency` 作为 fallback。
 
@@ -248,8 +240,6 @@ shop:
               weight: 1
               stock-mode: "unlimited"
 ```
-
-## 回收商店
 
 ### 回收表文件结构
 

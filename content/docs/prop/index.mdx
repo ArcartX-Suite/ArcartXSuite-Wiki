@@ -1,35 +1,33 @@
 ---
-title: 概览
-description: Prop 快捷道具模块概览，客户端按键绑定、手持右键触发、条件自动触发、冷却消耗与临时属性加成
+title: "快捷道具"
+description: "通过快捷栏与按键使用道具，获得即时或持续效果。"
 ---
 
-# 概览
 
-## 模块简介
-
-Prop（快捷道具）模块为 ArcartX 客户端 MOD 生态提供一套完整的快捷道具系统。服务器管理员通过 YAML 文件定义道具（Prop），每个道具绑定一组效果（命令、消息、药水、属性加成等）与使用条件。玩家可以通过三种方式触发道具：
-
-- **手持右键**：将任意物品通过管理命令绑定为指定道具后，右键即可使用
-- **客户端按键**：通过 ArcartX 客户端按键系统将道具槽位绑定到键盘按键（如 Z/X/C），按下即触发
-- **自动触发**：服务端按固定间隔轮询快捷槽，道具的触发条件（`auto.conditions`）满足时自动使用
-
-道具支持冷却组、消耗、权限校验、PlaceholderAPI 条件判断，以及 AttributePlus / MythicLib / Symphony 三套属性插件的临时属性加成。属性加成在持续时间到期后自动移除，玩家下线时也会自动清理。
-
-| 属性 | 值 |
-|------|------|
+| 项目 | 说明 |
+| --- | --- |
 | 模块 ID | `prop` |
-| 模块名称 | Prop |
-| 当前版本 | `1.5.0` |
-| 配置文件 | `config.yml` |
-| 消息文件 | `messages.yml` |
-| 数据目录 | `data/prop/` |
-| 命令 ID | `prop` |
-| EventBus 主题 | `axs.prop.prop_used` |
-| 存储模式 | 无持久化存储（纯内存运行） |
-| 命令入口 | 管理 `/axs prop` |
-| 对外能力 | `PropAccessible`（道具使用查询） |
+| 主配置 | `plugins/ArcartX-Suite/data/prop/config.yml` |
+| 主要调整内容 | props/ 道具效果、key.yml 按键与槽位设置 |
+| 重载 | `/axs reload prop` |
 
-## 功能特性
+## 开始前
+
+确认 ArcartX 客户端可用，且 `/axs status` 显示本模块已加载。可选插件只在使用对应功能时安装，具体要求见功能配置页。
+
+## 第一次使用
+
+1. 选择一个默认道具。
+2. 手持测试物品执行 `/axs prop set <道具ID>`。
+3. 按配置按键使用。
+
+## 检查是否配置成功
+
+检查道具效果、消耗和冷却提示。
+
+功能未生效时，先检查模块状态、所用定义 ID、玩家权限及客户端安装情况，随后对照[日志与报错提示](/docs/guide/config-management)逐项检查。
+
+## 可以配置的功能
 
 | 特性 | 说明 |
 |------|------|
@@ -42,80 +40,10 @@ Prop（快捷道具）模块为 ArcartX 客户端 MOD 生态提供一套完整�
 | 使用条件 | 支持 PlaceholderAPI 条件判断（等级、余额、世界、职业等），全部满足才可使用 |
 | 自动触发 | 服务端定时轮询快捷槽道具，独立的触发条件（`auto.conditions`）满足时自动使用，支持每道具检查间隔与成功提示开关 |
 | 效果系统 | 支持 10 种效果类型：命令、消息、饱食度、生命值、经验、百分比生命、药水、AttributePlus、MythicLib、Symphony |
-| 临时属性加成 | 通过 AttributePlus / MythicLib / Symphony 附加临时属性，持续时间结束后自动移除 |
-| 药水兼容 | 兼容 1.20.2+ 药水效果重命名（如 SLOW → SLOWNESS），旧名自动映射 |
-| 原版物品名解析 | 使用宿主 `VanillaItemNameBridge` 解析物品显示名，用于冷却与提示消息 |
 
-## 依赖关系
+## 继续配置
 
-| 类型 | 依赖 | 说明 |
-|------|------|------|
-| 必需 | ArcartX 客户端 MOD | 提供客户端按键绑定、额外槽位、物品 PDC 持久化等能力 |
-| 必需 | ArcartXSuite 宿主 | 提供 `PropBridgeAPI`、`AttributeBridgeRegistry`、`EventBusCapability` 等基础设施 |
-| 可选 | AttributePlus | `ap` 效果类型，附加临时属性词条 |
-| 可选 | MythicLib | `ml` / `mythiclib` 效果类型，附加临时属性 modifier |
-| 可选 | Symphony | `sy` / `symphony` 效果类型，附加临时属性修改 |
-| 可选 | PlaceholderAPI | 使用条件中的 PAPI 变量解析 |
-
-> 属性桥接的启用由宿主 `config.yml` 的 `attribute-bridges` 节统一管理。即使服务器安装了对应插件，若此处设为 `false`，Prop 模块也无法使用其属性功能。
-
-## 道具机制
-
-### 道具定义与 ID
-
-道具定义存放在 `data/prop/props/` 目录下的 YAML 文件中。加载器（`PropDefinitionLoader`）递归扫描该目录，以文件相对路径（去除扩展名、小写归一化）作为道具 ID。例如 `props/技能/火球术.yml` 的道具 ID 为 `技能/火球术`（小写）。
-
-### 物品绑定
-
-通过管理命令 `/axs prop set <道具ID>` 将玩家主手物品绑定为指定道具。绑定过程通过 `PropBridgeAPI.writePropId()` 将道具 ID 写入物品的 PersistentDataContainer（PDC），同时通过 `setCooldownTag()` 写入冷却组标签。绑定后物品即可通过手持右键触发。
-
-### 按键触发
-
-按键映射在 `data/prop/key.yml` 中配置。每个绑定定义了默认按键（如 `Z`）和关联的道具槽位（如 `Slot1`）。模块启动时通过 `PropBridgeAPI.registerClientKeyBind()` 向 ArcartX 客户端注册按键绑定，按下时读取对应槽位的物品，解析道具 ID 后触发使用。
-
-### 自动触发
-
-道具配置 `auto.enabled: true` 且全局 `auto-trigger.enabled: true` 后，服务端按 `auto-trigger.interval`（tick）轮询在线玩家的快捷槽物品：
-
-1. 槽位物品解析出 `auto.enabled` 的道具
-2. 按 `auto.interval`（缺省取全局间隔）对该玩家+道具独立节流
-3. 评估 `auto.conditions` 触发条件，全部满足才进入使用流程
-4. 走与手动一致的使用校验（冷却/权限/使用条件），失败一律静默跳过
-5. 成功后按 `remove` 消耗槽位物品、写冷却、执行效果，`auto.notify` 为真时发送 `AUTO_USED` 提示
-
-`auto-trigger.mode` 控制同轮多道具满足条件时的行为：`all` 全部尝试，`first` 第一个成功触发后停止本轮。自动触发独立于 `hand` / `key` 开关。
-
-### 使用流程
-
-无论是手持右键、按键触发还是自动触发，使用流程一致：
-
-1. 解析物品中的道具 ID（PDC 读取）
-2. 查找道具定义，同步冷却组标签
-3. 检查冷却（按冷却组共享）
-4. 检查使用方式限制（`hand` / `key` 开关；自动触发不检查此项）
-5. 检查权限（`permission` 节点）
-6. 检查使用条件（`conditions` 列表，AND 逻辑）
-7. 设置冷却时间
-8. 消耗物品（如 `remove: true`）
-9. 执行效果列表
-10. 发布 `axs.prop.prop_used` 事件到 EventBus
-
-### 效果执行
-
-效果以 `type|payload` 格式编写，模块按行解析并分类执行。属性类效果（`ap` / `ml` / `sy`）会聚合后批量提交给对应属性服务，在 `Duration` 秒后自动移除。其他效果（命令、消息、药水等）立即执行。
-
-### 冷却机制
-
-冷却以**冷却组**为单位管理。同一冷却组内的多个道具共享一个冷却计时器，使用任一道具后整组进入冷却。冷却时间存储在客户端标签中（`PropPlayerHandle.setTagCooldown()`），按键触发时若冷却未结束会同步槽位缓存到客户端。
-
-## 相关文档
-
-- [配置](/docs/prop/configuration) — 完整配置字段说明与示例
-- [命令与占位符](/docs/prop/commands) — 管理命令、权限、PAPI 占位符、UI 数据包
-- [联动](/docs/prop/integration) — EventBus 事件、属性桥接、跨模块集成
-
-## 延伸阅读
-
-- [条件系统](/docs/guide/conditions) — 使用条件的完整语法（PAPI / ARIA / JS / CONTEXT）
-- [物品库匹配](/docs/guide/item-sources) — 统一物品来源系统
-- [图标系统](/docs/guide/icons) — UI 图标配置
+- [功能配置](/docs/prop/configuration)：字段含义与配置示例。
+- [命令与权限](/docs/prop/commands)：玩家操作、管理命令和权限。
+- [效果系统](/docs/prop/effects)：为快捷道具设置即时效果、属性加成、持续时间与效果组合。
+- [按键绑定系统](/docs/prop/keybinds)：将道具槽位绑定到客户端按键，并检查使用流程与冷却。

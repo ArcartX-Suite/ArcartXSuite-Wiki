@@ -1,9 +1,7 @@
 ---
-title: 定时服务
-description: EventPacket 实体清理、定时命令与 PAPI 监听服务
+title: "定时服务"
+description: "配置定时命令、实体清理和占位符监听等周期功能。"
 ---
-
-> **付费模块**
 
 ## 概述
 
@@ -85,16 +83,7 @@ entity-cleanup:
 
 ## 定时命令
 
-定时执行命令，支持两种调度模式：日历触发（推荐）和固定间隔（向后兼容）。
-
-### 调度模式
-
-| 模式 | 配置方式 | 说明 |
-|---|---|---|
-| 日历触发 | `schedule` 节 | 支持 hourly/daily/weekly/interval |
-| 固定间隔 | `interval-seconds` + `delay-seconds` | 旧版兼容配置 |
-
-> 配置了 `schedule` 节时优先使用日历触发；解析失败时降级为固定间隔。
+定时执行命令，在 `schedule` 中选择 hourly、daily、weekly 或 interval 调度方式。
 
 ### 日历触发模式
 
@@ -136,25 +125,6 @@ scheduled-commands:
       interval-minutes: 30
 ```
 
-### 固定间隔模式
-
-| 配置项 | 类型 | 默认值 | 说明 |
-|---|---|---|---|
-| `interval-seconds` | int | `300` | 触发间隔（秒），0 或负数不启动 |
-| `delay-seconds` | int | `0` | 首次执行延迟（秒） |
-
-```yaml
-scheduled-commands:
-  example-save:
-    enabled: true
-    interval-seconds: 600
-    delay-seconds: 600
-    as-console: true
-    commands:
-      - 'save-all'
-    broadcast-message: ''
-```
-
 ### 命令执行
 
 | 执行模式 | 配置 | 说明 |
@@ -165,51 +135,17 @@ scheduled-commands:
 - 控制台模式下命令包含 `{player}` 占位符时，对每个在线玩家执行一次（玩家名经安全校验）
 - 玩家模式可通过 `permission` 字段过滤目标玩家
 
-```yaml
-scheduled-commands:
-  vip-daily-bonus:
-    enabled: true
-    as-console: false
-    permission: "vip.daily"
-    interval-seconds: 86400
-    delay-seconds: 0
-    commands:
-      - 'kit vip_daily {player}'
-    broadcast-message: '&aVIP 每日礼包已发放！'
-```
-
 ### 任务字段表
 
 | 字段 | 类型 | 默认值 | 说明 |
 |---|---|---|---|
 | `enabled` | boolean | `true` | 是否启用该任务 |
-| `interval-seconds` | int | `300` | 固定间隔触发间隔（秒），旧模式 |
-| `delay-seconds` | int | `0` | 首次执行延迟（秒），旧模式 |
 | `as-console` | boolean | `true` | 是否以控制台身份执行 |
 | `permission` | String | （空） | 玩家执行模式下的权限过滤，空 = 所有在线玩家 |
 | `commands` | list | `[]` | 要执行的命令列表，支持 `{player}` 变量 |
-| `broadcast-message` | String | （空） | 任务执行后广播的消息，支持 `&` 颜色码 |
-| `schedule` | section | （空） | 日历触发配置，存在时优先于固定间隔模式 |
+| `schedule` | section | （空） | 调度配置，指定周期、时间及其他所需参数 |
 
 > `scheduled-commands` 的键名即任务 ID，可定义多个定时任务。
-
-## PAPI 监听
-
-PAPI 监听服务负责三类触发器的检测：PAPI 占位符变化、击杀计数累计和脚本表达式评估。存在对应类型的规则时自动启动。
-
-| 触发器类型 | 检测方式 | 说明 |
-|---|---|---|
-| PAPI 触发器 | 周期轮询 | 轮询间隔由 `settings.refresh-interval-ticks` 控制（默认 20 tick = 1 秒），占位符值与上次缓存值对比后按规则触发 |
-| `mob-kill-count` | 事件驱动 | 实体死亡时累计击杀数，达到 `requiredCount` 触发；`repeatable` 时触发后归零重新计数 |
-| 脚本触发器 | 周期轮询 | 仅在脚本从 `false` 变为 `true` 的上升沿触发 |
-
-### 数值解析
-
-PAPI 触发器要求占位符值能解析为数字：自动去除空白和逗号分隔符（`1,234` → `1234`），解析失败时该规则跳过。
-
-### 离线缓存
-
-玩家的占位符缓存值与击杀计数在玩家离线时自动清理，不会残留内存。
 
 ## 相关页面
 
@@ -217,4 +153,3 @@ PAPI 触发器要求占位符值能解析为数字：自动去除空白和逗号
 - [动作详解](/docs/eventpacket/actions) — 13 种动作类型的参数与使用
 - [配置](/docs/eventpacket/configuration) — 实体清理与定时命令配置字段
 - [命令与占位符](/docs/eventpacket/commands) — clearlag 命令与管理操作
-- [联动](/docs/eventpacket/integration) — 公开能力与模块集成

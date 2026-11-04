@@ -1,9 +1,7 @@
 ---
-title: 命令与占位符
-description: Regions 命令、权限、PlaceholderAPI 占位符与 UI 数据包
+title: "命令与权限"
+description: "区域规则可用命令、参数填写方式和权限要求。"
 ---
-
-# 命令与占位符
 
 Regions 模块通过 `/axs regions` 和 `/rg`（别名 `/axsrg`）两个命令入口提供全部区域管理功能。`/rg` 为独立注册的缩写命令，自动转发到 `regions` 子命令处理。
 
@@ -36,9 +34,7 @@ Regions 模块通过 `/axs regions` 和 `/rg`（别名 `/axsrg`）两个命令�
 | `/rg parent <区域> <父区域\|none>` | 设置父区域 | 区域所有者或 `axs.regions.admin` |
 | `/rg tp <区域>` | 传送到区域中心 | 无 |
 
-### 命令详解
-
-#### `/rg define`
+#### 创建区域（`/rg define`）
 
 用当前选区创建区域。创建者自动成为区域所有者。
 
@@ -52,7 +48,7 @@ Regions 模块通过 `/axs regions` 和 `/rg`（别名 `/axsrg`）两个命令�
 
 校验流程：选区完成 → 体积不超限 → 名称不重复 → 数量不超限（`axs.regions.bypass.limit` 绕过）→ 创建并清除选区。
 
-#### `/rg flag`
+#### 设置区域规则（`/rg flag`）
 
 设置区域标志，支持附加数据（如 greeting/farewell 自定义文本）。
 
@@ -75,7 +71,7 @@ Regions 模块通过 `/axs regions` 和 `/rg`（别名 `/axsrg`）两个命令�
 /rg flag spawn block-break deny
 ```
 
-#### `/rg addowner` / `/rg addmember`
+#### 添加区域所有者或成员（`/rg addowner` / `/rg addmember`）
 
 添加区域所有者或成员，支持玩家名和权限组（`g:` 前缀）。
 
@@ -95,7 +91,7 @@ Regions 模块通过 `/axs regions` 和 `/rg`（别名 `/axsrg`）两个命令�
 权限组通过 `axs.regions.group.<name>` 权限节点识别。玩家拥有该权限节点时被视为属于对应组，享受成员豁免。
 </Callout>
 
-#### `/rg parent`
+#### 设置区域继承（`/rg parent`）
 
 设置区域父区域，父区域必须与当前区域同世界，模块自动检测继承环。
 
@@ -107,7 +103,7 @@ Regions 模块通过 `/axs regions` 和 `/rg`（别名 `/axsrg`）两个命令�
 |---|---|---|
 | 父区域 | 是 | 父区域 ID，设为 `none` 移除父区域 |
 
-#### `/rg show`
+#### 显示区域边界（`/rg show`）
 
 切换区域边框常驻粒子可视化。普通玩家仅看到自己拥有/参与的区域（黄色粒子），管理员（`axs.regions.admin`）可看到所有区域（紫色粒子）。按视距 48 方块半径裁剪，每 16 tick 刷新。
 
@@ -135,18 +131,6 @@ Regions 模块通过 `/axs regions` 和 `/rg`（别名 `/axsrg`）两个命令�
 <Callout type="info">
 `axs.regions.bypass` 是全局保护绕过——拥有此权限的玩家在任何区域都不受标志限制。`axs.regions.bypass.limit` 仅绕过区域数量限制，不影响保护逻辑。
 </Callout>
-
-## PlaceholderAPI 占位符
-
-Regions 模块当前 **未注册 PlaceholderAPI 占位符**。区域数据通过 ArcartX UI 面板和命令交互获取。
-
-如需在其他插件中获取区域信息，可通过以下方式：
-
-| 方式 | 说明 |
-|---|---|
-| EventBus 事件 | 监听 `axs.regions.region_change` 事件获取玩家进出区域信息 |
-| 命令输出 | `/rg info <区域>` 获取区域详情 |
-| UI 面板 | `/rg menu` 查看当前区域与个人区域列表 |
 
 ## 图形界面
 

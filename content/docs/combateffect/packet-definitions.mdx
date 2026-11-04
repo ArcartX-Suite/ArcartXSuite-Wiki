@@ -1,15 +1,9 @@
 ---
-title: 包定义系统
-description: CombatEffect 包定义系统详解：触发器、接收者、条件、冷却、变量替换与手动触发 API
+title: "包定义系统"
+description: "定义特效的触发条件、接收玩家、显示模板与冷却时间。"
 ---
 
-# 包定义系统
-
-> **付费模块**
-
 包定义（PacketDefinition）是 CombatEffect 模块的核心配置单元。每个包定义描述了一次特效触发的完整规则——何时触发、发给谁、发什么内容、多久冷却一次。模块启动时从 `packets/` 目录批量加载所有 `*.yml` 文件，每个文件的根键即为包 ID。
-
-每个包定义包含：`triggers`（触发器列表）、`recipients`（接收者列表）、`ui-id` + `packet-handler`（目标 UI）、`conditions`（触发条件）、`cooldown`（冷却时间）、`pack`（发包内容模板）。
 
 ## 触发器类型
 
@@ -163,7 +157,6 @@ kill-effect:
 
 | 写法 | YAML 格式 | 渲染结果 | 适用场景 |
 |---|---|---|---|
-| 字符串 | `pack: ""` | `""` | 无附加数据，仅触发 UI handler |
 | 列表 | `pack: ["a", "b"]` | `List<Object>` | 有序数据 |
 | 字典 | `pack: {key: value}` | `Map<String, Object>` | 键值对数据（最常用） |
 
@@ -188,12 +181,9 @@ pack:
 
 除事件自动触发外，模块提供两种手动触发方式：
 
-- **按包 ID 触发**：触发已注册的包定义，绕过事件匹配，直接发给指定玩家，支持附加变量；可用 `/axs combateffect trigger` 命令或其他模块接口调用
-- **直接发包**：直接向玩家发送指定 UI 包，完全绕过包定义系统
+- **按包 ID 触发**：触发已注册的包定义，手动触发，直接发给指定玩家，支持附加变量；可用 `/axs combateffect trigger` 命令或其他模块接口调用
 
 手动触发时 `{recipient}` 和 `{player}` 替换为目标玩家名，附加变量的 `{key}` 替换为对应值。
-
-> 其他模块可通过 `CombatEffectTriggerable` Capability 调用手动触发，参考 [联动文档](/docs/combateffect/integration)。
 
 ## 实体战斗过滤
 
@@ -209,127 +199,10 @@ pack:
 
 > 黑名单仅影响 `kill` 和 `attack` 触发器的包分发。`combo`、`keybind`、`state`、`controller` 触发器不经过实体战斗过滤。
 
-## 包定义完整示例
-
-```yaml
-# packets/default.yml
-
-# 击杀特效 — 玩家击杀活体实体时向攻击者发送
-kill-effect:
-  enabled: true
-  trigger: kill
-  ui-id: "AXS:combat_kill_effect"
-  packet-handler: "kill"
-  recipients:
-    - killer
-  pack: ""
-
-# 命中特效 — 500ms 冷却防止刷屏
-attack-effect:
-  enabled: false
-  trigger: attack
-  ui-id: "AXS:combat_kill_effect"
-  packet-handler: "attack"
-  recipients:
-    - attacker
-  cooldown: 500
-  pack: ""
-
-# 连击 5 — 达到 5 连击时触发一次
-combo-5:
-  enabled: true
-  trigger: combo
-  ui-id: "AXS:combo_effect"
-  packet-handler: "combo"
-  recipients:
-    - attacker
-  conditions:
-    combo-min: 5
-    combo-max: 2147483647
-    combo-repeat: false
-  pack:
-    combo_count: "{combo_count}"
-
-# 连击 10 — 里程碑特效
-combo-10:
-  enabled: true
-  trigger: combo
-  ui-id: "AXS:combo_effect"
-  packet-handler: "combo_milestone"
-  recipients:
-    - attacker
-  conditions:
-    combo-min: 10
-    combo-max: 2147483647
-    combo-repeat: false
-  pack:
-    combo_count: "{combo_count}"
-
-# 死亡缓冲 — 发给被击杀的玩家
-death-buffer-victim:
-  enabled: true
-  trigger: death
-  ui-id: "AXS:death_buffer"
-  packet-handler: "death"
-  recipients:
-    - target
-  pack:
-    killer: "{attacker}"
-    victim: "{target}"
-
-# 按键触发 — 按下 attack_* 按键时触发，1 秒冷却
-skill-burst:
-  enabled: true
-  trigger: keybind
-  ui-id: "AXS:combat_kill_effect"
-  packet-handler: "attack"
-  recipients:
-    - attacker
-  conditions:
-    key-name: "attack_*"
-    key-action: "press"
-    key-type: "client"
-  cooldown: 1000
-  pack:
-    player: "{player}"
-    key_name: "{key_name}"
-
-# 状态触发 — 进入 "狂暴" 状态时触发
-berserk-effect:
-  enabled: true
-  trigger: state
-  ui-id: "AXS:combat_kill_effect"
-  packet-handler: "attack"
-  recipients:
-    - attacker
-  conditions:
-    state-id: "狂暴"
-    state-action: "enter"
-  pack:
-    player: "{player}"
-    state_id: "{state_id}"
-
-# 控制器触发 — 切换到 "弓箭手" 控制器时触发
-archer-mode:
-  enabled: true
-  trigger: controller
-  ui-id: "AXS:combat_kill_effect"
-  packet-handler: "attack"
-  recipients:
-    - attacker
-  conditions:
-    controller-id: "弓箭手"
-  pack:
-    player: "{player}"
-    controller_id: "{controller_id}"
-```
-
 ## 相关文档
 
 - [概览](/docs/combateffect) — 模块功能与战斗特效机制
 - [配置](/docs/combateffect/configuration) — 完整配置字段表与示例
-- [命令与占位符](/docs/combateffect/commands) — 命令、权限、UI 包通讯
-- [联动](/docs/combateffect/integration) — EventBus 事件、Capability、跨模块联动
 - [伤害飘字系统](/docs/combateffect/damage-display) — 伤害/治疗飘字子系统详解
 - [连击追踪与触发器](/docs/combateffect/combo-and-triggers) — 连击、死亡缓冲、按键/状态触发器详解
 - [条件系统](/docs/guide/conditions) — 统一条件系统配置指南

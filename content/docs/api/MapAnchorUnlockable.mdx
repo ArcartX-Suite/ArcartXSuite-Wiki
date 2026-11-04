@@ -1,0 +1,51 @@
+---
+title: "MapAnchorUnlockable"
+description: "为玩家解锁地图锚点"
+---
+
+
+| 项目 | 内容 |
+| --- | --- |
+| 提供模块 | [map](/docs/map) |
+| 完整类型 | `xuanmo.arcartxsuite.api.capability.MapAnchorUnlockable` |
+
+## 获取接口
+
+```java
+import xuanmo.arcartxsuite.api.AxsCapabilities;
+import xuanmo.arcartxsuite.api.capability.MapAnchorUnlockable;
+
+MapAnchorUnlockable api = AxsCapabilities.get(MapAnchorUnlockable.class);
+if (api == null) {
+    // 当前功能不可用，向玩家说明或使用你的替代流程。
+    return;
+}
+```
+
+每次业务操作时重新获取接口；模块未加载或暂时不可用时返回 `null`。接入方式见[快速开始](/docs/api/quick-start)。
+
+## 方法声明
+
+以下为公开调用契约，保留参数类型与空值标注。Java 类型与当前配套 API JAR 保持一致。
+
+```java
+public interface MapAnchorUnlockable {
+
+    @NotNull CompletableFuture<Boolean> unlock(@NotNull Player player, @NotNull String anchorId);
+
+    @NotNull CompletableFuture<Boolean> tryUnlock(@NotNull Player player, @NotNull String anchorId);
+}
+```
+
+## 参数与返回值
+
+| 方法 | 用途 | 参数 | 返回值 |
+| --- | --- | --- | --- |
+| `unlock` | 免费强制解锁锚点（跳过付费与距离门槛，仍校验锚点存在性/已解锁态）。 适用：任务完成奖励、活动发放、管理指令等"系统授予"场景。 不消耗 `unlock.currencies`/`unlock.items`。 | `player`：目标玩家（须在线）；`anchorId`：锚点 id | 解锁结果 future：`true` 本次新解锁；`false` 已解锁/锚点不存在/玩家离线 |
+| `tryUnlock` | 走完整正常解锁流程（等价玩家在地图菜单点击"解锁"）。 校验 permission、`unlock.radius` 三维距离门槛，并收取 `unlock.currencies`/`unlock.items`。失败时玩家会收到原因消息。 | `player`：目标玩家（须在线）；`anchorId`：锚点 id | 解锁结果 future：`true` 本次新解锁 |
+
+## 调用注意事项
+
+返回 `CompletableFuture` 的方法使用回调处理结果，不要在 Bukkit 主线程调用 `join()` 或 `get()`。回调中如需操作 Bukkit 玩家、世界或物品，将相应操作切回主线程。
+
+先在对应模块配置中准备所引用的 ID，再调用接口。检查布尔值、结果对象或异常，只有成功后才更新第三方插件自己的业务状态。

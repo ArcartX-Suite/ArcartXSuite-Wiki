@@ -1,11 +1,7 @@
 ---
-title: 连击追踪与触发器
-description: CombatEffect 连击追踪、死亡缓冲、按键触发器与状态/控制器触发器配置
+title: "连击追踪与触发器"
+description: "设置连击阈值、按键触发与状态触发的战斗提示。"
 ---
-
-# 连击追踪与触发器
-
-> **付费模块**
 
 连击追踪、死亡缓冲、按键触发器与状态/控制器触发器是 CombatEffect 模块的高级战斗特效子系统。它们在基础击杀/攻击特效之上，提供连击里程碑、死亡可视化缓冲、按键驱动特效和 Chronos 状态联动等能力。所有子系统可独立开关，互不依赖。
 
@@ -157,25 +153,6 @@ Chronos 来源模式下，仅指定状态组的状态进入才计为连击一击
 
 ### 按键触发示例
 
-```yaml
-# 按下 attack_* 按键时触发技能爆发特效
-skill-burst:
-  enabled: true
-  trigger: keybind
-  ui-id: "AXS:combat_kill_effect"
-  packet-handler: "attack"
-  recipients:
-    - attacker
-  conditions:
-    key-name: "attack_*"    # 匹配 attack_1, attack_2, attack_combo 等
-    key-action: "press"     # 仅按下时触发
-    key-type: "client"      # 仅客户端按键
-  cooldown: 1000            # 1 秒冷却
-  pack:
-    player: "{player}"
-    key_name: "{key_name}"
-```
-
 > 按键触发器的接收者始终为触发的玩家自身。变量替换支持 `{player}` 和 `{key_name}`。
 
 ## 状态/控制器触发器
@@ -206,37 +183,6 @@ skill-burst:
 
 ### 状态/控制器触发示例
 
-```yaml
-# 进入 "狂暴" 状态时触发特效
-berserk-effect:
-  enabled: true
-  trigger: state
-  ui-id: "AXS:combat_kill_effect"
-  packet-handler: "attack"
-  recipients:
-    - attacker
-  conditions:
-    state-id: "狂暴"
-    state-action: "enter"
-  pack:
-    player: "{player}"
-    state_id: "{state_id}"
-
-# 切换到 "弓箭手" 控制器时触发
-archer-mode:
-  enabled: true
-  trigger: controller
-  ui-id: "AXS:combat_kill_effect"
-  packet-handler: "attack"
-  recipients:
-    - attacker
-  conditions:
-    controller-id: "弓箭手"
-  pack:
-    player: "{player}"
-    controller_id: "{controller_id}"
-```
-
 > 状态触发器的接收者始终为触发的玩家自身。变量替换支持 `{player}`、`{state_id}` 和 `{controller_id}`。
 
 ## 冷却
@@ -248,7 +194,6 @@ archer-mode:
 - [概览](/docs/combateffect) — 模块功能与战斗特效机制
 - [配置](/docs/combateffect/configuration) — 完整配置字段表与示例
 - [命令与占位符](/docs/combateffect/commands) — 命令与权限
-- [联动](/docs/combateffect/integration) — EventBus 事件与跨模块联动
 - [包定义系统](/docs/combateffect/packet-definitions) — 包定义系统详解
 - [伤害飘字系统](/docs/combateffect/damage-display) — 伤害/治疗飘字详解
 - [条件系统](/docs/guide/conditions) — 统一条件系统配置指南

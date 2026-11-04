@@ -1,17 +1,13 @@
 ---
-title: 导航追踪与路径标记
-description: 导航追踪行为、路标与路径提示配置、第三方路径点与导航互斥
+title: "导航追踪与路径标记"
+description: "设置导航目标、路标和路径提示，并说明玩家如何开始与取消追踪。"
 ---
-
-# 导航追踪与路径标记
 
 ## 概述
 
 Map 模块的导航功能允许玩家追踪锚点和自定义路径点，在客户端显示方向指引路标和路径提示。路径提示有两种互补的可视化方式（独立开关、可同时启用）：模型路径标记（依赖 Adyeshach）和贴图路径标记（无需实体）。
 
 玩家**可同时追踪多个锚点/路径点**（各自独立做到达判定），但**屏幕路标与路径标记链始终只跟随"最新激活且同世界"的主目标**——避免多信标误导玩家；取消主目标后其余目标自动接管。
-
-**第三方插件注册路径点默认不走此链路**：由来源模块/插件（如 QuestGPS）注入的目标，玩家点击"导航"时地图把请求转发给来源处理，路标与追踪由来源自行实现。例外：目标声明 `useMapNavigation=true` 时由地图内置导航执行，与锚点/路径点同链路。
 
 > 导航功能依赖 ArcartX Waypoint。Waypoint 不可用时锚点/路径点导航不可用，但地图菜单、HUD 与第三方路径点转发不受影响。
 
@@ -73,10 +69,10 @@ navigation:
 | `navigation.refresh-ticks` | `int` | `20` | 目标刷新间隔（tick） |
 | `navigation.waypoint.enabled` | `boolean` | `true` | 是否向客户端推送路标；`false` 时仅保留追踪态/到达判定/路径标记 |
 | `navigation.waypoint.style-id` | `String` | `default` | 路标样式 ID（ArcartX `waypoint/` 目录下定义） |
-| `navigation.waypoint.title-template` | `String` | `""` | 路标标题模板（`%label%`/`%type%`/`%distance%`/`%world%`/`%x%`/`%y%`/`%z%`），留空显示目标名 |
+| `navigation.waypoint.title-template` | `String` | `""` | 路标标题模板（`{label}`/`{type}`/`{distance}`/`{world}`/`{x}`/`{y}`/`{z}`），留空显示目标名 |
 | `navigation.world-hint-interval` | `int` | `30` | 目标在其他世界时的提示节流间隔（秒），0 = 不提示 |
 | `navigation.finish-range` | `double` | `0` | 到达触发半径（格），0 = 不启用；到达不取消导航 |
-| `navigation.finish-commands` | `List<String>` | `[]` | 到达命令（控制台执行，`%player%` 占位） |
+| `navigation.finish-commands` | `List<String>` | `[]` | 到达命令（控制台执行，`{player}` 占位） |
 | `navigation.finish-rearm-buffer` | `double` | `3.0` | 到达判定滞回缓冲（格）：触发后须离开 `finish-range + 本值` 才重新武装 |
 
 ### 路标样式优先级
@@ -117,19 +113,10 @@ navigation:
 
 ## 到达判定
 
-- `finish-range > 0` 时进入半径触发**一次**到达回调与 `finish-commands`（控制台执行，支持 `%player%`/`%world%`/`%x%`/`%y%`/`%z%` 占位），并提示「已到达导航目标附近」
+- `finish-range > 0` 时进入半径触发**一次**到达回调与 `finish-commands`（控制台执行，支持 `{player}`/`{world}`/`{x}`/`{y}`/`{z}` 占位），并提示「已到达导航目标附近」
 - 触发后须离开 `finish-range + finish-rearm-buffer` 才重新武装——防止边界抖动重复触发
 - **到达不取消导航**：导航保持到玩家显式取消
 - 目标在异世界时路标被抑制，按 `world-hint-interval` 节流提示；玩家传送到目标世界后自动恢复显示
-
-## 导航互斥
-
-Map 模块内部允许多个目标并行追踪（仅主目标有路标/路线）。跨来源互斥（QuestGPS ↔ Map）由双方协作：
-
-| 方向 | 行为 |
-|---|---|
-| 来源 → 地图 | 来源开始自身导航时地图静默清除自身路标 |
-| 地图 → 来源 | 玩家开始锚点/路径点导航时来源自动停止自身导航（目标标记保留在地图上） |
 
 ## 路径提示
 
@@ -181,15 +168,9 @@ Map 模块内部允许多个目标并行追踪（仅主目标有路标/路线）
 
 ## 第三方插件注册路径点
 
-第三方插件注册路径点由其他模块/插件注入：渲染为紫色标记、不占玩家路径点上限，生命周期归来源管理，玩家退出时自动清除。
-
-| 注入方式 | 说明 |
+| 展示规则 | 说明 |
 |---|---|
-| `select=true` 注入 | 自动切换到目标所在世界并选中该目标 |
-| 批量/原子替换 | 目标被移除时自动清除选中与追踪 |
 | 排序 | 先按 `sortOrder` 升序，相同按 `title` 字母序 |
-
-来源可为路径点注册"导航/取消"回调；目标声明 `useMapNavigation=true` 时改由地图内置导航执行。开发接入详见 [联动](./integration) 与 [Capability 参考](/docs/api/capability)。
 
 ## 自定义路径点与标记点
 
@@ -217,21 +198,6 @@ Map 模块内部允许多个目标并行追踪（仅主目标有路标/路线）
 
 - 分享码有效期 `share.expire-minutes`（默认 30 分钟），重启失效
 - 领取时校验分享码存在性、有效期、以及领取者的每世界上限
-
-### 持久化
-
-路径点与标记点存储在数据库中，玩家维度持久化。
-
-## EventBus 主题
-
-Map 模块向 EventBus 发布以下主题（其他模块可订阅）：
-
-| 主题 | 触发时机 | Payload |
-|---|---|---|
-| `axs.map.nav_started` | 玩家开始锚点/路径点导航 | `type`、`id`、`world_id` |
-| `axs.map.nav_cleared` | 玩家停止地图导航（含被来源接管） | `type`、`id`、`world_id`、`reason` |
-| `axs.map.external_navigate` | 面板点击第三方插件注册路径点"导航" | `target_id`、`source`、`world_id` |
-| `axs.map.external_nav_cancel` | 面板点击第三方插件注册路径点"取消" | `target_id`、`source`、`world_id` |
 
 ## 状态检查
 

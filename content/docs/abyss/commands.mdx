@@ -1,9 +1,7 @@
 ---
-title: 命令与占位符
-description: Abyss 命令、权限与 PlaceholderAPI 占位符
+title: "命令与权限"
+description: "地牢副本可用命令、参数填写方式和权限要求。"
 ---
-
-# 命令与占位符
 
 ## 玩家命令
 
@@ -50,8 +48,6 @@ description: Abyss 命令、权限与 PlaceholderAPI 占位符
 
 ## 管理员命令
 
-`/axs abyss <子命令>`，由 `ModuleCommandHandler` 注册，走 `/axs` 主命令权限。
-
 | 命令 | 说明 |
 |---|---|
 | `/axs abyss help` | 管理命令帮助 |
@@ -87,26 +83,6 @@ description: Abyss 命令、权限与 PlaceholderAPI 占位符
 | `/axs abyss region info <地牢> <名>` | 模板尺寸/体积/材质数 |
 | `/axs abyss region remove <地牢> <名>` | 删除模板 |
 
-> `puzzle` 系列是**局内编辑**入口：只改当前副本实例的内存状态（进度/完成/锁定），不写回 `puzzles.yml`，不影响下一个副本实例。需要 `arcartxsuite.abyss.admin` 权限且玩家身在目标副本内。
-
-### 设计模式（`/axs abyss design`）
-
-管理员在**真实副本世界副本**里编辑地牢配置，所见即所得，无需手写 YAML 坐标。
-
-- **冻结**：设计实例跳过 `prepare`/`startInstance`——怪组/任务/机关/障碍/交互/NPC/计时全部不初始化，纯可写世界
-- **进入**：`/axs abyss design <地牢id>` → 复制世界 → 创造模式传送 → 发放**设计标记杖**（烈焰棒，背包第一格）→ 打开设计主面板
-- **标记杖**：右键方块 = 命中已有对象开编辑 / 有标记任务时落点；选区模式左键=A 点、右键=B 点；**左键空气 = 重开主面板**；Shift+右键 = 取消标记
-- **主面板**（`abyss_design`）：顶部流程节点链（floors=楼层→房间，classic=对象/任务/奖励三桶）+ 当前节点对象列表（[传送][编辑][删除]）+ 未保存角标 + 保存按钮
-- **副面板**（`abyss_design_pick`）：节点内「+ 添加对象」→ 类型卡片（交互/障碍/怪组/NPC/机关/任务/奖励/宝箱/增益池）；点/区域类先标记再建，无定位类直接建
-- **编辑面板**（`abyss_design_edit`）：按类型下发字段表单（文本/数字回车提交、开关注点切换、枚举点循环且显示中文、坐标/区域点「点我重标」后到世界里标记）+ 脚本/列表行编辑（追加/点行改/删）+ 怪组「刷怪点」字段点杖追加 spawn 项 + 障碍选区自动扫描非空气方块生成 `blocks`。所有枚举值（`AUTO_START`/`RIGHT_CLICK_BLOCK`/`combat` 等）显示为中文，对象行带类型徽标与色条
-- **归属推断**：floors-region 模式按对象坐标落房间 box 自动归节点；机关 `steps` 指向的交互点自动吸附显示；**交叉引用吸附**——脚本行里的对象引用动作（`spawn_group`/`open_door`/`create_obstacle`/`puzzle_*`/`room_*` 等）若指向游离对象，自动把它收进引用者所在房间节点；无归属进「全局对象」桶
-- **世界内标记**：每个带定位的对象在世界里渲染一个面向设计者的高亮浮动贴图（`nav_arrow`，仅自己可见）——新建/移动/删除实时同步，退出设计模式自动清除；ArcartX 贴图桥缺席时自动跳过
-- **保存**：「保存配置」只回写 YAML+重载；「配置+世界」再把实例世界存盘回拷模板目录（仅 `world/` 目录型模板支持）
-- **限制**：含 `pool` 随机拼接楼层的模板不支持实例内设计（运行时房间位置不确定，请改编辑 schematic）
-- 关闭面板（Esc）不退出设计模式；**重开**：标记杖左键空气 或 `/axs abyss design ui`；`/axs abyss design exit` 或面板「退出」才退出
-
-> 设计改动**不落盘即不生效**——对象增删改先记脏（未保存角标计数），保存确认后才写 YAML 并重载模板。
-
 ### 区域模板（`/axs abyss region`）
 
 把**任意世界**里手工建好的建筑圈选成模板，副本 `world-init` 脚本里用 `paste_region` 铺进副本世界——免写几千行 `fillblocks`。
@@ -129,30 +105,7 @@ description: Abyss 命令、权限与 PlaceholderAPI 占位符
 | `arcartxsuite.abyss.admin` | `op` | `/axs abyss` 管理子命令（含 `puzzle` 局内编辑） |
 | `arcartxsuite.abyss.bypass` | `op` | 绕过副本内命令限制（管理/测试用） |
 
-> 管理命令走 `/axs` 宿主权限（`arcartxsuite.admin`，默认 OP）。副本内命令控制：地牢 `disabled-commands` 绝对黑名单 + `world.command-control`（副本级黑/白名单，可覆盖全局 `restrictions`）+ 全局 `restrictions.blocked-commands`。
-
-## PlaceholderAPI 占位符
-
-模块注册扩展 `axsabyss`（`%axsabyss_*%`），需 PlaceholderAPI。
-
-| 占位符 | 返回 | 说明 |
-|---|---|---|
-| `%axsabyss_stamina%` | 当前体力 | |
-| `%axsabyss_stamina_max%` | 最大体力 | |
-| `%axsabyss_in_dungeon%` | `true`/`false` | 是否在副本中 |
-| `%axsabyss_dungeon_id%` | 地牢 ID | 副本外为空 |
-| `%axsabyss_dungeon_name%` | 地牢显示名 | 副本外为空 |
-| `%axsabyss_dungeon_time%` | 已进行秒数 | 副本外为 `0` |
-| `%axsabyss_deaths%` | 本副本死亡数 | |
-| `%axsabyss_alive_count%` | 存活玩家数 | |
-| `%axsabyss_dungeon_kills%` | 本副本个人击杀 | 副本任务常用 |
-| `%axsabyss_dungeon_total_kills%` | 本副本全队击杀 | |
-| `%axsabyss_party_size%` | 队伍人数 | 无队伍为 `0` |
-| `%axsabyss_party_name%` | 队伍名 | 无队伍为空 |
-| `%axsabyss_party_leader%` | 队长名 | 离线队长显示 UUID 前 8 位 |
-| `%axsabyss_cooldown_<地牢>%` | 剩余冷却秒数 | |
-| `%axsabyss_completions_<地牢>%` | 该地牢通关次数 | |
-| `%axsabyss_best_time_<地牢>%` | 该地牢最佳通关秒数 | |
+> 管理命令走 `/axs` Suite权限（`arcartxsuite.admin`，默认 OP）。副本内命令控制：地牢 `disabled-commands` 绝对黑名单 + `world.command-control`（副本级黑/白名单，可覆盖全局 `restrictions`）+ 全局 `restrictions.blocked-commands`。
 
 ## 消息文件
 

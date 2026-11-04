@@ -25,10 +25,15 @@ export default async function Page({
       toc={page.data.toc}
       tableOfContent={{ style: 'clerk' }}
       full={page.data.full}
+      breadcrumb={{ enabled: false }}
+      footer={{ enabled: false }}
+      article={{ className: 'suite-article' }}
     >
-      <DocsTitle>{page.data.title}</DocsTitle>
-      <DocsDescription>{page.data.description}</DocsDescription>
-      <DocsBody>
+      <header className="docs-page-header">
+        <DocsTitle>{page.data.title}</DocsTitle>
+        <DocsDescription>{page.data.description}</DocsDescription>
+      </header>
+      <DocsBody id="main-content" className="suite-prose">
         <MDX components={{ ...defaultMdxComponents }} />
       </DocsBody>
     </DocsPage>

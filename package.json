@@ -4,14 +4,15 @@
   "private": true,
   "scripts": {
     "build": "next build",
-    "prebuild": "node scripts/generate-stats.mjs",
-    "stats": "node scripts/generate-stats.mjs",
+    "prebuild": "node scripts/validate-docs.mjs",
+    "check:docs": "node scripts/validate-docs.mjs",
     "dev": "next dev",
     "start": "next start",
+    "preview": "node scripts/preview.mjs",
     "postinstall": "fumadocs-mdx",
     "clean": "rimraf .next .source",
-    "rebuild": "npm run clean && fumadocs-mdx && node scripts/generate-stats.mjs && next build",
-    "predev": "rimraf .next .source && fumadocs-mdx && node scripts/generate-stats.mjs"
+    "rebuild": "npm run clean && fumadocs-mdx && npm run build",
+    "predev": "rimraf .next .source && fumadocs-mdx"
   },
   "dependencies": {
     "fumadocs-core": "14.5.6",

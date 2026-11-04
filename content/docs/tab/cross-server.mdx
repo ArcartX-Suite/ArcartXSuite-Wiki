@@ -1,15 +1,9 @@
 ---
-title: 跨服同步与聚合
-description: Tab 模块跨服玩家列表聚合、聚合模式、退服宽限、批次节流与快照调试
+title: "跨服同步与聚合"
+description: "设置跨服在线列表和多服玩家聚合显示。"
 ---
 
-# 跨服同步与聚合
-
-> **付费模块**
-
 Tab 模块支持跨服玩家列表聚合：多个子服节点间互相同步 Tab 数据，玩家在任一子服都能看到全网络的在线列表。支持三种跨服模式：完整玩家列表合并、服务器聚合（每服一行）以及退服宽限（避免跨服跳传闪烁）。
-
-## 跨服配置
 
 ### 配置层级
 
@@ -17,12 +11,12 @@ Tab 模块支持跨服玩家列表聚合：多个子服节点间互相同步 Tab
 
 | 配置层级 | 文件 | 字段 | 说明 |
 |---|---|---|---|
-| 宿主 | `config.yml` | `cross-server` 节 | Redis 或 Proxy 后端连接参数 |
+| Suite | `config.yml` | `cross-server` 节 | Redis 或 Proxy 后端连接参数 |
 | 模块 | `config.yml` | `settings.cross-server` | 全局默认开关 |
 | 定义 | Tab 定义文件 | `cross-server` | 单定义覆盖全局开关（不填时使用全局） |
 
 ```yaml
-# ArcartXTab.yml
+# config.yml
 settings:
   server-id: "lobby-01"
   cross-server: true
@@ -36,7 +30,7 @@ cross-server:
 
 > Tab 定义中 `cross-server` 留空表示使用全局 `settings.cross-server` 默认值；显式设为 `true` 或 `false` 则覆盖全局设置。
 
-### server-id
+### 当前服务器标识（server-id）
 
 `server-id` 是当前服务端节点的唯一标识，用于跨服数据中区分不同节点。每个节点必须配置唯一的 `server-id`。
 
@@ -46,31 +40,6 @@ settings:
 ```
 
 > `server-id` 为空时回退为 `default`。多节点部署时建议使用有意义的名称（如 `lobby-01` / `survival-01` / `arena-01`）。
-
-## 跨服通道
-
-跨服通道由宿主 `config.yml` 的 `cross-server` 节配置，支持两种后端：
-
-| 后端 | 配置 | 说明 |
-|---|---|---|
-| Redis | `redis.enabled: true` | 通过 Redis Pub/Sub 广播消息，适合多机房部署 |
-| Proxy | `proxy.enabled: true` | 通过 BungeeCord / Velocity Forward 转发消息，适合单代理网络 |
-
-```yaml
-# 宿主 config.yml
-cross-server:
-  node-id: "survival-01"
-  redis:
-    enabled: true
-    host: "127.0.0.1"
-    port: 6379
-    channel: "AXS:CROSS"
-  proxy:
-    enabled: false
-    messenger-channel: "AXS_CROSS"
-```
-
-> Redis 与 Proxy 可同时启用。两个后端均不可用时跨服功能静默禁用。
 
 ## 同步行为
 
@@ -99,19 +68,6 @@ cross-server:
 | `{server-display}` | 服务端显示名（默认同 `server-id`） |
 | `{server-online}` | 当前服在线人数 |
 
-```yaml
-# tabs/overview.yml
-enabled: true
-ui-targets:
-  - ui-id: "AXS:tab"
-    packet-handler: "tab"
-cross-server: true
-aggregate:
-  enabled: true
-  line-pack: "&b{server-display} &7- &f{server-online} 人在线"
-pack: "{server-id}"
-```
-
 > 聚合模式下 PAPI 按本服第一个在线玩家上下文渲染；本服无在线玩家时占位符原样输出。`line-pack` 未配置时回退使用 `pack` 作为行模板。
 
 ## 退服宽限
@@ -128,41 +84,6 @@ settings:
 ```
 
 > 宽限期内其他节点仍能看到该玩家，宽限期过后条目自动移除。
-
-## 批次节流
-
-`batch.window-ticks` 控制跨服广播的最小间隔，避免玩家进退服触发的额外刷新在短时间内产生广播风暴。
-
-| 配置项 | 默认值 | 说明 |
-|---|---|---|
-| `batch.window-ticks` | `0` | 相邻两次广播最小间隔（ticks，50ms/tick）。0 表示禁用节流 |
-
-```yaml
-settings:
-  refresh-interval-ticks: 20
-  batch:
-    window-ticks: 20
-```
-
-> 建议将 `batch.window-ticks` 设为与 `refresh-interval-ticks` 相同的值，每个周期最多广播一次，同时不影响正常周期刷新。
-
-## 调试快照
-
-Tab 模块提供调试快照功能，用于存档 / 加载 / 复现跨服 Tab 状态。快照以 JSON 文件形式保存在 `plugins/ArcartX-Suite/data/tab/snapshots/`。
-
-### 快照命令
-
-| 命令 | 说明 |
-|---|---|
-| `/axs tab snapshot save <name>` | 保存当前快照到 JSON 文件 |
-| `/axs tab snapshot load <name>` | 加载快照为虚拟节点 |
-| `/axs tab snapshot unload <name\|all>` | 卸载虚拟节点 |
-| `/axs tab snapshot list` | 列出已保存的快照与已注入的虚拟节点 |
-| `/axs tab snapshot delete <name>` | 删除快照文件 |
-
-> 快照名称仅允许字母 / 数字 / `_` / `-`，长度 1~64。快照功能需要 `axs.tab.debug` 权限或 OP，仅限测试服使用。
-
-## 跨服部署最佳实践
 
 ### 节点配置一致性
 

@@ -1,0 +1,87 @@
+---
+title: "按键绑定"
+description: "设置本体交互与地图默认键位，区分快捷道具槽位按键，并排查冲突与未生效。"
+---
+
+Suite 的本体按键和 Prop 道具槽位按键分别配置。前者用于交互、对话和地图等功能，后者用于触发某个道具槽位；修改一个地方不会自动改变另一种绑定。
+
+## 按模块选择入口
+
+| 模块 | 使用的按键配置 | 实际触发内容 |
+| --- | --- | --- |
+| Conversation | 本体 `AXS_INTERACT`、`AXS_NAVIGATE_PREV`、`AXS_NAVIGATE_NEXT` | 对话就绪时确认、推进和选择回复；不是任意场景按键都打开对话 |
+| Pickup | 模块 `scanner.keybind.name`，默认 `AXS_INTERACT` | 扫描交互；仅对应扫描模式，需要当前有可交互目标 |
+| Map | 本体 `AXS_MAP_MENU`、`AXS_MAP_HUD` | 打开大地图和切换地图 HUD |
+| Prop | 模块 `key.yml` 的 `keys` | 使用配置所指的道具槽位，独立于本体 `keybinds` |
+| CombatEffect | 主配置 `keybind-trigger.enabled` + 效果定义 `trigger: keybind` | 匹配按键名称、按下或松开及按键类型，触发已配置界面效果；本身不等于注册一个新键 |
+
+以上是实际提供按键消费入口的模块。Tooltip 客户端扩展还有它自己的客户端按键，不通过本体 `keybinds` 修改，详见[物品提示客户端](/docs/tooltip/client-mod)。
+
+## 本体按键配置
+
+在 `plugins/ArcartX-Suite/config.yml` 的 `keybinds` 中修改已有条目，例如：
+
+```yaml
+keybinds:
+  map-menu:
+    name: AXS_MAP_MENU
+    default-key: J
+    category: ArcartXSuite
+    module: map
+```
+
+| 字段 | 功能 |
+| --- | --- |
+| `map-menu` | 配置条目 ID，已有条目保留 |
+| `name` | 功能使用的按键名称，改默认键位时保留原值 |
+| `default-key` | 默认按键，如 `J`、`G`、`UP`、`KP_8` |
+| `category` | 玩家按键设置中的分类文字 |
+| `module` | 所属模块 ID，可为一个值或列表；至少一个所属模块成功启用后才注册 |
+
+已有默认键位包括交互 `G`、对话上下选项 `UP` / `DOWN`、地图 `M`、小地图 `H`。仅新增一个任意 `name` 不会自动创建新功能。
+
+修改后执行 `/axs reload all`，重新进入服务器，在客户端按键设置中核对。玩家自行修改过的绑定还应检查本地设置，服务端默认键位不等于每个玩家实际正在使用的键位。
+
+## 共享交互与专用拾取键
+
+`interact` 可供对话和主动拾取交互使用。启用扫描拾取时，应分别测试有可交互掉落物和正常对话两种场景，不要认为同一个键在任何场景都必然推进对话。
+
+拾取是否使用专用 `pickup-pick` 按键，还取决于[拾取模块配置](/docs/pickup/configuration)。只修改本体默认 `F`，不代表模块已经选用该专用键。
+
+专用拾取键的实际选择字段是 Pickup 主配置的 `scanner.keybind.name`。例如已有本体声明 `name: AXS_PICKUP_PICK` 时，可在 Pickup 中选择：
+
+```yaml
+scanner:
+  keybind:
+    name: AXS_PICKUP_PICK
+```
+
+这里填写注册名称，不是键盘字母 `F`，也不是配置条目名 `pickup-pick`。保留默认 `AXS_INTERACT` 时，拾取优先处理当前可用的扫描交互，再由其他功能处理未消费的操作。不要依赖两个相同默认键位的条目获得独立行为：本体会合并相同默认键位，独立操作应分配不同键位。
+
+## Prop 槽位按键
+
+Prop 使用模块数据目录的 `key.yml`，示例：
+
+```yaml
+category: "我的服务器 - 快捷道具"
+keys:
+  治疗键:
+    defaultKey: "Z"
+    slot: Slot1
+```
+
+`defaultKey` 是默认键，`slot` 是道具槽位。按键映射存在后，还需要把允许按键使用的道具放入该槽位，并满足权限、使用条件与冷却。保存后重载 Prop，完整规则见[道具按键绑定](/docs/prop/keybinds)。
+
+## 战斗特效按键触发
+
+先在 CombatEffect 主配置开启 `keybind-trigger.enabled`，再在已有的效果定义中选择 `trigger: keybind`。其 `conditions` 支持 `key-name`、`key-action`、`key-type`，用来区分注册名称、按下或松开，以及普通键或按键组等来源。
+
+如果想使用一个尚不存在的按键，还需先通过适当的客户端按键配置声明。只写 `key-name` 不会让玩家按键菜单中自动新增该键。完整例子和界面要求见[战斗效果定义](/docs/combateffect/packet-definitions)。
+
+## 排查顺序
+
+1. 确认匹配的 ArcartX 客户端已安装，对应模块成功启用。
+2. 在客户端按键设置中找到对应分类，检查实际绑定与冲突，而不只看服务端 YAML。
+3. 检查修改的是本体 `keybinds` 还是 Prop `key.yml`，核对字段名 `default-key` 与 `defaultKey` 的区别。
+4. 在正确场景测试：地图功能、对话状态、可拾取对象或已放入道具的槽位。
+5. 若日志提示按键配置无效或注册失败，按[日志说明](/docs/guide/config-management#按键占位符与功能依赖)处理。

@@ -1,13 +1,17 @@
 ---
-title: 配置
-description: RGB 模块配置文件与条目定义详解
+title: "功能配置"
+description: "调整entries/ 中的文字、颜色与动画间隔；附字段解释、修改示例与重载步骤。"
 ---
 
-# 配置
+## 先改哪些内容
+
+entries/ 中的文字、颜色与动画间隔。先使用默认示例完成一次测试，再按本页逐项调整。
+
+配置位置：`plugins/ArcartX-Suite/data/rgb/config.yml`。定义文件与子目录均相对此模块目录。本文中的 YAML 片段用于修改对应小节，请保留文件中的其他设置。
+
+修改后执行 `/axs reload rgb`；涉及插件安装或全局设置的变更请重启后验证。
 
 RGB 模块的配置文件位于 `plugins/ArcartX-Suite/data/rgb/config.yml`，条目定义位于 `entries/` 目录。修改后执行 `/axs reload rgb` 即可热重载。
-
-## 主配置文件 (ArcartXRGB.yml)
 
 ### 顶层字段
 
@@ -39,7 +43,7 @@ entries-directory: "entries"
 
 ```
 plugins/ArcartX-Suite/data/rgb/
-├── ArcartXRGB.yml          # 主配置
+├── config.yml          # 主配置
 └── entries/                # 条目目录
     ├── default.yml          # 默认条目（首次启动自动生成）
     ├── chat.yml             # 自定义聊天渐变色
@@ -65,9 +69,7 @@ plugins/ArcartX-Suite/data/rgb/
 | `shine-color` | string | `#FFFFFF` | 扫光高亮颜色（HEX 格式，必须用引号包裹） |
 | `shine-strength` | double | `0.55` | 扫光强度（`0.0` ~ `1.0`），越高高亮部分越明显 |
 
-### 字段详解
-
-#### text
+#### 显示文字（text）
 
 原始文本，支持 PlaceholderAPI 变量。渲染时会先按目标玩家解析其中的 PAPI 占位符，再叠加 RGB 渐变效果。
 
@@ -79,7 +81,7 @@ text: "欢迎来到 ArcartX，%player_name%"
 `text` 中可以嵌套 `%axsrgb_<otherId>%` 引用其他条目，但不能形成循环引用（如 a 引用 b、b 引用 a）。检测到递归时渲染结果为空串。
 </Callout>
 
-#### gradient-colors
+#### 渐变颜色（gradient-colors）
 
 渐变色列表，每个颜色必须用引号包裹（否则 YAML 会把 `#` 解析为注释）。支持三种颜色格式：
 
@@ -100,11 +102,11 @@ gradient-colors:
 颜色值**必须加引号**！不加引号时 `#` 会被 YAML 解析为行内注释，导致颜色值丢失。例如 `- #FF7A18` 会被解析为空值，模块会输出警告日志。
 </Callout>
 
-#### shine
+#### 扫光开关（shine）
 
 是否启用扫光效果。设为 `false` 时仅显示静态渐变（或 `switch-interval-ticks > 0` 时的滚动渐变），无高亮光带。
 
-#### switch-interval-ticks
+#### 动画切换间隔（switch-interval-ticks）
 
 动画帧切换间隔，单位为 tick（1 tick = 50ms = 0.05s）。
 
@@ -116,15 +118,15 @@ gradient-colors:
 | `3` | 每 150ms 切换一帧（适中） |
 | `10` | 每 500ms 切换一帧（慢速） |
 
-#### shine-width
+#### 扫光宽度（shine-width）
 
 扫光高亮区域覆盖的字符数，最小为 1。值越大，高亮光带越宽。
 
-#### shine-color
+#### 扫光颜色（shine-color）
 
 扫光高亮颜色，HEX 格式，必须用引号包裹。通常使用白色 `#FFFFFF` 使高亮部分变亮。
 
-#### shine-strength
+#### 扫光强度（shine-strength）
 
 扫光强度，范围 `0.0` ~ `1.0`，自动夹取。
 
@@ -146,8 +148,6 @@ gradient-colors:
 | `gradient-colors` 非空 | 至少有一个有效颜色 |
 
 任一条件不满足时，占位符返回空串。
-
-## 完整条目示例
 
 ### 静态渐变（无扫光）
 

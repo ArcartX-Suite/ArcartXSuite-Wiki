@@ -1,36 +1,11 @@
 ---
-title: 地牢模板编写
-description: abysses/<地牢ID>/ 下各 YAML 的字段规范
+title: "地牢模板编写"
+description: "编写地牢入口、怪物波次、任务、机关与奖励等定义文件。"
 ---
-
-# 地牢模板编写
 
 每个地牢是 `plugins/ArcartX-Suite/data/abyss/abysses/<地牢ID>/` 下的一个目录，目录名即地牢 ID（建议小写英文+下划线）。模块首次启动会自动导出 `abysses/example/` 示例地牢——直接复制改配置即可得到新副本。
 
 ## 目录结构
-
-```
-abysses/<地牢ID>/
-├── config.yml       ← 地牢基本信息（必需）
-├── monsters.yml     ← 怪物组/波次
-├── scripts.yml      ← 生命周期脚本
-├── tasks.yml        ← 副本内定时/事件任务
-├── interacts.yml    ← 交互点
-├── obstacles.yml    ← 障碍物
-├── npcs.yml         ← 副本 NPC
-├── quests.yml       ← 副本任务
-├── rewards.yml      ← 奖励集/宝箱
-├── shops.yml        ← 商店（open_shop_ui 调用）
-├── floors.yml       ← 楼层定义（mode: floors 多层房间地牢）
-├── rooms.yml        ← 房间模板池（floors 模式）
-├── procgen.yml      ← 随机拼装地牢配置（存在即启用 ProcGen 模式）
-├── regions/         ← 区域模板（/axs abyss region save 产出，paste_region 调用）
-├── external/        ← 外部系统配套文件（可选；abyss 加载模板时自动部署）
-│   ├── chemdah/conversation/*.yml   → plugins/Chemdah/core/conversation/
-│   ├── chemdah/quest/*.yml          → plugins/Chemdah/core/quest/
-│   └── questgps/*.yml               → plugins/ArcartXSuite/data/questgps/quests/
-└── world/           ← 世界文件夹（可选，含 level.dat）
-```
 
 > 除 `config.yml` 外所有文件均可省略，缺失时使用空配置。`external/` 是「这个副本需要哪些 Chemdah 会话/任务、questgps 呈现层」的随包清单——**abyss 在模板加载（启动/`/axs abyss reload`）时自动部署**：目标插件缺席整组跳过、目标文件已存在不覆盖，写入后自动 `chemdah reload` 并重载 questgps 模块。目录结构与上表一致即可被部署器识别。
 
@@ -59,7 +34,7 @@ world:
 time-limit: 600              # 限时（秒），超时触发 timeout-action
 timeout-action: "FAIL"       # FAIL=判负 / KICK=踢出
 max-instances: 0             # 该地牢最大并行实例数，0=不限
-# cross-server: "dungeon-01"   # 可选：声明远程宿主节点（跨服副本，见 procgen 页「跨服副本」节）
+# cross-server: "dungeon-01"   # 可选：声明远程Suite节点（跨服副本，见 procgen 页「跨服副本」节）
 
 requirements:
   min-players: 1             # 最小进本人数
@@ -70,7 +45,7 @@ requirements:
   max-level: 0               # 最高等级（0=不限）
   cooldown: 300              # 通关冷却（秒），按玩家+地牢独立计时
   money-cost: 0              # 货币消耗
-  currency-id: "money"       # 货币 ID（宿主 currencies 定义）
+  currency-id: "money"       # 货币 ID（Suite currencies 定义）
   stamina-cost: 10           # 体力消耗
   required-items: []         # 进本消耗物品列表
   required-permissions: []   # 需要的权限节点
@@ -148,7 +123,6 @@ entrances:
 
 主世界/场景里的**物理进本点**——玩家右键登记的方块（或区域内任意方块）触发进本，命中后交互事件自动取消（门/箱子不会真的打开）。
 
-- `world`：入口所在世界名（主世界场景，**不是**副本世界——副本世界名带 `axs_abyss_` 前缀且是实例世界）
 - `location`：单点 `"x,y,z"`；`region`：立方区域 `"x1,y1,z1;x2,y2,z2"`——两者可都填，同一入口多点命中
 - `plan`：可选，固定方案 id（对应 `plans` 键名）；不配且模板多方案 → 弹方案菜单
 - `name`：可选显示名
@@ -225,7 +199,7 @@ TRIGGERED 组前置清完后**不立即刷**，按休整规则延迟：
 - `rest-seconds`：组级兜底——`delay-seconds<=0` 时用；floors 房间还可在房间级写 `wave-rest` 作为整房组的兜底
 - `on-prespawn`：预告段——组被触发、休整期**开始瞬间**执行（写「下一波来袭」title/音效/actionbar，给玩家喘息提示）
 
-优先级：`delay-seconds` > 组 `rest-seconds` > 房间 `wave-rest`；三者都 ≤0 时照旧立即刷（向后兼容）。
+优先级：`delay-seconds` > 组 `rest-seconds` > 房间 `wave-rest`；三者都 ≤0 时立即生成下一组。
 
 ## tasks.yml — 副本内任务
 
@@ -289,43 +263,6 @@ trial_chest:
 - `sequence` — 按顺序触发一组 interact 点名（压力阀/符文顺序/接线板）
 - `input` — 弹 ArcartX 输入面板，玩家键盘输入密码/口令（电梯通行码）
 
-```yaml
-# 序列型：按 4-2-1-3 顺序点阀门
-valve_sequence:
-  name: "冷却阀序列"
-  type: sequence
-  steps: [valve_4, valve_2, valve_1, valve_3]   # interacts.yml 中的点名（可重复）
-  reset-on-miss: true          # 点错顺序→清空进度重来；false=错序只惩罚不回退
-  miss-limit: 5                # 累计错序上限（0=不限）；超限→on-fail 并锁定
-  on-step:                     # 每步正确执行
-    - "sound @trigger ui.button.click 1 1.6"
-    - "title @trigger &a阀门 {var:puzzle.valve_sequence}/4 已开启"
-  on-miss:                     # 错序惩罚
-    - "subtitle @all &c阀门顺序错误"
-    - "spawn_group noise_lure"
-  on-complete:
-    - "delete_obstacle pump_door"
-  on-fail:
-    - "broadcast &c控制台已锁定"
-
-# 输入型：加密电梯四位码
-elevator_code:
-  name: "加密电梯终端"
-  type: input
-  answer: "4312"               # 正确答案（仅服务端比对，永不下发客户端）
-  case-sensitive: false        # 大小写敏感
-  length: 4                    # 输入框最大长度（0=不限）
-  input-pattern: "^[0-9]*$"    # 客户端字符过滤正则（可删）
-  title: "加密电梯终端"         # 面板标题（空用 name）
-  hint: "输入四位通行码"        # 输入框空提示
-  masked: true                 # 掩码显示（*）
-  max-attempts: 3              # 允许错误次数（0=不限；超限→on-fail+锁定）
-  per-player: false            # true=每人独立计次；false=全队共享额度
-  on-miss: ["title @trigger &c通行码错误"]
-  on-complete: ["delete_obstacle elevator_gate"]
-  on-fail: ["broadcast &c终端已锁定"]
-```
-
 ### 联动方式
 
 - **步骤点名** = `interacts.yml` 键名。interact 触发成功即上报谜题系统——步骤点可以不挂 `script`（纯机关点），也可以同时挂脚本做额外反馈
@@ -333,7 +270,6 @@ elevator_code:
 - **实例变量**：`{var:puzzle.<id>}`=进度（sequence=步数/input=尝试次数）、`{var:puzzle.<id>.done}`="1"、`{var:puzzle.<id>.locked}`="1"
 - **事件**：`axs.abyss.puzzle_step` / `axs.abyss.puzzle_complete` / `axs.abyss.puzzle_fail`（`reason`: `miss_sequence`/`miss_input`/`locked`）
 - **管理/脚本动作**：`puzzle_reset` / `puzzle_solve` / `puzzle_state <id> <变量>` —— 跳关、动态重置、状态读取
-- **安全模型**：答案只在服务端比对；UI 提交需 action_token + 玩家实例校验，伪造包/跨实例提交无效
 
 ### 管理员局内操作
 
@@ -345,8 +281,6 @@ elevator_code:
 /axs abyss puzzle <id> fail        # 强制锁定（触发 on-fail）
 /axs abyss puzzle <id> prompt [玩家]  # 给玩家打开输入面板（测试用）
 ```
-
-所有操作**只改当前实例内存状态**，不写回 `puzzles.yml`——局内调试完不影响下个副本实例。
 
 ## buffs.yml — 增益选择池
 
@@ -446,15 +380,10 @@ guide:
 
 **点击时的判定顺序**：
 
-1. 该 NPC id 绑定了 Chemdah 会话且 conversation 模块在线 → 打开 **ArcartX 真会话 UI**（选项/回复走 Chemdah）
 2. 否则 → `dialogs` 聊天栏逐句播放兜底
 3. `click-script` 无论哪条路径都会执行
 
-相关脚本动作：`spawn_npc` / `remove_npc`（动态生成/移除）、`npc_dialog <npc> [sel]`（同点击判定）、`open_conversation <npcId> [sel]`（强制开 Chemdah 会话，不要求 NPC 在 npcs.yml）、`play_cinematic <序列> [sel]`（播 conversation 电影序列）、`play_model_animation`（Adyeshach 模型动画）。
-
 > **实体类型注意**：`VILLAGER`/`WANDERING_TRADER` 这类实体**自带原版交易 GUI**——Adyeshach 缺席时 NPC 降级为真实体，右键会先弹原版交易界面盖住自定义交互。接对话/商店的 NPC 推荐 `WITCH`（无交易界面，两条路径都安全）；`PLAYER` 型仅在 Adyeshach 在场时可用（降级路径会变 ZOMBIE）。
->
-> Adyeshach 缺席时副本仍可进入，NPC 退化为原版实体 + 聊天栏对话；装 Adyeshach 未装 conversation 时对话同样走 `dialogs` 兜底。
 
 ## quests.yml — 副本任务（Chemdah/QuestGPS 适配层）
 
@@ -485,9 +414,7 @@ slayer:                              # 副本本地任务 id（脚本动作都�
 
 **完成路由**：Chemdah 判定完成 → questgps 发 EventBus `axs.questgps.quest_completed` → abyss 反查 chemdah-id 命中本地任务 → `manual-claim: false` 直接跑 `on-complete`。
 
-> **注意**：Chemdah 任务是玩家级持久档案——副本任务应在 Chemdah 侧配置为**可重复接取**（`agent: restart` 类），否则玩家二刷副本时任务已 COMPLETED 无法再进状态机。QuestGPS 缺席时相关动作静默跳过，副本其余玩法不受影响。任务定义文件放 `plugins/Chemdah/`（questgps 呈现层放 `data/questgps/quests/`），示例见 example 模板 `external/` 目录。
-
-## rewards.yml — 奖励集与宝箱
+> 副本任务的接取、完成和重复规则在 Chemdah 中配置，测试时应核对完成后能否再次接取。任务与展示选项都位于 `plugins/Chemdah/core/quest/` 的任务文件中，示例见模板 `external/` 目录。
 
 ### 命名奖励集
 
@@ -499,13 +426,13 @@ rewards:
     items:
       - "material:DIAMOND:3"         # material:<材质>:<数量>
       - "material:GOLDEN_APPLE:2"
-    money: 100                       # 货币（走宿主 currencyManager）
+    money: 100                       # 货币（走Suite currencyManager）
     currency: "money"
     exp: 50
-    commands: []                     # 控制台命令（%player% 占位）
+    commands: []                     # 控制台命令（{player} 占位）
 ```
 
-物品写法 `material:<Material>:<数量>`；MythicMobs/NeigeItems 等外源物品经宿主 ItemSourceRegistry 生成（写法见 integration 页）。
+物品写法 `material:<Material>:<数量>`；MythicMobs/NeigeItems 等外源物品经Suite ItemSourceRegistry 生成（写法见 integration 页）。
 
 随机奖励集：
 
@@ -567,32 +494,15 @@ shops:
           - "run_script shop_power_t3"
 ```
 
-- **结算模型**：服务端校验 token + 副本实例身份 + `currency-var` 余额 → 扣实例变量 → 跑 `script` → 回推余额刷新 UI；购买是原子扣费，伪造包/跨实例无效
 - **NPC 入口**：`npcs.yml` 的 `click-script` 里写 `open_shop_ui @trigger caravan`；同店多台座/多入口并存不冲突
 - **类型注意**：接商店的 NPC **不要用 `VILLAGER`/`WANDERING_TRADER`**——Adyeshach 缺席降级真实体时，右键会先弹原版交易 GUI 盖住交互；`WITCH` 无交易界面两条路径都安全
 - 商品 `script` 是完整动作行列表，随机档位/条件分支照常用 `random`+`if_var`+`run_script` 模式
-
-## scripts.yml — 生命周期脚本
-
-段执行时机：
-
-| 段 | 时机 |
-|---|---|
-| `world-init` | 世界就绪后、玩家传送**之前**——造平台/铺场景专用（void 世界必须用它建落脚处） |
-| `init` | 玩家全部进图后、副本激活前（玩法对象尚未初始化） |
-| `start` | 副本激活时（怪组已注册，AUTO_START 组已刷） |
-| `complete` / `fail` / `exit` | 通关 / 失败 / 玩家离开 |
-| `player-death` / `all-death` | 单人阵亡 / 全员阵亡 |
-
-> **虚空世界务必用 `world-init` 而不是 `init` 建平台**——`init` 在玩家传送之后才跑，先传送会掉虚空。即使没写 `world-init`，系统也会检测出生点下方无支撑时自动垫一块 5×5 基岩兜底。
-
-详见 [脚本系统](/docs/abyss/scripting)。
 
 ## floors.yml + rooms.yml — 多层房间地牢
 
 `config.yml` 设 `mode: floors` 后启用：地牢由若干**层（floor）**组成，每层是**房间图**——房间在世界里真实互连（走廊物理可走），玩家自由探索/回退，不必按 rooms 列表顺序访问（类元气骑士迷宫结构）。房间 `region`/`doors` 定义边界和物理门洞，拓扑由 world-init 的建筑布局决定——门洞后接走廊=真通路，挖死=假门/装饰。
 
-### floors.yml
+### 楼层布局（floors.yml）
 
 ```yaml
 defaults:
@@ -630,7 +540,7 @@ floors:
 | `advance: portal` | 层/房清完激活出口区，玩家踩 `exit` 传送；`advance-timeout` 超时自动推 |
 | `advance: auto` | 清完 3 秒后自动传送下一目标 |
 
-### rooms.yml
+### 房间定义（rooms.yml）
 
 ```yaml
 rooms:
@@ -667,10 +577,8 @@ rooms:
 - 事件：`axs.abyss.room_enter` / `room_clear` / `floor_enter` / `floor_clear`
 - 脚本变量：`{floor}` `{floor_name}` `{floors_total}` `{room}` 写入实例变量
 - 脚本动作：`floor_next`（强制推层）/ `room_lock <房>` / `room_unlock <房>` / `room_status <房> <变量>`
-- 虚空防护：玩家掉出**所在**房底部 8 格以下自动拉回该房中心
 - 无怪组的安全房进房即清（不广播"肃清"）；最终层终点房清完自动 `complete_dungeon`
 - Boss 之门模式：world-init 把终点房门洞封死 → 战斗房 `on-clear` 累加 `fN_cleared` 变量 → 首个肃清房触发 `fN_gate` 段 `fillblocks AIR` 开门（example 副本的实现方式，纯脚本无引擎依赖）
-
 
 ## 内置示例：元气试炼之地（example）
 
@@ -684,7 +592,7 @@ rooms:
 
 **贯穿机制**：击杀掉全队金币（tasks.yml `monster_kill` 事件）、祭坛/商店 `%axsabyss_var_coins%` 条件扣费、每层 Boss 后 `buff_offer` 三选一天赋、`guide_point` 路标链（向导→东廊→首战）、portal 出口垫传送 + 走廊可回溯、房间可任意顺序探索。
 
-**外部配套**（随包自动部署，详见 `example/external/README.md`）：Chemdah 会话文件绑 `adyeshach guide`/`adyeshach merchant`（NPC 右键开真会话 UI）；Chemdah 任务 `sk_slayer` + questgps 呈现层（`quests.yml` 的 `slayer` 委托线）。abyss 加载模板时自动把 `external/` 部署到 `plugins/Chemdah/core/` 与 `data/questgps/quests/` 并触发重载。缺依赖时自动降级：原版实体 NPC、聊天栏对话、委托线静默跳过。
+**外部配套**：示例模板包含 Chemdah NPC 对话和 `sk_slayer` 任务。展示选项写在任务的 `addon.axs-view` 中。模板加载后将配套文件部署到 Chemdah 对应目录并重载；未安装相关模块时，只使用当前可用的功能。
 
 ## 区域模板 regions/
 

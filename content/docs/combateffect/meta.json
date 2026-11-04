@@ -1,14 +1,11 @@
 {
-  "title": "CombatEffect 战斗特效",
-  "description": "战斗特效（击杀/连击/伤害飘字），四插件属性来源自动检测",
-  "color": "#ef4444",
+  "title": "战斗特效",
   "pages": [
     "index",
     "configuration",
     "commands",
-    "integration",
-    "packet-definitions",
+    "combo-and-triggers",
     "damage-display",
-    "combo-and-triggers"
+    "packet-definitions"
   ]
 }

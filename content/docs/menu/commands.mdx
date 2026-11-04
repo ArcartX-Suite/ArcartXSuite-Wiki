@@ -1,6 +1,6 @@
 ---
-title: 命令与占位符
-description: 命令、权限与 PlaceholderAPI 占位符
+title: "命令与权限"
+description: "功能菜单可用命令、参数填写方式和权限要求。"
 ---
 
 ## 命令与权限
@@ -14,7 +14,7 @@ description: 命令、权限与 PlaceholderAPI 占位符
 | `/menu list` | 列出所有可用菜单 |
 | `/<自定义命令别名>` | 通过菜单 `commands` 绑定的别名直接打开 |
 
-管理命令（挂载在宿主 `/axs menu`）：
+管理命令（挂载在Suite `/axs menu`）：
 
 | 命令 | 权限 | 说明 |
 | --- | --- | --- |
@@ -33,7 +33,3 @@ description: 命令、权限与 PlaceholderAPI 占位符
 | `axs.menu.reload` | 热重载菜单配置 |
 | `arcartxsuite.admin` | 执行管理命令的基础权限 |
 | `<菜单定义中的 permission>` | 各菜单自定义的打开权限 |
-
-## PlaceholderAPI
-
-Menu 模块本身不注册独立的 PlaceholderAPI 占位符。PlaceholderAPI 作为外部软依赖，仅用于菜单条件表达式（`open-requirements`、`use-conditions`、`requirements`）与动作中的变量替换。

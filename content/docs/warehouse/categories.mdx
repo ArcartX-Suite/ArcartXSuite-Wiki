@@ -1,13 +1,9 @@
 ---
-title: 分类与搜索
-description: 物品 NBT 分类、排序方案与拼音搜索详解
+title: "分类与搜索"
+description: "设置仓库物品分类、排序与搜索，便于玩家查找物资。"
 ---
 
-# 分类与搜索
-
 Warehouse 模块提供基于 NBT/PDC 路径的物品分类、多字段排序方案和拼音/首字母搜索能力。这三套机制协同工作，帮助玩家在大量存储物品中快速定位目标。
-
-## 物品分类
 
 ### 分类匹配
 
@@ -93,8 +89,6 @@ other:
 
 玩家在 UI 中点击分类按钮时，发送 `category` action 切换当前分类筛选，同时重置到第 1 页。
 
-## 排序方案
-
 ### 排序方案配置
 
 排序方案在 `sort-profiles` 节定义，每个方案由一组排序字段组成，按字段顺序依次排序：
@@ -156,8 +150,6 @@ sort-profiles:
 3. 如果字段标记为降序，调用 `.reversed()`
 4. 使用 `thenComparing` 将多个字段串联
 5. 最终追加 `Comparator.comparingInt(SlotItemRecord::slot)` 作为稳定排序兜底
-
-## 搜索
 
 ### 搜索索引构建
 

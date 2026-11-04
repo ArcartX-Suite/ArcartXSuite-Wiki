@@ -1,9 +1,7 @@
 ---
-title: 货币系统
-description: Vault/PlayerPoints/XConomy/Rondo/Command 多货币桥接与全局配置
+title: "货币系统"
+description: "配置全局货币，连接经济插件，并在商品或奖励中引用货币 ID。"
 ---
-
-# 货币系统
 
 Suite 内置统一货币桥接层，所有涉及经济的模块（Warehouse、Mail、Map、Market、OnlineRewards 等）共享同一组货币定义。你只需在 `config.yml` 顶部的 `currencies` 节配置一次，全局生效。
 
@@ -36,7 +34,6 @@ currencies:
 | `withdraw-command` | string | — | 扣款时执行的控制台命令（command 类型必填） |
 | `deposit-command` | string | — | 入账时执行的控制台命令（command 类型必填） |
 
-> `scale` 是标准小数位字段；为兼容旧配置，缺少 `scale` 时会读取旧字段 `precision`。
 
 ## 支持的 Provider 类型
 
@@ -51,8 +48,6 @@ currencies:
 | `custom` | PlaceholderAPI | 同 command，别名 |
 
 > `command`、`placeholder-command`、`custom` 三个名称完全等价，配置时任选其一。
-
-## Provider 详解
 
 ### vault — Vault 经济
 
@@ -133,8 +128,8 @@ currencies:
     scale: 0
     rounding: "DOWN"
     balance-placeholder: "%economy_balance_gems%"
-    withdraw-command: "esc take gems %player% %amount%"
-    deposit-command: "esc give gems %player% %amount%"
+    withdraw-command: "esc take gems {player} {amount}"
+    deposit-command: "esc give gems {player} {amount}"
 ```
 
 `balance-placeholder`、`withdraw-command`、`deposit-command` 三项必须全部填写，否则该货币桥接将标记为不可用。
@@ -143,9 +138,9 @@ currencies:
 
 | 变量 | 替换为 | 示例 |
 |------|--------|------|
-| `%player%` | 玩家名 | `Steve` |
-| `%uuid%` | 玩家 UUID | `069a79f4-...` |
-| `%amount%` | 操作金额（经过精度处理） | `100`、`99.5` |
+| `{player}` | 玩家名 | `Steve` |
+| `{uuid}` | 玩家 UUID | `069a79f4-...` |
+| `{amount}` | 操作金额（经过精度处理） | `100`、`99.5` |
 
 命令不需要加 `/` 前缀（加了也会自动去除），以控制台身份执行。
 
@@ -162,8 +157,8 @@ currencies:
     scale: 0
     rounding: "DOWN"
     balance-placeholder: "%economy_balance_gems%"
-    withdraw-command: "eco take gems %player% %amount% gems"
-    deposit-command: "eco give gems %player% %amount% gems"
+    withdraw-command: "eco take gems {player} {amount} gems"
+    deposit-command: "eco give gems {player} {amount} gems"
 ```
 
 CoinsEngine：
@@ -177,8 +172,8 @@ currencies:
     scale: 0
     rounding: "DOWN"
     balance-placeholder: "%coinsengine_balance_coins%"
-    withdraw-command: "coinsengine take %player% coins %amount%"
-    deposit-command: "coinsengine give %player% coins %amount%"
+    withdraw-command: "coinsengine take {player} coins {amount}"
+    deposit-command: "coinsengine give {player} coins {amount}"
 ```
 
 ## 完整配置示例
@@ -207,8 +202,8 @@ currencies:
     scale: 0
     rounding: "DOWN"
     balance-placeholder: "%economy_balance_gems%"
-    withdraw-command: "eco take gems %player% %amount% gems"
-    deposit-command: "eco give gems %player% %amount% gems"
+    withdraw-command: "eco take gems {player} {amount} gems"
+    deposit-command: "eco give gems {player} {amount} gems"
 ```
 
 ## 模块局部货币

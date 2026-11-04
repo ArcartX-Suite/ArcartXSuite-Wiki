@@ -1,11 +1,7 @@
 ---
-title: 区域与双模式挂机
-description: AfkReward 区域定义、REGION 与 MANUAL 双模式挂机机制、行为保护与崩溃恢复
+title: "区域与双模式挂机"
+description: "设置挂机区域的坐标、传送点，并选择区域挂机或原地挂机。"
 ---
-
-# 区域与双模式挂机
-
-> **付费模块**
 
 AfkReward 模块的核心是「区域」概念。每个区域是一个 X-Z 平面上的多边形，玩家进入后自动累计挂机时间（REGION 模式），或通过命令手动开始原地挂机（MANUAL 模式）。两种模式可并存于同一区域，共用同一套奖励档位与倍率配置，但在行为约束、发奖时机、崩溃恢复等方面存在显著差异。
 
@@ -116,8 +112,6 @@ pos:
 
 **启动**：保存原始状态（移速、位置）→ 传送至 `teleport` 点 → 关闭碰撞 → `restrict-actions` 为 `true` 时移速归零 → 触发 `afk_start` 信号并发送开始提示。
 
-**结束结算**（`/afk end` 或强制结束）：按 `挂机总秒数 / (round × 60)` 计算奖励次数并一次性发放 → 恢复移速与碰撞 → `manual.return-on-end: true` 时传送回挂机前位置 → `manual.broadcast-rewards: true` 时全服广播 → 触发 `afk_end` 信号、字幕与邮件预设 → 刷新排行榜。
-
 ### 强制结束原因
 
 | 原因 | 触发条件 | 提示消息键 |
@@ -212,5 +206,4 @@ teleport:
 - [概览](/docs/afkreward) — 模块功能概览
 - [配置](/docs/afkreward/configuration) — 主配置文件与区域配置文件详解
 - [奖励档位与物品奖励](/docs/afkreward/reward-tiers) — 档位匹配、命令占位符、物品奖励与倍率系统
-- [反滥用与审计](/docs/afkreward/anti-abuse) — 时长限制、机器人检测、IP 限制、收益衰减与审计日志
 - [条件系统](/docs/guide/conditions) — Suite 统一条件系统配置指南

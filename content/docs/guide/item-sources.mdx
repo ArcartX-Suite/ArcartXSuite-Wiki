@@ -1,13 +1,13 @@
 ---
-title: 物品库匹配
-description: Suite 统一物品来源系统配置指南，支持 Minecraft 原版、MythicMobs、NeigeItems、Overture、MMOItems
+title: "物品来源与生成"
+description: "在奖励、商品和图标中引用原版或物品库中的物品。"
 ---
-
-# 物品库匹配
 
 ## 概述
 
-所有模块通过 `source` + `id` 两个字段描述物品来源，无需在各自配置中直接依赖第三方物品库插件。
+支持本页结构的物品生成入口使用 `source` + `id` 描述来源，例如部分奖励、邮件附件和图标。外层字段与可用覆盖项仍按目标模块填写，不能认为所有物品配置都接受相同的完整结构。
+
+若要识别背包里已有物品、设置禁入规则或物品费用，阅读[物品匹配与消耗](/docs/guide/item-matching)。生成物品的 `source + id` 不等于匹配器的 `match` / `matcher`。
 
 当某个物品库插件未安装时，对应的物品来源将不可用，但不会影响其他来源和模块的正常运行。
 
@@ -48,8 +48,6 @@ item:
 
 > `id` 和 `item-id` 互为别名，配置时任选其一。
 
-## 各来源详细配置
-
 ### 原版物品
 
 使用 Bukkit 原生 Material 创建物品，无需任何第三方插件。
@@ -73,7 +71,7 @@ item:
   nbt: "{display:{Name:'{\"text\":\"铁剑\",\"color\":\"white\"}'},Damage:10}"
 ```
 
-### MythicMobs
+### MythicMobs 自定义物品
 
 使用 MythicMobs 内部物品创建物品，需要服务端安装 MythicMobs 插件。
 
@@ -89,7 +87,7 @@ item:
 
 > 若 MythicMobs 未安装，该来源将不可用，调用时返回 `null` 物品。
 
-### NeigeItems
+### NeigeItems 自定义物品
 
 使用 NeigeItems 物品创建物品，需要服务端安装 NeigeItems 插件。
 
@@ -103,7 +101,7 @@ item:
 - `id` 为 NeigeItems 配置中定义的物品 ID
 - NeigeItems 物品通常包含复杂的 Lore 和动态变量，由 NeigeItems 自行处理
 
-### Overture
+### Overture 物品库
 
 使用 Overture 模板创建物品，需要服务端安装 Overture 插件。
 
@@ -119,7 +117,7 @@ item:
 
 > Overture 来源在离线场景（如邮件发送给离线玩家）中可能无法正确生成物品，请注意使用场景。
 
-### MMOItems
+### MMOItems 类型与物品 ID
 
 使用 MMOItems 物品创建物品，需要服务端安装 MMOItems 插件。
 
@@ -152,8 +150,6 @@ item:
 在 Market 拍卖行上架、Mail 邮件附件等场景中，系统会自动记录物品是否来自外部物品库，玩家取回时能正确还原为对应物品库的物品。
 
 > 识别依赖对应插件已安装。若插件未安装，物品按普通物品处理，取回时不再关联物品库 ID。
-
-## 实际示例
 
 ### Market 商店物品
 

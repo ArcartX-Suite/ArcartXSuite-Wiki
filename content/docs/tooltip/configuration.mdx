@@ -1,13 +1,19 @@
 ---
-title: 配置
-description: Tooltip 模块配置文件与消息文件详解
+title: "功能配置"
+description: "调整提示展示开关与枪械界面模式；附字段解释、修改示例与重载步骤。"
 ---
 
-# 配置
+## 先改哪些内容
 
-Tooltip 模块使用两个配置文件：主配置 `ArcartXTooltip.yml`（枪械浏览 UI 模式）与消息文件 `messages.yml`（管理命令输出文本）。首次启动自动释放到 `plugins/ArcartX-Suite/data/tooltip/`。
+提示展示开关与枪械界面模式。先使用默认示例完成一次测试，再按本页逐项调整。
 
-## 主配置文件（`ArcartXTooltip.yml`）
+配置位置：`plugins/ArcartX-Suite/data/tooltip/config.yml`。定义文件与子目录均相对此模块目录。本文中的 YAML 片段用于修改对应小节，请保留文件中的其他设置。
+
+修改后执行 `/axs reload tooltip`；涉及插件安装或全局设置的变更请重启后验证。
+
+Tooltip 模块使用两个配置文件：主配置 `config.yml`（枪械浏览 UI 模式）与消息文件 `messages.yml`（管理命令输出文本）。首次启动自动释放到 `plugins/ArcartX-Suite/data/tooltip/`。
+
+## 主配置文件（`config.yml`）
 
 ```yaml
 # Tooltip 模块配置
@@ -22,10 +28,11 @@ gun-list:
 
 | 键 | 类型 | 默认 | 说明 |
 |---|---|---|---|
-| `gun-list.mode` | string | `ax` | `ax` = 服务端 AX UI `AXS:gun_list`；`mod` = 客户端本地 Forge 界面；其它值按 `ax` 处理 |
+| `config-version` | int | `1` | 配置版本，保持原值 |
+| `gun-list.mode` | string | `ax` | 枪械浏览界面风格：`ax` 使用可自定义的 ArcartX 界面，`mod` 使用客户端模组界面 |
 
 <Callout type="info">
-模式在**进服时**经 `axstooltip:gunui` plugin message 推送到客户端；`axs reload tooltip` 会重新读取配置并向全部在线玩家补推。客户端收不到推送时默认 `mod`。
+修改 `gun-list.mode` 后执行 `/axs reload tooltip`，再用测试账号打开枪械浏览界面确认风格。玩家需要安装对应的客户端扩展。
 </Callout>
 
 <Callout type="info">
@@ -48,7 +55,6 @@ Tooltip 模块无任何模块依赖与外部插件依赖。缓存过期时间为
 | `admin.status-ttl` | 缓存 TTL | `{0}` - TTL 秒数 |
 | `admin.status-no-cache` | 缓存为空提示 | 无 |
 | `admin.status-gun-ui-mode` | 枪械 UI 模式 | `{0}` - ax/mod |
-| `admin.status-gun-ui-channel` | 模式推送通道 | `{0}` - `axstooltip:gunui` |
 | `admin.status-gun-ui-unavailable` | 枪械 UI 服务未启动 | 无 |
 | `admin.push-ok` | 推送成功 | `{0}` 玩家 `{1}` 模式 |
 | `admin.push-notfound` | 玩家不在线 | `{0}` 玩家名 |
@@ -58,9 +64,7 @@ Tooltip 模块无任何模块依赖与外部插件依赖。缓存过期时间为
 | `help.status` | status 子命令帮助 | `{0}` - 根命令标签 |
 | `help.push` | push 子命令帮助 | `{0}` - 根命令标签 |
 
-### 消息键详细说明
-
-#### `prefix`
+#### 消息前缀（`prefix`）
 
 消息前缀，拼接在所有管理命令输出消息之前。
 
@@ -70,7 +74,7 @@ Tooltip 模块无任何模块依赖与外部插件依赖。缓存过期时间为
 | 使用位置 | 所有管理命令输出 |
 | 颜色码 | 支持 `&` 颜色码 |
 
-#### `common.no-permission`
+#### 权限不足提示（`common.no-permission`）
 
 无权限时提示文本。
 
@@ -79,7 +83,7 @@ Tooltip 模块无任何模块依赖与外部插件依赖。缓存过期时间为
 | 默认值 | `&c你没有权限执行此操作。` |
 | 触发场景 | 玩家无 `arcartxsuite.admin` 权限执行管理命令时 |
 
-#### `common.player-only`
+#### 仅限玩家使用提示（`common.player-only`）
 
 仅玩家可执行提示文本。
 
@@ -88,7 +92,7 @@ Tooltip 模块无任何模块依赖与外部插件依赖。缓存过期时间为
 | 默认值 | `&c该命令只能由玩家执行。` |
 | 触发场景 | 控制台执行仅限玩家的命令时 |
 
-#### `admin.status-title`
+#### 状态信息标题（`admin.status-title`）
 
 `/axs tooltip status` 命令的标题行。
 
@@ -96,7 +100,7 @@ Tooltip 模块无任何模块依赖与外部插件依赖。缓存过期时间为
 |---|---|
 | 默认值 | `&6Tooltip 模块状态` |
 
-#### `admin.status-cache-size`
+#### 状态统计数量文字（`admin.status-cache-size`）
 
 缓存玩家数显示行。
 
@@ -105,7 +109,7 @@ Tooltip 模块无任何模块依赖与外部插件依赖。缓存过期时间为
 | 默认值 | `&7缓存玩家数: &f{0}` |
 | 参数 `{0}` | 当前缓存中的玩家数量 |
 
-#### `admin.status-ttl`
+#### 状态统计时效文字（`admin.status-ttl`）
 
 缓存 TTL 显示行。
 
@@ -114,7 +118,7 @@ Tooltip 模块无任何模块依赖与外部插件依赖。缓存过期时间为
 | 默认值 | `&7缓存 TTL: &f{0}秒` |
 | 参数 `{0}` | 固定为 `60`（秒） |
 
-#### `admin.status-no-cache`
+#### 无统计数据提示（`admin.status-no-cache`）
 
 缓存为空时的提示行。
 
@@ -123,7 +127,7 @@ Tooltip 模块无任何模块依赖与外部插件依赖。缓存过期时间为
 | 默认值 | `&7缓存为空，等待客户端 mod 发送数据` |
 | 触发条件 | 缓存玩家数为 0 |
 
-#### `help.title`
+#### 帮助菜单标题（`help.title`）
 
 `/axs tooltip help` 命令的标题行。
 
@@ -131,7 +135,7 @@ Tooltip 模块无任何模块依赖与外部插件依赖。缓存过期时间为
 |---|---|
 | 默认值 | `&6Tooltip 管理` |
 
-#### `help.status`
+#### 状态命令帮助（`help.status`）
 
 status 子命令的帮助说明行。
 

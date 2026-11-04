@@ -1,75 +1,343 @@
 ---
-title: 第一次启用
-description: 首次启动流程、模块扫描、渐进启用与常见问题排查
+title: "本体安装与配置"
+description: "从准备环境、安装本体到绑定云端、启用模块，完成 config.yml 配置与首次验证。"
 ---
 
-# 第一次启用流程
+本页按“准备环境 → 安装本体 → 绑定云端 → 启用模块 → 配置全局功能 → 验证”的顺序介绍 Suite。首次使用按顺序阅读，已有服务器可以从目录直接查找对应配置。
 
-为避免一次开全部模块导致排查困难，强烈推荐"先单模块，再全量"的渐进流程。
+## 准备环境
 
-## 推荐启用顺序
+- 按所下载发行版的说明准备 Minecraft 服务端与 Java，不要只凭插件名称选择版本。
+- 安装并确认 ArcartX 服务端插件正常启用，为玩家准备版本匹配的 ArcartX 客户端 MOD。
+- 地图、物品提示等功能可能需要额外客户端扩展，以对应模块文档为准。
+- 先从[模块目录](/docs#按功能找模块)确定需要的功能，核对模块首页列出的前置插件。
 
-1. **Announcer** — 几乎零依赖，验证 ArcartX 桥接是否正常
-2. **EntityTracker** — 验证 MythicMobs 联动和 HUD 注册
-3. **RGB**（可选）— 验证 PlaceholderAPI 流程
-4. **Title** — 引入数据库（SQLite），验证持久化
-5. **Chat** / **Mail** — 业务量更大的模块，放最后
+## 安装本体
 
-## 单模块启用步骤
+1. 停止服务器，将发行版 Suite 插件放入 `plugins/`。
+2. 启动服务器，等待生成 `plugins/ArcartX-Suite/` 和默认配置。
+3. 确认 ArcartX 与 Suite 没有启动失败提示，再按下文填写云端账号信息。
+4. 完成绑定、装备与模块开关设置后重启，用 `/axs status` 检查，并用匹配的客户端进入服务器验证。
 
-以 Announcer 为例：
+已有服务器升级前，先停服备份插件及数据目录，按发行说明替换版本。保留已编辑的功能定义，启动后检查日志并重新验证关键功能。
 
-### 1. 修改 config.yml
+## 找到配置文件
+
+| 文件或目录 | 用途 |
+| --- | --- |
+| `plugins/ArcartX-Suite/config.yml` | 本体主配置、全局功能与模块开关 |
+| `plugins/ArcartX-Suite/data/<模块ID>/` | 对应模块的配置和定义文件；首次成功加载后再查找 |
+| 模块目录中的 `ArcartX*.yml` 等配置文件 | 模块自己的功能设置，具体文件名以模块文档为准 |
+| 模块目录中的 `messages.yml` | 提示文字，仅适用于提供该文件的模块 |
+| 模块目录中的奖励、商品、任务等子目录 | 具体业务内容，路径以模块文档为准 |
+
+Suite 的主配置是 `plugins/ArcartX-Suite/config.yml`。下面按用途讲解各项功能，帮助你确定哪些需要填写、哪些可以保留默认值。
+
+主配置决定服务器整体使用哪些功能；公告文字、鱼类、菜单、奖励等内容，在各模块自己的配置中编写。部署时应编辑服务器插件目录中的配置；修改源码目录的 `src/main/resources/config.yml` 不会改变已运行服务器的设置。
+
+## 第一次应该改什么
+
+| 配置区域 | 用途 | 第一次如何处理 |
+| --- | --- | --- |
+| `cloud` | 连接云端账号、识别服务器并获取装备的模块 | 使用云端模块时填写账号信息 |
+| `modules` | 选择允许启用的模块 | 按需求开启功能，关闭暂时不用的模块 |
+| `currencies` | 定义价格、奖励和费用使用的货币 | 与实际安装的经济插件对应 |
+| `storage` | 选择本地数据库或 MySQL | 普通单服保留 `sqlite` 即可 |
+| `keybinds` | 设置交互、对话、地图等默认按键 | 检查与其他客户端功能是否冲突 |
+| `attribute-bridges` | 选择使用的属性插件 | 按已安装的属性插件决定 |
+| `potion-aura` | 控制持续药水效果 | 通常保留默认值 |
+| `mod-attributes` / `tacz-compat` | 模组属性与枪械伤害兼容 | 按服务端模组环境检查 |
+| `moderation` | 管理聊天、留言等内容的过滤规则 | 按服务器文字管理需求调整 |
+| `cross-server` | 配置多个子服之间的功能互通 | 单服保留关闭 |
+| `command-throttle-per-tick` | 控制奖励命令分批执行的速度 | 通常保留 `20` |
+
+推荐顺序：备份文件 → 填写云端信息 → 选择模块 → 核对货币 → 确认存储模式 → 重启并检查状态。其余功能可在基础流程正常后再调整。
+
+以下 YAML 都是局部片段，应修改原文件对应位置，不能覆盖整个文件，也不要重复新增同名小节。使用 UTF-8 保存，缩进使用空格。
+
+## 配置版本
+
+`config-version: 2` 是配置格式版本，不是 Suite 的软件版本号。保留插件生成的值，不需要每次改设置时加一。
+
+## 云端账号与服务器绑定
+
+`cloud` 用于把当前服务器关联到服主账号，并获取为该服务器装备的模块。
+
+```yaml
+cloud:
+  qq: "你的QQ号"
+  apiKey: "后台提供的验证密匙"
+  server-code: ""
+  debug: false
+```
+
+| 字段 | 默认值 | 功能与填写方法 |
+| --- | --- | --- |
+| `qq` | 空文本 | 云端注册账号的 QQ 号，保留引号 |
+| `apiKey` | 空文本 | 从后台“设置 → 验证密匙”复制，不是账号登录密码 |
+| `server-code` | 空文本 | 首次绑定时留空，成功后自动填写；已有值时保留 |
+| `debug` | `false` | 云端连接诊断日志，日常使用保留默认 |
+
+1. 在云端平台注册并登录服主账号。
+2. 填写 `qq`、`apiKey`，保存后启动服务器。
+3. 绑定成功后，在后台找到对应服务器，为其装备需要的模块。
+4. 执行 `/axs sync` 同步，再用 `/axs status` 检查模块状态。
+
+后台装备与本地开关都需要正确设置：只把 `enabled` 改为 `true`，不会获得尚未装备的模块。已有服务器不要通过清空 `server-code` 来刷新模块。
+
+## 模块启用开关
+
+`modules` 中的名称是模块 ID，`enabled` 决定是否允许加载。默认文件为列出的模块开启开关，实际可用情况仍取决于装备状态与前置插件。
 
 ```yaml
 modules:
   announcer:
     enabled: true
+  fishing:
+    enabled: false
 ```
 
-### 2. 修改模块配置（可选）
+本例开启公告、关闭钓鱼；修改时保留其他模块的设置。
 
-首次启用后，模块会自动导出默认公告条目。也可手动编辑：
+- `true`：允许启用，不代表模块已经成功加载。
+- `false`：关闭模块，其功能不可用；开关不是删除玩家数据的操作。
+- 名称使用 `announcer`、`onlinerewards` 等模块 ID，不改成中文。
+
+首次修改开关后重启，再执行 `/axs status`。未加载时依次检查装备状态、前置插件、启动错误。各模块的功能与使用方法见[模块目录](/docs#按功能找模块)。
+
+## 全局货币
+
+`currencies` 定义 Suite 使用的货币，市场价格、邮件附件、银行和传送费用等引用这里的货币 ID。默认提供 `money` 与 `points` 两个定义。
 
 ```yaml
-# data/announcer/announcer/default.yml
-welcome:
-  enabled: true
-  text: "欢迎来到 ArcartX 测试服 — 你好，%player_name%。"
-  click-command: "say <player> 点了公告"
+currencies:
+  money:
+    enabled: true
+    provider: "vault"
+    display-name: "金币"
+    scale: 2
+    rounding: "DOWN"
+  points:
+    enabled: true
+    provider: "playerpoints"
+    display-name: "点券"
+    scale: 0
+    rounding: "DOWN"
 ```
 
-### 3. 重载并验证
-
-```bash
-/axs reload announcer
-/axs announcer status
-```
-
-### 4. 进游戏查看 HUD
-
-带 ArcartX 客户端的玩家进入服务器，几秒后 HUD 应滚出公告文本。
-
-## 全量启用
-
-确认 1-2 个模块跑通后，逐个打开其他模块：
-
-```bash
-/axs reload all
-/axs status
-```
-
-## 常见问题排查
-
-| 现象 | 排查方向 |
+| 字段 | 功能与填写建议 |
 | --- | --- |
-| 控制台 `bridge missing` | ArcartX 服务端插件没装 |
-| UI 注册成功但 HUD 不出现 | 客户端 MOD 没装 |
-| HUD 出现但文字不对 | YAML 缩进/引号问题 |
-| 模块提示"缺少依赖" | 检查对应模块的前置插件（如 Chemdah、MythicMobs） |
-| 模块提示"桥接不可用" | 检查对应经济插件（如 Vault、PlayerPoints）是否安装 |
-| 控制台"跳过占位符注册" | PlaceholderAPI 未安装，属正常降级 |
+| `money` / `points` | 货币 ID；改名后必须检查商品、奖励和费用中的引用 |
+| `enabled` | 是否启用该货币定义；没有使用的货币可以关闭 |
+| `provider` | 余额由哪个经济插件或命令方式提供，必须与实际环境对应 |
+| `display-name` | 给玩家看的名称，改为“金币”“代币”等不会改变货币 ID |
+| `scale` | 小数位数；`0` 为整数，`2` 保留两位小数 |
+| `rounding` | 超出小数位时如何处理；`DOWN` 向零截取，`HALF_UP` 为通常的四舍五入 |
+| `balance-placeholder` | 命令方式对接货币时，用于获取纯数字余额的 PAPI 表达式 |
+| `withdraw-command` | 命令方式对接货币时，扣款执行的控制台命令 |
+| `deposit-command` | 命令方式对接货币时，入账执行的控制台命令 |
 
-## 降级行为说明
+`vault` 需要 Vault 和提供经济功能的插件；`playerpoints` 需要 PlayerPoints。配置货币不会自动安装插件，也不会自动创建经济系统。
 
-如果日志出现"某模块需要某插件，已跳过加载"或"跳过占位符注册"，这是正常降级。只有 ArcartX 缺失、模块配置错误、jar 损坏才需要按错误处理。
+如果只有 Vault 金币，可以保留 `money`，将 `points.enabled` 改为 `false`，并确保模块没有继续引用 `points`。XConomy、Rondo 及命令方式的写法见[货币系统](/docs/guide/currencies)。
+
+修改后执行 `/axs reload all`，检查状态中的货币信息，用小额测试确认余额展示、扣款和入账。
+
+## 数据存储
+
+`storage` 决定数据保存在哪里。普通单服无需先搭建 MySQL，默认即可开始使用：
+
+```yaml
+storage:
+  mode: "sqlite"
+```
+
+### 本地存储
+
+`sqlite` 使用本地数据库文件，不需要 MySQL 账号。备份时应连同 Suite 数据目录一起备份。该模式下，`storage.mysql` 中的连接信息与 `storage.pool-size` 不生效。
+
+### 使用 MySQL
+
+有数据库或群组服数据需求时，再填写连接信息：
+
+```yaml
+storage:
+  mode: "mysql"
+  mysql:
+    host: "数据库地址"
+    port: 3306
+    database: "arcartxsuite"
+    username: "数据库账号"
+    password: "数据库密码"
+  pool-size: 8
+```
+
+| 字段 | 默认值 | 功能 |
+| --- | --- | --- |
+| `mode` | `sqlite` | 选择 `sqlite` 或 `mysql` |
+| `mysql.host` | `127.0.0.1` | 数据库地址；默认表示运行 Minecraft 服务端的本机 |
+| `mysql.port` | `3306` | 数据库端口 |
+| `mysql.database` | `arcartxsuite` | 数据库名称 |
+| `mysql.username` / `mysql.password` | `root` / 空文本 | 实际可访问数据库的账号密码 |
+| `mysql.server-timezone` | `UTC` | 连接时区，按数据库环境填写 |
+| `mysql.character-encoding` | `UTF-8` | 连接字符编码，通常保留默认 |
+| `mysql.use-unicode` | `true` | Unicode 支持，通常保留默认 |
+| `mysql.jdbc-params` | 空文本 | 额外连接参数，无明确需求时留空 |
+| `pool-size` | `8` | MySQL 可同时使用的连接数量，初次使用保留默认 |
+
+某个模块若已有独立 `storage` 设置，还需要核对该模块配置，不能只改全局配置就认为全部模块已切换。
+
+**切换存储方式后必须重启。修改连接配置不等于迁移已有数据。** 已有数据的服务器应先停服备份，再安排迁移和读回验证。多个子服连接同一数据库也不代表所有功能都会自动跨服同步。
+
+## 全局按键
+
+`keybinds` 设置客户端默认按键，玩家可在客户端按键设置中查看和调整。
+
+| 条目 | 默认键位 | 用途 |
+| --- | --- | --- |
+| `interact` | `G` | 拾取交互、对话确认或推进，取决于当前功能 |
+| `navigate-prev` | `UP` | 对话选项向上选择 |
+| `navigate-next` | `DOWN` | 对话选项向下选择 |
+| `pickup-pick` | `F` | 拾取模块选择使用专用拾取键时触发交互 |
+| `map-menu` | `M` | 打开全屏地图 |
+| `map-hud` | `H` | 切换小地图显示 |
+
+例如，把地图默认打开键改成 `J`：
+
+```yaml
+keybinds:
+  map-menu:
+    name: AXS_MAP_MENU
+    default-key: J
+    category: ArcartXSuite
+    module: map
+```
+
+| 字段 | 功能与修改建议 |
+| --- | --- |
+| `name` | 功能使用的按键名称；已有条目保留原值，只改默认键位即可 |
+| `default-key` | 默认键位，例如 `G`、`M`、`UP`、`KP_8` |
+| `category` | 客户端按键设置中的分类名称 |
+| `module` | 所属模块 ID，可为单个 ID 或列表；相关模块成功启用后才注册 |
+
+只新增按键条目不会自动获得新功能，还需要对应功能支持。修改后执行 `/axs reload all`，重新进入服务器检查。已自行改键的玩家应同时核对本地设置，不能只凭默认值判断实际按键。
+
+## 属性插件与模组兼容
+
+### 属性插件选择
+
+`attribute-bridges` 控制 Suite 是否使用对应属性插件，默认四项均为 `true`。
+
+| 字段 | 对应插件 |
+| --- | --- |
+| `attributeplus` | AttributePlus |
+| `craneattribute` | CraneAttribute |
+| `mythiclib` | MythicLib |
+| `symphony` | Symphony |
+
+开启表示允许使用，仍需安装插件。关闭后，Suite 中依赖该插件的属性功能无法使用该来源。安装多套属性插件时按自己的方案选择；修改后执行 `/axs reload all`，实际检查称号、道具等属性效果。
+
+### 持续药水效果
+
+`potion-aura` 控制称号等功能提供的持续药水效果。它不直接定义玩家获得哪种药水，具体效果仍在模块中配置。
+
+```yaml
+potion-aura:
+  enabled: true
+  refresh-interval-ticks: 60
+  effect-duration-ticks: 200
+  particles: false
+  icon: true
+```
+
+| 字段 | 默认值 | 功能 |
+| --- | --- | --- |
+| `enabled` | `true` | 是否启用这类持续效果 |
+| `refresh-interval-ticks` | `60` | 刷新间隔，正常 20 TPS 下约 3 秒，最小 20 tick |
+| `effect-duration-ticks` | `200` | 每次施加持续约 10 秒，应大于刷新间隔；卸下来源后可能短暂残留 |
+| `particles` | `false` | 是否显示效果粒子 |
+| `icon` | `true` | 是否显示药水效果图标 |
+
+初次使用通常只需决定是否显示粒子和图标。修改后执行 `/axs reload all`，通过装备、卸下实际提供效果的称号等方式验证。
+
+### 模组实体属性
+
+`mod-attributes.enabled` 默认 `true`，用于混合服务端中的模组实体属性加成。只有模组环境和具体属性配置都满足时才有效；普通插件服务端开启它，不会凭空增加模组属性。
+
+### 枪械伤害兼容
+
+`tacz-compat.enabled` 默认 `true`，用于 Timeless and Classics Guns 伤害来源识别，使伤害飘字、击杀特效、首领伤害统计等功能正确处理枪械伤害。未安装对应模组时通常无需调整。
+
+`tacz-compat.debug` 默认 `false`，仅排查问题时开启日志。此区域修改后重启服务器生效。
+
+## 全局内容过滤
+
+`moderation` 管理参与此功能的聊天、留言、邮件等文本，不会自动接管所有第三方插件的输入。
+
+| 字段 | 默认值 | 功能 |
+| --- | --- | --- |
+| `enabled` | `true` | 开启内容过滤 |
+| `cancel-on-match` | `false` | `false` 替换后继续；`true` 取消对应发送或提交操作 |
+| `replacement` | `*` | 替换命中内容的文字 |
+| `blocked-words` | 示例词列表 | 本地屏蔽词，可按需求增删 |
+| `blocked-patterns` | `[]` | 正则表达式屏蔽规则，无此需求时保留空列表 |
+| `ignored-punctuations` | 默认标点列表 | 内容匹配时忽略的标点字符 |
+| `whitelist` | 示例列表 | 允许跳过过滤的文本，添加后测试放行范围 |
+| `cloud.enabled` | `true` | 加载远程词库，与顶部云端账号配置是不同功能 |
+| `cloud.urls` | 默认词库地址列表 | 远程词库下载地址，可填多个 |
+| `cloud.ignored` | 包含 `nt` | 从远程词库中排除的词，用于调整误判 |
+| `cloud.refresh-minutes` | `60` | 远程词库刷新间隔，单位分钟 |
+
+远程词库支持每行一个词的纯文本、JSON 字符串数组，或带 `words`、`data`、`list` 数组字段的 JSON 对象。按实际维护的词库填写地址。
+
+修改后执行 `/axs reload all`。用普通测试账号分别测试正常文字和测试词；Chat、Market 会使用处理后的文字，Mail 当前主要检查是否阻止发送，不能统一承诺邮件会自动替换文本。具体接入范围与差异见[内容过滤与提示文字](/docs/guide/text-moderation)。只使用本地词库时，将 `moderation.cloud.enabled` 改为 `false`，本地规则仍由 `moderation.enabled` 控制。
+
+## 跨服功能
+
+单服保持 `cross-server.redis.enabled: false` 和 `cross-server.proxy.enabled: false`。群组服需先配置子服连接，再开启目标模块支持的跨服功能。
+
+| 常用字段 | 用途 |
+| --- | --- |
+| `node-id` | 当前子服唯一名称，各子服应不同，不要都保留 `default` |
+| `redis.enabled` | 是否使用 Redis 进行跨服互通 |
+| `redis.host` / `redis.port` | 地址与端口，默认 `127.0.0.1:6379` |
+| `redis.password` / `redis.database` | 连接密码与数据库编号，默认空密码、`0` |
+| `redis.channel` | 同组子服使用的频道，默认 `AXS:CROSS` |
+| `redis.connect-timeout-ms` | 连接等待时间，默认 `5000` 毫秒 |
+| `proxy.enabled` | 启用代理服转发方式，需要代理环境配合 |
+| `proxy.messenger-channel` | 转发频道，默认 `AXS_CROSS` |
+| `proxy.forward-target` | 转发目标，默认 `ALL` |
+
+首次使用选择符合群组服部署方式的方案，不必为了“全部启用”而同时打开两种方式。修改连接设置后重启各子服，再按[跨服功能使用](/docs/guide/cross-server-setup)验证实际业务。
+
+## 奖励命令执行速度
+
+`command-throttle-per-tick: 20` 表示参与此功能的奖励、结算类控制台命令，每个游戏 tick 最多执行 20 条。它不是每秒 20 条；正常 20 TPS 下，一秒约有 20 个 tick。
+
+- 数值较小：分批更细，大量发奖时最后一批可能更晚到账。
+- 数值较大：队列处理更快，同一 tick 执行的命令更多。
+- `0`：关闭分批限制，直接执行。
+
+通常保留默认即可。它控制执行速度，不改变奖励数量，也不控制所有玩家聊天命令。调整后重启生效。
+
+## 保存后怎样生效
+
+| 修改内容 | 生效方式 | 如何验证 |
+| --- | --- | --- |
+| 货币、属性插件选择、持续药水效果、模组属性、内容过滤、默认按键 | `/axs reload all` | 小额经济测试、装备效果、文字输入或客户端按键检查 |
+| 模块启用开关、首次云端账号绑定 | 首次配置建议重启 | `/axs status`，核对后台装备状态 |
+| 数据存储、跨服连接、枪械伤害兼容、奖励命令执行速度 | 重启服务器 | 检查连接日志、功能结果和数据读回 |
+| 某个模块自己的配置 | `/axs reload <模块ID>` | 按模块文档实际操作 |
+
+单模块重载不能代替主配置重载。重载全部模块会影响正在使用的功能，正式服务器应选择合适时间执行。
+
+## 首次验证与下一步
+
+1. 执行 `/axs status`，确认需要的模块已启用，货币符合预期。
+2. 使用已安装匹配版本 ArcartX 的客户端进入服务器，按模块文档完成一次实际操作。
+3. 涉及费用和奖励的功能用小额数据检查扣款、入账与物品领取，并以普通玩家账号核对权限。
+4. 出现日志警告或报错时，对照[日志与报错提示](/docs/guide/config-management)，先处理最早的错误。
+
+本体正常运行后，按[阅读顺序](/docs/guide)了解通用配置，再按需阅读模块使用文档或开发者内容。
+
+区域选择、邮件派发、奖励命令与其他可复用功能的实际用法见[通用功能概览](/docs/guide/shared-functions)。
