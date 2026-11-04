@@ -13,10 +13,21 @@ const guide = findFolder('guide');
 const guidePages = guide?.children.filter((node) => node.type === 'page' && node.url !== guide.index?.url) ?? [];
 const corePages = new Set(['/docs/guide/first-run', '/docs/guide/commands', '/docs/guide/config-management']);
 
-// Keep the URLs stable while grouping the sidebar by the reader's task.
-export const documentationTree: PageTree.Root = {
-  ...original,
-  children: [
+function matchExportedUrls(node: PageTree.Node): PageTree.Node {
+  if (node.type === 'page' && node.url.startsWith('/docs') && !node.url.endsWith('/')) {
+    return { ...node, url: node.url + '/' };
+  }
+  if (node.type === 'folder') {
+    return {
+      ...node,
+      index: node.index ? { ...node.index, url: node.index.url.replace(/\/?$/, '/') } : undefined,
+      children: node.children.map(matchExportedUrls),
+    };
+  }
+  return node;
+}
+
+const groupedChildren: PageTree.Node[] = [
     ...original.children.filter((node) => node.type === 'page' && node.url === '/docs'),
     ...(guide?.index ? [{ ...guide.index, name: '阅读顺序' }] : []),
     {
@@ -37,5 +48,10 @@ export const documentationTree: PageTree.Root = {
     })),
     { type: 'separator', name: '开发者内容' },
     ...[findFolder('api')].filter((node): node is PageTree.Folder => node !== undefined),
-  ],
+];
+
+// Fumadocs matches the current URL exactly. Static export uses trailing slashes.
+export const documentationTree: PageTree.Root = {
+  ...original,
+  children: groupedChildren.map(matchExportedUrls),
 };

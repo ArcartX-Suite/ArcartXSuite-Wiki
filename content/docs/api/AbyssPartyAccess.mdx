@@ -76,21 +76,38 @@ public interface AbyssPartyAccess {
 
 ## 参数与返回值
 
-| 方法 | 用途 | 参数 | 返回值 |
-| --- | --- | --- | --- |
-| `partyOf` | 玩家所在队伍快照；不在队伍中返回 null。 | `player`：目标玩家（`UUID`） | `PartySnapshot` 结果对象；没有对应结果时可为 null |
-| `isInParty` | 玩家是否在队伍中。 | `player`：目标玩家（`UUID`） | `boolean`：用于判断上面所述的查询或操作结果（true / false） |
-| `isLeader` | 玩家是否是队长。 | `player`：目标玩家（`UUID`） | `boolean`：用于判断上面所述的查询或操作结果（true / false） |
-| `getParty` | 按队伍 id 查询快照。 | `partyId`：队伍 ID（`UUID`） | `PartySnapshot` 结果对象；没有对应结果时可为 null |
-| `publicParties` | 组队大厅公开队伍列表。 | 无参数 | `List<PartySnapshot>`：符合条件的结果集合 |
-| `createParty` | 创建指定模式/人数上限的队伍。 | `leader`：队长（玩家已有队伍时返回原队快照，不更改模式）；`name`：队伍名（null 自动生成）；`mode`：队伍模式："free"自由组队（默认）/"guild"公会组队/自定义命名空间； 地牢模板 `requirements.party-mode` 可按此值限制进本队伍类型；`maxSize`：人数上限（&lt;=0 取全局 party.max-members） | `PartySnapshot` 结果对象 |
-| `disband` | 解散队伍。 | `partyId`：队伍 ID（`UUID`） | `boolean`：用于判断上面所述的查询或操作结果（true / false） |
-| `addMember` | 直加成员（跳过邀请流程；仍经过该 mode 的 `JoinValidator` 与人数上限检查）。 | `partyId`：队伍 ID（`UUID`）；`player`：目标玩家（`UUID`） | null=成功；非 null=失败原因（"party not found"/"already in party"/"party full"/校验器拒绝原因） |
-| `removeMember` | 移除成员（支持离线）。 | `partyId`：队伍 ID（`UUID`）；`player`：目标玩家（`UUID`） | `boolean`：用于判断上面所述的查询或操作结果（true / false） |
-| `transferLeader` | 转让队长（目标须为成员）。 | `partyId`：队伍 ID（`UUID`）；`newLeader`：新队长 UUID（`UUID`） | `boolean`：用于判断上面所述的查询或操作结果（true / false） |
-| `registerJoinValidator` | 按队伍模式注册加入校验器：玩家通过邀请/大厅/审批/直加进入该模式队伍前回调。 公会插件示例：`registerJoinValidator("guild", (party, applicant) -> sameGuild(party.leader(), applicant) ? null : "仅同公会成员可加入")` 同 mode 重复注册覆盖旧值；插件禁用时请 `#unregisterJoinValidator`。 | `mode`：模式（`String`）；`validator`：加入条件回调（`JoinValidator`） | 无返回值；按本行说明执行操作 |
-| `unregisterJoinValidator` | 注销该模式的加入校验器。 | `mode`：模式（`String`） | 无返回值；按本行说明执行操作 |
-| `check` |  | `party`：目标队伍快照；`applicant`：待加入玩家 | null=允许加入；非 null=拒绝原因（会发给申请人） |
+| 方法 | 参数 | 结果 |
+| --- | --- | --- |
+| `partyOf` | 玩家 UUID | 当前队伍快照，未组队时返回 `null` |
+| `isInParty` | 玩家 UUID | 是否已加入队伍 |
+| `isLeader` | 玩家 UUID | 是否为队长 |
+| `getParty` | 队伍 UUID | 队伍快照，队伍不存在时返回 `null` |
+| `publicParties` | 无 | 组队大厅中的公开队伍快照列表 |
+| `createParty` | 队长、队伍名、模式、人数上限 | 创建队伍并返回快照。队长已有队伍时返回原队伍 |
+| `disband` | 队伍 UUID | 是否成功解散 |
+| `addMember` | 队伍 UUID、玩家 UUID | 成功返回 `null`，失败返回原因。仍检查人数上限和加入条件 |
+| `removeMember` | 队伍 UUID、玩家 UUID | 是否成功移除，支持离线成员 |
+| `transferLeader` | 队伍 UUID、新队长 UUID | 是否成功转让，新队长须是现有成员 |
+| `registerJoinValidator` | 队伍模式、校验器 | 注册加入条件，同一模式重复注册会替换旧校验器 |
+| `unregisterJoinValidator` | 队伍模式 | 移除该模式的校验器 |
+| `JoinValidator.check` | 队伍快照、申请者 UUID | 允许时返回 `null`，拒绝时返回提示文字 |
+
+### 创建队伍
+
+- `name` 可填 `null` 以生成队伍名。
+- `mode` 可填 `free`、`guild` 或自定义模式。副本 `requirements.party-mode` 可限制允许进入的队伍模式。
+- `maxSize` 小于或等于 0 时采用全局 `party.max-members`。
+
+### 校验入队
+
+校验器用于邀请、大厅、审批和直接加人。插件停用时调用 `unregisterJoinValidator` 移除注册。
+
+公会插件可按以下方式限制入队。
+
+```java
+api.registerJoinValidator("guild", (party, applicant) ->
+    sameGuild(party.leader(), applicant) ? null : "仅同公会成员可加入");
+```
 
 ## 调用注意事项
 

@@ -22,6 +22,14 @@ body { font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", "Microsoft Ya
 ::selection { background: #b49ad04d; color: #f4ecf9; }
 #nd-docs-layout { background: hsl(var(--background)); }
 #nd-sidebar { background-color: #17151c; }
+#nd-sidebar a[aria-current="page"] { color: #e9c98d; background: #dfc38f18; }
+.wiki-sidebar-folder-index { display: flex; align-items: center; gap: 2px; }
+.wiki-sidebar-folder-index > a { flex: 1; }
+.wiki-sidebar-folder-index > button, .wiki-sidebar-folder-toggle { border-radius: 6px; padding: 7px 8px; }
+.wiki-sidebar-folder-index > button:hover, .wiki-sidebar-folder-toggle:hover { background: #ffffff0a; }
+.wiki-sidebar-folder-toggle { display: flex; align-items: center; gap: 8px; width: 100%; text-align: start; }
+.wiki-sidebar-folder-toggle svg:last-child { margin-inline-start: auto; }
+.wiki-sidebar-folder-children { margin-inline-start: 8px; padding: 4px 0 4px 6px; border-inline-start: 1px solid #ffffff15; }
 .suite-docs-brand { display: inline-flex; align-items: center; gap: 8px; }
 .suite-docs-brand > span:not(.suite-docs-brand-caption) { color: #e4d2b1; font: 25px Georgia, "Times New Roman", serif; letter-spacing: -.04em; }
 .suite-docs-brand-caption { color: #a69aad; font-size: 12px; font-weight: 400; margin-left: 2px; }
@@ -48,7 +56,7 @@ article.suite-article { max-width: 816px; gap: 0; padding-top: 32px; padding-bot
 .suite-prose h2:hover svg, .suite-prose h3:hover svg { opacity: 1; }
 .suite-prose code { font-family: 'Cascadia Code', Consolas, 'SFMono-Regular', ui-monospace, monospace; }
 .suite-prose :not(pre) > code { font-size: .87em; padding: .12em .28em; color: #c5b6d8; background: #ffffff06; border: 0; border-radius: 3px; box-decoration-break: clone; }
-.suite-prose > .relative.overflow-auto { margin: 18px 0; }
+.suite-prose > .relative.overflow-auto { margin: 18px 0; max-width: 100%; }
 .suite-prose > .relative.overflow-auto:first-child { margin-top: 0; }
 .suite-prose table { margin: 0; font-size: 14px; line-height: 1.65; background: #ffffff02; border-color: #ffffff12; border-radius: 5px; }
 .suite-prose th, .suite-prose td { padding: 9px 12px; border-inline-start: 0; vertical-align: top; border-color: #ffffff0e; }
@@ -58,6 +66,7 @@ article.suite-article { max-width: 816px; gap: 0; padding-top: 32px; padding-bot
 .suite-prose td:first-child { color: #bab2c7; }
 .suite-prose td p, .suite-prose th p { margin: 0; }
 .suite-prose td code { font-size: .91em; background: transparent; padding: 0; }
+.suite-prose td:first-child code { white-space: nowrap; overflow-wrap: normal; }
 .suite-prose .fd-codeblock { margin: 18px 0; background: #16131c; border-color: #ffffff14; border-radius: 6px; }
 .suite-prose .fd-codeblock pre { padding: 16px 18px; }
 .suite-prose .fd-codeblock pre code { font-size: 13px; line-height: 1.75; }
