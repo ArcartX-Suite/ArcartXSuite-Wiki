@@ -5,6 +5,10 @@
     "configuration",
     "commands",
     "dungeons",
+    "design",
+    "layouts",
+    "encounters",
+    "rewards-and-settlement",
     "procgen",
     "scripting",
     "stages"

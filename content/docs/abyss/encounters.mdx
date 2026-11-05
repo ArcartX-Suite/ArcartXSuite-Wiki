@@ -1,0 +1,290 @@
+---
+title: "战斗、机关与副本任务"
+description: "从怪物波次到交互、解谜与 NPC 委托，逐项搭建可验收的战斗流程。"
+---
+
+先用一个怪组和一个阶段跑通战斗。再加入交互、机关和任务，每次只增加一种推进条件，便于定位卡在哪一步。
+
+## 从单房间开始
+
+1. 在怪物组里选定触发方式和生成点。若由脚本触发，先确认脚本使用的是怪组 ID。
+2. 用阶段的清怪条件衔接下一阶段，先确认最后一只怪物死亡后能推进。
+3. 再接入机关或 NPC 委托。机关步骤引用交互点的键名，NPC 委托使用实际的 Chemdah 任务 ID。
+
+阶段条件和分支见[阶段流程](/docs/abyss/stages)。
+
+## monsters.yml — 怪物组/波次
+
+顶层每个 key 是一个怪物组 ID，组内 `monsters` 为刷怪点列表：
+
+```yaml
+wave_1:
+  spawn-timing: AUTO_START            # 触发方式，见下表
+  monsters:
+    - mob-id: "vanilla:ZOMBIE"        # vanilla: 强制原版 / 无前缀走 MythicMobs
+      location: "3,80,3"              # x,y,z
+      amount: 3
+  complete-when-alive-below: 0        # 存活数低于此值时组完成
+  plans: []                           # 限定作战方案 id 列表（空=所有方案都刷；见 plans 作战方案）
+  on-start:                           # 组开始时执行的脚本动作
+    - "message @all &e第一波来袭！"
+  on-end:
+    - "message @all &a第一波已清剿！"
+
+wave_2:
+  spawn-timing: TRIGGERED             # 由 trigger-after 组清完自动触发（无需手写 spawn_group）
+  trigger-after: ["wave_1"]
+  delay-seconds: 6                    # 清完休整 6 秒再刷
+  on-prespawn:                        # 预告段：触发后、休整期内立即跑
+    - "title @all 5 40 5 &c第二波 &76 秒后来袭！"
+    - "sound @all ENTITY_RAVAGER_ROAR 1 0.8"
+  monsters:
+    - mob-id: "vanilla:SKELETON"
+      location: "4,80,0"
+      amount: 2
+```
+
+| spawn-timing | 触发时机 |
+|---|---|
+| `AUTO_START` | monsters.yml 全局组=start 即刷；floors **房间内组**=锁门即刷（`delay-seconds` 起延迟） |
+| `DELAYED` | 全局组=进本延迟刷；房间内组=锁门 `delay-seconds` 后刷 |
+| `TRIGGERED` | `trigger-after` 列出的组**全部**清完后自动触发（房间内同样生效） |
+| `MANUAL` / `SCRIPTED` | 仅脚本动作 `spawn_group` 触发（锁门不刷——随机波次、条件波次用） |
+
+> **房间清判**：`combat`/`boss` 房要求 `groups` 列出的**全部**组进入 COMPLETED。
+> `MANUAL` 组若本轮不刷，须 `kill_group` 跳过（PENDING 组被 kill 视同完成，照走完成链）；
+> `remove_group` 是静默移除，不会计入完成，慎用。
+
+> **不要在 `on-end` 里手动 `spawn_group`**——`trigger-after` 已自动触发，手写会双通道刷两遍。
+
+`mob-id` 路由规则：`vanilla:` 前缀强制原版；其余尝试 MythicMobs，加载失败自动回退原版同类型实体。
+
+### 波次休整（delay-seconds / rest-seconds / on-prespawn）
+
+TRIGGERED 组前置清完后**不立即刷**，按休整规则延迟：
+
+- `delay-seconds`：组级覆盖——触发后延迟 N 秒刷（对 TRIGGERED 也生效）
+- `rest-seconds`：组级兜底——`delay-seconds<=0` 时用；floors 房间还可在房间级写 `wave-rest` 作为整房组的兜底
+- `on-prespawn`：预告段——组被触发、休整期**开始瞬间**执行（写「下一波来袭」title/音效/actionbar，给玩家喘息提示）
+
+优先级：`delay-seconds` > 组 `rest-seconds` > 房间 `wave-rest`；三者都 ≤0 时立即生成下一组。
+
+## tasks.yml — 副本内任务
+
+```yaml
+tips:
+  type: TIMED                        # 指定秒数触发
+  times: [60, 300, 540]
+  timed-scripts:
+    60: ["message @all &7已进行 1 分钟"]
+    300: ["message @all &e时间过半！"]
+
+supply:
+  type: INTERVAL                     # 循环任务
+  interval: 120                      # 每 120 秒
+  script:
+    - "message @all &7补给已投放"
+
+on_kill:
+  type: EVENT                        # 事件任务
+  event: monster_kill                # 怪物被击杀
+  script:
+    - "setvar last_killer {killer}"
+```
+
+| type | 触发方式 |
+|---|---|
+| `TIMED` | 副本进行到 `times` 列出的秒数时执行对应 `timed-scripts` |
+| `INTERVAL` | 每 `interval` 秒循环执行 `script` |
+| `EVENT` | 指定事件发生时执行（如 `monster_kill`，上下文含 `{killer}`） |
+
+## interacts.yml — 交互点
+
+```yaml
+trial_chest:
+  type: RIGHT_CLICK_BLOCK            # 见下表
+  location: "5,80,5"                 # 方块坐标（方块型用）
+  region: ["0,60,0", "20,80,20"]     # 区域对角（区域型用）
+  entity-name: "宝箱守卫"             # 实体名（RIGHT_CLICK_ENTITY 用）
+  required-block: "GOLD_BLOCK"       # 要求的目标方块
+  once: true                         # 一次性触发
+  conditions: []                     # PAPI 条件
+  fail-message: "&c条件不满足"        # 条件失败提示（独立 5 秒节流）
+  script:                            # 触发时执行
+    - "open_chest_ui @trigger trial_chest"
+```
+
+| type | 说明 |
+|---|---|
+| `RIGHT_CLICK_BLOCK` / `LEFT_CLICK_BLOCK` | 右键/左键 `location` 处指定方块 |
+| `BREAK_BLOCK` / `PLACE_BLOCK` | 破坏/放置 `location` 处方块 |
+| `STEP_ON` | 站上 `location` 处方块 |
+| `ENTER_REGION` | 进入 `region` 区域（边沿触发，离开后再进可重触发） |
+| `RIGHT_CLICK_ENTITY` | 右键名为 `entity-name` 的实体 |
+
+> 防抖：同一玩家对同一交互点 500ms 内不重复触发；条件失败的提示消息独立节流 5 秒。
+
+## puzzles.yml — 机关解谜
+
+每个地牢目录可放 `puzzles.yml` 定义实例级机关——状态随副本创建/销毁，不占主世界。两种类型：
+
+- `sequence` — 按顺序触发一组 interact 点名（压力阀/符文顺序/接线板）
+- `input` — 弹 ArcartX 输入面板，玩家键盘输入密码/口令（电梯通行码）
+
+### 联动方式
+
+- **步骤点名** = `interacts.yml` 键名。interact 触发成功即上报谜题系统——步骤点可以不挂 `script`（纯机关点），也可以同时挂脚本做额外反馈
+- **input 面板入口**：interact/NPC 脚本里用 `puzzle_prompt <机关id>` 打开；指定玩家用 `puzzle_prompt_player <玩家|@all> <机关id>`
+- **实例变量**：`{var:puzzle.<id>}`=进度（sequence=步数/input=尝试次数）、`{var:puzzle.<id>.done}`="1"、`{var:puzzle.<id>.locked}`="1"
+- **事件**：`axs.abyss.puzzle_step` / `axs.abyss.puzzle_complete` / `axs.abyss.puzzle_fail`（`reason`: `miss_sequence`/`miss_input`/`locked`）
+- **管理/脚本动作**：`puzzle_reset` / `puzzle_solve` / `puzzle_state <id> <变量>` —— 跳关、动态重置、状态读取
+
+### 管理员局内操作
+
+```
+/axs abyss puzzle                  # 列出当前实例全部机关状态
+/axs abyss puzzle <id>             # 单机关详情（类型/进度/步数）
+/axs abyss puzzle <id> reset       # 重置进度+解锁
+/axs abyss puzzle <id> solve       # 直接判定完成（触发 on-complete）
+/axs abyss puzzle <id> fail        # 强制锁定（触发 on-fail）
+/axs abyss puzzle <id> prompt [玩家]  # 给玩家打开输入面板（测试用）
+```
+
+## buffs.yml — 增益选择池
+
+roguelike 式"祝福"系统：清房/层间/神龛交互等时机，给玩家弹**三选一增益卡片**（或静默按权重直接生效）。触发不写在本文件——在任何生命周期段 / interact / 机关脚本里用 `buff_offer <池id>` 动作发起，时机完全由编排决定。
+
+```yaml
+pools:
+  room_blessing:
+    name: "房间肃清祝福"          # 面板标题
+    pick: 1                     # 每玩家选一个
+    candidates: 3               # 候选数（<=0=全显；按 weight 加权抽取，不重复）
+    presentation: panel         # panel=AX 卡片面板 / hud=不弹窗直接生效
+    timeout: 20                 # 选择限时秒（0=不限）
+    timeout-auto: random        # 超时兜底：first|random|none
+    once-per-instance: false    # true=本池每实例只能 offer 一次
+    options:
+      - id: sharp_edge
+        name: "&c利刃"
+        icon: IRON_SWORD        # 物品材质名 → 卡片图标（可空）
+        rarity: rare            # common|rare|epic|legendary → 描边色
+        weight: 10              # 抽中权重
+        desc: ["攻击伤害 +15%"]  # 面板最多显示前 3 行
+        effects:                # 脚本行（全动作可用，@trigger=选择者）
+          - "apply_attribute @trigger attack_damage 15 percent"
+          - "message @trigger &d✦ &c利刃 &7已生效"
+```
+
+### 效果三通道
+
+`effects` 是完整脚本行列表，落地路径全走现有机制：
+
+- **药水**：`apply_potion @trigger SPEED 1 9999`
+- **属性加成**：`apply_attribute @trigger <属性> <值> [percent]`（Symphony/AttributePlus/MythicLib/Crane 统一属性桥，装了哪个走哪个）
+- **变量驱动**：`setvar buff_ember_mark 1` —— 伤害加成/特殊机制在怪物组/武器脚本里 `check` 变量分支实现，策划自由度最大
+
+### 触发方式（脚本动作）
+
+```yaml
+# rooms.yml 清房后
+on-clear:
+  - "buff_offer room_blessing"
+
+# floors.yml 层进入 / interact 神龛点击 / 机关完成同理
+on-enter:
+  - "buff_offer floor_mend"          # presentation: hud —— 不弹窗，直接生效+提示
+```
+
+`buff_grant <池id> <选择器> [optionId]` 直接赋予不弹窗（剧情强制增益/调试）；`buff_clear <池id>` 撤下未完成的待选面板。
+
+### 联动
+
+- **实例变量**：`{var:buff.<poolId>}`=最近所选 option id、`{var:buff.<poolId>.count}`=已发放人次
+- **事件**：`axs.abyss.buff_offer` / `axs.abyss.buff_pick`（payload 含 `pool`/`option`）
+- **超时**：`timeout` 到时按 `timeout-auto` 兜底，客户端面板自动关闭
+
+## obstacles.yml — 障碍物
+
+障碍物是副本开始时自动放置的方块组，可用于封路/边界/装饰：
+
+```yaml
+edge_wall:
+  blocks:
+    - "-7,79,-7,BEDROCK"             # x,y,z,Material
+    - "-7,79,7,BEDROCK"
+  auto-create: true                  # 副本开始时自动放置
+  trigger-mode: NONE                 # NONE / ENTER / LEAVE / PERSIST
+  on-delete: []                      # 障碍移除时执行的脚本
+```
+
+| trigger-mode | 说明 |
+|---|---|
+| `NONE` | 纯方块组，无触发 |
+| `ENTER` / `LEAVE` | 玩家进入/离开障碍区域时触发脚本 |
+| `PERSIST` | 玩家在区域内持续期间按周期触发 |
+
+脚本可用 `create_obstacle <名>` / `delete_obstacle <名>` 动态控制。
+
+## npcs.yml — 副本 NPC
+
+副本 NPC 由 **Adyeshach** 渲染：每个 npcs.yml 条目在副本实例里生成一个**公共临时实体**（`EntityManagerPublicTemporary`，随实例销毁，不落 Adyeshach 持久库），实体 id 固定取配置 key——Chemdah 会话按 `npc id: 'adyeshach <key>'` 精确绑定。
+
+```yaml
+guide:
+  name: "&e向导·艾琳"                # 显示名
+  type: VILLAGER                     # PLAYER/VILLAGER/ZOMBIE/SKELETON/WITCH/CREEPER
+                                     # /ENDERMAN/BLAZE/PILLAGER/WANDERING_TRADER/IRON_GOLEM
+  location: "11,61,11,90,0"          # x,y,z,yaw,pitch（yaw 90=面向 -x 入口）
+  skin: "玩家名或皮肤值"              # 仅 PLAYER 型
+  look-at-player: true               # 注视附近玩家
+  dialogs:                           # 兜底对话：该 NPC 未绑定 Chemdah 会话时逐句播放
+    - "&e欢迎来到虚空试炼场！"
+  dialog-interval: 40                # 兜底对话间隔（tick）
+  click-script:                      # 右键时执行的副本脚本（对话之后照常执行）
+    - "accept_quest slayer"
+  once: false                        # true=每名玩家只触发一次
+```
+
+**点击时的判定顺序**：
+
+2. 否则 → `dialogs` 聊天栏逐句播放兜底
+3. `click-script` 无论哪条路径都会执行
+
+> **实体类型注意**：`VILLAGER`/`WANDERING_TRADER` 这类实体**自带原版交易 GUI**——Adyeshach 缺席时 NPC 降级为真实体，右键会先弹原版交易界面盖住自定义交互。接对话/商店的 NPC 推荐 `WITCH`（无交易界面，两条路径都安全）；`PLAYER` 型仅在 Adyeshach 在场时可用（降级路径会变 ZOMBIE）。
+
+## quests.yml — 接取副本委托与领取奖励
+
+先在 Chemdah 任务文件中定义名称、说明、目标和完成条件。QuestGPS 直接读取这些信息，奖励预览也写在该任务的 `addon.axs-view` 中。副本的 `quests.yml` 用同一个任务 ID 登记副本内动作。沿用同一 ID 时可省略 `chemdah-id`。
+
+```yaml
+sk_slayer:
+  on-accept:
+    - "sound @trigger ENTITY_EXPERIENCE_ORB_PICKUP 1 1.2"
+  on-complete:
+    - "grant_reward @trigger quest_pack"
+```
+
+在副本 NPC 的 `click-script` 中写 `quest_step sk_slayer`。`@trigger` 指接取或领取任务的玩家，`quest_pack` 是同一副本 `rewards.yml` 中定义的奖励集。
+
+| 字段 | 用法 |
+| --- | --- |
+| `chemdah-id` | 仅在副本脚本使用不同 ID 时填写，值为 Chemdah 任务 ID |
+| `auto-track` | 默认 `true`，副本接取成功后加入 QuestGPS 追踪 |
+| `on-accept` | 通过副本脚本接取成功后执行的动作列表 |
+| `on-complete` | 发放奖励或执行其他副本动作的列表 |
+| `manual-claim` | 默认 `false`，完成时立即执行 `on-complete`。设为 `true` 后，需要通过 NPC 提交已完成的任务 |
+
+脚本参数中的任务 ID 填 `quests.yml` 的顶层键。
+
+| 动作 | 行为 |
+|---|---|
+| `accept_quest <任务> [sel]` | 接取任务，成功后执行 `on-accept`，按 `auto-track` 决定是否追踪 |
+| `submit_quest <任务> [sel]` | 已完成的 Chemdah 任务 → 跑 `on-complete` 领副本奖励（`manual-claim` 场景） |
+| `quest_step <任务>` | NPC 点击时根据状态接取任务、提示进行中或提交已完成任务 |
+| `quest_track <任务> [步骤] [sel]` | QuestGPS 追踪卡片（整个任务或指定步骤） |
+| `quest_status <任务> <变量> [sel]` | 写 `NONE`/`ACTIVE`/`COMPLETED` 到实例变量，配合 `check` 分支 |
+
+由副本发奖时，Chemdah 的完成脚本可以只发送提示。重复接取条件由 Chemdah 设置。副本示例任务位于模板的 `external/chemdah/quest/sk_slayer.yml`，其他展示字段见[Chemdah 任务配置](/docs/questgps/chemdah-mapping)。
+
+奖励定义与发放方式见[奖励、商店与结算](/docs/abyss/rewards-and-settlement)。

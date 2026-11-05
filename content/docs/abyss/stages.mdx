@@ -13,10 +13,10 @@ entry: prepare              # 首阶段名
 
 prepare:
   name: "准备阶段"
-  timeout: 300              # tick；0/缺省=不限时
+  timeout: 0                # 0 表示不限时
   on-start:                 # 进入本阶段执行（脚本行）
-    - "message @all &e准备中，30 秒后开始"
-  complete-when: "players_alive >= 1"   # 完成条件（空=仅手动 complete_stage）
+    - "message @all &e准备好后请触发开始机关"
+  complete-when: ""         # 开始机关执行 complete_stage 后推进
   next: wave_1              # 完成后进入的阶段
 
 wave_1:
@@ -38,10 +38,17 @@ boss:
     - when: ""
       to: done
 
+hidden_boss:
+  name: "隐藏首领"
+  complete-when: "group_cleared:hidden_boss"
+  next: done
+
 done:
   name: "完成"
   complete-when: ""         # 手动：complete_stage 动作或 complete 生命周期
 ```
+
+测试时先用开始机关进入第一波，再检查最后一只怪物死亡后是否进入首领阶段。示例中的 `wave_1`、`boss` 和 `hidden_boss` 都要在怪物配置中定义，并设置对应的生成触发。测试分支时，分别让 `elite_kill` 等于和不等于 `1`，确认两条路线。
 
 ## complete-when 条件
 
