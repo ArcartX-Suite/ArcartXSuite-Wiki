@@ -1,0 +1,79 @@
+---
+title: "AbyssReconnectAccess"
+description: "查询原成员的限时回归资格，并请求返回仍在运行的原副本。"
+---
+
+| 项目 | 内容 |
+| --- | --- |
+| 提供模块 | [地牢副本](/docs/abyss) |
+| 完整类型 | `xuanmo.arcartxsuite.api.capability.AbyssReconnectAccess` |
+
+## 获取接口
+
+```java
+import xuanmo.arcartxsuite.api.AxsCapabilities;
+import xuanmo.arcartxsuite.api.capability.AbyssReconnectAccess;
+
+AbyssReconnectAccess api = AxsCapabilities.get(AbyssReconnectAccess.class);
+if (api == null) {
+    // 提供模块未启用，向玩家显示功能暂不可用
+    return;
+}
+```
+
+每次业务操作重新获取接口。主线程发起接口调用，返回异步结果的方法还需处理异常完成。接入方式见[快速开始](/docs/api/quick-start)。
+
+## 方法声明
+
+以下声明来自当前已合入主分支的公开 API，包含可用的方法、结果类型和枚举。
+
+```java
+public interface AbyssReconnectAccess {
+    record Status(UUID runId, long deadline, boolean eligible, String code) { }
+    Status reconnectStatus(UUID player);
+    Status requestReconnect(UUID player, UUID runId);
+}
+```
+
+## 参数与返回值
+
+| 方法 | 参数 | 返回类型 |
+| --- | --- | --- |
+| `reconnectStatus(player)` | 原成员 UUID | `Status` |
+| `requestReconnect(player, runId)` | 原成员 UUID、资格中给出的原实例 UUID | `Status` |
+
+### 查询回归资格 reconnectStatus(player)
+
+返回 runId、deadline、eligible 与 code，先判断是否允许回归。
+
+### 请求回归 requestReconnect(player, runId)
+
+尝试回归并返回最新状态。回归可能失败，应读取 code。
+
+## 调用示例
+
+以下片段接在获取接口后。示例中的业务对象和 ID 由接入插件提供。
+
+```java
+var status = api.reconnectStatus(player.getUniqueId());
+if (!status.eligible()) {
+    player.sendMessage(status.code());
+    return;
+}
+var result = api.requestReconnect(player.getUniqueId(), status.runId());
+player.sendMessage(result.code());
+```
+
+## 调用注意事项
+
+- 模板 requirements.reconnect-grace-seconds 默认 0，上限 600 秒。只有仍保留资格的原成员可以回到原实例。
+- 限定同进程中仍运行的实例。副本计时在离线期间继续，原来的副本死亡状态也会保留。
+- Status.eligible 表示资格，操作后的 code 表达执行结果。不要把仍有资格误认为已完成传送。
+
+## 相关接口
+
+- [AbyssAdmissionAccess](/docs/api/abyss-integration)用于查询副本目录、预检整队入场、提交与查询请求，处理取消、归档和待核账状态。
+- [AbyssEntryCostAccess](/docs/api/AbyssEntryCostAccess)用于为整队入场接入外部门票，按事务身份预留、消费、释放和补偿。
+- [AbyssExternalPartyAccess](/docs/api/AbyssExternalPartyAccess)用于注册外部队伍名单校验，将组队系统的选择、准备状态与入场请求对应。
+- [AbyssRunAccess](/docs/api/AbyssRunAccess)用于读取实例目标、实体归属与观众，执行有版本检查的实例操作。
+- [AbyssRunResultAccess](/docs/api/AbyssRunResultAccess)用于异步补查已确认的终局结果与逐人成员事实，按提交游标消费结算记录。

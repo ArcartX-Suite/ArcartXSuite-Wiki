@@ -1,19 +1,237 @@
 ---
-title: "Abyss 副本联动"
-description: "通过公开接口接入副本准入、外部队伍、门票、实例控制、回归与结算查询。"
+title: "AbyssAdmissionAccess"
+description: "查询副本目录、预检整队入场、提交与查询请求，处理取消、归档和待核账状态。"
 ---
 
-以下接口位于 `xuanmo.arcartxsuite.api.capability`，通过 `AxsCapabilities.get(接口类型.class)` 获取。入场请求由副本宿主服处理。准入操作在服务器主线程调用，门票回调和结算查询按各自返回的异步结果处理。
-
-| 接口 | 调用方式与返回结果 |
+| 项目 | 内容 |
 | --- | --- |
-| `AbyssAdmissionAccess` | 用 `integrationInfo` 检查可用性、用 `catalog` 读取副本和路线。先以 `Intent` 调用 `preflight`，允许后将同一请求和令牌传给 `requestEntry`。用 `entryStatus(owner, requestId)` 查进度，或用 `cancelEntry` 请求取消。 |
-| `AbyssExternalPartyAccess` | 注册队伍提供方，按请求核实外部队伍、名单和准备状态。入场前会复核版本，开局名单会冻结。 |
-| `AbyssEntryCostAccess` | 注册提供方，按事务 ID 实现预留、确认消费、释放、补偿与查询。出现 `REVIEW_REQUIRED` 时先核对事务结果。 |
-| `AbyssRunAccess` | 查询实例快照、观众及已登记实体的归属，也可注册目标提供方。实例操作受模板所有者授权，主动判定通关还需要目标提供方确认。 |
-| `AbyssReconnectAccess` | 用 `reconnectStatus(player)` 查询资格，再用 `requestReconnect(player, runId)` 请求返回原实例。 |
-| `AbyssRunResultAccess` | 用 `result(runId)` 查询单局结果，或按所有者和游标分页补查。结果包含开局名单及离线、离场、死亡等事实，可供接入方判定发奖资格。 |
+| 提供模块 | [地牢副本](/docs/abyss) |
+| 完整类型 | `xuanmo.arcartxsuite.api.capability.AbyssAdmissionAccess` |
 
-调用方应保存 `owner`、`requestId`，以及获得的 `runId`。发生超时或收到 `REVIEW_REQUIRED` 时，先用原请求 ID 查询。外部门票可通过返回的事务 ID 向提供方核对消费状态。
+## 获取接口
 
-入场状态和最终结算可在收到通知后按 ID 补查。接入方应依据确认后的结算结果判定奖励资格，并按实例与成员去重发奖。模板开关和回归时间见[副本配置](/docs/abyss/dungeons#外部入场与原副本回归)。
+```java
+import xuanmo.arcartxsuite.api.AxsCapabilities;
+import xuanmo.arcartxsuite.api.capability.AbyssAdmissionAccess;
+
+AbyssAdmissionAccess api = AxsCapabilities.get(AbyssAdmissionAccess.class);
+if (api == null) {
+    // 提供模块未启用，向玩家显示功能暂不可用
+    return;
+}
+```
+
+每次业务操作重新获取接口。主线程发起接口调用，返回异步结果的方法还需处理异常完成。接入方式见[快速开始](/docs/api/quick-start)。
+
+## 方法声明
+
+以下声明来自当前已合入主分支的公开 API，包含可用的方法、结果类型和枚举。
+
+```java
+public interface AbyssAdmissionAccess {
+    record IntegrationInfo(int apiVersion, UUID generation, long catalogRevision, boolean available, String reason,
+                           Map<String, String> features) {
+        public IntegrationInfo { features = Map.copyOf(features); }
+    }
+    record Plan(String id, String name, List<String> lore) {
+        public Plan { lore = List.copyOf(lore); }
+    }
+    record Dungeon(String id, String name, String description, String difficultyLabel,
+                   int minimumPlayers, int maximumPlayers, boolean partyRequired,
+                   String partyMode, int capacity, List<Plan> plans, String host,
+                   long cooldownSeconds, double moneyCost, String currency, int staminaCost) {
+        public Dungeon { plans = List.copyOf(plans); }
+    }
+    record Intent(String owner, UUID requestId, UUID actor, List<UUID> members,
+                  String dungeon, String plan, String difficulty, String rulesVersion,
+                  String externalPartyId, long rosterRevision, long selectionRevision) {
+        public Intent { members = List.copyOf(members); }
+        public Intent(String owner, UUID requestId, UUID actor, List<UUID> members,
+                      String dungeon, String plan, String difficulty, String rulesVersion) {
+            this(owner, requestId, actor, members, dungeon, plan, difficulty, rulesVersion, null, 0, 0);
+        }
+    }
+    record Denial(UUID member, String code, String message) { }
+    record Preflight(UUID token, long expiresAt, List<Denial> denials) {
+        public Preflight { denials = List.copyOf(denials); }
+        public boolean allowed() { return token != null && denials.isEmpty(); }
+    }
+    enum Phase { PREPARING, RESERVING_COST, COMMITTING_COST, TELEPORTING, STARTED,
+        REJECTED, CANCELLED, COMPENSATING_COST, COMPENSATED, REVIEW_REQUIRED, CONFLICT }
+    record Cost(String owner, UUID transactionId, AbyssEntryCostAccess.State lastKnownState) { }
+    record Review(Entry entry, AbyssEntryCostAccess.State observedCost) { }
+    record ReviewItem(UUID requestId, Entry entry) { }
+    record Entry(Phase phase, UUID runId, String reason, Map<UUID, String> members, Cost cost,
+                 Map<UUID, String> nativeCosts) {
+        public Entry { members = Map.copyOf(members); nativeCosts = Map.copyOf(nativeCosts); }
+        public Entry(Phase phase, UUID runId, String reason, Map<UUID, String> members, Cost cost) {
+            this(phase, runId, reason, members, cost, Map.of());
+        }
+        public Entry(Phase phase, UUID runId, String reason, Map<UUID, String> members) {
+            this(phase, runId, reason, members, null);
+        }
+    }
+    record PlayerState(boolean available, UUID requestId, UUID runId, String state) { }
+    record Run(UUID id, String dungeon, String plan, String difficulty, String rulesVersion,
+               String state, List<UUID> roster, List<UUID> members, UUID world,
+               UUID requestId, UUID leader, String externalPartyId,
+               long createdAt, long startedAt, Map<UUID, String> memberStates) {
+        public Run {
+            roster = List.copyOf(roster);
+            members = List.copyOf(members);
+            memberStates = Map.copyOf(memberStates);
+        }
+    }
+    @FunctionalInterface interface Policy {
+        List<Denial> check(Intent intent);
+    }
+    interface Registration extends AutoCloseable { @Override void close(); }
+
+    IntegrationInfo integrationInfo();
+    List<Dungeon> catalog();
+    PlayerState playerState(UUID player);
+    Run run(UUID runId);
+    List<Run> activeRuns();
+    Preflight preflight(Intent intent);
+    Entry requestEntry(Intent intent, UUID token);
+
+    Entry entryStatus(String owner, UUID requestId);
+
+    java.util.concurrent.CompletableFuture<Entry> lookupEntry(String owner, UUID requestId);
+
+    java.util.concurrent.CompletableFuture<Boolean> archiveEntry(String owner, UUID requestId);
+
+    java.util.concurrent.CompletionStage<Review> reviewEntry(String owner, UUID requestId);
+
+    java.util.concurrent.CompletableFuture<List<ReviewItem>> reviewQueue(String owner, UUID afterRequestId, int limit);
+
+    Entry cancelEntry(String owner, UUID requestId);
+    Registration registerPolicy(String owner, int priority, Policy policy);
+
+    Registration registerPolicy(org.bukkit.plugin.Plugin plugin, String owner, int priority, Policy policy);
+}
+```
+
+## 参数与返回值
+
+| 方法 | 参数 | 返回类型 |
+| --- | --- | --- |
+| `integrationInfo()` | 无 | `IntegrationInfo` |
+| `catalog()` | 无 | `List<Dungeon>` |
+| `playerState(player)` | 玩家 UUID | `PlayerState` |
+| `run(runId) / activeRuns()` | 实例 UUID / 无 | `Run / List<Run>` |
+| `preflight(intent)` | 本次 Intent | `Preflight` |
+| `requestEntry(intent, token)` | 同一请求、预检令牌 | `Entry` |
+| `entryStatus(owner, requestId)` | 所有者、稳定请求 UUID | `Entry` |
+| `lookupEntry(owner, requestId)` | 所有者、请求 UUID | `CompletableFuture<Entry>` |
+| `cancelEntry(owner, requestId)` | 所有者、请求 UUID | `Entry` |
+| `archiveEntry(owner, requestId)` | 所有者、请求 UUID | `CompletableFuture<Boolean>` |
+| `reviewEntry(owner, requestId)` | 所有者、请求 UUID | `CompletionStage<Review>` |
+| `reviewQueue(owner, afterRequestId, limit)` | 所有者、上一页请求 UUID、数量 | `CompletableFuture<List<ReviewItem>>` |
+| `registerPolicy(...)` | owner、priority、Policy，可带 Bukkit Plugin | `Registration` |
+
+### 能力状态 integrationInfo()
+
+先检查 available、服务代次 generation、catalogRevision 和 features，再开放入口。
+
+### 模板目录 catalog()
+
+读取模板目录、人数、队伍模式、方案、宿主和费用，菜单使用目录中的真实 ID。
+
+### 玩家状态 playerState(player)
+
+查询玩家是否可用、已有请求或实例占用。
+
+### 实例快照 run(runId) / activeRuns()
+
+读取活动实例。roster 为开局名单，members 为当前名单，两者分别使用。
+
+### 全员预检 preflight(intent)
+
+全员预检，读取 denials。只有 allowed() 为真时才能使用 token 发起请求。
+
+### 发起入场 requestEntry(intent, token)
+
+提交宿主服入场，按 phase 查询后续进度。收到请求不等于正式开局。
+
+### 缓存查询 entryStatus(owner, requestId)
+
+查询缓存状态。冷查询期间可为 null，需要持久结果时改用 lookupEntry。
+
+### 持久查询 lookupEntry(owner, requestId)
+
+读取活动或已归档请求，异常按读取失败处理。
+
+### 取消请求 cancelEntry(owner, requestId)
+
+只在传送开始前请求取消，否则返回现有状态。
+
+### 归档请求 archiveEntry(owner, requestId)
+
+归档已确认终态的请求。归档保留请求去重身份。
+
+### 单笔核账 reviewEntry(owner, requestId)
+
+核对入场收据和外部门票状态。查询本身不扣票也不退款。
+
+### 待核账列表 reviewQueue(owner, afterRequestId, limit)
+
+分页读取待核账候选。候选也可能是未确认收据，不能直接据此退款。
+
+### 注册策略 registerPolicy(...)
+
+注册准入策略，保存句柄并在插件停用时 close。策略回调应快速、只读。
+
+## 调用示例
+
+### 请求和结果字段
+
+| 字段组 | 怎样填写或读取 |
+| --- | --- |
+| `Intent.owner / requestId` | 接入插件稳定的所有者 ID，以及保存下来的一次请求 UUID |
+| `Intent.actor / members` | 发起玩家 UUID 与全队名单，成员变更后重新预检 |
+| `Intent.dungeon / plan` | 使用目录中的副本 ID 和方案 ID |
+| `Intent.difficulty / rulesVersion` | 由接入方确定的难度与规则版本，在同一请求中保持一致 |
+| `Intent.externalPartyId / rosterRevision / selectionRevision` | 外部队伍的身份、名单修订和选择修订，与提供方确认的快照一致 |
+| `Preflight.token / expiresAt / denials` | 允许后使用令牌，留意有效时间。拒绝项给出成员、错误码和说明 |
+| `Entry.phase / reason` | 当前入场阶段及原因。`STARTED` 才表示进入已开局状态 |
+| `Entry.members / nativeCosts / cost` | 逐人成员结果、原生成本状态，以及外部费用事务信息 |
+| `Review.entry / observedCost` | 已保存的入场收据与这次查询得到的外部门票状态 |
+
+以下片段接在获取接口后。示例中的业务对象和 ID 由接入插件提供。
+
+```java
+String owner = "my_plugin";
+UUID requestId = UUID.randomUUID(); // 保存后重试继续使用
+var intent = new AbyssAdmissionAccess.Intent(
+    owner, requestId, player.getUniqueId(), List.of(player.getUniqueId()),
+    dungeonId, planId, difficultyId, rulesVersion
+);
+var info = api.integrationInfo();
+if (!info.available()) {
+    player.sendMessage(info.reason());
+    return;
+}
+var check = api.preflight(intent);
+if (!check.allowed()) {
+    check.denials().forEach(denial -> player.sendMessage(denial.message()));
+    return;
+}
+var entry = api.requestEntry(intent, check.token());
+player.sendMessage("入场状态 " + entry.phase());
+```
+
+## 调用注意事项
+
+- 示例中的 dungeonId、planId 从 catalog() 读取，difficultyId 和 rulesVersion 由调用方确定并在同一请求中保持一致。例子演示原生单人名单，外部队伍还需提供其 ID 和两个修订号。
+- Intent 的 owner 和 requestId 标识一次请求。超时后保存原请求并查询，避免不断生成新 UUID 再次开本。相同 ID 改参数会产生冲突。
+- Entry.phase 区分 PREPARING、RESERVING_COST、COMMITTING_COST、TELEPORTING、STARTED、拒绝、取消、补偿和待核账。members 表示逐人成员结果，nativeCosts 表示原生成本处理结果，cost 提供外部事务身份和已知状态。
+- REVIEW_REQUIRED 和费用 UNKNOWN 需要与提供方核对。关闭菜单、返回上一步或网络超时都不能作为退款依据。
+
+## 相关接口
+
+- [AbyssEntryCostAccess](/docs/api/AbyssEntryCostAccess)用于为整队入场接入外部门票，按事务身份预留、消费、释放和补偿。
+- [AbyssExternalPartyAccess](/docs/api/AbyssExternalPartyAccess)用于注册外部队伍名单校验，将组队系统的选择、准备状态与入场请求对应。
+- [AbyssReconnectAccess](/docs/api/AbyssReconnectAccess)用于查询原成员的限时回归资格，并请求返回仍在运行的原副本。
+- [AbyssRunAccess](/docs/api/AbyssRunAccess)用于读取实例目标、实体归属与观众，执行有版本检查的实例操作。
+- [AbyssRunResultAccess](/docs/api/AbyssRunResultAccess)用于异步补查已确认的终局结果与逐人成员事实，按提交游标消费结算记录。

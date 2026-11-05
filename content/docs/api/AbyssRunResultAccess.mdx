@@ -1,0 +1,126 @@
+---
+title: "AbyssRunResultAccess"
+description: "异步补查已确认的终局结果与逐人成员事实，按提交游标消费结算记录。"
+---
+
+| 项目 | 内容 |
+| --- | --- |
+| 提供模块 | [地牢副本](/docs/abyss) |
+| 完整类型 | `xuanmo.arcartxsuite.api.capability.AbyssRunResultAccess` |
+
+## 获取接口
+
+```java
+import xuanmo.arcartxsuite.api.AxsCapabilities;
+import xuanmo.arcartxsuite.api.capability.AbyssRunResultAccess;
+
+AbyssRunResultAccess api = AxsCapabilities.get(AbyssRunResultAccess.class);
+if (api == null) {
+    // 提供模块未启用，向玩家显示功能暂不可用
+    return;
+}
+```
+
+每次业务操作重新获取接口。主线程发起接口调用，返回异步结果的方法还需处理异常完成。接入方式见[快速开始](/docs/api/quick-start)。
+
+## 方法声明
+
+以下声明来自当前已合入主分支的公开 API，包含可用的方法、结果类型和枚举。
+
+```java
+public interface AbyssRunResultAccess {
+    String RESULT_COMMITTED_TOPIC = "axs.abyss.result_committed";
+    String RUN_NOTICE_TOPIC = "axs.abyss.run_notice";
+    String ENTRY_NOTICE_TOPIC = "axs.abyss.entry_notice";
+
+    enum Outcome { COMPLETED, FAILED, CANCELLED }
+    enum MemberState { PRESENT, DISCONNECTED, LEFT }
+    record Member(UUID player, MemberState state, int deaths, String leaveReason, long lastChangedAt) { }
+    record Result(UUID resultId, UUID runId, UUID requestId, String owner, String dungeon,
+                  String plan, String difficulty, String rulesVersion, UUID leader,
+                  long admittedAt, long startedAt, long endedAt, Outcome outcome,
+                  String reason, List<Member> roster) {
+        public Result { roster = List.copyOf(roster); }
+    }
+    record Cursor(long endedAt, UUID runId) { }
+    record Committed(long sequence, Result result) { }
+    record ResultCommitted(int schemaVersion, UUID eventId, UUID runId, UUID requestId,
+                           long occurredAt) { }
+    enum NoticeKind { ADMITTED, STARTED, DISCONNECTED, RECONNECTED, LEFT, DIED }
+
+    record RunNotice(int schemaVersion, UUID eventId, UUID runId, UUID requestId, long sequence,
+                     long occurredAt, NoticeKind kind, Member member) { }
+
+    record EntryNotice(int schemaVersion, UUID eventId, UUID generation, String owner, UUID requestId,
+                       long sequence, long occurredAt, AbyssAdmissionAccess.Entry entry) { }
+
+    CompletableFuture<Result> result(UUID runId);
+
+    CompletableFuture<List<Result>> results(String owner, Cursor after, int limit);
+
+    CompletableFuture<List<Committed>> committedResults(String owner, long afterSequence, int limit);
+}
+```
+
+## 参数与返回值
+
+| 方法 | 参数 | 返回类型 |
+| --- | --- | --- |
+| `result(runId)` | 实例 UUID | `CompletableFuture<Result>` |
+| `results(owner, after, limit)` | 所有者、Cursor、分页数量 | `CompletableFuture<List<Result>>` |
+| `committedResults(owner, afterSequence, limit)` | 所有者、已处理提交序号、分页数量 | `CompletableFuture<List<Committed>>` |
+
+### 单局结果 result(runId)
+
+查询已确认结果，无已提交结果时为 null，存储错误以异常完成。
+
+### 历史分页 results(owner, after, limit)
+
+按 endedAt 与 runId 升序分页历史，最多 100 条。
+
+### 按提交游标补查 committedResults(owner, afterSequence, limit)
+
+按提交顺序增量补查，用于可靠消费终局结果。
+
+## 调用示例
+
+### 结果与游标
+
+| 字段 | 使用方式 |
+| --- | --- |
+| `Result.resultId / runId / requestId` | 结果、实例和入场请求的身份，保存用于查询与去重 |
+| `Result.owner / dungeon / plan` | 结果所属调用方、副本模板和路线 |
+| `Result.outcome / reason` | `COMPLETED`、`FAILED` 或 `CANCELLED` 及终局原因 |
+| `Result.roster` | 开局成员及其离场、离线与死亡事实，不能只按当前在线玩家结算 |
+| `Cursor.endedAt / runId` | 历史分页最后一条结果的结束时间和实例 ID |
+| `Committed.sequence` | 提交顺序游标，完成本笔结果处理后再保存新值 |
+
+以下片段接在获取接口后。示例中的业务对象和 ID 由接入插件提供。
+
+```java
+api.result(runId).whenComplete((result, error) -> {
+    if (error != null) {
+        // 保留任务，稍后重查
+        return;
+    }
+    if (result == null) return;
+    // 由你的账本判定资格，并按 resultId 与玩家身份去重入账
+    rewardLedger.accept(result);
+});
+```
+
+## 调用注意事项
+
+- Result 带 resultId、runId、requestId、owner、模板、路线、难度、规则版本、队长、时间和 Outcome。roster 保留开局成员及各自 PRESENT、DISCONNECTED 或 LEFT 状态、死亡次数和离场事实。
+- results 是按结束时间排列的历史页。需要逐笔消费时使用 committedResults，在幂等处理 resultId 成功后推进 sequence。
+- 结果回调可能运行在异步线程。涉及 Bukkit 玩家、背包或 UI 的操作应调回主线程，账本写入也应遵守自身事务约束。
+- RESULT_COMMITTED_TOPIC、RUN_NOTICE_TOPIC 和 ENTRY_NOTICE_TOPIC 常量给出通知主题。收到通知后按实例或请求 ID 查询，不能把漏收通知当作没有结果。局内 RunNotice 不提供历史重放。
+- Abyss 提供终局事实。章节进度、奖励资格与奖励去重由接入插件自己的账本确认。
+
+## 相关接口
+
+- [AbyssAdmissionAccess](/docs/api/abyss-integration)用于查询副本目录、预检整队入场、提交与查询请求，处理取消、归档和待核账状态。
+- [AbyssEntryCostAccess](/docs/api/AbyssEntryCostAccess)用于为整队入场接入外部门票，按事务身份预留、消费、释放和补偿。
+- [AbyssExternalPartyAccess](/docs/api/AbyssExternalPartyAccess)用于注册外部队伍名单校验，将组队系统的选择、准备状态与入场请求对应。
+- [AbyssReconnectAccess](/docs/api/AbyssReconnectAccess)用于查询原成员的限时回归资格，并请求返回仍在运行的原副本。
+- [AbyssRunAccess](/docs/api/AbyssRunAccess)用于读取实例目标、实体归属与观众，执行有版本检查的实例操作。

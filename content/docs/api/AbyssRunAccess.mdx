@@ -1,0 +1,139 @@
+---
+title: "AbyssRunAccess"
+description: "读取实例目标、实体归属与观众，执行有版本检查的实例操作。"
+---
+
+| 项目 | 内容 |
+| --- | --- |
+| 提供模块 | [地牢副本](/docs/abyss) |
+| 完整类型 | `xuanmo.arcartxsuite.api.capability.AbyssRunAccess` |
+
+## 获取接口
+
+```java
+import xuanmo.arcartxsuite.api.AxsCapabilities;
+import xuanmo.arcartxsuite.api.capability.AbyssRunAccess;
+
+AbyssRunAccess api = AxsCapabilities.get(AbyssRunAccess.class);
+if (api == null) {
+    // 提供模块未启用，向玩家显示功能暂不可用
+    return;
+}
+```
+
+每次业务操作重新获取接口。主线程发起接口调用，返回异步结果的方法还需处理异常完成。接入方式见[快速开始](/docs/api/quick-start)。
+
+## 方法声明
+
+以下声明来自当前已合入主分支的公开 API，包含可用的方法、结果类型和枚举。
+
+```java
+public interface AbyssRunAccess {
+    String ENTITY_TOPIC = "axs.abyss.entity_notice";
+    String OBJECTIVES_TOPIC = "axs.abyss.objectives_changed";
+    record Objective(String kind, String id, String state, int progress, int total) { }
+    record Snapshot(UUID runId, long revision, String state, List<Objective> objectives) {
+        public Snapshot { objectives = List.copyOf(objectives); }
+    }
+    record Entity(UUID id, UUID runId, UUID worldId, String groupId, String mobId,
+                  String source, String encounterId, String role, String stageAtSpawn) { }
+    enum EntityChange { SPAWNED, DIED, REMOVED, VANISHED }
+    record EntityNotice(int schemaVersion, UUID eventId, Entity entity, EntityChange change, long occurredAt) { }
+
+    enum Action { LEAVE, CANCEL, FAIL, COMPLETE, SET_VARIABLE }
+    record Operation(UUID operationId, UUID runId, long expectedRevision, String owner,
+                     Action action, UUID playerId, String key, String value) { }
+    record OperationResult(boolean applied, String code, long revision) { }
+    interface ObjectiveProvider {
+        List<Objective> objectives(UUID runId);
+        default boolean canComplete(UUID runId, List<Objective> current) { return false; }
+    }
+
+    Snapshot snapshot(UUID runId);
+    List<Entity> entities(UUID runId);
+    Entity entity(UUID entityId);
+    List<UUID> audience(UUID runId);
+    OperationResult execute(Operation operation);
+    AbyssAdmissionAccess.Registration registerObjectives(String owner, ObjectiveProvider provider);
+}
+```
+
+## 参数与返回值
+
+| 方法 | 参数 | 返回类型 |
+| --- | --- | --- |
+| `snapshot(runId)` | 活动实例 UUID | `Snapshot` |
+| `entities(runId) / entity(entityId)` | 实例 UUID / 实体 UUID | `List<Entity> / Entity` |
+| `audience(runId)` | 实例 UUID | `List<UUID>` |
+| `execute(operation)` | Operation | `OperationResult` |
+| `registerObjectives(owner, provider)` | 所有者、ObjectiveProvider | `Registration` |
+| `ObjectiveProvider.objectives(runId)` | 实例 UUID | `List<Objective>` |
+| `ObjectiveProvider.canComplete(runId, current)` | 实例 UUID、当前目标列表 | `boolean` |
+
+### 实例目标快照 snapshot(runId)
+
+读取 state、revision 和目标进度，实例不可用时检查空结果。
+
+### 实体归属 entities(runId) / entity(entityId)
+
+查询 Abyss 已登记的实体归属，未登记实体不属于查询范围。
+
+### 当前观众 audience(runId)
+
+读取当前该局观众，供提示或预警系统选择接收者。
+
+### 执行操作 execute(operation)
+
+用 operationId、owner 和 expectedRevision 请求动作，按 applied 和 code 判断结果。
+
+### 注册目标提供方 registerObjectives(owner, provider)
+
+注册外部目标快照和通关确认回调。
+
+### 读取外部目标 ObjectiveProvider.objectives(runId)
+
+返回目标类型、ID、状态和进度快照。
+
+### 确认通关 ObjectiveProvider.canComplete(runId, current)
+
+确认外部 COMPLETE 请求是否可通关，默认 false。
+
+## 调用示例
+
+### 快照与操作字段
+
+| 字段 | 含义 |
+| --- | --- |
+| `Snapshot.runId / revision / state` | 目标实例、观察版本和当前状态 |
+| `Objective.kind / id / state / progress / total` | 目标类型、身份、状态和进度。显示时保留类型，避免不同类型的同名目标混淆 |
+| `Operation.operationId / runId / owner` | 本次操作身份、目标实例和操作所有者 |
+| `Operation.expectedRevision` | 调用前取得的快照修订。收到 `STALE_REVISION` 后刷新快照再决定是否新发起操作 |
+| `Operation.playerId` | `LEAVE` 操作对应的成员 |
+| `Operation.key / value` | `SET_VARIABLE` 使用的键值 |
+| `OperationResult.applied / code / revision` | 是否实际应用、结果码及返回的观察版本 |
+
+以下片段接在获取接口后。示例中的业务对象和 ID 由接入插件提供。
+
+```java
+var snapshot = api.snapshot(runId);
+if (snapshot == null) return;
+snapshot.objectives().forEach(objective ->
+    player.sendMessage(objective.id() + " " +
+        objective.progress() + "/" + objective.total())
+);
+```
+
+## 调用注意事项
+
+- Operation.action 包含 LEAVE、CANCEL、FAIL、COMPLETE、SET_VARIABLE。修改前取得最新 snapshot.revision，保持同一操作的 operationId 稳定。
+- 模板 requirements.external-control-owner 授权指定所有者。COMPLETE 还需要同所有者注册的目标提供方明确确认。
+- SET_VARIABLE 的 key 允许字母、数字、下划线、点和短横线，最多 64 字符，实际写入 `external:<owner>:<key>`。value 最多 1024 字符且不接受花括号。
+- Entity 包含实例、世界、怪组、怪物 ID、来源、遭遇、角色及生成阶段。audience 用于受众选择，具体攻击预警时点由调用方或战斗模块判定。
+
+## 相关接口
+
+- [AbyssAdmissionAccess](/docs/api/abyss-integration)用于查询副本目录、预检整队入场、提交与查询请求，处理取消、归档和待核账状态。
+- [AbyssEntryCostAccess](/docs/api/AbyssEntryCostAccess)用于为整队入场接入外部门票，按事务身份预留、消费、释放和补偿。
+- [AbyssExternalPartyAccess](/docs/api/AbyssExternalPartyAccess)用于注册外部队伍名单校验，将组队系统的选择、准备状态与入场请求对应。
+- [AbyssReconnectAccess](/docs/api/AbyssReconnectAccess)用于查询原成员的限时回归资格，并请求返回仍在运行的原副本。
+- [AbyssRunResultAccess](/docs/api/AbyssRunResultAccess)用于异步补查已确认的终局结果与逐人成员事实，按提交游标消费结算记录。

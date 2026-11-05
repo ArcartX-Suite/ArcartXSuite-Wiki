@@ -1,0 +1,94 @@
+---
+title: "AbyssExternalPartyAccess"
+description: "注册外部队伍名单校验，将组队系统的选择、准备状态与入场请求对应。"
+---
+
+| 项目 | 内容 |
+| --- | --- |
+| 提供模块 | [地牢副本](/docs/abyss) |
+| 完整类型 | `xuanmo.arcartxsuite.api.capability.AbyssExternalPartyAccess` |
+
+## 获取接口
+
+```java
+import xuanmo.arcartxsuite.api.AxsCapabilities;
+import xuanmo.arcartxsuite.api.capability.AbyssExternalPartyAccess;
+
+AbyssExternalPartyAccess api = AxsCapabilities.get(AbyssExternalPartyAccess.class);
+if (api == null) {
+    // 提供模块未启用，向玩家显示功能暂不可用
+    return;
+}
+```
+
+每次业务操作重新获取接口。主线程发起接口调用，返回异步结果的方法还需处理异常完成。接入方式见[快速开始](/docs/api/quick-start)。
+
+## 方法声明
+
+以下声明来自当前已合入主分支的公开 API，包含可用的方法、结果类型和枚举。
+
+```java
+public interface AbyssExternalPartyAccess {
+    record Roster(String partyId, UUID leader, List<UUID> members, String mode, int capacity,
+                  long rosterRevision, long selectionRevision, boolean ready) {
+        public Roster { members = List.copyOf(members); }
+    }
+
+    @FunctionalInterface interface Provider {
+
+        Roster verify(AbyssAdmissionAccess.Intent intent);
+    }
+
+    AbyssAdmissionAccess.Registration register(String owner, Provider provider);
+}
+```
+
+## 参数与返回值
+
+| 方法 | 参数 | 返回类型 |
+| --- | --- | --- |
+| `register(owner, provider)` | 所有者、Provider | `Registration` |
+| `Provider.verify(intent)` | 待核对的 Intent | `Roster` |
+
+### 注册队伍提供方 register(owner, provider)
+
+注册名单权威提供方，返回独立的注销句柄。
+
+### 核实名单 Provider.verify(intent)
+
+核对队伍 ID、成员、选择修订及准备状态，不能确认时返回 null。
+
+## 调用示例
+
+### Roster 字段
+
+| 字段 | 含义 |
+| --- | --- |
+| `partyId / leader / members` | 外部队伍 ID、队长 UUID 与本次成员 UUID 列表 |
+| `mode / capacity` | 队伍模式与容量 |
+| `rosterRevision` | 成员名单版本。换人后更新 |
+| `selectionRevision` | 副本、路线等选择的版本。改选择后更新 |
+| `ready` | 是否通过组队方的准备检查 |
+
+以下片段接在获取接口后。示例中的业务对象和 ID 由接入插件提供。
+
+```java
+var registration = api.register("my_plugin", intent -> {
+    // 从你的组队系统读取并核对 Intent 中的队伍及修订号
+    return partyDirectory.verify(intent);
+});
+```
+
+## 调用注意事项
+
+- Roster 包含 partyId、leader、members、mode、capacity、rosterRevision、selectionRevision、ready。它应来自组队系统当前状态，不能直接无条件复印请求。
+- Intent 中的 externalPartyId、名单和修订号需要对应同一份队伍。改变人员或作战选择后重新预检。
+- 开局名单会冻结。成员已处于其他原生队伍、未准备或修订变化时，处理明确的拒绝结果，再刷新调用方菜单。
+
+## 相关接口
+
+- [AbyssAdmissionAccess](/docs/api/abyss-integration)用于查询副本目录、预检整队入场、提交与查询请求，处理取消、归档和待核账状态。
+- [AbyssEntryCostAccess](/docs/api/AbyssEntryCostAccess)用于为整队入场接入外部门票，按事务身份预留、消费、释放和补偿。
+- [AbyssReconnectAccess](/docs/api/AbyssReconnectAccess)用于查询原成员的限时回归资格，并请求返回仍在运行的原副本。
+- [AbyssRunAccess](/docs/api/AbyssRunAccess)用于读取实例目标、实体归属与观众，执行有版本检查的实例操作。
+- [AbyssRunResultAccess](/docs/api/AbyssRunResultAccess)用于异步补查已确认的终局结果与逐人成员事实，按提交游标消费结算记录。

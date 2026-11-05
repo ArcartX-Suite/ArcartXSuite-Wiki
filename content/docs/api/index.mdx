@@ -18,7 +18,12 @@ description: "面向 Bukkit 插件作者的接入教程、调用示例与公开 
 | 接口 | 提供模块 | 用途 |
 | --- | --- | --- |
 | [AbyssPartyAccess](/docs/api/AbyssPartyAccess) | abyss | 管理副本队伍、成员与自定义组队模式 |
-| [Abyss 副本联动](/docs/api/abyss-integration) | abyss | 外部准入、队伍、门票、实例控制、回归与结算查询 |
+| [AbyssAdmissionAccess](/docs/api/abyss-integration) | abyss | 查询副本目录、预检整队入场、提交与查询请求，处理取消、归档和待核账状态。 |
+| [AbyssEntryCostAccess](/docs/api/AbyssEntryCostAccess) | abyss | 为整队入场接入外部门票，按事务身份预留、消费、释放和补偿。 |
+| [AbyssExternalPartyAccess](/docs/api/AbyssExternalPartyAccess) | abyss | 注册外部队伍名单校验，将组队系统的选择、准备状态与入场请求对应。 |
+| [AbyssReconnectAccess](/docs/api/AbyssReconnectAccess) | abyss | 查询原成员的限时回归资格，并请求返回仍在运行的原副本。 |
+| [AbyssRunAccess](/docs/api/AbyssRunAccess) | abyss | 读取实例目标、实体归属与观众，执行有版本检查的实例操作。 |
+| [AbyssRunResultAccess](/docs/api/AbyssRunResultAccess) | abyss | 异步补查已确认的终局结果与逐人成员事实，按提交游标消费结算记录。 |
 | [AfkRewardDispatchable](/docs/api/AfkRewardDispatchable) | afkreward | 查询挂机状态与开始原地挂机 |
 | [AnnouncerBroadcastable](/docs/api/AnnouncerBroadcastable) | announcer | 发送即时或排队公告 |
 | [AxsMailService](/docs/api/AxsMailService) | mail | 异步发送、查询、领取与删除邮件 |

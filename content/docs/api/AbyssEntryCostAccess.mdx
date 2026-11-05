@@ -1,0 +1,111 @@
+---
+title: "AbyssEntryCostAccess"
+description: "为整队入场接入外部门票，按事务身份预留、消费、释放和补偿。"
+---
+
+| 项目 | 内容 |
+| --- | --- |
+| 提供模块 | [地牢副本](/docs/abyss) |
+| 完整类型 | `xuanmo.arcartxsuite.api.capability.AbyssEntryCostAccess` |
+
+## 获取接口
+
+```java
+import xuanmo.arcartxsuite.api.AxsCapabilities;
+import xuanmo.arcartxsuite.api.capability.AbyssEntryCostAccess;
+
+AbyssEntryCostAccess api = AxsCapabilities.get(AbyssEntryCostAccess.class);
+if (api == null) {
+    // 提供模块未启用，向玩家显示功能暂不可用
+    return;
+}
+```
+
+每次业务操作重新获取接口。主线程发起接口调用，返回异步结果的方法还需处理异常完成。接入方式见[快速开始](/docs/api/quick-start)。
+
+## 方法声明
+
+以下声明来自当前已合入主分支的公开 API，包含可用的方法、结果类型和枚举。
+
+```java
+public interface AbyssEntryCostAccess {
+    enum State { NONE, RESERVED, COMMITTED, RELEASED, COMPENSATED, UNKNOWN }
+    record Transaction(UUID id, Intent intent) { }
+    interface Participant {
+        CompletionStage<State> reserve(Transaction transaction);
+        CompletionStage<State> commit(Transaction transaction);
+        CompletionStage<State> release(Transaction transaction);
+        CompletionStage<State> compensate(Transaction transaction);
+        CompletionStage<State> query(UUID transactionId);
+    }
+
+    AbyssAdmissionAccess.Registration register(String owner, Participant participant);
+    CompletionStage<State> query(String owner, UUID transactionId);
+}
+```
+
+## 参数与返回值
+
+| 方法 | 参数 | 返回类型 |
+| --- | --- | --- |
+| `register(owner, participant)` | 模板 external-cost-owner 对应的所有者、Participant | `Registration` |
+| `query(owner, transactionId)` | 所有者、事务 UUID | `CompletionStage<State>` |
+| `Participant.reserve(transaction)` | Transaction，含 id 与 Intent | `CompletionStage<State>` |
+| `Participant.commit(transaction)` | 同一事务 | `CompletionStage<State>` |
+| `Participant.release(transaction)` | 同一事务 | `CompletionStage<State>` |
+| `Participant.compensate(transaction)` | 同一事务 | `CompletionStage<State>` |
+| `Participant.query(transactionId)` | 事务 UUID | `CompletionStage<State>` |
+
+### 注册费用提供方 register(owner, participant)
+
+提供方按事务 ID 记录并幂等处理全部成员的门票。
+
+### 查询费用 query(owner, transactionId)
+
+向已注册的提供方查询已知费用状态。
+
+### 预留门票 Participant.reserve(transaction)
+
+预留这次请求的票，返回 RESERVED 或真实已知状态。
+
+### 确认消费 Participant.commit(transaction)
+
+确认消费，成功后返回 COMMITTED。
+
+### 释放预留 Participant.release(transaction)
+
+释放仍处于预留状态的门票。
+
+### 补偿消费 Participant.compensate(transaction)
+
+补偿已经确认消费的票。
+
+### 查询账本 Participant.query(transactionId)
+
+读取提供方账本，无法确认时返回 UNKNOWN。
+
+## 调用示例
+
+以下片段接在获取接口后。示例中的业务对象和 ID 由接入插件提供。
+
+```java
+var registration = api.register("my_plugin", ticketParticipant);
+// ticketParticipant 实现 Participant，并连接你自己的门票账本
+// 插件停用时释放注册
+registration.close();
+```
+
+## 调用注意事项
+
+- Participant 的回调在服务器主线程进入，数据库或远程请求通过 CompletionStage 异步完成，避免阻塞 tick。返回前应完成该状态所需的持久记录。
+- Transaction.intent 含全队名单，提供方要确认整队费用。重复 reserve、commit、release、compensate 必须基于同一个事务 ID 返回稳定结果。
+- 状态有 NONE、RESERVED、COMMITTED、RELEASED、COMPENSATED、UNKNOWN。释放预留与补偿消费是不同操作，超时不得直接当作 NONE。
+- 配置 external-cost-owner 后，由宿主服公开入场事务发起。避免同时通过 required-items 或其他脚本扣同一张票。
+
+## 相关接口
+
+- [AbyssAdmissionAccess](/docs/api/abyss-integration)用于查询副本目录、预检整队入场、提交与查询请求，处理取消、归档和待核账状态。
+- [AbyssExternalPartyAccess](/docs/api/AbyssExternalPartyAccess)用于注册外部队伍名单校验，将组队系统的选择、准备状态与入场请求对应。
+- [AbyssReconnectAccess](/docs/api/AbyssReconnectAccess)用于查询原成员的限时回归资格，并请求返回仍在运行的原副本。
+- [AbyssRunAccess](/docs/api/AbyssRunAccess)用于读取实例目标、实体归属与观众，执行有版本检查的实例操作。
+- [AbyssRunResultAccess](/docs/api/AbyssRunResultAccess)用于异步补查已确认的终局结果与逐人成员事实，按提交游标消费结算记录。
