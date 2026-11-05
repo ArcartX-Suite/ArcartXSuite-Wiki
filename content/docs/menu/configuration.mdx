@@ -66,28 +66,28 @@ menus/ 菜单、按钮图标、说明与点击动作。先使用默认示例完�
 
 动作类型（`actions` / `open-actions` / `close-actions` 中使用）：
 
-| 动作关键字 | 说明 |
-| --- | --- |
-| `command: <命令>` | 以玩家身份执行命令 |
-| `chat: <消息>` | 以玩家身份发送聊天消息（`/` 开头为命令） |
-| `connect: <服务器名>` | 将玩家切换到指定子服 |
-| `console: <命令>` | 以控制台身份执行命令 |
-| `op: <命令>` | 以玩家身份临时给予 OP 执行，用完自动收回 |
-| `message: <消息>` | 向玩家发送聊天消息（支持颜色代码） |
-| `sound: <音效名>\|<音量>\|<音调>` | 播放音效 |
-| `close` | 关闭当前菜单 |
-| `open: <菜单id>` | 打开另一个菜单 |
-| `page: <页面id>` | 切换到同菜单内的另一页 |
-| `signal: <名称>` | 触发 EventPacket command-signal 信号 |
-| `signal: <名称>\|键=值` | 触发信号并传递变量 |
-| `delay: <tick>` | 延迟 N tick 后执行后续动作（1 tick = 50ms） |
+| 动作关键字 | 说明 | 可替换示例 |
+| --- | --- | --- |
+| `command: <命令>` | 以玩家身份执行命令 | `command: spawn` |
+| `chat: <消息>` | 以玩家身份发送聊天消息（`/` 开头为命令） | `chat: 大家好` |
+| `connect: <服务器名>` | 将玩家切换到指定子服 | `connect: survival` |
+| `console: <命令>` | 以控制台身份执行命令 | `console: say {player} 打开了菜单` |
+| `op: <命令>` | 以玩家身份临时给予 OP 执行，用完自动收回 | `op: help` |
+| `message: <消息>` | 向玩家发送聊天消息（支持颜色代码） | `message: &a欢迎来到服务器` |
+| `sound: <音效名>\|<音量>\|<音调>` | 播放音效 | `sound: UI_BUTTON_CLICK\|1\|1` |
+| `close` | 关闭当前菜单 | `close` |
+| `open: <菜单id>` | 打开另一个菜单 | `open: teleport` |
+| `page: <页面id>` | 切换到同菜单内的另一页 | `page: page2` |
+| `signal: <名称>` | 触发 EventPacket command-signal 信号 | `signal: trial_open` |
+| `signal: <名称>\|键=值` | 触发信号并传递变量 | `signal: trial_open\|route=normal` |
+| `delay: <tick>` | 延迟 N tick 后执行后续动作（1 tick = 50ms） | `delay: 10` |
 
 图标 `icon` 支持的来源：
 
 | 来源 | 字段 | 说明 |
 | --- | --- | --- |
 | 原版物品 | `material` | Minecraft 物品 ID |
-| 物品库 | `source` + `id` | `neigeitems` / `mythicmobs` / `overture` |
+| 物品库 | `source` + `id` | 通过 `source` 选择物品库，再用 `id` 填该库物品 ID |
 | MMOItems | `source: mmoitems` + `mmo-type` + `mmo-id` | 需类型与 ID 两段定位 |
 | ArcartX 贴图 | `texture` / `texture-url` / `nbt` | 写入 NBT 渲染自定义贴图 |
 | 直接 NBT | `json` | 直接提供物品 NBT JSON |

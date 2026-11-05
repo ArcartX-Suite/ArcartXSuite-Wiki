@@ -65,7 +65,20 @@ categories:
 | 贴图标记 | `enabled`、`texture`、`width`、`height`、`facing`、`glowing`、`y-offset`、`pitch`、`life-time` |
 | 两者各自的路径参数 | `path-interval`、`path-max-markers`、`path-update-ticks`、`path-max-distance`、`path-reshow-buffer`、`path-max-iterations` |
 
+上表字段中的 `enabled` 为开关，`scale` 为缩放，`y-offset` 为高度偏移，`path-interval` 为路径点间隔，`path-max-markers` 为标记数上限。`model-id` 和 `texture` 填服务器已准备的模型或贴图 ID。
+
 具体资源与动态目标用法见[导航系统](/docs/questgps/navigation)。先测试屏幕路标，确认坐标正确，再开启路径标记。
+
+例如只启用模型路径时，在原 `navigation.model-marker` 小节修改以下字段。`guide_arrow` 是示例模型 ID，须替换为实际资源。
+
+```yaml
+navigation:
+  model-marker:
+    enabled: true       # 开启模型路径标记
+    model-id: guide_arrow
+    scale: 1.0          # 模型缩放
+    y-offset: 0.3       # 位置向上偏移
+```
 
 ## 可选主线门禁
 

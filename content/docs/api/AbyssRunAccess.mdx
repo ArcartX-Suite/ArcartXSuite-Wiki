@@ -65,7 +65,7 @@ public interface AbyssRunAccess {
 | `snapshot(runId)` | 活动实例 UUID | `Snapshot` |
 | `entities(runId) / entity(entityId)` | 实例 UUID / 实体 UUID | `List<Entity> / Entity` |
 | `audience(runId)` | 实例 UUID | `List<UUID>` |
-| `execute(operation)` | Operation | `OperationResult` |
+| `execute(operation)` | 实例操作请求 Operation | `OperationResult` |
 | `registerObjectives(owner, provider)` | 所有者、ObjectiveProvider | `Registration` |
 | `ObjectiveProvider.objectives(runId)` | 实例 UUID | `List<Objective>` |
 | `ObjectiveProvider.canComplete(runId, current)` | 实例 UUID、当前目标列表 | `boolean` |

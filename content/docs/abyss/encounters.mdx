@@ -316,8 +316,8 @@ sk_slayer:
 |---|---|
 | `accept_quest <任务> [sel]` | 接取任务，成功后执行 `on-accept`，按 `auto-track` 决定是否追踪 |
 | `submit_quest <任务> [sel]` | 已完成的 Chemdah 任务 → 跑 `on-complete` 领副本奖励（`manual-claim` 场景） |
-| `quest_step <任务>` | NPC 点击时根据状态接取任务、提示进行中或提交已完成任务 |
-| `quest_track <任务> [步骤] [sel]` | QuestGPS 追踪卡片（整个任务或指定步骤） |
+| `quest_step <任务>` | NPC 点击时接取或提交，例如 `quest_step sk_slayer` |
+| `quest_track <任务> [步骤] [sel]` | 显示追踪卡片，例如 `quest_track sk_slayer - @all` |
 | `quest_status <任务> <变量> [sel]` | 写 `NONE`/`ACTIVE`/`COMPLETED` 到实例变量，配合 `check` 分支 |
 
 由副本发奖时，Chemdah 的完成脚本可以只发送提示。重复接取条件由 Chemdah 设置。副本示例任务位于模板的 `external/chemdah/quest/sk_slayer.yml`，其他展示字段见[Chemdah 任务配置](/docs/questgps/chemdah-mapping)。

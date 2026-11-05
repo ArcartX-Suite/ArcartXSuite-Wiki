@@ -5,27 +5,29 @@ description: "将提示、命令、称号、邮件等动作组合成事件发生
 
 ## 概述
 
+每种动作下面都有中文用途、参数表和 YAML 示例。顶部表格用于定位动作，复制配置时使用对应小节的完整示例。例如发邮件需要 `type: mail.send` 和 `preset-id` 两项，具体预设 ID 要换成服务器已加载的值。
+
 EventPacket 模块的动作（Action）是规则触发后执行的具体操作。每条规则可定义一个**动作链**（`actions` 列表），动作按顺序执行，单个动作失败不会中断后续动作。
 
 每个动作包含 `type`（类型标识）和参数键值表，参数值支持上下文变量替换（`{变量名}` 语法），在执行前渲染。
 
 ## 动作类型总览
 
-| 动作类型 | 功能 | 所需模块 |
+| 动作类型 | 中文用途 | 所需模块与示例 |
 | --- | --- | --- |
-| `questgps.offer` | 推送指定任务，可同时打开任务菜单 | QuestGPS 任务导航 |
-| `questgps.accept` | 为触发玩家接受任务 | QuestGPS 任务导航 |
-| `questgps.open` | 打开任务菜单 | QuestGPS 任务导航 |
-| `questgps.track` | 追踪任务或其中一个阶段 | QuestGPS 任务导航 |
-| `subtitle.play` | 为触发玩家播放字幕组 | Announcer 公告与字幕 |
-| `chat.card` | 发送指定聊天卡片 | Chat 聊天频道 |
-| `title.give` | 发放永久或限时称号 | Title 称号 |
-| `command.dispatch` | 按配置身份执行命令 | 命令所属插件需可用 |
-| `mail.send` | 给触发玩家派发邮件预设 | Mail 邮箱 |
-| `announcer.play` | 为触发玩家播放公告字幕组 | Announcer 公告与字幕 |
-| `qq-broadcast` | 将指定消息发送到 QQ 群 | QQBot 群服互联 |
-| `combateffect.play` | 向触发玩家展示配置的战斗效果界面 | ArcartX 与对应效果界面 |
-| `ui-packet` | 更新已有自定义界面的内容 | ArcartX 与匹配的自定义界面配置 |
+| `questgps.offer` | 推送指定任务，可同时打开任务菜单 | QuestGPS 任务导航，见 [YAML 写法与示例](#questgpsoffer--推送任务) |
+| `questgps.accept` | 为触发玩家接受任务 | QuestGPS 任务导航，见 [YAML 写法与示例](#questgpsaccept--接受任务) |
+| `questgps.open` | 打开任务菜单 | QuestGPS 任务导航，见 [YAML 写法与示例](#questgpsopen--打开菜单) |
+| `questgps.track` | 追踪任务或其中一个阶段 | QuestGPS 任务导航，见 [YAML 写法与示例](#questgpstrack--追踪任务) |
+| `subtitle.play` | 为触发玩家播放字幕组 | Announcer 公告与字幕，见 [YAML 写法与示例](#subtitleplay--播放字幕组) |
+| `chat.card` | 发送指定聊天卡片 | Chat 聊天频道，见 [YAML 写法与示例](#chatcard--发送聊天卡片) |
+| `title.give` | 发放永久或限时称号 | Title 称号，见 [YAML 写法与示例](#titlegive--发放称号) |
+| `command.dispatch` | 按配置身份执行命令 | 命令所属插件需可用，见 [YAML 写法与示例](#commanddispatch--派发命令) |
+| `mail.send` | 给触发玩家派发邮件预设 | Mail 邮箱，见 [YAML 写法与示例](#mailsend--发送邮件) |
+| `announcer.play` | 为触发玩家播放公告字幕组 | Announcer 公告与字幕，见 [YAML 写法与示例](#announcerplay--播放公告字幕组) |
+| `qq-broadcast` | 将指定消息发送到 QQ 群 | QQBot 群服互联，见 [YAML 写法与示例](#qq-广播动作) |
+| `combateffect.play` | 向触发玩家展示配置的战斗效果界面 | ArcartX 与对应效果界面，见 [YAML 写法与示例](#combateffectplay--播放战斗特效) |
+| `ui-packet` | 更新已有自定义界面的内容 | ArcartX 与匹配的自定义界面配置，见 [YAML 写法与示例](#ui-packet--更新自定义界面) |
 
 > 依赖模块不可用、需要的在线玩家不存在或参数为空时，相关动作可能没有效果；未知类型和执行异常会记录日志。验证动作时同时检查日志和玩家实际结果。
 

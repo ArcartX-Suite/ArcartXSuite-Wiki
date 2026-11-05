@@ -55,34 +55,60 @@ BattlePass 任务系统是战令经验的核心来源。任务模板按周期分
 
 `bukkit-event` 用于有直接对应 Bukkit 事件的场景。引擎内置支持以下事件类：
 
-| 事件类 | payload 字段 |
-|---|---|
-| `EntityDeathEvent` | `entityType`, `entityName`, `world` |
-| `EntityDamageByEntityEvent` | `attacker`, `targetType`, `targetName`, `damage`, `world` |
-| `PlayerJoinEvent` | `world` |
-| `EntityPickupItemEvent` / `PlayerPickupItemEvent` | `material`, `amount`, `world` |
-| `PlayerFishEvent` | `fishType`, `state`, `world` |
-| `BlockBreakEvent` | `material`, `world` |
-| `BlockPlaceEvent` | `material`, `world` |
-| `CraftItemEvent` | `material`, `amount`, `world` |
-| `PlayerItemConsumeEvent` | `material`, `world` |
-| `PlayerDeathEvent` | `deathCause`, `world` |
-| `TaczGunKillEvent` | `entityType`, `entityName`, `world` |
-| `TaczGunDamageEvent` | `attacker`, `targetType`, `targetName`, `damage`, `world` |
-| `MythicMobDeathEvent` | `entityType`, `entityName`, `mythicMobId`, `world` |
-| `PlayerShearEntityEvent` | `entityType`, `entityName`, `world` |
-| `EntityTameEvent` | `entityType`, `entityName`, `world` |
-| `EntityBreedEvent` | `entityType`, `motherType`, `fatherType`, `world` |
-| `PlayerBucketFillEvent` | `bucket`, `material`, `world` |
-| `EnchantItemEvent` | `material`, `cost`, `world` |
-| `PlayerBedEnterEvent` | `world` |
-| `ProjectileHitEvent` | `projectileType`, `hitEntity`, `hitBlock`, `world` |
-| `PlayerLevelChangeEvent` | `oldLevel`, `newLevel`, `world` |
-| `PlayerAdvancementDoneEvent` | `advancement`, `world` |
-| `PlayerItemBreakEvent` | `material`, `world` |
-| `PlayerHarvestBlockEvent` | `material`, `world` |
+| 事件类 | 中文含义 | payload 字段 |
+| --- | --- | --- |
+| `EntityDeathEvent`  | 实体死亡 | `entityType`, `entityName`, `world` |
+| `EntityDamageByEntityEvent`  | 实体受到另一实体的伤害 | `attacker`, `targetType`, `targetName`, `damage`, `world` |
+| `PlayerJoinEvent`  | 玩家加入服务器 | `world` |
+| `EntityPickupItemEvent` / `PlayerPickupItemEvent`  | 实体拾取物品 | `material`, `amount`, `world` |
+| `PlayerFishEvent`  | 玩家钓鱼状态变化 | `fishType`, `state`, `world` |
+| `BlockBreakEvent`  | 玩家挖掘方块 | `material`, `world` |
+| `BlockPlaceEvent`  | 玩家放置方块 | `material`, `world` |
+| `CraftItemEvent`  | 玩家合成物品 | `material`, `amount`, `world` |
+| `PlayerItemConsumeEvent`  | 玩家消耗物品 | `material`, `world` |
+| `PlayerDeathEvent`  | 玩家死亡 | `deathCause`, `world` |
+| `TaczGunKillEvent`  | TACZ 枪械击杀 | `entityType`, `entityName`, `world` |
+| `TaczGunDamageEvent`  | TACZ 枪械伤害 | `attacker`, `targetType`, `targetName`, `damage`, `world` |
+| `MythicMobDeathEvent`  | MythicMobs 怪物死亡 | `entityType`, `entityName`, `mythicMobId`, `world` |
+| `PlayerShearEntityEvent`  | 玩家剪毛 | `entityType`, `entityName`, `world` |
+| `EntityTameEvent`  | 实体被驯服 | `entityType`, `entityName`, `world` |
+| `EntityBreedEvent`  | 实体繁殖 | `entityType`, `motherType`, `fatherType`, `world` |
+| `PlayerBucketFillEvent`  | 玩家装满桶 | `bucket`, `material`, `world` |
+| `EnchantItemEvent`  | 玩家附魔 | `material`, `cost`, `world` |
+| `PlayerBedEnterEvent`  | 玩家进入床 | `world` |
+| `ProjectileHitEvent`  | 投射物命中 | `projectileType`, `hitEntity`, `hitBlock`, `world` |
+| `PlayerLevelChangeEvent`  | 玩家等级改变 | `oldLevel`, `newLevel`, `world` |
+| `PlayerAdvancementDoneEvent`  | 玩家完成进度 | `advancement`, `world` |
+| `PlayerItemBreakEvent`  | 玩家物品损坏 | `material`, `world` |
+| `PlayerHarvestBlockEvent`  | 玩家采收方块 | `material`, `world` |
 
 > TACZ 枪械事件（`TaczGunKillEvent` / `TaczGunDamageEvent`）是 Suite 自定义事件，用于准确追踪枪械击杀和伤害（TACZ 伤害不触发 `EntityDamageByEntityEvent`）。
+
+### 事件字段怎样填写
+
+上表是事件标识和可用字段。过滤条件引用英文键，比较值使用实际游戏数据。下面把常见字段和示例值对应起来。
+
+| 字段 | 中文含义 | 示例值 |
+| --- | --- | --- |
+| `entityType`、`targetType` | 被记录或被攻击实体的类型 | `ZOMBIE` |
+| `entityName`、`targetName` | 对应实体名称 | `守门者`，以实际名称为准 |
+| `attacker` | 攻击玩家名 | `Steve` |
+| `damage` | 本次伤害数值 | `12.5` |
+| `world` | 世界名 | `world`，需替换为实际世界 |
+| `material` | 物品或方块材质 | `STONE` |
+| `amount` | 本次涉及的数量 | `3` |
+| `fishType`、`state` | 钓获实体类型和钓鱼事件状态 | `COD`、`CAUGHT_FISH`，以该次事件为准 |
+| `mythicMobId` | MythicMobs 内部怪物 ID | `TrialGuard`，需先定义该怪物 |
+| `motherType`、`fatherType` | 繁殖双方实体类型 | `COW` |
+| `bucket` | 桶的材质 | `BUCKET` |
+| `cost` | 附魔消耗等级 | `3` |
+| `projectileType` | 投射物实体类型 | `ARROW` |
+| `hitEntity`、`hitBlock` | 命中的实体类型，以及是否命中方块 | `ZOMBIE`、`true` |
+| `oldLevel`、`newLevel` | 变化前后的玩家等级 | `9`、`10` |
+| `advancement` | 完成的进度键 | `minecraft:story/mine_stone` |
+| `deathCause` | 死亡伤害原因 | `FALL` |
+
+某字段只在相关事件有实际数据时出现，例如没有钓获实体时不一定有 `fishType`。先确认选用的事件，再配置该事件支持的字段。
 
 > MythicMobs 事件为可选依赖，仅在 MythicMobs / MythicBukkit 插件安装时生效。
 

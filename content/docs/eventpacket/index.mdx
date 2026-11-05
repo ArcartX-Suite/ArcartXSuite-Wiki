@@ -31,7 +31,7 @@ description: "把进服、任务和自定义信号组合成公告、奖励等动
 
 | 特性 | 说明 |
 |---|---|
-| 18 种触发器 | join、first-join、quit、papi-increase、papi-decrease、placeholder-threshold、mob-kill-count、command-signal、client-packet、quest-accept、quest-complete、quest-fail、objective-complete、objective-continue、objective-restart、chemdah-level-change、script-js、script-aria |
+| 18 种触发器 | 覆盖进退服、变量变化、击杀计数、信号、客户端操作、任务变化和脚本条件。各英文标识与中文用途见[触发器详解](/docs/eventpacket/triggers) |
 | 条件过滤 | 支持 PAPI 条件和上下文变量条件（`%placeholder% operator value`，支持 `==`/`!=`/`>=`/`<=`/`>`/`<`/`contains`/`regex`），详见 [条件系统](/docs/guide/conditions) |
 | 重复与冷却 | 默认每玩家只触发一次，`repeatable: true` 可重复触发，支持 `cooldown`（如 `5s`/`1m`/`2h`/`1d`） |
 | 变量替换 | 动作参数支持 `{player_name}`、`{player_uuid}`、`{world}`、`{trigger}`、`{placeholder}`、`{old_value}`、`{new_value}`、`{signal}` 等上下文变量 |

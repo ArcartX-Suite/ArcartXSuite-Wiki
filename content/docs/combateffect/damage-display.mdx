@@ -12,10 +12,10 @@ description: "调整伤害与治疗飘字的样式、合并效果和最小显示
 | 模式 | 配置值 | 说明 |
 |---|---|---|
 | 自动检测 | `auto` | 按优先级自动选择第一个可用的来源 |
-| MythicLib | `mythiclib` | 仅使用 MythicLib/MMOItems 伤害事件 |
-| CraneAttribute | `craneattribute` | 仅使用 CraneAttribute 伤害事件 |
+| MythicLib 属性伤害 | `mythiclib` | 仅使用 MythicLib/MMOItems 伤害事件 |
+| CraneAttribute 属性伤害 | `craneattribute` | 仅使用 CraneAttribute 伤害事件 |
 | AttributePlus | `attributeplus` | 仅使用 AttributePlus 伤害事件 |
-| Symphony | `symphony` | 仅使用 Symphony 伤害事件 |
+| Symphony 属性伤害 | `symphony` | 仅使用 Symphony 伤害事件 |
 | Bukkit 原版 | `bukkit` | 仅使用 Bukkit 原版伤害事件 |
 
 ### 自动检测优先级
@@ -70,7 +70,7 @@ digis-display:
 
 | 来源 | 普通目标 configId | PVP 目标 configId | 最小阈值字段 |
 |---|---|---|---|
-| Bukkit | `original.config-id` | `player.config-id` | `original.min-amount` / `player.min-amount` |
+| Bukkit 原版伤害 | `original.config-id` | `player.config-id` | `original.min-amount` / `player.min-amount` |
 | MythicLib | `mythiclib.config-id` | `mythiclib.player-config-id` | `mythiclib.min-amount` / `mythiclib.player-min-amount` |
 | CraneAttribute | `craneattribute.config-id` | `craneattribute.player-config-id` | `craneattribute.min-amount` / `craneattribute.player-min-amount` |
 | AttributePlus | `original.config-id`（复用） | `player.config-id`（复用） | `original.min-amount` / `player.min-amount` |
@@ -219,6 +219,16 @@ ArcartXSuite-damage:
 | MythicMobs 治疗 | `heal-display.mythic.min-amount` | `1.0` |
 | 伤害合并后 | `damage-merge.min-amount` | `1.0` |
 | 治疗合并后 | `heal-merge.min-amount` | `1.0` |
+
+例如在原版来源小节写 `min-amount: 2.0`，小于 2 的原版伤害就不会显示。要减少治疗刷屏，应改对应治疗小节的阈值，而非只改伤害小节。
+
+```yaml
+original:
+  min-amount: 2.0  # 至少 2 点原版伤害才显示
+heal-display:
+  original:
+    min-amount: 3.0  # 至少 3 点原版治疗才显示
+```
 
 > 闪避与元素克制飘字无最小阈值配置，启用即显示。
 

@@ -103,16 +103,16 @@ public interface WarehouseAccess {
 
 | 方法 | 用途 | 参数 | 返回值 |
 | --- | --- | --- | --- |
-| `isAvailable` | Returns whether the personal warehouse is enabled and usable for the player. | `player`：目标玩家（`Player`） | `boolean`：用于判断上面所述的查询或操作结果（true / false） |
-| `snapshot` | Returns the player's personal warehouse snapshot: unlocked slot count, used slot count, purchase availability, and the next-slot price. | `player`：目标玩家（`Player`） | `Snapshot` 结果对象 |
-| `slots` | Returns all occupied slots of the player's personal warehouse in slot order. | `player`：目标玩家（`Player`） | `List<SlotItem>`：符合条件的结果集合 |
-| `deposit` | Stores as much of the item stack as the warehouse can hold (merges into existing stacks first, then fills free slots). | `player`：目标玩家（`Player`）；`itemStack`：物品（`ItemStack`） | `DepositResult` 结果对象 |
-| `setSlot` | Writes an item stack to a specific warehouse slot index. `itemStack` may be null/air to clear the slot. Fails when the index is out of the unlocked range. | `player`：目标玩家（`Player`）；`slotIndex`：调用参数（`int`）；`itemStack`：物品（`ItemStack`），允许为 null | `SlotWriteResult` 结果对象 |
-| `withdraw` | Removes up to `amount` items from one warehouse slot. | `player`：目标玩家（`Player`）；`slotIndex`：调用参数（`int`）；`amount`：数量或数值（`int`） | `WithdrawResult` 结果对象 |
-| `purchaseSlot` | Purchases one additional warehouse slot at the configured price. | `player`：目标玩家（`Player`） | `PurchaseResult` 结果对象 |
-| `slotPrice` | Returns the price of purchasing `amount` additional slots. | `player`：目标玩家（`Player`）；`amount`：数量或数值（`int`） | `SlotPrice` 结果对象 |
-| `grantSlots` | Admin: grants `amount` additional unlocked slots (clamped to the configured maximum). Works for offline players. | `target`：调用参数（`OfflinePlayer`）；`amount`：数量或数值（`int`） | actually granted slot count; `-1` on invalid arguments |
-| `resetSlots` | Admin: resets purchased slots to zero (unlocked falls back to base-slots). | `target`：调用参数（`OfflinePlayer`） | `boolean`：用于判断上面所述的查询或操作结果（true / false） |
+| `isAvailable` | 查询个人仓库是否已启用且允许该玩家使用。 | `player`：目标玩家（`Player`） | `boolean`：用于判断上面所述的查询或操作结果（true / false） |
+| `snapshot` | 读取已解锁槽位、已用槽位、能否扩容与下一格价格。 | `player`：目标玩家（`Player`） | `Snapshot` 结果对象 |
+| `slots` | 按槽位顺序列出个人仓库中已存物品。 | `player`：目标玩家（`Player`） | `List<SlotItem>`：符合条件的结果集合 |
+| `deposit` | 先合并已有物品堆，再使用空槽位，按仓库容量尽量存入。 | `player`：目标玩家（`Player`）；`itemStack`：物品（`ItemStack`） | `DepositResult` 结果对象 |
+| `setSlot` | 写入指定仓库槽位。物品为 null 或空气时清空槽位，超出已解锁范围时失败。 | `player`：目标玩家（`Player`）；`slotIndex`：调用参数（`int`）；`itemStack`：物品（`ItemStack`），允许为 null | `SlotWriteResult` 结果对象 |
+| `withdraw` | 从指定仓库槽位取出至多 `amount` 件物品。 | `player`：目标玩家（`Player`）；`slotIndex`：调用参数（`int`）；`amount`：数量或数值（`int`） | `WithdrawResult` 结果对象 |
+| `purchaseSlot` | 按配置价格购买一个仓库槽位。 | `player`：目标玩家（`Player`） | `PurchaseResult` 结果对象 |
+| `slotPrice` | 计算额外购买 `amount` 格仓库所需价格。 | `player`：目标玩家（`Player`）；`amount`：数量或数值（`int`） | `SlotPrice` 结果对象 |
+| `grantSlots` | 为目标玩家增加槽位，受配置上限限制，支持离线玩家。 | `target`：调用参数（`OfflinePlayer`）；`amount`：数量或数值（`int`） | 返回实际增加的槽位数，参数无效时返回 `-1` |
+| `resetSlots` | 清零额外购买的槽位，容量回到基础槽位。 | `target`：调用参数（`OfflinePlayer`） | `boolean`：用于判断上面所述的查询或操作结果（true / false） |
 
 ## 调用注意事项
 

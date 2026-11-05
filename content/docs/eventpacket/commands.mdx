@@ -111,11 +111,11 @@ EventPacket 模块的管理命令通过Suite统一命令系统调度，前缀为
 | 触发类型 | 变量 |
 |---|---|
 | `client-packet` | `{preset_id}`、`{arg1}`、`{arg2}`...（按客户端 data 顺序） |
-| `quest-accept` / `quest-complete` / `quest-fail` | `{quest_id}` |
-| `objective-complete` / `objective-continue` / `objective-restart` | `{quest_id}`、`{task_id}`、`{objective_type}`、`{objective_name}` |
-| `chemdah-level-change` | `{level_option}`、`{old_level}`、`{new_level}`、`{old_experience}`、`{new_experience}`、`{level_delta}` |
-| `mob-kill-count` | `{rule_id}`、`{kill_count}`、`{required_count}`、`{mob_world}`、`{mob_entity_type}`、`{mythic_mob_id}` |
-| `script-js` / `script-aria` | `{rule_id}`、`{script_result}` |
+| `quest-accept` / `quest-complete` / `quest-fail` | `{quest_id}` （任务 ID） |
+| `objective-complete` / `objective-continue` / `objective-restart` | `{quest_id}`、`{task_id}`、`{objective_type}`、`{objective_name}` （任务 ID、目标 ID、目标类型与名称） |
+| `chemdah-level-change` | `{level_option}`、`{old_level}`、`{new_level}`、`{old_experience}`、`{new_experience}`、`{level_delta}` （等级配置、变化前后等级与经验、等级差值） |
+| `mob-kill-count` | `{rule_id}`、`{kill_count}`、`{required_count}`、`{mob_world}`、`{mob_entity_type}`、`{mythic_mob_id}` （规则、累计与目标击杀数、怪物世界和类型） |
+| `script-js` / `script-aria` | `{rule_id}`、`{script_result}` （规则 ID 与脚本返回值） |
 
 ### 预设字段表
 

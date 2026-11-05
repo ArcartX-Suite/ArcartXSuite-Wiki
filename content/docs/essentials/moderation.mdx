@@ -7,17 +7,17 @@ description: "通过封禁、禁言、踢出、警告等命令管理玩家。"
 
 安全管理包含封禁、禁言、踢出、警告与强制执行。禁言数据由 Chat 模块存储，封禁与警告记录持久化到数据库。所有管理命令均要求对应的 `axs.essentials.*` 权限。
 
-| 功能 | 命令 | 权限 |
-|------|------|------|
-| 永久封禁 | `ban` | `axs.essentials.ban` |
-| 临时封禁 | `tempban` | `axs.essentials.ban` |
-| 解除封禁 | `unban` | `axs.essentials.unban` |
-| 永久/临时禁言 | `mute` / `tempmute` | `axs.essentials.mute` |
-| 解除禁言 | `unmute` | `axs.essentials.unmute` |
-| 踢出 | `kick` | `axs.essentials.kick` |
-| 警告 | `warn` | `axs.essentials.warn` |
-| 强制执行 | `sudo` | `axs.essentials.sudo` |
-| 背包查看 | `inv` | `axs.essentials.inv` |
+| 中文功能 | 命令示例 | 所需权限 |
+| --- | --- | --- |
+| 永久封禁 | `/essentials ban Steve 违反规则` | `axs.essentials.ban` |
+| 临时封禁 | `/essentials tempban Steve 1d 违反规则` | `axs.essentials.ban` |
+| 解除封禁 | `/essentials unban Steve` | `axs.essentials.unban` |
+| 永久/临时禁言 | `/essentials tempmute Steve 30m 请停止刷屏` | `axs.essentials.mute` |
+| 解除禁言 | `/essentials unmute Steve` | `axs.essentials.unmute` |
+| 踢出 | `/essentials kick Steve 请重新连接` | `axs.essentials.kick` |
+| 警告 | `/essentials warn Steve 请遵守聊天规则` | `axs.essentials.warn` |
+| 强制执行 | `/essentials sudo Steve help` | `axs.essentials.sudo` |
+| 背包查看 | `/essentials inv Steve` | `axs.essentials.inv` |
 
 ### 永久封禁（ban）
 

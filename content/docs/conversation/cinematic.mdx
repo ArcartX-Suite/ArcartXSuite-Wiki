@@ -69,15 +69,81 @@ cinematics:
 | `actor_place` | 按 `actor` ID 创建或重新摆放临时演员。填写世界、坐标和朝向，首次可填 `model` |
 | `actor_animation` | 给已放置的演员播放 `animation` |
 | `actor_move` | 让已放置的演员在指定时长内从 `from` 移动到 `to`。需要步行动画时，可在同一时刻安排 `actor_animation` |
-| `teleport` / `camera_path` | 切换取景点或沿取景路径移动 |
-| `title` / `action_bar` | 显示标题或动作栏提示 |
-| `game_mode` / `speed` / `lock_movement` | 设置玩家模式和移动状态 |
-| `sound` | 播放原版音效 |
-| `command` / `message` | 正式播放时执行命令或发消息 |
-| `npc_model` / `npc_animation` | 正式播放时修改已有 NPC |
-| `subtitle` / `ui_packet` / `arcartx_sound` | 正式播放时调用相应的字幕、界面和资源包音效 |
+| `teleport` / `camera_path` | 切换取景点或沿取景路径移动 ，见 [字段与完整片段](#切换位置与玩家状态) |
+| `title` / `action_bar` | 显示标题或动作栏提示 ，见 [字段与完整片段](#标题动作栏和原版音效) |
+| `game_mode` / `speed` / `lock_movement` | 设置玩家模式和移动状态 ，见 [字段与完整片段](#切换位置与玩家状态) |
+| `sound` | 播放原版音效 ，见 [字段与完整片段](#标题动作栏和原版音效) |
+| `command` / `message` | 正式播放时执行命令或发消息 ，见 [字段与完整片段](#正式播放中的命令和消息) |
+| `npc_model` / `npc_animation` | 正式播放时修改已有 NPC ，见 [字段与完整片段](#已有-npc-的模型和动画) |
+| `subtitle` / `ui_packet` / `arcartx_sound` | 正式播放时调用相应的字幕、界面和资源包音效 ，见 [字段与完整片段](#字幕组界面内容与资源包音效) |
 
 临时演员只对当前观众显示，停止或定位时会清理，定位后会恢复演员的摆位与走位进度。动画属于一次性提示，定位时不会重播已经经过的动画。原版音效可在彩排中试听，定位和停止时会结束场景音效。彩排遇到正式动作时会提示跳过。
+
+## 动作片段怎样写
+
+下面按用途展示片段，每个片段放进序列的 `timeline`。`at-ms` 是从本段电影开始计算的时间。坐标、NPC、模型、动画、字幕组和 UI ID 都要换成服务器已准备的资源。需要停留多长时间由时间轴和相关时长字段决定。
+
+### 切换位置与玩家状态
+
+```yaml
+# 进入旁观模式，再切到取景点
+- { at-ms: 0, type: game_mode, mode: spectator }
+- { at-ms: 0, type: teleport, world: world, x: 100, y: 72, z: 200, yaw: 30, pitch: 10 }
+# 设置行走与飞行速度，随后锁定移动
+- { at-ms: 0, type: speed, walk-speed: 0.1, fly-speed: 0.05 }
+- { at-ms: 0, type: lock_movement, locked: true }
+```
+
+`game_mode` 是模式，`teleport` 是一次切镜。连续移动使用本页完整序列里的 `camera_path`，它需要至少两个取景点和 `duration-ms`。
+
+### 标题、动作栏和原版音效
+
+```yaml
+# fade-in、stay、fade-out 使用 tick
+- { at-ms: 1000, type: title, title: "&6序章", subtitle: "&f新的开始", fade-in: 10, stay: 40, fade-out: 10 }
+- { at-ms: 1500, type: action_bar, message: "&e请看向村庄" }
+# 音效在观众当前位置播放，volume 是音量，pitch 是音调
+- { at-ms: 1500, type: sound, sound: UI_BUTTON_CLICK, at-player: true, volume: 1.0, pitch: 1.0 }
+```
+
+### 正式播放中的命令和消息
+
+```yaml
+- { at-ms: 2000, type: message, message: "&a序章开始" }
+- { at-ms: 2000, type: command, as-console: true, command: "tell {player} 欢迎来到村庄" }
+```
+
+`message` 发聊天文字，`as-console: true` 表示控制台执行命令，`false` 为玩家执行。`{player}` 替换为这场电影的观众。彩排会提示跳过这些正式动作。
+
+### 已有 NPC 的模型和动画
+
+```yaml
+- { at-ms: 0, type: npc_model, npc: village_guide, model: guide_model, scale: 1.0 }
+- { at-ms: 2000, type: npc_animation, npc: village_guide, animation: wave, speed: 1.0, transition-time: 5, keep-time: -1 }
+```
+
+`npc` 引用已有 Adyeshach NPC，`model` 和 `animation` 引用实际客户端资源。彩排采用本页前面介绍的 `actor_place`、`actor_move` 和 `actor_animation`，用于私有临时演员。
+
+### 字幕组、界面内容与资源包音效
+
+```yaml
+- { at-ms: 0, type: subtitle, group-id: village_intro }
+- at-ms: 1000
+  type: ui_packet
+  ui-id: "AXS:custom_hud"
+  handler: show_title
+  payload:
+    text: "村庄序章"       # 由目标界面的处理逻辑读取
+- at-ms: 2000
+  type: arcartx_sound
+  resource-path: sounds/village_intro.ogg
+  category: master
+  at-player: true
+  pitch: 1.0
+  keep-time-ms: 5000
+```
+
+字幕组需先配置并加载，UI 的处理器和数据字段需与实际界面一致。资源音效路径以客户端资源包为准。以上三类由正式播放调用，彩排会显示跳过提示。
 
 ## 排查
 

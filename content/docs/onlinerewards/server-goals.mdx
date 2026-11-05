@@ -88,10 +88,10 @@ item-rewards:
 | source | 说明 | id 格式 |
 |---|---|---|
 | `minecraft` | 原版物品 | 材质名（如 `DIAMOND`） |
-| `mythic` | MythicMobs | 物品 ID |
-| `neige` | NeigeItems | 物品 ID |
-| `overture` | Overture | 物品 ID |
-| `mmoitems` | MMOItems | `类型ID;物品ID` |
+| `mythic` | MythicMobs 自定义物品 | 物品 ID，例如 `legendary_chest` |
+| `neige` | NeigeItems 自定义物品 | 物品 ID，例如 `starter_armor` |
+| `overture` | Overture 模板物品 | 模板 ID，例如 `starter_gem` |
+| `mmoitems` | MMOItems 分类物品 | `类型ID;物品ID`，例如 `SWORD;LEGENDARY_SWORD` |
 
 > 物品发放统一行为：放入背包 → 背包满转邮件 → 无邮件则掉落。详见 [物品来源](/docs/guide/item-sources)。
 

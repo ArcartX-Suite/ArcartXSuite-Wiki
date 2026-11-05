@@ -105,78 +105,92 @@ reward_bonus:
 
 > 统一格式：`<动作> [选择器] <参数...>`。无选择器的动作直接作用于副本上下文。
 
+表格将中文效果、参数写法和具体例子对应。`guards`、`guide`、`clear_pack` 等是示例对象 ID，复制前应在当前地牢定义同名对象或换成真实 ID。坐标示例属于副本世界。示例行放在对应事件的脚本列表中，每行前加 `-` 并用引号包住。
+
+例如下面在本局开始时显示提示，再生成已定义的手动怪组。
+
+```yaml
+start:
+  - "message @all &e守卫已经出现"
+  - "spawn_group guards"
+```
+
 ### 消息与展示
 
-| 动作 | 用法 |
-|---|---|
-| `message` | `message <选择器> <文本>` 发消息（& 颜色码） |
-| `title` | `title <选择器> <fadeIn> <stay> <fadeOut> <主标题\|副标题>` |
-| `actionbar` | `actionbar <选择器> <文本>` |
-| `sound` | `sound <选择器> <音效> <音量> <音高>` |
-| `effect` | `effect <选择器> <粒子> <参数>` |
-| `firework` | `firework <选择器> <类型> <颜色>` |
-| `bossbar` | `bossbar <选择器> <秒> <颜色> <样式> <标题>` |
-| `announce` | `announce <选择器> <big\|small> <内容>` 大标题/actionbar 展示 |
+| 动作 | 中文作用与写法 | 可替换示例 |
+| --- | --- | --- |
+| `message` | 向选中玩家发送消息。<br />`message <选择器> <文本>` | `message @all &e守卫已经出现` |
+| `title` | 显示主副标题，三个时间参数为 tick。<br />`title <选择器> <淡入> <停留> <淡出> <主标题\|副标题>` | `title @all 10 40 10 &6试炼\|&f准备战斗` |
+| `actionbar` | 在动作栏显示文字。<br />`actionbar <选择器> <文本>` | `actionbar @all &e前往入口` |
+| `sound` | 播放原版音效，附音量和音调。<br />`sound <选择器> <音效> <音量> <音调>` | `sound @trigger UI_BUTTON_CLICK 1 1` |
+| `effect` | 在玩家位置生成粒子。<br />`effect <选择器> <粒子> [数量] [偏移]` | `effect @all FLAME 10 0.3` |
+| `firework` | 在玩家附近播放烟花效果。<br />`firework <选择器> [类型] [颜色]` | `firework @all BURST GOLD` |
+| `bossbar` | 显示限时首领条。<br />`bossbar <选择器> <秒> <颜色> <样式> <标题>` | `bossbar @all 5 RED SOLID &c增援即将出现` |
+| `announce` | 显示大标题或动作栏，big 为大标题，small 为动作栏。<br />`announce <选择器> <big\|small> <文本>` | `announce @all big &6挑战开始` |
 
 ### 玩家操作
 
-| 动作 | 用法 |
-|---|---|
-| `teleport` | `teleport <选择器> <x,y,z>` 副本内传送 |
-| `teleport_dungeon` | 传送进副本出生点 |
-| `heal` | `heal <选择器> <血量>` |
-| `feed` | `feed <选择器>` 恢复饥饿 |
-| `gamemode` | `gamemode <选择器> <模式>` |
-| `fly` | `fly <选择器> <true/false>` |
-| `apply_potion` | `apply_potion <选择器> <药水> <秒> <等级>` |
-| `clear_potion` | `clear_potion <选择器>` |
-| `give_exp` | `give_exp <选择器> <经验>` |
-| `setlevel` | `setlevel <选择器> <等级>` |
-| `velocity` | `velocity <选择器> <x,y,z>` 击退/推进 |
-| `revive_player` | `revive_player <选择器>` 复活副本内死亡玩家 |
+| 动作 | 中文作用与写法 | 可替换示例 |
+| --- | --- | --- |
+| `teleport` | 传送到本局副本坐标。<br />`teleport <选择器> <x,y,z>` | `teleport @all 0,80,0` |
+| `teleport_dungeon` | 传送到本局出生点。<br />`teleport_dungeon <选择器>` | `teleport_dungeon @trigger` |
+| `heal` | 增加生命值，省略数值时恢复满生命。<br />`heal <选择器> [生命值]` | `heal @all 10` |
+| `feed` | 恢复饥饿与饱和。<br />`feed <选择器>` | `feed @all` |
+| `gamemode` | 设置游戏模式。<br />`gamemode <选择器> <模式>` | `gamemode @trigger adventure` |
+| `fly` | 切换飞行能力。<br />`fly <选择器> <true\|false>` | `fly @trigger true` |
+| `apply_potion` | 添加持续效果，等级从 1 开始。<br />`apply_potion <选择器> <效果> <秒> [等级]` | `apply_potion @all SPEED 10 1` |
+| `clear_potion` | 清除玩家药水效果。<br />`clear_potion <选择器>` | `clear_potion @all` |
+| `give_exp` | 增加经验点数。<br />`give_exp <选择器> <经验点数>` | `give_exp @all 10` |
+| `setlevel` | 设置 Minecraft 等级。<br />`setlevel <选择器> <等级>` | `setlevel @trigger 10` |
+| `velocity` | 施加速度向量。<br />`velocity <选择器> <x,y,z>` | `velocity @trigger 0,0.4,0` |
+| `revive_player` | 复活副本死亡状态的成员。<br />`revive_player <选择器>` | `revive_player @dead` |
 
 ### 物品与命令
 
-| 动作 | 用法 |
-|---|---|
-| `give_item` | `give_item <选择器> <物品描述>` |
-| `take_item` | `take_item <选择器> <物品描述>` |
-| `clear_inventory` | `clear_inventory <选择器>` |
-| `command` | `command <选择器> <命令>` 玩家执行 |
-| `console` | `console <命令>` 控制台执行（`{player}` 占位） |
-| `player_command` | 玩家身份执行命令 |
-| `op_command` | 以 OP 权限执行 |
-| `give_money` | `give_money <选择器> <金额>` |
+| 动作 | 中文作用与写法 | 可替换示例 |
+| --- | --- | --- |
+| `give_item` | 发放指定物品描述。<br />`give_item <选择器> <物品描述>` | `give_item @trigger material:APPLE:2` |
+| `take_item` | 移除指定物品。<br />`take_item <选择器> <物品描述>` | `take_item @trigger material:EMERALD:1` |
+| `clear_inventory` | 清空选中玩家背包，使用前确认玩法需要。<br />`clear_inventory <选择器>` | `clear_inventory @trigger` |
+| `command` | 按玩家权限执行命令。<br />`command <选择器> <命令>` | `command @trigger help` |
+| `console` | 以控制台执行命令，玩家变量取当前事件触发者。<br />`console <命令>` | `console tell {player} 任务已完成` |
+| `player_command` | 按玩家权限执行命令。<br />`player_command <选择器> <命令>` | `player_command @trigger help` |
+| `op_command` | 暂时以 OP 权限执行玩家命令。<br />`op_command <选择器> <命令>` | `op_command @trigger help` |
+| `give_money` | 发放本模块所用货币金额。<br />`give_money <选择器> <金额>` | `give_money @all 50` |
 
 ### 副本流程控制
 
-| 动作 | 用法 |
-|---|---|
-| `complete_dungeon` | 判定通关 |
-| `fail_dungeon` | 判定失败 |
-| `cancel_dungeon` | 取消副本（不算胜负） |
-| `exit_dungeon` | `exit_dungeon <选择器>` 传送回原位置并退出 |
-| `kick_all_players` | 踢出全部玩家 |
-| `run_script` | `run_script <段名>` 调用其他脚本段 |
-| `wait` | `wait <秒>` 暂停当前列表 |
-| `delay` | `delay <秒> <动作行>` 安排稍后执行，当前列表继续 |
-| `flow_if` | `flow_if <无空格条件> <动作行>` 条件满足时执行本行 |
-| `flow_jump` | `flow_jump <阶段ID>` 跳到阶段并结束本分支 |
-| `setvar` / `delvar` / `addvar` | 副本变量读写 |
-| `random` | `random <变量> <min> <max>` 写均匀随机整数到实例变量 |
-| `if_var` | `if_var <变量> <op> <值>` 实例变量不满足则中止本段（不依赖玩家，world-init 可用） |
-| `check` | `check <选择器> <条件>` 目标不满足条件时中止当前脚本 |
+| 动作 | 中文作用与写法 | 可替换示例 |
+| --- | --- | --- |
+| `complete_dungeon` | 判定本局通关并开始结算。<br />`complete_dungeon` | `complete_dungeon` |
+| `complete_stage` | 完成当前阶段，执行完成动作后按 next 推进。<br />`complete_stage` | `complete_stage` |
+| `set_stage` | 直接进入目标阶段。<br />`set_stage <阶段ID>` | `set_stage wave` |
+| `fail_dungeon` | 判定本局失败。<br />`fail_dungeon` | `fail_dungeon` |
+| `cancel_dungeon` | 取消本局，不计通关或失败。<br />`cancel_dungeon` | `cancel_dungeon` |
+| `exit_dungeon` | 请求选中玩家返回原位置并退出。<br />`exit_dungeon <选择器>` | `exit_dungeon @trigger` |
+| `kick_all_players` | 移出本局所有玩家。<br />`kick_all_players` | `kick_all_players` |
+| `run_script` | 调用 scripts.yml 已定义的自定义段。<br />`run_script <段名>` | `run_script warning` |
+| `wait` | 暂停当前列表，时间单位为秒。<br />`wait <秒>` | `wait 3` |
+| `delay` | 稍后执行一条动作，当前列表继续。<br />`delay <秒> <动作行>` | `delay 3 run_script warning` |
+| `flow_if` | 条件成立才执行这一行，不成立继续后续行。<br />`flow_if <无空格条件> <动作行>` | `flow_if var:bonus message @all &6挑战已开启` |
+| `flow_jump` | 跳到目标阶段并结束本脚本分支。<br />`flow_jump <阶段ID>` | `flow_jump finish` |
+| `setvar` | 设置本局变量。<br />`setvar <变量名> <值>` | `setvar coins 0` |
+| `delvar` | 删除本局变量。<br />`delvar <变量名>` | `delvar coins` |
+| `addvar` | 增加或减少本局数值变量。<br />`addvar <变量名> <增量>` | `addvar coins -15` |
+| `random` | 将范围内随机整数写入变量。<br />`random <变量名> <最小值> <最大值>` | `random route 1 3` |
+| `if_var` | 变量比较不满足时停止当前列表。<br />`if_var <变量名> <比较符> <值>` | `if_var coins >= 15` |
+| `check` | 玩家条件不满足时停止当前列表。<br />`check <选择器> <条件>` | `check @trigger %player_level% >= 10` |
 
 > **随机分支模式**：`random` 掷变量 → `run_script` 调多个变体段 → 各段首行 `if_var <变量> == N` 门控，不匹配只终止该段（`run_script` 开独立会话）。`check` 逐玩家评估，world-init 阶段无玩家会空转——变量门控请用 `if_var`。
 
 ### 全服共享计数
 
-| 动作 | 用法 |
-|---|---|
-| `global_add` | `global_add <键> [增量]` 累加（默认 +1），命中阈值自动发事件 |
-| `global_set` | `global_set <键> <值>` 直接设定 |
-| `global_get` | `global_get <键> <变量>` 把全服计数读进实例变量（配合 `check` 判断） |
-| `global_reset` | `global_reset <键>` 归零并清阈值触发记录（一轮全服事件结束用） |
+| 动作 | 中文作用与写法 | 可替换示例 |
+| --- | --- | --- |
+| `global_add` | 累加全服共享计数，默认增加 1。<br />`global_add <键> [增量]` | `global_add invasion_kills 1` |
+| `global_set` | 设置全服共享计数。<br />`global_set <键> <值>` | `global_set invasion_kills 0` |
+| `global_get` | 将全服计数读入本局变量。<br />`global_get <键> <变量名>` | `global_get invasion_kills current_kills` |
+| `global_reset` | 归零并清除此计数的阈值触发记录。<br />`global_reset <键>` | `global_reset invasion_kills` |
 
 **阈值事件**：模块配置 `config.yml` 的 `global-thresholds` 节声明阈值表：
 
@@ -189,46 +203,51 @@ global-thresholds:
 
 ### 怪物与方块
 
-| 动作 | 用法 |
-|---|---|
-| `spawn_group` | `spawn_group <怪物组>` 触发波次 |
-| `kill_group` / `remove_group` | 击杀/跳过指定组（未刷出的组经 kill_group 视同完成走联动链；remove_group 静默移除不计完成） |
-| `group_alive_count` | `group_alive_count <组>` 存活数（配合 check） |
-| `kill_all_mobs` | 清全部副本怪 |
-| `play_model_animation` | 播放模型动画 |
-| `setblock` | `setblock <x,y,z> <Material>` |
-| `fillblocks` | `fillblocks <x1,y1,z1> <x2,y2,z2> <Material>` |
-| `paste_region` | `paste_region <名> <x,y,z> [full]` 铺放 `/axs abyss region` 圈选的区域模板——默认跳过 AIR（结构嵌入地形），`full` 连空气覆盖（挖空腔体/虚空铺房） |
+| 动作 | 中文作用与写法 | 可替换示例 |
+| --- | --- | --- |
+| `spawn_group` | 生成已定义的怪物组。<br />`spawn_group <怪物组ID>` | `spawn_group guards` |
+| `kill_group` | 清除怪组并按完成处理，尚未生成的组也走完成链。<br />`kill_group <怪物组ID>` | `kill_group guards` |
+| `remove_group` | 静默移除怪组，不按完成处理。<br />`remove_group <怪物组ID>` | `remove_group guards` |
+| `group_alive_count` | 把怪组存活数写入本局变量。<br />`group_alive_count <组ID> <变量名>` | `group_alive_count guards guards_left` |
+| `kill_all_mobs` | 清除本实例的副本怪物。<br />`kill_all_mobs` | `kill_all_mobs` |
+| `play_model_animation` | 对已定义的副本 NPC 播放模型动画。<br />`play_model_animation <NPC名> <动画名> [速度] [过渡] [保持]` | `play_model_animation guide wave 1` |
+| `setblock` | 把一个副本坐标改成指定方块，Material 填材质枚举名。<br />`setblock <x,y,z> <材质>` | `setblock 0,80,3 GOLD_BLOCK` |
+| `fillblocks` | 用指定方块填满两个角之间的长方体。<br />`fillblocks <x1,y1,z1> <x2,y2,z2> <材质>` | `fillblocks -12,79,-12 12,79,12 STONE` |
+| `paste_region` | 粘贴已保存区域，full 表示连空气覆盖。<br />`paste_region <区域名> <x,y,z> [full]` | `paste_region hall 0,64,0 full` |
 
 ### 障碍物 / 交互点 / NPC / 任务
 
-| 动作 | 用法 |
-|---|---|
-| `create_obstacle` / `delete_obstacle` | `create_obstacle <名>` 放置/移除障碍物 |
-| `create_interact` / `delete_interact` | 动态启停交互点 |
-| `floor_next` | 强制推进下一层（floors 模式） |
-| `room_lock` / `room_unlock` | `room_lock <房id>` 手动锁门/清房开门（floors 模式） |
-| `room_status` | `room_status <房id> <变量>` 写房间状态到变量（SEALED/FIGHTING/CLEARED/UNKNOWN） |
-| `puzzle_prompt` | `puzzle_prompt <机关id>` 给触发者打开 input 型机关的输入面板（puzzles.yml） |
-| `puzzle_prompt_player` | `puzzle_prompt_player <玩家\|@all> <机关id>` 指定玩家打开输入面板 |
-| `puzzle_reset` | `puzzle_reset <机关id>` 机关进度/锁定清零，回到初始状态 |
-| `puzzle_solve` | `puzzle_solve <机关id>` 直接判定完成（触发 on-complete + 事件） |
-| `puzzle_state` | `puzzle_state <机关id> <变量>` 机关进度写入变量（无此机关=-1） |
-| `spawn_npc` / `remove_npc` | `spawn_npc <名>` 生成/移除 npcs.yml 定义的 NPC（Adyeshach 公共临时实体） |
-| `npc_dialog` | `npc_dialog <名> [sel]` 触发 NPC 对话——已绑 Chemdah 会话→真会话 UI，否则 `dialogs` 聊天栏兜底 |
-| `play_model_animation` | `play_model_animation <npc名> <动画名> [速度] [过渡tick] [保持tick]` Adyeshach 模型动画 |
-| `accept_quest` / `submit_quest` | `accept_quest <任务> [sel]` / `submit_quest <任务> [sel]`——经 questgps 接取 Chemdah 任务 / manual-claim 领取副本奖励 |
-| `quest_step` | `quest_step <任务>` 智能一步：未接取→接取，已完成→领取（推荐 NPC click-script 用） |
-| `quest_status` | `quest_status <任务> <变量>` 写触发玩家的 Chemdah 状态（NONE/ACTIVE/COMPLETED）到变量，配 `check` 分支 |
+| 动作 | 中文作用与写法 | 可替换示例 |
+| --- | --- | --- |
+| `create_obstacle` | 放置已定义的障碍物。<br />`create_obstacle <障碍物ID>` | `create_obstacle gate` |
+| `delete_obstacle` | 移除已定义的障碍物。<br />`delete_obstacle <障碍物ID>` | `delete_obstacle gate` |
+| `create_interact` | 启用已定义的交互点。<br />`create_interact <交互ID>` | `create_interact start_button` |
+| `delete_interact` | 停用交互点。<br />`delete_interact <交互ID>` | `delete_interact start_button` |
+| `floor_next` | 强制推进下一层，适用于 floors 模式。<br />`floor_next` | `floor_next` |
+| `room_lock` | 手动锁定指定房间的门。<br />`room_lock <房间ID>` | `room_lock hall` |
+| `room_unlock` | 手动打开指定房间的门。<br />`room_unlock <房间ID>` | `room_unlock hall` |
+| `room_status` | 将房间状态写入本局变量。<br />`room_status <房间ID> <变量名>` | `room_status hall hall_state` |
+| `puzzle_prompt` | 向当前触发玩家打开输入机关面板。<br />`puzzle_prompt <机关ID>` | `puzzle_prompt password_gate` |
+| `puzzle_prompt_player` | 向指定玩家打开输入机关面板。<br />`puzzle_prompt_player <选择器> <机关ID>` | `puzzle_prompt_player @all password_gate` |
+| `puzzle_reset` | 重置机关进度。<br />`puzzle_reset <机关ID>` | `puzzle_reset password_gate` |
+| `puzzle_solve` | 完成机关并触发其完成动作。<br />`puzzle_solve <机关ID>` | `puzzle_solve password_gate` |
+| `puzzle_state` | 将机关进度写入本局变量，未找到为 -1。<br />`puzzle_state <机关ID> <变量名>` | `puzzle_state password_gate gate_progress` |
+| `spawn_npc` | 生成 npcs.yml 定义的 NPC。<br />`spawn_npc <NPC名>` | `spawn_npc guide` |
+| `remove_npc` | 移除本局 NPC。<br />`remove_npc <NPC名>` | `remove_npc guide` |
+| `npc_dialog` | 让指定 NPC 与选中玩家对话。<br />`npc_dialog <NPC名> [选择器]` | `npc_dialog guide @trigger` |
+| `accept_quest` | 接取 quests.yml 引用的 Chemdah 任务。<br />`accept_quest <任务ID> [选择器]` | `accept_quest sk_slayer @trigger` |
+| `submit_quest` | 提交已完成的副本委托并领取对应奖励。<br />`submit_quest <任务ID> [选择器]` | `submit_quest sk_slayer @trigger` |
+| `quest_step` | 根据状态接取、提示进度或提交当前触发者的委托。<br />`quest_step <任务ID>` | `quest_step sk_slayer` |
+| `quest_status` | 把触发者的任务状态写入变量。<br />`quest_status <任务ID> <变量名>` | `quest_status sk_slayer hunt_state` |
 
 ### 副本内引导（路标/路径渲染）
 
 调用 `api.util.NavigationTargetService`——HUD 目标行 + 客户端路标 + 路径标记链直达目标，到达发事件并可自动跑脚本段。
 
-| 动作 | 用法 |
-|---|---|
-| `guide_point` | `guide_point <navId> <x,y,z> [到达半径] <标题...>` 全员登记导航目标（同 navId 覆盖） |
-| `guide_clear` | `guide_clear <navId\|all>` 撤下目标 |
+| 动作 | 中文作用与写法 | 可替换示例 |
+| --- | --- | --- |
+| `guide_point` | 登记本局导航点，同 ID 更新目标。<br />`guide_point <导航ID> <x,y,z> [到达半径] <标题>` | `guide_point pump_room 90,64,-55 3 &e前往泵房` |
+| `guide_clear` | 撤销一个或全部导航点。<br />`guide_clear <导航ID\|all>` | `guide_clear pump_room` |
 
 ```yaml
 start:
@@ -244,35 +263,36 @@ guide_pump_room:
 
 ### 增益选择池（buffs.yml）
 
-| 动作 | 用法 |
-|---|---|
-| `buff_offer` | `buff_offer <池id>` 发起增益选择（panel=弹卡片面板 / hud=直接生效） |
-| `buff_grant` | `buff_grant <池id> <选择器> [optionId]` 直接赋予（不弹窗；optionId 空=权重随机） |
-| `buff_clear` | `buff_clear <池id>` 撤下未完成的待选面板 |
+| 动作 | 中文作用与写法 | 可替换示例 |
+| --- | --- | --- |
+| `buff_offer` | 打开增益池的选择面板或按池设置直接赋予。<br />`buff_offer <池ID>` | `buff_offer altar_pool` |
+| `buff_grant` | 向选中玩家直接赋予池中的选项，省略选项时按权重选。<br />`buff_grant <池ID> <选择器> [选项ID]` | `buff_grant altar_pool @trigger` |
+| `buff_clear` | 撤下本池尚未完成的选择。<br />`buff_clear <池ID>` | `buff_clear altar_pool` |
 
 实例变量 `{var:buff.<池id>}`=所选 option id、`{var:buff.<池id>.count}`=发放人次；事件 `axs.abyss.buff_offer`/`buff_pick`。详见 [buffs.yml 增益选择池](/docs/abyss/encounters#buffsyml--增益选择池)。
 
 ### 奖励
 
-| 动作 | 用法 |
-|---|---|
-| `grant_reward` | `grant_reward <选择器> <奖励集名>` 发放 `rewards.yml` 命名集 |
-| `open_chest_ui` | `open_chest_ui <选择器> <宝箱名>` 打开宝箱 UI |
-| `open_shop_ui` | `open_shop_ui <选择器> <商店id>` 打开 `shops.yml` 商店 UI（NPC click-script/台座入口） |
-| `time` / `weather` | 设置副本世界时间/天气 |
+| 动作 | 中文作用与写法 | 可替换示例 |
+| --- | --- | --- |
+| `grant_reward` | 发放 rewards.yml 的命名奖励集。<br />`grant_reward <选择器> <奖励集ID>` | `grant_reward @all clear_pack` |
+| `open_chest_ui` | 为选中玩家打开宝箱奖励界面。<br />`open_chest_ui <选择器> <宝箱ID>` | `open_chest_ui @trigger trial_chest` |
+| `open_shop_ui` | 为选中玩家打开副本商店。<br />`open_shop_ui <选择器> <商店ID>` | `open_shop_ui @trigger merchant` |
+| `time` | 设置副本世界时间，单位为 Minecraft 时间刻。<br />`time <时间刻>` | `time 6000` |
+| `weather` | 设置晴天、下雨或雷雨。<br />`weather <clear\|rain\|thunder>` | `weather clear` |
 
 ### 跨模块联动
 
-| 动作 | 用法 | 依赖模块 |
-|---|---|---|
-| `signal` | `signal <选择器> <信号名>` 触发 EventPacket 规则引擎信号 | eventpacket |
-| `announce_global` | `announce_global <文本> [forward]` Announcer 全服公告（`forward`/`true` 结尾=跨服） | announcer |
-| `qq_group` | `qq_group [群号] <消息>` QQ 群推送（群号省略=全部已配置群） | qqbot |
-| `subtitle` | `subtitle <选择器> <字幕组id>` 播放字幕组 | subtitle |
-| `chat_card` | `chat_card <选择器> <卡片id> [k=v,k=v]` 发送聊天卡片 | chat |
-| `quest_track` | `quest_track <任务> [taskId\|-] [@sel]` QuestGPS 任务追踪卡片：本地任务 id 自动解析成 chemdah-id；taskId 省略或 `-`=追踪整个任务，否则追踪指定步骤；选择器缺省 `@trigger` | questgps |
-| `quest_offer` | `quest_offer <任务> [sel] [menu]` questgps 推送任务供玩家选择接取；`menu`=弹任务菜单 | questgps |
-| `quest_menu` | `quest_menu [sel]` 打开 questgps 任务菜单 | questgps |
+| 动作 | 中文作用与写法 | 可替换示例 |
+| --- | --- | --- |
+| `signal` | 让 EventPacket 对选中玩家处理自定义信号。<br />`signal <选择器> <信号名>` | `signal @trigger trial_complete` |
+| `announce_global` | 通过 Announcer 发送全服公告，末尾 forward 可跨服。<br />`announce_global <文字> [forward]` | `announce_global &6试炼已被攻克` |
+| `qq_group` | 向指定或全部已配置 QQ 群推送消息。<br />`qq_group [群号] <消息>` | `qq_group 试炼已被攻克` |
+| `subtitle` | 给选中玩家播放字幕组。<br />`subtitle <选择器> <字幕组ID>` | `subtitle @all trial_intro` |
+| `chat_card` | 给选中玩家发送聊天卡片。<br />`chat_card <选择器> <卡片ID> [键=值,键=值]` | `chat_card @trigger trial_reward` |
+| `quest_track` | 追踪整个任务或一个目标，短横线表示整个任务。<br />`quest_track <任务ID> [目标ID\|-] [选择器]` | `quest_track sk_slayer - @all` |
+| `quest_offer` | 推荐任务，可加 menu 打开选择界面。<br />`quest_offer <任务ID> [选择器] [menu]` | `quest_offer sk_slayer @trigger menu` |
+| `quest_menu` | 为选中玩家打开任务菜单。<br />`quest_menu [选择器]` | `quest_menu @trigger` |
 
 ```yaml
 # 进本后给全员挂上"讨伐魔君"任务追踪；到泵房时切到具体步骤
@@ -284,12 +304,12 @@ on-room-clear:
 
 `quest_track` 只做追踪/HUD 卡片展示——任务接取、条件判定、奖励发放仍由 questgps/Chemdah 任务体系负责；abyss 侧坐标引导用 `guide_point`，两者分工不重叠。
 
-| 动作 | 用法 | 依赖模块 |
+| 动作 | 中文作用与写法 | 可替换示例 |
 | --- | --- | --- |
-| `combat_effect` | `combat_effect <选择器> <特效包id>` 触发战斗特效包 | combateffect |
-| `bp_task` | `bp_task <选择器> <任务id> [增量]` 推进战令任务进度 | battlepass |
-| `apply_attribute` | `apply_attribute <选择器> <属性id> <值> [percent\|flat]` 副本内属性修饰，出本自动清除 | 属性桥（Symphony 等） |
-| `remove_attribute` | `remove_attribute <选择器>` 主动移除副本属性修饰 | 同上 |
+| `combat_effect` | 给选中玩家展示战斗效果配置。<br />`combat_effect <选择器> <特效ID>` | `combat_effect @all victory` |
+| `bp_task` | 增加战令任务进度，默认增加 1。<br />`bp_task <选择器> <任务ID> [增量]` | `bp_task @all trial_clear 1` |
+| `apply_attribute` | 添加本局属性修饰，flat 为固定值，percent 为百分比。<br />`apply_attribute <选择器> <属性ID> <值> [flat\|percent]` | `apply_attribute @trigger health 10 flat` |
+| `remove_attribute` | 移除通过副本添加的属性修饰。<br />`remove_attribute <选择器>` | `remove_attribute @trigger` |
 
 ## 内联脚本与占位符
 

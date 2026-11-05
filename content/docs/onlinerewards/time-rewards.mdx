@@ -419,12 +419,12 @@ time-bonus:
 
 模块提供四维排行榜（日榜/周榜/月榜/总榜），每 5 分钟自动刷新缓存。
 
-| 排行榜 | 数据来源 | 排序字段 |
-|---|---|---|
-| 日榜 | `online_rewards_players` | `reward_date, online_minutes` |
-| 周榜 | `online_rewards_players` | `week_key, week_minutes` |
-| 月榜 | `online_rewards_players` | `month_key, month_minutes` |
-| 总榜 | `online_rewards_players` | `total_minutes` |
+| 排行榜 | 配置 scope | 显示内容 |
+| --- | --- | --- |
+| 日榜 | `daily` | 当天在线时长 |
+| 周榜 | `weekly` | 本周在线时长 |
+| 月榜 | `monthly` | 本月在线时长 |
+| 总榜 | `total` | 累计在线时长 |
 
 ### 排行榜占位符
 

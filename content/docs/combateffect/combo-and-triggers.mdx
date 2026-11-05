@@ -148,8 +148,8 @@ Chronos 来源模式下，仅指定状态组的状态进入才计为连击一击
 | 匹配维度 | 条件字段 | 说明 |
 |---|---|---|
 | 按键名称 | `key-name` | 通配符匹配（`*` 匹配任意字符序列） |
-| 按键类型 | `key-type` | `client` / `simple` / `group` |
-| 按键动作 | `key-action` | `press` / `release` / `both` |
+| 按键类型 | `key-type` | `client`（客户端绑定） / `simple`（简易按键） / `group`（按键组） |
+| 按键动作 | `key-action` | `press`（按下） / `release`（松开） / `both`（两者） |
 
 ### 按键触发示例
 
@@ -170,7 +170,7 @@ Chronos 来源模式下，仅指定状态组的状态进入才计为连击一击
 | 匹配维度 | 条件字段 | 说明 |
 |---|---|---|
 | 状态 ID | `state-id` | 通配符匹配（`*` 匹配任意字符序列） |
-| 动作 | `state-action` | `enter` / `leave` / `both` |
+| 动作 | `state-action` | `enter`（进入） / `leave`（离开） / `both`（两者） |
 | 控制器过滤 | `controller-id` | 可选，通配符匹配；为空时不做控制器过滤 |
 
 ### 控制器触发

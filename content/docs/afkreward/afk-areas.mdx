@@ -99,10 +99,10 @@ pos:
 
 | 检查项 | 配置字段 | 失败提示 |
 |---|---|---|
-| 战斗冷却 | `manual.combat-cooldown-seconds` | `hints.manual.in-combat` |
+| 战斗冷却 | `manual.combat-cooldown-seconds` | `hints.manual.in-combat`，玩家仍在战斗冷却期 |
 | 区域有效性 | 区域启用 + 配置了 `teleport` + `manual-enabled` | `hints.manual.no-teleport` |
-| 区域权限 | `axs.afkreward.area.<name>` | `hints.no-permission-area` |
-| 人数上限 | `reward.player.limit` | `hints.player-limit` |
+| 区域权限 | `axs.afkreward.area.<name>` | `hints.no-permission-area`，没有该区域的挂机权限 |
+| 人数上限 | `reward.player.limit` | `hints.player-limit`，同时挂机人数已满 |
 | 重复挂机 | 已在挂机中 | `hints.manual.already` |
 | Essentials AFK 互斥 | 玩家已处于 Essentials AFK 状态 | `hints.manual.essentials-afk` |
 

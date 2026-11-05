@@ -121,64 +121,22 @@ bank:
 
 ### 取款流程
 
-玩家发送 `bank_withdraw` action 提取货币：
+在银行界面选择货币、填写金额并取款。金额须大于 0 且不超过银行余额。成功后核对该货币的钱包余额和银行余额，放款失败时查看提示并刷新余额。
 
-2. 校验金额有效且余额充足
-4. 通过货币桥接放款到玩家背包
-5. 如果放款失败，自动回滚（通过 `creditBankBalance` 恢复余额）
+### 购买定期
 
-**creditBankBalance（增加余额）**：
+1. 在银行界面选择已启用且自己有权限使用的定期产品。
+2. 确认币种、期限、最小与最大金额以及本档利率。
+3. 填写本金并确认购买，核对银行余额减少的金额。
+4. 在定期列表检查产品、本金和到期时间。
 
-**debitBankBalance（扣减余额）**：
+例如本金为 1000、单期利率为 `0.05` 时，预期利息为 50。先确认余额至少为 1000，再购买并在到期后领取。金额阶梯和期限按服务器产品配置填写。
 
-> `debitBankBalance` 仅在 `balance >= amount` 时成功（返回 `true`），否则返回 `false`，确保不会出现负余额。
+### 领取到期定期
 
-### 购买流程
+玩家在银行界面选择已到期的定期记录，再执行领取。本金与约定利息一起入账。未到期、已领取或不属于自己的记录不能再次领取。
 
-玩家通过银行界面发送 `fixed_create` action 购买定期产品：
-
-1. 校验产品存在且玩家有权限（`canUseProduct`）
-2. 校验金额在 `min-amount` ~ `max-amount` 范围内
-3. 匹配利率阶梯（`tierFor`）
-4. 校验银行余额充足
-6. 创建定期存款记录（`createFixedDeposit`）
-7. 如果创建失败，自动回滚（`creditBankBalance` 恢复）
-
-### 定期存款记录
-
-创建的 `FixedDepositRecord` 包含以下字段：
-
-| 字段 | 说明 |
-| --- | --- |
-| `id` | 随机 UUID |
-| `playerUuid` | 玩家 UUID |
-| `productId` | 产品 ID |
-| `currencyId` | 货币 ID |
-| `principal` | 本金 |
-| `interestRate` | 匹配的利率 |
-| `createdAt` | 创建时间戳 |
-| `maturesAt` | 到期时间戳（`createdAt + durationSeconds * 1000`） |
-| `claimed` | 是否已领取 |
-| `claimedAt` | 领取时间戳 |
-
-### 领取流程
-
-玩家发送 `fixed_claim` action 领取到期定期：
-
-2. 校验定期存在且未领取且已到期（`maturesAt <= now`）
-
-1. `SELECT ... FOR UPDATE` 锁定定期记录行
-2. 检查 `claimed = false` 且 `matures_at <= now`
-3. 计算本息 = `principal + principal × interestRate`（精度 8 位，向下截断）
-4. `UPDATE ... SET claimed = true WHERE id = ? AND claimed = false`
-5. `creditBankBalance` 将本息入账
-
-降级为条件 UPDATE 方案：
-
-1. 查询定期记录（无行锁）
-2. `UPDATE ... SET claimed = true WHERE id = ? AND claimed = false AND matures_at <= ?`
-3. 如果 UPDATE 影响行数为 0，说明被并发领取，回滚
-4. `creditBankBalance` 将本息入账
+领取后刷新银行余额和定期列表，核对该笔记录已经完成。发生暂时错误时，先查看到账记录和日志，再决定是否重试，避免手动重复补发。
 
 ### 本息计算
 

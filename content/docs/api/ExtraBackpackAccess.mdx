@@ -75,10 +75,10 @@ public interface ExtraBackpackAccess {
 
 | 方法 | 用途 | 参数 | 返回值 |
 | --- | --- | --- | --- |
-| `isAvailable` | Returns whether the extra backpack is enabled and usable for the player. | `player`：目标玩家（`Player`） | `boolean`：用于判断上面所述的查询或操作结果（true / false） |
-| `snapshot` | Returns a snapshot of the player's categories, capacities, and occupied slots. | `player`：目标玩家（`Player`） | `Snapshot` 结果对象 |
-| `deposit` | Stores as much of the item stack as the matching extra-backpack category can hold. | `player`：目标玩家（`Player`）；`itemStack`：物品（`ItemStack`） | `DepositResult` 结果对象 |
-| `withdraw` | Removes up to `amount` items from one category slot. | `player`：目标玩家（`Player`）；`categoryId`：对应条目的 ID（`String`）；`slot`：调用参数（`int`）；`amount`：数量或数值（`int`） | `WithdrawResult` 结果对象 |
+| `isAvailable` | 查询额外背包是否已启用且允许该玩家使用。 | `player`：目标玩家（`Player`） | `boolean`：用于判断上面所述的查询或操作结果（true / false） |
+| `snapshot` | 读取玩家各分类的容量与已占用槽位快照。 | `player`：目标玩家（`Player`） | `Snapshot` 结果对象 |
+| `deposit` | 将物品尽量存入匹配的背包分类，按结果检查实际存入数量。 | `player`：目标玩家（`Player`）；`itemStack`：物品（`ItemStack`） | `DepositResult` 结果对象 |
+| `withdraw` | 从分类中的指定槽位取出至多 `amount` 件物品。 | `player`：目标玩家（`Player`）；`categoryId`：对应条目的 ID（`String`）；`slot`：调用参数（`int`）；`amount`：数量或数值（`int`） | `WithdrawResult` 结果对象 |
 
 ## 调用注意事项
 

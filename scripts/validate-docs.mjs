@@ -38,9 +38,19 @@ for (const file of files) {
         continue;
       }
       const count = columns(lines[i]);
+      const headerCells = lines[i - 1].trim().replace(/^\||\|$/g, '').split(/(?<!\\)\|/).map((cell) => cell.trim());
+      const explanationColumn = headerCells.findIndex((cell) => /^(说明|用途|功能|效果|中文含义|中文用途|中文作用与写法)$/.test(cell));
+      const actionReference = /^(动作|动作类型|动作关键字|动作表单)$/.test(headerCells[0]);
       if (columns(lines[i - 1]) !== count) errors.push(`${name}: 表头与分隔行列数不一致`);
       for (let j = i + 1; j < lines.length && /^\|/.test(lines[j]); j++) {
         if (columns(lines[j]) !== count) errors.push(`${name}: 表格数据列数不一致，请检查未转义的竖线`);
+        const cells = lines[j].trim().replace(/^\||\|$/g, '').split(/(?<!\\)\|/).map((cell) => cell.trim());
+        if (explanationColumn > 0 && /`/.test(cells[0]) && !/[\u3400-\u9fff]/u.test(cells[explanationColumn] ?? '')) {
+          errors.push(`${name}:${j + 1}: 技术标识缺少中文解释`);
+        }
+        if (actionReference && !/\x60[^\x60]+\x60|\[[^\]]*(?:示例|片段)[^\]]*\]\([^)]+\)/u.test(cells.slice(1).join(' '))) {
+          errors.push(`${name}:${j + 1}: 动作需要实际写法、具体示例或完整示例链接`);
+        }
       }
     }
     for (const [, heading] of prose.matchAll(/^#{2,6} (.+)$/gm)) {

@@ -117,14 +117,14 @@ seed-mode: random       # random 每局随机 / daily 全服当日同图 / fixed
 
 ## 房间级脚本动作
 
-| 动作 | 说明 |
-|---|---|
-| `procgen_clear_room` | 手动完成触发者所在房（事件房出口） |
-| `procgen_open_doors` | 打开触发者所在房全部门洞 |
-| `procgen_seal_doors` | 封死触发者所在房全部门洞 |
-| `procgen_next_wave` | 立即触发下一波（不刷在清怪中） |
-| `procgen_reinforce <房idx> <波>` | 指定房重放某波怪（增兵） |
-| `procgen_chest <房idx> <宝箱id>` | 宝箱交互内部路由（自动由构件生成） |
+| 动作 | 说明 | 可替换示例 |
+| --- | --- | --- |
+| `procgen_clear_room` | 手动完成触发者所在房（事件房出口） | `procgen_clear_room` |
+| `procgen_open_doors` | 打开触发者所在房全部门洞 | `procgen_open_doors` |
+| `procgen_seal_doors` | 封死触发者所在房全部门洞 | `procgen_seal_doors` |
+| `procgen_next_wave` | 立即触发下一波（不刷在清怪中） | `procgen_next_wave` |
+| `procgen_reinforce <房idx> <波>` | 指定房重放某波怪（增兵） | `procgen_reinforce 0 1` |
+| `procgen_chest <房idx> <宝箱id>` | 宝箱交互内部路由（自动由构件生成） | `procgen_chest 0 trial_chest` |
 
 阶段机条件 `room_cleared:<房idx|构件名>` 对 procgen 房间同样可用。
 
