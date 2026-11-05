@@ -5,6 +5,19 @@ description: "编写公告文字、点击命令，并调整自动轮播与手动
 
 ## 条目配置
 
+## 最少改两处即可开始
+
+先保留现有 UI 与轮播周期，在公告目录的文件里只留一条启用的测试公告。
+
+```yaml
+trial_notice:
+  enabled: true
+  text: "&e欢迎来到试炼服务器"
+  click-command: ""
+```
+
+重载 Announcer，等待一个轮播周期确认文字。再加入其他条目，检查是否轮到每一条。点击动作是第二步，先用 `click-command: "tell {player} 你点击了公告"` 验证接收者，再换正式命令。字幕组与轮播公告分别定义，完整结构见[字幕配置](/docs/announcer/subtitle)。
+
 每个公告条目写在 `entries-directory`（默认 `announcer`）目录下的 `.yml` 文件中。模块启动时扫描目录加载所有条目，目录不存在时自动创建并导出示例文件 `default.yml`。
 
 - 文件名升序加载，同一 ID 后定义的覆盖先定义的

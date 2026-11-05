@@ -5,6 +5,10 @@ description: "调整通知模式、扫描范围、物品过滤与提示样式；
 
 ## 先改哪些内容
 
+只需要拾取后弹提示时，保留 `settings.mode: notification`，先测试一个原版物品，再改过滤与显示。需要主动扫描附近掉落物时，改用 `scanner` 并按[扫描模式](/docs/pickup/scanner-mode)配置入口。
+
+两种模式先分别验证。物品进入背包与提示出现是两个结果，测试时同时核对。范围扩大前先在近距离、少量物品场景下验证，再检查移动离开范围和背包已满时的表现。
+
 通知模式、扫描范围、物品过滤与提示样式。先使用默认示例完成一次测试，再按本页逐项调整。
 
 配置位置：`plugins/ArcartX-Suite/data/pickup/config.yml`。定义文件与子目录均相对此模块目录。本文中的 YAML 片段用于修改对应小节，请保留文件中的其他设置。
@@ -13,7 +17,7 @@ description: "调整通知模式、扫描范围、物品过滤与提示样式；
 
 ## 配置文件概览
 
-Pickup 模块的配置文件为 `config.yml`，位于 `data/pickup/config.yml`（由 `configSpec()` 声明 `configFileName` 为 `config.yml`）。消息文件为 `messages.yml`。修改后执行 `/axs reload pickup` 生效。
+Pickup 模块的主配置位于 `data/pickup/config.yml`，消息文件为 `messages.yml`。修改后执行 `/axs reload pickup` 生效。
 
 当前配置版本为 `3`，版本号字段路径为 `config-version`。配置版本低于 3 时启动自动迁移。
 

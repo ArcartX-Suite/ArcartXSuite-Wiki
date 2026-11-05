@@ -5,6 +5,25 @@ description: "为指定 Boss 设置追踪面板、信息展示与排序方式。
 
 Boss 追踪子系统是 EntityTracker 的核心功能，依赖 MythicMobs / MythicBukkit。它监听 MythicMob 的生成、死亡、消失事件，为每个被追踪的 Boss 推送 HUD 数据，并在 Boss 死亡时触发伤害结算。
 
+## 让一个真实 Boss 出现在面板
+
+在 `bosses/` 中按实际 MythicMob ID 建文件，例如怪物 ID 为 `TrialBoss` 时保存 `TrialBoss.yml`。文件内容可从以下最小定义开始。
+
+```yaml
+enabled: true
+priority: 100
+viewer-range: 48
+title-format: "&c{display_name}"
+subtitle-format: "&7生命 {health}/{max_health}"
+damage-ranking:
+  enabled: true
+  max-entries: 10
+```
+
+重载 EntityTracker 后，在同一世界生成该真实怪物。先站在 48 格内确认面板，再走远验证消失。第二步由两名玩家造成伤害，检查排名、各自伤害与参与人数。确认后才开启死亡奖励，区分怪物死亡与重载、移除、停机。
+
+`priority` 只在使用相应排序模式时决定次序，`viewer-range` 控制观看范围。若只想追踪玩家当前攻击的普通目标，调整[目标 HUD](/docs/entitytracker/target-hud)，不用为所有普通实体建立 Boss 文件。
+
 ## HUD 显示
 
 模块按 `refresh-interval-ticks` 周期向在线玩家推送 Boss HUD。玩家能看到某个 Boss 的条件：
@@ -13,7 +32,7 @@ Boss 追踪子系统是 EntityTracker 的核心功能，依赖 MythicMobs / Myth
 |---|---|
 | 玩家在线 | 玩家在线且未死亡 |
 | 同一世界 | 玩家与 Boss 在同一世界 |
-| 距离范围内 | 距离 ≤ Boss 定义的 `viewerRange`（未配置时使用全局默认值） |
+| 距离范围内 | 距离 ≤ Boss 定义的 `viewer-range`（未配置时使用全局默认值） |
 
 Boss 生成/死亡/消失、玩家攻击 Boss 时会即时刷新；每个玩家最多显示 `max-visible-bars` 个 Boss 条目，超出部分不显示但可通过总数获知。
 

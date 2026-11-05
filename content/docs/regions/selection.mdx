@@ -5,6 +5,18 @@ description: "使用选区工具设置角点，创建、修改和查看区域。
 
 Regions 模块提供完整的选区工具链，从选区点的设置、粒子可视化反馈到区域创建，覆盖区域划定全流程。
 
+## 建立一块可验证的保护区
+
+1. 用 `/rg wand` 获取选区工具，在同一世界左键和右键两个角，包含需要保护的完整高度。
+2. 用 `/rg define trial_spawn` 建区，再用 `/rg info trial_spawn` 核对世界、边界和体积。
+3. 执行 `/rg flag trial_spawn block-break deny`，先只禁止挖掘。
+4. 使用不是区域成员、没有绕过权限的普通测试玩家进入，确认不能挖掘。
+5. 再测试区域外位置，确认其他地方仍可挖掘。最后按需要增加放置、容器和交互标志。
+
+成员和拥有 `axs.regions.bypass` 的玩家可能不适合验证拒绝效果。出现“区域内仍可操作”时，先核对测试身份、区域高度、重叠区域优先级和父区域，再改标志。
+
+取消某条设置使用 `/rg removeflag trial_spawn block-break`。这会回到继承或默认判定，和显式设置 `allow` 不同。各标志含义见[标志系统](/docs/regions/flags)。
+
 ### 选区工具配置
 
 选区工具通过 `selection.wand-item` 配置，默认为木斧（`WOODEN_AXE`）：

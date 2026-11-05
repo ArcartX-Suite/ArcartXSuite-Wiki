@@ -5,6 +5,31 @@ description: "创建系统商店与回收表，配置商品价格、换货与动
 
 Market 的商店系统包含 **系统商店** 和 **回收商店** 两个子系统。系统商店允许管理员通过 YAML 文件定义商品，玩家使用货币购买；回收商店允许玩家将物品出售给系统换取货币。
 
+### 先跑通一件商品
+
+在 `shops/trial_shop.yml` 保存下例。先确认服务器的 `money` 货币可用，再测买卖。示例商店 ID 为文件名 `trial_shop`，商品 ID 为 `apple`。
+
+```yaml
+display-name: "补给商店"
+permission: ""
+items:
+  apple:
+    type: item
+    display-name: "苹果"
+    item:
+      source: minecraft
+      id: APPLE
+      amount: 1
+    buy-price: 10
+    sell-price: 2
+    currency: money
+    stock-mode: unlimited
+```
+
+重载 Market 后用 `/market shop trial_shop` 打开。用普通玩家买一个，再卖一个，分别核对物品与余额。确认后再加入库存、限购和折扣，每次只启用一种限制。限购的商品 ID 要保持稳定，改 ID 会改变所引用的商品身份。
+
+`item` 负责实际发放，`icon` 只负责显示。改成物品库商品前先确认来源插件能生成该 ID。回收或换货使用匹配器识别现有物品，与生成商品的 `source + id` 分别配置。
+
 ### 商店文件结构
 
 每个 `.yml` 文件定义一个独立的商店，文件名（不含扩展名）即为商店 ID。文件放置在 `<模块数据目录>/shops/` 目录下，模块启动时递归扫描加载。

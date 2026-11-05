@@ -5,6 +5,33 @@ description: "按物品标签、材质或说明匹配背包分类，并设置兜
 
 ExtraBackpack 按 NBT/PDC、材质等规则将物品归入分类视图，分类页共用个人仓库容量。本文说明分类结构、匹配、优先级与兜底规则；容量和定价见[槽位扩容](/docs/extrabackpack/slot-expansion)。
 
+## 先分原版物品，再接 Mod 标签
+
+在主配置的 `extra-backpack.categories` 中合并下例。分类页共用个人仓库容量，`slots.max` 是分类页显示上限，实际容量仍受仓库设置约束。
+
+```yaml
+extra-backpack:
+  enabled: true
+  categories:
+    trial_weapons:
+      display-name: "试炼武器"
+      priority: 5
+      material-ids:
+        - minecraft:iron_sword
+      slots:
+        max: 999
+    fallback:
+      display-name: "其他"
+      priority: 9999
+      default: true
+      slots:
+        max: 999
+```
+
+重载后用铁剑和苹果验证分类，并检查二者是否仍占用同一套仓库容量。已有更高优先级规则时先核对匹配顺序。添加 `material-prefixes` 时，从一个已知 Mod 的注册键前缀开始，确认不会把其他物品也归进去。
+
+如果同时配置注册键和 `match.nbt`，任一命中即可匹配，不能据此要求物品同时满足两者。需要用标签区分同一材质的多个物品时，按下文 NBT 路径规则单独测试。
+
 ## 分类配置结构
 
 | 字段 | 类型 | 默认值 | 说明 |

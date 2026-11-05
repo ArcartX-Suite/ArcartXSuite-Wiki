@@ -7,6 +7,21 @@ AfkReward 模块的核心是「区域」概念。每个区域是一个 X-Z 平�
 
 ## 区域文件结构
 
+## 先验证区域识别与一次结算
+
+复制 `area-default.yml` 后，先更改区域 ID、名称、真实世界和多边形边界，再确认传送点位于安全位置。`pos` 是 `x,z` 点列，按边界顺序围成多边形，不是长方体的两个角。至少需要三个点。
+
+区域、奖励档位和倍率分别测试。先用无倍率的一条测试消息确认结算，再换成实际奖励命令，最后调整周末、定时和衰减倍率。测试用短周期时注意奖励单位，正式开放前恢复预期分钟数。
+
+```yaml
+reward:
+  round: 1
+  common:
+    - "tell {player} 挂机测试结算已触发"
+```
+
+这段合并到区域的 `reward` 小节，保留实际需要的其他配置。档位权限必须与测试玩家匹配，匹配方式见[奖励档位](/docs/afkreward/reward-tiers)。REGION 模式进入区域累计，MANUAL 模式还需允许手动开始并配置传送点。分别验证进区、出区、手动停止和重新开始。
+
 每个区域为独立的 `area-<id>.yml` 文件，位于 `data/afkreward/areas/` 目录下。文件名中的 `<id>` 作为区域内部 ID，同时用于奖励权限 `axs.afkreward.start.<id>.<tier>`。模块首次启动时自动导出 `area-default.yml` 模板。
 
 ```yaml
@@ -29,10 +44,10 @@ teleport:
   pitch: 0
 reward:
   round: 15
-  ...
+  common:
+    - "tell {player} 区域挂机奖励已结算"
 multiplier:
   enable: false
-  ...
 ```
 
 ### 区域顶层字段

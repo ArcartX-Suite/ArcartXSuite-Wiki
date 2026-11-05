@@ -5,6 +5,28 @@ description: "设置仓库物品分类、排序与搜索，便于玩家查找物
 
 Warehouse 模块提供基于 NBT/PDC 路径的物品分类、多字段排序方案和拼音/首字母搜索能力。这三套机制协同工作，帮助玩家在大量存储物品中快速定位目标。
 
+## 用原版材质验证分类
+
+在主配置现有的 `categories` 中合并这两项。测试前检查已有分类优先级，避免其他规则先匹配。
+
+```yaml
+categories:
+  trial_ores:
+    display-name: "试炼矿物"
+    priority: 5
+    nbt:
+      path: material
+      values: [diamond, emerald]
+  other:
+    display-name: "其他"
+    priority: 9999
+    default: true
+```
+
+重载 Warehouse 后，存入钻石、绿宝石和苹果。前两者应能在矿物分类找到，苹果应进入兜底视图。分类是查找物品的方式，调整分类不应被当成扩容或奖励发放。
+
+接入自定义物品时，先读取物品真实的 PDC 键和值，再将 `nbt.path` 与 `values` 换成对应数据。示例键不会自动出现在物品上。先验证一个已知物品，再加入更多值，保留兜底分类以便发现未匹配物品。
+
 ### 分类匹配
 
 物品存入仓库时自动判断归属分类，按 `priority` 升序依次匹配：
