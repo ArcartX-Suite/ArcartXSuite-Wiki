@@ -13,14 +13,13 @@ description: "调整仓库容量、分类、共享成员权限与银行规则；
 
 配置文件位于 `plugins/ArcartX-Suite/data/warehouse/config.yml`，修改后执行 `/axs reload warehouse` 生效。
 
-当前配置版本（`config-version`）为 **4**，模块支持自动迁移（0→1、1→2、2→3、3→4）。
+当前配置版本（`config-version`）为 **6**。仓库存取操作即时持久化。
 
 ### 基础设置（settings）
 
 | 字段 | 类型 | 默认值 | 说明 |
 | --- | --- | --- | --- |
 | `debug` | boolean | `false` | 是否输出调试日志 |
-| `flush-interval-ticks` | int | `100` | 数据落库间隔（ticks，20 = 1 秒），最小 20 |
 | `transfer-confirm-expire-hours` | long | `24` | 共享仓库转让确认等待时长（小时），`<=0` 表示永不过期 |
 
 ### 跨服功能（cross-server）
@@ -47,9 +46,16 @@ description: "调整仓库容量、分类、共享成员权限与银行规则；
 | `mythic-loot-enabled` | boolean | `true` | 服务器开关：是否允许 MythicMobs 自定义掉落物自动入库（关闭后管理界面隐藏"怪物战利品"开关） |
 | `notify-on-auto-store` | boolean | `true` | 自动存入时是否通知玩家（玩家个人设置的默认值） |
 
-> 玩家可在管理 UI 中单独开关自己的自动入库设置，个人设置存储在 `warehouse_player_settings` 表，优先于全局默认值。
->
+玩家可在管理 UI 中分别开关普通物品入库、怪物战利品入库和入库聊天提示，设置保存后重新上线仍然生效，优先于全局默认值。
+
 > `enabled` 与 `mythic-loot-enabled` 为**服务器级开关**，优先级高于玩家个人设置：关闭时对应功能全服失效，管理界面同时隐藏对应开关，玩家无法在 UI 中看到或切换它。
+
+与 Pickup 联动时，按两种场景配置：
+
+1. **正常靠近拾取并提示**：Pickup 使用 `settings.mode: notification`，Warehouse 按上述服务器和个人开关决定是否入库，Pickup 补充显示实际已存入的数量。
+2. **按键选取附近掉落物**：Pickup 使用 `settings.mode: scanner`。开启 `scanner.warehouse-auto-deposit: true` 后，点击物品才尝试入库；Warehouse 的服务器和个人开关仍然有效。没有开启、入库失败或容量不足的部分会尝试放入背包，背包也放不下时留在地面。
+
+两个模块不会同时对扫描模式接管的同一次拾取重复入库。入库聊天提示与 Pickup 的 HUD 开关独立；关闭入库聊天提示不会关闭 HUD。
 
 ### 物品搜索（search）
 
@@ -62,8 +68,7 @@ description: "调整仓库容量、分类、共享成员权限与银行规则；
 | --- | --- | --- | --- |
 | `enabled` | boolean | `true` | 是否启用展示柜功能 |
 | `cooldown-seconds` | int | `60` | 每次展示后的冷却时间（秒），最小 5 |
-| `max-items` | int | `9` | 单次展示卡片最多显示的物品数量，最小 1 |
-| `card-id` | string | `""` | 展示卡片使用的 ArcartX 卡片 ID，留空使用模块内置默认卡片 |
+| `card-id` | string | `""` | 向全服发送的 ArcartX 展示卡片 ID；可使用 `player_name`、`preview_command`，留空发送可点击的聊天链接 |
 
 ## 仓库分类配置
 
@@ -74,8 +79,8 @@ warehouses:
   personal:
     display-name: "&6个人仓库"    # 仓库显示名称
     default-owned: true           # 玩家首次使用时是否自动创建
-    base-slots: 32                # 初始解锁槽位数
-    max-slots: 999                # 可购买槽位上限
+      base-slots: 72                # 初始解锁槽位数
+      max-slots: 720                # 槽位总数上限，包含初始格
     slot-price:
       currency: "points"          # 每格所需货币 ID
       amount: 100                 # 每格价格
@@ -86,8 +91,8 @@ warehouses:
 | --- | --- | --- |
 | `display-name` | string | 仓库显示名称，支持颜色码 |
 | `default-owned` | boolean | 玩家首次使用时是否自动创建此仓库 |
-| `base-slots` | long | 初始解锁槽位数（默认 32） |
-| `max-slots` | long | 槽位**总数**上限，含初始格（默认 999）；已解锁 = `base-slots` + 已购格数，不得超过此值 |
+| `base-slots` | long | 初始解锁槽位数（默认 72） |
+| `max-slots` | long | 槽位**总数**上限，含初始格（默认 720）；已解锁 = `base-slots` + 已购格数，不得超过此值 |
 | `slot-price.currency` | string | 每格所需货币 ID，留空表示不可购买 |
 | `slot-price.amount` | decimal | 每格价格 |
 | `permission` | string | 拥有此仓库所需的权限节点，留空表示无限制 |
@@ -137,7 +142,7 @@ categories:
 >
 > 物品注册键指 Bukkit `Material.getKey()` 的全名（`命名空间:ID`）：原版物品为 `minecraft:<id>`，混合服 mod 物品为 `<modid>:<id>`（如 `tacz:modern_kinetic_gun`）。若只需精确匹配原版物品也可写 `nbt.path: "material"` + `values`（材质枚举名）。
 >
-> **注意**：`categoryId` 在物品入库时计算并随槽位记录持久化。新配规则生效后，已入库物品仍保持旧分类，重新存取一次（取出再存入）才会按新规则归类。
+分类规则修改并重载后，首次读取对应仓库时会按新规则重新计算已有物品的分类，不需要先取出再存入。
 
 ### 共享仓库权限分层
 
@@ -218,9 +223,21 @@ sort-profiles:
 
 系统内置三个排序方案：`time`、`name`、`amount`，可在配置中覆盖。
 
+## 更新已有界面文件
+
+本版的存取按钮与界面数据需要配套使用新版 `ui/warehouse_storage.yml`，管理页与银行页也有显示和交互修正。
+
+1. 备份模块目录下 `ui/` 中的三个界面文件。
+2. 使用默认界面时，临时设置 `ui.overwrite-ui-files: true`，执行 `/axs reload warehouse` 导出新版界面。
+3. 将该选项恢复为 `false`，再调整自己的外观。自定义界面应先对照新版模板更新操作回包，再验证存取、分页、锁定和预览。
+
+Pickup 的两个扫描界面也需要同时更新，步骤见[扫描模式](/docs/pickup/scanner-mode#更新已有界面文件)。
+
 ## 黑名单配置
 
 `blacklist` 节定义物品存入拦截规则，匹配任意一条规则的物品将无法存入仓库。配置格式参考 [物品匹配器](/docs/guide/conditions)。
+
+仓库黑名单的各字段分别生效：名称命中时即可拦截，不要求 Lore 也命中；同样，材质、物品库 ID、Lore、正则或 NBT 条件任一命中就会拦截。`nbt-values` 是一个整体条件，配置多组键值时必须全部符合才命中该字段。该规则同时用于手动存入、自动入库和第三方接口写入。
 
 ```yaml
 blacklist:

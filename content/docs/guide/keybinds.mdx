@@ -10,7 +10,7 @@ Suite 的本体按键和 Prop 道具槽位按键分别配置。前者用于交�
 | 模块 | 使用的按键配置 | 实际触发内容 |
 | --- | --- | --- |
 | Conversation | 本体 `AXS_INTERACT`、`AXS_NAVIGATE_PREV`、`AXS_NAVIGATE_NEXT` | 对话就绪时确认、推进和选择回复；不是任意场景按键都打开对话 |
-| Pickup | 模块 `scanner.keybind.name`，默认 `AXS_INTERACT` | 扫描交互；仅对应扫描模式，需要当前有可交互目标 |
+| Pickup | 模块 `scanner.keybind` 的五个按键，默认使用独立注册名称 | F 收取当前类、左／右方向键切换、J 批量收取、K 查看详情；只对扫描模式生效 |
 | Map | 本体 `AXS_MAP_MENU`、`AXS_MAP_HUD` | 打开大地图和切换地图 HUD |
 | Prop | 模块 `key.yml` 的 `keys` | 使用配置所指的道具槽位，独立于本体 `keybinds` |
 | CombatEffect | 主配置 `keybind-trigger.enabled` + 效果定义 `trigger: keybind` | 匹配按键名称、按下或松开及按键类型，触发已配置界面效果；本身不等于注册一个新键 |
@@ -38,25 +38,27 @@ keybinds:
 | `category` | 玩家按键设置中的分类文字 |
 | `module` | 所属模块 ID，可为一个值或列表；至少一个所属模块成功启用后才注册 |
 
-已有默认键位包括交互 `G`、对话上下选项 `UP` / `DOWN`、地图 `M`、小地图 `H`。仅新增一个任意 `name` 不会自动创建新功能。
+已有默认键位包括交互 `G`、对话上下选项 `UP` / `DOWN`、拾取 `F`、清单切换 `LEFT` / `RIGHT`、批量收取 `J`、拾取详情 `K`、地图 `M`、小地图 `H`。仅新增一个任意 `name` 不会自动创建新功能。
 
-修改后执行 `/axs reload all`，重新进入服务器，在客户端按键设置中核对。玩家自行修改过的绑定还应检查本地设置，服务端默认键位不等于每个玩家实际正在使用的键位。
+新增或修改本体按键声明后，重启服务器并重新进入，在客户端按键设置中核对。模块自身的绑定字段调整则按模块重载步骤处理。玩家自行修改过的绑定还应检查本地设置，服务端默认键位不等于每个玩家实际正在使用的键位。
 
-## 共享交互与专用拾取键
+## 拾取清单快捷键
 
-`interact` 可供对话和主动拾取交互使用。启用扫描拾取时，应分别测试有可交互掉落物和正常对话两种场景，不要认为同一个键在任何场景都必然推进对话。
-
-拾取是否使用专用 `pickup-pick` 按键，还取决于[拾取模块配置](/docs/pickup/configuration)。只修改本体默认 `F`，不代表模块已经选用该专用键。
-
-专用拾取键的实际选择字段是 Pickup 主配置的 `scanner.keybind.name`。例如已有本体声明 `name: AXS_PICKUP_PICK` 时，可在 Pickup 中选择：
+Pickup 默认使用独立的 `AXS_PICKUP_PICK`，不抢占对话交互键。模块配置写注册名称，不写键盘字母或本体条目名：
 
 ```yaml
 scanner:
   keybind:
     name: AXS_PICKUP_PICK
+    previous: AXS_PICKUP_PREVIOUS
+    next: AXS_PICKUP_NEXT
+    collect-all: AXS_PICKUP_ALL
+    details: AXS_PICKUP_DETAILS
 ```
 
-这里填写注册名称，不是键盘字母 `F`，也不是配置条目名 `pickup-pick`。保留默认 `AXS_INTERACT` 时，拾取优先处理当前可用的扫描交互，再由其他功能处理未消费的操作。不要依赖两个相同默认键位的条目获得独立行为：本体会合并相同默认键位，独立操作应分配不同键位。
+五个注册名称需要在宿主 `keybinds` 中分别声明，完整示例见[拾取清单按键](/docs/pickup/scanner-mode#在宿主注册按键)。只有详情键会打开菜单；平时的收取和切换不接管鼠标或滚轮。
+
+如服主明确将拾取配置为 `AXS_INTERACT`，它会优先消费附近物品的收取操作，可能影响对话推进。不要依赖两个相同默认键位的条目获得独立行为：本体会合并相同默认键位，独立操作应分配不同键位。
 
 ## Prop 槽位按键
 

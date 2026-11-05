@@ -13,6 +13,11 @@ description: "拾取提示可用命令、参数填写方式和权限要求。"
 | `/pickup on` | 开启拾取功能 | `arcartxsuite.pickup.use` |
 | `/pickup off` | 关闭拾取功能 | `arcartxsuite.pickup.use` |
 | `/pickup toggle` | 切换拾取功能开关（同 `/pickup`） | `arcartxsuite.pickup.use` |
+| `/pickup collect` | 收取当前类，扫描模式专用 | `arcartxsuite.pickup.use` |
+| `/pickup all` | 收取符合批量规则的候选 | `arcartxsuite.pickup.use` |
+| `/pickup previous` | 选择上一类 | `arcartxsuite.pickup.use` |
+| `/pickup next` | 选择下一类 | `arcartxsuite.pickup.use` |
+| `/pickup details` | 打开或关闭详细面板 | `arcartxsuite.pickup.use` |
 | `/pickup status` | 查看当前拾取状态（模式 + 开关） | `arcartxsuite.pickup.use` |
 | `/pickup help` | 查看可用子命令 | `arcartxsuite.pickup.use` |
 
@@ -63,6 +68,6 @@ Pickup 模块根据工作模式使用不同的 ArcartX UI 界面：
 | --- | --- | --- |
 | `ui/pickup_hud.yml` | 通知模式 | 滚动队列展示最近拾取记录，根据 `max-visible` 与 `entry-ttl-ms` 动态生成 |
 | `ui/loot_panel.yml` | 扫描模式 | 常驻 HUD，展示附近掉落物列表，支持滚轮与点击 |
-| `ui/loot_interact.yml` | 扫描模式 | 透明菜单，按键打开后捕获鼠标光标，ESC 关闭 |
+| `ui/loot_interact.yml` | 扫描模式 | 可选详细面板，只有按详情键或 details 命令时打开，支持分页与物品说明 |
 
 > `pickup_hud.yml` 为动态生成文件，修改 `max-visible` 或 `entry-ttl-ms` 后需开启 `ui.overwrite-ui-files` 或手动删除旧文件以重新生成。UI 图标渲染使用 `Slot` 组件，详见 [UI 图标](/docs/guide/icons)。

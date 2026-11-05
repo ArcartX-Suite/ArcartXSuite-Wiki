@@ -5,7 +5,7 @@ description: "调整通知模式、扫描范围、物品过滤与提示样式；
 
 ## 先改哪些内容
 
-只需要拾取后弹提示时，保留 `settings.mode: notification`，先测试一个原版物品，再改过滤与显示。需要主动扫描附近掉落物时，改用 `scanner` 并按[扫描模式](/docs/pickup/scanner-mode)配置入口。
+只需要拾取后弹提示时，保留 `settings.mode: notification`，先测试一个原版物品，再调整通知数量与显示时间。需要主动扫描附近掉落物时，改用 `scanner` 并按[扫描模式](/docs/pickup/scanner-mode)设置范围与过滤；`filter` 只对扫描模式生效。
 
 两种模式先分别验证。物品进入背包与提示出现是两个结果，测试时同时核对。范围扩大前先在近距离、少量物品场景下验证，再检查移动离开范围和背包已满时的表现。
 
@@ -19,7 +19,7 @@ description: "调整通知模式、扫描范围、物品过滤与提示样式；
 
 Pickup 模块的主配置位于 `data/pickup/config.yml`，消息文件为 `messages.yml`。修改后执行 `/axs reload pickup` 生效。
 
-当前配置版本为 `3`，版本号字段路径为 `config-version`。配置版本低于 3 时启动自动迁移。
+当前配置版本为 `4`，版本号字段路径为 `config-version`。启动时会按配置版本自动升级。
 
 ### 基础设置（settings）
 
@@ -30,7 +30,7 @@ Pickup 模块的主配置位于 `data/pickup/config.yml`，消息文件为 `mess
 
 ### 界面显示（ui）
 
-统一管理所有 UI ID 与注册行为，从 `notification` / `scanner` 嵌套节抽离（配置版本 2→3 迁移）。
+统一管理所有 UI ID 与注册行为。扫描模式的 HUD 常驻展示，详细面板只在主动打开时显示。
 
 | 配置项 | 类型 | 默认值 | 说明 |
 | --- | --- | --- | --- |
@@ -52,11 +52,32 @@ Pickup 模块的主配置位于 `data/pickup/config.yml`，消息文件为 `mess
 | --- | --- | --- | --- | --- |
 | `scanner.scan-radius` | double | `5.0` | 范围 1.0~32.0 | 扫描附近掉落物的半径（格） |
 | `scanner.scan-interval-ticks` | int | `5` | 范围 1~100 | 扫描间隔（ticks，5 = 250ms） |
-| `scanner.max-display` | int | `8` | 范围 1~16 | 面板最多显示的物品数 |
+| `scanner.display-rows` | int | `5` | 范围 1~16 | HUD 每页显示行数，选择跨页时自动翻页，不限制清单总长度 |
+| `scanner.max-candidates` | int | `512` | 范围 32~4096 | 一次扫描纳入的可收取实体上限；达到上限时显示提示 |
 | `scanner.disable-auto-pickup` | boolean | `true` | — | 是否禁用自动拾取（玩家靠近掉落物时不会自动吸入背包） |
-| `scanner.warehouse-auto-deposit` | boolean | `false` | — | 拾取后是否尝试存入仓库（需 Warehouse 模块启用） |
-| `scanner.pickup-delay-ticks` | int | `40` | — | 物品落地后多久开始显示在面板（ticks，防止刚扔出的物品立即被扫描） |
-| `scanner.merge-same-items` | boolean | `true` | — | 同类物品是否合并显示（相同材质+名称合并数量） |
+| `scanner.warehouse-auto-deposit` | boolean | `false` | — | 点击拾取后先尝试入库，遵守 Warehouse 服务器与个人开关；剩余尝试放入背包 |
+| `scanner.pickup-delay-ticks` | int | `40` | 最小 0 | 实体生成后至少存活的 tick 数，同时要求自身拾取冷却结束、物品归属允许 |
+| `scanner.merge-same-items` | boolean | `true` | — | 完整物品信息一致时合并数量，单击逐个尝试拾取该组实体 |
+
+### 快捷键与分批收取
+
+以下路径均位于模块配置的 `scanner` 节。按键的 ID 必须在宿主配置 `keybinds` 中注册，五个 ID 不得重复；完整注册示例见[附近战利品清单](/docs/pickup/scanner-mode#在宿主注册按键)。
+
+| 配置项 | 默认值 | 作用 |
+| --- | --- | --- |
+| `keybind.name` | `AXS_PICKUP_PICK` | 直接收取当前类，默认 F |
+| `keybind.previous` | `AXS_PICKUP_PREVIOUS` | 上一类，默认左方向键 |
+| `keybind.next` | `AXS_PICKUP_NEXT` | 下一类，默认右方向键 |
+| `keybind.collect-all` | `AXS_PICKUP_ALL` | 按批量规则收取全部，默认 J |
+| `keybind.details` | `AXS_PICKUP_DETAILS` | 打开或关闭可选详细面板，默认 K |
+| `batch.enabled` | `true` | 是否启用全部收取，不影响当前类收取 |
+| `batch.mode` | `all` | `all` 收取通过清单过滤的候选；`matching` 还需命中 `batch.matcher` |
+| `batch.matcher` | 空匹配器 | 通用物品匹配规则；matching 模式下留空不会收取任何物品 |
+| `batch.entities-per-tick` | `8` | 全模块每 tick 最多处理的实体数，范围 1~64，各玩家轮流执行 |
+| `batch.time-budget-ms` | `4` | 每 tick 软时间预算，范围 1~10；不能中途打断单次仓库调用 |
+| `batch.chat-summary` | `false` | 是否在聊天栏发送一次汇总；HUD 始终提供收取结果 |
+
+每次收取会固定当时的实体和数量；排队期间新出现的物品不会持续加入。离线、切换世界、关闭功能或停止模块时，剩余请求停止。
 
 ### filter 节（过滤系统，仅扫描模式生效）
 
@@ -94,174 +115,49 @@ Pickup 模块的主配置位于 `data/pickup/config.yml`，消息文件为 `mess
 
 > 五维过滤按顺序依次检查：最小数量 → 材质黑/白名单 → 名称正则 → Lore 正则 → NBT 键。白名单规则仅在配置非空时生效。过滤配置基于 `ItemMatcher` 体系，详见 [物品匹配条件](/docs/guide/conditions)。
 
-### 通知模式
+### 通知模式示例
+
+以下片段只调整通知模式。修改显示行数或持续时间后，按[通知 HUD](/docs/pickup/notification-hud)中的方法更新模板。
 
 ```yaml
-config-version: 3
-
 settings:
-  debug: false
   mode: notification
-
-ui:
-  notification-ui-id: "AXS:pickup_hud"
-  scanner-ui-id: "AXS:loot_panel"
-  interact-ui-id: "AXS:loot_interact"
-  register-ui-on-enable: true
-  overwrite-ui-files: false
-
 notification:
   max-visible: 4
   entry-ttl-ms: 3000
-
-scanner:
-  scan-radius: 5.0
-  scan-interval-ticks: 5
-  max-display: 8
-  disable-auto-pickup: true
-  warehouse-auto-deposit: false
-  pickup-delay-ticks: 40
-  merge-same-items: true
-  keybind:
-    name: AXS_PICKUP_PICK
-
-filter:
-  mode: blacklist
-  material-blacklist:
-    material-ids:
-      - DIRT
-      - COBBLESTONE
-      - GRAVEL
-      - SAND
-      - NETHERRACK
-      - COBBLED_DEEPSLATE
-  material-whitelist:
-    material-ids: []
-  name-blacklist:
-    name-regex: []
-  lore-blacklist:
-    lore-regex: []
-  lore-whitelist:
-    lore-regex: []
-  nbt-blacklist:
-    nbt-keys: []
-  nbt-whitelist:
-    nbt-keys: []
-  min-amount: 1
 ```
 
-### 扫描模式（带仓库联动）
+### 扫描模式与仓库联动
+
+以下片段启用清单、五行显示与仓库优先收取；其余字段保留原配置。完整按键和批量设置见[附近战利品清单](/docs/pickup/scanner-mode)。
 
 ```yaml
-config-version: 3
-
 settings:
-  debug: false
   mode: scanner
-
-ui:
-  notification-ui-id: "AXS:pickup_hud"
-  scanner-ui-id: "AXS:loot_panel"
-  interact-ui-id: "AXS:loot_interact"
-  register-ui-on-enable: true
-  overwrite-ui-files: false
-
-notification:
-  max-visible: 6
-  entry-ttl-ms: 5000
-
 scanner:
-  scan-radius: 8.0
-  scan-interval-ticks: 10
-  max-display: 8
-  disable-auto-pickup: true
+  display-rows: 5
   warehouse-auto-deposit: true
-  pickup-delay-ticks: 60
-  merge-same-items: true
-  keybind:
-    name: AXS_PICKUP_PICK
+  batch:
+    enabled: true
+    mode: all
+```
 
+### 白名单与物品说明过滤
+
+此例只显示同时满足“钻石剑／钻石镐之一”和“Lore 包含稀有字样”的物品。不同白名单维度需要同时通过。
+
+```yaml
+settings:
+  mode: scanner
 filter:
   mode: whitelist
-  material-blacklist:
-    material-ids: []
   material-whitelist:
     material-ids:
-      - DIAMOND
-      - EMERALD
-      - NETHERITE_INGOT
-      - ANCIENT_DEBRIS
-  name-blacklist:
-    name-regex:
-      - ".*垃圾.*"
-  lore-blacklist:
-    lore-regex: []
-  lore-whitelist:
-    lore-regex: []
-  nbt-blacklist:
-    nbt-keys:
-      - "custom.trash"
-  nbt-whitelist:
-    nbt-keys: []
-  min-amount: 1
-```
-
-### 扫描模式（白名单 + Lore 过滤）
-
-```yaml
-config-version: 3
-
-settings:
-  debug: true
-  mode: scanner
-
-ui:
-  notification-ui-id: "AXS:pickup_hud"
-  scanner-ui-id: "AXS:loot_panel"
-  interact-ui-id: "AXS:loot_interact"
-  register-ui-on-enable: true
-  overwrite-ui-files: true
-
-notification:
-  max-visible: 4
-  entry-ttl-ms: 3000
-
-scanner:
-  scan-radius: 5.0
-  scan-interval-ticks: 5
-  max-display: 8
-  disable-auto-pickup: true
-  warehouse-auto-deposit: false
-  pickup-delay-ticks: 40
-  merge-same-items: true
-  keybind:
-    name: AXS_INTERACT
-
-filter:
-  mode: blacklist
-  material-blacklist:
-    material-ids:
-      - DIRT
-      - COBBLESTONE
-      - GRAVEL
-      - SAND
-      - NETHERRACK
-      - COBBLED_DEEPSLATE
-  material-whitelist:
-    material-ids: []
-  name-blacklist:
-    name-regex: []
-  lore-blacklist:
-    lore-regex:
-      - ".*已绑定.*"
+      - DIAMOND_SWORD
+      - DIAMOND_PICKAXE
   lore-whitelist:
     lore-regex:
-      - ".*稀有.*"
-  nbt-blacklist:
-    nbt-keys: []
-  nbt-whitelist:
-    nbt-keys: []
-  min-amount: 1
+      - '.*稀有.*'
 ```
 
 ## 消息文件
@@ -287,5 +183,10 @@ filter:
 | `player.help.on` | `/pickup on` 帮助 |
 | `player.help.off` | `/pickup off` 帮助 |
 | `player.help.status` | `/pickup status` 帮助 |
-| `hints.warehouse-stored` | 仓库存储提示（参数 `{0}` 为数量） |
-| `hints.inventory-full` | 背包空间不足提示 |
+| `player.help.collect` | 当前类收取和全部收取命令帮助 |
+| `player.help.selection` | 切换清单选择命令帮助 |
+| `player.help.details` | 详细面板命令帮助 |
+| `hints.scanner-only` | 在通知模式使用扫描专用操作的提示 |
+| `hints.no-items` | 没有可操作物品或对应操作未启用的提示 |
+| `hints.collection-summary` | 收取汇总：`{0}` 仓库数量、`{1}` 背包数量、`{2}` 未收取数量 |
+| `hints.collection-summary-quiet` | 关闭入库聊天通知时的汇总，只报告背包和未收取数量 |

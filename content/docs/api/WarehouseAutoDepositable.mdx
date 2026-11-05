@@ -33,6 +33,8 @@ public interface WarehouseAutoDepositable {
 
     @NotNull DepositResult depositToPersonalWarehouse(@NotNull Player player, @NotNull ItemStack itemStack);
 
+    default boolean shouldNotifyAutoDeposit(@NotNull Player player) { return true; }
+
     record DepositResult(boolean success, long storedAmount, int remainingAmount, @NotNull String message) {}
 }
 ```
@@ -42,6 +44,28 @@ public interface WarehouseAutoDepositable {
 | 方法 | 用途 | 参数 | 返回值 |
 | --- | --- | --- | --- |
 | `depositToPersonalWarehouse` | 尝试将物品存入玩家的个人仓库。 | `player`：目标玩家；`itemStack`：待存入物品 | 存入结果 |
+| `shouldNotifyAutoDeposit` | 查询玩家是否开启入库聊天提示。 | `player`：目标玩家 | `boolean`：是否需要显示提示 |
+
+`depositToPersonalWarehouse` 用于自动入库，遵守 Warehouse 的服务器开关及玩家保存的普通物品／战利品开关，不修改传入物品。主动存储物品且不受自动入库个人开关影响时，使用 [WarehouseAccess](/docs/api/WarehouseAccess)。
+
+`storedAmount` 是已经持久化的数量；`remainingAmount` 是调用方尚需处理的数量。失败时已存数量为 0，剩余数量保留为传入物品的完整数量。只从来源扣除实际已存的部分，剩余物品应保留或继续尝试放入背包。
+
+```java
+ItemStack source = droppedItem.getItemStack().clone();
+WarehouseAutoDepositable.DepositResult result = api.depositToPersonalWarehouse(player, source);
+if (result.storedAmount() > 0) {
+    if (result.remainingAmount() == 0) {
+        droppedItem.remove();
+    } else {
+        source.setAmount(result.remainingAmount());
+        droppedItem.setItemStack(source);
+    }
+    if (api.shouldNotifyAutoDeposit(player)) {
+        player.sendMessage("已存入仓库 " + result.storedAmount() + " 件物品。");
+    }
+}
+// 没有成功存入时，来源物品保持原样。
+```
 
 ## 调用注意事项
 
