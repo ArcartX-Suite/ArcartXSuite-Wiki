@@ -1,0 +1,15 @@
+---
+title: "BindingService"
+description: "通过宿主认证权威读取和管理账号与 QQ 的绑定。"
+---
+
+完整类型为 `xuanmo.arcartxsuite.api.capability.BindingService`，由 Suite 宿主提供。通过 `AxsCapabilities.get(BindingService.class)` 获取。调用前，由 QQ 等传输适配器验证外部操作者身份。
+
+| 方法 | 用途 |
+| --- | --- |
+| `snapshot()` | 读取包含账号 ID、档案 UUID、档案名、QQ 和绑定时间的只读投影 |
+| `requestFromQq(qqId, profileName)` | 为已存在的目标账号发起一次性绑定验证码 |
+| `revokeByQq(verifiedQqId)` | 按已验证的 QQ 身份解除绑定 |
+| `revokeByProfile(profileId)` | 按游戏档案 UUID 解除绑定 |
+
+玩家使用当前游戏连接通过 [AuthRuntimeCapability](/docs/api/AuthRuntimeCapability) 的 `confirmBinding` 完成确认。绑定投影用于展示和查询，准入以宿主或中心存储的绑定事实为准。中心节点需要相应的 `binding-read` 或 `binding-write` 权限。

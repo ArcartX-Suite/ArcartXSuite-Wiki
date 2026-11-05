@@ -1,94 +1,57 @@
 ---
-title: "功能配置"
-description: "调整界面文件、服务条款与登录后传送位置；附字段解释、修改示例与重载步骤。"
+title: "认证与界面配置"
+description: "分别配置宿主认证策略和 LoginView 界面。"
 ---
 
-## 先改哪些内容
+宿主从插件数据目录读取 `authentication.yml`。LoginView 模块从其模块配置目录读取 `LoginView.yml`。修改认证后端、可信入口、密码或条款策略后重启宿主。
 
-先确认服务器实际使用的登录来源，再调整界面文字、条款和登录后落点。`auth.mode` 应与部署方式一致，委托 AuthMe 时先确认 AuthMe 已可正常使用。更换模式前备份账号相关数据并安排测试，不宜为修改提示文字同时改认证来源。
-
-用新账号和已有账号分别验证注册、登录、条款确认和登录后传送。需要 QQ 绑定时，先独立验证 QQBot 的绑定流程，再启用相应账号类型的强制要求。落点要放在实际已加载的世界和安全位置。
-
-界面文件、服务条款与登录后传送位置。先使用默认示例完成一次测试，再按本页逐项调整。
-
-配置位置：`plugins/ArcartX-Suite/data/loginview/config.yml`。定义文件与子目录均相对此模块目录。本文中的 YAML 片段用于修改对应小节，请保留文件中的其他设置。
-
-修改后执行 `/axs reload loginview`；涉及插件安装或全局设置的变更请重启后验证。
-
-当前配置版本号为 **3**，涉及破坏性改动时自动迁移。
-
-## 全局设置
-
-| 字段 | 类型 | 默认值 | 说明 |
-|---|---|---|---|
-| `config-version` | int | `3` | 配置版本号（请勿手动修改） |
-| `debug` | boolean | `false` | 是否输出 LoginView 模块调试日志 |
-
-## auth 认证配置
-
-| 字段 | 类型 | 默认值 | 说明 |
-|---|---|---|---|
-| `auth.mode` | string | `standalone` | 认证模式：`standalone`（独立账户库）或 `authme`（委托 AuthMe API） |
-
-<Callout type="warn">
-`auth.mode=authme` 时必须安装 AuthMe 插件，否则模块不加载。standalone 模式不需要 AuthMe。
-</Callout>
-
-## qq-binding QQ 绑定配置
-
-控制微软/LittleSkin 账号是否强制绑定 QQ 才能进入游戏。需 qqbot 模块同时加载才能生效。
-
-| 字段 | 类型 | 默认值 | 说明 |
-|---|---|---|---|
-| `qq-binding.enabled` | boolean | `true` | 是否启用 QQ 绑定流程 |
-| `qq-binding.microsoft-require-bind` | boolean | `false` | 微软正版账号是否需要绑定 QQ 才能进入游戏 |
-| `qq-binding.littleskin-require-bind` | boolean | `true` | LittleSkin 账号是否需要绑定 QQ 才能进入游戏 |
-| `qq-binding.bind-prompt` | `List<String>` | 见下方 | 未绑定 QQ 的正版/LittleSkin 玩家在登录面板看到的提示文本列表 |
-
-默认 `bind-prompt`：
+## LoginView.yml
 
 ```yaml
-qq-binding:
-  bind-prompt:
-    - '&e你尚未绑定 QQ'
-    - '&7请在 QQ 群发送: #绑定 {name}'
-    - '&7获取验证码后在下方输入'
+config-version: 1
+open-delay-ticks: 20
 ```
 
-## ui 界面配置
+`open-delay-ticks` 范围为 0 至 600 tick。认证界面 ID 为 `AXS:auth_v1`，模块 UI 文件为 `ui/auth_v1.yml`。
 
-| 字段 | 类型 | 默认值 | 说明 |
-|---|---|---|---|
-| `ui.ui-file` | string | `login_view.yml` | UI 配置文件名（位于 `ui/` 目录下），可改为 `login_view_menu.yml` 使用纯色块主菜单风格 |
-| `ui.register-ui-on-enable` | boolean | `true` | 是否在插件启用时自动注册/重载登录 UI |
-| `ui.overwrite-ui-files` | boolean | `false` | 是否强制覆盖 `ui/` 目录下的登录 UI 文件 |
-| `ui.open-delay-ticks` | int | `20` | 玩家进服后延迟多少 ticks 弹出登录界面（20 ticks = 1 秒），范围 0~600 |
-| `ui.close-on-login` | boolean | `true` | 登录成功后是否自动关闭登录 UI |
+## standalone
 
-<Callout type="warn">
-`overwrite-ui-files: true` 会覆盖你在服务器上的自定义 UI 修改！仅在需要恢复默认 UI 时设为 `true`。
-</Callout>
+```yaml
+schema-version: 1
+backend: standalone
+realm-id: local
+timezone: Asia/Shanghai
+login-timeout-seconds: 300
+ingress:
+  type: password
+  gateway-url: http://127.0.0.1:25599
+  audience: local-node
+  trusted-proxies: []
+password:
+  min-length: 8
+  max-length: 128
+  max-attempts: 5
+  cooldown-seconds: 300
+requirements:
+  terms: true
+  qq-binding: false
+terms:
+  version: '1'
+  lines:
+    - '请遵守服务器规则，保护账号凭据。'
+performance:
+  workers: 2
+  queue-capacity: 128
+```
 
-<Callout type="info">
-`ui-file` 支持两种内置风格：`login_view.yml`（紧凑面板）和 `login_view_menu.yml`（纯色块主菜单）。文件名必须以 `.yml` 结尾且不含路径分隔符，否则回退为 `login_view.yml`。
-</Callout>
+账号和绑定使用宿主配置的 SQLite 或 MySQL 存储。密码使用 Argon2id。修改条款正文时更新 `terms.version`，玩家确认的是界面实际展示的版本。
 
-## terms-of-service 服务条款配置
+| `ingress.type` | 部署要求 |
+| --- | --- |
+| `password` | 游戏内密码入口 |
+| `local-mixed` | 同机直连、`online-mode=true`，认证宿主实际通过 Java Agent 接入同一个本机网关 |
+| `signed-proxy` | 可信代理转发玩家身份，目标服校验签名、签发者、Realm、audience 和当前连接挑战 |
 
-| 字段 | 类型 | 默认值 | 说明 |
-|---|---|---|---|
-| `terms-of-service.enabled` | boolean | `true` | 是否强制玩家在登录前查阅并同意服务器服规 |
+混合入口默认关闭密码登录，明确需要同时提供密码时设置 `ingress.password-login: true`。代理信任项使用 `issuer`、`public-key` 和 `providers`。签名转发当前采用 Velocity，部署前验证真实握手与转发。资料查询、同名及 UUID 形态不作为身份验证依据。
 
-## spawn-on-login 登录后传送配置
-
-登录成功后是否将玩家传送到指定出生点（主城）。也可使用 `/axs loginview set-spawn` 命令以当前位置自动设置。
-
-| 字段 | 类型 | 默认值 | 说明 |
-|---|---|---|---|
-| `spawn-on-login.enabled` | boolean | `false` | 是否启用登录后传送 |
-| `spawn-on-login.world` | string | `world` | 目标世界名 |
-| `spawn-on-login.x` | double | `0.0` | X 坐标 |
-| `spawn-on-login.y` | double | `64.0` | Y 坐标 |
-| `spawn-on-login.z` | double | `0.0` | Z 坐标 |
-| `spawn-on-login.yaw` | double | `0.0` | 偏航角 |
-| `spawn-on-login.pitch` | double | `0.0` | 俯仰角 |
+使用 `backend: center` 时采用独立的节点配置结构，密码、条款及 QQ 绑定要求由中心下发。[独立认证中心](/docs/loginview/center)

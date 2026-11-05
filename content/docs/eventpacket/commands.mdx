@@ -80,7 +80,7 @@ EventPacket 模块的管理命令通过Suite统一命令系统调度，前缀为
 
 | 变量 | 说明 |
 |---|---|
-| `{trigger}` / `{trigger_type}` | 触发类型（如 `join`、`papi-increase`） |
+| `{trigger}` / `{trigger_type}` | 触发类型（如 `admitted`、`papi-increase`） |
 | `{world}` | 玩家所在世界（同 `{player_world}`） |
 | `{placeholder}` | PAPI 占位符（仅 PAPI 触发器） |
 | `{old_value}` | 占位符旧值（字符串） |
@@ -95,9 +95,9 @@ EventPacket 模块的管理命令通过Suite统一命令系统调度，前缀为
 
 | 变量 | 说明 |
 |---|---|
-| `{account_type}` | 账号类型：`microsoft` / `littleskin` / `offline` |
-| `{account_type_display}` | 账号类型显示名 |
-| `{account_premium}` | 是否正版（`true` / `false`） |
+| `{auth_provider}` | 当前连接的验证方式 |
+| `{auth_provider_display}` | 验证方式显示名 |
+| `{auth_verified}` | 是否已验证身份（`true` / `false`） |
 
 ### 时间变量
 

@@ -1,0 +1,68 @@
+---
+title: "官网与启动器认证接口"
+description: "为已有官网和启动器提供 OIDC、PKCE、设备授权和原连接准入验证。"
+---
+
+本阶段交付认证中心接口和验证方法。中心提供轻量的浏览器授权页面及可选 Java 调用封装。已有官网可以提供 OIDC 身份或链接到授权入口，已有启动器可按需调用公开接口。
+
+## 官网 OIDC
+
+在中心配置中用以下结构替换 `"external": null`。公钥占位符需要替换为提供方的 X.509 SubjectPublicKeyInfo DER 的 Base64 值，客户端密钥从环境变量读取。[中心配置](/docs/loginview/center)
+
+```json
+{
+  "port": 25601,
+  "origin": "https://auth.example.net",
+  "providers": [
+    {
+      "realm": "network",
+      "issuer": "https://id.example.net",
+      "authorize": "https://id.example.net/authorize",
+      "token": "https://id.example.net/token",
+      "clientId": "axs-center",
+      "secretEnvironment": "AXS_WEBSITE_OIDC_SECRET",
+      "keyId": "replace-with-provider-key-id",
+      "rsaPublicKey": "REPLACE_WITH_BASE64_X509_RSA_PUBLIC_KEY"
+    }
+  ],
+  "launchers": [
+    {
+      "id": "example-launcher",
+      "realm": "network",
+      "redirect": "http://127.0.0.1:43981/callback"
+    }
+  ]
+}
+```
+
+在提供方登记中心为保密客户端，准确登记回调 `https://auth.example.net/v1/external/callback`。提供方需要支持授权码、S256、`client_secret_basic`、`RS256`、`nonce` 和 `auth_time`。中心固定校验 issuer、端点和签名公钥。更新签名公钥或 `keyId` 后重启中心。
+
+将 HTTPS 的 `/v1/external` 请求转发至外部授权监听端口，保留路径、Origin 和 Cookie。节点 RPC 继续走独立端口。授权路径避免记录查询串、正文和 Cookie，并按来源限流。
+
+官网可链接 `/v1/external/verify?realm=network`。玩家填写游戏中显示的授权码，在身份提供方登录，并确认目标玩家与节点。中心以 Realm、issuer 和稳定 subject 映射账号。现有本地账号关联要求近期密码验证和官网身份验证。同名、邮箱及 QQ 不用于自动合并。
+
+## 启动器调用
+
+每个接口使用 `POST` 和 `application/json`。请求包含 `version: 1`、`requestId`（UUID）及 `clientId`。响应以 `version`、`requestId`、`code` 和可选的 `value` 返回结果。表内路径均位于 `/v1/external/launcher` 下。
+
+| 路径 | 额外参数 | 返回值及用法 |
+| --- | --- | --- |
+| `/start` | `redirectUri`、`codeChallenge`、`state` | 在系统浏览器打开 `value` 中的授权地址 |
+| `/exchange` | `redirectUri`、`code`、`codeVerifier` | 核对回调 state 后兑换授权码，得到 120 秒有效的启动凭据 |
+| `/device/start` | 无 | `value` 内含验证地址、公开用户码、私有设备码、有效期和轮询间隔 |
+| `/device/poll` | `deviceCode` | 按返回间隔轮询。成功时 `value` 内含 `launchToken` |
+| `/device/cancel` | `deviceCode` | 取消未兑换的设备授权 |
+| `/pair` | `launchToken`、`userCode` | 提交游戏里显示的授权码，返回本次连接的核对码 |
+
+PKCE 使用 S256。回调必须是精确登记的 `http://127.0.0.1` 固定端口和路径，启动器先在本地监听。设备流只向玩家展示验证地址和公开用户码。收到 `SLOW_DOWN` 时使用返回的新间隔，收到拒绝或过期结果后停止轮询。
+
+官网和启动器均只完成外部授权。玩家在原游戏连接刷新、核对并确认之后，才继续条款、绑定和票据兑换。
+
+## 用通用客户端验证
+
+1. 用测试 OIDC 提供方注册回调，在测试 Realm 启用外部授权。通过浏览器完成官网授权，比较浏览器和游戏的核对码，再由原连接确认。
+2. 用 HTTP 客户端调用 `/device/start`。在浏览器输入公开用户码，按间隔用私有设备码轮询，再用启动凭据调用 `/pair`。重复使用同一启动凭据应失败。
+3. 用本地回环接收器验证 PKCE 回调。正确的 verifier 应能兑换授权码，错误 verifier 和重复兑换应被拒绝。
+4. 验证提前轮询降速、拒绝、取消、过期、跨连接及跨 Realm 拒绝。尝试关联同名现有账号时，应要求先证明该账号所有权。
+
+当前接口与验证步骤已有源码和文档。真实浏览器、OIDC 提供方及游戏服联调尚未执行。

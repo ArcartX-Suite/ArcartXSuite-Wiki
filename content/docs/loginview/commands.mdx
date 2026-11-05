@@ -1,146 +1,23 @@
 ---
-title: "命令与权限"
-description: "登录界面可用命令、参数填写方式和权限要求。"
+title: "命令与占位符"
+description: "查看 LoginView 状态、打开界面并读取当前连接的认证信息。"
 ---
 
-LoginView 模块通过 `/axs loginview` 子命令提供管理功能，并通过 PlaceholderAPI 暴露账号类型查询占位符。所有命令均需 `arcartxsuite.admin` 权限。
+| 命令 | 用途 |
+| --- | --- |
+| `/axs loginview status` | 显示 LoginView 与宿主认证的职责提示 |
+| `/axs loginview open <玩家>` | 为指定在线玩家打开界面 |
 
-## 管理命令
+管理命令由 Suite 统一调度，需要 `arcartxsuite.admin`。打开界面不会修改准入状态。已准入的本地密码玩家可在界面修改密码，外部身份的密码由其提供方管理。
 
-所有命令通过 `/axs loginview <action>` 调用，需要 `arcartxsuite.admin` 权限。
+## PlaceholderAPI
 
-| 命令 | 说明 | 权限 |
-|---|---|---|
-| `/axs loginview help` | 显示 LoginView 模块命令帮助 | `arcartxsuite.admin` |
-| `/axs loginview status` | 查看登录模块运行状态 | `arcartxsuite.admin` |
-| `/axs loginview open <玩家>` | 强制为在线玩家打开登录界面 | `arcartxsuite.admin` |
-| `/axs loginview migrate-authme [dry-run]` | 从 AuthMe 迁移账户哈希 | `arcartxsuite.admin` |
-| `/axs loginview migration-commands` | 查看迁移后的安全操作提示 | `arcartxsuite.admin` |
-| `/axs loginview set-spawn` | 将当前位置设为登录后传送点 | `arcartxsuite.admin` |
-| `/axs loginview reset-password <玩家> [新密码]` | 重置玩家登录密码（仅 standalone 模式） | `arcartxsuite.admin` |
+| 占位符 | 返回内容 |
+| --- | --- |
+| `%axsauth_stage%` | 当前阶段，例如 `awaiting_identity`、`awaiting_requirements`、`admitted` |
+| `%axsauth_admitted%` | 是否已准入 |
+| `%axsauth_verified%` | 是否已验证身份 |
+| `%axsauth_provider%` | 验证方式，例如 `local-password` 或 `oidc`，未知时返回 `unknown` |
+| `%axsauth_registered%` | `registered`、`unregistered` 或 `unknown` |
 
-#### 查看登录界面状态（`/axs loginview status`）
-
-查看 LoginView 模块的运行状态，包括服务状态、认证模式、存储模式、UI ID、UI 文件、锁定配置、账户数、AuthMe 可用性。
-
-```
-/axs loginview status
-```
-
-输出示例：
-
-#### 打开玩家登录界面（`/axs loginview open`）
-
-强制为指定在线玩家打开登录界面，适用于玩家 UI 卡住或需要重新认证的场景。
-
-```
-/axs loginview open <玩家>
-```
-
-| 参数 | 必填 | 说明 |
-|---|---|---|
-| 玩家 | 是 | 目标在线玩家名 |
-
-示例：
-```
-/axs loginview open Steve
-```
-
-#### 迁移已有 AuthMe 账号（`/axs loginview migrate-authme`）
-
-从 AuthMe 数据库导入历史账户哈希到 AXS 独立账户库。仅 `auth.mode=standalone` 时可用。
-
-```
-/axs loginview migrate-authme [dry-run]
-```
-
-| 参数 | 必填 | 说明 |
-|---|---|---|
-| dry-run | 否 | 预览模式，只扫描不导入 |
-
-示例：
-```
-/axs loginview migrate-authme dry-run    # 预览迁移数量
-/axs loginview migrate-authme            # 执行迁移
-```
-
-输出示例：
-```
-AuthMe 迁移完成: 扫描 256，可导入 240，跳过 16
-```
-
-<Callout type="info">
-迁移流程建议：
-1. 先执行 `/axs loginview migrate-authme dry-run` 预览数量
-2. 确认无误后执行 `/axs loginview migrate-authme`
-3. 玩家首次用旧密码登录成功后，可自动重写为 AXS hash
-4. 完成验证后再停用 AuthMe，避免玩家无法登录
-</Callout>
-
-#### 查看迁移命令（`/axs loginview migration-commands`）
-
-查看 AuthMe 迁移后的安全操作步骤提示。
-
-```
-/axs loginview migration-commands
-```
-
-#### 设置登录后传送点（`/axs loginview set-spawn`）
-
-将管理员当前位置设为登录后传送点，自动写入配置文件的 `spawn-on-login` 节并启用传送。
-
-```
-/axs loginview set-spawn
-```
-
-<Callout type="info">
-执行后 `spawn-on-login.enabled` 自动设为 `true`，并写入当前世界名、坐标、朝向。若需关闭传送，手动编辑配置将 `enabled` 设为 `false`。
-</Callout>
-
-#### 重置玩家登录密码（`/axs loginview reset-password`）
-
-重置指定玩家的登录密码。仅 `standalone` 模式可用，`authme` 模式需使用 AuthMe 自带命令。
-
-```
-/axs loginview reset-password <玩家> [新密码]
-```
-
-| 参数 | 必填 | 说明 |
-|---|---|---|
-| 玩家 | 是 | 目标玩家名 |
-
-示例：
-```
-/axs loginview reset-password Steve              # 随机生成密码
-/axs loginview reset-password Steve MyNewPass123  # 指定新密码
-```
-
-重置成功后：
-- 立即删除该玩家的持久化 session 与在线认证状态
-- 若玩家在线，会收到提示并被重新弹出登录界面
-- 新密码需符合 `min-password-length` 和 `max-password-length` 限制
-
-<Callout type="warn">
-`authme` 模式下此命令不可用，请使用 `/authme changepassword <玩家> <新密码>`。
-</Callout>
-
-### Tab 补全
-
-| 参数位置 | 补全内容 |
-|---|---|
-| 第 2 参数（action） | `help`、`status`、`open`、`migrate-authme`、`migration-commands`、`set-spawn`、`reset-password` |
-| 第 3 参数（`open` / `reset-password`） | 在线玩家名 |
-| 第 3 参数（`migrate-authme`） | `dry-run` |
-
-## UI 文件
-
-LoginView 内置两套 UI 风格，通过 `ui.ui-file` 配置切换：
-
-| UI 文件 | 风格 | 说明 |
-|---|---|---|
-| `login_view.yml` | 紧凑面板 | 居中面板布局，680×360，含登录/注册/改密/免登/绑定/服规全部界面 |
-| `login_view_menu.yml` | 纯色块主菜单 | 左侧功能栏 + 右侧装饰，430px 侧栏，适合大屏服务器 |
-
-<Callout type="info">
-修改 UI 文件后无需重启，执行 `/axs reload loginview` 即可热重载。若需恢复默认 UI，将 `ui.overwrite-ui-files` 设为 `true` 后重载。
-</Callout>
+业务规则使用 `%axsauth_admitted%` 判断玩家能否参与游戏。身份验证完成与满足全部准入要求是两个阶段。

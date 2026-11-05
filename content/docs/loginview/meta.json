@@ -3,6 +3,8 @@
   "pages": [
     "index",
     "configuration",
+    "center",
+    "external-authorization",
     "commands"
   ]
 }

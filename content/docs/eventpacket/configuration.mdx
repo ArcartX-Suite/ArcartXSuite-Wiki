@@ -94,7 +94,7 @@ trial_signal:
 | 字段 | 类型 | 默认值 | 说明 |
 |---|---|---|---|
 | `enabled` | boolean | `true` | 是否启用该规则 |
-| `trigger` | String | `join` | 触发器类型，见下方触发器枚举表 |
+| `trigger` | String | 必填 | 显式填写触发器类型，例如 `admitted`。无法识别的值会使规则被跳过 |
 | `signal` | String | （空） | 信号标识，用于信号过滤（command-signal / quest-* / objective-* / chemdah-level-change） |
 | `placeholder` | String | （空） | PAPI 占位符表达式（PAPI 触发器使用），如 `%player_level%` |
 | `threshold` | number | （空） | 数值阈值（placeholder-threshold 触发器使用） |
@@ -113,8 +113,8 @@ trial_signal:
 
 | 触发器 | 配置值 | 说明 |
 |---|---|---|
-| 玩家加入 | `join` | 玩家加入服务器时触发 |
-| 首次加入 | `first-join` | 玩家首次加入服务器时触发 |
+| 玩家准入 | `admitted` | 玩家通过身份验证并满足全部准入要求时触发 |
+| 首次准入 | `first-admitted` | 宿主报告玩家档案首次准入时触发 |
 | 玩家退出 | `quit` | 玩家退出服务器时触发 |
 | PAPI 增加 | `papi-increase` / `placeholder-increase` | 指定 PAPI 数值增加时触发 |
 | PAPI 减少 | `papi-decrease` / `placeholder-decrease` | 指定 PAPI 数值减少时触发 |

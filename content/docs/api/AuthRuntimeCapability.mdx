@@ -1,0 +1,22 @@
+---
+title: "AuthRuntimeCapability"
+description: "读取认证快照并提交与当前游戏连接绑定的认证操作。"
+---
+
+完整类型为 `xuanmo.arcartxsuite.api.capability.AuthRuntimeCapability`，由 Suite 宿主提供。模块可以用 `AxsCapabilities.get(AuthRuntimeCapability.class)` 获取能力，或通过 `AuthAccess.snapshot(UUID)`、`AuthAccess.admitted(UUID)` 读取状态。
+
+| 方法 | 用途 |
+| --- | --- |
+| `snapshot(playerId)` | 读取不可变、无 I/O 的当前连接快照 |
+| `eligibleNanos(playerId)` | 读取当前连接累计的有效准入时长 |
+| `terms()` | 获取当前条款开关、版本和正文 |
+| `passwordAuthenticationAllowed()`、`passwordRegistrationAllowed()` | 读取密码入口可用性 |
+| `refresh(playerId, connectionId)` | 刷新当前连接的状态 |
+| `authenticate(playerId, connectionId, password, register, agreed, termsVersion)` | 注册或验证密码，条款同意绑定展示版本 |
+| `changePassword(playerId, connectionId, oldPassword, newPassword)` | 由本地密码身份修改密码 |
+| `confirmBinding(playerId, connectionId, code)`、`acceptTerms(playerId, connectionId, version)` | 提交准入要求 |
+| `externalPrompt(playerId)`、`externalLinkAvailable()` | 读取外部授权提示及关联入口状态 |
+| `beginExternalLink(playerId, connectionId)`、`confirmExternal(playerId, connectionId, requestId)` | 申请显式关联或确认原连接授权 |
+| `revoke(accountId, reason)` | 撤销账号安全状态，中心模式要求节点获授权 |
+
+凭据与绑定操作从游戏主线程调用，以 `CompletionStage` 返回。宿主会消耗并清理传入的密码字符数组。操作使用快照里的连接 ID，不能用玩家 UUID 代替。业务模块使用 `admitted()` 作为参与游戏的条件。`identityVerified()` 表示身份已通过验证，玩家可能仍在等待条款或绑定。

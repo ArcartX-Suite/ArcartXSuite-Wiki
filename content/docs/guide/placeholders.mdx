@@ -273,16 +273,15 @@ description: "查找各模块可用于文字展示的占位符，以及解析失
 
 ## 登录视图
 
-用于展示 [登录视图](/docs/loginview) 识别到的账号来源。
+用于展示宿主当前连接的认证状态。[登录界面与认证](/docs/loginview)
 
 | 占位符 | 返回内容 |
 | --- | --- |
-| `%axsloginview_account_type%` | 账号来源标识 |
-| `%axsloginview_account_type_display%` | 账号来源显示名称 |
-| `%axsloginview_is_microsoft%` | 是否为微软账号，布尔 |
-| `%axsloginview_is_littleskin%` | 是否为 LittleSkin 账号，布尔 |
-| `%axsloginview_is_offline%` | 是否为离线账号，布尔 |
-| `%axsloginview_is_premium%` | 是否为认证账号，布尔 |
+| `%axsauth_stage%` | 当前认证阶段 |
+| `%axsauth_admitted%` | 是否已准入 |
+| `%axsauth_verified%` | 是否已验证身份 |
+| `%axsauth_provider%` | 当前连接的验证方式 |
+| `%axsauth_registered%` | 账号注册状态 |
 
 ## 无法解析时怎么检查
 

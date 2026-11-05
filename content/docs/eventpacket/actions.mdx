@@ -256,12 +256,12 @@ actions:
 
 > 未匹配的 `{变量名}` 原样保留，不会报错。渲染时以触发者自身作为接收者，`ui-packet` 动作除外——它按每个接收者独立渲染。上下文变量详见 [命令与占位符](/docs/eventpacket/commands#上下文变量)。
 
-### 首次加入完整欢迎流程
+### 首次准入欢迎流程
 
 ```yaml
-first_join_welcome:
+first_admitted_welcome:
   enabled: true
-  trigger: first-join
+  trigger: first-admitted
   repeatable: false
   actions:
     - type: subtitle.play

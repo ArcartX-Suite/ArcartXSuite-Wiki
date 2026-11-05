@@ -1,0 +1,77 @@
+---
+title: "独立认证中心"
+description: "配置中心权威、游戏节点身份和准入租约。"
+---
+
+`auth-center` 是独立 Java 17 应用。一个中心实例独占自己的 SQLite 数据库和仅运行账号可访问的状态目录。游戏节点通过签名请求访问中心，账号、绑定和安全版本以中心为准。
+
+## 中心配置
+
+下面的样例关闭端外入口和密码入口。验证密码链路时，显式开启 Realm 的 `gamePasswordEnabled`。验证官网或启动器接口时，按端外授权页配置 `external`。[端外授权](/docs/loginview/external-authorization)
+
+```json
+{
+  "schemaVersion": 1,
+  "port": 25600,
+  "database": "data/auth-center.sqlite",
+  "external": null,
+  "realms": [
+    {
+      "id": "network",
+      "minLength": 8,
+      "gamePasswordEnabled": false,
+      "maxLength": 128,
+      "requireTerms": true,
+      "termsVersion": "1",
+      "termsLines": [
+        "请遵守服务器规则，保护账号凭据。"
+      ],
+      "requireBinding": false,
+      "timezone": "Asia/Shanghai",
+      "loginTimeoutSeconds": 300
+    }
+  ],
+  "nodes": [
+    {
+      "id": "lobby",
+      "realm": "network",
+      "audience": "lobby-node",
+      "keyEnvironment": "AXS_AUTH_LOBBY_KEY",
+      "scopes": [
+        "auth"
+      ]
+    }
+  ]
+}
+```
+
+中心应用接收配置文件的绝对路径。每个节点使用独立的 32 字节随机密钥，以 Base64 注入中心和该游戏节点的进程环境变量。配置中只填写环境变量名。中心监听 `127.0.0.1`，异机游戏节点经 HTTPS 反向代理访问 `POST /v1/node/rpc`。保持中心与节点时钟同步。
+
+## 游戏节点配置
+
+使用以下完整结构填写宿主 `authentication.yml`。中心模式当前要求游戏节点直连且 `online-mode=true`。样例中的 `ingress.type: password` 是节点入口字段，是否允许游戏内密码由中心的 Realm 策略决定。
+
+```yaml
+schema-version: 1
+backend: center
+realm-id: network
+ingress:
+  type: password
+  audience: lobby-node
+performance:
+  workers: 2
+  queue-capacity: 128
+center:
+  # 远程地址必须为 HTTPS；仅同机 127.0.0.1 允许 HTTP。
+  url: http://127.0.0.1:25600
+  node-id: lobby
+  key-environment: AXS_AUTH_LOBBY_KEY
+```
+
+`node-id`、`realm-id` 和 `audience` 必须与中心登记项一致。启用 QQBot 时，按职责授予 `binding-read` 和 `binding-write`。只有负责撤销的节点需要 `account-revoke`。
+
+## 准入和验证
+
+中心对满足策略的当前连接签发 30 秒有效的一次性票据。节点完成兑换后持有最长 15 秒的租约，正常约每 5 秒检查一次。中心失联、撤销或租约到期时，节点停止准入和有效在线计时。节点按游标补读事务 Outbox，遇到缺口时先限制连接，再向中心重新核对。
+
+单服联调依次验证身份、条款与绑定、票据兑换、断线重连、中心失联及账号撤销。中心混合入口、跨服独占和会话转移在后续阶段处理。

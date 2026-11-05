@@ -356,16 +356,15 @@ increment-strategy:
 
 ### daily.yml 示例
 
+每日登录使用宿主认证的当日准入事件。此认证主题不走 Bukkit 事件降级。
+
 ```yaml
-# 每日登录（EventBus 优先 + Bukkit 降级）
+# 每日登录（宿主认证记录的首次当日准入）
 daily-login:
   display-name: "每日登录"
   description: "每天登录游戏即可获得奖励"
   difficulty: easy
-  event-topic: "axs.loginview.login_success"
-  bukkit-event:
-    event-classes:
-      - "org.bukkit.event.player.PlayerJoinEvent"
+  event-topic: "axs.auth.presence_day_started"
   required-count: 1
   base-xp-reward: 100
   conditions: []
