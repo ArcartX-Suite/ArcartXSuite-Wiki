@@ -1,0 +1,19 @@
+---
+title: "Abyss 副本联动"
+description: "通过公开接口接入副本准入、外部队伍、门票、实例控制、回归与结算查询。"
+---
+
+以下接口位于 `xuanmo.arcartxsuite.api.capability`，通过 `AxsCapabilities.get(接口类型.class)` 获取。入场请求由副本宿主服处理。准入操作在服务器主线程调用，门票回调和结算查询按各自返回的异步结果处理。
+
+| 接口 | 调用方式与返回结果 |
+| --- | --- |
+| `AbyssAdmissionAccess` | 用 `integrationInfo` 检查可用性、用 `catalog` 读取副本和路线。先以 `Intent` 调用 `preflight`，允许后将同一请求和令牌传给 `requestEntry`。用 `entryStatus(owner, requestId)` 查进度，或用 `cancelEntry` 请求取消。 |
+| `AbyssExternalPartyAccess` | 注册队伍提供方，按请求核实外部队伍、名单和准备状态。入场前会复核版本，开局名单会冻结。 |
+| `AbyssEntryCostAccess` | 注册提供方，按事务 ID 实现预留、确认消费、释放、补偿与查询。出现 `REVIEW_REQUIRED` 时先核对事务结果。 |
+| `AbyssRunAccess` | 查询实例快照、观众及已登记实体的归属，也可注册目标提供方。实例操作受模板所有者授权，主动判定通关还需要目标提供方确认。 |
+| `AbyssReconnectAccess` | 用 `reconnectStatus(player)` 查询资格，再用 `requestReconnect(player, runId)` 请求返回原实例。 |
+| `AbyssRunResultAccess` | 用 `result(runId)` 查询单局结果，或按所有者和游标分页补查。结果包含开局名单及离线、离场、死亡等事实，可供接入方判定发奖资格。 |
+
+调用方应保存 `owner`、`requestId`，以及获得的 `runId`。发生超时或收到 `REVIEW_REQUIRED` 时，先用原请求 ID 查询。外部门票可通过返回的事务 ID 向提供方核对消费状态。
+
+入场状态和最终结算可在收到通知后按 ID 补查。接入方应依据确认后的结算结果判定奖励资格，并按实例与成员去重发奖。模板开关和回归时间见[副本配置](/docs/abyss/dungeons#外部入场与原副本回归)。

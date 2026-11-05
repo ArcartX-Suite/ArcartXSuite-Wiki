@@ -385,6 +385,19 @@ guide:
 
 > **实体类型注意**：`VILLAGER`/`WANDERING_TRADER` 这类实体**自带原版交易 GUI**——Adyeshach 缺席时 NPC 降级为真实体，右键会先弹原版交易界面盖住自定义交互。接对话/商店的 NPC 推荐 `WITCH`（无交易界面，两条路径都安全）；`PLAYER` 型仅在 Adyeshach 在场时可用（降级路径会变 ZOMBIE）。
 
+## 外部入场与原副本回归
+
+以下字段放在单个副本模板 `config.yml` 的 `requirements` 下，按需填写。
+
+| 字段 | 用途 |
+| --- | --- |
+| `admission-policies` | 入场前必须通过的外部策略所有者列表 |
+| `external-cost-owner` | 外部门票提供方。配置后需由接入插件在副本宿主服发起入场 |
+| `external-control-owner` | 可通过 API 对该模板实例执行外部控制的所有者 |
+| `reconnect-grace-seconds` | 原成员可返回同一实例的秒数。默认 `0`（关闭），上限 `600` |
+
+回归开启后，原成员可使用 `/abyss rejoin` 返回同一进程中仍在运行的原实例，保留本局死亡状态。插件接入方式见[Abyss 副本联动](/docs/api/abyss-integration)。
+
 ## quests.yml — 接取副本委托与领取奖励
 
 先在 Chemdah 任务文件中定义名称、说明、目标和完成条件。QuestGPS 直接读取这些信息，奖励预览也写在该任务的 `addon.axs-view` 中。副本的 `quests.yml` 用同一个任务 ID 登记副本内动作。沿用同一 ID 时可省略 `chemdah-id`。
