@@ -7,13 +7,33 @@ description: "创建聊天频道，设置接收范围、消息格式与收发权
 
 ## 频道模式
 
+### 创建一个附近频道
+
+保存为默认频道目录下的 `Nearby.yml`，频道 ID 由文件名得到，即 `nearby`。下面只在本服、附近 30 格范围内收发。
+
+```yaml
+enabled: true
+display-name: "附近"
+mode: normal
+send-permission: ""
+receive-permission: ""
+cross-server: false
+range: 30
+format: "&7[附近] &f{player_name}&7: &r{message}"
+console-format: "[附近] {player_name}: {message}"
+```
+
+重载 Chat 后，两个测试玩家都用 `/chat channel nearby` 切换。先站在 30 格内互发消息，再走到范围外验证。最后才接入称号、物品展示或跨服。
+
+`send-permission` 控制谁能发，`receive-permission` 控制谁能听。若要只让管理员发公告、所有人接收，可以设置发送权限，并把接收权限显式写为空字符串。`cross-server` 与本地距离是不同设置，附近聊天先保持跨服关闭。
+
 Chat 模块支持四种频道模式：
 
 | 模式 | 配置值 | 跨服默认 | 典型场景 |
 |---|---|---|---|
 | 普通 | `normal` | `false` | 默认聊天频道，支持 `range` 距离限制实现附近聊天 |
 | 全局 | `global` | `true` | 全服公共频道，跨服广播 |
-| 私聊 | `private` | `true` | 一对一私聊，`/msg` 与 `/reply` 复用此频道格式 |
+| 私聊 | `private` | `false` | 一对一私聊，`/msg` 与 `/reply` 复用此频道格式 |
 | 管理 | `staff` | `true` | 管理员内部频道，仅限有权限的玩家发送与接收 |
 
 <Callout type="info">

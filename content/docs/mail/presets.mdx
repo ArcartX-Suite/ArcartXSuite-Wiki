@@ -5,7 +5,36 @@ description: "编写可重复发送的邮件模板，添加物品、货币、命
 
 ## 预设邮件结构
 
-预设邮件位于 `data/mail/presets/` 目录，每个 `.yml` 文件定义一个可重复分发的邮件模板。文件名即为预设 ID（建议与 `preset.id` 一致）。
+预设邮件位于 `data/mail/presets/` 目录，每个 `.yml` 文件定义一个可重复分发的邮件模板。明确填写 `preset.id` 时按该值引用，省略时使用文件名。建议两者一致，避免把文件名和展示名称混用。
+
+### 先验证预设派发与附件领取
+
+保存为 `presets/trial_supply.yml`。此例只包含两颗苹果和一条领取消息，便于核对投递和领取分别是否成功。
+
+```yaml
+preset:
+  id: trial_supply
+  enabled: true
+  display-name: "试炼补给"
+  subject: "你的补给已送达"
+  body: |-
+    请领取本次试炼补给。
+    苹果会在领取附件时交付。
+  expires-after-days: 7
+  item-attachments:
+    - source: minecraft
+      id: APPLE
+      amount: 2
+  claim-commands:
+    - "tell {player} 你领取了试炼补给"
+```
+
+1. 执行 `/axs mail preset reload`，再用 `/axs mail preset list` 确认 `trial_supply` 已加载。
+2. 用 `/axs mail preset send trial_supply Steve` 发给在线测试玩家，替换真实玩家名。
+3. 打开邮件并领取附件，核对苹果数量与领取消息。
+4. 再接到其他模块的奖励配置，填写的是 `trial_supply`，不是“试炼补给”。
+
+`item-attachments` 里的物品在领取时交付，`claim-commands` 是另一个发放入口。若两处都发同一件奖励，会形成重复设计。修改预设后应派发新的测试邮件，已经派发的邮件保留原有内容。
 
 预设文件顶层为 `preset` 节，包含以下字段：
 

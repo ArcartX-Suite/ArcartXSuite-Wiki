@@ -5,6 +5,30 @@ description: "定义称号名称、分组、品质、排序、属性与头顶展
 
 ## 称号定义结构
 
+先确认主配置 `config.yml` 中有分组和品质，再创建称号。普通文本称号可以先只填名称与前缀，确认发放和装备成功后，再加属性、持续效果或头顶资源。
+
+### 从一条文本称号开始
+
+默认配置已有 `adventure` 分组和 `common` 品质时，可在 `titles/trial.yml` 写入下例。若使用自己的分组和品质，先建立它们再替换 ID。
+
+```yaml
+trial_adventurer:
+  enabled: true
+  group: adventure
+  quality: common
+  kind: text
+  display-name: "&a试炼冒险者"
+  chat-prefix: "&a[试炼]&r "
+  tab-prefix: "&a[试炼]&r "
+  description: "完成试炼后获得的称号"
+  sort-order: 10
+  overhead-mode: none
+```
+
+重载 Title 后，用 `/axs title give Steve trial_adventurer permanent` 发给在线测试玩家，将 `Steve` 换成真实玩家名。再从称号菜单装备，检查所属分组和装备状态。
+
+聊天与在线列表还需要对应模块的格式模板读取称号结果。拥有称号、装备称号、格式中展示称号是三个步骤，排查时依次检查。属性也分为拥有即生效的收集属性、装备后生效的展示属性，按下方字段分别配置。
+
 称号定义放在 `titles/` 目录下的 `.yml` 文件中，每个文件的根键为称号 ID，值为此称号的配置节。
 
 ### 称号 ID 规范
