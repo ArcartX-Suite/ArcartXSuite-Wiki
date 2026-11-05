@@ -385,6 +385,18 @@ guide:
 
 > **实体类型注意**：`VILLAGER`/`WANDERING_TRADER` 这类实体**自带原版交易 GUI**——Adyeshach 缺席时 NPC 降级为真实体，右键会先弹原版交易界面盖住自定义交互。接对话/商店的 NPC 推荐 `WITCH`（无交易界面，两条路径都安全）；`PLAYER` 型仅在 Adyeshach 在场时可用（降级路径会变 ZOMBIE）。
 
+## 结算与退出
+
+在模板 `config.yml` 的 `settlement.exit-mode` 选择退出方式。
+
+| 模式 | 玩家体验 |
+| --- | --- |
+| `IMMEDIATE` | 结束后安排离场，结算面板可在传送完成后显示 |
+| `COUNTDOWN` | 结束后留出 `exit-delay-seconds` 秒，可拾取战利品或提前用 `/abyss leave` 离场 |
+| `MANUAL` | 由玩家主动离场。`manual-timeout-seconds` 为 `0` 时不强制倒计时退出 |
+
+`settlement.failure` 可单独设置失败时的退出模式、倒计时和结算面板。若希望在离场后显示结算，查看 `show-stats-after-exit`。全部玩家离场后，副本最多等待 `script-timeout-seconds` 秒让结算与退出脚本收尾。
+
 ## 外部入场与原副本回归
 
 以下字段放在单个副本模板 `config.yml` 的 `requirements` 下，按需填写。
