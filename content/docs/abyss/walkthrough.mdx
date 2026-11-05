@@ -1,0 +1,199 @@
+---
+title: "完整示例：按钮开战与额外挑战"
+description: "在虚空平台上串起入口、机关、刷怪、阶段分支、完成奖励和倒计时退出。"
+---
+
+本例用原版怪物和方块完成一条流程。玩家进入平台，先决定是否开启额外挑战，再右键金块开始。清完普通守卫后，未选挑战的队伍直接通关，选了挑战的队伍还要清理精英组。奖励只在整局完成时发放一次。
+
+## 创建文件
+
+先完成 Suite 和 Abyss 的安装。备份数据后，在 `plugins/ArcartX-Suite/data/abyss/abysses/button_trial/` 新建以下六个文件。文件名固定，目录名 `button_trial` 是地牢 ID。
+
+| 文件 | 本例负责的内容 |
+| --- | --- |
+| `config.yml` | 世界、入场要求、整局限时和结算 |
+| `scripts.yml` | 建造平台、初始化、通关发奖 |
+| `stages.yml` | 等待开战、普通战斗、额外挑战、终局 |
+| `monsters.yml` | 两组原版怪物，等待阶段调用 |
+| `interacts.yml` | 金块开始机关、绿宝石块挑战机关 |
+| `rewards.yml` | 通关奖励集 |
+
+### 地牢与结算 config.yml
+
+```yaml
+name: "&6按钮试炼"
+icon: GOLD_BLOCK
+description:
+  - "&7右键金块开始战斗"
+  - "&7开战前可右键绿宝石块选择额外挑战"
+mode: classic
+world:
+  template: void
+  spawn: "0,80,0,0,0"
+time-limit: 300
+timeout-action: FAIL
+max-instances: 2
+requirements:
+  min-players: 1
+  max-players: 4
+  party-required: false
+  stamina-cost: 0
+  money-cost: 0
+  cooldown: 0
+settlement:
+  exit-mode: COUNTDOWN
+  exit-delay-seconds: 30
+  show-stats: true
+  failure:
+    exit-mode: COUNTDOWN
+    exit-delay-seconds: 5
+    show-stats: true
+```
+
+这里先把费用和冷却设为 `0`，便于反复测试。`max-instances: 2` 限制这个模板同时开两局。正式开放前再调整费用、组队要求和时限。玩家出生点位于副本世界内部，与主世界入口分别配置。
+
+### 建造与生命周期 scripts.yml
+
+```yaml
+world-init:
+  - "fillblocks -12,79,-12 12,79,12 STONE"
+  - "fillblocks -12,80,-12 12,82,-12 GLASS"
+  - "fillblocks -12,80,12 12,82,12 GLASS"
+  - "fillblocks -12,80,-12 -12,82,12 GLASS"
+  - "fillblocks 12,80,-12 12,82,12 GLASS"
+  - "setblock 0,80,3 GOLD_BLOCK"
+  - "setblock -3,80,3 EMERALD_BLOCK"
+init:
+  - "setvar bonus 0"
+  - "setvar ready 0"
+start:
+  - "message @all &e先决定是否挑战，再右键金块开战。"
+complete:
+  - "grant_reward @all clear_pack"
+  - "message @all &a试炼结束，请核对奖励并等待离场。"
+fail:
+  - "message @all &c试炼失败，本局没有通关奖励。"
+exit:
+  - "message @trigger &7已离开按钮试炼。"
+```
+
+`world-init` 只做世界建造，使用坐标，不需要玩家。`init` 重置每局变量。`complete` 使用 `@all` 发奖，即使通关由清怪事件触发，也能选到本局成员。失败和离场段中没有发通关奖励。
+
+### 阶段路线 stages.yml
+
+```yaml
+entry: prepare
+prepare:
+  name: "等待开战"
+  complete-when: ""
+  on-start:
+    - "setvar ready 1"
+    - "message @all &e绿宝石块开启挑战，金块开始战斗。"
+  next: wave
+wave:
+  name: "清理守卫"
+  on-start:
+    - "spawn_group guards"
+  complete-when: "group_cleared:guards"
+  timeout: 90
+  on-timeout:
+    - "message @all &c守卫战超时"
+    - "fail_dungeon"
+  next:
+    - condition: "var:bonus == 1"
+      target: extra
+    - target: finish
+extra:
+  name: "额外挑战"
+  on-start:
+    - "message @all &6额外挑战开始"
+    - "spawn_group elite"
+  complete-when: "group_cleared:elite"
+  timeout: 60
+  on-timeout:
+    - "fail_dungeon"
+  next: finish
+finish:
+  name: "试炼完成"
+  on-start:
+    - "complete_dungeon"
+```
+
+`ready` 控制机关能否使用。`bonus` 决定战斗结束后走哪个分支。两个怪组都由阶段生成，怪组清完后条件自动成立。`finish` 明确结束整局，随后运行 `scripts.yml/complete` 和结算设置。
+
+### 手动怪组 monsters.yml
+
+```yaml
+guards:
+  spawn-timing: MANUAL
+  monsters:
+    - mob-id: vanilla:ZOMBIE
+      location: "6,80,6"
+      amount: 3
+elite:
+  spawn-timing: MANUAL
+  monsters:
+    - mob-id: vanilla:HUSK
+      location: "-6,80,6"
+      amount: 1
+```
+
+`MANUAL` 确保不会开局自动刷出两组怪。无需再写 `trigger-after`，下一组是否生成由阶段分支决定。这里的怪物坐标直接位于平台上。
+
+### 两个机关 interacts.yml
+
+```yaml
+choose_bonus:
+  type: RIGHT_CLICK_BLOCK
+  location: "-3,80,3"
+  required-block: EMERALD_BLOCK
+  once: true
+  script:
+    - "if_var ready == 1"
+    - "setvar bonus 1"
+    - "message @all &6已选择额外挑战"
+start_button:
+  type: RIGHT_CLICK_BLOCK
+  location: "0,80,3"
+  required-block: GOLD_BLOCK
+  once: true
+  script:
+    - "if_var ready == 1"
+    - "setvar ready 0"
+    - "complete_stage"
+```
+
+`once` 针对本局交互点生效，队伍成员共享这次触发。`if_var` 判断实例变量，防止战斗开始后再切换路线。`complete_stage` 完成准备阶段，随后进入 `wave`。
+
+### 通关奖励 rewards.yml
+
+```yaml
+rewards:
+  clear_pack:
+    items:
+      - "material:EMERALD:2"
+    exp: 10
+```
+
+先用简单的原版奖励核对实际交付。额外挑战只是改变路线，本例两条路线都发同一份奖励。若要提高挑战奖励，可以在奖励调用前按 `bonus` 分段判断，但要保证只选择一条发奖路径。
+
+## 重载和单人验证
+
+1. 保存六个文件，执行 `/axs abyss reload`，检查是否出现模板或字段错误。
+2. 用 `/abyss list` 确认“按钮试炼”出现，再用 `/abyss enter button_trial` 进入。
+3. 检查平台、金块和绿宝石块都已出现。右键金块前不应有怪物。
+4. 第一局直接按金块，清完三只僵尸后应通关，得到两颗绿宝石和 10 经验。
+5. 第二局先按绿宝石块再按金块，清完僵尸后应出现尸壳，清完它才通关。
+6. 第三局按金块后留一只怪超过 90 秒，应失败，并按 5 秒结算退出。
+
+## 在设计面板验证同一流程
+
+进入 `/axs abyss design button_trial`。准备阶段设为入口，先检查 `guards`、`elite` 与两个交互对象的引用，再开始草稿试跑。
+
+普通路线注入 `start_button` 的脚本事件，再注入 `guards` 的完成事件。挑战路线另开一轮，先注入 `choose_bonus`，然后按相同顺序推进，最后注入 `elite` 完成事件。追踪应显示相应分支。完整面板操作见[设计教程](/docs/abyss/design)。
+
+## 多人验证和正式开放
+
+队长带两名测试玩家进本，分别检查同一机关被连续点击、不同成员完成最后一击、有人提前离场，以及结算面板关闭后再次打开的情况。核对每位玩家实际收到的奖励。
+
+确认流程后再添加主世界入口、费用、冷却、门、房间和真实掉落。先修改一个功能并验证，再叠加下一项。相关字段见[模板配置](/docs/abyss/dungeons)、[战斗与机关](/docs/abyss/encounters)和[奖励与结算](/docs/abyss/rewards-and-settlement)。

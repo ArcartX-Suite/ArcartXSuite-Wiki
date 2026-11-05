@@ -7,7 +7,30 @@ description: "建立副本模板，配置世界来源、入口、队伍条件和
 
 ## 目录结构
 
-> 除 `config.yml` 外所有文件均可省略，缺失时使用空配置。`external/` 是「这个副本需要哪些 Chemdah 会话/任务、questgps 呈现层」的随包清单——**abyss 在模板加载（启动/`/axs abyss reload`）时自动部署**：目标插件缺席整组跳过、目标文件已存在不覆盖，写入后自动 `chemdah reload` 并重载 questgps 模块。目录结构与上表一致即可被部署器识别。
+```text
+abysses/
+  button_trial/
+    config.yml
+    scripts.yml
+    stages.yml
+    monsters.yml
+    interacts.yml
+    rewards.yml
+```
+
+除 `config.yml` 外，可按玩法添加需要的定义文件。`external/chemdah/` 保存配套对话和任务，模板加载时按需部署到 Chemdah。目标文件已存在时保留原文件。任务展示随 Chemdah 任务重载更新。修改已部署的任务时，编辑实际 Chemdah 文件并主动重载。
+
+## 先选模式，再填坐标
+
+| 模式 | 适用场景 | 下一步 |
+| --- | --- | --- |
+| `classic` | 单场地战斗、限时解谜、线性脚本试炼 | 配置世界和出生点，用阶段控制流程 |
+| `floors` | 已建好的多层、多房间地图 | 配置 `floors.yml` 与 `rooms.yml` |
+| 随机拼装 | 每次用构件拼装不同房间 | 通过有效的 `procgen.yml` 启用，先制作房间构件 |
+
+`mode` 写在模板 `config.yml` 顶层，使用 `classic` 或 `floors`。随机拼装由 `procgen.yml` 启用。世界来源决定从哪里得到场地，玩法配置决定如何使用场地，例如复制完整世界后，也可以在其中运行固定楼层。
+
+首次建本先用[完整示例](/docs/abyss/walkthrough)核对坐标和流程，再加入付费及入口。副本内部坐标写在 `world.spawn`、怪物和机关位置。主世界物理入口写在 `entrances`，地图指路位置写在 `links.entrance`。
 
 ## config.yml — 地牢主配置
 
@@ -92,7 +115,7 @@ entrances:
 
 ### plans 作战方案
 
-进本前选择的作战方案（如"强攻/潜入/破局"），影响本局怪组与脚本分支，**不影响剧情走向**。
+作战方案是进本前的选择。怪组可按方案筛选，脚本也可以据此决定路线、奖励或提示。先定义方案 ID，再为需要区分的怪组或脚本配置对应条件。
 
 - **定义**：`plans` 节每个 key 是方案 id，`name` 显示名（支持 `&`）、`lore` 描述行（菜单展示用）
 - **选择入口**（三处都生效）：
@@ -144,6 +167,45 @@ entrances:
 - `disable-natural-spawn`：拦截自然/刷怪笼/巡逻/袭击等环境驱动生成；副本脚本刷怪走 `CUSTOM` 来源不受影响
 - `disabled-spawn-reasons`：按 `CreatureSpawnEvent.SpawnReason` 名精确禁用（含 `CUSTOM`，可彻底锁死生成）
 - `command-control`：副本级命令黑/白名单，`mode: inherit` 时沿用全局 `restrictions.command-mode`；`whitelist` 适合 PVP/硬核副本「只许用这几个命令」
+
+## 入场条件逐项填写
+
+这些字段位于模板 `config.yml/requirements`。人数、等级、费用和冷却分别表示不同限制，测试时一次只开启一项。
+
+| 字段 | 默认值 | 作用与场景 |
+| --- | --- | --- |
+| `min-players`、`max-players` | `1`、`4` | 本次进本的人数范围。单人试本先用最小人数 1 |
+| `party-required` | `false` | 需要以队伍进入时开启 |
+| `party-mode` | 空，不限 | 只接受指定原生队伍模式，例如 `guild` |
+| `min-level`、`max-level` | `0`、`0` | 约束 Minecraft 等级；0 表示该方向不限 |
+| `cooldown` | `0` 秒 | 通关后按玩家和地牢分别记录冷却 |
+| `money-cost`、`currency-id` | `0`、`money` | 入场货币费用及所用货币 ID |
+| `stamina-cost` | `0` | 消耗 Abyss 体力，需模块体力系统启用 |
+| `required-items` | `[]` | 原生入场所需物品，按支持的物品描述填写 |
+| `required-permissions` | `[]` | 进入者所需权限节点 |
+| `conditions` | `[]` | 玩家条件，例如等级、任务或资格的 PAPI 比较 |
+| `require-all-players` | `true` | true 时对全员检查，false 时物品、费用及相关条件走队长规则 |
+| `leader-conditions` | `[]` | 对队长额外设置的条件 |
+| `disabled-commands` | `[]` | 本模板额外禁用的主命令 |
+| `disabled-items` | `[]` | 本模板额外禁用的物品 |
+
+```yaml
+requirements:
+  min-players: 2
+  max-players: 4
+  party-required: true
+  require-all-players: true
+  required-permissions:
+    - "server.dungeon.trial"
+  conditions:
+    - "%player_level% >= 10"
+  money-cost: 100
+  currency-id: money
+```
+
+本例适合两到四人的付费试炼，所有成员需要权限和至少 10 级。等级条件需要对应 PAPI 变量可解析。测试时分别用等级不足、缺少权限、余额不足的成员组队，确认失败原因与实际余额，再验证满足条件时只收一次费用。
+
+`max-instances` 是模板同时运行的实例数，与 `max-players` 的单局人数不同。`time-limit` 是整局秒数，与阶段的 `timeout` 和通关后的结算倒计时分别生效。
 
 ## 外部入场与原副本回归
 

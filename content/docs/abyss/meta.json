@@ -2,6 +2,7 @@
   "title": "地牢副本",
   "pages": [
     "index",
+    "walkthrough",
     "configuration",
     "commands",
     "dungeons",

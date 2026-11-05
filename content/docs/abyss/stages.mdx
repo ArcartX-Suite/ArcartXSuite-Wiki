@@ -1,79 +1,101 @@
 ---
-title: "阶段机（stages.yml）"
-description: "配置关卡阶段的完成条件与进入、完成时执行的动作。"
+title: "阶段流程与分支"
+description: "从等待玩家操作到刷怪、条件分支和终局，逐项说明 stages.yml 的字段及验证方法。"
 ---
 
-`stages.yml`（或 `scripts.yml` 内联 `stages:` 段）定义副本的**流程主线**：按阶段推进，每阶段声明完成条件、超时与后续动作。事件驱动（怪组清完/交互触发/手动完成/超时即时判定），另加 2 秒慢扫兜底覆盖变量写入路径。
+阶段决定当前关卡在等什么、完成后去哪里。怪物组负责生成和统计怪物，交互点负责接收玩家操作，脚本负责执行提示、刷怪和奖励动作。把它们连接起来的完整配置见[按钮开战示例](/docs/abyss/walkthrough)。
 
-## 文件结构
+## 配置放在哪里
+
+在地牢目录新建 `stages.yml`，顶层写 `entry` 和阶段定义。阶段 ID 用稳定的英文名，例如 `prepare`、`wave`、`finish`。`name` 才是玩家看到的名称。
 
 ```yaml
-# abysses/<地牢>/stages.yml
-entry: prepare              # 首阶段名
-
+entry: prepare
 prepare:
-  name: "准备阶段"
-  timeout: 0                # 0 表示不限时
-  on-start:                 # 进入本阶段执行（脚本行）
-    - "message @all &e准备好后请触发开始机关"
-  complete-when: ""         # 开始机关执行 complete_stage 后推进
-  next: wave_1              # 完成后进入的阶段
+  name: "等待开战"
+  complete-when: ""
+  on-start:
+    - "message @all &e请按入口按钮"
+  next: wave
 
-wave_1:
-  name: "第一波"
-  complete-when: "group_cleared:wave_1"
-  on-complete:
-    - "message @all &a第一波肃清"
+wave:
+  name: "清理守卫"
+  on-start:
+    - "spawn_group guards"
+  complete-when: "group_cleared:guards"
+  timeout: 120
   on-timeout:
-    - "message @all &c超时未完成"
-  next: boss
-  timeout-action: FAIL      # 可选：超时直接判负（缺省仅跑 on-timeout 不动阶段）
-
-boss:
-  name: "Boss 战"
-  complete-when: "group_cleared:boss"
-  next:                     # 分支：first match 即走（无 next 列表则阶段停在原地）
-    - when: "var:elite_kill == 1"
-      to: hidden_boss
-    - when: ""
-      to: done
-
-hidden_boss:
-  name: "隐藏首领"
-  complete-when: "group_cleared:hidden_boss"
-  next: done
-
-done:
-  name: "完成"
-  complete-when: ""         # 手动：complete_stage 动作或 complete 生命周期
+    - "fail_dungeon"
 ```
 
-测试时先用开始机关进入第一波，再检查最后一只怪物死亡后是否进入首领阶段。示例中的 `wave_1`、`boss` 和 `hidden_boss` 都要在怪物配置中定义，并设置对应的生成触发。测试分支时，分别让 `elite_kill` 等于和不等于 `1`，确认两条路线。
+这段要求 `guards` 在 `monsters.yml` 中存在，并设置为 `MANUAL`。入口按钮执行 `complete_stage` 时，`prepare` 才会完成。清完守卫后，`wave` 完成且没有后继，副本会通关。
 
-## complete-when 条件
+## 每个字段怎样用
 
-| 形式 | 说明 |
-|---|---|
-| `group_cleared:<组名>` | 指定怪组已肃清（`onGroupComplete` 事件驱动） |
-| `room_cleared:<房间>` | floors 房间名或 procgen 房 idx/构件名 |
-| `var:<名> <op> <值>` | 实例变量比较，`op` ∈ `== != > >= < <=` |
-| `players_alive <op> N` | 存活人数比较（`>=` 等） |
-| `js:<expr>` | JavaScript 表达式（绑定 `instance`/`vars`/`players`） |
-| `aria:<expr>` | ARIA 表达式（同绑定） |
-| 空字符串 | 仅手动：`complete_stage` 动作推进 |
+| 字段 | 缺省行为 | 作用和场景 |
+| --- | --- | --- |
+| 顶层 `entry` | 使用首个阶段 | 指定副本开始时的入口，填阶段 ID |
+| `name` | 不额外发送阶段名提示 | 显示阶段名称，支持颜色。ID 引用仍使用顶层键 |
+| `complete-when` | 等待手动完成 | 自动完成条件，可检查清怪、清房、人数和变量 |
+| `timeout` | `0`，不限时 | 本阶段超时秒数，从进入时开始计算 |
+| `on-start` | 空动作列表 | 进入时执行，常用于刷怪、提示和设置变量 |
+| `on-complete` | 空动作列表 | 完成时执行，执行成功后才选择后续分支 |
+| `on-timeout` | 空动作列表 | 到时执行一次，需要失败或转阶段时明确写对应动作 |
+| `next` | 本阶段完成后通关 | 单个阶段 ID 或有序条件分支列表 |
 
-## 阶段动作
+`timeout` 的单位是秒。超时本身只运行 `on-timeout`，可以在其中写 `fail_dungeon`、`set_stage retry` 或 `complete_stage`。只写提示会让阶段继续等待。副本整体的 `config.yml/time-limit` 是另一条计时，设置阶段时也要留足整局时间。
 
-脚本行内可用的阶段控制动作：
+## 完成条件怎样写
 
-| 动作 | 说明 |
-|---|---|
-| `complete_stage` | 立即完成当前阶段 → 评估 `next` 分支 → 进入下一阶段 |
-| `set_stage <阶段名>` | 直接跳转指定阶段（跳过条件判定，跑 on-start） |
+| 条件 | 使用场景 | 示例 |
+| --- | --- | --- |
+| `group_cleared:<组ID>` | 最后一只目标怪死亡后推进 | `group_cleared:guards` |
+| `room_cleared:<房ID>` | 房间清理完成后推进 | `room_cleared:hall` |
+| `var:<变量名> <比较符> <值>` | 多机关计数、路线选择或收集进度 | `var:switches >= 2` |
+| `var:<变量名>` | 检查布尔或非零状态 | `var:map_cleared` |
+| `players_alive <比较符> <人数>` | 人数条件 | `players_alive >= 2` |
+| 空字符串 | 等待交互或其他脚本主动完成 | `complete-when: ""` |
+| `js:...`、`aria:...` | 使用已有脚本环境自定义判断 | 表达式应返回真假结果 |
 
-## 与事件系统的协作
+比较符支持 `==`、`!=`、`>`、`>=`、`<`、`<=`，比较式两边留空格。阶段变量条件直接写 `var:switches >= 2`。阶段条件没有固定的触发玩家，需要逐玩家判断的权限和费用放在交互点或入场条件中。
 
-- 怪组 `on-end`/`complete_stage`/`procgen_clear_room` 等动作触发后阶段机立即重估
-- `on-start`/`on-complete`/`on-timeout` 脚本行与 scripts.yml 同 DSL（`@all`/`@trigger`/selector/变量替换全可用）
-- 阶段名进入时广播 `dungeon.stage-enter`（`{stage}`=阶段显示名）
-- 实例变量 `abyss_stage` 实时写入当前阶段名（供脚本/PAPI/HUD 引用）
+进入阶段时会立刻检查一次条件。把 `players_alive >= 1` 放在准备阶段，会在已有玩家时立即推进。希望玩家确认后开战，就使用手动阶段和开始按钮。变量改变后会重新检测，部分路径通过低频检查生效。
+
+## 单路线和条件分支
+
+固定路线直接写 `next: boss`。条件路线写列表，用 `condition` 判断、`target` 指定阶段 ID。第一个满足的分支命中，无条件项放最后。
+
+```yaml
+wave:
+  complete-when: "group_cleared:guards"
+  next:
+    - condition: "var:bonus == 1"
+      target: extra
+    - target: finish
+extra:
+  on-start:
+    - "spawn_group elite"
+  complete-when: "group_cleared:elite"
+  next: finish
+finish:
+  on-start:
+    - "complete_dungeon"
+```
+
+`elite` 也是需要在怪物配置中定义的组。所有目标阶段都必须存在。`next` 列表没有分支命中时，已完成阶段会等待条件变化再判断，`on-complete` 不会因此反复执行。要保证一定离开，添加最后的无条件分支。
+
+## 选择推进动作
+
+- `complete_stage` 完成当前阶段，执行其 `on-complete`，然后判断 `next`。适合开始或提交按钮。
+- `set_stage <ID>` 直接进入目标阶段，执行目标的 `on-start`，跳过旧阶段的完成动作。
+- `flow_jump <ID>` 跳转后结束当前脚本分支。设计表单的「跳到阶段」使用这个动作，避免旧分支剩余动作继续执行。
+- `complete_dungeon` 和 `fail_dungeon` 结束整局，随后按结算设置处理。
+
+## 测试一条流程
+
+1. 先配置 `prepare → wave`，确认按按钮前没有刷怪。
+2. 按按钮后检查只生成一次 `guards`，并显示正确阶段。
+3. 清完最后一只怪，确认完成动作执行并进入下一阶段或通关。
+4. 分别让 `bonus` 为 `0` 和 `1`，测试两条路线。
+5. 另开一局留怪到超时，确认按 `on-timeout` 失败。已离开的阶段不能再次触发超时动作。
+6. 检查结算和离场，字段见[奖励与结算](/docs/abyss/rewards-and-settlement)。

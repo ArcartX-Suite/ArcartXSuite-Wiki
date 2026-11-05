@@ -17,6 +17,90 @@ Abyss 的副本流程由 `scripts.yml` 中的生命周期脚本驱动。每个�
 | `@dead` | 当前死亡的玩家 |
 | 玩家名 | 指定玩家 |
 
+生命周期通常作用于全队，使用 `@all`。交互和 NPC 点击有明确玩家，使用 `@trigger`。怪组清完、阶段进入、世界建造等事件可能没有触发玩家，此时 `@trigger` 选不到人。`@random` 从本局存活成员中随机选择，`@dead` 选择副本判定为死亡的成员。
+
+## 生命周期放哪些动作
+
+文件位置是 `abysses/<地牢ID>/scripts.yml`。下表是固定段名，其他顶层列表为自定义流程段。
+
+| 脚本段 | 时机 | 适合的内容 |
+| --- | --- | --- |
+| `world-init` | 副本世界准备阶段 | 铺平台、粘贴区域、设置方块。无需玩家的动作 |
+| `init` | 入场准备时 | 初始化实例变量。开局前动作有范围限制，不支持的动作会报告错误 |
+| `start` | 本局正式开始 | 面向全员的目标提示和开场效果 |
+| `complete` | 判定通关后 | 通关奖励、完成提示 |
+| `fail` | 判定失败后 | 失败提示或独立失败处理 |
+| `player-death` | 成员被判定副本死亡时 | 对死亡者提示、记录死亡后的操作 |
+| `all-death` | 触发全员死亡处理时 | 团灭提示，与全局死亡判定策略配合 |
+| `exit` | 玩家退出时 | 对退出者提示，不宜在此重复发通关奖励 |
+
+初始化变量使用 `setvar`，玩家提示和战斗效果优先放 `start`。模板的阶段系统会在本局开始后进入入口阶段，避免 `start` 和阶段 `on-start` 同时生成同一怪组。
+
+## 等待、延时与流程段调用
+
+### 等待当前列表
+
+```yaml
+warning:
+  - "message @all &e3 秒后出现增援"
+  - "wait 3"
+  - "spawn_group reinforcements"
+```
+
+`wait 3` 暂停当前列表三秒，再执行刷怪。其他事件列表仍可运行。本例要求 `reinforcements` 是已定义的手动怪组。
+
+### 稍后调用，当前列表继续
+
+```yaml
+start:
+  - "delay 3 run_script warning"
+  - "message @all &a你现在可以开始行动"
+warning:
+  - "message @all &e注意侧门增援"
+```
+
+`delay <秒> <动作行>` 安排一个稍后执行的动作，不等待它完成。上例先显示“可以开始行动”，三秒后显示侧门提示。若本局已经结束或所属脚本被取消，延时动作不会继续。
+
+### 调用另一个列表
+
+`run_script warning` 按段名调用。常规运行期的子流程拥有独立执行过程，不能假定子流程中的 `wait` 会使调用方也等候。必须按顺序执行的动作，放在同一个列表内，或用阶段条件决定什么时候进入下一阶段。世界准备阶段对子流程的处理不同，作者应把复杂的战斗分支放到正式运行阶段。
+
+## 条件联动怎样选
+
+| 需求 | 写法 | 未满足时 |
+| --- | --- | --- |
+| 阶段等待某目标完成 | `complete-when: "group_cleared:guards"` | 阶段继续等待 |
+| 机关消耗前核对本局变量 | `if_var coins >= 15` | 当前列表停止 |
+| 每个玩家分别判断条件 | 交互的 `conditions` 或 `check @trigger <条件>` | 按对应条件处理 |
+| 仅跳过一条有条件动作 | `flow_if var:bonus message @all &6挑战已开启` | 跳过本行，继续后面的动作 |
+| 转移控制后结束旧分支 | `flow_jump finish` | 进入目标阶段，旧分支不再执行 |
+
+`flow_if` 的条件使用单个无空格的变量或清怪、清房引用。数值比较用 `if_var` 或阶段的完整比较条件。它们的条件语法不能互换。
+
+## 用两个独立流程段发不同奖励
+
+在 `rewards.yml` 定义 `normal_pack` 与 `bonus_pack` 后，可在 `scripts.yml` 使用下面的调用结构。
+
+```yaml
+complete:
+  - "run_script reward_normal"
+  - "run_script reward_bonus"
+reward_normal:
+  - "if_var bonus == 0"
+  - "grant_reward @all normal_pack"
+reward_bonus:
+  - "if_var bonus == 1"
+  - "grant_reward @all bonus_pack"
+```
+
+两段各自判断。未命中的守卫停止该子流程，匹配的一段发放对应奖励。将 `bonus` 在 `init` 初始化为 `0`，并只在玩家选择挑战时设为 `1`。测试时分别走两条路线，核对每位成员只得到一份。
+
+## 动作失败和排查顺序
+
+未知动作或执行异常会停止该列表的后续动作。先看日志中的动作名，再核对动作参数、目标 ID 和所需模块。不要在错误动作后安排必需的清理或通关步骤。
+
+奖励未到账时，依次确认事件有没有触发、变量条件是否通过、选择器有没有玩家、奖励集是否存在，最后检查物品来源和交付结果。草稿试跑可检查前面几项流程，真实发奖要进入测试副本验证。
+
 ## 动作清单
 
 > 统一格式：`<动作> [选择器] <参数...>`。无选择器的动作直接作用于副本上下文。
@@ -74,7 +158,10 @@ Abyss 的副本流程由 `scripts.yml` 中的生命周期脚本驱动。每个�
 | `exit_dungeon` | `exit_dungeon <选择器>` 传送回原位置并退出 |
 | `kick_all_players` | 踢出全部玩家 |
 | `run_script` | `run_script <段名>` 调用其他脚本段 |
-| `delay` / `wait` | `wait <秒>` 挂起当前脚本 |
+| `wait` | `wait <秒>` 暂停当前列表 |
+| `delay` | `delay <秒> <动作行>` 安排稍后执行，当前列表继续 |
+| `flow_if` | `flow_if <无空格条件> <动作行>` 条件满足时执行本行 |
+| `flow_jump` | `flow_jump <阶段ID>` 跳到阶段并结束本分支 |
 | `setvar` / `delvar` / `addvar` | 副本变量读写 |
 | `random` | `random <变量> <min> <max>` 写均匀随机整数到实例变量 |
 | `if_var` | `if_var <变量> <op> <值>` 实例变量不满足则中止本段（不依赖玩家，world-init 可用） |
@@ -196,6 +283,9 @@ on-room-clear:
 ```
 
 `quest_track` 只做追踪/HUD 卡片展示——任务接取、条件判定、奖励发放仍由 questgps/Chemdah 任务体系负责；abyss 侧坐标引导用 `guide_point`，两者分工不重叠。
+
+| 动作 | 用法 | 依赖模块 |
+| --- | --- | --- |
 | `combat_effect` | `combat_effect <选择器> <特效包id>` 触发战斗特效包 | combateffect |
 | `bp_task` | `bp_task <选择器> <任务id> [增量]` 推进战令任务进度 | battlepass |
 | `apply_attribute` | `apply_attribute <选择器> <属性id> <值> [percent\|flat]` 副本内属性修饰，出本自动清除 | 属性桥（Symphony 等） |
@@ -209,7 +299,9 @@ on-room-clear:
 
 ## 实例变量
 
-`setvar`/`delvar`/`addvar` 读写副本实例级变量（如 `setvar last_killer {killer}`），生命周期随实例结束销毁。占位符 `{变量名}` 在后续动作行中展开。
+`setvar`、`delvar`、`addvar` 读写当前副本实例变量。`setvar coins 0` 初始化，`addvar coins 5` 累加，`delvar coins` 删除。后续文字使用 `{var:coins}` 读取。变量随本局结束，不用来保存账号的永久进度。
+
+内置上下文的 `{player}` 来自当前触发者，`{dungeon}` 是地牢显示名，`{dungeon_id}` 是目录 ID，`{instance_id}` 是本局身份。额外事件变量是否存在取决于触发来源。
 
 **预置变量**（进本/推进流程自动写入，无需 setvar）：
 

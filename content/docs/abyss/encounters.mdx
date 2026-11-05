@@ -15,6 +15,24 @@ description: "从怪物波次到交互、解谜与 NPC 委托，逐项搭建可�
 
 ## monsters.yml — 怪物组/波次
 
+### 选择由谁刷出这一组
+
+自动战斗用 `AUTO_START`。阶段教程里用 `MANUAL`，再在进入阶段时调用 `spawn_group guards`。连续波次用 `TRIGGERED`，在 `trigger-after` 列出前置组。先选一种触发来源，再写动作。
+
+| 组字段 | 写法 | 作用与使用场景 |
+| --- | --- | --- |
+| `spawn-timing` | `AUTO_START`、`DELAYED`、`TRIGGERED`、`MANUAL` | 决定生成来源 |
+| `monsters` | 刷怪点列表 | 一组可含多个种类与生成位置 |
+| `monsters[].mob-id` | 如 `vanilla:ZOMBIE` | 原版强制前缀或 MythicMobs 怪物 ID |
+| `monsters[].location` | 字符串 `x,y,z` | 全局组用副本坐标，房间内组按房间原点偏移 |
+| `monsters[].amount` | 整数 | 该刷怪点生成数量 |
+| `trigger-after` | 组 ID 列表 | TRIGGERED 的所有前置组完成后触发 |
+| `delay-seconds`、`rest-seconds` | 秒数 | 生效前的延迟或休整，下面说明优先级 |
+| `complete-when-alive-below` | 默认 `0` | 存活数量小于或等于阈值时完成。0 表示全清 |
+| `plans` | 方案 ID 列表 | 仅在对应作战方案使用该组，空列表不限制 |
+| `on-prespawn` | 动作列表 | 进入生成等待时预告下一波 |
+| `on-start`、`on-end` | 动作列表 | 生成开始与完成时执行 |
+
 顶层每个 key 是一个怪物组 ID，组内 `monsters` 为刷怪点列表：
 
 ```yaml
@@ -24,7 +42,7 @@ wave_1:
     - mob-id: "vanilla:ZOMBIE"        # vanilla: 强制原版 / 无前缀走 MythicMobs
       location: "3,80,3"              # x,y,z
       amount: 3
-  complete-when-alive-below: 0        # 存活数低于此值时组完成
+  complete-when-alive-below: 0        # 存活数小于或等于此值时组完成
   plans: []                           # 限定作战方案 id 列表（空=所有方案都刷；见 plans 作战方案）
   on-start:                           # 组开始时执行的脚本动作
     - "message @all &e第一波来袭！"
@@ -99,6 +117,23 @@ on_kill:
 | `EVENT` | 指定事件发生时执行（如 `monster_kill`，上下文含 `{killer}`） |
 
 ## interacts.yml — 交互点
+
+先选触发方式，再填写目标坐标。点型交互使用 `location`，踩踏和进入区域可用 `region` 两角。只希望特定方块生效时填写 `required-block`，再添加条件和动作。
+
+| 字段 | 缺省或写法 | 作用 |
+| --- | --- | --- |
+| `type` | 默认 `RIGHT_CLICK_BLOCK` | 右键、左键、挖掘、放置、踩踏、进入区域或实体右键 |
+| `location` | `"0,80,3"` | 交互目标点 |
+| `region` | 两个坐标字符串组成的列表 | 区域型目标范围 |
+| `required-block` | 如 `GOLD_BLOCK` | 限制目标方块类型 |
+| `required-item` | 所需物品描述 | 要求使用指定物品交互，消耗规则应单独检查 |
+| `entity-name` | 实体名称 | RIGHT_CLICK_ENTITY 的目标 |
+| `once` | 默认 `false` | 成功后该实例中的交互点只触发一次 |
+| `conditions` | 默认 `[]` | 触发前核对玩家条件 |
+| `fail-message` | 可省略 | 条件不满足时提示点击者 |
+| `script` | 动作行列表 | 条件通过后执行 |
+
+两名玩家共用同一个实例时，`once: true` 表示本局一次。个人奖励使用邮箱或对应领奖流程设计，公共开门按钮适合一次性设置。具体例子见[完整示例的交互配置](/docs/abyss/walkthrough#两个机关-interactsyml)。
 
 ```yaml
 trial_chest:

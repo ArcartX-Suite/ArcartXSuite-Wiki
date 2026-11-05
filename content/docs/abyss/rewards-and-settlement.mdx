@@ -19,6 +19,19 @@ description: "配置完成奖励、宝箱、商店和退出时机，并分开验
 
 ### 示例：通关留出拾取时间，失败尽快离场
 
+| settlement 字段 | 通关默认值 | 失败默认值 | 用途 |
+| --- | --- | --- | --- |
+| `exit-mode` | `COUNTDOWN` | `COUNTDOWN` | 选择退出方式 |
+| `exit-delay-seconds` | `60` | `10` | COUNTDOWN 的等待秒数，0 到 86400 |
+| `show-stats` | `true` | `true` | 是否请求显示统计，仍需全局统计功能可用 |
+| `show-stats-after-exit` | `false` | `false` | 希望退出后显示时开启 |
+| `manual-timeout-seconds` | `0` | `0` | MANUAL 的最长等待秒数，0 为一直等主动离场 |
+| `protect-players` | `true` | `true` | 结算期间保护玩家 |
+| `revive-players` | `true` | `true` | 结算时处理本局死亡玩家 |
+| `script-timeout-seconds` | `30` | `30` | 全部离场后等待结算与退出脚本的上限，0 到 600 秒 |
+
+失败参数写在 `settlement.failure` 中。它使用自己的失败默认值，不能假定所有未填写项都继承上方通关参数。
+
 将下方字段合并到模板的 `settlement` 中。
 
 ```yaml
@@ -49,7 +62,7 @@ settlement:
 
 ## 命名奖励集
 
-`grant_reward <集名>` 脚本动作调用：
+使用 `grant_reward <选择器> <集名>` 发放命名奖励。完成事件通常使用 `@all`，单个宝箱交互使用 `@trigger`。
 
 ```yaml
 rewards:
@@ -63,7 +76,7 @@ rewards:
     commands: []                     # 控制台命令（{player} 占位）
 ```
 
-物品写法 `material:<Material>:<数量>`；MythicMobs/NeigeItems 等外源物品经Suite ItemSourceRegistry 生成（写法见 integration 页）。
+上例是原版物品写法。外部物品的来源 ID 必须对应已安装的物品库，调整奖励时先测试生成，再测试实际发放。各模块的物品生成结构见[物品来源](/docs/guide/item-sources)，不能直接把其他模块的外层字段复制到本文件。
 
 随机奖励集：
 
