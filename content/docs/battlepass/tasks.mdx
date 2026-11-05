@@ -7,6 +7,31 @@ BattlePass 任务系统是战令经验的核心来源。任务模板按周期分
 
 ## 任务模板字段
 
+### 先制作一条能触发的任务
+
+在已有赛季和每日分配配置可用的前提下，将下方任务加入 `tasks/daily.yml`。根键 `daily_trial_kills` 是任务 ID。
+
+```yaml
+daily_trial_kills:
+  display-name: "试炼狩猎"
+  description: "击杀 3 个生物"
+  difficulty: easy
+  bukkit-event:
+    event-classes:
+      - "org.bukkit.event.entity.EntityDeathEvent"
+  required-count: 3
+  base-xp-reward: 100
+  conditions: []
+  increment-strategy:
+    type: fixed
+    value: 1
+  weight: 1
+```
+
+这条任务不筛选怪物种类，每次符合任务来源的击杀增加 1。先确认任务已分配到测试玩家，再完成三次击杀，检查进度和完成经验。修改任务池不会让指定玩家必然抽到这条任务，测试时应同时检查分配状态。
+
+确认基础进度后，再在 `conditions` 加入怪物或世界过滤。需要按伤害数值累计时，改用对应伤害事件和增量字段，不能只把击杀任务的目标数字调大。事件字段见本页下方说明。
+
 每个任务模板在 `tasks/daily.yml`、`tasks/weekly.yml`、`tasks/season.yml` 中定义，字段如下：
 
 | 字段 | 类型 | 默认值 | 说明 |

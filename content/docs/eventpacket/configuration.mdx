@@ -66,6 +66,27 @@ rules/ 中的触发条件与动作列表。先使用默认示例完成一次测�
 
 ## 规则配置
 
+### 从一条无外部奖励的信号规则开始
+
+在 `rules/trial.yml` 保存下方内容。先用测试消息确认信号链，再换成邮件、称号或其他正式动作。
+
+```yaml
+trial_signal:
+  enabled: true
+  trigger: command-signal
+  signal: trial_open
+  repeatable: true
+  cooldown: "3s"
+  actions:
+    - type: command.dispatch
+      executor: console
+      command: "tell {player} 试炼入口已触发"
+```
+
+重载 EventPacket 后，通过[信号命令](/docs/eventpacket/commands)向在线测试玩家发送 `trial_open`。规则根键 `trial_signal`、信号名 `trial_open` 和目标玩家是三个不同参数。没出现消息时，先核对信号名、规则开关、冷却和玩家，再检查动作。
+
+若下一步改成 `mail.send`，先在 Mail 中建立并重载预设，再把真实预设 ID 填进动作。只改动作类型而不填它的必要字段不会得到完整联动。
+
 规则文件位于 `data/eventpacket/rules/` 目录，每个 `.yml` 文件的根键即为规则 ID。目录文件按文件名排序加载，同名规则以最后加载的文件为准。
 
 ### 规则字段表

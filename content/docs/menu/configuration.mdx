@@ -5,6 +5,17 @@ description: "调整menus/ 菜单、按钮图标、说明与点击动作；附�
 
 ## 先改哪些内容
 
+先复制一份 `menus/example.yml`，只改菜单 `id`、标题和一个按钮，用消息动作确认能打开。再加权限、条件和真正的功能入口。完整的装饰字段可等功能验证后调整。
+
+| 要实现的效果 | 主要修改位置 |
+| --- | --- |
+| 新建一个功能菜单 | 菜单定义的 `id`、`title`、`pages` |
+| 玩家看不到某个按钮 | 按钮 `permission` 或 `requirements` |
+| 按钮可见，但暂时不能用 | `use-conditions`、`deny-message` |
+| 点击后打开另一菜单 | `actions` 的 `open: 目标菜单ID` |
+| 切换本菜单下一页 | `actions` 的 `page: 页面ID`，并先创建该页面 |
+| 改全局冷却或默认布局 | 主配置 `config.yml/settings` |
+
 menus/ 菜单、按钮图标、说明与点击动作。先使用默认示例完成一次测试，再按本页逐项调整。
 
 配置位置：`plugins/ArcartX-Suite/data/menu/config.yml`。定义文件与子目录均相对此模块目录。本文中的 YAML 片段用于修改对应小节，请保留文件中的其他设置。
@@ -36,9 +47,9 @@ menus/ 菜单、按钮图标、说明与点击动作。先使用默认示例完�
 | --- | --- | --- | --- |
 | `id` | string | 是 | 菜单唯一标识，用于 `open:` 引用与命令注册 |
 | `title` | string | 是 | 菜单标题，支持颜色代码与 MiniMessage |
-| `layout` | string | 是 | 布局模式：`panel` / `esc` |
-| `columns` | int | 是 | 每行按钮列数 |
-| `buttons-per-page` | int | 是 | 每页最大按钮数量 |
+| `layout` | string | 否 | `panel` / `esc`，省略时读取主配置默认布局 |
+| `columns` | int | 否 | 默认读取主配置，只对读取列数的网格 UI 生效 |
+| `buttons-per-page` | int | 否 | 每页可见按钮上限，超过会截断，不会自动分成新页 |
 | `permission` | string | 否 | 打开菜单所需权限，留空无限制 |
 | `match-esc` | boolean | 否 | 仅 esc 布局，是否拦截 ESC 键替代原版暂停界面 |
 | `open-requirements` | list | 否 | 打开前置条件（PlaceholderAPI 表达式或 `aria:` 脚本） |
@@ -58,7 +69,7 @@ menus/ 菜单、按钮图标、说明与点击动作。先使用默认示例完�
 | `order` | int | 是 | 排列顺序（从 0 开始，越小越靠前） |
 | `permission` | string | 否 | 按钮级权限，无权限的玩家看不到此按钮 |
 | `icon` | map | 否 | 按钮图标配置（仅 panel/esc 有效） |
-| `use-conditions` | list | 否 | 按钮显示条件，不满足时可显示 `deny-message` |
+| `use-conditions` | list | 否 | 使用条件，不满足时仍显示按钮但禁用，点击可显示 `deny-message` |
 | `requirements` | list | 否 | 按钮硬性前置条件，不满足时按钮完全隐藏 |
 | `deny-message` | string | 否 | `use-conditions` 不满足时的提示消息 |
 | `deny-actions` | list | 否 | `use-conditions` 不满足时执行的动作 |
@@ -138,6 +149,36 @@ warehouse:
 升级需同时更新 menu 模块与 UI 资源。`ui.overwrite-ui-files: false` 时，已修改的服务器 UI 不会被强制覆盖；请先备份、比较并更新对应 UI 文件，再执行 `/axs reload menu`。已有 `menus/` 文件不会自动覆盖，示例详情需按需加入。模块二进制通过 GitHub CI 构建、云端下发，不在本地构建 JAR。
 
 ## 配置示例
+
+### 从一个可验证的按钮开始
+
+保存为 `menus/trial_menu.yml`。此例只用原版图标和消息，确认成功后再换成其他模块的命令。
+
+```yaml
+id: trial_menu
+title: "&6试炼入口"
+layout: panel
+pages:
+  - id: main
+    title: "主页"
+    buttons:
+      test:
+        text: "&a检查入口"
+        order: 0
+        icon:
+          material: EMERALD
+        use-conditions:
+          - "%player_level% >= 5"
+        deny-message: "&c需要达到 5 级"
+        actions:
+          - "message: &a按钮可用"
+```
+
+执行 `/axs reload menu` 后用 `/menu open trial_menu` 打开。先用低于 5 级的玩家检查禁用提示，再用达到 5 级的玩家检查消息。PAPI 等级变量需可解析。
+
+这时再把消息换成实际动作。例如 `open: teleport` 的目标必须是另一个菜单的 `id`。`details.requirements` 用于展示要求文字，按钮顶层的 `requirements` 才是控制可见性的条件，填写时注意层级。
+
+### 完整示例参考
 
 以下为 `menus/example.yml` 的精简示例，演示面板布局、多页、按钮动作与物品库图标：
 
