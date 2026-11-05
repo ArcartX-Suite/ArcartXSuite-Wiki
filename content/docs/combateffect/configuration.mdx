@@ -59,7 +59,7 @@ CombatEffect 模块的配置文件位于模块数据目录下，首次启动时�
 | `combo-tracker.source` | string | `auto` | 连击来源：`auto` / `chronos` / `bukkit` |
 | `combo-tracker.timeout` | long | `2000` | 连击超时重置时间（毫秒），最小 200 |
 | `combo-tracker.chronos-groups` | `List<String>` | `["攻击", "连击"]` | Chronos 状态组过滤，仅这些组的状态进入才计为连击 |
-| `combo-tracker.sync-variable` | boolean | `false` | 是否同步连击数到客户端服务器变量 |
+| `combo-tracker.sync-variable` | boolean | `true` | 是否同步连击数到客户端服务器变量 |
 | `combo-tracker.variable-name` | string | `combo_count` | 客户端变量名，UI 可通过 `{server.combo_count}` 引用 |
 | `combo-tracker.per-target` | boolean | `false` | 切换攻击目标是否重置连击 |
 | `combo-tracker.debug` | boolean | `false` | 是否开启连击追踪调试日志 |

@@ -25,6 +25,7 @@
     "ConversationPlayable",
     "EssentialsQueryable",
     "EventBusCapability",
+    "SecondaryPasswordAccess",
     "ExtraBackpackAccess",
     "FishingAccess",
     "InteractionState",
