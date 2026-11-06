@@ -1,6 +1,6 @@
 ---
 title: "奖励、商店与结算"
-description: "配置完成奖励、宝箱、商店和退出时机，并分开验证发奖和离场。"
+description: "配置固定奖励、权重池、个人宝箱、掉落和结算，了解到账补发及外部奖励模块接入。"
 ---
 
 把领取奖励、打开结算面板和退出副本当作三个独立步骤。先确认奖励的触发入口，再测试正常通关、失败和玩家提前离场。
@@ -48,21 +48,26 @@ settlement:
 
 用两次独立试跑分别触发通关和失败。通关时关闭结算面板，确认能在倒计时内拾取物品并提前离场。失败时确认采用 15 秒的独立倒计时。测试队伍提前退出时，分别观察每位成员的结算与离场。
 
-## 选择发放时机
+## 选择奖励方式和触发时机
 
+在对应副本模板目录的 `rewards.yml` 中定义奖励，再从 `scripts.yml`、`interacts.yml`、怪组、房间、NPC 或委托的动作列表引用奖励 ID。定义奖励集本身不会触发发放。
 
+| 想要的效果 | 配置和动作 |
+| --- | --- |
+| 通关后每位在场队员自动领整包 | 定义固定奖励集，在 `scripts.yml` 的 `complete` 中调用 `grant_reward @all clear_pack` |
+| 随机抽几份奖励包并自动发放 | 配置 `type: random`、`picks` 和 `pool`，仍用 `grant_reward` 触发 |
+| 翻牌、旋转或在三个奖励中选择 | 在 `reward-games` 中引用权重池，用 `open_reward_game` 登记领取资格 |
+| 点击宝箱后查看物品并领取 | 在 `chest-rewards` 定义物品池，用 `open_chest_ui @trigger trial_chest` 绑定交互 |
+| 在副本地图上拾取战利品 | 由怪物或掉落模块生成地面物品，结算可用 `COUNTDOWN` 预留拾取时间 |
+| 高评级、支线或委托加赏 | 在对应评级、房间、任务或委托脚本中引用单独的奖励 ID |
 
-- 副本委托完成时，通过委托的脚本调用奖励集。
+`@all` 表示脚本上下文中的副本参与者。结算脚本使用创建时取得的玩家快照，不能用它替代开局名单或离线奖励资格。`@trigger` 指当前触发交互的玩家。通关或失败脚本没有触发玩家时，团队奖励应明确写 `@all`。选择器和动作详见[脚本系统](/docs/abyss/scripting)。
 
-- 玩家需要主动领取时，把奖励放进宝箱交互，或用委托的手动领取模式。
+同一份业务奖励只绑定一个入口。通关包、评级加赏和个人宝箱可以同时发放不同的奖励。
 
-- 同一份奖励只绑定一个入口。用测试玩家走一遍重复点击与提前离场，核对实际到账。
+## 命名奖励集与权重抽取
 
-
-
-## 命名奖励集
-
-使用 `grant_reward <选择器> <集名>` 发放命名奖励。完成事件通常使用 `@all`，单个宝箱交互使用 `@trigger`。
+以下示例可以放入副本的 `rewards.yml`。固定包的 `type` 可省略。
 
 ```yaml
 rewards:
@@ -70,44 +75,139 @@ rewards:
     items:
       - "material:DIAMOND:3"         # material:<材质>:<数量>
       - "material:GOLDEN_APPLE:2"
-    money: 100                       # 货币（走Suite currencyManager）
+    money: 100
     currency: "money"
-    exp: 50
-    commands: []                     # 控制台命令（{player} 占位）
-```
-
-上例是原版物品写法。外部物品的来源 ID 必须对应已安装的物品库，调整奖励时先测试生成，再测试实际发放。各模块的物品生成结构见[物品来源](/docs/guide/item-sources)，不能直接把其他模块的外层字段复制到本文件。
-
-随机奖励集：
-
-```yaml
+    exp: 50                          # 经验点
+    commands: []
+  quest_pack:
+    items: ["material:EMERALD:5"]
+    money: 30
   random_pack:
     type: random
-    picks: 1                         # 抽取次数
+    picks: 1
     pool:
-      - reward: clear_pack           # 引用其他集
+      - reward: clear_pack
         weight: 80
       - reward: quest_pack
         weight: 20
 ```
 
+在 `scripts.yml` 的通关段引用上述权重池。已有 `complete` 时，将动作合并到现有列表。
+
+```yaml
+complete:
+  - "grant_reward @all random_pack"
+  - "message @all &a通关奖励已登记。"
+```
+
+- 权重是相对值。上例每次抽取为 80% 与 20%。`picks: 2` 时每次独立抽取，同一奖励集可能抽中两次。
+- `pool[].reward` 引用同文件中的奖励集 ID。随机池可以引用另一个随机池，配置校验会拒绝循环引用。随机集发放抽中的子集，其自身的 `items`、`money` 等字段不参与发放。
+- 固定集可组合 `items`、`money`、`currency`、`exp` 和 `commands`。默认货币 ID 为 `money`，实际到账依赖对应货币桥。命令以控制台身份执行，可用 `{player}` 引用目标玩家。
+- `items` 可混合 `material:DIAMOND:3`、`mythic:物品ID:1`、`neige:物品ID:1`、`overture:物品ID:1` 和 `mmoitems:TYPE;ID:1`。专用列表 `mythic-items` 等字段中的条目省略来源前缀。外部物品须在对应插件中存在。 [物品来源](/docs/guide/item-sources)
+
+直接用 `grant_reward` 时由服务端抽取并登记发放。希望玩家操作后才领取时，用同一个权重池配置下面的奖励玩法。
+
+## 翻牌、转盘与三选一
+
+在同一副本的 `rewards.yml` 中配置奖励包、权重池和玩法。这个例子给三种玩法共用一个池，权重为 60、30、10。
+
+```yaml
+rewards:
+  钻石包:
+    items: ["material:DIAMOND:3"]
+  补给包:
+    items: ["material:COOKED_BEEF:8"]
+  金币包:
+    money: 150
+    currency: money
+  game_pool:
+    type: random
+    pool:
+      - { reward: 钻石包, weight: 10 }
+      - { reward: 补给包, weight: 60 }
+      - { reward: 金币包, weight: 30 }
+
+reward-games:
+  clear_flip:
+    strategy: flip
+    title: "通关翻牌"
+    pool: game_pool
+    slots: 6
+    picks: 2
+    allow-repeat: true
+    auto-after-seconds: 0
+  clear_wheel:
+    strategy: wheel
+    title: "通关转盘"
+    pool: game_pool
+    auto-after-seconds: 300
+  clear_choice:
+    strategy: choose-three
+    title: "通关三选一"
+    pool: game_pool
+    allow-repeat: false
+```
+
+在 `scripts.yml` 的 `complete` 中加入一种玩法。将示例中的 `clear_flip` 改为 `clear_wheel` 或 `clear_choice` 即可切换。
+
+```yaml
+complete:
+  - "open_reward_game @all clear_flip"
+```
+
+| 字段 | 用途 |
+| --- | --- |
+| `strategy` | `flip` 点击隐藏牌，`wheel` 点击旋转一次，`choose-three` 从三个已显示名称的奖励包中选一个。也可填写第三方注册的策略 ID |
+| `pool` | 指向 `type: random` 的奖励集。每个牌位从该集的 `pool` 抽取一个子集，玩法的 `slots` 决定牌位数 |
+| `slots` / `picks` | 牌位数为 1 到 9，可选次数为 1 到牌位数。转盘固定一次，三选一固定 3 个候选、选 1 个 |
+| `allow-repeat` | 默认允许重复抽中同名子集。设为 `false` 时池内不同子集 ID 的数量至少等于牌位数 |
+| `auto-after-seconds` | 默认 `0`，一直保留未选资格。填写正数时，到期由服务端按已保存的牌位顺序选足剩余次数，离线也可登记补发 |
+
+同一实例、玩家和玩法 ID 只创建一份奖励。关闭面板、重开或重登都使用已保存的结果。通关时可从结算面板的「奖励玩法」入口打开，也可使用 `/abyss rewards` 补领。已选择但宿主未确认的奖励保留原选择，下次打开会重试。若脚本在结算前离线时未把玩家纳入目标名单，需由外部奖励规则另行判定资格。
+
 ## 宝箱奖励
 
-`open_chest_ui @trigger <名>` 打开宝箱 UI（无 ArcartX 客户端时直接发放）：
+在 `rewards.yml` 中配置 `chest-rewards`。宝箱池的条目是物品定义，命名奖励池的条目则是奖励集 ID。
 
 ```yaml
 chest-rewards:
   trial_chest:
     title: "试炼宝箱"
-    rows: 3                          # UI 行数
-    options:                         # 权重抽取的物品槽
+    rows: 3
+    options:
       - item: "material:IRON_INGOT:5"
         weight: 50
       - item: "material:DIAMOND:2"
         weight: 20
 ```
 
-宝箱 UI 支持单个/全部领取；玩家未领取关闭时服务端自动全发兜底，不吞奖励。
+在 `interacts.yml` 中绑定宝箱位置。以下坐标要换成副本世界内的实际坐标。
+
+```yaml
+trial_chest_click:
+  type: RIGHT_CLICK_BLOCK
+  location: "12,65,8"
+  script:
+    - "open_chest_ui @trigger trial_chest"
+```
+
+宝箱按玩家独立抽取，当前面板最多 9 格。同一局关闭后重开同名宝箱，会继续查看原抽取结果，关闭界面本身不会发放。玩家可单领或全领，领完后按实例、玩家和宝箱 ID 标记完成。正常离场时会尝试登记未领完的已开箱奖励。
+
+如果通关段用 `open_chest_ui @all trial_chest` 生成结算宝箱，结算面板会先显示统计，玩家可用其中的奖励入口打开宝箱。服务端 UI 桥不可用时会尝试直接发放。普通关闭面板和客户端未正确渲染属于不同情况。
+
+## 到账、补发与外部奖励模块
+
+自动奖励和已确认领取的宝箱物品由 Suite 宿主保存到待发放服务，再执行到账。已经保存的奖励可由宿主重试补发。玩家结算前离线时，仍要先判断该玩家是否有资格并登记奖励，待发放服务只处理已登记的记录。
+
+结算统计、终局凭据和到账状态分别记录。章节等外部模块可通过 `AbyssRunResultAccess.result(runId)` 查询终局，或用 `committedResults(owner, afterSequence, limit)` 按提交顺序补查。收到 `axs.abyss.result_committed` 时也应按 ID 回查凭据，外部账本按业务规则判定资格。 [终局结果接口](/docs/api/AbyssRunResultAccess)
+
+AXS 模块可通过公开的待发放奖励服务 `PendingRewardService`，使用 `savePendingBatchConfirmed(requestKey, rewards)` 登记完整批次。建议以「结果 ID、玩家 UUID、奖励类型」构造稳定操作键，并保存抽取后的内容。重试时复用同一键和同一内容，避免重抽。返回 `true` 表示宿主已持久接受该批奖励，实际到账仍由宿主处理。返回 `false` 时，发放责任仍由调用方保留。
+
+开发者可通过 `AxsCapabilities.get(AbyssRewardGameAccess.class)` 获取领取策略接口，在服务器主线程调用 `register(id, revealUnpicked, strategy)`。策略收到玩家、可展示的牌面和绑定该次展示的选择回调。打开自定义 UI 后，将玩家选中的槽位交给回调。Abyss 负责校验已选次数、保存选择并登记发奖。关闭注册句柄只移除该策略，待领记录会保留。内置 ID `flip`、`wheel` 和 `choose-three` 保留给 Abyss。
+
+`revealUnpicked` 为 `false` 时，未选牌位的名称为 `null`。要更换奖励池、次数或期限，在副本配置中定义新的玩法 ID。已有的领取记录继续使用创建时保存的奖品和次数。
+
+测试时至少核对正常通关、关闭再开箱、部分领取后离场、重复触发和在线重登补发。新增外部物品时，先检查物品源能否生成，再检查最终到账。
 
 ## shops.yml — 副本商店
 
