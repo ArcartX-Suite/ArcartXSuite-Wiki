@@ -48,4 +48,4 @@ public interface MapAnchorUnlockable {
 
 返回 `CompletableFuture` 的方法使用回调处理结果，不要在 Bukkit 主线程调用 `join()` 或 `get()`。回调中如需操作 Bukkit 玩家、世界或物品，将相应操作切回主线程。
 
-先在对应模块配置中准备所引用的 ID，再调用接口。检查布尔值、结果对象或异常，只有成功后才更新第三方插件自己的业务状态。
+先配置锚点 ID，再调用接口。Future 完成后再判断结果，返回 true 表示本次新解锁已完成。返回 false 时保留原业务状态，并处理已解锁、条件不符、玩家离线、操作繁忙或存储失败等情况。调用方也应处理 Future 异常。

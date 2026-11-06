@@ -1,0 +1,54 @@
+---
+title: "跨服地图"
+description: "让玩家浏览其他子服的世界，并配置跨服落地和传送费用。"
+---
+
+## 从双服浏览开始
+
+假设玩家在生存服，需要浏览大厅服的 `world`。先按[跨服部署](/docs/guide/cross-server-setup)配置两个子服，为它们设置不同的节点 ID，并确认代理中的服务器名称分别为 `survival` 和 `lobby`。
+
+在两个子服的 `plugins/ArcartX-Suite/data/map/config.yml` 中修改 `cross-server` 小节。下面是大厅服的示例。生存服也开启 `enabled` 和 `terrain-relay`，并把 `display-name` 和 `proxy-name` 分别改成「生存服」和 `survival`。
+
+```yaml
+cross-server:
+  enabled: true
+  display-name: "大厅服"
+  proxy-name: "lobby"
+  terrain-relay: true
+  arrivals:
+    enabled: true
+    require-anchor-unlock: false
+    charge-teleport-cost: true
+```
+
+在大厅服的 `data/map/worlds/world.yml` 中共享已有世界。示例假定出生点周围已生成区块，锚点继续按[锚点系统](./anchors)配置。
+
+```yaml
+enabled: true
+display-name: "大厅"
+preload:
+  radius: 128
+cross-server:
+  share: true
+  arrive: false
+```
+
+两服执行 `/axs reload map`。在生存服打开地图，确认世界列表出现大厅服的世界，选择后检查锚点和出生点周围的地形。远程地形以目标世界的预加载范围为限。需要刷新已修改的地形时，在大厅服执行 `/axs map refresh world`。
+
+## 开启跨服传送
+
+浏览正常后，在大厅服的世界文件中把 `cross-server.arrive` 设为 `true`，并确认大厅服模块配置中的 `cross-server.arrivals.enabled` 为 `true`。重载后，从生存服选择大厅世界或可传送锚点并确认。
+
+| 设置 | 使用场景 |
+| --- | --- |
+| 世界的 `cross-server.share` | 决定其他子服能否看到该世界 |
+| 世界的 `cross-server.arrive` | 设为 `false` 时仅开放浏览 |
+| 模块的 `cross-server.arrivals.enabled` | 控制本服是否接受跨服落地 |
+| `cross-server.arrivals.require-anchor-unlock` | 设为 `true` 时，锚点落地要求玩家已在目标服解锁该锚点 |
+| `cross-server.arrivals.charge-teleport-cost` | 决定锚点落地是否按目标服的锚点配置收费。传送至世界出生点免费 |
+
+## 核对落点和费用
+
+用测试玩家先传送到世界出生点，再测试一个有小额费用的锚点。确认连接成功后进入了目标服，落点正确，并检查目标服的余额和物品变化。锚点费用在目标服落地时结算。
+
+看到「正在确认落点」时等待最终提示。世界可见但没有传送入口时，检查世界和模块的落地开关。连接失败时核对 `proxy-name` 与代理配置。到达目标服后传送失败时，检查目标世界、锚点和落地条件。

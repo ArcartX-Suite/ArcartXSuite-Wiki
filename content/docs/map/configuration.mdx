@@ -1,11 +1,11 @@
 ---
 title: "功能配置"
-description: "调整世界显示范围、anchors/ 锚点与传送费用；附字段解释、修改示例与重载步骤。"
+description: "调整世界显示范围、锚点与传送费用；附字段解释、修改示例与重载步骤。"
 ---
 
 ## 先改哪些内容
 
-世界显示范围、anchors/ 锚点与传送费用。先使用默认示例完成一次测试，再按本页逐项调整。
+世界显示范围、锚点与传送费用。先使用默认示例完成一次测试，再按本页逐项调整。
 
 配置位置：`plugins/ArcartX-Suite/data/map/config.yml`。定义文件与子目录均相对此模块目录。本文中的 YAML 片段用于修改对应小节，请保留文件中的其他设置。
 
@@ -35,14 +35,16 @@ description: "调整世界显示范围、anchors/ 锚点与传送费用；附字
 ```yaml
 # plugins/ArcartX-Suite/config.yml
 keybinds:
-  AXS_MAP_MENU:
-    enabled: true
-    display-name: "打开地图"
-    default-key: "M"
-  AXS_MAP_HUD:
-    enabled: true
-    display-name: "切换小地图"
-    default-key: "H"
+  map-menu:
+    name: AXS_MAP_MENU
+    default-key: M
+    category: ArcartXSuite
+    module: map
+  map-hud:
+    name: AXS_MAP_HUD
+    default-key: H
+    category: ArcartXSuite
+    module: map
 ```
 
 本体按键修改后执行 `/axs reload all`，重新连接客户端检查实际绑定。
@@ -159,7 +161,7 @@ anchors:
 
 ## 路径点与标记点（`waypoints`）
 
-路径点（含 Y 坐标、可导航）与标记点（Pin，仅 X/Z、不可导航）共用此配置：
+路径点（含 Y 坐标，可导航）与标记点（Pin，仅 X/Z，可追踪）共用此配置：
 
 | 配置项 | 类型 | 默认值 | 说明 |
 |--------|------|--------|------|
@@ -181,6 +183,12 @@ anchors:
 |--------|------|--------|------|
 | `share.enabled` | `boolean` | `true` | 是否启用点位分享 |
 | `share.expire-minutes` | `int` | `30` | 分享码有效期（分钟，最小 1） |
+
+## 更新地图界面
+
+使用旧版地图界面时，先备份 `plugins/ArcartX-Suite/ui/map_menu.yml` 与 `plugins/ArcartX-Suite/ui/map_hud.yml`，再把新版控件和文案合入自定义文件。使用默认界面的服主可设置 `ui.overwrite-ui-files: true` 后重载 Map，确认界面更新后将其设回 `false`。
+
+跨服世界共享与传送见[跨服地图](./cross-server)。
 
 ## 消息文件
 
@@ -221,6 +229,10 @@ anchors:
 | `player.help.cleartrack` | cleartrack 帮助 | — |
 | `player.help.claim` | claim 帮助 | — |
 | `player.offline` | 玩家不在线 | — |
+| `player.action-busy` | 上一项地图操作仍在处理 | — |
+| `player.storage-failed` | 地图数据操作失败 | — |
+| `player.cross-server-arriving` | 已进入目标服，正在确认落点 | — |
+| `player.cross-server-arrive-cancelled` | 免费落地传送被取消 | — |
 | `player.world-not-configured` | 世界未配置 | `{0}` = 世界ID |
 | `player.map-unavailable` | 无可用地图 | — |
 | `player.map-opened` | 地图已打开 | — |
