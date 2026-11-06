@@ -5,7 +5,7 @@ description: "分别配置宿主认证策略和 LoginView 界面。"
 
 宿主从插件数据目录读取 `authentication.yml`。LoginView 模块从其模块配置目录读取 `LoginView.yml`。修改认证后端、可信入口、密码或条款策略后重启宿主。
 
-## LoginView.yml
+## 界面加载配置
 
 ```yaml
 config-version: 1
@@ -14,7 +14,7 @@ open-delay-ticks: 20
 
 `open-delay-ticks` 范围为 0 至 600 tick。认证界面 ID 为 `AXS:auth_v1`，模块 UI 文件为 `ui/auth_v1.yml`。
 
-## standalone
+## 单服认证配置
 
 ```yaml
 schema-version: 1
@@ -44,7 +44,7 @@ performance:
   queue-capacity: 128
 ```
 
-账号和绑定使用宿主配置的 SQLite 或 MySQL 存储。密码使用 Argon2id。修改条款正文时更新 `terms.version`，玩家确认的是界面实际展示的版本。
+账号和绑定使用宿主配置的 SQLite 或 MySQL 存储。修改条款正文时更新 `terms.version`，玩家确认的是界面实际展示的版本。
 
 | `ingress.type` | 部署要求 |
 | --- | --- |

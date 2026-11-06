@@ -10,11 +10,19 @@ LoginView 负责显示登录、条款、QQ 绑定和端外授权界面。宿主�
 | `standalone` | 当前游戏服的宿主运行时与账号存储 | 单服密码登录、本机混合入口或可信代理签名入口 |
 | `center` | 独立认证中心 | 由中心统一管理账号和策略，通过签名节点接口签发游戏准入 |
 
-先确定部署模式，再配置 `authentication.yml`。启用 LoginView 后，使用实际客户端确认界面可以打开、身份验证后仍会执行准入要求，并检查断开重连会建立新连接。重新加载 LoginView 只重载界面，认证策略随宿主重启读取。
+## 第一次使用
 
-- [配置](/docs/loginview/configuration)
-- [独立认证中心](/docs/loginview/center)
-- [官网与启动器认证接口](/docs/loginview/external-authorization)
-- [命令与占位符](/docs/loginview/commands)
+选择部署模式，填写 `authentication.yml`，然后启用 LoginView。修改认证策略后重启宿主。重新加载 LoginView 可更新界面。
 
-**验证状态**：本页记录新版源码契约。构建、真实游戏服及外部身份提供方联调尚未验收。旧版 AuthMe 配置、历史账户表及旧密码哈希没有兼容入口。
+## 检查是否配置成功
+
+使用测试账号确认界面能打开，身份验证后继续执行已启用的条款及绑定要求。验证断开重连后会建立新连接。
+
+当前文档对应新版源码，真实游戏服及外部身份提供方联调尚未验收。
+
+## 继续配置
+
+- [认证与界面配置](/docs/loginview/configuration)提供单服认证、可信入口和界面设置。
+- [独立认证中心](/docs/loginview/center)介绍中心与游戏节点的配置和租约验证。
+- [官网与启动器认证接口](/docs/loginview/external-authorization)列出接入参数、授权流程及拒绝路径验证。
+- [命令与占位符](/docs/loginview/commands)列出界面命令和当前连接的认证状态。
