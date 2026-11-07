@@ -11,7 +11,7 @@ VanillaUI 模块无独立玩家命令。界面替换由 UI YAML 的 `match` 规�
 | --- | --- | --- |
 | 打开工作台 | 右键工作台方块 | 自动呈现 ArcartX UI 工作台界面 |
 | 打开熔炉 | 右键熔炉方块 | 自动呈现 ArcartX UI 熔炉界面 |
-| 切换配方书 | 点击配方书按钮 | 切换配方书打开/关闭状态 |
+| 切换侧栏 | 点击配方书或仓库按钮 | 在配方书与仓库之间切换；无仓库时显示配方书 |
 | 搜索配方 | 在搜索框输入文本 | 实时过滤配方列表（中英文模糊匹配） |
 | 仓库分类与排序 | 展开选择列表 | 直接选择 Warehouse 配置的筛选项 |
 | 选中配方 | 左键点击配方图标 | 显示材料预览和配方产出数量 |
@@ -42,3 +42,9 @@ VanillaUI 模块无独立管理命令，通过Suite `/axs` 命令统一管理：
 ## UI 自定义说明
 
 界面文件 `ui/vanilla_crafting.yml` 与 `ui/vanilla_furnace.yml` 可自定义外观（颜色、布局、文字等）。修改后通过 `/axs reload vanilla` 重载生效；开启 `ui.overwrite-ui-files` 会覆盖为默认模板。
+
+## 相关文档
+
+- [功能配置](/docs/vanilla/configuration)：启用界面替换、调整刷新间隔和更新模板。
+- [配方书与材料填入](/docs/vanilla/recipe-book)：材料来源、填入规则和仓库操作。
+- [仓库命令与权限](/docs/warehouse/commands)：查询与导出异常材料转移记录。

@@ -53,7 +53,7 @@ description: "仓库与银行可用命令、参数填写方式和权限要求。
 | `/axs warehouse material-evidence <玩家UUID或在线名> <凭证UUID>` | 导出完整材料转移凭证 |
 | `/axs warehouse material-confirm <玩家UUID或在线名> <凭证UUID> confirm` | 人工核对后结案，仅标记、不补发 |
 
-材料凭证状态、核对流程和安全边界见[自动存入与材料恢复](/docs/warehouse/material-recovery)。`material-confirm` 只处理 `REVIEW` 状态，不会发放物品。
+材料记录的核对步骤见[自动存入与材料恢复](/docs/warehouse/material-recovery)。`material-confirm` 只处理 `REVIEW` 状态，不会发放物品。
 
 ### 命令详解
 
@@ -92,3 +92,10 @@ description: "仓库与银行可用命令、参数填写方式和权限要求。
 | `ArcartXSuite.warehouse.bank.vip` | op | 购买 VIP 定期存款产品的权限（示例配置中的 `money_vip_7d` 产品） |
 
 > 仓库定义中的 `permission` 字段和定期存款产品中的 `permission` 字段可自定义权限节点，玩家需持有对应权限才能拥有该仓库或购买该产品。
+
+## 相关文档
+
+- [功能配置](/docs/warehouse/configuration)：设置仓库、自动存入及银行规则。
+- [自动存入与材料恢复](/docs/warehouse/material-recovery)：导出异常取料记录、核对与结案。
+- [共享仓库](/docs/warehouse/shared-warehouse)：邀请成员及转让仓库。
+- [银行与定期存款](/docs/warehouse/bank)：存取货币和配置定期产品。

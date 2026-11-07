@@ -3,7 +3,9 @@ title: "共享仓库"
 description: "创建共享仓库，配置容量、成员角色和所有权转让。"
 ---
 
-共享仓库是 Warehouse 模块的核心协作功能，允许玩家创建多人共享的仓库空间，支持所有者/成员/观众三种角色、编辑互斥锁、跨服锁同步和所有权转让。
+共享仓库允许多名玩家共同存取物品，支持所有者、成员和观众三种角色。同一时刻只有一名玩家能编辑，其他玩家以只读方式查看；所有者可管理成员和转让仓库。
+
+自动存入及工作台、熔炉的配方补料使用个人仓库，不从共享仓库中取料。相关设置与异常处理见[自动存入与材料恢复](/docs/warehouse/material-recovery)。
 
 ## 功能概述
 
@@ -186,6 +188,8 @@ permission-tiers:
 
 ## 相关文档
 
-- [配置](/docs/warehouse/configuration) — 共享仓库完整配置字段
-- [命令与占位符](/docs/warehouse/commands) — 转让确认/拒绝命令
-- [跨服配置](/docs/guide/cross-server-setup) — CrossServer 通道配置
+- [功能配置](/docs/warehouse/configuration) — 设置共享仓库数量、容量和成员限制。
+- [命令与权限](/docs/warehouse/commands) — 转让确认、拒绝命令与管理权限。
+- [分类与搜索](/docs/warehouse/categories) — 配置物品分类，查找与排序仓库物品。
+- [自动存入与材料恢复](/docs/warehouse/material-recovery) — 了解个人仓库自动入库和异常取料处理，与共享仓库区分使用。
+- [跨服配置](/docs/guide/cross-server-setup) — 设置 CrossServer 通道。

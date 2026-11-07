@@ -1,9 +1,36 @@
 ---
 title: "WarehouseMaterialAccess"
-description: "个人仓库材料快照、持久化托管及一次性交付授权。"
+description: "读取个人仓库材料，并在保留转移记录的前提下向容器交付。"
 ---
 
-由 Warehouse 提供的公开 capability，通过 `AxsCapabilities.get(WarehouseMaterialAccess.class)` 获取，未启用时为 `null`。需要包含本接口的配套宿主 API 与模块，旧版本不具备此能力。
+| 项目 | 内容 |
+| --- | --- |
+| 提供模块 | [仓库与银行](/docs/warehouse) |
+| 完整类型 | `xuanmo.arcartxsuite.api.capability.WarehouseMaterialAccess` |
+
+## 获取接口
+
+```java
+import xuanmo.arcartxsuite.api.AxsCapabilities;
+import xuanmo.arcartxsuite.api.capability.WarehouseMaterialAccess;
+
+WarehouseMaterialAccess api = AxsCapabilities.get(WarehouseMaterialAccess.class);
+if (api == null) {
+    // 仓库未加载，向玩家说明或使用背包材料。
+    return;
+}
+api.materialsAsync(player, snapshot -> {
+    if (!snapshot.available()) {
+        player.sendMessage(snapshot.unavailableReason());
+        return;
+    }
+    long amount = snapshot.entries().stream()
+        .mapToLong(WarehouseMaterialAccess.Entry::amount).sum();
+    player.sendMessage("仓库可用材料总数：" + amount);
+});
+```
+
+使用包含本接口的配套 API 与模块。每次业务操作时重新获取接口，未加载时返回 `null`；不要在模块重载后继续使用缓存实例。依赖声明见[快速开始](/docs/api/quick-start)。
 
 ## 库存与数量
 
@@ -24,7 +51,7 @@ description: "个人仓库材料快照、持久化托管及一次性交付授权
 | `cancelPrepared(Player, String)` | 只在未授权的 HELD 阶段尝试条件回仓 |
 | `recordUncertain(Player, String, String)` | 交付异常转待核对，保留凭证，不自动补发 |
 
-`materials(Player)` 同步快照用于兼容；旧 `withdrawMaterials` 无凭证取料入口已拒绝执行。新接入方应使用上表协议，不在异步线程读写 Bukkit 库存。
+查询优先使用异步方法。所有接口调用和库存修改应在 Bukkit 主线程进行；异步方法的回调也回到主线程。
 
 ### 数据结构
 
@@ -34,9 +61,22 @@ record Target(String adapter, String identity, String persistence, String eviden
 record Prepared(boolean success, String operationId, String message) {}
 ```
 
+| 参数或返回值 | 说明 |
+| --- | --- |
+| `Snapshot.available()` | 当前玩家是否有可用个人仓库，失败原因见 `unavailableReason()` |
+| `Snapshot.entries()` | 可用材料条目；使用 `Entry.slot()` 填写请求槽位，`amount()` 为总库存 |
+| `Request.slot` / `amount` | 本批取料的仓库槽位与数量，数量须为正整数 |
+| `Target.adapter` / `identity` | 容器适配器标识及目标容器身份 |
+| `Target.persistence` / `evidence` | 目标存档方式说明及相关槽位变更详情，用于异常核对 |
+| `Prepared.success` | 是否已经准备好本批材料，失败时不得修改容器 |
+| `Prepared.operationId` | 本批转移的凭证 ID，传给授权、完成、取消或异常记录方法 |
+| `Prepared.message` | 操作结果说明，可用于向玩家提示失败原因 |
+| `authorizeDelivery` 回调 | `true` 才能继续交付，`false` 时不得修改目标库存 |
+| `completeDelivery` 回调 | 是否记录成功；失败后交付结果不确定，应保留凭证核对 |
+
 目标证据应包含本次涉及的玩家/容器槽位前后完整物品数据。配方、位置和数量由服务端重新校验，不能把客户端展示的数量或图标当成取料凭据。
 
-同一玩家只允许一笔在途转移。每批最多九个槽位请求，总需求最多 576 个，适用于当前工作台与熔炉配方；扩展其它用途时需要显式调整契约。队列满会拒绝新增操作，调用方应显示返回原因。
+同一玩家只允许一笔在途转移。每批最多九个槽位请求，总需求最多 576 个；超过限制或服务繁忙时会拒绝操作，调用方应处理失败结果。
 
 ## 调用方责任
 
@@ -50,4 +90,8 @@ record Prepared(boolean success, String operationId, String message) {}
 
 普通 SQL 批量事务不是 Bukkit 背包、工作台矩阵与熔炉区块的共同存档事务。当前原版适配器遗留的交付阶段记录会在重启/热重载后保守进入 REVIEW，不自动重放。
 
-状态、管理员命令和服务器身份文件见[自动存入与材料恢复](/docs/warehouse/material-recovery)。容器扩展协议见 [MaterialContainerAdapter](/docs/api/MaterialContainerAdapter)。
+## 相关文档
+
+- [MaterialContainerAdapter](/docs/api/MaterialContainerAdapter)：实现目标容器检查与材料交付。
+- [自动存入与材料恢复](/docs/warehouse/material-recovery)：管理员查询、导出和处理异常记录。
+- [配方书与材料填入](/docs/vanilla/recipe-book)：工作台、熔炉的玩家操作与材料规则。

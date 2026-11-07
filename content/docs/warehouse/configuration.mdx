@@ -74,7 +74,7 @@ description: "调整仓库容量、分类、共享成员权限与银行规则；
 
 ## 仓库分类配置
 
-`warehouses` 节定义个人仓库类型。个人仓库采用**逐格解锁模型**：初始 `base-slots` 格，玩家按 `slot-price` 逐格付费购买至 `max-slots`（不再整级升级）。扩展背包（ExtraBackpack）与个人仓库共用同一存储——两个入口看到同样的格子。
+`warehouses` 节定义个人仓库类型。玩家初始拥有 `base-slots` 格，按 `slot-price` 购买更多槽位，总容量不超过 `max-slots`。随身背包与个人仓库共用物品和容量。
 
 ```yaml
 warehouses:
@@ -99,7 +99,7 @@ warehouses:
 | `slot-price.amount` | decimal | 每格价格 |
 | `permission` | string | 拥有此仓库所需的权限节点，留空表示无限制 |
 
-> **已解锁格数 = `base-slots` + `extra_slots`（数据库字段）**。玩家每点一次购买消耗 `slot-price` 并 `extra_slots + 1`。共享仓库仍使用 `shared.levels` 等级制，不受本模型影响。
+已解锁格数为基础格数加已购格数。每购买一格按 `slot-price` 扣费；共享仓库按 `shared.levels` 升级，容量另行计算。个人仓库的物品合并与格数计算见[槽位扩容](/docs/extrabackpack/slot-expansion)。
 
 
 ## 物品分类配置
@@ -142,7 +142,7 @@ categories:
 
 > `other` 分类为系统内置兜底分类，始终存在，优先级 9999。
 >
-> 物品注册键指 Bukkit `Material.getKey()` 的全名（`命名空间:ID`）：原版物品为 `minecraft:<id>`，混合服 mod 物品为 `<modid>:<id>`（如 `tacz:modern_kinetic_gun`）。若只需精确匹配原版物品也可写 `nbt.path: "material"` + `values`（材质枚举名）。
+> 物品注册键使用完整的 `命名空间:ID`：原版物品为 `minecraft:<id>`，混合服 Mod 物品为 `<modid>:<id>`（如 `tacz:modern_kinetic_gun`）。仅匹配原版材质时，也可使用 `nbt.path: "material"` 与 `values`。
 >
 分类规则修改并重载后，首次读取对应仓库时会按新规则重新计算已有物品的分类，不需要先取出再存入。
 
@@ -227,11 +227,11 @@ sort-profiles:
 
 ## 更新已有界面文件
 
-本版的存取按钮与界面数据需要配套使用新版 `ui/warehouse_storage.yml`，管理页与银行页也有显示和交互修正。
+升级模块后，已有自定义界面应与配套模板核对。恢复默认界面时按以下步骤操作：
 
 1. 备份模块目录下 `ui/` 中的三个界面文件。
 2. 使用默认界面时，临时设置 `ui.overwrite-ui-files: true`，执行 `/axs reload warehouse` 导出新版界面。
-3. 将该选项恢复为 `false`，再调整自己的外观。自定义界面应先对照新版模板更新操作回包，再验证存取、分页、锁定和预览。
+3. 将该选项恢复为 `false`，再调整外观。修改后检查存取、分页、锁定和只读预览是否正常。
 
 Pickup 的两个扫描界面也需要同时更新，步骤见[扫描模式](/docs/pickup/scanner-mode#更新已有界面文件)。
 
@@ -256,3 +256,11 @@ blacklist:
   lore-regex: []                # 物品 Lore 匹配任意正则即拦截
   nbt-keys: []                  # PDC 或原始 NBT 中存在任意 key 即禁止存入
 ```
+
+## 相关文档
+
+- [命令与权限](/docs/warehouse/commands)：重载模块及仓库管理操作。
+- [自动存入与材料恢复](/docs/warehouse/material-recovery)：满背包拾取、工作台溢出及异常取料处理。
+- [分类与搜索](/docs/warehouse/categories)：分类示例、排序方案和物品置顶。
+- [共享仓库](/docs/warehouse/shared-warehouse)：成员权限、容量升级与所有权转让。
+- [银行与定期存款](/docs/warehouse/bank)：货币存取、产品配置与利率示例。

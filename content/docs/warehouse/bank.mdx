@@ -94,13 +94,9 @@ bank:
 | --- | --- | --- |
 | `min` | `BigDecimal` | 此档位最低金额（含） |
 | `max` | `BigDecimal` | 此档位最高金额（含），0 表示无上限 |
-| `rate` | `BigDecimal` | 年化利率（0.01 = 1%） |
+| `rate` | `BigDecimal` | 本产品单期利率（0.01 = 1%） |
 
-利率阶梯在加载时按 `min` 升序排列。匹配逻辑位于 `DepositProductDefinition.tierFor()`：
-
-1. 遍历所有 tier
-2. 检查金额是否 `>= tier.min` 且（`tier.max <= 0` 或 `amount <= tier.max`）
-3. 最后一个匹配的 tier 被选中（由于按 min 升序，后匹配的 tier 覆盖前面的）
+金额在 `min` 与 `max` 之间时使用对应档位的利率，包含两端金额；`max: 0` 表示没有上限。若多个档位重叠，使用其中 `min` 最大的档位。建议配置互不重叠的区间。
 
 > 如果产品没有有效利率阶梯，加载时会跳过该产品并输出告警。
 
@@ -117,7 +113,7 @@ bank:
 
 ### 存款流程
 
-玩家通过银行界面发送 `bank_deposit` action 存入货币：
+在银行界面选择货币，输入大于 0 且不超过钱包余额的金额，再点击存入。成功后检查钱包余额与银行余额的变化。
 
 ### 取款流程
 
@@ -146,7 +142,7 @@ bank:
 payout = principal + principal × interestRate
 ```
 
-结果使用 `setScale(8, RoundingMode.DOWN)` 截断到 8 位小数，然后 `stripTrailingZeros()` 去除尾部零。
+结果最多保留 8 位小数，超出部分直接舍去；末尾多余的零不显示。
 
 ## 管理员操作
 
@@ -171,6 +167,6 @@ payout = principal + principal × interestRate
 
 ## 相关文档
 
-- [配置](/docs/warehouse/configuration) — 银行完整配置字段
-- [命令与占位符](/docs/warehouse/commands) — 管理员银行命令
+- [功能配置](/docs/warehouse/configuration) — 银行完整配置字段。
+- [命令与权限](/docs/warehouse/commands) — 管理员银行命令及所需权限。
 - [货币配置](/docs/guide/currencies) — 全局货币定义与桥接

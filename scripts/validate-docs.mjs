@@ -23,6 +23,7 @@ for (const file of files) {
   if (file.endsWith('.mdx')) {
     if (!/^---\r?\n[\s\S]*?title:[\s\S]*?description:[\s\S]*?\r?\n---/.test(text)) errors.push(`${name}: 缺少标题或描述`);
     if (privateDetails.test(text)) errors.push(`${name}: 包含非公开实现信息`);
+    if (/(?:本次交付|本次实现|本次重构)(?:只|仅|已|未|完成|核对|验证|包括)|未执行(?:游戏内、?|崩服或?|性能|功能|自动化|端到端)+(?:测试)?/.test(text)) errors.push(`${name}: 开发、交付和测试执行记录不属于公开使用文档`);
     if (/已废弃|已弃用|已移除字段|兼容旧字段|旧格式兼容|旧版兼容配置|旧模式|向后兼容字段/.test(text)) errors.push(`${name}: 请只保留当前推荐配置，移除废弃字段与兼容写法介绍`);
     if ((text.match(/^```/gm)?.length ?? 0) % 2) errors.push(`${name}: 代码块未闭合`);
     // Ignore links inside examples, but validate every actual documentation link.

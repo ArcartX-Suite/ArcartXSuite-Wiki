@@ -1,9 +1,19 @@
 ---
 title: "MaterialContainerAdapter"
-description: "后续原版容器接入材料转移时的主线程适配协议。"
+description: "为材料交付提供容器识别、变更检查与一次性写入操作。"
 ---
 
-这是扩展接口类型，不是可通过 `AxsCapabilities.get` 获取的 capability。容器模块实现适配器，并使用 [WarehouseMaterialAccess](/docs/api/WarehouseMaterialAccess) 的公共转移服务。
+| 项目 | 内容 |
+| --- | --- |
+| 完整类型 | `xuanmo.arcartxsuite.api.capability.MaterialContainerAdapter` |
+| 用途 | 由容器插件实现，配合仓库材料转移接口使用 |
+| 获取方式 | 插件自行创建实现类，无全局能力查询或自动注册入口 |
+
+## 接入方式
+
+容器插件实现本接口，并在自己的填料流程中调用 [WarehouseMaterialAccess](/docs/api/WarehouseMaterialAccess)。仅实现适配器不会自动增加 VanillaUI 支持的容器类型，也不会注册新的界面。
+
+## 方法声明
 
 ```java
 public interface MaterialContainerAdapter {
@@ -21,10 +31,33 @@ public interface MaterialContainerAdapter {
 }
 ```
 
-全部方法在主线程执行。`capture` 不修改库存；`target` 提供可持久化的容器身份及完整变更证据；`unchanged` 校验窗口、来源与目标仍符合计划；`apply` 只在交付授权成功且重新校验通过后调用一次。
+## 参数与返回值
 
-已接入工作台和熔炉。工作台标记 EPHEMERAL，熔炉标记 PERSISTENT_UNPROVEN；坐标不等于存档提交证明。新的容器需要实现自己的材料规则、合法槽位及生命周期检查，不能只包装 getItem/setItem 就声称支持自动恢复。
+| 方法 | 参数 | 返回值及用途 |
+| --- | --- | --- |
+| `id()` | 无 | 稳定的适配器标识，写入材料转移记录 |
+| `supports(view)` | `view`：玩家当前容器窗口 | 是否支持该容器类型 |
+| `capture(...)` | `player`：玩家；`view`：当前窗口；`storageChanges`：玩家储物栏的计划变更；`inputChanges`：容器输入槽的计划变更 | 返回本次交付对象，只记录计划，不修改库存 |
+| `Delivery.target()` | 无 | 提供容器身份、存档方式与变更证据，传给 `prepareMaterials` |
+| `Delivery.unchanged()` | 无 | 当前窗口及相关槽位是否仍与计划相符 |
+| `Delivery.apply()` | 无 | 执行计划中的库存变更，不返回结果，异常由调用方处理 |
 
-工作台/熔炉的默认适配器只写本次改变的储物栏与输入槽，保存完整物品元数据。未涉及的燃料、产物正常变化不会单独使输入计划失效。已授权后发生异常时保留待核对，禁止自动重放。
+槽位映射的键使用各自库存的槽位编号，值为变更后的完整 `ItemStack`。适配器应保存变更前后的物品数据，以便校验和异常核对。全部方法在 Bukkit 主线程执行。
 
-适配接口预留后续高炉、烟熏炉、其它容器使用；本次并未启用这些界面或配方。无法提供持久化证据的容器继续使用保守恢复，不自动补发。
+## 交付顺序与失败处理
+
+1. 检查 `supports(view)`，生成合法的材料计划后调用 `capture`。
+2. 将 `target()` 传给仓库的 `prepareMaterials`，准备失败时结束操作。
+3. 准备成功后检查 `unchanged()`；计划失效时调用 `cancelPrepared` 取消。
+4. 调用 `authorizeDelivery`，只有授权成功且再次检查 `unchanged()` 通过后，才调用一次 `apply()`。
+5. 写入成功后调用 `completeDelivery` 记录结果；授权后校验失败或写入异常时调用 `recordUncertain`，保留记录供核对，不重复执行 `apply()`。
+
+新的容器必须检查合法槽位、材料要求、玩家窗口与容器是否仍有效，并只修改计划涉及的槽位。容器坐标只能标识目标，不能证明物品已经写入存档；无法确认的交付不得自行重试或补发。
+
+VanillaUI 提供工作台与熔炉适配，暂不支持高炉、烟熏炉或其他容器界面。
+
+## 相关文档
+
+- [WarehouseMaterialAccess](/docs/api/WarehouseMaterialAccess)：获取仓库材料、准备交付和记录结果。
+- [配方书与材料填入](/docs/vanilla/recipe-book)：工作台与熔炉的材料来源及填入限制。
+- [自动存入与材料恢复](/docs/warehouse/material-recovery)：查询与处理需要人工核对的记录。

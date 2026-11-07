@@ -28,8 +28,14 @@ description: "随身背包界面开关，以及来自 Warehouse 的分类、存�
 
 ## 自定义界面
 
-修改导出的 UI 后保持 `ui.overwrite-ui-files: false`，以免重载覆盖。使用新版模板时，应合并初始化中的 `whLayoutEnabled` 布局标记；服务端在下发前填写本服务器的仓库能力，保证打开时布局已确定。
+修改前备份 `plugins/ArcartX-Suite/ui/extrabackpack_v2.yml`，并保持 `ui.overwrite-ui-files: false`，以免重载覆盖。
 
-物品总量由独立 Text 显示，原版槽位和仓库条目的交互协议不同。自定义时保留条目稳定 ID、图标点击穿透与服务端动作参数。
+建议在配套默认模板上修改颜色、文字和装饰。调整布局时保留现有物品控件、初始化和点击处理，避免仓库取放或无仓库布局失效。
 
 修改界面配置后执行 `/axs reload extrabackpack`；修改仓库分类或容量后重载 Warehouse。
+
+## 相关文档
+
+- [分类与排序](/docs/extrabackpack/categories)：了解仓库分类、默认顺序与置顶操作。
+- [槽位扩容](/docs/extrabackpack/slot-expansion)：设置共用容量和购买价格。
+- [命令与权限](/docs/extrabackpack/commands)：查询状态、调整容量和重载模块。
