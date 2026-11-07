@@ -1,22 +1,25 @@
 ---
-title: "认证与界面配置"
-description: "分别配置宿主认证策略和 LoginView 界面。"
+title: "A：单服密码登录"
+description: "让玩家在游戏里注册和输入密码，按步骤配置登录、条款和可选 QQ 绑定。"
 ---
 
-宿主从插件数据目录读取 `authentication.yml`。LoginView 模块从其模块配置目录读取 `LoginView.yml`。修改认证后端、可信入口、密码或条款策略后重启宿主。
+适用于一台游戏服，账号由本服管理。玩家第一次进入时创建账号，以后输入密码。这个方案只需要游戏服和 LoginView。
 
-宿主仅在启用 LoginView 时读取并执行认证策略。卸载 LoginView 会停止对应运行时并恢复普通进服状态。
+## 第一步：启用模块
 
-## 界面加载配置
+确认 LoginView 模块已经安装。在宿主 `config.yml` 的现有 `modules` 配置下检查以下设置。保留同一文件中的其他模块配置。
 
 ```yaml
-config-version: 1
-open-delay-ticks: 20
+modules:
+  loginview:
+    enabled: true
 ```
 
-`open-delay-ticks` 范围为 0 至 600 tick。认证界面 ID 为 `AXS:auth_v1`，模块 UI 文件为 `ui/auth_v1.yml`。
+准备接收离线账号时，在 `server.properties` 中设置 `online-mode=false`。保留 `online-mode=true` 时，玩家要先通过 Minecraft 的在线验证，随后还会进入 LoginView 的密码流程。
 
-## 单服认证配置
+## 第二步：填写完整认证配置
+
+将下面整段内容保存到 `plugins/ArcartX-Suite/authentication.yml`。默认启用条款，暂时关闭 QQ 绑定，先验证基础密码流程。
 
 ```yaml
 schema-version: 1
@@ -26,9 +29,6 @@ timezone: Asia/Shanghai
 login-timeout-seconds: 300
 ingress:
   type: password
-  gateway-url: http://127.0.0.1:25599
-  audience: local-node
-  trusted-proxies: []
 password:
   min-length: 8
   max-length: 128
@@ -46,14 +46,43 @@ performance:
   queue-capacity: 128
 ```
 
-账号和绑定使用宿主配置的 SQLite 或 MySQL 存储。修改条款正文时更新 `terms.version`，玩家确认的是界面实际展示的版本。
+| 字段 | 用途 | 如何填写 |
+| --- | --- | --- |
+| `realm-id` | 区分本服的账号范围 | 普通单服可保持 `local`，已经使用后不要随意改名 |
+| `login-timeout-seconds` | 玩家最多等待多久完成登录 | 默认 300 秒，范围 30 至 1800 秒 |
+| `password.min-length` | 新密码的最短长度 | 样例为 8 个字符 |
+| `password.max-length` | 密码最长长度 | 最多 128 个字符，且不能小于最短长度 |
+| `password.max-attempts` | 进入冷却前的失败次数 | 样例为 5 次，范围 1 至 20 |
+| `password.cooldown-seconds` | 失败后的冷却时间 | 样例为 300 秒 |
+| `requirements.terms` | 是否要求同意服务器条款 | 使用条款时填写 `true` |
+| `requirements.qq-binding` | 是否要求绑定 QQ 后才放行 | 先保持 `false`，接好 QQBot 后再开启 |
+| `terms.version` | 当前条款版本 | 用引号包住，修改条款正文时一起更新版本 |
+| `terms.lines` | 界面显示的条款 | 最多 3 行，每行不超过 60 个字符 |
+| `performance` | 登录请求处理容量 | 初次使用保留样例值 |
 
-| `ingress.type` | 部署要求 |
-| --- | --- |
-| `password` | 游戏内密码入口 |
-| `local-mixed` | 同机直连、`online-mode=true`，认证宿主实际通过 Java Agent 接入同一个本机网关 |
-| `signed-proxy` | 可信代理转发玩家身份，目标服校验签名、签发者、Realm、audience 和当前连接挑战 |
+账号使用宿主配置的 SQLite 或 MySQL 存储。普通单服可以先沿用宿主现有的存储设置。
 
-混合入口默认关闭密码登录，明确需要同时提供密码时设置 `ingress.password-login: true`。代理信任项使用 `issuer`、`public-key` 和 `providers`。签名转发当前采用 Velocity，部署前验证真实握手与转发。资料查询、同名及 UUID 形态不作为身份验证依据。
+## 第三步：检查界面配置
 
-使用 `backend: center` 时采用独立的节点配置结构，密码、条款及 QQ 绑定要求由中心下发。[独立认证中心](/docs/loginview/center)
+界面的实际配置文件为 `plugins/ArcartX-Suite/data/loginview/config.yml`，内容如下。
+
+```yaml
+config-version: 1
+open-delay-ticks: 20
+```
+
+`open-delay-ticks: 20` 表示进服后约等待 1 秒再尝试显示界面。可填 0 至 600 tick，通常保持默认值。它不决定玩家是否需要登录。
+
+## 第四步：重启并测试
+
+重启游戏服，用测试账号第一次进入。应该看到注册界面，填写两次密码并确认条款后，应能正常操作。退出重进时应该看到登录界面，输入错误密码应被拒绝，正确密码才放行。
+
+界面外观或打开延迟改变后，可以用 `/axs reload loginview` 重载。修改认证后端、密码策略、条款或入口后，重启游戏服。
+
+## 可选：要求先绑定 QQ
+
+先完成 QQBot 的连接和群内绑定验证，再将 `requirements.qq-binding` 改为 `true` 并重启。玩家注册或登录成功后，会进入 QQ 绑定步骤。在群里申请验证码，再回到登录界面确认。[QQ 绑定流程](/docs/qqbot/binding-whitelist)
+
+## 如果没有出现登录界面
+
+先检查 LoginView 是否加载成功，以及客户端是否能使用 ArcartX 界面。管理员可以用 `/axs loginview open 玩家名` 尝试打开界面。连接已经通过验证的玩家通常不会再次自动打开登录页。[管理与排错](/docs/loginview/commands)

@@ -1,13 +1,33 @@
 ---
-title: "独立认证中心"
-description: "配置中心权威、游戏节点身份和准入租约。"
+title: "D：中心管理、游戏内密码"
+description: "用一组能登录的完整配置，部署认证中心并连接一台游戏服。"
 ---
 
-`auth-center` 是独立 Java 17 应用。一个中心实例独占自己的 SQLite 数据库和仅运行账号可访问的状态目录。游戏节点通过签名请求访问中心，账号、绑定和安全版本以中心为准。
+本方案把账号和登录规则放到独立认证中心。玩家仍在游戏界面注册和输入密码。先用本页验证中心与一台游戏服的连接，再按方案 E 接入已有官网或启动器。
 
-## 中心配置
+## 先准备这三样
 
-下面的样例关闭端外入口和密码入口。验证密码链路时，显式开启 Realm 的 `gamePasswordEnabled`。验证官网或启动器接口时，按端外授权页配置 `external`。[端外授权](/docs/loginview/external-authorization)
+| 准备项 | 要求 |
+| --- | --- |
+| 认证中心发行包 | 解压后包含 `bin` 启动脚本和 `lib` 依赖目录，使用 Java 17 或以上 |
+| 游戏服 | Suite 与 LoginView 已安装，玩家直连，`server.properties` 中 `online-mode=true` |
+| 一份节点密钥 | 中心和这台游戏服使用同一个值，通过各自进程环境变量传入 |
+
+以下用中心和游戏服在同一台 Windows 机器上的情况举例。中心目录为 `D:/AXSAuth/`，中心配置文件为 `D:/AXSAuth/center.json`。如果目前只有游戏服插件包，先取得独立中心的发行包，再执行本页步骤。
+
+## 第一步：生成这台游戏服的节点密钥
+
+在 PowerShell 7 执行一次下面的命令，得到一行随机密钥。保存好这个值，后续在中心进程和游戏服进程里填写相同的值。
+
+```powershell
+[Convert]::ToBase64String([Security.Cryptography.RandomNumberGenerator]::GetBytes(32))
+```
+
+每增加一台游戏服，生成一份新的密钥，并在中心 `nodes` 数组中增加对应登记项。
+
+## 第二步：保存能使用密码登录的中心配置
+
+将下面完整 JSON 保存为 `D:/AXSAuth/center.json`。这里已经将 `gamePasswordEnabled` 设为 `true`。
 
 ```json
 {
@@ -18,8 +38,8 @@ description: "配置中心权威、游戏节点身份和准入租约。"
   "realms": [
     {
       "id": "network",
+      "gamePasswordEnabled": true,
       "minLength": 8,
-      "gamePasswordEnabled": false,
       "maxLength": 128,
       "requireTerms": true,
       "termsVersion": "1",
@@ -45,11 +65,35 @@ description: "配置中心权威、游戏节点身份和准入租约。"
 }
 ```
 
-中心应用接收配置文件的绝对路径。每个节点使用独立的 32 字节随机密钥，以 Base64 注入中心和该游戏节点的进程环境变量。配置中只填写环境变量名。中心监听 `127.0.0.1`，异机游戏节点经 HTTPS 反向代理访问 `POST /v1/node/rpc`。保持中心与节点时钟同步。
+| 字段 | 用途 | 本例怎么用 |
+| --- | --- | --- |
+| `port` | 中心的节点连接端口 | `25600`，要与游戏服 URL 中的端口一致 |
+| `database` | 中心的 SQLite 文件 | 相对于本配置文件目录，应用会创建 `data` 目录 |
+| `external` | 官网和启动器授权入口 | 本方案填写 `null` |
+| `realms[0].id` | 一组账号的范围名 | `network`，与游戏服的 `realm-id` 一致 |
+| `gamePasswordEnabled` | 是否允许游戏里注册、输密码 | 本方案必须为 `true` |
+| `requireTerms`、`termsVersion`、`termsLines` | 条款开关、版本和正文 | 由中心统一控制 |
+| `requireBinding` | 是否必须绑定 QQ | 先保持 `false`，基础登录通过后再启用 |
+| `nodes[0].id` | 当前游戏服的中心登记名 | `lobby`，与游戏服的 `node-id` 一致 |
+| `nodes[0].audience` | 当前节点的目标标识 | `lobby-node`，与游戏服的 `ingress.audience` 一致 |
+| `nodes[0].keyEnvironment` | 读取节点密钥的环境变量名 | `AXS_AUTH_LOBBY_KEY`，此字段填变量名 |
 
-## 游戏节点配置
+数据目录需要只允许中心的运行账号访问。让应用创建全新的 `data` 目录即可；使用已有目录时，先核对其访问权限。
 
-使用以下完整结构填写宿主 `authentication.yml`。中心模式当前要求游戏节点直连且 `online-mode=true`。样例中的 `ingress.type: password` 是节点入口字段，是否允许游戏内密码由中心的 Realm 策略决定。
+## 第三步：设置中心环境变量并启动
+
+在准备运行中心的 PowerShell 窗口中，设置环境变量，然后启动发行包里的脚本。把引号中的密钥占位文字换成第一步生成的值。
+
+```powershell
+$env:AXS_AUTH_LOBBY_KEY = '粘贴第一步生成的完整密钥'
+& 'D:\AXSAuth\bin\auth-center.bat' 'D:\AXSAuth\center.json'
+```
+
+确认中心启动，监听地址为 `127.0.0.1:25600`，然后保持该进程运行。环境变量只对本窗口及其子进程生效；若用服务或面板启动，要在服务或面板里配置该环境变量。
+
+## 第四步：填写游戏服的完整配置
+
+将以下内容保存到游戏服的 `plugins/ArcartX-Suite/authentication.yml`。用这整份节点配置替换原来的单服认证配置。
 
 ```yaml
 schema-version: 1
@@ -62,16 +106,40 @@ performance:
   workers: 2
   queue-capacity: 128
 center:
-  # 远程地址必须为 HTTPS；仅同机 127.0.0.1 允许 HTTP。
   url: http://127.0.0.1:25600
   node-id: lobby
   key-environment: AXS_AUTH_LOBBY_KEY
 ```
 
-`node-id`、`realm-id` 和 `audience` 必须与中心登记项一致。启用 QQBot 时，按职责授予 `binding-read` 和 `binding-write`。只有负责撤销的节点需要 `account-revoke`。
+中心模式的节点字段固定填写 `ingress.type: password`。玩家实际上是否需要输入密码，由中心的 `gamePasswordEnabled` 决定。
 
-## 准入和验证
+以下四项必须对应。
 
-中心对满足策略的当前连接签发 30 秒有效的一次性票据。节点完成兑换后持有最长 15 秒的租约，正常约每 5 秒检查一次。中心失联、撤销或租约到期时，节点停止准入和有效在线计时。节点按游标补读事务 Outbox，遇到缺口时先限制连接，再向中心重新核对。
+| 游戏服字段 | 中心字段 | 本例值 |
+| --- | --- | --- |
+| `realm-id` | `realms[].id` 和 `nodes[].realm` | `network` |
+| `center.node-id` | `nodes[].id` | `lobby` |
+| `ingress.audience` | `nodes[].audience` | `lobby-node` |
+| `center.key-environment` | `nodes[].keyEnvironment` | `AXS_AUTH_LOBBY_KEY` |
 
-单服联调依次验证身份、条款与绑定、票据兑换、断线重连、中心失联及账号撤销。中心混合入口、跨服独占和会话转移在后续阶段处理。
+在启动游戏服的进程中也设置 `AXS_AUTH_LOBBY_KEY`，值与中心相同。然后启动游戏服，确认 LoginView 加载成功。
+
+## 第五步：用测试账号走通登录
+
+玩家进入游戏后应看到注册界面。注册并确认条款后可以操作，退出再进时输入之前的密码。
+
+如果中心的 `gamePasswordEnabled` 为 `false`，且 `external` 也为 `null`，就没有可用登录入口。遇到“未启用游戏内密码登录”时，先检查这两个字段。
+
+基础流程通过后，再测试中心临时不可用时游戏服会限制操作，中心恢复后玩家可以重新验证。中心根据短期授权持续确认连接是否仍可参与游戏。
+
+## 中心与游戏服不在同一台机器
+
+中心仍监听本机地址，在中心机器上配置 HTTPS 反向代理，将节点请求路径转发至 `http://127.0.0.1:25600/v1/node/rpc`。游戏服把 `center.url` 改为 HTTPS 服务根地址，例如 `https://auth.example.net`，不附加接口路径。
+
+游戏服访问异机中心必须使用 HTTPS，节点密钥仍通过两边的环境变量传入。保持机器时钟同步。
+
+## 可选：让中心要求绑定 QQ
+
+在中心 Realm 设置 `requireBinding: true`。为负责 QQBot 的游戏节点增加 `binding-read`、`binding-write` 权限，再配置 QQBot 并验证群内申请、游戏内确认流程。
+
+中心配置变更后重启中心。游戏服的 `authentication.yml` 变更后重启游戏服。界面样式与打开延迟仍在游戏服的 LoginView 配置中调整。[界面文件位置](/docs/loginview/configuration#第三步检查界面配置)

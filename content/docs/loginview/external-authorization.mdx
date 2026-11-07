@@ -1,68 +1,165 @@
 ---
-title: "官网与启动器认证接口"
-description: "为已有官网和启动器提供 OIDC、PKCE、设备授权和原连接准入验证。"
+title: "E：官网或启动器授权"
+description: "在独立中心启用外部登录，按清单填写网站参数并验证原游戏连接的授权。"
 ---
 
-本阶段交付认证中心接口和验证方法。中心提供轻量的浏览器授权页面及可选 Java 调用封装。已有官网可以提供 OIDC 身份或链接到授权入口，已有启动器可按需调用公开接口。
+玩家在已有官网或启动器完成授权，回到游戏核对并确认后进入服务器。LoginView 提供认证接口与游戏界面，官网和启动器可以使用接入方已有的产品。
 
-## 官网 OIDC
+先完成[独立中心教程](/docs/loginview/center)中的发行包准备、节点密钥、游戏服配置和环境变量设置。本页只更换中心配置并增加 HTTPS 入口。游戏服继续使用中心教程中的那份 `authentication.yml`。
 
-在中心配置中用以下结构替换 `"external": null`。公钥占位符需要替换为提供方的 X.509 SubjectPublicKeyInfo DER 的 Base64 值，客户端密钥从环境变量读取。[中心配置](/docs/loginview/center)
+## 第一步：确认官网能提供什么
+
+| 已有条件 | 应怎么接 |
+| --- | --- |
+| 官网支持 OIDC | 按本页登记中心回调，并索取下表参数 |
+| 已有启动器，也有可用的 OIDC 身份系统 | 同时在中心登记启动器，再按接口参考接入 |
+| 官网只有自定义“验证登录”URL 或密码查询接口 | 先由接入方提供 OIDC 适配，再使用本页配置 |
+| 暂时没有外部身份系统，只想用游戏内密码 | 先使用方案 D 的中心密码登录 |
+
+OIDC 可以理解为网站提供给其他应用的标准登录接口。一个普通的网页登录地址无法直接代替 OIDC 的授权和换码端点。
+
+向网站的身份系统管理员或开发者索取以下参数。
+
+| 参数 | 中文含义 | 填到哪里 |
+| --- | --- | --- |
+| Issuer | 身份系统的唯一标识，必须逐字一致 | `providers[].issuer` |
+| Authorization endpoint | 浏览器登录授权地址 | `providers[].authorize` |
+| Token endpoint | 中心交换授权结果的地址 | `providers[].token` |
+| Client ID | 网站为认证中心分配的应用 ID | `providers[].clientId` |
+| Client secret | 网站为认证中心分配的应用密钥 | 中心进程的 `AXS_WEBSITE_OIDC_SECRET` 环境变量 |
+| Key ID | 当前签名公钥的编号 | `providers[].keyId` |
+| RSA 公钥 | X.509 SubjectPublicKeyInfo DER 格式的 Base64 公钥 | `providers[].rsaPublicKey` |
+
+提供方需支持授权码流程、S256、`client_secret_basic`、`RS256`，并在身份结果中提供 `nonce` 和 `auth_time`。这些由提供方和接入开发者确认。
+
+## 第二步：确定授权域名和回调地址
+
+本例中心的公开域名为 `https://auth.example.net`。在网站身份系统中登记中心应用 `axs-center`，回调地址必须填写以下完整地址。
+
+```text
+https://auth.example.net/v1/external/callback
+```
+
+这里只把提供方生成的 ID 和密钥交给中心。游戏节点的 `lobby` 名称及节点密钥仍按方案 D 配置。
+
+## 第三步：保存完整中心配置
+
+将下面整份内容保存为中心的 `center.json`。替换域名、提供方地址、应用 ID、公钥编号和公钥值。
+
+本例关闭游戏内密码，只允许端外授权。想同时保留游戏内密码时，把 `gamePasswordEnabled` 设为 `true`。
 
 ```json
 {
-  "port": 25601,
-  "origin": "https://auth.example.net",
-  "providers": [
+  "schemaVersion": 1,
+  "port": 25600,
+  "database": "data/auth-center.sqlite",
+  "external": {
+    "port": 25601,
+    "origin": "https://auth.example.net",
+    "providers": [
+      {
+        "realm": "network",
+        "issuer": "https://id.example.net",
+        "authorize": "https://id.example.net/authorize",
+        "token": "https://id.example.net/token",
+        "clientId": "axs-center",
+        "secretEnvironment": "AXS_WEBSITE_OIDC_SECRET",
+        "keyId": "替换为网站提供的公钥编号",
+        "rsaPublicKey": "替换为网站提供的公钥Base64"
+      }
+    ],
+    "launchers": [
+      {
+        "id": "example-launcher",
+        "realm": "network",
+        "redirect": "http://127.0.0.1:43981/callback"
+      }
+    ]
+  },
+  "realms": [
     {
-      "realm": "network",
-      "issuer": "https://id.example.net",
-      "authorize": "https://id.example.net/authorize",
-      "token": "https://id.example.net/token",
-      "clientId": "axs-center",
-      "secretEnvironment": "AXS_WEBSITE_OIDC_SECRET",
-      "keyId": "replace-with-provider-key-id",
-      "rsaPublicKey": "REPLACE_WITH_BASE64_X509_RSA_PUBLIC_KEY"
+      "id": "network",
+      "gamePasswordEnabled": false,
+      "minLength": 8,
+      "maxLength": 128,
+      "requireTerms": true,
+      "termsVersion": "1",
+      "termsLines": [
+        "请遵守服务器规则，保护账号凭据。"
+      ],
+      "requireBinding": false,
+      "timezone": "Asia/Shanghai",
+      "loginTimeoutSeconds": 300
     }
   ],
-  "launchers": [
+  "nodes": [
     {
-      "id": "example-launcher",
+      "id": "lobby",
       "realm": "network",
-      "redirect": "http://127.0.0.1:43981/callback"
+      "audience": "lobby-node",
+      "keyEnvironment": "AXS_AUTH_LOBBY_KEY",
+      "scopes": [
+        "auth"
+      ]
     }
   ]
 }
 ```
 
-在提供方登记中心为保密客户端，准确登记回调 `https://auth.example.net/v1/external/callback`。提供方需要支持授权码、S256、`client_secret_basic`、`RS256`、`nonce` 和 `auth_time`。中心固定校验 issuer、端点和签名公钥。更新签名公钥或 `keyId` 后重启中心。
+`external.launchers` 用于登记启动器。只接官网、暂时没有启动器时，将该数组改为 `[]`。新增启动器时，由启动器开发者确定 `id` 和实际监听的本机回调地址。
 
-将 HTTPS 的 `/v1/external` 请求转发至外部授权监听端口，保留路径、Origin 和 Cookie。节点 RPC 继续走独立端口。授权路径避免记录查询串、正文和 Cookie，并按来源限流。
+## 第四步：配置中心的两个 HTTPS 转发入口
 
-官网可链接 `/v1/external/verify?realm=network`。玩家填写游戏中显示的授权码，在身份提供方登录，并确认目标玩家与节点。中心以 Realm、issuer 和稳定 subject 映射账号。现有本地账号关联要求近期密码验证和官网身份验证。同名、邮箱及 QQ 不用于自动合并。
+在认证中心所在机器上配置反向代理，使用你在 `origin` 中填写的 HTTPS 域名。转发时保持原请求路径。
 
-## 启动器调用
-
-每个接口使用 `POST` 和 `application/json`。请求包含 `version: 1`、`requestId`（UUID）及 `clientId`。响应以 `version`、`requestId`、`code` 和可选的 `value` 返回结果。表内路径均位于 `/v1/external/launcher` 下。
-
-| 路径 | 额外参数 | 返回值及用法 |
+| 对外地址 | 转发到中心本机 | 用途 |
 | --- | --- | --- |
-| `/start` | `redirectUri`、`codeChallenge`、`state` | 在系统浏览器打开 `value` 中的授权地址 |
-| `/exchange` | `redirectUri`、`code`、`codeVerifier` | 核对回调 state 后兑换授权码，得到 120 秒有效的启动凭据 |
-| `/device/start` | 无 | `value` 内含验证地址、公开用户码、私有设备码、有效期和轮询间隔 |
-| `/device/poll` | `deviceCode` | 按返回间隔轮询。成功时 `value` 内含 `launchToken` |
-| `/device/cancel` | `deviceCode` | 取消未兑换的设备授权 |
-| `/pair` | `launchToken`、`userCode` | 提交游戏里显示的授权码，返回本次连接的核对码 |
+| `https://auth.example.net/v1/external/...` | `http://127.0.0.1:25601/v1/external/...` | 浏览器和启动器授权 |
+| `https://auth.example.net/v1/node/rpc` | `http://127.0.0.1:25600/v1/node/rpc` | 异机游戏节点访问中心，同机节点可以继续走本机地址 |
 
-PKCE 使用 S256。回调必须是精确登记的 `http://127.0.0.1` 固定端口和路径，启动器先在本地监听。设备流只向玩家展示验证地址和公开用户码。收到 `SLOW_DOWN` 时使用返回的新间隔，收到拒绝或过期结果后停止轮询。
+外部授权转发应保留 Origin 和 Cookie，并对请求来源限流。授权路径应关闭包含查询串、请求正文和 Cookie 的访问日志。
 
-官网和启动器均只完成外部授权。玩家在原游戏连接刷新、核对并确认之后，才继续条款、绑定和票据兑换。
+`origin` 填服务根地址，不带末尾斜线和接口路径。例如填写 `https://auth.example.net`。
 
-## 用通用客户端验证
+## 第五步：给中心进程设置两个环境变量
 
-1. 用测试 OIDC 提供方注册回调，在测试 Realm 启用外部授权。通过浏览器完成官网授权，比较浏览器和游戏的核对码，再由原连接确认。
-2. 用 HTTP 客户端调用 `/device/start`。在浏览器输入公开用户码，按间隔用私有设备码轮询，再用启动凭据调用 `/pair`。重复使用同一启动凭据应失败。
-3. 用本地回环接收器验证 PKCE 回调。正确的 verifier 应能兑换授权码，错误 verifier 和重复兑换应被拒绝。
-4. 验证提前轮询降速、拒绝、取消、过期、跨连接及跨 Realm 拒绝。尝试关联同名现有账号时，应要求先证明该账号所有权。
+中心仍需要方案 D 的游戏节点密钥，还需要新增网站提供的应用密钥。在启动中心的同一 PowerShell 窗口中设置。
 
-当前接口与验证步骤已有源码和文档。真实浏览器、OIDC 提供方及游戏服联调尚未执行。
+```powershell
+$env:AXS_AUTH_LOBBY_KEY = '与游戏服相同的节点密钥'
+$env:AXS_WEBSITE_OIDC_SECRET = '网站为 axs-center 分配的应用密钥'
+& 'D:\AXSAuth\bin\auth-center.bat' 'D:\AXSAuth\center.json'
+```
+
+游戏服只需要 `AXS_AUTH_LOBBY_KEY`。网站应用密钥配置在中心进程。
+
+如果中心不能启动，先查看日志，检查环境变量是否存在、公钥格式及网站端点是否使用 HTTPS。样例中的中文占位文字需要全部替换。
+
+## 第六步：验证官网授权
+
+1. 玩家进入游戏，LoginView 应显示授权地址和游戏授权码。
+2. 在浏览器打开该地址，输入游戏里的授权码，再前往官网登录。
+3. 登录后确认页面显示的玩家名和目标服。确认授权，记下网页显示的核对码。
+4. 回到游戏点击“刷新状态”。游戏应显示相同的核对码，核对后点击“确认授权”。
+5. 如果启用了条款或 QQ 绑定，继续完成这些要求，随后才能操作游戏。
+
+游戏里的授权码用于找到本次连接。网页返回的核对码用于让玩家确认授权结果，两者作用不同。已退出的连接不能把授权结果交给新连接使用。
+
+## 第七步：让已有启动器接入
+
+启动器有两条可选流程。
+
+| 流程 | 玩家操作 | 开发者需要实现什么 |
+| --- | --- | --- |
+| 系统浏览器授权 | 从启动器打开浏览器，完成官网授权后返回启动器 | 创建 S256 参数、接收登记的本机回调、核对 state 并交换授权码 |
+| 设备授权 | 启动器展示用户码，玩家在浏览器输入并授权 | 私有设备码轮询、等待或降速、处理拒绝和取消 |
+
+启动器取得短期启动凭据后，启动游戏。玩家将游戏显示的授权码交给启动器，启动器调用配对接口并展示核对码。玩家在原游戏连接刷新和确认后继续登录。[启动器接口参考](/docs/loginview/external-api)
+
+可以先用通用 HTTP 客户端测试设备授权接口，再让已有启动器接入。这些验证步骤无需建设新的官网或启动器产品。
+
+## 已有本服账号如何关联官网
+
+在中心暂时开启游戏内密码，让玩家用原本密码登录。登录完成后，由管理员执行 `/axs loginview open 玩家名` 打开账号界面，玩家点击“关联官网账号”，然后走一次官网授权与游戏核对流程。
+
+关联需要在近期密码验证后完成，超出时间则先重新登录。同名的官网账号不会直接接管已有游戏账号。

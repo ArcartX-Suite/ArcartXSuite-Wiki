@@ -1,25 +1,57 @@
 ---
-title: "命令与占位符"
-description: "查看 LoginView 状态、打开界面并读取当前连接的认证信息。"
+title: "管理、占位符与排错"
+description: "区分界面命令和认证配置，按玩家看到的故障定位文件与字段。"
 ---
+
+## 常用命令
 
 | 命令 | 用途 |
 | --- | --- |
-| `/axs loginview status` | 显示 LoginView 与宿主认证的职责提示 |
-| `/axs loginview open <玩家>` | 为指定在线玩家打开界面 |
+| `/axs loginview status` | 显示模块与宿主认证的职责提示 |
+| `/axs loginview open <玩家>` | 为在线玩家尝试打开登录或账号界面 |
+| `/axs reload loginview` | 重载 LoginView 界面和打开延迟配置 |
+| `/axs unload loginview` | 卸载 LoginView，解除该模块的操作限制 |
 
-管理命令由 Suite 统一调度，需要 `arcartxsuite.admin`。打开界面不会修改准入状态。已准入的本地密码玩家可在界面修改密码，外部身份的密码由其提供方管理。
+以上管理操作需要 `arcartxsuite.admin`。认证后端、入口和登录策略在 `authentication.yml` 中配置，改动后重启游戏服。中心的账号策略改动后重启中心。
 
-## 通过 PlaceholderAPI 查询认证状态
+`status` 的提示用于确认命令已注册。中心是否连通、认证入口是否就绪，还要结合启动日志和实际玩家登录结果检查。
 
-| 占位符 | 返回内容 |
+## 怎样打开修改密码或关联账号的界面
+
+已用本地密码登录的玩家，由管理员执行 `/axs loginview open 玩家名` 打开账号界面，可在其中修改密码。
+
+中心同时开启了游戏内密码和外部授权时，近期用密码登录的玩家还可点击“关联官网账号”，再完成官网授权和游戏核对。[官网关联步骤](/docs/loginview/external-authorization#已有本服账号如何关联官网)
+
+## 常见问题按现象排查
+
+| 看到的现象 | 先检查哪里 | 处理方式 |
+| --- | --- | --- |
+| 完全没有登录界面 | 模块加载结果、ArcartX 客户端、`modules.loginview.enabled` | 确认模块已安装并启用，再用 open 命令测试 |
+| 改了认证方式却没生效 | 是否只执行了 reload | 重启游戏服，中心策略有变时也重启中心 |
+| 提示中心密码入口未启用 | 中心的 `gamePasswordEnabled` 和 `external` | 方案 D 开密码，方案 E 配外部入口，确保至少有一种入口 |
+| 中心提示缺少节点密钥 | 启动中心及游戏服的环境变量 | 两个进程都设置同名、同值的节点密钥 |
+| 节点请求被拒绝 | `realm-id`、`node-id`、audience、密钥和机器时钟 | 按中心教程的对照表逐项核对 |
+| 单服混合提示需要在线模式 | 游戏服的 `server.properties` | 方案 B 使用 `online-mode=true` |
+| 混合入口提示握手回执不存在或过期 | 实际启动脚本、网关地址和端口 | 使用生成的混合脚本重启，然后重新连接 |
+| Velocity 子服一直等待验证 | 代理注册名称、转发设置、公钥、Realm 和目标标识 | 按方案 C 的五项对应表检查 |
+| 官网登录成功但游戏仍等待 | 玩家是否刷新并核对确认码 | 回原游戏连接刷新，再确认本次授权 |
+| 已验证身份但仍不能操作 | 条款或 QQ 绑定步骤 | 完成界面列出的要求 |
+| 只有别的登录插件在限制玩家 | 对应插件的状态 | 按该插件的命令完成登录，LoginView 缺席时由对应插件管理限制 |
+
+## 查看玩家认证状态
+
+安装 PlaceholderAPI 且 LoginView 已加载时，可用以下命令查询自己的准入状态。
+
+```text
+/papi parse me %axsauth_admitted%
+```
+
+| 占位符 | 用途与返回内容 |
 | --- | --- |
-| `%axsauth_stage%` | 当前阶段，例如 `awaiting_identity`、`awaiting_requirements`、`admitted` |
-| `%axsauth_admitted%` | 是否已准入 |
-| `%axsauth_verified%` | 是否已验证身份 |
-| `%axsauth_provider%` | 验证方式，例如 `local-password` 或 `oidc`，未知时返回 `unknown` |
-| `%axsauth_registered%` | `registered`、`unregistered` 或 `unknown` |
+| `%axsauth_admitted%` | 是否已完成全部要求并放行，返回 true 或 false |
+| `%axsauth_verified%` | 是否已证明身份，返回 true 或 false |
+| `%axsauth_stage%` | 当前步骤，例如 awaiting_identity、awaiting_requirements、admitted |
+| `%axsauth_provider%` | 验证方式，例如 local-password、microsoft、littleskin、oidc |
+| `%axsauth_registered%` | 账号登记状态，返回 registered、unregistered 或 unknown |
 
-LoginView 未启用时，宿主的普通进服状态使用 `server` 来源，已进服玩家可以参与游戏业务，身份验证和账号注册状态分别为 `false` 和 `unknown`。其他登录插件的认证状态由对应插件提供。
-
-业务规则使用 `%axsauth_admitted%` 判断玩家能否参与游戏。身份验证完成与满足全部准入要求是两个阶段。
+已验证身份仍可能在等待条款或绑定。业务条件通常使用 `%axsauth_admitted%` 判断玩家是否可以参与游戏。

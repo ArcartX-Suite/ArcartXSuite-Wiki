@@ -1,30 +1,58 @@
 ---
-title: "登录界面与认证"
-description: "理解宿主认证、游戏准入和 LoginView 的职责。"
+title: "登录方式怎么选"
+description: "先按服务器需求选择登录方式，再进入对应的完整配置教程。"
 ---
 
-LoginView 负责显示登录、条款、QQ 绑定和端外授权界面。宿主认证运行时管理当前连接、检查准入要求，并在验证完成后放行。玩家通过身份验证后，仍可能需要接受条款或完成 QQ 绑定。
+先决定玩家要在哪里证明身份。只想让玩家在游戏里注册、输密码，选方案 A；想让微软和 LittleSkin 账号通过账号验证后直接进服，选方案 B 或 C；要把账号交给独立认证中心管理，选方案 D 或 E。
 
-这层认证限制随 LoginView 模块启停。未安装、关闭或卸载 LoginView 时，玩家正常进服和操作，其他登录插件管理自己的限制。LoginView 加载或重载失败时也会解除这层限制。
+## 有哪些登录方式
 
-| 部署模式 | 认证权威 | 使用场景 |
-| --- | --- | --- |
-| `standalone` | 当前游戏服的宿主运行时与账号存储 | 单服密码登录、本机混合入口或可信代理签名入口 |
-| `center` | 独立认证中心 | 由中心统一管理账号和策略，通过签名节点接口签发游戏准入 |
+| 方案 | 适合的服务器 | 玩家怎么登录 | 配置值 | 教程 |
+| --- | --- | --- | --- | --- |
+| A 单服密码登录 | 一台游戏服，账号保存在本服 | 在游戏界面注册、输入密码 | `standalone` ＋ `password` | [单服密码配置](/docs/loginview/configuration) |
+| B 单服混合免密 | 玩家直接连接游戏服，接收微软和 LittleSkin 账号 | 用对应账号连接，通过验证后确认条款 | `standalone` ＋ `local-mixed` | [单服混合登录](/docs/loginview/mixed-login#方案-b单服混合免密) |
+| C Velocity 混合免密 | 玩家先连接 Velocity，再进入子服 | 在代理完成账号验证，子服核对代理传来的证明 | `standalone` ＋ `signed-proxy` | [Velocity 混合登录](/docs/loginview/mixed-login#方案-cvelocity-混合免密) |
+| D 中心管理、游戏内密码 | 独立部署认证中心，玩家仍在游戏里输密码 | 密码由中心验证，游戏服根据中心结果放行 | `center`，中心开启 `gamePasswordEnabled` | [中心密码登录](/docs/loginview/center) |
+| E 中心管理、官网或启动器授权 | 已有可接入的官网身份系统，或已有启动器 | 在官网或启动器授权，再回到游戏确认 | `center`，中心配置 `external` | [官网与启动器配置](/docs/loginview/external-authorization) |
+
+`standalone` 和 `center` 表示账号由谁管理。`ingress.type` 表示游戏服接收哪一种登录入口。两项要按上表组合填写。
+
+中心模式当前用于玩家直连、`online-mode=true` 的游戏服。Velocity 的方案 C 使用本服账号后端。不要把方案 C 的 `signed-proxy` 填到中心节点配置中。
+
+## 如果已经使用 AuthMe 等登录插件
+
+在 Suite 的 `config.yml` 中将 `modules.loginview.enabled` 设为 `false`，或卸载 LoginView 模块，然后按对应登录插件的教程配置。
+
+LoginView 未安装、关闭或卸载时，Suite 解除该模块的玩家操作限制。LoginView 加载或重载失败时也会恢复普通进服状态。使用其他登录插件的服务器无需为此创建认证中心。
 
 ## 第一次使用
 
-选择部署模式，填写 `authentication.yml`，然后启用 LoginView。修改认证策略后重启宿主。重新加载 LoginView 可更新界面。
+1. 在上表选一种方案。
+2. 确认服务器具备 ArcartX 客户端与服务端环境，并安装 LoginView 模块。界面能打开是配置登录的前提。
+3. 按所选教程填写配置，重启相关进程。
+4. 用测试账号走完登录流程，再开放给玩家。
+
+本节以宿主数据目录 `plugins/ArcartX-Suite/` 为例。如果实际生成的目录名不同，以你的服务器目录为准。
+
+| 要做什么 | 应编辑的文件 |
+| --- | --- |
+| 启用或关闭 LoginView | `plugins/ArcartX-Suite/config.yml` 中的 `modules.loginview.enabled` |
+| 选择本服或中心认证、设置入口 | `plugins/ArcartX-Suite/authentication.yml` |
+| 调整登录界面打开延迟 | `plugins/ArcartX-Suite/data/loginview/config.yml` |
+| 调整界面外观 | `plugins/ArcartX-Suite/ui/auth_v1.yml` |
+| 设置中心的账号策略、登记游戏节点 | 独立中心的配置文件，例如 `D:/AXSAuth/center.json` |
 
 ## 检查是否配置成功
 
-使用测试账号确认界面能打开，身份验证后继续执行已启用的条款及绑定要求。验证断开重连后会建立新连接。
+登录前应出现与你所选方案对应的界面。完成身份验证后，如果启用了服务器条款或 QQ 绑定，还要完成这些步骤才能操作游戏。
 
-当前文档对应新版源码，真实游戏服及外部身份提供方联调尚未验收。
+使用 `/papi parse me %axsauth_admitted%` 检查当前玩家是否已放行，需要安装 PlaceholderAPI。成功放行后应返回 `true`，移动、聊天和背包操作应恢复。
 
 ## 继续配置
 
-- [认证与界面配置](/docs/loginview/configuration)提供单服认证、可信入口和界面设置。
-- [独立认证中心](/docs/loginview/center)介绍中心与游戏节点的配置和租约验证。
-- [官网与启动器认证接口](/docs/loginview/external-authorization)列出接入参数、授权流程及拒绝路径验证。
-- [命令与占位符](/docs/loginview/commands)列出界面命令和当前连接的认证状态。
+- [单服密码配置](/docs/loginview/configuration)从最简单的注册和密码登录开始。
+- [混合免密配置](/docs/loginview/mixed-login)分别说明单服直连与 Velocity 代理的安装位置和启动顺序。
+- [独立中心配置](/docs/loginview/center)提供中心和游戏服成对的完整配置。
+- [官网与启动器配置](/docs/loginview/external-authorization)说明准备哪些网站参数、如何开启端外登录。
+- [接口参考](/docs/loginview/external-api)供接入已有启动器的开发者查询请求和返回值。
+- [管理与排错](/docs/loginview/commands)列出命令、常见故障与处理步骤。

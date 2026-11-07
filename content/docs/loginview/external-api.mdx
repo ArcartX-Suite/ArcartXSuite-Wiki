@@ -1,0 +1,151 @@
+---
+title: "启动器开发者接口参考"
+description: "查询公开授权接口的完整路径、JSON 请求、返回结构和设备轮询错误码。"
+---
+
+服主先按[方案 E](/docs/loginview/external-authorization)完成中心、提供方和启动器登记。本页供已有启动器的开发者接入，接口根地址使用中心的 HTTPS 域名。
+
+## 通用请求格式
+
+所有接口使用 `POST`，请求头设置 `Content-Type: application/json`。每次请求带以下字段。
+
+| 字段 | 类型 | 用途 |
+| --- | --- | --- |
+| `version` | 数字 | 当前填写 `1` |
+| `requestId` | UUID 字符串 | 为本次请求生成新的关联编号 |
+| `clientId` | 字符串 | 中心 `external.launchers[].id` 中登记的启动器 ID |
+
+其余字段按操作填写。不要把官网为认证中心分配的 OIDC 应用密钥放进启动器。
+
+响应带 `version`、`requestId` 和 `code`。操作有返回值时，另外带字符串类型的 `value`。请求结果不确定时，先核对游戏界面或重新发起授权，避免反复使用可能已经消费的授权码。
+
+## 方式一：系统浏览器与本机回调
+
+### 第一步：发起浏览器授权
+
+接口为 `POST /v1/external/launcher/start`。
+
+```json
+{
+  "version": 1,
+  "requestId": "4a284789-a95b-47e8-984f-e0064cd0e877",
+  "clientId": "example-launcher",
+  "redirectUri": "http://127.0.0.1:43981/callback",
+  "codeChallenge": "填写本次verifier计算出的S256结果",
+  "state": "填写本次生成的32字节Base64url随机值"
+}
+```
+
+启动器每次生成新的 verifier、S256 challenge 和 state。在本机监听已经登记的回调端口和路径，再用系统浏览器打开成功响应 `value` 中的地址。
+
+`redirectUri` 必须与登记值完全一致，包括端口和路径。授权确认页会提供返回启动器的链接。
+
+### 第二步：核对回调并交换授权码
+
+回调包含 `code` 和 `state`。先检查 state 与本次发起时保存的一致，再调用 `POST /v1/external/launcher/exchange`。
+
+```json
+{
+  "version": 1,
+  "requestId": "53a20ce2-5549-4804-9674-e9cc22182ac0",
+  "clientId": "example-launcher",
+  "redirectUri": "http://127.0.0.1:43981/callback",
+  "code": "填写回调中的code",
+  "codeVerifier": "填写本次保存在启动器里的verifier"
+}
+```
+
+成功时 `value` 是 120 秒有效的启动凭据。错误 verifier、不同回调或重复消费授权码应被拒绝。回调为 `error=access_denied` 时停止本次授权。
+
+## 方式二：设备授权
+
+### 第一步：申请设备码
+
+接口为 `POST /v1/external/launcher/device/start`。
+
+```json
+{
+  "version": 1,
+  "requestId": "4a284789-a95b-47e8-984f-e0064cd0e877",
+  "clientId": "example-launcher"
+}
+```
+
+响应结构如下。样例中的设备码为占位文字，测试时使用实际返回值。
+
+```json
+{
+  "version": 1,
+  "requestId": "4a284789-a95b-47e8-984f-e0064cd0e877",
+  "code": "OK",
+  "value": "{\"verificationUrl\":\"https://auth.example.net/v1/external/device?client=example-launcher\",\"userCode\":\"0123456789ABCDEF\",\"deviceCode\":\"替换为接口实际返回的私有设备码\",\"expiresIn\":300,\"interval\":5}"
+}
+```
+
+先解析外层 JSON，再把 `value` 当作 JSON 字符串解析一次，得到以下字段。
+
+| 字段 | 用途 |
+| --- | --- |
+| `verificationUrl` | 玩家在浏览器中打开的设备授权地址 |
+| `userCode` | 玩家在该页面输入的公开用户码 |
+| `deviceCode` | 启动器私有轮询凭据，保存在客户端 |
+| `expiresIn` | 本次设备授权的有效秒数 |
+| `interval` | 首次轮询前及后续请求间应等待的秒数 |
+
+### 第二步：按间隔轮询
+
+接口为 `POST /v1/external/launcher/device/poll`，在通用字段之外增加 `deviceCode`。
+
+```json
+{
+  "version": 1,
+  "requestId": "53a20ce2-5549-4804-9674-e9cc22182ac0",
+  "clientId": "example-launcher",
+  "deviceCode": "填写实际返回的deviceCode"
+}
+```
+
+设备状态放在外层 `code`，`value` 仍需再解析为 JSON，内容包括 `code`、`interval` 和 `launchToken`。
+
+| 外层 code | 含义 | 客户端如何处理 |
+| --- | --- | --- |
+| `AUTHORIZATION_PENDING` | 玩家尚未完成授权 | 等待返回的 interval 后再轮询 |
+| `SLOW_DOWN` | 请求过快 | 改用本次返回的更长 interval |
+| `ACCESS_DENIED` | 玩家拒绝或已取消 | 停止轮询 |
+| `EXPIRED_TOKEN` | 本次授权已过期 | 停止轮询，由玩家重新发起 |
+| `OK` | 授权完成 | 读取 launchToken，停止轮询 |
+
+### 第三步：取消未完成的授权
+
+调用 `POST /v1/external/launcher/device/cancel`，请求字段与轮询相同。成功响应的 `code` 为 `OK`。
+
+## 两种方式共用：关联实际游戏连接
+
+玩家进入游戏后，主动把 LoginView 显示的游戏授权码交给启动器。启动器调用 `POST /v1/external/launcher/pair`。
+
+```json
+{
+  "version": 1,
+  "requestId": "fb7ae77f-b15a-49c2-a884-73aff5515827",
+  "clientId": "example-launcher",
+  "launchToken": "填写本次取得的启动凭据",
+  "userCode": "填写当前游戏连接显示的授权码"
+}
+```
+
+成功的 `value` 是 8 位核对码。启动器展示它，玩家回到原游戏连接刷新并核对，再点击确认。随后游戏服执行条款、QQ 绑定等要求。
+
+启动凭据只能用于一次配对。设备授权的公开用户码与游戏里的授权码是两份不同流程的代码，配对时填写游戏当前显示的那一份。
+
+## 请求错误
+
+| 结果 | 用途与处理 |
+| --- | --- |
+| `UNSUPPORTED_VERSION` | 请求版本不支持，核对 version |
+| `AUTHORIZATION_REJECTED` | 字段、回调或授权凭据不符合本次请求，重新核对参数 |
+| `UNAVAILABLE` | 中心暂时无法完成操作，先检查中心和提供方状态 |
+| HTTP 429 | 达到访问频率限制，等待 Retry-After 后再试 |
+
+浏览器授权码、设备码和启动凭据都只用于短期流程。中心重启后，尚未完成的浏览器及启动器授权需要重新发起。
+
+可选 Java 调用封装位于项目的 `auth-protocol` 中，类名为 `LauncherAuthorizationClient`。它封装浏览器授权、设备授权和配对调用，启动器仍需自行提供回环监听及用户界面。

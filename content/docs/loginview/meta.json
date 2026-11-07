@@ -1,10 +1,12 @@
 {
-  "title": "登录界面",
+  "title": "登录与账号验证",
   "pages": [
     "index",
     "configuration",
+    "mixed-login",
     "center",
     "external-authorization",
+    "external-api",
     "commands"
   ]
 }
