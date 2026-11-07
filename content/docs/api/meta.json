@@ -40,6 +40,7 @@
     "PropAccessible",
     "BindingService",
     "QQBotBroadcastable",
+    "QQBotDelivery",
     "QQBotNotifiable",
     "QuestGpsNavigable",
     "RegionQueryable",

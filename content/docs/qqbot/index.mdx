@@ -1,50 +1,163 @@
 ---
 title: "QQ群互联"
-description: "同步群聊与游戏消息，提供账号绑定和群签到。"
+description: "安装 OneBot 实现端，验证群消息、账号绑定与签到。"
 ---
 
+QQBot 的模块 ID 为 qqbot，配置文件位于 plugins/ArcartX-Suite/data/qqbot/config.yml，重载命令为 /axs reload qqbot。
 
-| 项目 | 说明 |
-| --- | --- |
-| 模块 ID | `qqbot` |
-| 主配置 | `plugins/ArcartX-Suite/data/qqbot/config.yml` |
-| 主要调整内容 | OneBot 连接、群号、消息模板与签到奖励 |
-| 重载 | `/axs reload qqbot` |
+默认只连接外部 OneBot，不安装或停止程序。监听群、兑换奖品和定时消息默认均为空。先接一个测试群，再打开所需功能。
 
-## 开始前
+## 准备环境
 
-确认 ArcartX 客户端可用，且 `/axs status` 显示本模块已加载。本模块还需要安装 `PlaceholderAPI`。可选插件只在使用对应功能时安装，具体要求见功能配置页。
+- 安装 Suite 的 QQBot 模块和 PlaceholderAPI，用 /axs status 确认模块加载。
+- 准备支持 OneBot 11 的实现端，例如 SnowLuma、NapCat 或 Lagrange；机器人账号加入测试群。
+- 图形面板需要 ArcartX 客户端；控制台和 QQ 群指令不依赖面板。
+- 新版界面文件位于模块目录 ui/qqbot_v2/；旧 ui/ 自定义文件保留，定制新版时编辑新目录。
+- 兑换需要 Mail 模块及真实邮件预设；绑定需要宿主认证可用、游戏账号已创建。
+- 聊天同步优先使用 Chat 的公开全服频道。无 Chat 时需明确启用 delivery.vanilla-chat-fallback。
+
+## 选择部署方式
+
+| mode | 适用环境 | 谁负责运行 |
+| --- | --- | --- |
+| external（默认） | 已有实现端，或自行部署 | 外部服务管理器 |
+| native | Windows 原生桌面及适配的 NTQQ | QQBot 只管理自身安装和启动的进程 |
+| docker | 具备 Docker 的 Linux 主机 | QQBot 只管理自身归属标签验证通过的容器 |
+
+### 外部实现端
+
+按实现端文档完成安装和 QQ 登录。SnowLuma 可参考[官方 Docker 部署](https://snowluma.github.io/zh/docs/guide/deploy/docker)和[Windows 部署](https://snowluma.github.io/zh/docs/guide/deploy/windows)。
+
+在实现端为已登录的账号设置：
+
+1. 启用正向 WebSocket 服务端，不是反向 WS 客户端。
+2. 选择 Universal 角色，同时支持动作请求和事件上报。
+3. 记录地址、端口和路径，例如 ws://127.0.0.1:3001/。
+4. 复制该账号、该适配器的 access token。SnowLuma 默认自动生成 token，不能遗漏或用 WebUI 密码代替。
+
+### Windows 原生托管
+
+先安装受 SnowLuma 支持的桌面 NTQQ。QQ 和 Minecraft 进程使用同一 Windows 用户、相同权限运行；不要让 Minecraft 服务账号与桌面 QQ 分属不同用户。
+
+~~~yaml
+onebot:
+  ws-url: "ws://127.0.0.1:3001/"
+  access-token: "稍后替换成账号WS访问令牌"
+  snowluma:
+    mode: "native"
+    dir: "snowluma"
+    auto-start: true
+~~~
+
+1. 保存后 /axs reload qqbot。
+2. 执行 /axs qqbot snowluma install，等待完整发行包下载结束。完整包自带 Node，不要混用 Lite 或其他架构包。
+3. 执行 /axs qqbot snowluma start，再执行 /axs qqbot snowluma password 查询 WebUI 初始登录信息。
+4. 本机打开 http://127.0.0.1:5099/，按引导确认协议并设置密码；在桌面 QQ 窗口扫码登录。
+5. 在 WebUI 配置该账号的 Universal 正向 WS，复制 token 填回 QQBot 并重载。auto-start: true 会在重载后重新启动托管进程。
+
+首次安装要求 dir 为空或不存在。既有无托管标记的目录不会被覆盖；保留原部署并使用 external，或为新安装选择新目录。保留 .axs-qqbot-owner 文件，勿把它放入示例或公开截图。
+
+### Docker 托管
+
+宿主需要可用 Docker，Minecraft 运行用户需有执行 Docker 命令的权限。
+
+~~~yaml
+onebot:
+  ws-url: "ws://127.0.0.1:3001/"
+  access-token: "稍后替换成账号WS访问令牌"
+  snowluma:
+    mode: "docker"
+    dir: "snowluma-managed"
+    auto-start: true
+    docker:
+      container-name: "axs-snowluma"
+      image: "motricseven7/snowluma:latest"
+      bind-address: "127.0.0.1"
+      webui-port: 5099
+      ws-port: 3001
+      http-port: 3000
+      novnc-port: 6081
+      vnc-password: "替换成自己的远程桌面密码"
+      auto-install: false
+~~~
+
+重载后执行 /axs qqbot snowluma install。它会拉取镜像、创建并启动容器。snowluma logs 查看 noVNC 提示，snowluma password 查询 WebUI 初始密码。
+
+默认所有端口仅映射宿主 127.0.0.1，VPS 无需开放 5099 和 6081 公网入站。在自己的电脑执行 SSH 转发后再打开浏览器；将“你的用户”和“服务器地址”换成真实 SSH 登录信息，并保持这个终端运行：
+
+~~~powershell
+ssh -N -L 5099:127.0.0.1:5099 -L 6081:127.0.0.1:6081 你的用户@服务器地址
+~~~
+
+访问 http://127.0.0.1:6081/ 操作容器 QQ 扫码，访问 http://127.0.0.1:5099/ 配置账号 Universal WS，将 token 填回 QQBot 并重载。
+
+本地 5099/6081 已被占用时，把 SSH 命令左侧端口改为 15099/16081（例如 -L 15099:127.0.0.1:5099），浏览器对应打开 http://127.0.0.1:15099/。完成后关闭 SSH 转发终端即可断开本机入口，容器继续运行。
+
+需要直接发布到非回环地址时，明确设置 docker.bind-address 为宿主 IP 或 0.0.0.0，同时设置非空 vnc-password，配置防火墙、访问范围和 OneBot token，再执行 snowluma install 重建托管容器。缺少 VNC 密码会拒绝启动。默认教程使用 SSH 转发，浏览器访问的是自己电脑的 127.0.0.1。
+
+配置挂在 /app/data，QQ 配置及登录数据使用另外两个命名卷。更新不删除这些卷。已有同名外部容器不会被停止、删除或接管；为新托管容器换名，或继续按原方式维护外部容器。
 
 ## 第一次使用
 
-1. 准备 OneBot 11 连接信息。
-2. 填写测试群号。
-3. 重载后分别从游戏与群发送消息。
+保留其他小节，将群号和 token 换成真实值。使用托管时保留已配置的 native/docker，不要改回 external。
+
+~~~yaml
+onebot:
+  ws-url: "ws://127.0.0.1:3001/"
+  access-token: "该账号Universal-WS的真实token"
+  snowluma:
+    mode: "external"
+
+groups:
+  - group-id: 123456789
+    sync-mode: "both"
+    game-to-qq: "[MC] {player}: {message}"
+    qq-to-game: "&7[QQ] &f{nick}: &7{message}"
+    commands-enabled: true
+    join-message: ""
+    quit-message: ""
+
+delivery:
+  max-message-length: 300
+  player-cooldown-seconds: 3
+  group-messages-per-minute: 30
+  require-binding: false
+  vanilla-chat-fallback: false
+
+admin:
+  enabled: false
+  remote-console-enabled: false
+  qq-list: []
+~~~
+
+只同步消息和普通签到时，管理总开关保持 false、可信名单保持为空。需要群内维护白名单、踢/封、发邮件、公告或黑名单时，设置 admin.enabled:true，把你明确授权的真实 QQ 号加入 admin.qq-list，然后重载并用该账号测试。仍保持 admin.remote-console-enabled:false，单独关闭 #cmd 远程控制台。
+
+QQ群管/群主不会自动获得游戏服务器管理权限。自定义 server-command 即使配置 permission:0，也要求管理总开关开启且命中可信名单。先只加入自己的 QQ 核对权限，再按实际职责添加其他受信任人员。
 
 ## 检查是否配置成功
 
-确认双向消息各出现一次，再测试账号绑定。
+1. /axs reload qqbot 后，/axs qqbot status 检查连接和测试群数。
+2. 管理员 /axs qqbot send 123456789 首次连接测试，检查动作回执及群内消息。
+3. 群内 #查服务器，再发普通文字，确认游戏收到一次。
+4. 在 Chat 公开全服频道发言，或 /qqbot 面板发送，确认群内收到一次。
+5. 无 Chat 而需要原版聊天时，明确打开 vanilla-chat-fallback 后重载。
+6. 群内 #绑定 游戏名，使用已验证身份的目标游戏账号确认验证码，再 /qqbot info。
+7. 配好真实 Mail 预设后再添加奖品、验证签到和兑换。
 
-功能未生效时，先检查模块状态、所用定义 ID、玩家权限及客户端安装情况，随后对照[日志与报错提示](/docs/guide/config-management)逐项检查。
+WS 连接成功不等于消息送达。发送需要实现端动作回执；超时、断线或结果未知时，先检查 QQ 群和实现端日志，不要连续重发。
 
-## 可以配置的功能
+## 排错
 
-| 特性 | 说明 |
-|---|---|
-| OneBot 11 WebSocket | 正向 WebSocket 连接，支持 SnowLuma / NapCat / Lagrange 等实现端，自动重连与端口探测 |
-| 双向消息同步 | QQ 群 ↔ 游戏内消息双向同步，支持 `both` / `game-to-qq` / `qq-to-game` / `none` 四种模式 |
-| QQ-游戏账号绑定 | 验证码绑定方式，群内发起 → 游戏内确认，支持多 QQ 绑定限制 |
-| 白名单管理 | 绑定后自动加白名单，解绑后自动移除，支持群内管理指令 |
-| 自定义群指令 | 内置指令（查在线/查服务器/积分榜）+ 服务器命令执行 + PAPI 占位符查询 |
-| 管理员远程控制 | 配置的 QQ 号可在群内执行控制台命令，支持命令白名单防 RCE |
-| 签到积分系统 | 每日签到获得积分，连续签到加成，积分兑换奖品（通过邮件发放） |
-| 积分红包 | 群内拼手气红包，支持发红包/抢红包/过期退款 |
-| 积分转账 | 群成员之间积分转账 |
+| 现象 | 检查 |
+| --- | --- |
+| 连接被拒绝 | 实现端运行、正向 WS、地址端口和路径 |
+| 401/鉴权失败 | 正确账号和适配器的 token，区别于 WebUI 密码 |
+| 连接正常但无群事件 | 机器人入群、Universal 角色、groups 群号 |
+| 玩家发群被拒绝 | 准入、发送权限、同步方向、冷却和群预算 |
+| 原版聊天不转发 | 无 Chat 时明确启用 fallback；被取消的聊天不会转发 |
+| 托管拒绝接管 | 目录/容器无归属标记，用 external 或新目录/新容器名 |
+| Docker 配置丢失 | 先核对原命名卷；旧外部布局按官方迁移，勿删除卷 |
 
 ## 继续配置
 
-- [功能配置](/docs/qqbot/configuration)：字段含义与配置示例。
-- [命令与权限](/docs/qqbot/commands)：玩家操作、管理命令和权限。
-- [账号绑定与白名单](/docs/qqbot/binding-whitelist)介绍认证绑定流程和独立的群内白名单管理。
-- [消息同步与群通知](/docs/qqbot/message-sync)：设置群聊与游戏消息的同步方向、文字模板和群通知。
-- [签到积分与群管理](/docs/qqbot/signin-points)：配置群签到、积分、兑换、排行与常用群管理功能。
+继续阅读[功能配置](/docs/qqbot/configuration)、[命令权限](/docs/qqbot/commands)、[绑定](/docs/qqbot/binding-whitelist)、[消息同步](/docs/qqbot/message-sync)和[签到兑换](/docs/qqbot/signin-points)。

@@ -1,26 +1,36 @@
 ---
 title: "账号绑定与白名单"
-description: "通过宿主认证绑定 QQ，使用独立的群内白名单管理命令。"
+description: "群内申请验证码，验证游戏身份后确认绑定，独立维护白名单。"
 ---
 
-QQBot 接收群内绑定请求并展示绑定结果。账号与 QQ 的绑定事实由宿主认证运行时管理，中心模式下存于中心。每个账号和 QQ 在同一 Realm 内各只能有一条绑定。
+实际绑定由宿主认证权威管理，中心模式下保存在中心。Realm 内每个账号和 QQ 各只能有一条绑定。
 
-1. 在已接入的群里发送 `#绑定 <游戏名>`，以实际 `binding.bind-prefix` 为准。目标账号需要已经创建。
-2. 玩家先验证游戏身份，再在 LoginView 的绑定步骤输入验证码。已经准入的玩家也可以通过 `/qqbot bind <验证码>` 或绑定面板确认。
-3. 验证码有效期为 300 秒，只能由目标账号确认一次。用 `/qqbot info` 或绑定面板查看结果。
+## 绑定
 
-需要将 QQ 绑定设为准入要求时，standalone 配置 `requirements.qq-binding: true`，中心模式配置 Realm 的 `requireBinding: true`。中心节点需要相应的 `binding-read` 和 `binding-write` 权限。解绑由认证权威处理，原准入状态会重新评估。[认证配置](/docs/loginview/configuration)
+1. 目标账号已创建，机器人已连接。
+2. 群内 #绑定 你的游戏名，保存验证码。
+3. 目标账号先完成游戏身份验证。等待准入时在 LoginView 绑定步骤输入；已准入时 /qqbot bind 验证码，或 /qqbot 面板输入确认。
+4. 验证码固定 300 秒，仅目标账号确认一次；过期后重新申请。
+5. /qqbot info、面板或群内 #查绑 查看结果。
 
-## 群内白名单
+面板不生成验证码，确认结果由服务端返回。旧绑定数量、方式、期限配置已移除，不能通过 QQBot 放宽认证约束。
 
-群管理或群主可在启用白名单管理后显式执行下列命令。命令前缀和执行模板由 `whitelist` 配置。认证绑定流程与 Minecraft 白名单命令分别执行。
+## 解绑与准入
 
-| 指令 | 用途 |
+游戏内 /qqbot unbind 先查看确认提示，再 /qqbot unbind confirm；面板同样需要二次确认。群内 #解绑 发起当前 QQ 解绑。宿主认证处理解绑并重新评估准入。
+
+需要把绑定设为准入要求：standalone 配置 requirements.qq-binding: true；中心配置 Realm requireBinding: true，并给节点相应 binding-read/binding-write 权限。见[认证配置](/docs/loginview/configuration)。
+
+## 独立白名单
+
+绑定不自动添加 Minecraft 白名单，解绑也不自动移除。whitelist 启用后，还需 admin.enabled:true 且 QQ 在 admin.qq-list 可信名单内，才可使用下列命令。QQ群管/群主身份不自动授权。需要白名单管理时可保持 admin.remote-console-enabled:false，单独关闭 #cmd。
+
+| 指令 | 作用 |
 | --- | --- |
-| `#白名单添加 <玩家名或QQ号>` | 添加白名单，QQ 号通过绑定记录解析 |
-| `#白名单移除 <玩家名或QQ号>` | 移除白名单 |
-| `#白名单列表` | 查看白名单 |
+| #白名单添加 玩家名或QQ号 | 添加，QQ 号需解析到绑定账号 |
+| #白名单移除 玩家名或QQ号 | 移除 |
+| #白名单列表 | 查看 |
 
-## 游戏内面板
+默认模板为 whitelist add {name} 和 whitelist remove {name}；使用其他插件时换成真实控制台命令。Minecraft 白名单不能替代宿主身份验证。
 
-`/qqbot ui` 打开绑定中心，`/qqbot admin` 打开管理后台。验证码从 QQ 群发起，绑定中心可查看状态及完成确认。消息通知 HUD 和其他界面配置见[QQBot 配置](/docs/qqbot/configuration)。
+/qqbot admin 提供绑定记录搜索、分页及二次确认解绑。面板权限与执行任意控制台命令权限分别授予。旧 QQBot 数据库中的绑定副本不作为当前认证事实。

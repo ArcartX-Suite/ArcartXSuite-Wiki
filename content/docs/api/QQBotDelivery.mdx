@@ -1,0 +1,65 @@
+---
+title: "QQBotDelivery"
+description: "获取 QQ 群通知的真实回执，处理部分成功与未知结果"
+---
+
+| 项目 | 内容 |
+| --- | --- |
+| 提供模块 | [qqbot](/docs/qqbot) |
+| 完整类型 | `xuanmo.arcartxsuite.api.capability.QQBotDelivery` |
+
+## 获取接口
+
+需要确认通知结果时使用本接口。每次业务操作重新获取能力，模块未加载时返回 `null`。
+
+```java
+QQBotDelivery delivery = AxsCapabilities.get(QQBotDelivery.class);
+if (delivery == null) return;
+
+delivery.sendToGroup(123456789L, "活动已经开始").thenAccept(result -> {
+    if (result.success()) {
+        // 实现端返回成功回执。
+    } else if (result.outcomeUnknown()) {
+        // 先核对目标群；不要自动重发，以免通知重复。
+    } else {
+        plugin.getLogger().warning(result.message());
+    }
+});
+```
+
+需要导入 `xuanmo.arcartxsuite.api.AxsCapabilities` 和 `xuanmo.arcartxsuite.api.capability.QQBotDelivery`。
+
+## 方法声明
+
+```java
+CompletionStage<QQBotDelivery.Result> sendToGroup(long groupId, String message);
+CompletionStage<QQBotDelivery.Result> sendToAllGroups(String message);
+
+record Result(boolean success, boolean outcomeUnknown,
+              int sentGroups, int totalGroups, String message) {}
+```
+
+## 参数与返回值
+
+| 方法 | 用途 | 参数 | 返回值 |
+| --- | --- | --- | --- |
+| `sendToGroup` | 向一个已配置的群发送通知 | `groupId` 为配置中的群号；`message` 为纯文本 | 异步通知结果 |
+| `sendToAllGroups` | 向全部已配置的群发送通知 | `message` 为纯文本 | 异步聚合结果，可能部分成功 |
+
+| 结果字段 | 含义 |
+| --- | --- |
+| `success` | 所有目标群均收到实现端的成功回执 |
+| `outcomeUnknown` | 至少一个操作在断线或超时后无法确认结果 |
+| `sentGroups` | 已确认成功的群数量 |
+| `totalGroups` | 请求的目标群数量 |
+| `message` | 可用于日志或界面反馈的说明 |
+
+## 调用注意事项
+
+只允许向 QQbot 配置中的群发送消息；共享群发送预算和有界队列仍然生效。文本不会被解析成 CQ 码。
+
+回调可能在传输线程执行。需要操作玩家、物品或界面时，通过 Bukkit 调度器回到主线程。不要在主线程调用 `join()` 或 `get()` 等待结果。
+
+断线和超时不会自动重发。部分成功时也应先核对各群，避免把已经成功的通知再次发送。
+
+已有的 [QQBotBroadcastable](/docs/api/QQBotBroadcastable) 保留无回执通知入口；需要可靠反馈的业务应使用本接口。

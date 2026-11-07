@@ -1,372 +1,96 @@
 ---
-title: "签到积分与群管理"
-description: "配置群签到、积分、兑换、排行与常用群管理功能。"
+title: "签到积分与兑换"
+description: "配置积分、红包、奖品以及异常订单的人工复核。"
 ---
 
-QQBot 模块内置完整的签到积分体系，包含每日签到、连续签到加成、积分兑换商店、拼手气红包、积分转账和群活跃度排行。同时提供服务器监控告警、定时消息推送等运维功能，以及群管理（踢人/封禁/黑名单）等管理工具。
+每个 QQ 对应一个积分账户。签到、积分转账和红包使用 QQBot 存储，日期按服务端系统时区计算。
 
-## 签到打卡
+积分、红包和兑换审计按 QQ 归属。删除游戏角色不会清除 QQ 资产；解绑或更换游戏角色也不会自动清空这些记录。
 
-群成员每日签到获得积分，连续签到有额外加成。
+## 签到
 
-### 积分计算公式
-
-```
-签到积分 = base-points + min((连续天数 - 1) * streak-bonus, max-streak-bonus)
-```
-
-| 参数 | 配置字段 | 默认值 | 范围与作用 |
-|---|---|---|---|
-| 基础积分 | `signin.base-points` | 10 | 0–100000，每日签到的固定积分 |
-| 连续加成 | `signin.streak-bonus` | 2 | 0–100000，连续签到多一天增加的积分 |
-| 加成上限 | `signin.max-streak-bonus` | 50 | 0–1000000，连续签到额外积分的上限 |
-
-例如保持上表默认值，第一天 `10 + min(0 × 2, 50) = 10` 分，第二天 12 分，第三天 14 分。基础积分和连续加成分别填写，达到加成上限后额外积分不再增长。
-
-### 连续签到判定
-
-- 查询上次签到记录的日期
-- 若上次签到日期为昨天，连续天数 +1
-- 若上次签到日期为今天（重复签到），返回已签到提示
-- 若上次签到日期非昨天，连续天数重置为 1
-
-### 签到指令
-
-| 指令 | 说明 |
-|---|---|
-| `#签到` | 每日签到 |
-| `#打卡` | 签到别名（可配置多个） |
-
-```yaml
+~~~yaml
 signin:
   enabled: true
   base-points: 10
   streak-bonus: 2
   max-streak-bonus: 50
   sign-prefix: "#签到"
-  aliases:
-    - "#打卡"
-```
+  aliases: ["#打卡"]
+  shop-prefix: "#商店"
+  redeem-prefix: "#兑换"
+  points-query-prefix: "#积分"
+  transfer-prefix: "#转账"
+  red-packet-prefix: "#红包"
+  grab-red-packet-prefix: "#抢红包"
+  activity-prefix: "#活跃排行"
+~~~
 
-### 积分账户
+每日积分 = base-points + min((连续天数 - 1) × streak-bonus, max-streak-bonus)。上例首日 10 分、第二天 12 分；昨天未签到则重置连续天数。当天重复请求不会再次发分。
 
-每个 QQ 号对应一个积分账户，记录余额、累计获得和累计消费。
+#积分 查询余额及累计收支；#积分榜 查询当前余额 Top10。周日 23:59 播报的是当前余额榜，不清空积分，也不是本周赚取积分排行。重启不会补发错过的历史周榜。
 
-| 字段 | 说明 |
-|---|---|
-| `balance` | 当前余额 |
-| `total_earned` | 累计获得 |
-| `total_spent` | 累计消费 |
+## 兑换奖品
 
-### 积分查询
+默认 prizes 为空。先安装 Mail，创建并验证预设，例如 qqbot_diamond，确认它确实能向测试玩家发送 10 颗钻石，再添加：
 
-| 指令 | 说明 |
-|---|---|
-| `#积分` | 查询积分余额、累计获得和消费 |
-
-返回格式：`你的积分: {balance}\n累计获得 {earned}，已消费 {spent}`
-
-### 积分排行榜
-
-| 指令 | 说明 |
-|---|---|
-| `#积分榜` | 积分排行榜 Top10（自定义指令 builtin-id: `points-leaderboard`） |
-
-排行榜按余额降序排列，显示玩家名（通过绑定关系解析）和积分。
-
-## 积分兑换商店
-
-群成员可用积分兑换奖品，奖品通过 Mail 模块以邮件形式发放给绑定玩家。
-
-### 兑换流程
-
-1. 查找奖品配置（按 ID 匹配，忽略大小写）
-2. 校验是否需要绑定（`require-bind`）
-3. 检查每日限购（`limit-per-day`）
-4. 余额检查
-6. 通过 `MailDispatchable` 发送邮件预设
-7. 邮件发放失败则退款
-8. 记录兑换流水
-
-### 奖品配置
-
-```yaml
+~~~yaml
 prizes:
   - id: "diamond"
     name: "钻石礼包"
     cost: 100
-    mail:
-      presets:
-        - "qqbot_diamond"
     description: "10 颗钻石"
-    limit-per-day: 1
+    mail:
+      presets: ["qqbot_diamond"]
     require-bind: true
+    limit-per-day: 1
     discount-rate: 1.0
     discount-until: 0
-```
+~~~
 
-| 字段 | 类型 | 说明 |
-|---|---|---|
-| `id` | string | 奖品 ID（兑换时使用） |
-| `name` | string | 奖品名称 |
-| `cost` | int | 兑换所需积分 |
-| `mail.presets` | list(string) | 邮件预设 ID 列表（对应 Mail 模块预设） |
-| `description` | string | 奖品描述 |
-| `limit-per-day` | int | 每日兑换上限（0=不限） |
-| `require-bind` | boolean | 是否需要先绑定游戏账号 |
-| `discount-rate` | double | 折扣比例（0.8=8折），1.0 表示不折扣 |
-| `discount-until` | long | 折扣截止 unix 时间戳（毫秒），0=无折扣 |
+| 字段 | 作用 |
+| --- | --- |
+| id | 稳定唯一 ID，忽略大小写；修改显示名不应换 ID |
+| name / description | 商店展示 |
+| cost | 原价积分 |
+| mail.presets | 1–100 个真实 Mail 预设 ID，逐项跟踪发放 |
+| limit-per-day | 当日每 QQ 限购；0 不限 |
+| discount-rate | 折扣比例，0.8 为八折 |
+| discount-until | 折扣截止 Unix 毫秒时间戳，0 不折扣 |
 
-> 折扣期间实际价格 = `max(1, ceil(cost * discount-rate))`。兑换成功消息会提示当前处于折扣期及原价。
+当前兑换始终要求宿主绑定；旧 require-bind:false 不能跳过，因为邮件需要确定的游戏收件账号。有效折扣价为 max(1, ceil(cost × discount-rate))。
 
-### 兑换指令
+玩家 #商店 查看、#兑换 diamond 下单。系统先原子扣款并占限购，再发邮件。每笔订单记录逐项状态；同一奖品存在未结案订单时不能重复下单。
 
-| 指令 | 说明 |
-|---|---|
-| `#商店` | 查看积分兑换商店列表 |
-| `#兑换 <奖品编号>` | 兑换奖品（通过邮件发放） |
+## 发送异常的处理
 
-> 兑换奖品需要 Mail 模块已安装并正常运行。邮件发放失败时积分自动退还，并在日志中记录。
+| 结果 | 积分与限购 | 操作 |
+| --- | --- | --- |
+| 所有邮件明确成功 | 保留扣款和限购，结案 | 到游戏查邮件 |
+| 所有邮件明确失败 | 自动退款并释放限购 | 修好预设后再兑换 |
+| 部分成功、结果未知、处理中断 | 保留扣款与额度，待复核 | 管理员查订单及 Mail 记录 |
 
-## 拼手气红包
+超时不是明确失败，不能据此自动重发或全额退款。发放节点使用心跳租约，其他健康节点的在途订单不会被重启节点抢占。当前节点关闭时冻结遗留订单；异常崩溃时在租约过期后冻结，通常最多约 70 秒。仍在发放的订单不能人工处理，冻结后再独立核对，不自动重发。管理员使用：
 
-群成员可用积分发红包，其他成员可抢红包。
+~~~text
+/axs qqbot redemptions list 20
+/axs qqbot redemptions get 兑换ID
+/axs qqbot redemptions resolve 兑换ID delivered confirm 已核对并补齐全部邮件
+/axs qqbot redemptions resolve 兑换ID not-delivered confirm 已独立核实所有预设均未发送
+~~~
 
-### 发红包
+delivered 在核对并补齐发放后保留扣款结案。not-delivered 仅在全部未发送时退款；任何项已确认 SENT 时拒绝整单退款。备注需 4–500 字，保留核对依据。
 
-| 指令 | 用法 | 说明 |
-|---|---|---|
-| `#红包` | `#红包 <总积分> <份数>` | 发拼手气红包 |
+## 转账与红包
 
-校验规则：
-- 总积分和份数必须大于 0
-- 份数不能大于总积分（每人至少 1 积分）
-- 扣减发送者积分，创建红包记录
+#转账 QQ号 积分 在两个账户间转移积分。#红包 总积分 份数 先扣款并创建拼手气红包，#抢红包 红包ID 领取；总积分和份数必须大于零，份数不能大于积分。
 
-### 抢红包
+每个 QQ 对同一红包只能领取一次。红包创建 24 小时后过期，模块定期把未领完部分退给发送者。重复检查不会重复退款。关闭签到功能时不再处理这些签到积分指令。
 
-| 指令 | 说明 |
-|---|---|
-| `#抢红包` | 抢当前群未过期的红包 |
+## 首次验证
 
-领取结果：
-- `> 0`：抢到积分（显示金额和剩余份数）
-- `-1`：手慢了，红包已被抢完
-- `-2`：已经抢过这个红包
-- `-3`：红包已过期或不存在
-
-### 红包过期退款
-
-模块每小时检查过期红包，将未领完的剩余积分退还给发送者。过期时间为创建后 24 小时。
-
-## 积分转账
-
-群成员之间可互相转账积分。
-
-| 指令 | 用法 | 说明 |
-|---|---|---|
-| `#转账` | `#转账 <QQ号> <数量>` | 向其他群成员转账积分 |
-
-校验规则：
-- 转账数量必须大于 0
-- 不能转账给自己
-- 接收方必须已绑定游戏账号（有积分账户记录）
-- 先扣减发送者积分，再增加接收者积分
-
-> 转账采用先扣后加的顺序，扣减失败（余额不足）则不执行增加。
-
-## 群活跃度排行
-
-按群发言次数统计本周或本月活跃度排行。
-
-| 指令 | 用法 | 说明 |
-|---|---|---|
-| `#活跃排行` | `#活跃排行 [week\|month]` | 查看本周/本月活跃度排行 |
-
-### 统计逻辑
-
-- 每条群消息（非指令）触发 `recordActivity(qqId, groupId, today)`
-- 活跃度按 `(qq_id, group_id, activity_date)` 联合主键累加
-- 排行查询按日期范围统计发言次数，降序排列
-
-| 模式 | 日期范围 |
-|---|---|
-| `week` / `本周` | 本周一至今天 |
-| `month` / 默认 | 本月1日至今天 |
-
-## 周结算排行榜
-
-`QQBotWeeklyRankService` 每周日 23:59 自动推送积分 Top10 到所有群。
-
-| 特性 | 说明 |
-|---|---|
-| 触发时间 | 每周日 23:59（服务器时区） |
-| 推送内容 | 积分排行榜 Top10（玩家名 + 积分） |
-| 推送目标 | 所有已配置群 |
-| 重新调度 | 触发后自动调度下周（7 天后） |
-
-> 周结算排行榜仅在 `signin.enabled: true` 时启动。首次调度计算到下周日 23:59 的延迟。
-
-## 服务器监控告警
-
-`QQBotMonitorService` 周期性检测 TPS 与内存占用，超过阈值时推送告警到指定群。
-
-### 配置
-
-```yaml
-monitor:
-  enabled: false
-  tps-threshold: 15.0
-  memory-threshold-percent: 90
-  check-interval-seconds: 60
-  cooldown-seconds: 300
-  alarm-groups: []
-  tps-alarm-format: "⚠ 服务器告警\nTPS 过低: {tps}（阈值 {threshold}）"
-  memory-alarm-format: "⚠ 服务器告警\n内存占用过高: {used}MB/{max}MB ({percent}%)"
-```
-
-| 字段 | 类型 | 默认值 | 说明 |
-|---|---|---|---|
-| `enabled` | boolean | `false` | 是否启用监控告警 |
-| `tps-threshold` | double | `15.0` | TPS 低于此值触发告警（范围 0.0-20.0） |
-| `memory-threshold-percent` | int | `90` | 内存占用百分比阈值（范围 1-100） |
-| `check-interval-seconds` | int | `60` | 检测间隔（秒，范围 5-86400） |
-| `cooldown-seconds` | int | `300` | 同类告警冷却（秒） |
-| `alarm-groups` | list(long) | `[]` | 接收告警的群号（留空=所有已配置群） |
-
-### 告警格式占位符
-
-| 占位符 | 说明 | 适用 |
-|---|---|---|
-| `{tps}` | 当前 TPS（1分钟，保留 2 位小数） | tps-alarm-format |
-| `{threshold}` | TPS 阈值 | tps-alarm-format |
-| `{used}` | 已用内存（MB） | memory-alarm-format |
-| `{max}` | 最大内存（MB） | memory-alarm-format |
-| `{percent}` | 内存占用百分比 | memory-alarm-format |
-
-## 定时消息
-
-`QQBotScheduledMessageService` 支持固定间隔和每日定时两种模式推送消息到群。
-
-### 配置
-
-```yaml
-scheduled-messages:
-  - id: "online_report"
-    mode: "interval"
-    interval-seconds: 21600
-    message: "📊 当前在线人数: {online}/{max}"
-    target-groups: []
-  - id: "daily_signin_reminder"
-    mode: "daily"
-    daily-time: "12:00"
-    message: "🎁 别忘了发送 #签到 领取今日积分哦~"
-    target-groups: []
-```
-
-| 字段 | 类型 | 说明 |
-|---|---|---|
-| `id` | string | 消息 ID（唯一） |
-| `mode` | string | `interval`（固定间隔）/ `daily`（每日定时） |
-| `interval-seconds` | int | 间隔秒数（仅 `interval` 模式） |
-| `daily-time` | string | 每日触发时间 HH:mm（仅 `daily` 模式） |
-| `message` | string | 消息内容 |
-| `target-groups` | list(long) | 目标群（留空=所有已配置群） |
-
-### 定时消息占位符
-
-| 占位符 | 说明 |
-|---|---|
-| `{online}` | 当前在线人数 |
-| `{max}` | 最大人数 |
-| `{tps}` | 当前 TPS（保留 1 位小数） |
-
-> 定时消息每秒检查一次（20 tick）。interval 模式初始化起点为当前时间，避免启动瞬间全部触发。daily 模式按日期去重，每天只触发一次。
-
-## 群管理（Moderation）
-
-管理员可在群内踢出或封禁玩家，并支持 QQ 禁言同步游戏封禁。
-
-### 踢人与封禁
-
-```yaml
-moderation:
-  enabled: false
-  kick-prefix: "#踢"
-  ban-prefix: "#封禁"
-  kick-command: "kick {name} {reason}"
-  ban-command: "ban {name} {reason}"
-```
-
-| 指令 | 用法 | 说明 |
-|---|---|---|
-| `#踢` | `#踢 <玩家名> [原因]` | 踢出玩家 |
-| `#封禁` | `#封禁 <玩家名> [原因]` | 封禁玩家 |
-
-> 命令模板中 `{name}` 替换为玩家名，`{reason}` 替换为原因。命令通过 `SafeCommandExecutor` 安全执行。
-
-### QQ 禁言同步封禁
-
-当 QQ 群内禁言某成员时，若该成员绑定了游戏账号，自动在游戏内封禁对应玩家。
-
-```yaml
-moderation:
-  sync-ban:
-    enabled: false
-    command: "tempban {name} {duration} {reason}"
-    use-duration: true
-    reason: "QQ群禁言同步"
-```
-
-| 字段 | 说明 |
-|---|---|
-| `command` | 同步封禁命令模板 |
-| `use-duration` | 是否按 QQ 禁言时长设置游戏封禁时长 |
-| `reason` | 同步封禁原因 |
-
-> 禁言时长转换为分钟字符串（如 `10m`），至少 1 分钟。`{duration}` 占位符替换为分钟格式。仅处理 `ban` 子类型（解除禁言 `lift_ban` 不触发同步）。
-
-## 黑名单
-
-列入黑名单的 QQ 号将被完全禁止使用机器人的所有功能：指令处理、消息同步、入群欢迎、签到积分、自动回复等。
-
-### 黑名单来源
-
-| 来源 | 说明 |
-|---|---|
-| 配置静态黑名单 | `blacklist.qq-list` 中的 QQ 号 |
-| 数据库动态黑名单 | 通过群指令或 `/axs qqbot blacklist` 添加 |
-
-### 配置
-
-```yaml
-blacklist:
-  enabled: false
-  qq-list:
-    - 987654321
-  add-prefix: "#黑名单添加"
-  remove-prefix: "#黑名单移除"
-  list-prefix: "#黑名单列表"
-```
-
-### 群内黑名单指令
-
-| 指令 | 用法 | 权限 | 说明 |
-|---|---|---|---|
-| `#黑名单添加` | `#黑名单添加 <QQ号\|玩家名>` | 群管理/群主或管理员 | 将 QQ 加入黑名单 |
-| `#黑名单移除` | `#黑名单移除 <QQ号\|玩家名>` | 群管理/群主或管理员 | 将 QQ 移出黑名单 |
-| `#黑名单列表` | `#黑名单列表` | 群管理/群主或管理员 | 查看黑名单列表 |
-
-> 输入玩家名时自动通过绑定关系解析 QQ 号。黑名单拦截在消息处理流水线的最前端，黑名单 QQ 的所有事件均被丢弃。
-
-### 管理员黑名单命令
-
-通过 `/axs qqbot blacklist` 管理数据库动态黑名单：
-
-| 子命令 | 用法 | 说明 |
-|---|---|---|
-| `add` | `blacklist add <QQ号>` | 将 QQ 加入黑名单 |
-| `remove` | `blacklist remove <QQ号>` | 将 QQ 移出黑名单 |
-| `list` | `blacklist list` | 查看黑名单列表（含配置静态 + 数据库动态） |
-
-> 黑名单数据存储在数据库中，共享存储模式下支持跨服同步。
+1. 测试 QQ #签到，记录余额，再重复签到，余额不应再次增加。
+2. 使用真实奖品兑换一次，核对订单、扣款和游戏邮件。
+3. 达到每日限购后再次兑换，应拒绝。
+4. 用测试预设模拟明确失败，确认全部失败才退款。
+5. 对未知/中断订单按复核流程核对，勿反复下单或重发。
