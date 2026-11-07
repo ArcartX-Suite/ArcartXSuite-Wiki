@@ -49,9 +49,9 @@ groups 默认 []。每个元素含 group-id、sync-mode、game-to-qq、qq-to-gam
 
 | 模板 | 可用变量 |
 | --- | --- |
-| game-to-qq | {player}、{display_name}、{message}、{server} |
-| qq-to-game | {nick}、{qq}、{message}、{group} |
-| join-message / quit-message | {player}、{online}、{max} |
+| game-to-qq | `{player}`、`{display_name}`、`{message}`、`{server}` |
+| qq-to-game | `{nick}`、`{qq}`、`{message}`、`{group}` |
+| join-message / quit-message | `{player}`、`{online}`、`{max}` |
 
 普通玩家发群只到允许 game-to-qq 的配置群；管理员可显式选择配置内任意群。
 
@@ -80,7 +80,7 @@ custom-commands 为命令名到定义的映射，command-prefix 默认 #，help-
 | permission | builtin/papi-query 的 0 为普通群员；>0 及所有 server-command 均要求 admin.enabled:true 且命中可信名单 |
 | type | builtin / papi-query / server-command |
 | builtin-id | online-list / server-status / points-leaderboard |
-| command | 固定业务命令模板；不要提供任意 {args} 执行入口 |
+| command | 固定业务命令模板；不要提供任意 `{args}` 执行入口 |
 | placeholders / format | PAPI 查询项及结果模板 |
 | usage | 用法提示 |
 
@@ -102,8 +102,8 @@ signin 的积分计算、全部指令前缀，以及 prizes 的逐字段说明�
 | check-interval-seconds | integer | 60 | 检测间隔，单位秒 |
 | cooldown-seconds | integer | 300 | 同类告警的最短间隔，TPS 与内存分别计时 |
 | alarm-groups | list&lt;long&gt; | [] | 接收告警的已配置群；空列表表示所有配置群 |
-| tps-alarm-format | string | ⚠ 服务器告警\nTPS 过低: {tps}（阈值 {threshold}） | 支持 {tps}、{threshold} |
-| memory-alarm-format | string | ⚠ 服务器告警\n内存占用过高: {used}MB/{max}MB ({percent}%) | 支持 {used}、{max}、{percent}，容量单位为 MiB 量级 |
+| tps-alarm-format | string | ⚠ 服务器告警\nTPS 过低: `{tps}`（阈值 `{threshold}`） | 支持 `{tps}`、`{threshold}` |
+| memory-alarm-format | string | ⚠ 服务器告警\n内存占用过高: `{used}`MB/`{max}`MB (`{percent}`%) | 支持 `{used}`、`{max}`、`{percent}`，容量单位为 MiB 量级 |
 
 例如只给运维群推送，避免向全部玩家群发送告警：
 
@@ -131,7 +131,7 @@ monitor:
 | mode | string | interval | interval 固定间隔；daily 每日指定时间 |
 | interval-seconds | integer | 0 | interval 的间隔秒数，必须大于 0；0 不触发 |
 | daily-time | string | 12:00 | daily 的触发时间，使用 24 小时制 HH:mm，例如 09:30 |
-| message | string | 空字符串 | 消息内容；空内容不发送，支持 {online}、{max}、{tps} |
+| message | string | 空字符串 | 消息内容；空内容不发送，支持 `{online}`、`{max}`、`{tps}` |
 | target-groups | list&lt;long&gt; | [] | 目标配置群；[] 表示所有配置群，填写群号则只发这些群 |
 
 推送全部群使用 target-groups: []，指定群使用群号列表；YAML 统一使用 target-groups 这个字段名。每日时间使用服务器系统时区；interval 在启动后等待一个完整间隔才首次发送。daily 不补发停服期间错过的历史消息。
@@ -159,12 +159,12 @@ scheduled-messages:
 | 字段 | 类型 | 默认值 | 说明 |
 | --- | --- | --- | --- |
 | kill.enabled | boolean | false | 玩家击杀实体后向配置群播报；没有玩家击杀者时不播报 |
-| kill.format | string | 🗡 {killer} 击杀了 {victim} | {killer} 为击杀玩家，{victim} 优先使用被击杀实体的自定义名称 |
+| kill.format | string | 🗡 `{killer}` 击杀了 `{victim}` | `{killer}` 为击杀玩家，`{victim}` 优先使用被击杀实体的自定义名称 |
 | kill.boss-only | boolean | true | 仅播报名称匹配 boss-keywords 的非玩家实体 |
 | kill.player-kill-only | boolean | false | 仅播报玩家击杀玩家；启用时优先于 boss-only |
 | kill.boss-keywords | list&lt;string&gt; | [Boss, 首领, 魔王] | 名称包含任一关键词即视为 Boss；不是 Boss 插件的实体 ID |
 | death.enabled | boolean | false | 玩家死亡时向配置群播报 |
-| death.format | string | ☠ {player} 死亡了 | {player} 为死亡玩家名 |
+| death.format | string | ☠ `{player}` 死亡了 | `{player}` 为死亡玩家名 |
 
 只播报 PvP 时设 kill.player-kill-only:true；希望播报所有有玩家击杀者的实体时，将两个 only 开关均设 false。播报属于业务通知，不受各群聊天同步方向控制。
 
@@ -182,7 +182,7 @@ scheduled-messages:
 | 字段 | 类型 | 默认值 | 说明 |
 | --- | --- | --- | --- |
 | enabled | boolean | false | 新成员进入已配置群时，提及该成员并发送欢迎内容 |
-| message | string | 欢迎新成员加入！\n发送 #绑定 &lt;游戏名&gt; 关联你的游戏账号\n发送 #帮助 查看可用指令 | 支持 {qq}、{group}；无需手写 CQ 提及码 |
+| message | string | 欢迎新成员加入！\n发送 #绑定 &lt;游戏名&gt; 关联你的游戏账号\n发送 #帮助 查看可用指令 | 支持 `{qq}`、`{group}`；无需手写 CQ 提及码 |
 
 欢迎模板中的换行使用 YAML 双引号内的 \n。游戏账号需要先创建，再按绑定步骤验证身份。
 
@@ -220,11 +220,11 @@ auto-reply:
 | --- | --- | --- | --- |
 | enabled | boolean | false | 是否启用群内公告指令 |
 | prefix | string | #公告 | 群指令前缀，后面填写公告内容 |
-| game-format | string | &e&l[群公告] &f{content} | 游戏聊天栏格式，{content} 为公告正文 |
+| game-format | string | &e&l[群公告] &f`{content}` | 游戏聊天栏格式，`{content}` 为公告正文 |
 | qq-receipt | string | ✓ 公告已发布到游戏内 | 发布后给群的回执 |
 | title-enabled | boolean | true | 是否同时显示游戏标题 |
 | title-text | string | &e群公告 | 游戏主标题 |
-| subtitle-format | string | &f{content} | 游戏副标题格式 |
+| subtitle-format | string | &f`{content}` | 游戏副标题格式 |
 
 发布人需要 admin.enabled:true 且在 admin.qq-list 可信名单内。保留 admin.remote-console-enabled:false 也可使用这个具体管理功能。
 
@@ -235,8 +235,8 @@ auto-reply:
 | enabled | boolean | false | 启用手动踢出、封禁群指令 |
 | kick-prefix | string | #踢 | 用法：#踢 玩家名 原因 |
 | ban-prefix | string | #封禁 | 用法：#封禁 玩家名 原因 |
-| kick-command | string | kick {name} {reason} | 控制台命令模板，{name} 为目标游戏玩家，{reason} 为原因 |
-| ban-command | string | ban {name} {reason} | 封禁命令模板；使用其他封禁插件时换成其真实命令 |
+| kick-command | string | kick `{name}` `{reason}` | 控制台命令模板，`{name}` 为目标游戏玩家，`{reason}` 为原因 |
+| ban-command | string | ban `{name}` `{reason}` | 封禁命令模板；使用其他封禁插件时换成其真实命令 |
 
 手动管理指令只允许已开启管理总开关的可信 QQ。下面两个子功能使用各自 enabled，不把 moderation.enabled 当作它们的总开关。
 
@@ -245,11 +245,11 @@ QQ 禁言同步的字段位于 moderation.sync-ban：
 | 字段 | 类型 | 默认值 | 说明 |
 | --- | --- | --- | --- |
 | enabled | boolean | false | 收到 QQ 群禁言事件时，对被禁言 QQ 绑定的游戏账号执行命令 |
-| command | string | tempban {name} {duration} {reason} | 需服务器提供 tempban 命令或替换为实际封禁插件命令 |
-| use-duration | boolean | true | 是否把 QQ 禁言时长带入 {duration}；按分钟向上取整，最少 1m |
-| reason | string | QQ群禁言同步 | 填入 {reason} 的固定原因 |
+| command | string | tempban `{name}` `{duration}` `{reason}` | 需服务器提供 tempban 命令或替换为实际封禁插件命令 |
+| use-duration | boolean | true | 是否把 QQ 禁言时长带入 `{duration}`；按分钟向上取整，最少 1m |
+| reason | string | QQ群禁言同步 | 填入 `{reason}` 的固定原因 |
 
-只有绑定账号能解析到游戏目标。解除 QQ 禁言不会自动解除游戏封禁。设 use-duration:false 时 {duration} 为空，请同时把 command 改成不需要时长的有效命令，例如 ban {name} {reason}。
+只有绑定账号能解析到游戏目标。解除 QQ 禁言不会自动解除游戏封禁。设 use-duration:false 时 `{duration}` 为空，请同时把 command 改成不需要时长的有效命令，例如 ban `{name}` `{reason}`。
 
 广告自动审核字段位于 moderation.auto-moderation：
 
