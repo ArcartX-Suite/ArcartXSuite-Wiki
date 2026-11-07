@@ -5,6 +5,8 @@ description: "分别配置宿主认证策略和 LoginView 界面。"
 
 宿主从插件数据目录读取 `authentication.yml`。LoginView 模块从其模块配置目录读取 `LoginView.yml`。修改认证后端、可信入口、密码或条款策略后重启宿主。
 
+宿主仅在启用 LoginView 时读取并执行认证策略。卸载 LoginView 会停止对应运行时并恢复普通进服状态。
+
 ## 界面加载配置
 
 ```yaml

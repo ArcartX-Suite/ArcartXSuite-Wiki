@@ -20,4 +20,6 @@ description: "查看 LoginView 状态、打开界面并读取当前连接的认�
 | `%axsauth_provider%` | 验证方式，例如 `local-password` 或 `oidc`，未知时返回 `unknown` |
 | `%axsauth_registered%` | `registered`、`unregistered` 或 `unknown` |
 
+LoginView 未启用时，宿主的普通进服状态使用 `server` 来源，已进服玩家可以参与游戏业务，身份验证和账号注册状态分别为 `false` 和 `unknown`。其他登录插件的认证状态由对应插件提供。
+
 业务规则使用 `%axsauth_admitted%` 判断玩家能否参与游戏。身份验证完成与满足全部准入要求是两个阶段。
