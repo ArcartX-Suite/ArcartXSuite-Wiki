@@ -55,6 +55,8 @@ description: "调整仓库容量、分类、共享成员权限与银行规则；
 1. **正常靠近拾取并提示**：Pickup 使用 `settings.mode: notification`，Warehouse 按上述服务器和个人开关决定是否入库，Pickup 补充显示实际已存入的数量。
 2. **按键选取附近掉落物**：Pickup 使用 `settings.mode: scanner`。开启 `scanner.warehouse-auto-deposit: true` 后，点击物品才尝试入库；Warehouse 的服务器和个人开关仍然有效。没有开启、入库失败或容量不足的部分会尝试放入背包，背包也放不下时留在地面。
 
+普通拾取在支持拾取尝试事件的服务端也覆盖“背包完全装满”的情况。关闭工作台时，只把背包装不下的材料尝试自动入库；关闭对应个人开关后按原版退回、掉落。具体规则见[自动存入与材料恢复](/docs/warehouse/material-recovery)。
+
 两个模块不会同时对扫描模式接管的同一次拾取重复入库。入库聊天提示与 Pickup 的 HUD 开关独立；关闭入库聊天提示不会关闭 HUD。
 
 ### 物品搜索（search）

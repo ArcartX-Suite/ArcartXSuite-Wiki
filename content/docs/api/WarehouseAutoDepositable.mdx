@@ -50,6 +50,8 @@ public interface WarehouseAutoDepositable {
 
 `storedAmount` 是已经持久化的数量；`remainingAmount` 是调用方尚需处理的数量。失败时已存数量为 0，剩余数量保留为传入物品的完整数量。只从来源扣除实际已存的部分，剩余物品应保留或继续尝试放入背包。
 
+Warehouse 自身的满背包拾取与工作台关闭溢出同样遵守这些自动存入开关。工作台先计算原版退回背包能容纳的部分，只尝试存储溢出量；未开启或未存下的材料继续按原版退回、掉落。细则见[自动存入与材料恢复](/docs/warehouse/material-recovery)。
+
 ```java
 ItemStack source = droppedItem.getItemStack().clone();
 WarehouseAutoDepositable.DepositResult result = api.depositToPersonalWarehouse(player, source);

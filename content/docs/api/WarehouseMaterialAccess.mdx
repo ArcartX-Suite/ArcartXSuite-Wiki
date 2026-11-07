@@ -1,0 +1,53 @@
+---
+title: "WarehouseMaterialAccess"
+description: "个人仓库材料快照、持久化托管及一次性交付授权。"
+---
+
+由 Warehouse 提供的公开 capability，通过 `AxsCapabilities.get(WarehouseMaterialAccess.class)` 获取，未启用时为 `null`。需要包含本接口的配套宿主 API 与模块，旧版本不具备此能力。
+
+## 库存与数量
+
+优先使用 `materialsAsync(player, callback)`。调用及回调位于 Bukkit 主线程，数据库读取在后台，物品解码回到主线程。
+
+快照条目包含仓库槽位、物品身份、首次存入时间、真实 `long amount` 与完整物品样本。`Entry.item()` 返回 Count=1 的副本，总量读取 `amount()`。快照独立于 UI 的分页、分类与图标数量。
+
+不可用、未拥有或未解锁的仓库不会作为可取材料。快照绑定玩家，后续快照会替换旧快照，取料只能使用一次。
+
+## 公开调用顺序
+
+| 方法 | 用途 |
+| --- | --- |
+| `materialsAsync(Player, Consumer<Snapshot>)` | 异步读取可用个人仓库材料 |
+| `prepareMaterials(Player, Snapshot, List<Request>, Target, Consumer<Prepared>)` | 整批扣料与完整凭证在同一事务进入 HELD |
+| `authorizeDelivery(Player, String, Consumer<Boolean>)` | 条件转换 HELD → APPLYING，成功回调后才允许改目标库存 |
+| `completeDelivery(Player, String, Consumer<Boolean>)` | 记录本轮内存落槽结果，不等于原版跨存档已确认 |
+| `cancelPrepared(Player, String)` | 只在未授权的 HELD 阶段尝试条件回仓 |
+| `recordUncertain(Player, String, String)` | 交付异常转待核对，保留凭证，不自动补发 |
+
+`materials(Player)` 同步快照用于兼容；旧 `withdrawMaterials` 无凭证取料入口已拒绝执行。新接入方应使用上表协议，不在异步线程读写 Bukkit 库存。
+
+### 数据结构
+
+```java
+record Request(int slot, int amount) {}
+record Target(String adapter, String identity, String persistence, String evidence) {}
+record Prepared(boolean success, String operationId, String message) {}
+```
+
+目标证据应包含本次涉及的玩家/容器槽位前后完整物品数据。配方、位置和数量由服务端重新校验，不能把客户端展示的数量或图标当成取料凭据。
+
+同一玩家只允许一笔在途转移。每批最多九个槽位请求，总需求最多 576 个，适用于当前工作台与熔炉配方；扩展其它用途时需要显式调整契约。队列满会拒绝新增操作，调用方应显示返回原因。
+
+## 调用方责任
+
+1. 在读取快照后生成完整材料计划和目标快照，先检查退回空间。
+2. 托管成功后重新检查玩家、InventoryView 与源/目标未发生变化。
+3. 授权成功后再次检查，只应用一次；不能对 APPLYING 或 REVIEW 操作自行补发。
+4. 主线程落槽成功后记录结果；异常调用 `recordUncertain`，不能猜测性再次存入或交付。
+5. 模块关闭或能力实例变化时取消本地等待任务。服务关闭后，不保证仍会调用异步回调。
+
+## 恢复边界
+
+普通 SQL 批量事务不是 Bukkit 背包、工作台矩阵与熔炉区块的共同存档事务。当前原版适配器遗留的交付阶段记录会在重启/热重载后保守进入 REVIEW，不自动重放。
+
+状态、管理员命令和服务器身份文件见[自动存入与材料恢复](/docs/warehouse/material-recovery)。容器扩展协议见 [MaterialContainerAdapter](/docs/api/MaterialContainerAdapter)。

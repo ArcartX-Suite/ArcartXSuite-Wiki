@@ -51,6 +51,8 @@
     "TitleGrantable",
     "TooltipDataCapable",
     "WarehouseAccess",
-    "WarehouseAutoDepositable"
+    "WarehouseAutoDepositable",
+    "WarehouseMaterialAccess",
+    "MaterialContainerAdapter"
   ]
 }

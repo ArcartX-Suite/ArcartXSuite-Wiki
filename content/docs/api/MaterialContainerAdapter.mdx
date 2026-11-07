@@ -1,0 +1,30 @@
+---
+title: "MaterialContainerAdapter"
+description: "后续原版容器接入材料转移时的主线程适配协议。"
+---
+
+这是扩展接口类型，不是可通过 `AxsCapabilities.get` 获取的 capability。容器模块实现适配器，并使用 [WarehouseMaterialAccess](/docs/api/WarehouseMaterialAccess) 的公共转移服务。
+
+```java
+public interface MaterialContainerAdapter {
+    String id();
+    boolean supports(InventoryView view);
+    Delivery capture(Player player, InventoryView view,
+        Map<Integer, ItemStack> storageChanges,
+        Map<Integer, ItemStack> inputChanges);
+
+    interface Delivery {
+        WarehouseMaterialAccess.Target target();
+        boolean unchanged();
+        void apply();
+    }
+}
+```
+
+全部方法在主线程执行。`capture` 不修改库存；`target` 提供可持久化的容器身份及完整变更证据；`unchanged` 校验窗口、来源与目标仍符合计划；`apply` 只在交付授权成功且重新校验通过后调用一次。
+
+已接入工作台和熔炉。工作台标记 EPHEMERAL，熔炉标记 PERSISTENT_UNPROVEN；坐标不等于存档提交证明。新的容器需要实现自己的材料规则、合法槽位及生命周期检查，不能只包装 getItem/setItem 就声称支持自动恢复。
+
+工作台/熔炉的默认适配器只写本次改变的储物栏与输入槽，保存完整物品元数据。未涉及的燃料、产物正常变化不会单独使输入计划失效。已授权后发生异常时保留待核对，禁止自动重放。
+
+适配接口预留后续高炉、烟熏炉、其它容器使用；本次并未启用这些界面或配方。无法提供持久化证据的容器继续使用保守恢复，不自动补发。

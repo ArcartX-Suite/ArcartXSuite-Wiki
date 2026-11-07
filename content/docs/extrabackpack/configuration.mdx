@@ -1,99 +1,35 @@
 ---
 title: "功能配置"
-description: "调整分类匹配、初始容量与扩容价格；附字段解释、修改示例与重载步骤。"
+description: "随身背包界面开关，以及来自 Warehouse 的分类、存储和容量。"
 ---
 
-## 先改哪些内容
+## 配置位置
 
-分类匹配、初始容量与扩容价格。先使用默认示例完成一次测试，再按本页逐项调整。
+主配置为 `plugins/ArcartX-Suite/data/extrabackpack/config.yml`，配置版本为 2。默认模板导出到 `plugins/ArcartX-Suite/ui/extrabackpack_v2.yml`。
 
-配置位置：`plugins/ArcartX-Suite/data/extrabackpack/config.yml`。定义文件与子目录均相对此模块目录。本文中的 YAML 片段用于修改对应小节，请保留文件中的其他设置。
-
-修改后执行 `/axs reload extrabackpack`；涉及插件安装或全局设置的变更请重启后验证。
-
-配置文件位于 `plugins/ArcartX-Suite/data/extrabackpack/config.yml`，修改后执行 `/axs reload extrabackpack` 生效。
-
-当前配置版本（`config-version`）为 **2**，模块支持自动迁移（1→2）。
-
-### 界面显示（ui）
-
-| 字段 | 类型 | 默认值 | 说明 |
-| --- | --- | --- | --- |
-| `register-ui-on-enable` | boolean | `true` | 启动时是否自动注册背包 UI 到 ArcartX |
-| `overwrite-ui-files` | boolean | `false` | 是否强制覆盖用户已修改的 UI 文件 |
-
-### 分类背包（extra-backpack）
-
-| 字段 | 类型 | 默认值 | 说明 |
-| --- | --- | --- | --- |
-| `enabled` | boolean | `false` | 是否启用额外背包功能 |
-| `categories` | map | `{}` | 分类页定义，键名即分类 ID（自动小写归一化） |
-
-> `enabled: true` 但 `categories` 为空时，模块会输出警告日志且功能不会生效。
-
-### categories 分类字段表
-
-每个分类页的配置字段：
-
-| 字段 | 类型 | 默认值 | 说明 |
-| --- | --- | --- | --- |
-| `display-name` | string | 分类 ID | 分类显示名称（显示在 UI 标签上） |
-| `priority` | int | 当前分类序号 | 分类排序优先级，数值越小越靠前 |
-| `default` | boolean | `false` | 是否为兜底分类（未匹配其他分类的物品归入此处） |
-| `slots.max` | int | `999` | 该页网格显示上限（应 ≥ 仓库 `max-slots`） |
-| `match.nbt.path` | string | `""` | NBT 匹配路径（如 `pdc:arcartx:item_category`、`material`、`lore`） |
-| `match.nbt.values` | list | `[]` | 匹配的标签值列表，物品标签值在此列表中则归入该分类 |
-
-容量与扩容价格使用仓库中的 `warehouses.personal.base-slots`、`max-slots` 和 `slot-price` 配置。分类页只调整匹配规则和展示顺序。
-
-### Lore 匹配配置
-
-```yaml
-extra-backpack:
-  enabled: true
-  categories:
-    quest_item:
-      display-name: "任务物品"
-      priority: 5
-      slots:
-        max: 999
-      match:
-        nbt:
-          path: "lore"
-          values: ["任务物品", "不可丢弃"]
-    consumable:
-      display-name: "消耗品"
-      priority: 15
-      slots:
-        max: 999
-      match:
-        nbt:
-          path: "material"
-          values: ["potion", "golden_apple", "enchanted_golden_apple"]
-    fallback:
-      display-name: "其他"
-      priority: 9999
-      default: true
-      slots:
-        max: 999
-```
-
-## 消息文件
-
-消息文件位于 `plugins/ArcartX-Suite/data/extrabackpack/messages.yml`，支持 `{0}`、`{1}` 等位置参数：
-
-| 消息键 | 默认文本 | 参数 |
+| 字段 | 默认值 | 作用 |
 | --- | --- | --- |
-| `extra-backpack.disabled` | `&c额外背包功能未启用。` | - |
-| `extra-backpack.operation-failed` | `操作失败，请查看控制台。` | - |
-| `extra-backpack.ui-required` | `请先打开额外背包界面。` | - |
-| `extra-backpack.page-full` | `&c仓库槽位已满，物品未能存入。` | - |
-| `extra-backpack.buy-invalid` | `&c请输入有效的购买数量。` | - |
-| `extra-backpack.buy-not-configured` | `&c该分类页未配置槽位价格，无法购买。` | - |
-| `extra-backpack.buy-maxed` | `&c该分类页槽位已达上限。` | - |
-| `extra-backpack.buy-success` | `&a已购买 {0} 个槽位，当前容量 {1} 格。` | `{0}`=购买数量，`{1}`=新容量 |
-| `extra-backpack.buy-hint` | `&f每个槽位 {0}，剩余可购买 {1} 个` | `{0}`=单价，`{1}`=剩余可购买数 |
-| `extra-backpack.unknown-currency` | `&c未知货币。` | - |
-| `extra-backpack.category-mismatch` | `&c该物品不属于当前分类页。` | - |
-| `extra-backpack.destroy-confirm` | `&e请确认销毁该物品。` | - |
-| `extra-backpack.destroy-success` | `&a物品已销毁。` | - |
+| `extra-backpack.enabled` | `true` | 启用随身背包入口；关闭时不注册本模块 UI 和监听 |
+| `ui.register-ui-on-enable` | `true` | 启动时注册 UI |
+| `ui.overwrite-ui-files` | `false` | 是否用内置模板覆盖导出的 UI 文件 |
+| `storage.shared` | `true` | 本模块数据连接沿用宿主存储配置 |
+
+实际物品存储来自 Warehouse。修改本模块的数据库连接，不会把玩家个人仓库物品移动到另一份额外库存。
+
+## 分类、容量和价格
+
+当前仓库区域使用 Warehouse 的 `categories` 与 `sort-profiles`。分类规则、自动存入、个人仓库容量和扩容价格都在 `plugins/ArcartX-Suite/data/warehouse/config.yml` 配置。
+
+- 分类与默认排序：[仓库分类与搜索](/docs/warehouse/categories)。
+- 容量与单格价格：[槽位扩容](/docs/extrabackpack/slot-expansion)。
+- 自动存入及工作台溢出：[自动存入与材料恢复](/docs/warehouse/material-recovery)。
+
+分类只负责筛选，不分别出售容量。界面分页也不等于存储容量。
+
+## 自定义界面
+
+修改导出的 UI 后保持 `ui.overwrite-ui-files: false`，以免重载覆盖。使用新版模板时，应合并初始化中的 `whLayoutEnabled` 布局标记；服务端在下发前填写本服务器的仓库能力，保证打开时布局已确定。
+
+物品总量由独立 Text 显示，原版槽位和仓库条目的交互协议不同。自定义时保留条目稳定 ID、图标点击穿透与服务端动作参数。
+
+修改界面配置后执行 `/axs reload extrabackpack`；修改仓库分类或容量后重载 Warehouse。

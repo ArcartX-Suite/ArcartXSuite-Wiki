@@ -165,7 +165,7 @@ sort-profiles:
 
 ### 多字段排序实现
 
-排序逻辑位于 `WarehouseService.sortComparator()`，使用 Java `Comparator` 链式组合：
+排序逻辑位于 `WarehousePacketFactory.sortComparator()`，使用 Java `Comparator` 链式组合：
 
 1. 遍历排序方案的每个 `SortField`
 2. 为每个字段构建对应的 `Comparator<SlotItemRecord>`
@@ -205,13 +205,13 @@ sort-profiles:
 ```yaml
 search:
   page-size: 18
-  default-sort: "time"
+  default-sort: "default"
 ```
 
 | 字段 | 类型 | 默认值 | 说明 |
 | --- | --- | --- | --- |
 | `page-size` | int | `18` | 搜索结果每页显示数量，最小 4。实际取 `max(4, search.page-size)` |
-| `default-sort` | string | `time` | 默认排序方案 ID，对应 `sort-profiles` 中定义的方案 |
+| `default-sort` | string | `default` | 默认排序：置顶优先，其余按首次存入顺序。其它 ID 对应 `sort-profiles` 的方案。 |
 
 > `search.page-size` 的值如果小于 `ui.page-size`，则实际使用 `ui.page-size` 作为每页显示数量。
 
