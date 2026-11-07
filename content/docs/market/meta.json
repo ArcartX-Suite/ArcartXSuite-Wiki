@@ -5,6 +5,8 @@
     "configuration",
     "commands",
     "auctions",
-    "shops"
+    "shops",
+    "recycle-protection",
+    "trade-management"
   ]
 }

@@ -15,16 +15,25 @@ description: "商店与拍卖可用命令、参数填写方式和权限要求。
 | `/market shop <商店ID>` | 打开指定系统商店 | 商店 `permission` 字段 |
 | `/market auction` | 打开拍卖行界面 | 无 |
 | `/market ah` | 打开拍卖行界面（别名） | 无 |
-| `/market pshop` | 打开玩家商店浏览界面 | 无 |
-| `/market playershop` | 打开玩家商店浏览界面（别名） | 无 |
+| `/market lot <拍品ID>` | 打开单件拍品的独立竞价厅 | 无 |
+| `/market bids` | 查看自己参与过的拍卖与最终状态 | 无 |
+| `/market ending` | 按截止时间查看即将结束的拍卖 | 无 |
+| `/market pshop` | 打开玩家店铺目录，可浏览及收藏店铺 | 无 |
+| `/market playershop` | 打开玩家店铺目录（别名） | 无 |
+| `/market pshop mine` | 打开自己的独立店铺 | 无 |
+| `/market pshop edit` | 编辑自己的店名、简介、图标和公告 | 无（仅本人资料） |
+| `/market pshop market` | 浏览所有玩家的商品 | 无 |
+| `/market store [店主UUID]` | 访问独立店铺；省略时进入自己的店铺 | 无 |
 | `/market sell <起拍价> [时长秒] [货币]` | 上架手持物品到拍卖行 | 无 |
 | `/market list <起拍价> [时长秒] [货币]` | 上架手持物品（别名） | 无 |
+| `/market sellui` | 打开统一上架界面，可选择拍卖或玩家商店 | 无 |
 | `/market recycle` | 打开回收界面 | 无 |
-| `/market recycle all` | 一键回收背包所有可回收物品 | `axsmarket.autorecycle`（自动回收） |
-| `/market history` | 打开交易历史界面 | 无 |
-| `/market my` | 查看我的上架物品 | 无 |
+| `/market recycle protect` | 管理个人自动回收、材质排除与收藏同款保护 | 无 |
+| `/market recycle all` | 批量回收；开启确认时先进入回收界面 | 无；受 `batch-recycle-enabled` 控制 |
+| `/market history` | 查看拍卖、玩家商店、系统商店、回收的统一交易历史 | 无 |
+| `/market my [auction\|pshop]` | 查看自己的拍卖或玩家商店挂单 | 无 |
 | `/market search <关键词>` | 搜索拍卖行物品 | 无 |
-| `/market cancel <上架ID>` | 取消上架 | 无（仅可取消自己的） |
+| `/market cancel <上架ID> [auction\|pshop]` | 取消指定类型的挂单，默认拍卖 | 无（仅可取消自己的） |
 
 #### 上架手持商品（`/market sell`）
 
@@ -38,7 +47,7 @@ description: "商店与拍卖可用命令、参数填写方式和权限要求。
 |---|---|---|
 | 起拍价 | 是 | 起拍价格，需在 `min-price` ~ `max-price` 范围内 |
 | 时长秒 | 否 | 上架时长（秒），默认使用 `default-duration-seconds` |
-| 货币 | 否 | 交易货币，默认 `money` |
+| 货币 | 否 | 默认使用 `auction.default-currency` |
 
 示例：
 ```
@@ -63,14 +72,48 @@ description: "商店与拍卖可用命令、参数填写方式和权限要求。
 
 ## 管理员命令
 
+### 管理员交易管理面板
+
+玩家管理员执行 `/axs market trades`，或在交易历史页点击“交易管理”。需要 `arcartxsuite.market.admin` 权限；控制台可使用下方的流水命令。
+
+面板按玩家、物品、创建时间、交易类型及状态查询，提供待发放、失败与待核对入口，以及记录详情和关联流水。业务历史、单条操作完成和最终交付的含义不同，应结合整笔交易判断。
+
+完整的筛选填写方式、时间格式、状态解释及纠纷查询示例见[交易管理与异常查询](/docs/market/trade-management)。个人自动回收、材质排除及收藏同款的操作见[玩家回收保护](/docs/market/recycle-protection)。
+
+### 交易流水与异常核对
+
+```text
+/axs market ledger [页码] [all|PREPARED|READY|RUNNING|REVIEW|DONE|FAILED] [玩家UUID]
+/axs market resolve <流水ID> <delivered|cancel|retry-confirmed> <核对说明>
+```
+
+流水页码从 0 开始，每页 10 条，显示操作编号、父交易编号、业务类型、玩家、金额、引用和处理说明。四类交易都有业务流水，扣款、入账和持久交付使用独立子记录。
+
+| 状态 | 含义 |
+|---|---|
+| `PREPARED` | 交付快照已保存，尚未确认扣款或收取物品等前置条件 |
+| `READY` | 可安全执行的待交付任务，上线后自动消费 |
+| `RUNNING` | 业务或外部调用正在处理 |
+| `REVIEW` | 处理曾中断、结果不确定，需要核对 |
+| `DONE` | 本条记录完成；仍需结合父交易及子任务判断整笔交易进度 |
+| `FAILED` | 业务或外部接口明确返回失败；可能另有退款子任务 |
+
+进程失去心跳超过约两分钟后，遗留任务会进入恢复处理。能够确认已扣款的系统商店奖励快照会激活；已经入库的 `READY` 交付会继续执行。结果不明的扣款、物品或指令发放不会自动重放，而是保留为 `REVIEW`。
+
+只对 `REVIEW` 记录使用核对命令：`delivered` 表示已核实该操作完成；`cancel` 表示关闭该记录；`retry-confirmed` 仅适用于物品、货币或指令交付，表示**已核实交付义务成立且尚未执行**，重新放入待交付队列。核对命令本身会记录操作者和说明。不要仅凭余额差额判断，或在结果未知时反复补发。
+
+旧待发放队列会在模块初始化时迁入新队列；原数据损坏或发放结果未知时保留记录，不会直接丢弃。
+
 管理员命令通过 `/axs market` 集成，需要 `arcartxsuite.market.admin` 权限。
 
 | 命令 | 说明 | 权限 |
 |---|---|---|
 | `/axs market help` | 显示管理帮助 | `arcartxsuite.market.admin` |
+| `/axs market trades` | 打开交易管理面板（仅玩家） | `arcartxsuite.market.admin` |
 | `/axs market status` | 查看模块运行状态 | `arcartxsuite.market.admin` |
-| `/axs market clear-expired` | 手动触发到期处理 | `arcartxsuite.market.admin` |
-| `/axs market remove <上架ID>` | 强制移除上架物品 | `arcartxsuite.market.admin` |
+| `/axs market clear-expired` | 同时处理拍卖与玩家商店的到期挂单 | `arcartxsuite.market.admin` |
+| `/axs market remove <auction\|pshop> <上架ID>` | 强制下架对应类型挂单并退还；旧写法 `remove <ID>` 仍表示拍卖 | `arcartxsuite.market.admin` |
+| `/axs market open <auction\|pshop\|shop\|recycle\|history\|sell> [商店ID]` | 打开对应业务界面；仅玩家执行，商店 ID 只用于 shop | `arcartxsuite.market.admin` |
 | `/axs market edit [商店ID]` | 打开系统商店编辑 UI（仅玩家可执行；省略 ID 时打开商店选择界面） | `arcartxsuite.market.admin` |
 
 ### status 输出示例
@@ -78,6 +121,8 @@ description: "商店与拍卖可用命令、参数填写方式和权限要求。
 ```
 AXS Market 状态
 活跃拍卖: 42
+玩家商店在售: 12
+功能状态: 拍卖行=true，玩家商店=true，系统商店=true，回收商店=true，动态商店=false
 系统商店: 3
 回收条目: 10
 列表缓存(Redis): 已连接
@@ -90,14 +135,16 @@ AXS Market 状态
 
 ### 移除指定商品（remove）
 
-强制移除指定上架 ID 的物品。会退还竞价者押金和卖家物品，记录类型为 `ADMIN_CANCELLED`。
+拍卖和玩家商店的 ID 分开编号，请显式指定类型，避免选错挂单。拍卖下架会退还竞价押金和卖家物品；玩家商店下架会退还卖家物品。两者都会写入交易历史。
+
+系统商店通过 `/axs market edit [商店ID]` 编辑；回收表位于模块目录 `recycle/`，修改后执行 `/axs reload market`。`status` 同时列出四类功能的启用状态、两类挂单数量、系统商店数量及回收条目数量。
 
 ## 权限节点
 
 | 权限节点 | 说明 | 默认 |
 |---|---|---|
 | `arcartxsuite.market.admin` | 管理员命令权限 | OP |
-| `axsmarket.autorecycle` | 拾取自动回收权限 | 无 |
+| `axsmarket.autorecycle` | 拾取自动回收权限；仍需服务器允许及个人开关开启 | 无 |
 | `axsmarket.vip` | 拍卖行/玩家商店 VIP 税率减免 | 无 |
 | `axsmarket.mvp` | 拍卖行/玩家商店 MVP 税率减免 | 无 |
 | `axsmarket.recycle.vip` | 回收价格 VIP 加成 | 无 |

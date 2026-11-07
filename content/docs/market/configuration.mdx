@@ -7,11 +7,25 @@ description: "调整shops/ 商品、回收价格、交易货币与拍卖规则�
 
 shops/ 商品、回收价格、交易货币与拍卖规则。先使用默认示例完成一次测试，再按本页逐项调整。
 
-配置位置：`plugins/ArcartX-Suite/data/market/config.yml`。定义文件与子目录均相对此模块目录。本文中的 YAML 片段用于修改对应小节，请保留文件中的其他设置。
+主配置文件为模块数据目录下的 `ArcartXMarket.yml`。定义文件与子目录均相对此模块目录。本文中的 YAML 片段用于修改对应小节，请保留文件中的其他设置。
 
 修改后执行 `/axs reload market`；涉及插件安装或全局设置的变更请重启后验证。
 
-Market 模块的配置文件位于 `plugins/ArcartX-Suite/data/market/config.yml`。修改后执行 `/axs reload market` 即可生效（商店/回收配置热重载，主配置需重启）。
+### 四类交易的界面与记录
+
+四类功能分别使用 `auction.enabled`、`player-shop.enabled`、`shop.enabled`、`recycle.enabled` 控制。关闭功能后，其入口会提示未启用。`/market sellui` 的上架模式只允许使用已启用的拍卖行或玩家商店。
+
+上架界面按对应模式的 `min-duration-seconds`、`max-duration-seconds` 和 `default-duration-seconds` 设置时长，预设天数超出范围时不可选择。默认值应配置在允许范围内。
+
+`/market history` 合并四类交易记录，按时间分页展示。玩家商店已有历史也会显示；系统商店购买和回收从本次版本起记录，不补造此前未保存的历史。
+
+`auction.tax-discount` 和 `player-shop.tax-discount` 的值均为**最终税率**，取匹配权限中的最低值；不是从基础税率中减去的数值。例如 `axsmarket.vip: 0.02` 表示最终收取 2%。
+
+`recycle.batch-recycle-enabled: false` 同时关闭界面和命令的批量回收，仍可逐件回收。`batch-confirm: true` 在界面显示确认弹窗；命令 `/market recycle all` 会先打开回收界面。自动拾取回收还需同时满足 `allow-auto-recycle`、`axsmarket.autorecycle` 权限及个人开关；个人默认关闭。材质排除与收藏同款保护对三种回收方式同时生效，详见[玩家回收保护](/docs/market/recycle-protection)。
+
+Redis 启用后缓存玩家各自的拍卖和玩家商店列表页，保存时间使用 `cache-ttl-seconds`。交易、下架及到期会使列表缓存失效；Redis 不可用时直接查库。跨服消息发送不依赖此缓存开关。
+
+系统商店 `refresh-interval-ticks` 调度到期限购清理及周期补货。单个商品只有设置了大于 0 的 `restock-interval-seconds` 才会按周期补满 `global` 或 `per-player` 库存；默认 0 不自动补货。动态商品策略在 `shop.dynamic.strategies` 中配置，需启用 `shop.dynamic.enabled`；三个策略类型为 `random-refresh`、`price-float`、`scheduled-swap`。
 
 ### settings 全局设置
 
@@ -26,10 +40,17 @@ Market 模块的配置文件位于 `plugins/ArcartX-Suite/data/market/config.yml
 |---|---|---|---|
 | `ui.shop-file` | string | `arcartx/ui/market_shop.yml` | 系统商店 UI 文件路径 |
 | `ui.auction-file` | string | `arcartx/ui/market_auction.yml` | 拍卖行 UI 文件路径 |
+| `ui.auction-room-ui-id` | string | `AXS:market_auction_room` | 单件拍品竞价厅 ID，须与其他市场 UI 区分 |
+| `ui.auction-room-file` | string | `arcartx/ui/market_auction_room.yml` | 竞价厅资源路径，导出为模块 `ui/market_auction_room.yml` |
 | `ui.recycle-file` | string | `arcartx/ui/market_recycle.yml` | 回收商店 UI 文件路径 |
 | `ui.history-file` | string | `arcartx/ui/market_history.yml` | 交易历史 UI 文件路径 |
 | `ui.sell-file` | string | `arcartx/ui/market_sell.yml` | 统一上架 UI 文件路径 |
 | `ui.player-shop-file` | string | `arcartx/ui/market_player_shop.yml` | 玩家商店 UI 文件路径 |
+| `ui.player-shops-ui-id` | string | `AXS:market_player_shops` | 店铺目录，导出 `ui/market_player_shops.yml` |
+| `ui.player-store-ui-id` | string | `AXS:market_player_store` | 独立店铺，导出 `ui/market_player_store.yml` |
+| `ui.player-store-edit-ui-id` | string | `AXS:market_player_store_edit` | 店主资料编辑，导出 `ui/market_player_store_edit.yml` |
+| `ui.recycle-protection-ui-id` | string | `AXS:market_recycle_protection` | 个人回收保护，导出 `ui/market_recycle_protection.yml` |
+| `ui.admin-trades-ui-id` | string | `AXS:market_admin_trades` | 管理员交易管理，导出 `ui/market_admin_trades.yml` |
 | `ui.register-ui-on-enable` | boolean | `true` | 模块启动时自动注册 UI 到 ArcartX 桥接层 |
 | `ui.overwrite-ui-files` | boolean | `false` | 是否覆盖已导出的 UI 文件（`true` 会覆盖自定义修改） |
 
@@ -81,6 +102,14 @@ Market 模块的配置文件位于 `plugins/ArcartX-Suite/data/market/config.yml
 | `auction.tax-discount` | map | - | VIP 税率减免（权限节点 → 减免值） |
 | `auction.expired-return-method` | string | `mail` | 到期退回方式：`mail` / `inventory` |
 | `auction.outbid-notify` | string | `chat` | 被超越通知方式：`chat` / `actionbar` / `title` |
+| `auction.allow-cancel-with-bids` | boolean | `false` | 是否允许卖家取消已有有效出价的拍卖 |
+| `auction.end-protection.enabled` | boolean | `false` | 是否开启临近结束延时 |
+| `auction.end-protection.window-seconds` | int | `120` | 延时触发窗口，1–3600 秒 |
+| `auction.end-protection.extend-seconds` | int | `120` | 窗口内有效出价后的剩余时间目标，1–3600 秒 |
+| `auction.end-protection.max-extension-seconds` | int | `1800` | 相比原截止时间最多延后多少秒，1–86400 秒 |
+| `auction.notifications.outbid` | boolean | `true` | 被其他玩家超价提醒 |
+| `auction.notifications.settlement` | boolean | `true` | 卖家成交、买家得标、流拍及关注商品结束提醒 |
+| `auction.notifications.watch-bids` | boolean | `false` | 每次有效出价是否额外提醒关注者 |
 
 ### 竞价加价规则
 
@@ -177,10 +206,14 @@ Market 模块的配置文件位于 `plugins/ArcartX-Suite/data/market/config.yml
 | `recycle.enabled` | boolean | `true` | 是否启用回收商店 |
 | `recycle.recycle-directory` | string | `recycle` | 回收表文件目录 |
 | `recycle.default-currency` | string | `money` | 默认回收货币 |
-| `recycle.allow-auto-recycle` | boolean | `true` | 是否允许拾取自动回收（需 `axsmarket.autorecycle` 权限） |
+| `recycle.allow-auto-recycle` | boolean | `true` | 是否允许拾取自动回收（还需权限及个人开关） |
+| `recycle.protection.default-auto-recycle` | boolean | `false` | 首次创建个人设置时的自动回收默认值，不覆盖已有设置 |
+| `recycle.protection.max-rules` | int | `200` | 每人材质排除与收藏同款规则总上限，范围 1–1000 |
 | `recycle.batch-recycle-enabled` | boolean | `true` | 是否允许 UI 一键回收 |
 | `recycle.batch-confirm` | boolean | `true` | 一键回收是否需二次确认 |
 | `recycle.price-multiplier` | map | - | 回收价格倍率（权限节点 → 倍率） |
+
+`default-auto-recycle` 只用于首次创建个人设置，不会覆盖已有玩家的开关。`max-rules` 是每人两类规则的合计上限，调低后不会自动删除已有规则；玩家仍可查看或移除原有规则。个人清单通过 `/market recycle protect` 管理，不在回收价格文件中配置。
 
 ## 商店与回收配置示例
 
@@ -196,8 +229,27 @@ recycle:
   enabled: true
   recycle-directory: recycle
   default-currency: money
+  allow-auto-recycle: true
+  protection:
+    default-auto-recycle: false
+    max-rules: 200
   batch-recycle-enabled: true
   batch-confirm: true
 ```
 
 重载后执行 `/market shop`，用测试账号完成一次购买和回收，核对货币余额与物品数量。
+
+
+### 回收保护与交易管理界面
+
+```yaml
+ui:
+  recycle-protection-ui-id: "AXS:market_recycle_protection"
+  admin-trades-ui-id: "AXS:market_admin_trades"
+```
+
+这两个 ID 必须与彼此及其他市场界面不同。个人设置按 UUID 保存，共享市场数据库的服务器共同使用同一份设置。修改主配置后执行 `/axs reload market`。
+
+已有自定义回收 UI 时，应先备份，再合并新版页面的交互改动。`overwrite-ui-files` 会影响已导出的市场界面，不能只为更新单个页面而忽略其他自定义内容。
+
+完整操作流程见[玩家回收保护](/docs/market/recycle-protection)和[交易管理与异常查询](/docs/market/trade-management)。
