@@ -4,6 +4,7 @@
     "index",
     "configuration",
     "commands",
-    "recipe-book"
+    "recipe-book",
+    "npc-trading"
   ]
 }

@@ -76,7 +76,7 @@ record Prepared(boolean success, String operationId, String message) {}
 
 目标证据应包含本次涉及的玩家/容器槽位前后完整物品数据。配方、位置和数量由服务端重新校验，不能把客户端展示的数量或图标当成取料凭据。
 
-同一玩家只允许一笔在途转移。每批最多九个槽位请求，总需求最多 576 个；超过限制或服务繁忙时会拒绝操作，调用方应处理失败结果。工作台、三种炉子、切石机与锻造台均使用此交付流程。
+同一玩家只允许一笔在途转移。每批最多九个槽位请求，总需求最多 576 个；超过限制或服务繁忙时会拒绝操作，调用方应处理失败结果。工作台、三种炉子、切石机、锻造台、酿造台与村民交易均使用此交付流程。
 
 ## 调用方责任
 
@@ -95,3 +95,5 @@ record Prepared(boolean success, String operationId, String message) {}
 - [MaterialContainerAdapter](/docs/api/MaterialContainerAdapter)：实现目标容器检查与材料交付。
 - [自动存入与材料恢复](/docs/warehouse/material-recovery)：管理员查询、导出和处理异常记录。
 - [配方书与材料填入](/docs/vanilla/recipe-book)：工作台、熔炉的玩家操作与材料规则。
+
+- [NPC 兑换与在线编辑](/docs/vanilla/npc-trading)：关联物品成本、货币结算和人工核对记录。
