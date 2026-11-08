@@ -28,6 +28,23 @@ XC 负责救援距离、读条、受伤打断和救援者资格。Abyss 负责�
 所有方法在服务器主线程调用，返回 `CompletionStage`。完成回调可能位于数据库线程，
 再次调用 API 或更新玩家 UI 前切回宿主主线程调度器。
 
+在主线程取得状态后，把 revision 保存在本次救援上下文中。主线程开始读条时可调用下面的预留代码。
+operationId 需要由 XC 保存，供断线后继续查询。
+
+```java
+AbyssReviveAccess api = AxsCapabilities.get(AbyssReviveAccess.class);
+UUID operationId = UUID.randomUUID();
+api.reserve("xc", operationId, runId, targetId, "teammate-rescue", revision)
+    .whenComplete((receipt, error) -> {
+        // 此回调可能在数据库线程，先保存回执，再切回主线程更新读条 UI。
+        // 只有 RESERVED 才开始读条，UNKNOWN 保持待核账。
+    });
+```
+
+读条结束回到主线程，调用 `api.commit("xc", operationId)`。中断时调用
+`api.release("xc", operationId)`。响应丢失时调用 `api.query("xc", operationId)`，
+以上调用都使用同一个 operationId。
+
 | 方法 | 用途 |
 | --- | --- |
 | `reviveStatus(runId, playerId)` | 读取 maximum、used、remaining、revision、member、state 和 code |

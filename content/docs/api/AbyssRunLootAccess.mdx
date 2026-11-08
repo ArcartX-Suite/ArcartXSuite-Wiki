@@ -36,6 +36,16 @@ quantity、quality、source、ownerId、scope、state 和 updatedAt。
 读取不会发奖、领取、修改分配或推进结算。适合面板打开、切页时读取，
 不需要每帧轮询。
 
+```java
+AbyssRunLootAccess api = AxsCapabilities.get(AbyssRunLootAccess.class);
+api.snapshot(runId, authenticatedViewerId, null, 50)
+    .whenComplete((page, error) -> {
+        // error 保持“读取失败”；FORBIDDEN 保持“无权限”。
+        // OK 时保存 revision、entries 和 nextCursor，切回主线程后更新 UI。
+        // 下一次主线程切页调用使用 page.nextCursor()。
+    });
+```
+
 ## 奖励来源与状态
 
 当前记录命名奖励集、标准宝箱，以及翻牌、转盘和三选一实际选中的奖励。

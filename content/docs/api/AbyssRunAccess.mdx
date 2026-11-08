@@ -112,6 +112,20 @@ RETURN_PENDING 表示返回传送尚未完成，可使用原请求重试。旧�
 支持在线成员在活动局及结算期间撤离。断线成员不会被标记成已经成功返回，
 上线后由原请求重试。请求和最终回执随实例销毁保留，当前不自动过期。
 
+```java
+AbyssRunAccess api = AxsCapabilities.get(AbyssRunAccess.class);
+AbyssRunAccess.Snapshot snapshot = api.snapshot(runId);
+AbyssRunAccess.Operation request = new AbyssRunAccess.Operation(
+    operationId, runId, snapshot.revision(), "xc",
+    AbyssRunAccess.Action.LEAVE, playerId, null, null);
+api.executeAsync(request).whenComplete((receipt, error) -> {
+    // 保存原 request。COMPLETED 才显示撤离完成。
+    // 回调内不直接操作 Bukkit 玩家，切回主线程后更新战术面板。
+});
+```
+
+响应丢失后在主线程调用 `api.queryOperation("xc", runId, operationId)`。
+
 这三个新接口需要包含相应 API 类的 AXS 本体。更新云端 Abyss 前先核对本体版本，
 并在本体更新后正常重启服务器。
 
