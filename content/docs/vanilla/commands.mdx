@@ -5,12 +5,15 @@ description: "原版界面替换可用命令、参数填写方式和权限要求
 
 ## 玩家命令
 
-VanillaUI 模块无独立玩家命令。界面替换由 UI YAML 的 `match` 规则自动触发，玩家打开原版工作台或熔炉时自动呈现替换 UI，无需任何命令操作。材料转移凭证的查询、导出与人工确认由 [Warehouse 管理命令](/docs/warehouse/material-recovery) 提供。
+VanillaUI 模块无独立玩家命令。玩家打开已启用的工作台、熔炉、高炉、烟熏炉、切石机或锻造台时自动显示替换界面。材料转移记录的查询、导出与人工确认由 [Warehouse 管理命令](/docs/warehouse/material-recovery) 提供。
 
 | 交互方式 | 触发条件 | 说明 |
 | --- | --- | --- |
 | 打开工作台 | 右键工作台方块 | 自动呈现 ArcartX UI 工作台界面 |
 | 打开熔炉 | 右键熔炉方块 | 自动呈现 ArcartX UI 熔炉界面 |
+| 打开高炉或烟熏炉 | 右键对应方块 | 查看专用烧炼配方和加工进度 |
+| 打开切石机 | 右键切石机 | 选择切割成品并填入石材 |
+| 打开锻造台 | 右键锻造台 | 先放入目标装备，再选择升级或纹饰方案补齐辅材 |
 | 切换侧栏 | 点击配方书或仓库按钮 | 在配方书与仓库之间切换；无仓库时显示配方书 |
 | 搜索配方 | 在搜索框输入文本 | 实时过滤配方列表（中英文模糊匹配） |
 | 仓库分类与排序 | 展开选择列表 | 直接选择 Warehouse 配置的筛选项 |
@@ -41,7 +44,7 @@ VanillaUI 模块无独立管理命令，通过Suite `/axs` 命令统一管理：
 
 ## UI 自定义说明
 
-界面文件 `ui/vanilla_crafting.yml` 与 `ui/vanilla_furnace.yml` 可自定义外观（颜色、布局、文字等）。修改后通过 `/axs reload vanilla` 重载生效；开启 `ui.overwrite-ui-files` 会覆盖为默认模板。
+导出的界面文件位于 `plugins/ArcartX-Suite/ui/`，六种界面的文件名见[功能配置](/docs/vanilla/configuration)。修改后通过 `/axs reload vanilla` 重载生效；开启 `ui.overwrite-ui-files` 会覆盖为默认模板，修改前请备份。
 
 ## 相关文档
 

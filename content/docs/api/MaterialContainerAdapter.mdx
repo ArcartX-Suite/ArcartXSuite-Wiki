@@ -54,10 +54,10 @@ public interface MaterialContainerAdapter {
 
 新的容器必须检查合法槽位、材料要求、玩家窗口与容器是否仍有效，并只修改计划涉及的槽位。容器坐标只能标识目标，不能证明物品已经写入存档；无法确认的交付不得自行重试或补发。
 
-VanillaUI 提供工作台与熔炉适配，暂不支持高炉、烟熏炉或其他容器界面。
+VanillaUI 提供工作台、熔炉、高炉、烟熏炉、切石机和锻造台适配。锻造台的目标装备由玩家先放入，材料计划只补齐模板与辅材；切石机填入石材后仍需选择原版切割配方，不应自行生成结果物品。
 
 ## 相关文档
 
 - [WarehouseMaterialAccess](/docs/api/WarehouseMaterialAccess)：获取仓库材料、准备交付和记录结果。
-- [配方书与材料填入](/docs/vanilla/recipe-book)：工作台与熔炉的材料来源及填入限制。
+- [配方书与材料填入](/docs/vanilla/recipe-book)：六种容器的材料来源、操作步骤和填入限制。
 - [自动存入与材料恢复](/docs/warehouse/material-recovery)：查询与处理需要人工核对的记录。
