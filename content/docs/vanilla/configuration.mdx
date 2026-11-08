@@ -38,7 +38,7 @@ UI 统一配置节，管理所有界面的 ID 与覆盖策略。
 | --- | --- | --- | --- | --- |
 | `ui.overwrite-ui-files` | `boolean` | `false` | 布尔值 | 是否覆盖用户已修改的 UI 文件 |
 
-八种原版界面的 UI ID 可独立修改，文件统一导出到 `plugins/ArcartX-Suite/ui/`：
+十种原版界面的 UI ID 可独立修改，文件统一导出到 `plugins/ArcartX-Suite/ui/`：
 
 | 容器 | UI ID 配置字段 | 默认 UI ID | 默认文件 |
 | --- | --- | --- | --- |
@@ -50,6 +50,8 @@ UI 统一配置节，管理所有界面的 ID 与覆盖策略。
 | 锻造台 | `ui.smithing-ui-id` | `AXS:vanilla_smithing` | `vanilla_smithing_v2.yml` |
 | 酿造台 | `ui.brewing-ui-id` | `AXS:vanilla_brewing` | `vanilla_brewing_v2.yml` |
 | 村民交易 | `ui.merchant-ui-id` | `AXS:vanilla_merchant` | `vanilla_merchant_v2.yml` |
+| 铁砧 | `ui.anvil-ui-id` | `AXS:vanilla_anvil` | `vanilla_anvil_v2.yml` |
+| 附魔台 | `ui.enchanting-ui-id` | `AXS:vanilla_enchanting` | `vanilla_enchanting_v2.yml` |
 | NPC 兑换 | `ui.npc-trade-ui-id` | `AXS:vanilla_npc_trade` | `vanilla_npc_trade_v2.yml` |
 | NPC 编辑 | `ui.npc-editor-ui-id` | `AXS:vanilla_npc_editor` | `vanilla_npc_editor_v2.yml` |
 
@@ -210,13 +212,30 @@ npc-trading:
 
 NPC 定义保存于 `data/vanilla/npc-trades.yml`。游戏内保存立即生效；手动修改该文件后需重载。使用步骤见 [NPC 兑换与在线编辑](/docs/vanilla/npc-trading)。
 
+## 铁砧与附魔台
+
+以下字段合并到主配置顶层。两个界面默认启用，关闭后恢复对应原版界面：
+
+```yaml
+anvil:
+  enabled: true
+  push-interval-ticks: 2
+enchanting:
+  enabled: true
+  push-interval-ticks: 2
+```
+
+刷新间隔均为 1～100 tick，默认 2；服务端只在状态变化时发送更新。操作说明见[铁砧与附魔台](/docs/vanilla/equipment)。
+
 ## 仓库联动
 
-Warehouse 为可选模块，无需在本页配置中单独开启。启用后，八种原版界面都可显示个人仓库，并将可用仓库材料计入“仅可制作”和填入材料。锻造台仍需玩家先放入目标装备。没有 Warehouse 时直接显示配方书，使用工作区和背包材料。
+Warehouse 为可选模块，无需在本页配置中单独开启。启用后，十种原版界面都可显示个人仓库。配方类界面将可用仓库材料计入“仅可制作”和填入材料；附魔台可补足青金石。锻造台、铁砧与附魔台的目标装备由玩家先放入，铁砧材料手动取放。没有 Warehouse 时，配方类界面显示配方书，铁砧与附魔台显示操作指引，仍可使用背包材料。
 
-工作台、切石机、锻造台与村民交易关闭后的溢出入库，由 Warehouse 的自动存入开关控制，详见[自动存入与材料恢复](/docs/warehouse/material-recovery)。
+工作台、切石机、锻造台、村民交易、铁砧与附魔台关闭后的溢出入库，由 Warehouse 的自动存入开关控制，详见[自动存入与材料恢复](/docs/warehouse/material-recovery)。
 
 ## 相关文档
+
+- [铁砧与附魔台](/docs/vanilla/equipment)：改名确认、原版经验消耗和青金石补足。
 
 - [命令与权限](/docs/vanilla/commands)：界面入口、操作方式与重载权限。
 - [配方书与材料填入](/docs/vanilla/recipe-book)：选择配方、查看可制作标记和补齐材料。
