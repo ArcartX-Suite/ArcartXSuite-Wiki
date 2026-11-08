@@ -44,6 +44,9 @@ public interface AbyssRunAccess {
     record Operation(UUID operationId, UUID runId, long expectedRevision, String owner,
                      Action action, UUID playerId, String key, String value) { }
     record OperationResult(boolean applied, String code, long revision) { }
+    enum OperationState { ACCEPTED, COMPLETED, REJECTED, UNKNOWN, NOT_FOUND }
+    record OperationReceipt(UUID operationId, UUID runId, String owner, OperationState state,
+                            String code, long revision, long updatedAt) { }
     interface ObjectiveProvider {
         List<Objective> objectives(UUID runId);
         default boolean canComplete(UUID runId, List<Objective> current) { return false; }
@@ -54,6 +57,8 @@ public interface AbyssRunAccess {
     Entity entity(UUID entityId);
     List<UUID> audience(UUID runId);
     OperationResult execute(Operation operation);
+    CompletionStage<OperationReceipt> executeAsync(Operation operation);
+    CompletionStage<OperationReceipt> queryOperation(String owner, UUID runId, UUID operationId);
     AbyssAdmissionAccess.Registration registerObjectives(String owner, ObjectiveProvider provider);
 }
 ```
@@ -85,6 +90,30 @@ public interface AbyssRunAccess {
 ### 执行操作 execute(operation)
 
 用 operationId、owner 和 expectedRevision 请求动作，按 applied 和 code 判断结果。
+
+### 持久化撤离 LEAVE
+
+能力发现使用 `integrationInfo().features.durableLeave`。
+`executeAsync(operation)` 当前用于 LEAVE，主线程发起，回调可能在数据库线程完成。
+撤离前先保存完整请求，真实返回安全位置后才保存 COMPLETED / APPLIED。
+仅撤离 playerId 指定的成员，执行原离场脚本、属性清理与成员通知，原因记录为 QUIT。
+外部 XC 队伍关系不由此操作修改。最后一名成员退出后仍遵循副本原有清理策略。
+
+旧 `execute(operation)` 签名保留。LEAVE 首次返回 IN_PROGRESS 时不能显示已经撤离，
+调用 `queryOperation(owner, runId, operationId)` 补查，或用相同完整请求调用 executeAsync。
+RETURN_PENDING 表示返回传送尚未完成，可使用原请求重试。旧修订返回 STALE_REVISION，
+改参数复用相同编号返回 OPERATION_CONFLICT。
+
+查询返回 ACCEPTED、COMPLETED、REJECTED、UNKNOWN 或 NOT_FOUND。
+查询不会再次传送玩家。响应丢失后会结合当前成员关系或持久化结算成员事实补查，
+无法证明完成时保持 UNKNOWN。数据库异常和 10 秒查询超时通过异常完成返回，
+调用方应保留原编号继续补查。
+
+支持在线成员在活动局及结算期间撤离。断线成员不会被标记成已经成功返回，
+上线后由原请求重试。请求和最终回执随实例销毁保留，当前不自动过期。
+
+这三个新接口需要包含相应 API 类的 AXS 本体。更新云端 Abyss 前先核对本体版本，
+并在本体更新后正常重启服务器。
 
 ### 注册目标提供方 registerObjectives(owner, provider)
 

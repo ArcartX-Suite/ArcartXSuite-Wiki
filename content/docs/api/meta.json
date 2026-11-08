@@ -12,6 +12,8 @@
     "AbyssExternalPartyAccess",
     "AbyssReconnectAccess",
     "AbyssRunAccess",
+    "AbyssReviveAccess",
+    "AbyssRunLootAccess",
     "AbyssRunResultAccess",
     "AfkRewardDispatchable",
     "AnnouncerBroadcastable",

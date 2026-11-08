@@ -1,0 +1,56 @@
+---
+title: "AbyssRunLootAccess"
+description: "只读查询本局奖励记录，按成员过滤私人条目并分页。"
+---
+
+通过 `AxsCapabilities.get(AbyssRunLootAccess.class)` 获取，类型位于
+`xuanmo.arcartxsuite.api.capability`。能力发现使用
+`integrationInfo().features.runLoot`，接口为空时显示“战利品能力不可用”。
+
+## 查询
+
+```java
+CompletionStage<LootSnapshot> snapshot(
+    UUID runId, UUID viewerId, String cursor, int limit);
+```
+
+主线程调用，异步回调可能位于数据库线程。首屏 cursor 传 null，每页 1～100 条。
+viewerId 必须由 XC 服务端从已认证的玩家会话取得，客户端传入的 UUID 不能直接信任。
+只有本局原始成员能读取。PERSONAL 条目仅向归属人返回，SHARED 条目对原始成员可见。
+成员离场和实例结束后，原始成员仍可回看记录。
+
+返回值包含 runId、revision、runState、entries、nextCursor、complete 和 code。
+complete 表示本次分页已读完。每条记录包含稳定的 entryId、rewardId、displayName、
+quantity、quality、source、ownerId、scope、state 和 updatedAt。
+物品源未提供品质时 quality 为 null。
+
+| code | 含义 |
+| --- | --- |
+| `OK` | 正常结果，entries 可为空 |
+| `FORBIDDEN` | 查看者不是原始成员，不能显示为“暂无战利品” |
+| `UNKNOWN_RUN` | 未记录此局，包括功能上线前未建账的局 |
+| `UNAVAILABLE` | 模块未运行 |
+| `STALE_CURSOR` | 账本在翻页期间发生变化，从首屏重新读取 |
+
+游标绑定 runId、viewerId 和修订。畸形游标、越界分页参数、数据库不可用会异常完成。
+读取不会发奖、领取、修改分配或推进结算。适合面板打开、切页时读取，
+不需要每帧轮询。
+
+## 奖励来源与状态
+
+当前记录命名奖励集、标准宝箱，以及翻牌、转盘和三选一实际选中的奖励。
+未选中的隐藏牌不会进入查询结果。发奖过程先存入本局待发记录，再调用宿主
+`PendingRewardService.savePendingBatchConfirmed`，失败后复用相同批次补交。
+
+- `PENDING` 表示仍等待宿主确认，保留可恢复的原始奖励。
+- `HOST_ACCEPTED` 表示宿主已经持久化接收，可能继续发往背包、仓库、邮件或待发服务。
+- `DELIVERED` 预留给具备实际发放回执的来源，当前不会用宿主接收结果冒充此状态。
+- `UNKNOWN` 表示来源无法确认结果。
+
+货币使用 currency 奖励 ID 和实际金额。脚本命令奖励显示其奖励描述，
+quantity 表示该条命令奖励，不解析命令实际生成了多少物品。
+原版地面掉落、玩家自行拾取和外部插件独立发奖尚不属于这一查询范围。
+共享范围字段供后续受控来源使用，当前内建发奖记录均为个人条目。
+
+记录随实例世界销毁继续保留，在管理员显式清理模块数据库前可查询。
+每局上限 10000 条，超限会拒绝登记新批次并使相应操作异常完成。

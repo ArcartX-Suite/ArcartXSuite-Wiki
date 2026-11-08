@@ -1,0 +1,62 @@
+---
+title: "AbyssReviveAccess"
+description: "按本局成员持久化复活额度，处理救援预留、提交和中断恢复。"
+---
+
+通过 `AxsCapabilities.get(AbyssReviveAccess.class)` 获取。类型位于
+`xuanmo.arcartxsuite.api.capability`。接口为空或
+`integrationInfo().features.reviveTransactions` 不为 `AVAILABLE` 时关闭救援入口。
+
+## 配置与职责
+
+每个副本的 `config.yml` 可以配置以下额度，默认 `0` 表示关闭外部救援。
+范围为 0～1000，每名成员每个 runId 独立计数。工作台的结算表单也提供“每人本局救援额度”。
+
+```yaml
+requirements:
+  external-control-owner: xc
+  revive-limit: 2
+```
+
+XC 负责救援距离、读条、受伤打断和救援者资格。Abyss 负责本局成员、死亡代次、
+额度、目标占用及实际复活。读条成功后调用 `commit`，由 Abyss 执行复活。
+服主应协调既有 `player-death` 自动复活脚本及全员死亡判负策略，否则玩家可能在读条结束前已被脚本复活或判负。
+结算用的 `revive-players` 和管理员脚本复活继续使用原有策略，不扣此外部救援额度。
+
+## 方法
+
+所有方法在服务器主线程调用，返回 `CompletionStage`。完成回调可能位于数据库线程，
+再次调用 API 或更新玩家 UI 前切回宿主主线程调度器。
+
+| 方法 | 用途 |
+| --- | --- |
+| `reviveStatus(runId, playerId)` | 读取 maximum、used、remaining、revision、member、state 和 code |
+| `reserve(owner, operationId, runId, playerId, reason, expectedRevision)` | 按状态修订预留一份额度，占用目标 30 秒 |
+| `commit(owner, operationId)` | 持久化提交意图，检查原死亡代次，执行真实复活并保存结果 |
+| `release(owner, operationId)` | 释放尚未开始提交的预留 |
+| `query(owner, operationId)` | 查询原操作，处理预留到期和重启中断状态 |
+
+`operationId` 在同一 owner 下全局唯一。重试必须复用原编号、runId、playerId、reason 和 expectedRevision。
+改参数复用编号返回 `OPERATION_CONFLICT`。第一次调用未受理且返回 `STALE_REVISION` 时，
+重新读取状态并用新的编号提出新的操作。
+
+## 状态与异常
+
+| 状态 | 调用方行为 |
+| --- | --- |
+| `RESERVED` | 开始或继续救援读条 |
+| `COMMITTING` | 提交执行中，保持原操作编号查询 |
+| `COMMITTED` | 该次复活已确认，额度只扣一次 |
+| `RELEASED` | 已释放，未扣次数 |
+| `EXHAUSTED` | 没有可预留额度 |
+| `REJECTED` | 根据 code 提示，不显示复活成功 |
+| `UNKNOWN` | 需要核账，保留占用，不发起替代操作 |
+| `NOT_FOUND` | 查无该 owner 下的操作 |
+
+成员离场、死亡代次变化、局已结束或预留过期时，尚未开始执行的提交会释放额度。
+传送失败时保持死亡状态且不扣额度。提交执行过程中发生异常，或重启后发现
+未完成的 COMMITTING 记录，会保留待核账状态，不自动重做一次复活。
+接口超时或异常完成不能解释为失败，也不能重新生成编号重试。
+
+记录随实例世界销毁继续保留，在管理员显式清理模块数据库前可查询。
+当前额度修订与本局账本修订一致，其他账本写入也可能使 expectedRevision 过期。
