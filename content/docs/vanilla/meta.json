@@ -6,6 +6,7 @@
     "commands",
     "recipe-book",
     "equipment",
+    "artisan",
     "npc-trading"
   ]
 }

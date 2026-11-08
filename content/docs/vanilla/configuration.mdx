@@ -38,7 +38,7 @@ UI 统一配置节，管理所有界面的 ID 与覆盖策略。
 | --- | --- | --- | --- | --- |
 | `ui.overwrite-ui-files` | `boolean` | `false` | 布尔值 | 是否覆盖用户已修改的 UI 文件 |
 
-十种原版界面的 UI ID 可独立修改，文件统一导出到 `plugins/ArcartX-Suite/ui/`：
+十三种原版界面的 UI ID 可独立修改，文件统一导出到 `plugins/ArcartX-Suite/ui/`：
 
 | 容器 | UI ID 配置字段 | 默认 UI ID | 默认文件 |
 | --- | --- | --- | --- |
@@ -52,6 +52,9 @@ UI 统一配置节，管理所有界面的 ID 与覆盖策略。
 | 村民交易 | `ui.merchant-ui-id` | `AXS:vanilla_merchant` | `vanilla_merchant_v2.yml` |
 | 铁砧 | `ui.anvil-ui-id` | `AXS:vanilla_anvil` | `vanilla_anvil_v2.yml` |
 | 附魔台 | `ui.enchanting-ui-id` | `AXS:vanilla_enchanting` | `vanilla_enchanting_v2.yml` |
+| 砂轮 | `ui.grindstone-ui-id` | `AXS:vanilla_grindstone` | `vanilla_grindstone_v2.yml` |
+| 织布机 | `ui.loom-ui-id` | `AXS:vanilla_loom` | `vanilla_loom_v2.yml` |
+| 制图台 | `ui.cartography-ui-id` | `AXS:vanilla_cartography` | `vanilla_cartography_v2.yml` |
 | NPC 兑换 | `ui.npc-trade-ui-id` | `AXS:vanilla_npc_trade` | `vanilla_npc_trade_v2.yml` |
 | NPC 编辑 | `ui.npc-editor-ui-id` | `AXS:vanilla_npc_editor` | `vanilla_npc_editor_v2.yml` |
 
@@ -227,13 +230,33 @@ enchanting:
 
 刷新间隔均为 1～100 tick，默认 2；服务端只在状态变化时发送更新。操作说明见[铁砧与附魔台](/docs/vanilla/equipment)。
 
+## 砂轮、织布机与制图台
+
+以下字段合并到主配置顶层，三种界面均默认启用：
+
+```yaml
+grindstone:
+  enabled: true
+  push-interval-ticks: 2
+loom:
+  enabled: true
+  push-interval-ticks: 2
+cartography:
+  enabled: true
+  push-interval-ticks: 2
+```
+
+刷新间隔范围为 1～100 tick，默认 2。关闭某项后恢复对应原版界面。纹样选择和地图加工步骤见[砂轮、织布机与制图台](/docs/vanilla/artisan)。
+
 ## 仓库联动
 
-Warehouse 为可选模块，无需在本页配置中单独开启。启用后，十种原版界面都可显示个人仓库。配方类界面将可用仓库材料计入“仅可制作”和填入材料；附魔台可补足青金石。锻造台、铁砧与附魔台的目标装备由玩家先放入，铁砧材料手动取放。没有 Warehouse 时，配方类界面显示配方书，铁砧与附魔台显示操作指引，仍可使用背包材料。
+Warehouse 为可选模块，无需在本页配置中单独开启。启用后，十三种原版界面都可显示个人仓库。配方类界面将可用仓库材料计入“仅可制作”和填入材料；附魔台可补足青金石，织布机可补足染料，制图台可补足纸、空地图或玻璃板。锻造台、铁砧与附魔台的目标装备由玩家先放入，铁砧材料手动取放。没有 Warehouse 时，配方类界面显示配方书，装备与工艺类界面显示操作指引，仍可使用背包材料。
 
-工作台、切石机、锻造台、村民交易、铁砧与附魔台关闭后的溢出入库，由 Warehouse 的自动存入开关控制，详见[自动存入与材料恢复](/docs/warehouse/material-recovery)。
+工作台、切石机、锻造台、村民交易、铁砧、附魔台、砂轮、织布机与制图台关闭后的溢出入库，由 Warehouse 的自动存入开关控制，详见[自动存入与材料恢复](/docs/warehouse/material-recovery)。
 
 ## 相关文档
+
+- [砂轮、织布机与制图台](/docs/vanilla/artisan)：祛魔修复、旗帜纹样与地图加工。
 
 - [铁砧与附魔台](/docs/vanilla/equipment)：改名确认、原版经验消耗和青金石补足。
 
