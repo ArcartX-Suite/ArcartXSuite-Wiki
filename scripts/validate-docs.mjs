@@ -83,12 +83,21 @@ for (const file of files) {
 }
 const moduleFolders = readdirSync(docs, { withFileTypes: true }).filter((entry) => entry.isDirectory() && !['guide', 'api'].includes(entry.name) && existsSync(join(docs, entry.name, 'meta.json')));
 const logGuide = readFileSync(join(docs, 'guide/config-management.mdx'), 'utf8');
+const requiredModuleSections = [
+  ['第一次使用', '部署流程'],
+  ['检查是否配置成功', '配置验证'],
+  ['继续配置', '相关文档'],
+];
 for (const { name } of moduleFolders) {
   if (!logGuide.includes(`（${name}）`)) errors.push(`${name}: 日志说明缺少该模块的排查入口`);
   for (const page of ['index', 'configuration', 'commands']) if (!existsSync(join(docs, name, `${page}.mdx`))) errors.push(`${name}: 缺少 ${page} 页面`);
   if (!existsSync(join(docs, name, 'index.mdx'))) continue;
   const index = readFileSync(join(docs, name, 'index.mdx'), 'utf8');
-  for (const heading of ['第一次使用', '检查是否配置成功', '继续配置']) if (!index.includes(`## ${heading}`)) errors.push(`${name}: 缺少 ${heading}`);
+  for (const headings of requiredModuleSections) {
+    if (!headings.some((heading) => index.includes(`## ${heading}\n`) || index.includes(`## ${heading}\r\n`))) {
+      errors.push(`${name}: 缺少 ${headings.join(' / ')}`);
+    }
+  }
 }
 if (moduleFolders.length !== 30) errors.push(`模块数应为 30，实际为 ${moduleFolders.length}`);
 if (errors.length) { console.error(errors.join('\n')); process.exitCode = 1; }

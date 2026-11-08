@@ -1,5 +1,5 @@
 {
-  "title": "登录与账号验证",
+  "title": "登录认证",
   "pages": [
     "index",
     "configuration",

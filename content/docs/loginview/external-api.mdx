@@ -1,9 +1,9 @@
 ---
-title: "启动器开发者接口参考"
+title: "启动器授权接口"
 description: "查询公开授权接口的完整路径、JSON 请求、返回结构和设备轮询错误码。"
 ---
 
-服主先按[方案 E](/docs/loginview/external-authorization)完成中心、提供方和启动器登记。本页供已有启动器的开发者接入，接口根地址使用中心的 HTTPS 域名。
+接入前完成中心配置、身份提供方登记和启动器登记。以下接口供启动器开发者调用，根地址为中心的 HTTPS 域名。[外部身份接入](/docs/loginview/external-authorization)
 
 ## 通用请求格式
 
@@ -15,13 +15,13 @@ description: "查询公开授权接口的完整路径、JSON 请求、返回结�
 | `requestId` | UUID 字符串 | 为本次请求生成新的关联编号 |
 | `clientId` | 字符串 | 中心 `external.launchers[].id` 中登记的启动器 ID |
 
-其余字段按操作填写。不要把官网为认证中心分配的 OIDC 应用密钥放进启动器。
+各操作的附加字段见下文。OIDC 应用密钥由认证中心读取和使用。
 
 响应带 `version`、`requestId` 和 `code`。操作有返回值时，另外带字符串类型的 `value`。请求结果不确定时，先核对游戏界面或重新发起授权，避免反复使用可能已经消费的授权码。
 
-## 方式一：系统浏览器与本机回调
+## 浏览器授权流程
 
-### 第一步：发起浏览器授权
+### 发起授权
 
 接口为 `POST /v1/external/launcher/start`。
 
@@ -40,7 +40,7 @@ description: "查询公开授权接口的完整路径、JSON 请求、返回结�
 
 `redirectUri` 必须与登记值完全一致，包括端口和路径。授权确认页会提供返回启动器的链接。
 
-### 第二步：核对回调并交换授权码
+### 回调验证与授权码兑换
 
 回调包含 `code` 和 `state`。先检查 state 与本次发起时保存的一致，再调用 `POST /v1/external/launcher/exchange`。
 
@@ -57,9 +57,9 @@ description: "查询公开授权接口的完整路径、JSON 请求、返回结�
 
 成功时 `value` 是 120 秒有效的启动凭据。错误 verifier、不同回调或重复消费授权码应被拒绝。回调为 `error=access_denied` 时停止本次授权。
 
-## 方式二：设备授权
+## 设备授权流程
 
-### 第一步：申请设备码
+### 申请设备码
 
 接口为 `POST /v1/external/launcher/device/start`。
 
@@ -82,7 +82,7 @@ description: "查询公开授权接口的完整路径、JSON 请求、返回结�
 }
 ```
 
-先解析外层 JSON，再把 `value` 当作 JSON 字符串解析一次，得到以下字段。
+响应采用两层 JSON 表示。解析外层响应后，将字符串字段 `value` 再解析为 JSON，可得到以下字段。
 
 | 字段 | 用途 |
 | --- | --- |
@@ -92,7 +92,7 @@ description: "查询公开授权接口的完整路径、JSON 请求、返回结�
 | `expiresIn` | 本次设备授权的有效秒数 |
 | `interval` | 首次轮询前及后续请求间应等待的秒数 |
 
-### 第二步：按间隔轮询
+### 轮询授权结果
 
 接口为 `POST /v1/external/launcher/device/poll`，在通用字段之外增加 `deviceCode`。
 
@@ -115,11 +115,11 @@ description: "查询公开授权接口的完整路径、JSON 请求、返回结�
 | `EXPIRED_TOKEN` | 本次授权已过期 | 停止轮询，由玩家重新发起 |
 | `OK` | 授权完成 | 读取 launchToken，停止轮询 |
 
-### 第三步：取消未完成的授权
+### 取消授权
 
 调用 `POST /v1/external/launcher/device/cancel`，请求字段与轮询相同。成功响应的 `code` 为 `OK`。
 
-## 两种方式共用：关联实际游戏连接
+## 游戏连接配对
 
 玩家进入游戏后，主动把 LoginView 显示的游戏授权码交给启动器。启动器调用 `POST /v1/external/launcher/pair`。
 
@@ -137,7 +137,7 @@ description: "查询公开授权接口的完整路径、JSON 请求、返回结�
 
 启动凭据只能用于一次配对。设备授权的公开用户码与游戏里的授权码是两份不同流程的代码，配对时填写游戏当前显示的那一份。
 
-## 请求错误
+## 错误处理
 
 | 结果 | 用途与处理 |
 | --- | --- |

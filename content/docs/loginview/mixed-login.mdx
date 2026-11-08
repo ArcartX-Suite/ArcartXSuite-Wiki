@@ -1,20 +1,20 @@
 ---
-title: "B、C：混合免密登录"
-description: "分别配置单服直连和 Velocity 代理，让微软与 LittleSkin 玩家通过账号验证后进入游戏。"
+title: "混合账号认证"
+description: "配置微软与 LittleSkin 账号认证，分别支持单服直连和 Velocity 代理转发。"
 ---
 
-本页的两种方案都将账号记录保存在游戏服。玩家用自己的微软或 LittleSkin 身份连接，通过验证后可以继续条款与 QQ 绑定步骤。
+混合账号认证接收微软和 LittleSkin 身份。验证完成后，玩家继续执行条款确认和已启用的 QQ 绑定要求。以下两种部署方式均由游戏服保存账号记录。
 
-| 玩家连接方式 | 应选方案 | 在哪里运行混合登录网关 |
+| 连接拓扑 | 认证入口 | 网关部署位置 |
 | --- | --- | --- |
-| 玩家直接连接游戏服 | B，`local-mixed` | 与游戏服同一台机器 |
-| 玩家通过 Velocity 进入子服 | C，`signed-proxy` | 与 Velocity 同一台机器 |
+| 玩家直接连接游戏服 | 单服混合认证，`local-mixed` | 与游戏服同一台机器 |
+| 玩家通过 Velocity 进入子服 | 代理转发认证，`signed-proxy` | 与 Velocity 同一台机器 |
 
-这两种方式不会额外要求玩家注册一份本服密码。普通离线账号无法直接通过这两种在线握手入口。
+默认配置通过在线身份验证后免输本服密码。接收普通离线账号时，应选择[单服密码认证](/docs/loginview/configuration)。
 
-## 方案 B：单服混合免密
+## 单服混合认证
 
-### 第一步：准备混合启动脚本
+### 生成启动脚本
 
 游戏服需要安装 Suite 和 LoginView。在宿主 `config.yml` 中设置以下 `auth` 配置，保留文件里的其他设置。
 
@@ -28,11 +28,11 @@ auth:
   mixed-proxy-token: ""
 ```
 
-在已经能运行 Suite 的游戏服控制台执行 `axs auth setup`。游戏内由具备 `arcartxsuite.auth.admin` 权限的管理员执行时，命令前加 `/`。
+确认 Suite 已运行后，在游戏服控制台执行 `axs auth setup`。游戏内执行 `/axs auth setup` 需要 `arcartxsuite.auth.admin` 权限。
 
 确认服务器根目录生成 `start-mixed-auth.bat` 和 `start-mixed-auth.sh`，然后停服。脚本会先启动本机网关，再带着所需的认证参数启动游戏服。
 
-### 第二步：修改游戏服配置
+### 配置游戏服入口
 
 在 `server.properties` 中设置 `online-mode=true`。
 
@@ -62,27 +62,27 @@ performance:
 
 `gateway-url` 的端口必须与上一步的 `mixed-proxy-port` 一致，地址使用本机 `127.0.0.1`。
 
-### 第三步：改用生成的脚本启动
+### 启动游戏服
 
 Windows 使用 `start-mixed-auth.bat`，Linux 使用 `start-mixed-auth.sh`。主机面板需要实际执行对应脚本，或完整保留脚本里的启动顺序和 Java 启动参数。
 
-只修改 `authentication.yml` 后继续使用普通启动命令，会导致认证入口检查失败。
+认证入口同时检查网关和实际 Java 启动参数，游戏服须通过生成的混合启动脚本启动。
 
-### 第四步：分别测试两类账号
+### 验证身份与准入
 
 用微软账号和 LittleSkin 账号各测试一次。验证通过后，界面应进入条款步骤或直接关闭，玩家可以操作游戏。若提示握手回执过期，先重新连接，再检查脚本、网关端口和实际启动参数。
 
-## 方案 C：Velocity 混合免密
+## Velocity 代理认证
 
-本方案在 Velocity 完成账号验证，游戏子服接收可信的验证结果。当前使用 Velocity 的对应适配。
+Velocity 负责验证玩家身份，子服校验代理传入的认证结果。该转发入口使用 Velocity 对应适配。
 
-### 第一步：先打通代理到子服
+### 配置玩家信息转发
 
-在 Velocity 的 `servers` 中登记子服。本例使用名称 `lobby`，先确认玩家能通过代理进入这个子服。
+在 Velocity 的 `servers` 中登记子服，确认玩家能够通过代理连接。下文使用子服名称 `lobby`。
 
 对于 Paper 子服，按 Velocity 的现代转发步骤设置 `player-info-forwarding-mode=modern`、子服 `online-mode=false`，并匹配 Paper 的 Velocity 转发开关和共享值。限制玩家绕过代理直连子服。具体文件位置以所用 Paper 版本为准。[Velocity 官方转发教程](https://docs.papermc.io/velocity/player-information-forwarding/)
 
-### 第二步：在代理准备混合启动脚本
+### 生成代理启动脚本
 
 在 Velocity 安装 Suite 的代理端插件。编辑代理插件实际生成的 `proxy-config.yml`，先配置以下内容。
 
@@ -102,7 +102,7 @@ auth:
 
 启动一次代理，在代理控制台执行 `axsproxy auth setup`。生成脚本后停止代理。后续使用代理目录里的 `start-mixed-auth` 脚本启动，Velocity 保持 `online-mode=true`。
 
-### 第三步：开启代理的认证转发
+### 启用认证转发
 
 将代理 `proxy-config.yml` 中的 `auth-forwarding` 整段替换为以下内容，再用新脚本启动代理。
 
@@ -119,7 +119,7 @@ auth-forwarding:
 
 在代理启动日志中找到以 `[AuthForwarding]` 开头、包含 `public-key=` 的一行。复制其中完整的公钥值，下一步填到子服。代理生成的私钥文件留在代理端。
 
-### 第四步：配置游戏子服
+### 配置子服信任项
 
 子服安装 Suite 和 LoginView。将下面完整配置保存到子服的 `plugins/ArcartX-Suite/authentication.yml`，把公钥占位符换成刚复制的值。
 
@@ -159,19 +159,19 @@ performance:
 | `issuer` | `trusted-proxies` 中的 `issuer` | `proxy-main` |
 | 启动日志的 `public-key` | `trusted-proxies` 中的 `public-key` | 复制完整公钥 |
 
-### 第五步：从代理入口测试
+### 验证代理入口
 
 玩家必须通过 Velocity 的地址进入。分别用微软和 LittleSkin 账号测试，子服应接受验证结果并继续条款步骤。
 
 若一直等待可信验证，先核对上表五项，再检查实际连接是否来自已配置的 `lobby` 子服及其转发设置。
 
-## 常见选择错误
+## 部署约束
 
-| 现象 | 应检查什么 |
+| 配置情况 | 处理要求 |
 | --- | --- |
-| 子服配置了 `local-mixed`，玩家却从 Velocity 进入 | 改用方案 C 的 `signed-proxy`，网关在代理端 |
-| 单服提示需要在线模式 | 方案 B 的游戏服必须设置 `online-mode=true` |
-| 想把本页配置直接放到中心模式 | 中心节点按独立中心教程配置，当前中心入口要求直连 |
-| 同时让离线账号也通过免密入口 | 这两种入口验证在线握手，离线密码登录另选方案 A |
+| 子服配置了 `local-mixed`，玩家却从 Velocity 进入 | 使用代理转发认证的 `signed-proxy`，网关部署在代理端 |
+| 单服提示需要在线模式 | 单服混合认证的游戏服必须设置 `online-mode=true` |
+| 在中心模式中使用混合入口 | 中心节点按独立中心教程配置，当前中心入口要求直连 |
+| 同时接收普通离线账号 | 当前入口验证在线握手，离线账号采用单服密码认证 |
 
-如果只需要游戏内注册和密码登录，可以按[方案 A](/docs/loginview/configuration)配置。
+游戏内注册与密码登录的部署步骤见[单服密码认证](/docs/loginview/configuration)。

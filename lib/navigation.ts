@@ -3,10 +3,15 @@ import { source } from '@/lib/source';
 import { taskGroups } from '@/lib/modules';
 
 const original = source.pageTree;
+const overviewLabels: Record<string, string> = {
+  guide: '阅读顺序',
+  api: '接入概览',
+  loginview: '模式概览',
+};
 const findFolder = (slug: string): PageTree.Folder | undefined => {
   const folder = original.children.find((node) => node.type === 'folder' && node.index?.url === `/docs/${slug}`);
   if (!folder || folder.type !== 'folder') return undefined;
-  return { ...folder, children: folder.children.map((node) => node.type === 'page' && node.url === folder.index?.url ? { ...node, name: slug === 'guide' ? '阅读顺序' : slug === 'api' ? '接入概览' : '使用入门' } : node) };
+  return { ...folder, children: folder.children.map((node) => node.type === 'page' && node.url === folder.index?.url ? { ...node, name: overviewLabels[slug] ?? '使用入门' } : node) };
 };
 
 const guide = findFolder('guide');
