@@ -7,6 +7,8 @@
     "recipe-book",
     "equipment",
     "artisan",
+    "utility",
+    "notices",
     "npc-trading"
   ]
 }

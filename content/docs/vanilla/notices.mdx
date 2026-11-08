@@ -1,0 +1,42 @@
+---
+title: "界面提示与文案"
+description: "修改原版界面、仓库与随身背包的提示文字，设置手动换行并了解提示显示规则。"
+---
+
+## 提示显示
+
+操作结果在界面中间显示为与当前主题配色一致的提示卡片，长文字自动换行，卡片随行数调整高度。提示停留约一秒后快速淡出；显示期间不覆盖内容或延长计时，完全隐藏后才接受下一条。
+
+提示期间仍可操作界面，不需要点击关闭。材料是否已到账、效果是否生效，应同时查看真实槽位和当前状态。
+
+## 消息文件位置
+
+| 提示来源 | 消息文件 | 重载 |
+| --- | --- | --- |
+| 原版容器、配方填料与 NPC 兑换 | `plugins/ArcartX-Suite/data/vanilla/messages.yml` | `/axs reload vanilla` |
+| 仓库存取、锁定与仓库操作 | `plugins/ArcartX-Suite/data/warehouse/messages.yml` | `/axs reload warehouse` |
+| 随身背包自身的购买与设置 | `plugins/ArcartX-Suite/data/extrabackpack/messages.yml` | `/axs reload extrabackpack` |
+
+例如，从随身背包右侧仓库取物时，仓库操作提示仍由 Warehouse 的消息文件控制。
+
+## 修改原版界面提示
+
+在 `vanilla/messages.yml` 的 `ui-notices` 中找到对应原文，保留左侧匹配键，只修改右侧显示内容。以下片段合并到现有小节，保留其他消息：
+
+```yaml
+ui-notices:
+  "材料不足，或背包没有空间退回原材料": "材料不足。\n请补充库存，并预留退回物品的空间。"
+  "库存发生变化，请重新填入": "物品状态已变化，请重新填入。"
+  "材料转移需核对，凭证 {0}": "本次材料需要管理员核对。\n凭证：{0}"
+```
+
+双引号中的 `\n` 表示手动换行；也可使用 YAML 多行字符串。`{0}` 等动态内容需保留，尤其不要删掉异常记录的凭证编号。修改提示文字不会改变材料转移或恢复规则。
+
+Warehouse 的 `ui-notices` 使用同样方式修改。其他已有消息继续编辑原来的消息键；随身背包保留其原有消息分类。界面提示的颜色由对应 UI 主题控制。
+
+## 相关文档
+
+- [功能配置](/docs/vanilla/configuration)：模块配置位置、UI 文件与重载。
+- [信标与红石容器](/docs/vanilla/utility)：信标确认与真实容器库存。
+- [配方书与材料填入](/docs/vanilla/recipe-book)：材料来源、操作结果与异常提示。
+- [自动存入与材料恢复](/docs/warehouse/material-recovery)：保留凭证并处理不确定转移。
