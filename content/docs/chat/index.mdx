@@ -17,15 +17,15 @@ description: "设置聊天频道、消息格式、私聊与物品展示。"
 
 ## 第一次使用
 
-1. 编辑默认频道格式。
-2. 执行 `/chat channel <频道ID>`。
-3. 发送测试消息。
+1. 按[附近频道示例](/docs/chat/channels#创建一个附近频道)将频道文件保存到 `plugins/ArcartX-Suite/data/chat/channels/Nearby.yml`，然后执行 `/axs reload chat`。
+2. 让两名具有 `arcartxsuite.chat.use` 的普通玩家执行 `/chat channel nearby`。
+3. 两人站在同一世界相距 10 格处发送测试消息，再拉开到 40 格复测。
 
 ## 检查是否配置成功
 
-确认频道接收范围、名称和物品展示符合预期。
+10 格时另一人应看到带「附近」前缀的消息。40 格时，发送者仍能看到自己的消息，另一人收不到。
 
-功能未生效时，先检查模块状态、所用定义 ID、玩家权限及客户端安装情况，随后对照[日志与报错提示](/docs/guide/config-management)逐项检查。
+无法切换到 `nearby` 时，核对频道文件名、`enabled` 和 `send-permission`。能发但另一个玩家收不到时，让两人先在同一世界相距 30 格以内测试，再分别检查 `receive-permission` 和距离。
 
 ## 可以配置的功能
 

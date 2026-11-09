@@ -100,6 +100,6 @@ ui:
 
 规则和个人开关按 UUID 保存；共享同一市场数据库的服务器使用同一份个人设置。保护清单通过游戏内页面管理，不需要在回收价格文件中填写个人规则。
 
-两个 UI ID 必须与彼此及其他市场界面不同。导出的个人保护页面为模块目录 `ui/market_recycle_protection.yml`，主回收页面为 `ui/market_recycle.yml`。升级时若已有自定义 UI，应先备份，再合并新版页面的交互改动；只更新模块而保留旧回收页面，可能导致缺少入口或持续要求重新预览。相关覆盖设置见[功能配置](/docs/market/configuration)。
+两个 UI ID 必须与彼此及其他市场界面不同。导出的个人保护页面为模块目录 `ui/market_recycle_protection.yml`，主回收页面为 `ui/market_recycle.yml`。界面应与模块版本配套，否则可能缺少保护入口或持续要求重新预览。相关覆盖设置见[功能配置](/docs/market/configuration)。
 
 修改主配置后执行 `/axs reload market`。回收物品与价格的定义见[商店系统](/docs/market/shops)。

@@ -17,17 +17,17 @@ description: "提供拍卖行、回收商店、系统商店和玩家商店四类
 
 ## 第一次使用
 
-1. 确认货币可用。
-2. 编辑一个默认商品。
-3. 执行 `/market shop`。
+1. 确认 PlaceholderAPI 和所选货币插件已启用。
+2. 按[购买和回收示例](/docs/market/shops#先跑通一次购买和回收)放入商店文件和回收表，再执行 `/axs reload market`。
+3. 用具有 `arcartxsuite.market.use` 的普通玩家执行 `/market shop trial_shop`，随后用 `/market recycle` 验证回收。
 
 玩家可通过 `/market recycle protect` 先设置回收保护，再在 `/market recycle` 中查看可回收物品。管理员使用 `/axs market trades` 查询四类交易的业务历史和处理流水。
 
 ## 检查是否配置成功
 
-用测试账号购买一个商品，检查扣款与物品数量。
+按示例购入、回收一个苹果。应看到背包里的苹果先增后减，经济插件里的余额从 100 到 90，再到 92。
 
-功能未生效时，先检查模块状态、所用定义 ID、玩家权限及客户端安装情况，随后对照[日志与报错提示](/docs/guide/config-management)逐项检查。
+`/market` 提示无权时先查 `arcartxsuite.market.use`。只有回收列表里缺少苹果时，查 `recycle/` 表和玩家的材质排除、收藏同款设置。历史有记录但钱物未到时，查看[关联流水](/docs/market/trade-management#查看详情与关联流水)。
 
 ## 可以配置的功能
 

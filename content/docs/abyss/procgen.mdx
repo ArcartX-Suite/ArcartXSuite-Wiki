@@ -18,7 +18,7 @@ room-sets/<集>/
 └── combat_1.yml           ← 房间元数据（必需，同名）
 ```
 
-`.schem` 在加载时经 WE/FAWE 剪贴板转换为内部区域模板，与 `.region.yml` 走同一条旋转铺放路径（BlockEntity 内容不迁移）。WE 缺席时 schem 构件跳过、region 构件不受影响。
+`.schem` 与 `.region.yml` 使用相同的旋转和铺放规则。两种模板都只铺放方块状态，箱内物品、刷怪笼配置和告示牌文字需另行设置。加载 `.schem` 需要 WorldEdit 或 FAWE，`.region.yml` 可直接加载。
 
 ### 房间元数据 `<名>.yml`
 

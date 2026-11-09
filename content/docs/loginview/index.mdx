@@ -9,7 +9,7 @@ LoginView 提供游戏内登录、条款确认、QQ 绑定和外部授权界面�
 
 | 模式 | 身份验证方式 | 部署条件 | 配置文档 |
 | --- | --- | --- | --- |
-| 单服密码认证 | 玩家在游戏界面注册、输入密码，由游戏服验证 | Suite、LoginView 与 ArcartX 环境 | [单服密码认证](/docs/loginview/configuration) |
+| 单服密码认证 | 玩家通过 Minecraft 在线验证后，在游戏界面注册或输入本服密码 | 玩家直连，游戏服 `online-mode=true` | [单服密码认证](/docs/loginview/configuration) |
 | 单服混合认证 | 验证微软或 LittleSkin 账号，通过后免输本服密码 | 玩家直连游戏服，同机运行混合登录网关 | [单服混合认证](/docs/loginview/mixed-login#单服混合认证) |
 | 代理转发认证 | Velocity 验证账号，子服校验代理传入的结果 | Velocity 代理、对应插件与已配置转发的子服 | [Velocity 代理认证](/docs/loginview/mixed-login#velocity-代理认证) |
 | 中心密码认证 | 玩家在游戏界面注册、输入密码，由中心验证 | 独立认证中心，玩家直连在线模式游戏服 | [独立认证中心](/docs/loginview/center) |
@@ -21,13 +21,13 @@ LoginView 提供游戏内登录、条款确认、QQ 绑定和外部授权界面�
 
 | 模式 | 游戏服 backend | 游戏服 ingress.type | 其他关键设置 |
 | --- | --- | --- | --- |
-| 单服密码认证 | `standalone` | `password` | 在游戏服设置密码、条款和绑定要求 |
+| 单服密码认证 | `standalone` | `password` | 游戏服保持 `online-mode=true`，在本服设置密码、条款和绑定要求 |
 | 单服混合认证 | `standalone` | `local-mixed` | 游戏服启用在线模式并使用混合启动脚本 |
 | 代理转发认证 | `standalone` | `signed-proxy` | 子服配置可信代理及对应公钥 |
 | 中心密码认证 | `center` | `password` | 中心设置 `gamePasswordEnabled: true` |
 | 外部授权认证 | `center` | `password` | 中心配置 `external`，密码入口按需启用 |
 
-中心节点当前要求玩家直连，且 `online-mode=true`。Velocity 代理转发采用 `standalone` 与 `signed-proxy` 的组合。
+中心节点要求玩家直连，且 `online-mode=true`。Velocity 代理转发采用 `standalone` 与 `signed-proxy` 的组合。普通离线账号的密码认证请使用适合该部署方式的登录插件。
 
 ## 与其他登录插件配合
 
@@ -54,7 +54,7 @@ LoginView 的玩家操作限制随模块启停。模块缺席、关闭、卸载�
 
 ## 配置验证
 
-玩家进入服务器后，应显示与所选模式对应的登录或授权界面。身份验证通过后，继续完成已启用的条款和 QQ 绑定要求，随后应能正常移动、聊天和使用背包。
+先在控制台执行 `axs status` 核对 LoginView 已启用，再按所选模式使用测试账号验证。等待密码或端外确认时，移动和方块交互应受限。使用混合或代理免密入口时，验证正确账号通过在线握手，错误身份在进入游戏前被拒绝。开启条款或 QQ 绑定时，还要逐项核对完成前后的操作权限。
 
 安装 PlaceholderAPI 后，可通过 `/papi parse me %axsauth_admitted%` 查询准入结果。完成全部要求后应返回 `true`。
 

@@ -1,5 +1,5 @@
 ---
-title: "功能配置"
+title: "战令配置"
 description: "调整赛季时间、tasks/ 任务、rewards.yml 等级奖励；附字段解释、修改示例与重载步骤。"
 ---
 
@@ -11,7 +11,7 @@ description: "调整赛季时间、tasks/ 任务、rewards.yml 等级奖励；�
 
 修改后执行 `/axs reload battlepass`；涉及插件安装或全局设置的变更请重启后验证。
 
-BattlePass 模块的配置文件位于模块数据目录下，首次启动时自动导出默认配置。配置采用严格同步策略（`SyncPolicy.strict()`），配置版本变更时自动触发迁移。
+BattlePass 模块的配置文件位于模块数据目录下，首次启动时自动导出默认配置。
 
 ## 文件结构
 
@@ -33,9 +33,7 @@ BattlePass 模块的配置文件位于模块数据目录下，首次启动时自
 
 | 字段 | 类型 | 默认值 | 说明 |
 |---|---|---|---|
-| `config-version` | int | `6` | 配置版本号，变更时触发迁移 |
-
-当前版本为 6。模块内置 1→2、2→3、3→4、4→5、5→6 共 5 个迁移脚本，位于 `resources/migrations/` 目录。
+| `config-version` | int | `6` | 配置版本号，使用自动生成的值 |
 
 ### season 赛季配置
 

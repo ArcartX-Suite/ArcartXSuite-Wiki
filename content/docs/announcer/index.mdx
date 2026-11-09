@@ -17,15 +17,24 @@ description: "轮播服务器公告，或为指定玩家播放字幕。"
 
 ## 第一次使用
 
-1. 编辑默认公告文字。
-2. 执行 `/axs reload announcer`。
-3. 执行 `/axs announcer broadcast 欢迎来到服务器`。
+在测试服的 `plugins/ArcartX-Suite/data/announcer/config.yml` 中确认 `settings.auto-play: true`，并保留默认 `entries-directory: "announcer"`。在 `plugins/ArcartX-Suite/data/announcer/announcer/wiki_trial.yml` 保存以下完整条目文件。
+
+```yaml
+wiki_trial:
+  enabled: true
+  text: "轮播验收：这条文字来自 wiki_trial.yml"
+  click-command: ""
+```
+
+用管理员执行 `/axs reload announcer`。再用普通玩家进服，等当前一轮播放到测试条目。默认条目之间相隔约 30 秒，另有滚动和轮间等待时间。可以在测试服暂时停用其他条目，只保留这一条。
 
 ## 检查是否配置成功
 
-玩家应看到测试公告，随后继续按配置轮播。
+1. 玩家应在公告 HUD 看到「轮播验收」整句自动滚过。
+2. 把 `wiki_trial.enabled` 改为 `false`，重载并重新进服。其他已启用公告继续播放，测试句应消失。再启用该条目并重载，应重新出现。
+3. 管理员可以另用 `/axs announcer broadcastnow 手动广播验收` 检查手动入口。能看到手动文字时，继续用第一步验证轮播文件。
 
-功能未生效时，先检查模块状态、所用定义 ID、玩家权限及客户端安装情况，随后对照[日志与报错提示](/docs/guide/config-management)逐项检查。
+`/axs announcer status` 的「活跃公告」为 0 时，先查 `entries-directory`、条目 `enabled` 和 `text`。有活跃公告但只有手动广播出现时，检查 `settings.auto-play`。完全看不到 HUD 时，核对「已初始化玩家」和 ArcartX 客户端。
 
 ## 可以配置的功能
 

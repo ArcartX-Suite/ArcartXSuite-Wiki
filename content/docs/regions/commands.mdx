@@ -1,5 +1,5 @@
 ---
-title: "命令与权限"
+title: "区域规则命令与权限"
 description: "区域规则可用命令、参数填写方式和权限要求。"
 ---
 
@@ -7,32 +7,32 @@ Regions 模块通过 `/axs regions` 和 `/rg`（别名 `/axsrg`）两个命令�
 
 ## 玩家命令
 
-玩家命令通过 `/axs regions` 或 `/rg` 执行，部分命令需要选区工具或区域权限。
+`/rg` 与 `/axsrg` 都需要 `axs.regions.select`，默认向玩家开放。下表另列区域归属等条件。通过 `/axs regions` 执行时，还需具备 `arcartxsuite.admin`。
 
-| 命令 | 说明 | 权限 |
+| 命令 | 说明 | 条件与权限 |
 |---|---|---|
-| `/rg help` | 显示帮助信息 | 无 |
-| `/rg status` | 查看模块状态（已加载区域数、标志类型数） | 无 |
-| `/rg menu` | 打开玩家区域查看菜单（ArcartX UI） | 无 |
+| `/rg help` | 显示帮助信息 | `axs.regions.select` |
+| `/rg status` | 查看模块状态（已加载区域数、标志类型数） | `axs.regions.select` |
+| `/rg menu` | 打开玩家区域查看菜单（ArcartX UI） | `axs.regions.select` |
 | `/rg wand` | 获取选区工具 | `axs.regions.select` |
 | `/rg pos1` | 设置选区点 1（当前站位） | `axs.regions.select` |
 | `/rg pos2` | 设置选区点 2（当前站位） | `axs.regions.select` |
 | `/rg define <名称>` | 用当前选区创建区域 | `axs.regions.select` |
 | `/rg redefine <名称>` | 用当前选区重定义区域范围 | 区域所有者或 `axs.regions.admin` |
 | `/rg remove <名称>` | 删除区域 | 区域所有者或 `axs.regions.admin` |
-| `/rg list [世界]` | 列出区域（默认当前世界） | 无 |
-| `/rg info <名称>` | 查看区域详细信息 | 无 |
-| `/rg show` | 切换区域边框常驻粒子可视化 | 无 |
+| `/rg list [世界]` | 列出区域（默认当前世界） | `axs.regions.select` |
+| `/rg info <名称>` | 查看区域详细信息 | `axs.regions.select` |
+| `/rg show` | 切换区域边框常驻粒子可视化 | `axs.regions.select` |
 | `/rg flag <区域> <标志> <allow\|deny> [数据]` | 设置区域标志 | 区域所有者或 `axs.regions.admin` |
 | `/rg removeflag <区域> <标志>` | 移除区域标志 | 区域所有者或 `axs.regions.admin` |
-| `/rg flags <区域>` | 查看区域所有标志 | 无 |
+| `/rg flags <区域>` | 查看区域所有标志 | `axs.regions.select` |
 | `/rg addowner <区域> <玩家\|g:组>` | 添加所有者 | 区域所有者或 `axs.regions.admin` |
 | `/rg removeowner <区域> <玩家\|g:组>` | 移除所有者 | 区域所有者或 `axs.regions.admin` |
 | `/rg addmember <区域> <玩家\|g:组>` | 添加成员 | 区域所有者或 `axs.regions.admin` |
 | `/rg removemember <区域> <玩家\|g:组>` | 移除成员 | 区域所有者或 `axs.regions.admin` |
 | `/rg priority <区域> <数字>` | 设置区域优先级 | 区域所有者或 `axs.regions.admin` |
 | `/rg parent <区域> <父区域\|none>` | 设置父区域 | 区域所有者或 `axs.regions.admin` |
-| `/rg tp <区域>` | 传送到区域中心 | 无 |
+| `/rg tp <区域>` | 传送到区域中心 | `axs.regions.select` |
 
 #### 创建区域（`/rg define`）
 
@@ -120,7 +120,7 @@ Regions 模块通过 `/axs regions` 和 `/rg`（别名 `/axsrg`）两个命令�
 
 | 权限节点 | 默认 | 说明 |
 |---|---|---|
-| `axs.regions.select` | op | 使用选区工具（左/右键选区、`/rg wand`） |
+| `axs.regions.select` | true | 使用 `/rg` 和选区工具 |
 | `axs.regions.admin` | op | 管理员权限，可管理任意区域、打开管理员面板 |
 | `axs.regions.bypass` | op | 绕过所有区域保护（标志查询直接返回 ALLOW） |
 | `axs.regions.bypass.limit` | op | 绕过每玩家最大区域数量限制 |

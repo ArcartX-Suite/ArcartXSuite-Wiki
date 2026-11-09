@@ -17,15 +17,15 @@ description: "把进服、任务和自定义信号组合成公告、奖励等动
 
 ## 第一次使用
 
-1. 选择一个默认规则。
-2. 只调整提示文字。
-3. 触发对应游戏事件。
+1. 按[最小信号规则](/docs/eventpacket/configuration#从一条无外部奖励的信号规则开始)将完整示例保存到 `plugins/ArcartX-Suite/data/eventpacket/rules/trial.yml`。
+2. 使用管理员执行 `/axs reload eventpacket`，再执行 `/axs eventpacket fire trial_open WikiTester`。将 `WikiTester` 换成在线测试玩家名。
+3. 测试玩家应收到「试炼入口已触发」。在 3 秒内再次执行，确认冷却期间只收到一次。
 
 ## 检查是否配置成功
 
 确认规则仅在预期事件发生时执行一次。
 
-功能未生效时，先检查模块状态、所用定义 ID、玩家权限及客户端安装情况，随后对照[日志与报错提示](/docs/guide/config-management)逐项检查。
+信号执行后没收到测试消息时，先确认命令用的是信号名 `trial_open`，目标玩家在线，规则已启用且 3 秒冷却已经结束。若测试消息可达、正式奖励未达，再单独检查动作所引用的邮件预设或其他目标。
 
 ## 可以配置的功能
 

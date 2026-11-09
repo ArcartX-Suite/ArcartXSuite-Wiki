@@ -1,5 +1,5 @@
 ---
-title: "命令与权限"
+title: "QQ 群互联命令与权限"
 description: "玩家面板、管理员操作、兑换复核与 QQ 群命令。"
 ---
 
@@ -66,7 +66,7 @@ description: "玩家面板、管理员操作、兑换复核与 QQ 群命令。"
 | status | 模式、归属、安装和状态 |
 | logs | Docker 最近日志；含初始登录信息，仅管理员使用 |
 | password | 查询启动日志中的 WebUI 初始密码；改密后旧值失效 |
-| password reset | 备份认证文件；Docker 重启，native 需随后 start |
+| password reset | 重置 WebUI 密码。Docker 自动重启，native 模式需随后执行 `start` |
 | check-update | 查询上游版本；固定镜像 tag 不会自动改成另一个 tag |
 
 external 模式不管理进程。目录/容器名称相同不代表本模块拥有它。[安装教程](/docs/qqbot)说明 SSH 转发、NTQQ 和 token。

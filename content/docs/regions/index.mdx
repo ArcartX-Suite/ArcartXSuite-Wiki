@@ -17,15 +17,15 @@ description: "为选定区域设置建造、交互、传送等游戏规则。"
 
 ## 第一次使用
 
-1. 执行 `/rg wand` 获取选区工具。
-2. 设置两个角点并创建区域。
-3. 为区域设置一项标志。
+1. 使用有 `axs.regions.select` 的账号，在测试区域的两个对角位置分别执行 `/rg pos1` 和 `/rg pos2`。
+2. 执行 `/rg define trial_area` 创建区域，再由区域所有者执行 `/rg flag trial_area block-break deny`。
+3. 用 `/rg info trial_area` 核对边界，用 `/rg flags trial_area` 查看方块破坏规则。
 
 ## 检查是否配置成功
 
-让普通测试玩家进入区域，验证该项规则。
+让普通测试玩家分别在区域内外尝试破坏同一种方块。区域内应被拒绝，区域外在没有其他保护时应可正常破坏。
 
-功能未生效时，先检查模块状态、所用定义 ID、玩家权限及客户端安装情况，随后对照[日志与报错提示](/docs/guide/config-management)逐项检查。
+保护测试用没有 `axs.regions.bypass` 的普通玩家。规则无效时，先核对测试方块是否在 `trial_area` 内，再检查重叠区域的优先级。
 
 ## 可以配置的功能
 

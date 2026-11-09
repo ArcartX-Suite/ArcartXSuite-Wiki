@@ -63,7 +63,7 @@ currencies:
     rounding: "DOWN"
 ```
 
-一个服务端只能注册一个 Vault Economy 服务。如果需要多种货币，请使用 `rondo` 或 `command` 类型。
+Suite 的 `vault` 类型读取 Vault 当前选中的经济服务。需要多种独立余额时，可使用支持多货币的 Rondo，或分别配置能操作不同余额的命令。
 
 ### playerpoints — PlayerPoints 点券
 
@@ -117,19 +117,21 @@ currencies:
 
 ### command — 命令桥接
 
-最灵活的类型。通过 PAPI 占位符读取余额，通过控制台命令执行扣款和入账。
+命令式货币通过 PlaceholderAPI 读取余额，用控制台命令扣款或入账。Suite 根据命令的返回值判断操作结果。若目标插件接收了命令，却因余额限制或其他规则拒绝变更，Suite 仍可能报告成功。验收时直接查询经济插件里的余额。
+
+下例使用 Vault 和 EssentialsX。先在测试服安装 PlaceholderAPI，按 [PlaceholderAPI 命令文档](https://wiki.placeholderapi.com/users/commands/)安装 Vault 扩展并重载。用已进服的测试玩家确认 `/papi parse me %vault_eco_balance%` 返回数值。
 
 ```yaml
 currencies:
-  gems:
+  money_command_test:
     enabled: true
     provider: "command"
-    display-name: "宝石"
-    scale: 0
+    display-name: "命令测试金币"
+    scale: 2
     rounding: "DOWN"
-    balance-placeholder: "%economy_balance_gems%"
-    withdraw-command: "esc take gems {player} {amount}"
-    deposit-command: "esc give gems {player} {amount}"
+    balance-placeholder: "%vault_eco_balance%"
+    withdraw-command: "essentials:eco take {player} {amount}"
+    deposit-command: "essentials:eco give {player} {amount}"
 ```
 
 `balance-placeholder`、`withdraw-command`、`deposit-command` 三项必须全部填写，否则该货币桥接将标记为不可用。
@@ -144,37 +146,14 @@ currencies:
 
 命令不需要加 `/` 前缀（加了也会自动去除），以控制台身份执行。
 
-#### 常见经济插件示例
+#### 验证命令桥接
 
-Economy：
+1. 测试玩家进服后，用 `essentials:eco set WikiTester 100` 在控制台设置余额。用实际测试玩家名替换 `WikiTester`。
+2. 在控制台执行 `essentials:eco take WikiTester 5` 和 `essentials:eco give WikiTester 5`。每条命令后运行 `essentials:balance WikiTester`，应依次读到 95、100。PAPI 的查询值也应一致。
+3. 将上面的定义合并到本体 `config.yml` 后执行 `/axs reload all`。将[商店与回收示例](/docs/market/shops#先跑通一次购买和回收)中两个文件的 `currency` 都设为 `money_command_test`，用同一玩家实际买、回收一个苹果。读回余额应依次为 90、92。
+4. 使用余额只有 5 的测试玩家尝试购买。确认余额和苹果数量都没有变化。若界面、流水和实际余额不一致，以经济插件的读回结果排查命令、账户和余额限制。
 
-```yaml
-currencies:
-  gems:
-    enabled: true
-    provider: "command"
-    display-name: "宝石"
-    scale: 0
-    rounding: "DOWN"
-    balance-placeholder: "%economy_balance_gems%"
-    withdraw-command: "eco take gems {player} {amount} gems"
-    deposit-command: "eco give gems {player} {amount} gems"
-```
-
-CoinsEngine：
-
-```yaml
-currencies:
-  coins:
-    enabled: true
-    provider: "command"
-    display-name: "硬币"
-    scale: 0
-    rounding: "DOWN"
-    balance-placeholder: "%coinsengine_balance_coins%"
-    withdraw-command: "coinsengine take {player} coins {amount}"
-    deposit-command: "coinsengine give {player} coins {amount}"
-```
+此示例和 `vault` 类型读取同一个 Vault 余额。用于正常交易时可直接使用 `vault`。 [EssentialsX 命令定义](https://github.com/EssentialsX/Essentials/blob/2.x/Essentials/src/main/resources/plugin.yml)
 
 ## 完整配置示例
 
@@ -194,16 +173,6 @@ currencies:
     display-name: "点券"
     scale: 0
     rounding: "DOWN"
-  # 宝石 — 命令桥接
-  gems:
-    enabled: true
-    provider: "command"
-    display-name: "宝石"
-    scale: 0
-    rounding: "DOWN"
-    balance-placeholder: "%economy_balance_gems%"
-    withdraw-command: "eco take gems {player} {amount} gems"
-    deposit-command: "eco give gems {player} {amount} gems"
 ```
 
 ## 模块局部货币
@@ -212,23 +181,23 @@ currencies:
 
 ## 货币变动事件
 
-每次扣款 / 入账成功后，会自动向事件总线发布货币变动事件：
+Suite 在货币提供者报告操作成功时发布对应事件。
 
 | 事件主题 | 触发时机 |
 |---------|---------|
-| `axs.currency.spent` | 扣款（withdraw）成功时 |
-| `axs.currency.earned` | 入账（deposit）成功时 |
+| `axs.currency.spent` | 提供者报告扣款成功时 |
+| `axs.currency.earned` | 提供者报告入账成功时 |
 
 Payload 字段：
 
 | 字段 | 说明 |
 |------|------|
 | `currency_id` | 货币 ID |
-| `amount` | 变动金额 |
+| `amount` | 此次请求的金额 |
 | `action` | `"withdraw"` 或 `"deposit"` |
-| `balance_after` | 变动后余额 |
+| `balance_after` | 调用结束后尝试读取的余额，读取异常时可能返回 `0` |
 
-该机制对所有货币提供者自动生效。模块（如 BattlePass）可通过 `event-topic` 订阅这些事件来追踪消费/收入。
+模块可通过 `event-topic` 订阅这些事件。`command` 类型的事件只表明命令报告成功，统计实际消费或人工核账时应另查余额。
 
 ## 状态检查
 
@@ -236,10 +205,10 @@ Payload 字段：
 
 ```
 ArcartXSuite 状态:
- - 货币桥接: 已注册 3 种货币
+ - 货币桥接: 已注册 2 种货币
 ```
 
-如果某个货币的 provider 不可用（如 Vault 未安装），该货币的所有操作将返回失败结果，不会导致崩溃。
+此处显示注册数量。各货币是否能实际扣款和入账，要用对应经济插件查询余额并进行小额交易。
 
 ## 故障排除
 
@@ -248,5 +217,5 @@ ArcartXSuite 状态:
 | 货币不可用，提示"桥接不可用" | 确认前置插件已安装、provider 拼写正确 |
 | Vault 提示未注册 | 安装一个 Vault 经济插件（如 CMI、EssentialsX） |
 | PlayerPoints 余额始终为 0 | 将 `scale` 设为 `0`（整数点数） |
-| command 类型扣款失败 | 在控制台手动执行扣款命令确认可用，检查命令格式（不带 `/`） |
+| command 类型提示成功但余额无变化 | 用同一测试玩家在控制台执行实际命令，检查经济插件的响应及前后余额 |
 | `balance-placeholder` 返回非数字 | 确保占位符返回纯数字，不含货币符号 |

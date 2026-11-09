@@ -1,5 +1,5 @@
 ---
-title: "功能配置"
+title: "地图配置"
 description: "调整世界显示范围、锚点与传送费用；附字段解释、修改示例与重载步骤。"
 ---
 
@@ -157,8 +157,6 @@ anchors:
 | `unlock.default` | `boolean` | 所有玩家进服时自动免费解锁 |
 | `unlock.on-permission` | `boolean` | 拥有锚点 `permission` 权限的玩家进服时自动免费解锁 |
 
-> 若 `config.yml` 中仍存在 `default-unlocks` 节，启动时输出警告并忽略；3→4 迁移会自动移除该节。
-
 ## 路径点与标记点（`waypoints`）
 
 路径点（含 Y 坐标，可导航）与标记点（Pin，仅 X/Z，可追踪）共用此配置：
@@ -186,7 +184,7 @@ anchors:
 
 ## 更新地图界面
 
-使用旧版地图界面时，先备份 `plugins/ArcartX-Suite/ui/map_menu.yml` 与 `plugins/ArcartX-Suite/ui/map_hud.yml`，再把新版控件和文案合入自定义文件。使用默认界面的服主可设置 `ui.overwrite-ui-files: true` 后重载 Map，确认界面更新后将其设回 `false`。
+地图界面文件为 `plugins/ArcartX-Suite/ui/map_menu.yml` 与 `plugins/ArcartX-Suite/ui/map_hud.yml`。使用默认界面时，可设置 `ui.overwrite-ui-files: true` 后重载 Map 以重新导出界面，确认后将其设回 `false`。自定义界面需使用与模块配套的控件和文案。
 
 跨服世界共享与传送见[跨服地图](./cross-server)。
 

@@ -1,5 +1,5 @@
 ---
-title: "功能配置"
+title: "市场配置"
 description: "调整shops/ 商品、回收价格、交易货币与拍卖规则；附字段解释、修改示例与重载步骤。"
 ---
 
@@ -250,6 +250,6 @@ ui:
 
 这两个 ID 必须与彼此及其他市场界面不同。个人设置按 UUID 保存，共享市场数据库的服务器共同使用同一份设置。修改主配置后执行 `/axs reload market`。
 
-已有自定义回收 UI 时，应先备份，再合并新版页面的交互改动。`overwrite-ui-files` 会影响已导出的市场界面，不能只为更新单个页面而忽略其他自定义内容。
+启用 `overwrite-ui-files` 会覆盖已导出的市场界面。自定义回收页面需使用与模块配套的交互。
 
 完整操作流程见[玩家回收保护](/docs/market/recycle-protection)和[交易管理与异常查询](/docs/market/trade-management)。

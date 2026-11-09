@@ -1,5 +1,5 @@
 ---
-title: "功能配置"
+title: "抽奖与开箱配置"
 description: "调整pools/ 奖池、奖品权重、消耗与保底参数；附字段解释、修改示例与重载步骤。"
 ---
 
@@ -40,13 +40,12 @@ Lottery 模块涉及以下配置文件：
 | 消息配置 | `messages.yml` | 本地化消息文本 |
 | 兑换商店 | `lottery/exchange/*.yml` | 积分兑换商店商品 |
 | UI 配置 | `ui/lottery_gacha.yml` 等 | 祈愿/开箱界面（详见 UI 文档） |
-| 迁移脚本 | `migrations/1-2.yml`、`2-3.yml` | 配置版本迁移规则 |
 
 ### 主配置字段表
 
 | 字段 | 类型 | 默认值 | 说明 |
 |---|---|---|---|
-| `config-version` | `int` | `3` | 配置文件版本号，用于触发自动迁移 |
+| `config-version` | `int` | `3` | 配置版本号，使用自动生成的值 |
 | `ui.overwrite-ui-files` | `boolean` | `false` | 是否在模块启动时强制覆盖用户已修改的 UI 文件 |
 | `pools-directory` | `String` | `lottery/pools` | 奖池文件目录（相对模块数据目录） |
 | `exchange-directory` | `String` | `lottery/exchange` | 兑换商店文件目录 |

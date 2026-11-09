@@ -1,5 +1,5 @@
 ---
-title: "命令与权限"
+title: "称号命令与权限"
 description: "称号可用命令、参数填写方式和权限要求。"
 ---
 
@@ -51,8 +51,8 @@ description: "称号可用命令、参数填写方式和权限要求。"
 
 | 权限节点 | 默认 | 说明 |
 |---|---|---|
-| `arcartxsuite.title.use` | op | 使用玩家命令 `/title` 的基础权限 |
-| `arcartxsuite.title.group.<groupId>` | true | 访问指定分组的权限（由分组配置的 `permission` 字段决定） |
+| `arcartxsuite.title.use` | true | 使用玩家命令 `/title` 的基础权限 |
+| `arcartxsuite.title.group.<groupId>` | 按分组配置 | 可用作指定分组的自定义权限节点 |
 | `arcartxsuite.admin` | op | 使用 `/axs` 管理命令的权限 |
 
 > 分组权限通过 `groups.<id>.permission` 配置，留空表示无限制。推荐权限节点约定为 `arcartxsuite.title.group.<groupId>`。

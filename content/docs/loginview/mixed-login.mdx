@@ -10,7 +10,7 @@ description: "配置微软与 LittleSkin 账号认证，分别支持单服直连
 | 玩家直接连接游戏服 | 单服混合认证，`local-mixed` | 与游戏服同一台机器 |
 | 玩家通过 Velocity 进入子服 | 代理转发认证，`signed-proxy` | 与 Velocity 同一台机器 |
 
-默认配置通过在线身份验证后免输本服密码。接收普通离线账号时，应选择[单服密码认证](/docs/loginview/configuration)。
+微软与 LittleSkin 账号通过在线身份验证后免输本服密码。需要在同一台在线模式游戏服再验证本服密码时，按[单服密码认证](/docs/loginview/configuration)设置对应入口。
 
 ## 单服混合认证
 
@@ -28,7 +28,7 @@ auth:
   mixed-proxy-token: ""
 ```
 
-确认 Suite 已运行后，在游戏服控制台执行 `axs auth setup`。游戏内执行 `/axs auth setup` 需要 `arcartxsuite.auth.admin` 权限。
+设置 `auth.enabled: true` 后重启游戏服，在控制台执行 `axs auth setup`。游戏内执行 `/axs auth setup` 同时需要 `arcartxsuite.admin` 和 `arcartxsuite.auth.admin`。
 
 确认服务器根目录生成 `start-mixed-auth.bat` 和 `start-mixed-auth.sh`，然后停服。脚本会先启动本机网关，再带着所需的认证参数启动游戏服。
 
@@ -172,6 +172,6 @@ performance:
 | 子服配置了 `local-mixed`，玩家却从 Velocity 进入 | 使用代理转发认证的 `signed-proxy`，网关部署在代理端 |
 | 单服提示需要在线模式 | 单服混合认证的游戏服必须设置 `online-mode=true` |
 | 在中心模式中使用混合入口 | 中心节点按独立中心教程配置，当前中心入口要求直连 |
-| 同时接收普通离线账号 | 当前入口验证在线握手，离线账号采用单服密码认证 |
+| 服务器需要允许普通离线账号 | 由适合离线部署的其他登录插件管理。Suite 的单服密码入口要求在线模式直连 |
 
 游戏内注册与密码登录的部署步骤见[单服密码认证](/docs/loginview/configuration)。

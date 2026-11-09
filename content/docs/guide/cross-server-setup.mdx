@@ -1,28 +1,92 @@
 ---
 title: "跨服功能使用"
-description: "按模块开启跨服功能并验证实际效果。"
+description: "用两台游戏服验证 Redis 或代理转发，区分共享仓库的数据和编辑锁。"
 ---
 
 ## 开始前
 
-先按发行版提供的部署说明完成群组服基础配置，确认各子服已安装所需插件。这里只说明模块功能的使用开关。
+用两台已完成[本体安装](/docs/guide/first-run)的游戏服开始。下例称它们为 `lobby` 和 `survival`。两边都装备并启用 Announcer，分别用 ArcartX 客户端进服，先确认两边的本服公告都能显示。
+
+| 目的 | 应配置的内容 |
+| --- | --- |
+| 跨服公告和其他模块通知 | 选 Redis 或代理转发，然后打开目标模块的跨服开关 |
+| 多服访问同一个共享仓库 | 各服连接同一个 MySQL 库，并开启 Warehouse 的跨服编辑锁 |
+| 跨服地图传送 | 完成消息连接后，继续配置[跨服地图](/docs/map/cross-server)的代理服名称和目标落地点 |
+
+## 用 Redis 连接两台服
+
+以下示例适用于两台游戏服与 Redis 在同一台测试机器上，Redis 仅供本机访问。在终端执行 `redis-cli -h 127.0.0.1 -p 6379 ping`，应得到 `PONG`。如果 Redis 位于另一台机器，改用各子服实际能访问的内网地址，按实际服务填密码。
+
+在两台游戏服各自的 `plugins/ArcartX-Suite/config.yml` 中合并以下小节。大厅用 `node-id: "lobby"`，生存服改为 `node-id: "survival"`。两边使用相同的 Redis 地址、频道和共享密钥，密钥填写自建的随机值。
+
+```yaml
+cross-server:
+  node-id: "lobby"
+  redis:
+    enabled: true
+    host: "127.0.0.1"
+    port: 6379
+    password: ""
+    database: 0
+    channel: "AXS:CROSS:TEST"
+  proxy:
+    enabled: false
+  signature:
+    enabled: true
+    secret: "替换为两服相同的随机密钥"
+    verify: true
+```
+
+## 使用代理转发
+
+已有 BungeeCord 或 Velocity 代理、两台游戏服都能通过该代理进入时，可以改走代理转发。在 Velocity 的 `velocity.toml` 中将 `[advanced]` 下的 `bungee-plugin-message-channel` 设为 `true`。配置位置见 [Velocity 配置参考](https://docs.papermc.io/velocity/configuration/)。
+
+在上面的本体配置中保留各服独立的 `node-id` 和一致的 `signature` 设置，将连接方式改为以下值。修改后重启代理和两台游戏服。
+
+```yaml
+cross-server:
+  redis:
+    enabled: false
+  proxy:
+    enabled: true
+    messenger-channel: "AXS_CROSS"
+    forward-target: "ALL"
+```
+
+仅使用代理转发时，发送服至少需要一名在线玩家传递消息。验收时让两个测试玩家各留在一台子服，接收端才能当场看到公告。
 
 ## 按模块开启
 
-需要支持跨服的模块，在其功能配置中启用对应开关。例如支持以下格式的模块：
+在两台游戏服各自的 `plugins/ArcartX-Suite/data/announcer/config.yml` 中启用跨服公告。
 
 ```yaml
 cross-server:
   enabled: true
 ```
 
-Chat 还需要为指定频道开启 `cross-server: true`；Tab、公告、邮件等功能以各模块配置页为准。不同模块的可同步内容并不相同，不要将一个模块的设置直接复制到其他模块。
+Chat 还需要为指定频道开启 `cross-server: true`。Tab 的 `settings.cross-server` 和单个定义的 `cross-server` 决定哪些列表参与聚合，见[在线列表跨服配置](/docs/tab/cross-server)。各模块自己的开关控制其业务范围。
 
 ## 验证步骤
 
-1. 分别在两台子服检查模块已加载。
-2. 确认双方启用的是同一项跨服功能。
-3. 在子服 A 发送测试消息或执行测试业务。
-4. 在子服 B 确认收到对应结果，且内容、数量符合预期。
+1. 重启两台游戏服。在各自控制台执行 `axs announcer status`，确认「跨服通道」为「已启用」。
+2. 在大厅控制台执行 `axs announcer gbroadcastnow 双服验收：大厅发出`。大厅和生存服的在线测试玩家都应在公告 HUD 看到这段文字。
+3. 在生存服控制台执行 `axs announcer broadcastnow 双服验收：仅生存服`。只应在生存服看到它。文件中的自动轮播也只在本服显示。
+4. 通道显示开启但远端未收到时，按顺序核对接收玩家是否在线、双方 `node-id` 是否不同、所选连接方式的频道和共享密钥是否一致，以及接收服是否加载 Announcer。若本服也无显示，先跑通[本服公告轮播](/docs/announcer#第一次使用)。
 
-跨服功能未生效时，先确认普通单服功能可用，再检查发行版部署设置与双方模块开关。
+## 验证共享仓库
+
+1. 在两台服的本体 `config.yml` 按[MySQL 配置](/docs/guide/first-run#使用-mysql)设置同一个数据库。例如两台本机子服都指向 `127.0.0.1:3306` 的 `axs_group_test`，填写能访问这个库的账号。
+2. 在两台服的 `data/warehouse/config.yml` 合并下例，再重启。`storage.shared` 让 Warehouse 使用本体的数据库，`cross-server.enabled` 打开跨服编辑锁。
+
+```yaml
+storage:
+  shared: true
+shared:
+  enabled: true
+cross-server:
+  enabled: true
+```
+
+3. 在大厅由玩家 A 执行 `/warehouse open`。按[共享仓库操作](/docs/warehouse/shared-warehouse)创建仓库并把玩家 B 加为成员。创建费用使用 `shared.create-cost` 指定的货币。
+4. 玩家 A 存入 1 个铁锭并关闭仓库。玩家 B 到生存服打开同一仓库，应看到 1 个铁锭。随后让 A 在大厅打开编辑，B 在生存服重新打开同一仓库，应只能查看。A 关闭后，B 重新打开应能取出铁锭。
+5. 看不到同一份内容时查数据库和成员身份。内容一致但两边都能编辑时，执行 `/axs warehouse status` 查看编辑锁是否启用，再查跨服连接。

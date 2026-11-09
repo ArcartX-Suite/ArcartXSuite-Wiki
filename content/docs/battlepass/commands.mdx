@@ -1,20 +1,20 @@
 ---
-title: "命令与权限"
+title: "战令命令与权限"
 description: "战令可用命令、参数填写方式和权限要求。"
 ---
 
 ## 玩家命令
 
-玩家命令通过 `/bp`、`/battlepass` 或 `/axsbp` 触发，仅限玩家执行。
+`/bp`、`/battlepass` 和 `/axsbp` 仅限玩家执行，需要 `arcartxsuite.battlepass.use`，默认向玩家开放。
 
 | 命令 | 别名 | 权限 | 说明 |
 |---|---|---|---|
-| `/bp` | `/bp open` | 无 | 打开战令主界面 |
-| `/bp open` | — | 无 | 打开战令主界面 |
-| `/bp tasks` | — | 无 | 打开任务列表界面 |
-| `/bp rewards` | — | 无 | 打开奖励列表界面 |
-| `/bp claim <等级>` | — | 无 | 领取指定等级的奖励 |
-| `/bp help` | — | 无 | 显示玩家命令帮助 |
+| `/bp` | `/bp open` | `arcartxsuite.battlepass.use` | 打开战令主界面 |
+| `/bp open` | — | `arcartxsuite.battlepass.use` | 打开战令主界面 |
+| `/bp tasks` | — | `arcartxsuite.battlepass.use` | 打开任务列表界面 |
+| `/bp rewards` | — | `arcartxsuite.battlepass.use` | 打开奖励列表界面 |
+| `/bp claim <等级>` | — | `arcartxsuite.battlepass.use` | 领取指定等级的奖励 |
+| `/bp help` | — | `arcartxsuite.battlepass.use` | 显示玩家命令帮助 |
 
 > 无参数执行 `/bp` 等同于 `/bp open`。未知子命令也会自动打开主界面。
 
@@ -97,15 +97,11 @@ description: "战令可用命令、参数填写方式和权限要求。"
 2. 按等级阈值发放赛季结算奖励
 3. 标记赛季已结算
 
-> 已结算的赛季不会重复结算。如需重新结算，需先清除 `bp_season_settlement` 表中的记录。
+> 用尚未结算的测试赛季验证发放流程。已结算的赛季会返回已有结算状态。
 
 ## 权限节点
 
-BattlePass 模块的命令权限设计：
-
 | 权限节点 | 说明 | 默认 |
 |---|---|---|
-| `/bp` 系列命令 | 玩家命令，无权限限制 | 所有玩家可用 |
-| `/axs battlepass` 系列命令 | 管理命令，通过 `/axs` 总命令权限控制 | 管理员可用 |
-
-> 玩家命令（`/bp` / `/battlepass`）不需要任何权限节点。管理命令通过 ArcartXSuite 的 `/axs` 命令权限体系控制，通常需要 OP 或管理员权限。
+| `arcartxsuite.battlepass.use` | 使用玩家命令 | true |
+| `arcartxsuite.admin` | 使用 `/axs battlepass` 管理命令 | OP |

@@ -19,13 +19,13 @@ Suite 的本体按键和 Prop 道具槽位按键分别配置。前者用于交�
 
 ## 本体按键配置
 
-在 `plugins/ArcartX-Suite/config.yml` 的 `keybinds` 中修改已有条目，例如：
+在 `plugins/ArcartX-Suite/config.yml` 的 `keybinds` 中修改已有条目。下例使用小键盘 8。按实际客户端绑定选择空闲按键。
 
 ```yaml
 keybinds:
   map-menu:
     name: AXS_MAP_MENU
-    default-key: J
+    default-key: KP_8
     category: ArcartXSuite
     module: map
 ```
@@ -34,13 +34,13 @@ keybinds:
 | --- | --- |
 | `map-menu` | 配置条目 ID，已有条目保留 |
 | `name` | 功能使用的按键名称，改默认键位时保留原值 |
-| `default-key` | 默认按键，如 `J`、`G`、`UP`、`KP_8` |
+| `default-key` | 客户端默认按键，例如 `M`、`UP` 或 `KP_8` |
 | `category` | 玩家按键设置中的分类文字 |
 | `module` | 所属模块 ID，可为一个值或列表；至少一个所属模块成功启用后才注册 |
 
 已有默认键位包括交互 `G`、对话上下选项 `UP` / `DOWN`、拾取 `F`、清单切换 `LEFT` / `RIGHT`、批量收取 `J`、拾取详情 `K`、地图 `M`、小地图 `H`。仅新增一个任意 `name` 不会自动创建新功能。
 
-新增或修改本体按键声明后，重启服务器并重新进入，在客户端按键设置中核对。模块自身的绑定字段调整则按模块重载步骤处理。玩家自行修改过的绑定还应检查本地设置，服务端默认键位不等于每个玩家实际正在使用的键位。
+新增或修改本体按键声明后，执行 `/axs reload all` 并重新进入，在客户端按键设置中核对。模块自身的绑定字段调整则按模块重载步骤处理。玩家自行修改过的绑定以本地设置为准。
 
 ## 拾取清单快捷键
 

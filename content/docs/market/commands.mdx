@@ -1,39 +1,39 @@
 ---
-title: "命令与权限"
+title: "市场命令与权限"
 description: "商店与拍卖可用命令、参数填写方式和权限要求。"
 ---
 
 ## 玩家命令
 
-玩家命令通过 `/market` 注册（别名 `/mk`、`/ah`、`/axsmarket`），无需额外权限即可使用（部分功能有权限要求）。
+玩家入口 `/market` 及别名 `/mk`、`/ah`、`/axsmarket` 都需要 `arcartxsuite.market.use`。该节点默认向玩家开放。下表列出各子命令在这个基础权限之外的条件。
 
-| 命令 | 说明 | 权限 |
+| 命令 | 说明 | 附加条件 |
 |---|---|---|
-| `/market` | 打开拍卖行主界面 | 无 |
-| `/market help` | 显示帮助信息 | 无 |
-| `/market shop` | 打开系统商店列表 | 无 |
+| `/market` | 打开拍卖行主界面 | — |
+| `/market help` | 显示帮助信息 | — |
+| `/market shop` | 打开系统商店列表 | — |
 | `/market shop <商店ID>` | 打开指定系统商店 | 商店 `permission` 字段 |
-| `/market auction` | 打开拍卖行界面 | 无 |
-| `/market ah` | 打开拍卖行界面（别名） | 无 |
-| `/market lot <拍品ID>` | 打开单件拍品的独立竞价厅 | 无 |
-| `/market bids` | 查看自己参与过的拍卖与最终状态 | 无 |
-| `/market ending` | 按截止时间查看即将结束的拍卖 | 无 |
-| `/market pshop` | 打开玩家店铺目录，可浏览及收藏店铺 | 无 |
-| `/market playershop` | 打开玩家店铺目录（别名） | 无 |
-| `/market pshop mine` | 打开自己的独立店铺 | 无 |
-| `/market pshop edit` | 编辑自己的店名、简介、图标和公告 | 无（仅本人资料） |
-| `/market pshop market` | 浏览所有玩家的商品 | 无 |
-| `/market store [店主UUID]` | 访问独立店铺；省略时进入自己的店铺 | 无 |
-| `/market sell <起拍价> [时长秒] [货币]` | 上架手持物品到拍卖行 | 无 |
-| `/market list <起拍价> [时长秒] [货币]` | 上架手持物品（别名） | 无 |
-| `/market sellui` | 打开统一上架界面，可选择拍卖或玩家商店 | 无 |
-| `/market recycle` | 打开回收界面 | 无 |
-| `/market recycle protect` | 管理个人自动回收、材质排除与收藏同款保护 | 无 |
-| `/market recycle all` | 批量回收；开启确认时先进入回收界面 | 无；受 `batch-recycle-enabled` 控制 |
-| `/market history` | 查看拍卖、玩家商店、系统商店、回收的统一交易历史 | 无 |
-| `/market my [auction\|pshop]` | 查看自己的拍卖或玩家商店挂单 | 无 |
-| `/market search <关键词>` | 搜索拍卖行物品 | 无 |
-| `/market cancel <上架ID> [auction\|pshop]` | 取消指定类型的挂单，默认拍卖 | 无（仅可取消自己的） |
+| `/market auction` | 打开拍卖行界面 | — |
+| `/market ah` | 打开拍卖行界面（别名） | — |
+| `/market lot <拍品ID>` | 打开单件拍品的独立竞价厅 | — |
+| `/market bids` | 查看自己参与过的拍卖与最终状态 | — |
+| `/market ending` | 按截止时间查看即将结束的拍卖 | — |
+| `/market pshop` | 打开玩家店铺目录，可浏览及收藏店铺 | — |
+| `/market playershop` | 打开玩家店铺目录（别名） | — |
+| `/market pshop mine` | 打开自己的独立店铺 | — |
+| `/market pshop edit` | 编辑自己的店名、简介、图标和公告 | 仅本人资料 |
+| `/market pshop market` | 浏览所有玩家的商品 | — |
+| `/market store [店主UUID]` | 访问独立店铺；省略时进入自己的店铺 | — |
+| `/market sell <起拍价> [时长秒] [货币]` | 上架手持物品到拍卖行 | — |
+| `/market list <起拍价> [时长秒] [货币]` | 上架手持物品（别名） | — |
+| `/market sellui` | 打开统一上架界面，可选择拍卖或玩家商店 | — |
+| `/market recycle` | 打开回收界面 | — |
+| `/market recycle protect` | 管理个人自动回收、材质排除与收藏同款保护 | — |
+| `/market recycle all` | 批量回收；开启确认时先进入回收界面 | `recycle.batch-recycle-enabled` 已启用 |
+| `/market history` | 查看拍卖、玩家商店、系统商店、回收的统一交易历史 | — |
+| `/market my [auction\|pshop]` | 查看自己的拍卖或玩家商店挂单 | — |
+| `/market search <关键词>` | 搜索拍卖行物品 | — |
+| `/market cancel <上架ID> [auction\|pshop]` | 取消指定类型的挂单，默认拍卖 | 仅可取消自己的挂单 |
 
 #### 上架手持商品（`/market sell`）
 
@@ -74,7 +74,7 @@ description: "商店与拍卖可用命令、参数填写方式和权限要求。
 
 ### 管理员交易管理面板
 
-玩家管理员执行 `/axs market trades`，或在交易历史页点击“交易管理”。需要 `arcartxsuite.market.admin` 权限；控制台可使用下方的流水命令。
+玩家可通过交易历史页的「交易管理」打开面板，需要 `arcartxsuite.market.admin`。用 `/axs market trades` 打开时还需 `arcartxsuite.admin`。控制台可使用下方的流水命令。
 
 面板按玩家、物品、创建时间、交易类型及状态查询，提供待发放、失败与待核对入口，以及记录详情和关联流水。业务历史、单条操作完成和最终交付的含义不同，应结合整笔交易判断。
 
@@ -104,7 +104,7 @@ description: "商店与拍卖可用命令、参数填写方式和权限要求。
 
 旧待发放队列会在模块初始化时迁入新队列；原数据损坏或发放结果未知时保留记录，不会直接丢弃。
 
-管理员命令通过 `/axs market` 集成，需要 `arcartxsuite.market.admin` 权限。
+下表的 `/axs market` 命令同时需要 `arcartxsuite.admin` 和 `arcartxsuite.market.admin`。NPC 兑换有单独的[命令与权限](#npc-兑换命令)。
 
 | 命令 | 说明 | 权限 |
 |---|---|---|
@@ -143,7 +143,9 @@ AXS Market 状态
 
 | 权限节点 | 说明 | 默认 |
 |---|---|---|
+| `arcartxsuite.market.use` | 使用 `/market` 和玩家别名 | true |
 | `arcartxsuite.market.admin` | 管理员命令权限 | OP |
+| `arcartxsuite.market.exchange.admin` | 编辑 NPC 兑换所、查看凭证与结案 | OP |
 | `axsmarket.autorecycle` | 拾取自动回收权限；仍需服务器允许及个人开关开启 | 无 |
 | `axsmarket.vip` | 拍卖行/玩家商店 VIP 税率减免 | 无 |
 | `axsmarket.mvp` | 拍卖行/玩家商店 MVP 税率减免 | 无 |
@@ -155,3 +157,16 @@ AXS Market 状态
 <Callout type="info">
 权限节点在配置文件中自定义。`tax-discount` 和 `price-multiplier` 的键名即为权限节点，`discount` 的键名也是权限节点。你可以根据需要修改为任意权限节点。
 </Callout>
+
+## NPC 兑换命令
+
+启用 Market 的 `exchange.enabled` 并绑定 Adyeshach NPC 后，普通玩家可右键交互，也可以在 NPC 同一世界、距离 8 格以内执行 `/axs market exchange open <兑换所ID>`。兑换所与兑换条目的 `permission` 字段分别控制使用权限。
+
+| 命令 | 用途 |
+| --- | --- |
+| `/axs market exchange edit [兑换所ID]` | 玩家管理员打开兑换所编辑器 |
+| `/axs market exchange ledger [玩家UUID]` | 查看待核对的兑换凭证 |
+| `/axs market exchange evidence <凭证UUID>` | 导出指定凭证的核对资料 |
+| `/axs market exchange confirm <凭证UUID> confirm` | 核对扣款与发放后登记结案 |
+
+这四项管理命令使用 `arcartxsuite.market.exchange.admin`。结案只登记核对结果。

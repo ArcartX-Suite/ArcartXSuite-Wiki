@@ -98,7 +98,7 @@ limit-reset: daily
 3. 打开商品后，在可滚动表单中填写物品或指令类型、价格、货币、库存、限购、条件和折扣。字段填错会提示错误并保留当前表单，不会自动把错误价格保存为免费商品。
 4. 物品来源支持 `minecraft`、`mythic`、`neige`、`overture`、`mmoitems`；可以从背包选物，也可以手填来源、ID、NBT 后点击“按当前字段更新预览”。预览不会发放物品，背包选物也不会取走物品。
 5. 图标可从背包选择或清除。奖励指令每行一条，由控制台运行，支持 `{player}`、`{uuid}`、`{amount}`；物品商品也可附带奖励指令。
-6. 保存后会重新读取商店与商品信息。修改已有文件前会生成同目录 `.bak` 备份；未修改条件表达式时保留原有条件结构及附加设置。
+6. 保存后会重新读取商店与商品信息。未修改条件表达式时保留原有条件结构及附加设置。
 
 切换商店、返回或离开编辑器时，未保存的修改需要确认放弃。编辑器使用界面按钮返回，避免误按 Esc 丢失表单。删除商店或商品也需要确认。
 
@@ -116,9 +116,11 @@ limit-reset: daily
 
 回收页面可逐组回收，批量回收开启 `batch-confirm` 时需先确认；执行时以服务端背包中的实际物品为准。回收完成后刷新剩余物品与各货币收益，并写入统一历史。
 
-### 先跑通一件商品
+### 先跑通一次购买和回收
 
-在 `shops/trial_shop.yml` 保存下例。先确认服务器的 `money` 货币可用，再测买卖。示例商店 ID 为文件名 `trial_shop`，商品 ID 为 `apple`。
+以下例子用普通玩家购买并回收一个苹果。测试服需启用 `shop.enabled` 和 `recycle.enabled`，安装 PlaceholderAPI、Vault 和提供 Vault 经济服务的 EssentialsX。将本体的 `currencies.money` 按 [Vault 货币示例](/docs/guide/currencies#vault--vault-经济)配置。使用其他经济插件时，以该插件的查询命令读取实际余额。
+
+将第一段保存为 `plugins/ArcartX-Suite/data/market/shops/trial_shop.yml`。示例商店 ID 为文件名 `trial_shop`，商品 ID 为 `apple`，购买单价为 10。
 
 ```yaml
 display-name: "补给商店"
@@ -130,14 +132,30 @@ items:
     item:
       source: minecraft
       id: APPLE
-      amount: 1
     buy-price: 10
-    sell-price: 2
     currency: money
     stock-mode: unlimited
 ```
 
-重载 Market 后用 `/market shop trial_shop` 打开。用普通玩家买一个，再卖一个，分别核对物品与余额。确认后再加入库存、限购和折扣，每次只启用一种限制。限购的商品 ID 要保持稳定，改 ID 会改变所引用的商品身份。
+将第二段保存为 `plugins/ArcartX-Suite/data/market/recycle/trial_recycle.yml`。测试服如已配置苹果回收，先确认同一种物品只命中这条规则。单价为 2，普通玩家以无回收加成的权限组测试。
+
+```yaml
+display-name: "补给回收"
+entries:
+  trial_apple:
+    source: minecraft
+    item-id: APPLE
+    price: 2
+    currency: money
+```
+
+1. 管理员执行 `/axs reload market`。用具有 `arcartxsuite.market.use` 的非 OP 测试玩家进服，确保主背包有空位且没有苹果。通过 `/market recycle protect` 关闭个人自动回收，并确认苹果未受保护。
+2. 以玩家 `WikiTester` 为例，在游戏服控制台执行 `essentials:eco set WikiTester 100`，再用 `essentials:balance WikiTester` 确认余额为 100。替换为你的测试玩家名。
+3. 让该玩家执行 `/market shop trial_shop`，选择苹果、数量 1，确认报价为 10 后购买。等交付完成，核对背包增加 1 个苹果，实际余额降到 90。
+4. 执行 `/market recycle`，选中这一个苹果并确认单件回收。核对苹果减少 1 个，收益入账后实际余额升到 92。在 `/market history` 查看这次购买和回收。
+5. 将另一个无折扣测试玩家的余额设为 5，尝试购买同一商品。应无法确认购买或提示余额不足，实际余额仍为 5，背包没有收到苹果。
+
+若有成交历史但钱物尚未交付，按[交易管理与异常查询](/docs/market/trade-management#常见问题的查询顺序)核对扣款、发放和入账步骤。
 
 `item` 负责实际发放，`icon` 只负责显示。改成物品库商品前先确认来源插件能生成该 ID。回收或换货使用匹配器识别现有物品，与生成商品的 `source + id` 分别配置。
 
@@ -171,7 +189,7 @@ items:
 | `icon` | section | - | 商品图标（省略时用 `item` 生成的物品当图标），详见 [图标配置](/docs/guide/icons) |
 | `display-name` | string | 物品 ID | 商店 UI 货架展示的名称 |
 | `buy-price` | double | `0` | 玩家购买价格（0 = 不可购买） |
-| `sell-price` | double | `0` | 玩家出售给商店的价格（0 = 不可出售） |
+| `sell-price` | double | `0` | 商品编辑器中的预留字段。实际回收单价由 `recycle/*.yml` 的 `price` 指定 |
 | `currency` | string | 商店默认货币 | 货币类型 |
 | `stock-mode` | string | `unlimited` | 库存模式 |
 | `stock-amount` | int | `0` | 库存数量（`unlimited` 模式下无效） |

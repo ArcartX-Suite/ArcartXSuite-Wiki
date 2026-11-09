@@ -1,5 +1,5 @@
 ---
-title: "功能配置"
+title: "公告与字幕配置"
 description: "调整announcer/ 公告文字、播放间隔与 subtitle/ 字幕组；附字段解释、修改示例与重载步骤。"
 ---
 
@@ -17,7 +17,7 @@ Announcer 模块的配置由主配置文件 `config.yml`、公告条目目录 `a
 
 ### UI 配置节（`ui`）
 
-统一管理公告 HUD 与字幕 HUD 的 UI ID 及注册行为。自配置版本 2 起，UI 相关配置从 `settings` 节迁移到 `ui` 节。
+`ui` 管理公告 HUD 与字幕 HUD 的界面 ID 和注册方式。
 
 | 配置项 | 类型 | 默认值 | 说明 |
 |---|---|---|---|
@@ -98,7 +98,7 @@ Announcer 模块的配置由主配置文件 `config.yml`、公告条目目录 `a
 ### 公告条目示例
 
 ```yaml
-# data/announcer/default.yml
+# plugins/ArcartX-Suite/data/announcer/announcer/default.yml
 # 目录下每个 *.yml 文件可包含多个条目，根键即为条目 ID。
 
 # 欢迎公告条目

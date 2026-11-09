@@ -1,5 +1,5 @@
 ---
-title: "命令与权限"
+title: "邮箱命令与权限"
 description: "邮箱可用命令、参数填写方式和权限要求。"
 ---
 
@@ -83,7 +83,7 @@ description: "邮箱可用命令、参数填写方式和权限要求。"
 
 | 权限 | 默认 | 说明 |
 |---|---|---|
-| `arcartxsuite.mail.use` | op | 使用邮件系统（收件箱、写信、CDK 兑换） |
-| `arcartxsuite.mail.send` | op | 玩家写信权限（需 `player-send.require-permission: true`） |
+| `arcartxsuite.mail.use` | true | 使用邮件系统（收件箱、写信、CDK 兑换） |
+| `arcartxsuite.mail.send` | true | 玩家写信权限（`player-send.require-permission: true` 时检查） |
 | `arcartxsuite.mail.cdk` | op | CDK 兑换权限（需 `cdk.require-permission: true`） |
 | `arcartxsuite.admin` | op | 管理员命令和管理 UI 权限 |

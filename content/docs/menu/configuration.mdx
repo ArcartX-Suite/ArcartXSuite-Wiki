@@ -1,5 +1,5 @@
 ---
-title: "功能配置"
+title: "菜单配置"
 description: "调整menus/ 菜单、按钮图标、说明与点击动作；附字段解释、修改示例与重载步骤。"
 ---
 
@@ -146,7 +146,7 @@ warehouse:
     - "command: warehouse open"
 ```
 
-升级需同时更新 menu 模块与 UI 资源。`ui.overwrite-ui-files: false` 时，已修改的服务器 UI 不会被强制覆盖；请先备份、比较并更新对应 UI 文件，再执行 `/axs reload menu`。已有 `menus/` 文件不会自动覆盖，示例详情需按需加入。模块二进制通过 GitHub CI 构建、云端下发，不在本地构建 JAR。
+menu 模块与 UI 资源需使用配套版本。自定义界面时设置 `ui.overwrite-ui-files: false`，按配套模板调整界面后执行 `/axs reload menu`。已有 `menus/` 文件不会自动覆盖，示例详情需按需加入。模块二进制通过 GitHub CI 构建、云端下发，不在本地构建 JAR。
 
 ## 配置示例
 

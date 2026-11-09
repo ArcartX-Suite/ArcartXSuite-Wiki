@@ -1,5 +1,5 @@
 ---
-title: "功能配置"
+title: "QQ 群互联配置"
 description: "连接、托管、发送、群功能和存储字段参考。"
 ---
 
@@ -298,7 +298,7 @@ messages 节集中提供各场景文字模板；可保留默认文本，仅按�
 
 ## 存储
 
-storage.shared 默认 true，沿用本体存储。积分、红包和兑换属于 QQBot 数据；绑定属于宿主认证。改 QQBot 数据库不能迁移认证绑定。
+`storage.shared` 默认为 `true`，沿用本体存储。积分、红包和兑换属于 QQBot 数据，账号绑定由宿主认证管理。
 
 自建 SQLite：
 
@@ -327,12 +327,12 @@ storage:
     table-prefix: "axs_qqbot_"
 ~~~
 
-切换前备份、迁移并验证数据，再改连接；改配置不会自动搬迁积分。诊断提案应保留独立 mode/mysql/sqlite 参数，应用前核对目标。
+使用自建存储时，按所选类型设置 `storage.mode` 与对应的 `sqlite` 或 `mysql` 小节。
 
 ## 界面和文案
 
 ui.bind-ui-id、notify-ui-id、admin-ui-id 默认 AXS:qqbot_bind、AXS:qqbot_notify、AXS:qqbot_admin。register-ui-on-enable 控制注册，overwrite-ui-files 默认 false，notify-enabled 控制 HUD。
 
-新版界面导出到模块数据目录的 ui/qqbot_v2/，三个文件为 qqbot_bind.yml、qqbot_admin.yml、qqbot_notify.yml。旧 ui/ 下的自定义文件保留；新版定制需编辑 ui/qqbot_v2/ 中实际加载的文件，编辑前备份。运行时 UI ID 保持不变。
+自定义界面时，编辑模块数据目录 `ui/qqbot_v2/` 中的 `qqbot_bind.yml`、`qqbot_admin.yml` 和 `qqbot_notify.yml`。
 
 messages 节设置群业务文案，messages.yml 设置游戏命令文案。settings.debug 排错，settings.server-id 标识来源。真实 token、密码及归属标记不要放进公开示例或截图。

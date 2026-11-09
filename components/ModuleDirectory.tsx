@@ -3,6 +3,7 @@ import { useMemo, useState, type CSSProperties } from 'react';
 import Link from 'next/link';
 import { ArrowUpRight, Search, X, Palette, PackageOpen, Megaphone, LogIn, Gift, Swords, Workflow, Wand2, Wrench, MapPin, Coffee, MessageSquareText, Award, MessagesSquare, Mail, Warehouse, Navigation, Map, ShoppingBag, Users, PanelsTopLeft, Fish, Sparkles, Flag, List, Pickaxe, Skull, type LucideIcon } from 'lucide-react';
 import { modules, taskGroups } from '@/lib/modules';
+import { searchTerms } from '@/lib/wiki-search';
 
 const moduleIcons: Record<string, LucideIcon> = {
   rgb: Palette, pickup: PackageOpen, announcer: Megaphone, loginview: LogIn,
@@ -20,10 +21,16 @@ export function ModuleDirectory() {
   const [query, setQuery] = useState('');
   const [group, setGroup] = useState('全部模块');
   const groups = Object.keys(taskGroups);
-  const visible = useMemo(() => modules.filter((module) => {
-    const matches = `${module.name} ${module.displayName} ${module.description}`.toLowerCase().includes(query.trim().toLowerCase());
-    return matches && (group === '全部模块' || taskGroups[group]?.includes(module.slug));
-  }), [query, group]);
+  const visible = useMemo(() => {
+    const terms = searchTerms(query);
+    return modules.filter((module) => {
+      if (group !== '全部模块' && !taskGroups[group]?.includes(module.slug)) return false;
+      const searchable = [module.slug, module.name, module.displayName, module.description, module.keywords]
+        .join(' ').normalize('NFKC').toLowerCase();
+      const compact = searchable.replace(/\s+/g, '');
+      return terms.every((term) => searchable.includes(term) || compact.includes(term));
+    });
+  }, [query, group]);
   return <div className="module-directory">
     <div className="directory-toolbar"><div className="directory-filters" role="group" aria-label="按用途筛选模块">
       {['全部模块', ...groups].map((name) => <button type="button" key={name} aria-pressed={group === name} onClick={() => setGroup(name)}>{name}</button>)}
@@ -38,6 +45,6 @@ export function ModuleDirectory() {
         <p>{module.description}</p><span className="module-read"><span>{groups[groupIndex]}</span><span>使用与配置 →</span></span>
       </Link>;
     })}</div>
-    {!visible.length && <div className="directory-empty"><Search size={26} strokeWidth={1} aria-hidden="true" /><h3>没有找到相关模块</h3><p>试试「地图」「奖励」等功能名称，或清除筛选。</p><button type="button" onClick={() => { setQuery(''); setGroup('全部模块'); }}>查看全部模块 <ArrowUpRight size={15} /></button></div>}
+    {!visible.length && <div className="directory-empty"><Search size={26} strokeWidth={1} aria-hidden="true" /><h3>没有找到相关模块</h3><p>试试「小地图」「NPC 兑换」等功能名称，或用全站搜索查命令和配置字段。</p><button type="button" onClick={() => { setQuery(''); setGroup('全部模块'); }}>查看全部模块 <ArrowUpRight size={15} /></button></div>}
   </div>;
 }
