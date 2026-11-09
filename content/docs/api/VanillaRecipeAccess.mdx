@@ -1,0 +1,45 @@
+---
+title: "VanillaRecipeAccess"
+description: "为原版工位注册固定配方，查询、预览和填入材料。"
+---
+
+| 项目 | 值 |
+| --- | --- |
+| 提供模块 | [Vanilla](/docs/vanilla) |
+| 启用条件 | `recipes.enabled: true` |
+| 线程 | Bukkit 主线程 |
+
+第三方插件使用 `AxsCapabilities.get(VanillaRecipeAccess.class)` 获取能力。Suite 模块可使用 `getCapability(VanillaRecipeAccess.class)`，并通过 `registerModule` 传入自己的模块 ID。
+
+```java
+var access = AxsCapabilities.get(VanillaRecipeAccess.class);
+if (access != null) {
+    var input = new VanillaRecipeAccess.Ingredient(
+        List.of(Material.COPPER_INGOT, Material.IRON_INGOT), List.of());
+    var definition = new VanillaRecipeAccess.Definition(
+        "workshop_sample",
+        VanillaRecipeAccess.Station.SHAPELESS,
+        List.of(input),
+        new ItemStack(Material.GOLD_NUGGET),
+        "",
+        200,
+        0,
+        VanillaRecipeAccess.SmithingData.INHERIT_BASE);
+    var registration = access.register(this, definition);
+}
+```
+
+`Ingredient` 接受材质备选或精确物品备选。原版工位的槽位顺序见 [自定义原版配方](/docs/vanilla/custom-recipes)。每个所有者独立使用配方 ID，注册返回的 `Registration.key()` 是实际原版配方键。关闭句柄会撤销该定义，所有者卸载时也会撤销其配方。
+
+| 方法 | 用途 |
+| --- | --- |
+| `recipes()`、`recipe(key)` | 读取已发布定义及其版本 |
+| `preview(player, key)` | 异步预估当前库存是否可用于填料 |
+| `fill(player, key, expectedRevision)` | 检查工位、配方版本和库存，返回异步填料回执 |
+
+填料使用玩家当前打开的原版容器。仓库可用时参与补料，服务端在主线程落槽。回执中的 `placed` 表示材料交付，成品由原版工位处理和领取。
+
+## 相关文档
+
+- [自定义原版配方](/docs/vanilla/custom-recipes) — 工位、材料格和固定产物配置。
+- [WarehouseMaterialAccess](/docs/api/WarehouseMaterialAccess) — 读取仓库材料和查询转移凭证。

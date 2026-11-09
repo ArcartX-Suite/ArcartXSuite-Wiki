@@ -33,7 +33,7 @@ description: "原版界面替换可用命令、参数填写方式和权限要求
 
 ## 管理命令
 
-容器替换的重载与模块状态通过 Suite `/axs` 命令统一管理，NPC 兑换命令见下方：
+容器替换的重载与模块状态通过 Suite `/axs` 命令统一管理。
 
 | 命令 | 权限 | 说明 |
 | --- | --- | --- |
@@ -52,24 +52,18 @@ description: "原版界面替换可用命令、参数填写方式和权限要求
 
 > VanillaUI 模块本身不定义独立权限节点。玩家使用工作台/熔炉界面替换功能无需任何权限，所有在线玩家均可使用。
 
-## NPC 兑换管理
+## 随身背包与配方
 
-以下命令的管理操作需要 `arcartxsuite.vanilla.admin`。兑换所和条目还可单独设置玩家使用权限。
-
-| 命令 | 用途 |
-| --- | --- |
-| `/axs vanilla open <兑换所ID>` | 打开兑换页，仍需满足使用条件 |
-| `/axs vanilla edit [兑换所ID]` | 打开游戏内编辑器 |
-| `/axs vanilla ledger [玩家UUID]` | 查询待核对兑换记录 |
-| `/axs vanilla evidence <凭证UUID>` | 导出完整兑换凭证 |
-| `/axs vanilla confirm <凭证UUID> confirm` | 人工核对后结案，不发放或退回资产 |
-| `/axs vanilla status` | 查看界面服务状态 |
-
-也可在编辑器顶部使用“交易核对”，输入凭证 UUID 后导出或结案。详细步骤见 [NPC 兑换与在线编辑](/docs/vanilla/npc-trading)。
+| 命令 | 说明 | 权限 |
+| --- | --- | --- |
+| `/axs vanilla backpack` | 打开随身背包 | 玩家可用 |
+| `/axs vanilla backpack help` | 查询容量管理动作 | `arcartxsuite.vanilla.backpack.admin` |
+| `/axs vanilla recipes` | 打开 3×3 自定义配方编辑器 | `arcartxsuite.vanilla.recipe.admin` |
+| `/axs vanilla recipes reload` | 校验并发布 recipes.yml | `arcartxsuite.vanilla.recipe.admin` |
 
 ## UI 自定义说明
 
-导出的界面文件位于 `plugins/ArcartX-Suite/ui/`，各类原版界面及 NPC 界面的文件名见[功能配置](/docs/vanilla/configuration)。修改后通过 `/axs reload vanilla` 重载生效；开启 `ui.overwrite-ui-files` 会覆盖为默认模板，修改前请备份。
+导出的界面文件位于 `plugins/ArcartX-Suite/ui/`，各类原版界面的文件名见[功能配置](/docs/vanilla/configuration)。修改后通过 `/axs reload vanilla` 重载生效；开启 `ui.overwrite-ui-files` 会覆盖为默认模板，修改前请备份。
 
 ## 相关文档
 
@@ -86,4 +80,4 @@ description: "原版界面替换可用命令、参数填写方式和权限要求
 - [配方书与材料填入](/docs/vanilla/recipe-book)：材料来源、填入规则和仓库操作。
 - [仓库命令与权限](/docs/warehouse/commands)：查询与导出异常材料转移记录。
 
-- [NPC 兑换与在线编辑](/docs/vanilla/npc-trading)：编辑兑换所、绑定 NPC 与核对资产。
+- [NPC 兑换与在线编辑](/docs/market/exchange)：编辑兑换所、绑定 NPC 与核对资产。

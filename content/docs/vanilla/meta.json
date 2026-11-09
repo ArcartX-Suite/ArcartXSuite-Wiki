@@ -2,6 +2,7 @@
   "title": "原版界面替换",
   "pages": [
     "index",
+    "backpack",
     "configuration",
     "commands",
     "recipe-book",
@@ -10,6 +11,6 @@
     "utility",
     "storage",
     "notices",
-    "npc-trading"
+    "custom-recipes"
   ]
 }

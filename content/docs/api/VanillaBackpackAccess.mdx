@@ -1,0 +1,87 @@
+---
+title: "VanillaBackpackAccess"
+description: "查询与操作额外背包"
+---
+
+
+| 项目 | 内容 |
+| --- | --- |
+| 提供模块 | [vanilla](/docs/vanilla/backpack) |
+| 完整类型 | `xuanmo.arcartxsuite.api.capability.VanillaBackpackAccess` |
+
+## 获取接口
+
+```java
+import xuanmo.arcartxsuite.api.AxsCapabilities;
+import xuanmo.arcartxsuite.api.capability.VanillaBackpackAccess;
+
+VanillaBackpackAccess api = AxsCapabilities.get(VanillaBackpackAccess.class);
+if (api == null) {
+    // 当前功能不可用，向玩家说明或使用你的替代流程。
+    return;
+}
+```
+
+每次业务操作时重新获取接口；模块未加载或暂时不可用时返回 `null`。接入方式见[快速开始](/docs/api/quick-start)。
+
+## 方法声明
+
+以下为公开调用契约，保留参数类型与空值标注。Java 类型与当前配套 API JAR 保持一致。
+
+```java
+public interface VanillaBackpackAccess {
+
+    boolean isAvailable(@NotNull Player player);
+
+    @NotNull Snapshot snapshot(@NotNull Player player);
+
+    @NotNull DepositResult deposit(@NotNull Player player, @NotNull ItemStack itemStack);
+
+    @NotNull WithdrawResult withdraw(
+        @NotNull Player player,
+        @NotNull String categoryId,
+        int slot,
+        int amount
+    );
+
+    record Snapshot(boolean available, @NotNull List<CategorySnapshot> categories) {}
+
+    record CategorySnapshot(
+        @NotNull String categoryId,
+        long capacity,
+        long used,
+        @NotNull List<SlotSnapshot> slots
+    ) {}
+
+    record SlotSnapshot(int slot, @NotNull ItemStack itemStack) {}
+
+    record DepositResult(
+        boolean success,
+        long storedAmount,
+        int remainingAmount,
+        @NotNull String message
+    ) {}
+
+    record WithdrawResult(
+        boolean success,
+        int takenAmount,
+        @Nullable ItemStack itemStack,
+        @NotNull String message
+    ) {}
+}
+```
+
+## 参数与返回值
+
+| 方法 | 用途 | 参数 | 返回值 |
+| --- | --- | --- | --- |
+| `isAvailable` | 查询额外背包是否已启用且允许该玩家使用。 | `player`：目标玩家（`Player`） | `boolean`：用于判断上面所述的查询或操作结果（true / false） |
+| `snapshot` | 读取玩家各分类的容量与已占用槽位快照。 | `player`：目标玩家（`Player`） | `Snapshot` 结果对象 |
+| `deposit` | 将物品尽量存入匹配的背包分类，按结果检查实际存入数量。 | `player`：目标玩家（`Player`）；`itemStack`：物品（`ItemStack`） | `DepositResult` 结果对象 |
+| `withdraw` | 从分类中的指定槽位取出至多 `amount` 件物品。 | `player`：目标玩家（`Player`）；`categoryId`：对应条目的 ID（`String`）；`slot`：调用参数（`int`）；`amount`：数量或数值（`int`） | `WithdrawResult` 结果对象 |
+
+## 调用注意事项
+
+涉及 Bukkit 玩家、世界、物品或界面的调用放在 Bukkit 主线程执行；接口有明确线程说明时以该方法约定为准。
+
+先在对应模块配置中准备所引用的 ID，再调用接口。检查布尔值、结果对象或异常，只有成功后才更新第三方插件自己的业务状态。

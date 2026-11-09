@@ -31,7 +31,7 @@ description: "查找各模块可用于文字展示的占位符，以及解析失
 战令等级：%axsbattlepass_level%
 ```
 
-例如，额外背包分类 ID 为 `materials` 时，使用 `%axsextrabackpack_used_materials%`。具体填在哪个配置字段，由显示文字的目标插件决定；并非所有文本字段都会自动解析 PAPI。
+例如，额外背包分类 ID 为 `materials` 时，使用 `%axsvanillabackpack_used_materials%`。具体填在哪个配置字段，由显示文字的目标插件决定；并非所有文本字段都会自动解析 PAPI。
 
 返回类型为“布尔”的字段输出 `true` 或 `false`，不会自动转换成“是 / 否”。时间、百分比等字段是否已经格式化，以表内说明为准。
 
@@ -169,14 +169,14 @@ description: "查找各模块可用于文字展示的占位符，以及解析失
 
 ## 额外背包
 
-用于展示 [额外背包](/docs/extrabackpack) 总容量与分类容量，已用数量的单位为格子。
+用于展示 [额外背包](/docs/vanilla/backpack) 总容量与分类容量，已用数量的单位为格子。
 
 | 占位符 | 返回内容 |
 | --- | --- |
-| `%axsextrabackpack_total_used%` | 所有分类已用格子数 |
-| `%axsextrabackpack_total_capacity%` | 所有分类总格子数 |
-| `%axsextrabackpack_used_<分类ID>%` | 指定分类已用格子数 |
-| `%axsextrabackpack_capacity_<分类ID>%` | 指定分类总格子数 |
+| `%axsvanillabackpack_total_used%` | 所有分类已用格子数 |
+| `%axsvanillabackpack_total_capacity%` | 所有分类总格子数 |
+| `%axsvanillabackpack_used_<分类ID>%` | 指定分类已用格子数 |
+| `%axsvanillabackpack_capacity_<分类ID>%` | 指定分类总格子数 |
 
 ## 仓库与银行
 

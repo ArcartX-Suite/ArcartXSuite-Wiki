@@ -60,8 +60,6 @@ UI 统一配置节，管理所有界面的 ID 与覆盖策略。
 | 发射器与投掷器 | `ui.dispenser-ui-id` | `AXS:vanilla_dispenser` | `vanilla_dispenser_v2.yml` |
 | 箱柜与末影箱 | `ui.container-ui-id` | `AXS:vanilla_container` | `vanilla_container_v2.yml` |
 | 潜影盒 | `ui.shulker-box-ui-id` | `AXS:vanilla_shulker_box` | `vanilla_shulker_box_v2.yml` |
-| NPC 兑换 | `ui.npc-trade-ui-id` | `AXS:vanilla_npc_trade` | `vanilla_npc_trade_v2.yml` |
-| NPC 编辑 | `ui.npc-editor-ui-id` | `AXS:vanilla_npc_editor` | `vanilla_npc_editor_v2.yml` |
 
 ### 工作台界面（crafting）
 
@@ -202,7 +200,7 @@ furnace:
 
 > `overwrite-ui-files: true` 适用于排查 UI 问题时恢复默认配置。日常使用建议设为 `false`，以保留自定义修改。
 
-## 酿造、交易与 NPC 兑换
+## 酿造与村民交易
 
 以下片段合并到主配置顶层，修改后执行 `/axs reload vanilla`：
 
@@ -212,13 +210,10 @@ brewing:
   push-interval-ticks: 2
 merchant:
   enabled: true
-npc-trading:
-  enabled: true
 ```
 
-酿造刷新间隔为 1～100 tick，默认 2。关闭某种原版界面替换后，使用原版界面；NPC 兑换独立控制。已有其他容器开关时请保留，未填写的界面使用默认开关。
+酿造刷新间隔为 1～100 tick，默认 2。关闭某种原版界面替换后，使用原版界面。已有其他容器开关时请保留，未填写的界面使用默认开关。
 
-NPC 定义保存于 `data/vanilla/npc-trades.yml`。游戏内保存立即生效；手动修改该文件后需重载。使用步骤见 [NPC 兑换与在线编辑](/docs/vanilla/npc-trading)。
 
 ## 铁砧与附魔台
 
@@ -292,6 +287,20 @@ Warehouse 为可选模块，无需在本页配置中单独开启。启用后，�
 
 工作台、切石机、锻造台、村民交易、铁砧、附魔台、砂轮、织布机、制图台与信标关闭后的溢出入库，由 Warehouse 的自动存入开关控制，详见[自动存入与材料恢复](/docs/warehouse/material-recovery)。
 
+## 随身背包与自定义配方
+
+```yaml
+backpack:
+  enabled: true
+  ui:
+    register-ui-on-enable: true
+    overwrite-ui-files: false
+recipes:
+  enabled: true
+```
+
+随身背包的模板为 `ui/vanilla_backpack.yml`。自定义配方定义保存在 `data/vanilla/recipes.yml`，可在游戏内编辑工作台配方。
+
 ## 相关文档
 
 - [箱柜、末影箱与潜影盒](/docs/vanilla/storage)：按行数显示真实库存，关闭后原位保留。
@@ -307,4 +316,4 @@ Warehouse 为可选模块，无需在本页配置中单独开启。启用后，�
 - [配方书与材料填入](/docs/vanilla/recipe-book)：选择配方、查看可制作标记和补齐材料。
 - [仓库功能配置](/docs/warehouse/configuration)：设置仓库容量、自动存入与分类。
 
-- [NPC 兑换与在线编辑](/docs/vanilla/npc-trading)：真实背包选物、多货币与 NPC 绑定。
+- [NPC 兑换与在线编辑](/docs/market/exchange)：真实背包选物、多货币与 NPC 绑定。
