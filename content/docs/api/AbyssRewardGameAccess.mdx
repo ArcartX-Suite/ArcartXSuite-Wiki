@@ -1,0 +1,60 @@
+---
+title: "副本奖励展示接口"
+description: "为副本奖励玩法提供第三方展示界面，并打开玩家待选奖励。"
+---
+
+| 项目 | 说明 |
+| --- | --- |
+| 提供模块 | [abyss](/docs/abyss) |
+| 完整类型 | `xuanmo.arcartxsuite.api.capability.AbyssRewardGameAccess` |
+
+## 获取接口
+
+```java
+import xuanmo.arcartxsuite.api.AxsCapabilities;
+import xuanmo.arcartxsuite.api.capability.AbyssRewardGameAccess;
+
+AbyssRewardGameAccess rewards = AxsCapabilities.get(AbyssRewardGameAccess.class);
+if (rewards != null) {
+    rewards.openPending(player);
+}
+```
+
+## 方法声明
+
+```java
+public interface AbyssRewardGameAccess {
+    record Card(int slot, String label, boolean selected, boolean accepted) {}
+    record Offer(UUID id, String strategy, String title, int remaining, int revision,
+                 long expiresAt, List<Card> cards) {}
+
+    AbyssAdmissionAccess.Registration register(String id, boolean revealUnpicked, Strategy strategy);
+    void openPending(Player player);
+
+    interface Strategy {
+        void present(Player player, Offer offer, IntConsumer pick);
+    }
+}
+```
+
+## 参数与返回值
+
+| 方法 | 用途 | 参数 | 返回值 |
+| --- | --- | --- | --- |
+| `register` | 注册一种奖励展示方式 | `id` 为小写字母、数字、下划线或短横线组成的 ID，长 1～64 字符；`revealUnpicked` 控制未选牌的名称是否可见；`strategy` 为展示回调 | 注册句柄，插件停用时调用 `close()` |
+| `openPending` | 查询并打开该玩家尚未选完的奖励 | `player` 为目标玩家 | 无返回值，查询完成后再展示 |
+| `Strategy.present` | 展示指定玩家的选择界面 | `offer` 包含本次展示的数据，`pick` 接收玩家实际选择的 `Card.slot()` | 无返回值，提交后由 Abyss 处理 |
+
+`Offer.expiresAt()` 是到期时间的毫秒时间戳，`0` 表示未设置自动选择时间。`remaining()` 是剩余可选次数。`Card.selected()` 表示这个选项已经选择，`Card.accepted()` 表示对应奖励已被发放服务接收。界面应分别展示这两个状态，玩家可从背包、仓库或邮件核对实际到账。
+
+## 调用注意事项
+
+在 Bukkit 主线程注册、注销、调用 `openPending` 和提交选择。展示回调使用本次收到的 `pick`，界面刷新后更新回调。`revealUnpicked` 关闭时，未选中的 `label` 为 `null`。`flip`、`wheel` 和 `choose-three` 是保留 ID。ID 已注册时应继续使用已有句柄，或先关闭自己的旧注册再注册。
+
+### 把展示方式用于副本奖励
+
+1. 在 Abyss 可用时注册自己的策略 ID，例如 `trial_panel`。展示回调以 `Offer.cards()` 中的槽位构建按钮，玩家点击后调用当前界面的 `pick.accept(slot)`。
+2. 在地牢的 `rewards.yml` 中，将该玩法的 `reward-games.<玩法ID>.strategy` 填为 `trial_panel`。按[奖励玩法配置](/docs/abyss/rewards-and-settlement#翻牌转盘与三选一)准备奖励池，并用 `open_reward_game @all <玩法ID>` 在正式副本中登记奖励。
+3. 用普通玩家完成测试副本。选择一个选项后应收到更新的 `Offer`，其中已选状态和剩余次数发生变化。关闭界面再执行 `/abyss rewards`，应继续打开该玩家尚未完成的奖励玩法。
+
+副本模块判断选择是否有效并处理发放。已选中的奖励可通过 [AbyssRunLootAccess](/docs/api/AbyssRunLootAccess) 查询对应的战利品记录。

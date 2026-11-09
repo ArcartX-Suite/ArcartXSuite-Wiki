@@ -150,29 +150,29 @@ example_op:
   permission: "eventpacket.preset.example"
   cooldown: 0
   allow-args: false
-  args-pattern: "[\w.:-]{1,64}"
+  args-pattern: '[\w.:-]{1,64}'
   commands:
     - say 你好，我是 {player}
     - say 这里是 OP 身份执行
 
-# 控制台执行，无需权限
+# 以控制台身份执行。permission 控制触发权限。
 example_console:
   type: console
-  permission: ""
+  permission: "eventpacket.preset.console"
   cooldown: 0
   allow-args: false
-  args-pattern: "[\w.:-]{1,64}"
+  args-pattern: '[\w.:-]{1,64}'
   commands:
     - say 控制台正在响应 {player}
 
 # 带参数透传
-# 客户端调用: Packet.send('ArcartXEventPacket', 'give_item', 'DIAMOND_SWORD', '1')
+# 客户端调用 Packet.send('ArcartXEventPacket', 'example_with_args', 'SUMMER', '1')
 example_with_args:
-  type: op
-  permission: "eventpacket.preset.give"
+  type: console
+  permission: "eventpacket.preset.announce"
   cooldown: 5s
   allow-args: true
   args-pattern: "[A-Z_0-9]{1,64}"
   commands:
-    - give {player} {arg1} {arg2}
+    - say {player} 请求查看 {arg1} 活动的第 {arg2} 项
 ```

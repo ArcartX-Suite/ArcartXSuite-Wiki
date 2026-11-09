@@ -1,11 +1,11 @@
 ---
-title: "AbyssRunAccess"
+title: "副本实例操作接口"
 description: "读取实例目标、实体归属与观众，执行有版本检查的实例操作。"
 ---
 
-| 项目 | 内容 |
+| 项目 | 说明 |
 | --- | --- |
-| 提供模块 | [地牢副本](/docs/abyss) |
+| 提供模块 | [abyss](/docs/abyss) |
 | 完整类型 | `xuanmo.arcartxsuite.api.capability.AbyssRunAccess` |
 
 ## 获取接口
@@ -71,6 +71,8 @@ public interface AbyssRunAccess {
 | `entities(runId) / entity(entityId)` | 实例 UUID / 实体 UUID | `List<Entity> / Entity` |
 | `audience(runId)` | 实例 UUID | `List<UUID>` |
 | `execute(operation)` | 实例操作请求 Operation | `OperationResult` |
+| `executeAsync(operation)` | 撤离操作请求 | 异步返回 `OperationReceipt` |
+| `queryOperation(owner, runId, operationId)` | 调用方标识、实例 UUID、操作 UUID | 异步返回原操作的 `OperationReceipt` |
 | `registerObjectives(owner, provider)` | 所有者、ObjectiveProvider | `Registration` |
 | `ObjectiveProvider.objectives(runId)` | 实例 UUID | `List<Objective>` |
 | `ObjectiveProvider.canComplete(runId, current)` | 实例 UUID、当前目标列表 | `boolean` |
@@ -93,16 +95,12 @@ public interface AbyssRunAccess {
 
 ### 持久化撤离 LEAVE
 
-能力发现使用 `integrationInfo().features.durableLeave`。
-`executeAsync(operation)` 当前用于 LEAVE，主线程发起，回调可能在数据库线程完成。
-撤离前先保存完整请求，真实返回安全位置后才保存 COMPLETED / APPLIED。
-仅撤离 playerId 指定的成员，执行原离场脚本、属性清理与成员通知，原因记录为 QUIT。
-外部 XC 队伍关系不由此操作修改。最后一名成员退出后仍遵循副本原有清理策略。
+从 [AbyssAdmissionAccess](/docs/api/abyss-integration) 获取接入信息。其 `integrationInfo().features().get("durableLeave")` 为 `AVAILABLE` 时启用撤离入口。
+`executeAsync(operation)` 用于 `LEAVE`，在 Bukkit 主线程发起。异步回调如需访问 Bukkit 对象，请切回主线程。
+只有成员返回安全位置后，回执才确认撤离完成。操作仅影响 `playerId` 指定的成员，离场原因记为 `QUIT`。
 
-旧 `execute(operation)` 签名保留。LEAVE 首次返回 IN_PROGRESS 时不能显示已经撤离，
-调用 `queryOperation(owner, runId, operationId)` 补查，或用相同完整请求调用 executeAsync。
-RETURN_PENDING 表示返回传送尚未完成，可使用原请求重试。旧修订返回 STALE_REVISION，
-改参数复用相同编号返回 OPERATION_CONFLICT。
+`execute(operation)` 返回 `IN_PROGRESS` 时，使用 `queryOperation(owner, runId, operationId)` 查询，或用相同请求调用 `executeAsync`。
+`RETURN_PENDING` 表示返回传送未完成，可使用原请求重试。快照修订过期时返回 `STALE_REVISION`。用同一操作编号提交不同参数时返回 `OPERATION_CONFLICT`。
 
 查询返回 ACCEPTED、COMPLETED、REJECTED、UNKNOWN 或 NOT_FOUND。
 查询不会再次传送玩家。响应丢失后会结合当前成员关系、持久化离场记录或结算成员事实补查，
@@ -114,9 +112,12 @@ RETURN_PENDING 表示返回传送尚未完成，可使用原请求重试。旧�
 
 ```java
 AbyssRunAccess api = AxsCapabilities.get(AbyssRunAccess.class);
+if (api == null) return;
 AbyssRunAccess.Snapshot snapshot = api.snapshot(runId);
+if (snapshot == null) return;
+String owner = "my_dungeon_plugin";
 AbyssRunAccess.Operation request = new AbyssRunAccess.Operation(
-    operationId, runId, snapshot.revision(), "xc",
+    operationId, runId, snapshot.revision(), owner,
     AbyssRunAccess.Action.LEAVE, playerId, null, null);
 api.executeAsync(request).whenComplete((receipt, error) -> {
     // 保存原 request。COMPLETED 才显示撤离完成。
@@ -124,10 +125,7 @@ api.executeAsync(request).whenComplete((receipt, error) -> {
 });
 ```
 
-响应丢失后在主线程调用 `api.queryOperation("xc", runId, operationId)`。
-
-这三个新接口需要包含相应 API 类的 AXS 本体。更新云端 Abyss 前先核对本体版本，
-并在本体更新后正常重启服务器。
+将模板中的 `requirements.external-control-owner` 设为调用方标识。响应丢失后在主线程调用 `api.queryOperation(owner, runId, operationId)`，使用原标识和编号。
 
 ### 注册目标提供方 registerObjectives(owner, provider)
 

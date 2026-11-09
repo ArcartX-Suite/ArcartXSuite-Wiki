@@ -1,12 +1,11 @@
 ---
-title: "EventBusCapability"
+title: "事件总线接口"
 description: "订阅与发布业务事件"
 ---
 
-
-| 项目 | 内容 |
+| 项目 | 说明 |
 | --- | --- |
-| 提供模块 | Suite |
+| 提供模块 | Suite 宿主 |
 | 完整类型 | `xuanmo.arcartxsuite.api.capability.EventBusCapability` |
 
 ## 获取接口
@@ -26,18 +25,19 @@ if (api == null) {
 
 ## 方法声明
 
-以下为公开调用契约，保留参数类型与空值标注。Java 类型与当前配套 API JAR 保持一致。
-
 ```java
 public interface EventBusCapability {
 
     void publish(@NotNull String topic, @Nullable Player player, @NotNull Object payload);
 
-    void publish(@NotNull String topic, @Nullable Player player, @NotNull Map<String, String> payload) ;
+    void publish(@NotNull String topic, @Nullable Player player, @NotNull Map<String, String> payload);
 
     void registerPublisher(@NotNull String topic);
 
     boolean hasPublisher(@NotNull String topic);
+    boolean hasSubscribers(@NotNull String topic);
+    CompletionStage<Boolean> publishConfirmed(String topic, Player player, Map<String, String> payload);
+    String subscribeConfirmed(String consumer, String topic, ConfirmedHandler handler);
 
     String subscribe(@NotNull String topic, @NotNull EventHandler handler);
 
@@ -50,6 +50,10 @@ public interface EventBusCapability {
         long timestamp
     ) {}
 
+    interface ConfirmedHandler {
+        CompletionStage<Void> handle(BusEvent event);
+    }
+
     @FunctionalInterface
     interface EventHandler {
         void handle(@NotNull BusEvent event);
@@ -61,14 +65,17 @@ public interface EventBusCapability {
 
 | 方法 | 用途 | 参数 | 返回值 |
 | --- | --- | --- | --- |
-| `publish` | 发布一个事件到总线（类型安全版本）。 payload 可以是任意类型（如自定义 record、BigDecimal、ItemStack 等）， 订阅方通过 `BusEvent#typedPayload()` 获取并按需强制转换。 | `topic`：事件主题；`player`：关联玩家（可能为 null，如系统事件）；`payload`：附加数据（任意类型） | 无返回值；按本行说明执行操作 |
-| `registerPublisher` | 注册当前模块为指定主题的发布者。 模块在 `onEnable` 时调用此方法声明自己会发布的事件主题， 以便其他模块在启动时通过 `#hasPublisher(String)` 检测是否可订阅。 重复注册同一主题是安全的（幂等）。 | `topic`：事件主题 | 无返回值；按本行说明执行操作 |
+| `publish` | 发布一个事件到总线（类型安全版本）。 payload 可以是任意类型（如自定义 record、BigDecimal、ItemStack 等）， 订阅方通过 `BusEvent#typedPayload()` 获取并按需强制转换。 | `topic`：事件主题；`player`：关联玩家（可能为 null，如系统事件）；`payload`：附加数据（任意类型） | 无返回值 |
+| `registerPublisher` | 注册当前模块为指定主题的发布者。 模块在 `onEnable` 时调用此方法声明自己会发布的事件主题， 以便其他模块在启动时通过 `#hasPublisher(String)` 检测是否可订阅。 重复注册同一主题是安全的（幂等）。 | `topic`：事件主题 | 无返回值 |
 | `hasPublisher` | 查询指定主题是否已有注册的发布者。 用于在启动时判断某个 EventBus 主题是否有模块发布， 若无则可降级到其他事件源（如原版 Bukkit 事件）。 | `topic`：事件主题 | `true` 表示至少有一个模块已注册为该主题的发布者 |
+| `hasSubscribers` | 查询当前是否有精确主题或通配符订阅 | `topic` 为完整事件主题 | `true` 表示有匹配订阅 |
+| `publishConfirmed` | 发布需要回执的认证事件 | `topic` 为认证主题，`player` 可为空，`payload` 包含 `event_id` | 异步返回 `true` 表示全部回执已保存；无订阅或任一回执失败时返回 `false` |
+| `subscribeConfirmed` | 订阅需要回执的认证事件 | `consumer` 为稳定的消费者 ID，`topic` 为认证主题，`handler` 为异步处理器 | 可用于 `unsubscribe` 的订阅 ID |
 | `subscribe` | 订阅一个事件主题。 | `topic`：事件主题（支持通配符 `"axs.market.*"`）；`handler`：处理器 | 订阅 ID（用于取消订阅） |
-| `unsubscribe` | 取消订阅。 | `subscriptionId`：订阅 ID | 无返回值；按本行说明执行操作 |
+| `unsubscribe` | 取消订阅。 | `subscriptionId`：订阅 ID | 无返回值 |
 
 ## 调用注意事项
 
-涉及 Bukkit 玩家、世界、物品或界面的调用放在 Bukkit 主线程执行；接口有明确线程说明时以该方法约定为准。
+普通业务事件使用 `publish` 和 `subscribe`。用 `typedPayload()` 读取原始对象，发布字符串映射时可用 `payload()` 读取。停用插件时取消订阅。
 
-先在对应模块配置中准备所引用的 ID，再调用接口。检查布尔值、结果对象或异常，只有成功后才更新第三方插件自己的业务状态。
+需要回执的订阅用于 `axs.auth.profile_first_admitted` 和 `axs.auth.presence_day_started`。处理器在发布线程开始执行，应按 `event_id` 去重，异步保存业务结果后再完成回执。

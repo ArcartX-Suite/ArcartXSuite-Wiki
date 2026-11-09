@@ -1,10 +1,9 @@
 ---
-title: "AxsMarketService"
+title: "市场交易接口"
 description: "打开市场、查询与创建挂单"
 ---
 
-
-| 项目 | 内容 |
+| 项目 | 说明 |
 | --- | --- |
 | 提供模块 | [market](/docs/market) |
 | 完整类型 | `xuanmo.arcartxsuite.api.capability.AxsMarketService` |
@@ -25,8 +24,6 @@ if (api == null) {
 每次业务操作时重新获取接口；模块未加载或暂时不可用时返回 `null`。接入方式见[快速开始](/docs/api/quick-start)。
 
 ## 方法声明
-
-以下为公开调用契约，保留参数类型与空值标注。Java 类型与当前配套 API JAR 保持一致。
 
 ```java
 public interface AxsMarketService {
@@ -54,6 +51,13 @@ public interface AxsMarketService {
 
     void openUi(@NotNull Player player, @NotNull MarketView view);
 
+    boolean openSystemShop(@NotNull Player player, @NotNull String id);
+    boolean openAuctionLot(@NotNull Player player, long listingId);
+    boolean openPlayerStore(@NotNull Player player, @NotNull UUID owner);
+    boolean openOwnStoreEditor(@NotNull Player player);
+    boolean openRecycleProtection(@NotNull Player player);
+    boolean openTradeManagement(@NotNull Player player);
+
     @NotNull CompletableFuture<Boolean> createAuctionListing(@NotNull Player player, @NotNull ItemStack item,
                               double startingBid, @Nullable String currency, long durationSeconds);
 
@@ -75,17 +79,21 @@ public interface AxsMarketService {
 
 | 方法 | 用途 | 参数 | 返回值 |
 | --- | --- | --- | --- |
-| `openUi` | 为玩家打开指定市场 UI 视图。 | `player`：目标玩家（`Player`）；`view`：调用参数（`MarketView`） | 无返回值；按本行说明执行操作 |
-| `createAuctionListing` | 替玩家创建一条拍卖挂单（从玩家手中取走物品）。 在调用线程同步执行（涉及背包与落库，须在 Bukkit 主线程调用）， 返回的 Future 已完成：`true` 上架成功，`false` 校验失败 （价格/货币/黑名单/数量上限等，失败原因已通过消息发送给玩家）。 防复制约束：`item` 必须与玩家主手物品匹配（type 相同且数量不超过 主手持量），上架从主手扣除——不支持给玩家上架其未持有的物品。 | `player`：卖家；`item`：上架物品；`startingBid`：起拍价；`currency`：货币 id，null 使用默认货币；`durationSeconds`：持续秒数 | `CompletableFuture<Boolean>`：在回调中读取结果，并处理异常 |
-| `cancelListing` | 取消玩家的一条拍卖挂单。 在调用线程同步执行（须主线程），返回的 Future 已完成： `true` 取消成功，`false` 挂单不存在/不属于该玩家/已成交等。 | `player`：目标玩家（`Player`）；`listingId`：对应条目的 ID（`long`） | `CompletableFuture<Boolean>`：在回调中读取结果，并处理异常 |
-| `searchAuction` | 打开拍卖 UI 并按关键字搜索。 在调用线程同步执行（须主线程），返回的 Future 已完成： `false` 表示市场服务不可用。 | `player`：目标玩家（`Player`）；`keyword`：调用参数（`String`），允许为 null | `CompletableFuture<Boolean>`：在回调中读取结果，并处理异常 |
-| `auctionCount` | 当前活跃拍卖挂单总数。 | 无参数 | `int` 数值，具体统计含义见本行用途 |
-| `shopCount` | 系统商店条目数。 | 无参数 | `int` 数值，具体统计含义见本行用途 |
-| `myListingCount` | 玩家当前自己的拍卖挂单数。 | `player`：目标玩家（`Player`） | `int` 数值，具体统计含义见本行用途 |
-| `playerShopEnabled` | 玩家商店功能是否启用。 | 无参数 | `boolean`：用于判断上面所述的查询或操作结果（true / false） |
+| `openUi` | 为玩家打开指定市场 UI 视图。 | `player`：目标玩家（`Player`）；`view` 要打开的市场页面（`MarketView`） | 无返回值 |
+| `openSystemShop` | 打开指定系统商店 | `player` 为目标玩家，`id` 为商店 ID | `true` 表示服务端记录商店界面已打开 |
+| `openAuctionLot` | 打开单件拍品的竞价厅 | `player` 为目标玩家，`listingId` 为挂单编号 | `true` 表示接受打开请求 |
+| `openPlayerStore` | 打开某位玩家的独立店铺 | `player` 为访客，`owner` 为店主 UUID | `true` 表示接受打开请求 |
+| `openOwnStoreEditor` | 打开玩家自己的店铺编辑器 | `player` 为店主 | `true` 表示玩家商店已启用并发起打开 |
+| `openRecycleProtection` | 打开玩家自己的回收保护界面 | `player` 为目标玩家 | `true` 表示回收功能已启用并发起打开 |
+| `openTradeManagement` | 打开交易管理页面 | `player` 为具有 `arcartxsuite.market.admin` 的操作者 | `true` 表示通过权限检查并发起打开 |
+| `createAuctionListing` | 上架玩家当前主手的物品，成功后由市场扣除。物品类型和元数据须与主手匹配，数量不得超过主手持有量 | `player` 为卖家，`item` 为待上架物品，`startingBid` 为起拍价，`currency` 为空时使用默认货币 ID，`durationSeconds` 为持续秒数 | 已完成的 `CompletableFuture<Boolean>`，`true` 表示上架成功 |
+| `cancelListing` | 取消玩家的一条拍卖挂单 | `player` 为卖家，`listingId` 为拍卖编号 | 已完成的 `CompletableFuture<Boolean>`，`true` 表示取消成功 |
+| `searchAuction` | 请求打开拍卖界面并搜索 | `player` 为目标玩家，`keyword` 为关键词，可为 `null` | 已完成的 `CompletableFuture<Boolean>`，`true` 表示已发起搜索 |
+| `auctionCount` | 当前活跃拍卖挂单总数。 | 无参数 | `int` 当前活跃拍卖挂单总数。 |
+| `shopCount` | 系统商店条目数。 | 无参数 | `int` 系统商店条目数。 |
+| `myListingCount` | 玩家当前自己的拍卖挂单数。 | `player`：目标玩家（`Player`） | `int` 玩家当前自己的拍卖挂单数。 |
+| `playerShopEnabled` | 玩家商店功能是否启用。 | 无参数 | `true` 表示玩家店铺已启用 |
 
 ## 调用注意事项
 
-返回 `CompletableFuture` 的方法使用回调处理结果，不要在 Bukkit 主线程调用 `join()` 或 `get()`。回调中如需操作 Bukkit 玩家、世界或物品，将相应操作切回主线程。
-
-先在对应模块配置中准备所引用的 ID，再调用接口。检查布尔值、结果对象或异常，只有成功后才更新第三方插件自己的业务状态。
+在 Bukkit 主线程调用。上架或撤单后读取对应结果，再更新调用方的业务状态。界面请求的布尔值反映服务端的处理结果，客户端展示以玩家实际看到的页面为准。

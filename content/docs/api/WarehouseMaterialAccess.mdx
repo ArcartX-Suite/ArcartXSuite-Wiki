@@ -1,11 +1,11 @@
 ---
-title: "WarehouseMaterialAccess"
+title: "仓库材料交付接口"
 description: "读取个人仓库材料，并在保留转移记录的前提下向容器交付。"
 ---
 
-| 项目 | 内容 |
+| 项目 | 说明 |
 | --- | --- |
-| 提供模块 | [仓库与银行](/docs/warehouse) |
+| 提供模块 | [warehouse](/docs/warehouse) |
 | 完整类型 | `xuanmo.arcartxsuite.api.capability.WarehouseMaterialAccess` |
 
 ## 获取接口
@@ -40,13 +40,31 @@ api.materialsAsync(player, snapshot -> {
 
 不可用、未拥有或未解锁的仓库不会作为可取材料。快照绑定玩家，后续快照会替换旧快照，取料只能使用一次。
 
-## 公开调用顺序
+## 方法声明
+
+```java
+public interface WarehouseMaterialAccess {
+    Snapshot materials(Player player);
+    void materialsAsync(Player player, Consumer<Snapshot> callback);
+    void prepareMaterials(Player player, Snapshot snapshot, List<Request> requests,
+        Target target, Consumer<Prepared> callback);
+    void authorizeDelivery(Player player, String operationId, Consumer<Boolean> callback);
+    void recordApplied(Player player, String operationId);
+    void completeDelivery(Player player, String operationId, Consumer<Boolean> callback);
+    void recordUncertain(Player player, String operationId, String reason);
+    void cancelPrepared(Player player, String operationId);
+}
+```
+
+## 参数与返回值
 
 | 方法 | 用途 |
 | --- | --- |
+| `materials(Player)` | 同步读取可用个人仓库材料，常规界面使用异步方法 |
 | `materialsAsync(Player, Consumer<Snapshot>)` | 异步读取可用个人仓库材料 |
 | `prepareMaterials(Player, Snapshot, List<Request>, Target, Consumer<Prepared>)` | 整批扣料与完整凭证在同一事务进入 HELD |
 | `authorizeDelivery(Player, String, Consumer<Boolean>)` | 条件转换 HELD → APPLYING，成功回调后才允许改目标库存 |
+| `recordApplied(Player, String)` | 记录内存中已经应用的交付，调用方无需等待回调 |
 | `completeDelivery(Player, String, Consumer<Boolean>)` | 记录本轮内存落槽结果，不等于原版跨存档已确认 |
 | `cancelPrepared(Player, String)` | 只在未授权的 HELD 阶段尝试条件回仓 |
 | `recordUncertain(Player, String, String)` | 交付异常转待核对，保留凭证，不自动补发 |
@@ -78,7 +96,9 @@ record Prepared(boolean success, String operationId, String message) {}
 
 同一玩家只允许一笔在途转移。每批最多九个槽位请求，总需求最多 576 个；超过限制或服务繁忙时会拒绝操作，调用方应处理失败结果。
 
-## 调用方责任
+## 调用注意事项
+
+### 调用方责任
 
 1. 在读取快照后生成完整材料计划和目标快照，先检查退回空间。
 2. 托管成功后重新检查玩家、InventoryView 与源/目标未发生变化。
@@ -86,7 +106,7 @@ record Prepared(boolean success, String operationId, String message) {}
 4. 主线程落槽成功后记录结果；异常调用 `recordUncertain`，不能猜测性再次存入或交付。
 5. 模块关闭或能力实例变化时取消本地等待任务。服务关闭后，不保证仍会调用异步回调。
 
-## 恢复边界
+### 恢复边界
 
 普通 SQL 批量事务不是 Bukkit 背包、工作台矩阵与熔炉区块的共同存档事务。当前原版适配器遗留的交付阶段记录会在重启/热重载后保守进入 REVIEW，不自动重放。
 

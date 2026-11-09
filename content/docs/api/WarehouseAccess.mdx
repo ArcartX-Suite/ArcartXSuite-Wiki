@@ -1,10 +1,9 @@
 ---
-title: "WarehouseAccess"
+title: "个人仓库接口"
 description: "操作仓库物品与查询容量"
 ---
 
-
-| 项目 | 内容 |
+| 项目 | 说明 |
 | --- | --- |
 | 提供模块 | [warehouse](/docs/warehouse) |
 | 完整类型 | `xuanmo.arcartxsuite.api.capability.WarehouseAccess` |
@@ -25,8 +24,6 @@ if (api == null) {
 每次业务操作时重新获取接口；模块未加载或暂时不可用时返回 `null`。接入方式见[快速开始](/docs/api/quick-start)。
 
 ## 方法声明
-
-以下为公开调用契约，保留参数类型与空值标注。Java 类型与当前配套 API JAR 保持一致。
 
 ```java
 public interface WarehouseAccess {
@@ -103,19 +100,17 @@ public interface WarehouseAccess {
 
 | 方法 | 用途 | 参数 | 返回值 |
 | --- | --- | --- | --- |
-| `isAvailable` | 查询个人仓库是否已启用且允许该玩家使用。 | `player`：目标玩家（`Player`） | `boolean`：用于判断上面所述的查询或操作结果（true / false） |
-| `snapshot` | 读取已解锁槽位、已用槽位、能否扩容与下一格价格。 | `player`：目标玩家（`Player`） | `Snapshot` 结果对象 |
-| `slots` | 按槽位顺序列出个人仓库中已存物品。 | `player`：目标玩家（`Player`） | `List<SlotItem>`：符合条件的结果集合 |
-| `deposit` | 先合并已有物品堆，再使用空槽位，按仓库容量尽量存入。 | `player`：目标玩家（`Player`）；`itemStack`：物品（`ItemStack`） | `DepositResult` 结果对象 |
-| `setSlot` | 写入指定仓库槽位。物品为 null 或空气时清空槽位，超出已解锁范围时失败。 | `player`：目标玩家（`Player`）；`slotIndex`：调用参数（`int`）；`itemStack`：物品（`ItemStack`），允许为 null | `SlotWriteResult` 结果对象 |
-| `withdraw` | 从指定仓库槽位取出至多 `amount` 件物品。 | `player`：目标玩家（`Player`）；`slotIndex`：调用参数（`int`）；`amount`：数量或数值（`int`） | `WithdrawResult` 结果对象 |
-| `purchaseSlot` | 按配置价格购买一个仓库槽位。 | `player`：目标玩家（`Player`） | `PurchaseResult` 结果对象 |
-| `slotPrice` | 计算额外购买 `amount` 格仓库所需价格。 | `player`：目标玩家（`Player`）；`amount`：数量或数值（`int`） | `SlotPrice` 结果对象 |
-| `grantSlots` | 为目标玩家增加槽位，受配置上限限制，支持离线玩家。 | `target`：调用参数（`OfflinePlayer`）；`amount`：数量或数值（`int`） | 返回实际增加的槽位数，参数无效时返回 `-1` |
-| `resetSlots` | 清零额外购买的槽位，容量回到基础槽位。 | `target`：调用参数（`OfflinePlayer`） | `boolean`：用于判断上面所述的查询或操作结果（true / false） |
+| `isAvailable` | 查询个人仓库是否已启用且允许该玩家使用。 | `player`：目标玩家（`Player`） | `true` 表示玩家当前可使用个人仓库 |
+| `snapshot` | 读取已解锁槽位、已用槽位、能否扩容与下一格价格。 | `player`：目标玩家（`Player`） | `Snapshot` 仓库占用、已解锁格数和扩容价格 |
+| `slots` | 按槽位顺序列出个人仓库中已存物品。 | `player`：目标玩家（`Player`） | `List<SlotItem>` 已占用的槽位，按编号排序 |
+| `deposit` | 先合并已有物品堆，再使用空槽位，按仓库容量尽量存入。 | `player`：目标玩家（`Player`）；`itemStack`：物品（`ItemStack`） | `DepositResult` 实际存入数量、剩余数量和操作结果 |
+| `setSlot` | 写入指定仓库槽位。物品为 null 或空气时清空槽位，超出已解锁范围时失败。 | `player`：目标玩家（`Player`）；`slotIndex` 个人仓库槽位编号（`int`）；`itemStack`：物品（`ItemStack`），允许为 null | `SlotWriteResult` 槽位写入结果及提示 |
+| `withdraw` | 从指定仓库槽位取出至多 `amount` 件物品。 | `player`：目标玩家（`Player`）；`slotIndex` 个人仓库槽位编号（`int`）；`amount`：数量或数值（`int`） | `WithdrawResult` 实际取出数量、物品和操作结果 |
+| `purchaseSlot` | 按配置价格购买一个仓库槽位。 | `player`：目标玩家（`Player`） | `PurchaseResult` 扩容结果、扣费和当前容量 |
+| `slotPrice` | 计算额外购买 `amount` 格仓库所需价格。 | `player`：目标玩家（`Player`）；`amount`：数量或数值（`int`） | `SlotPrice` 请求数量对应的价格和货币 |
+| `grantSlots` | 为目标玩家增加槽位，受配置上限限制，支持离线玩家。 | `target` 要调整容量的玩家（`OfflinePlayer`）；`amount`：数量或数值（`int`） | 返回实际增加的槽位数，参数无效时返回 `-1` |
+| `resetSlots` | 清零额外购买的槽位，容量回到基础槽位。 | `target` 要调整容量的玩家（`OfflinePlayer`） | `true` 表示已重置额外槽位 |
 
 ## 调用注意事项
 
 涉及 Bukkit 玩家、世界、物品或界面的调用放在 Bukkit 主线程执行；接口有明确线程说明时以该方法约定为准。
-
-先在对应模块配置中准备所引用的 ID，再调用接口。检查布尔值、结果对象或异常，只有成功后才更新第三方插件自己的业务状态。

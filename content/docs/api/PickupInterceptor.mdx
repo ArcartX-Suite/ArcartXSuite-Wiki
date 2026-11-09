@@ -1,10 +1,9 @@
 ---
-title: "PickupInterceptor"
+title: "拾取拦截接口"
 description: "查询拾取处理方式"
 ---
 
-
-| 项目 | 内容 |
+| 项目 | 说明 |
 | --- | --- |
 | 提供模块 | [pickup](/docs/pickup) |
 | 完整类型 | `xuanmo.arcartxsuite.api.capability.PickupInterceptor` |
@@ -26,8 +25,6 @@ if (api == null) {
 
 ## 方法声明
 
-以下为公开调用契约，保留参数类型与空值标注。Java 类型与当前配套 API JAR 保持一致。
-
 ```java
 public interface PickupInterceptor {
 
@@ -44,5 +41,3 @@ public interface PickupInterceptor {
 ## 调用注意事项
 
 涉及 Bukkit 玩家、世界、物品或界面的调用放在 Bukkit 主线程执行；接口有明确线程说明时以该方法约定为准。
-
-先在对应模块配置中准备所引用的 ID，再调用接口。检查布尔值、结果对象或异常，只有成功后才更新第三方插件自己的业务状态。

@@ -1,10 +1,9 @@
 ---
-title: "MenuOpenable"
+title: "功能菜单接口"
 description: "打开或刷新配置菜单"
 ---
 
-
-| 项目 | 内容 |
+| 项目 | 说明 |
 | --- | --- |
 | 提供模块 | [menu](/docs/menu) |
 | 完整类型 | `xuanmo.arcartxsuite.api.capability.MenuOpenable` |
@@ -26,8 +25,6 @@ if (api == null) {
 
 ## 方法声明
 
-以下为公开调用契约，保留参数类型与空值标注。Java 类型与当前配套 API JAR 保持一致。
-
 ```java
 public interface MenuOpenable {
 
@@ -42,10 +39,8 @@ public interface MenuOpenable {
 | 方法 | 用途 | 参数 | 返回值 |
 | --- | --- | --- | --- |
 | `openMenu` | 为玩家打开指定菜单。 | `player`：目标玩家；`menuId`：菜单定义 ID | 是否成功打开 |
-| `refreshMenu` | 刷新玩家当前打开的菜单内容。 | `player`：目标玩家（`Player`） | 无返回值；按本行说明执行操作 |
+| `refreshMenu` | 刷新玩家当前打开的菜单内容。 | `player`：目标玩家（`Player`） | 无返回值 |
 
 ## 调用注意事项
 
 涉及 Bukkit 玩家、世界、物品或界面的调用放在 Bukkit 主线程执行；接口有明确线程说明时以该方法约定为准。
-
-先在对应模块配置中准备所引用的 ID，再调用接口。检查布尔值、结果对象或异常，只有成功后才更新第三方插件自己的业务状态。

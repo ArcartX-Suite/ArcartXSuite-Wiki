@@ -41,7 +41,7 @@ CombatEffect 模块的管理命令通过 `/axs combateffect <子命令>` 触发�
 
 按包定义 ID 触发已注册的包定义，手动触发，直接发给指定玩家。支持附加 `k=v` 变量，会合并到 `pack` 模板渲染中。
 
-```yaml
+```text
 # 发送 kill-effect 包给玩家 Steve
 /axs combateffect send kill-effect Steve
 
@@ -57,7 +57,7 @@ CombatEffect 模块的管理命令通过 `/axs combateffect <子命令>` 触发�
 
 #### direct 直接发包
 
-```yaml
+```text
 # 直接向 AXS:combat_kill_effect 的 kill handler 发包
 /axs combateffect direct AXS:combat_kill_effect kill Steve
 

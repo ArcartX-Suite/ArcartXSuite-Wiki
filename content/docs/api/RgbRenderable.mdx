@@ -1,10 +1,9 @@
 ---
-title: "RgbRenderable"
+title: "渐变文本渲染接口"
 description: "渲染渐变文字"
 ---
 
-
-| 项目 | 内容 |
+| 项目 | 说明 |
 | --- | --- |
 | 提供模块 | [rgb](/docs/rgb) |
 | 完整类型 | `xuanmo.arcartxsuite.api.capability.RgbRenderable` |
@@ -26,8 +25,6 @@ if (api == null) {
 
 ## 方法声明
 
-以下为公开调用契约，保留参数类型与空值标注。Java 类型与当前配套 API JAR 保持一致。
-
 ```java
 public interface RgbRenderable {
 
@@ -42,10 +39,8 @@ public interface RgbRenderable {
 | 方法 | 用途 | 参数 | 返回值 |
 | --- | --- | --- | --- |
 | `render` | 渲染指定渐变条目。 | `entryId`：渐变条目 id；`player`：关联玩家（用于 PlaceholderAPI 变量，可为 null） | 渲染后的文本；条目不存在时返回空串 |
-| `entryIds` | 已配置的渐变条目 id 列表。 | 无参数 | `List<String>`：符合条件的结果集合 |
+| `entryIds` | 已配置的渐变条目 id 列表。 | 无参数 | `List<String>` 已配置的渐变条目 ID |
 
 ## 调用注意事项
 
 涉及 Bukkit 玩家、世界、物品或界面的调用放在 Bukkit 主线程执行；接口有明确线程说明时以该方法约定为准。
-
-先在对应模块配置中准备所引用的 ID，再调用接口。检查布尔值、结果对象或异常，只有成功后才更新第三方插件自己的业务状态。

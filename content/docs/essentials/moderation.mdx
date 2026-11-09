@@ -5,45 +5,33 @@ description: "通过封禁、禁言、踢出、警告等命令管理玩家。"
 
 ## 功能概述
 
-安全管理包含封禁、禁言、踢出、警告与强制执行。禁言数据由 Chat 模块存储，封禁与警告记录持久化到数据库。所有管理命令均要求对应的 `axs.essentials.*` 权限。
+安全管理包含封禁、禁言、踢出、警告与强制执行。禁言由 Chat 模块管理。下表使用 `/ess` 入口，操作者需要 `axs.essentials.menu` 和对应操作权限。
 
 | 中文功能 | 命令示例 | 所需权限 |
 | --- | --- | --- |
-| 永久封禁 | `/essentials ban Steve 违反规则` | `axs.essentials.ban` |
-| 临时封禁 | `/essentials tempban Steve 1d 违反规则` | `axs.essentials.ban` |
-| 解除封禁 | `/essentials unban Steve` | `axs.essentials.unban` |
-| 永久/临时禁言 | `/essentials tempmute Steve 30m 请停止刷屏` | `axs.essentials.mute` |
-| 解除禁言 | `/essentials unmute Steve` | `axs.essentials.unmute` |
-| 踢出 | `/essentials kick Steve 请重新连接` | `axs.essentials.kick` |
-| 警告 | `/essentials warn Steve 请遵守聊天规则` | `axs.essentials.warn` |
-| 强制执行 | `/essentials sudo Steve help` | `axs.essentials.sudo` |
-| 背包查看 | `/essentials inv Steve` | `axs.essentials.inv` |
+| 永久封禁 | `/ess ban Steve 违反规则` | `axs.essentials.ban` |
+| 临时封禁 | `/ess tempban Steve 1d 违反规则` | `axs.essentials.ban` |
+| 解除封禁 | `/ess unban Steve` | `axs.essentials.unban` |
+| 永久/临时禁言 | `/ess tempmute Steve 30m 请停止刷屏` | `axs.essentials.mute` |
+| 解除禁言 | `/ess unmute Steve` | `axs.essentials.unmute` |
+| 踢出 | `/ess kick Steve 请重新连接` | `axs.essentials.kick` |
+| 警告 | `/ess warn Steve 请遵守聊天规则` | `axs.essentials.warn` |
+| 强制执行 | `/ess sudo Steve help` | `axs.essentials.sudo` |
+| 背包查看 | `/ess inv Steve` | `axs.essentials.inv` |
 
 ### 永久封禁（ban）
 
-`/essentials ban <玩家> [原因]` 对在线玩家执行永久封禁：记录玩家 IP、写入封禁记录、踢出玩家（使用 `moderation.ban-message` 模板），并全服广播。
+`/ess ban <玩家> [原因]` 记录永久封禁，踢出在线玩家并广播。踢出界面使用 `moderation.ban-message`。开启 `moderation.record-ban-ip` 时会同时记录在线玩家 IP。
 
 ### 临时封禁（tempban）
 
-```yaml
-# 命令格式
-/essentials tempban <玩家> <时长> [原因]
-
-# 时长格式
-1d   # 1 天
-2h   # 2 小时
-30m  # 30 分钟
-45s  # 45 秒
-3600 # 纯数字按秒处理
-```
-
-时长无法解析时按 1 小时处理。
+例如 `/ess tempban Steve 30m 刷屏` 为在线测试玩家登记 30 分钟封禁并踢出。其他单位见[时长格式](#时长格式)。
 
 ### 解除封禁（unban）
 
-`/essentials unban <玩家>` 删除封禁记录。命令仅对在线玩家生效，离线玩家需通过管理员面板的 unban 操作（按 UUID 解除）。
+`/ess unban <玩家>` 删除封禁记录。命令仅对在线玩家生效，离线玩家需通过管理员面板的 unban 操作（按 UUID 解除）。
 
-> 封禁记录写入数据库，但**不拦截离线封禁玩家的加入**。如需加入时拦截，需配合Suite或代理层的封禁门扩展开发。
+这组命令记录封禁并处理当前在线连接。需要拦截玩家再次连接时，由服务器的封禁准入功能处理。
 
 ## 禁言系统
 
@@ -54,11 +42,11 @@ description: "通过封禁、禁言、踢出、警告等命令管理玩家。"
 
 ## 踢出（kick）
 
-`/essentials kick <玩家> [原因]` 踢出在线玩家，使用 `moderation.kick-message` 模板并全服广播。原因缺省为"无"。
+`/ess kick <玩家> [原因]` 踢出在线玩家，使用 `moderation.kick-message` 模板并全服广播。原因缺省为"无"。
 
 ## 警告与自动封禁（warn）
 
-`/essentials warn <玩家> [原因]` 记录一次警告并全服广播，然后检查自动封禁阈值：
+`/ess warn <玩家> [原因]` 记录一次警告并全服广播，然后检查自动封禁阈值：
 
 ```yaml
 moderation:
@@ -75,16 +63,16 @@ moderation:
 
 ## 强制执行（sudo）
 
-`/essentials sudo <玩家> <命令>` 强制目标玩家执行命令，命令以 `/` 开头时自动去除前缀：
+`/ess sudo <玩家> <命令>` 强制目标玩家执行命令，命令以 `/` 开头时自动去除前缀：
 
-```yaml
-/essentials sudo Steve /spawn
-/essentials sudo Steve say hello
+```text
+/ess sudo Steve /spawn
+/ess sudo Steve say hello
 ```
 
 ## 背包查看（inv）
 
-`/essentials inv <玩家>` 打开目标玩家背包界面，支持实时双向同步修改，详见 [玩家管理](/docs/essentials/player-management)。
+`/ess inv <玩家>` 打开目标玩家背包界面，支持实时双向同步修改，详见 [玩家管理](/docs/essentials/player-management)。
 
 > 仅对在线玩家生效，且需要执行者为玩家。
 
@@ -104,7 +92,7 @@ moderation:
 
 ## 管理员面板
 
-管理员面板（`/essentials admin`）提供安全管理的可视化操作，均要求 `axs.essentials.admin` 权限，并二次校验对应功能权限：
+管理员面板（`/ess admin`）提供安全管理的可视化操作，均要求 `axs.essentials.admin` 权限，并二次校验对应功能权限：
 
 | 页面 | 操作 | 所需权限 |
 |------|------|----------|

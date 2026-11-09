@@ -1,10 +1,9 @@
 ---
-title: "BattlePassAccess"
+title: "战令进度接口"
 description: "操作战令经验、档位与任务进度"
 ---
 
-
-| 项目 | 内容 |
+| 项目 | 说明 |
 | --- | --- |
 | 提供模块 | [battlepass](/docs/battlepass) |
 | 完整类型 | `xuanmo.arcartxsuite.api.capability.BattlePassAccess` |
@@ -25,8 +24,6 @@ if (api == null) {
 每次业务操作时重新获取接口；模块未加载或暂时不可用时返回 `null`。接入方式见[快速开始](/docs/api/quick-start)。
 
 ## 方法声明
-
-以下为公开调用契约，保留参数类型与空值标注。Java 类型与当前配套 API JAR 保持一致。
 
 ```java
 public interface BattlePassAccess {
@@ -55,18 +52,16 @@ public interface BattlePassAccess {
 
 | 方法 | 用途 | 参数 | 返回值 |
 | --- | --- | --- | --- |
-| `isSeasonActive` | 当前赛季是否进行中。 | 无参数 | `boolean`：用于判断上面所述的查询或操作结果（true / false） |
+| `isSeasonActive` | 当前赛季是否进行中。 | 无参数 | `true` 表示赛季正在进行 |
 | `addXp` | 为玩家增加战令经验。 | `player`：目标玩家（`Player`）；`xp`：经验值（`int`） | 实际增加后的总经验 |
-| `setXp` | 直接设置玩家战令经验。 | `player`：目标玩家（`Player`）；`xp`：经验值（`int`） | 无返回值；按本行说明执行操作 |
-| `removeXp` | 扣减玩家战令经验。 | `player`：目标玩家（`Player`）；`xp`：经验值（`int`） | 无返回值；按本行说明执行操作 |
-| `setLevel` | 直接设置玩家战令等级。 | `player`：目标玩家（`Player`）；`level`：等级（`int`） | 无返回值；按本行说明执行操作 |
+| `setXp` | 直接设置玩家战令经验。 | `player`：目标玩家（`Player`）；`xp`：经验值（`int`） | 无返回值 |
+| `removeXp` | 扣减玩家战令经验。 | `player`：目标玩家（`Player`）；`xp`：经验值（`int`） | 无返回值 |
+| `setLevel` | 直接设置玩家战令等级。 | `player`：目标玩家（`Player`）；`level`：等级（`int`） | 无返回值 |
 | `unlockTier` | 解锁玩家战令档位。 | `tier`：档位名：`"PREMIUM"` / `"DELUXE"`（大小写不敏感） | 是否成功 |
 | `claimAllRewards` | 一键领取玩家全部可领奖励。 | `player`：目标玩家（`Player`） | 领取的奖励份数 |
-| `updateTaskProgress` | 为玩家推进指定任务进度。 | `taskId`：任务 id；`increment`：进度增量 | 无返回值；按本行说明执行操作 |
-| `resetProgress` | 重置玩家本赛季进度（等级/经验/任务/领取记录）。 | `playerUuid`：玩家 UUID（`UUID`） | 无返回值；按本行说明执行操作 |
+| `updateTaskProgress` | 为玩家推进指定任务进度。 | `taskId`：任务 id；`increment`：进度增量 | 无返回值 |
+| `resetProgress` | 重置玩家本赛季进度（等级/经验/任务/领取记录）。 | `playerUuid`：玩家 UUID（`UUID`） | 无返回值 |
 
 ## 调用注意事项
 
 涉及 Bukkit 玩家、世界、物品或界面的调用放在 Bukkit 主线程执行；接口有明确线程说明时以该方法约定为准。
-
-先在对应模块配置中准备所引用的 ID，再调用接口。检查布尔值、结果对象或异常，只有成功后才更新第三方插件自己的业务状态。

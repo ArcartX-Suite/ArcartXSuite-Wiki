@@ -1,15 +1,17 @@
 ---
-title: "VanillaBackpackAccess"
+title: "随身背包接口"
 description: "从第三方插件查询、打开和操作随身背包。"
 ---
 
 | 项目 | 说明 |
 | --- | --- |
-| 提供模块 | [Vanilla 随身背包](/docs/vanilla/backpack) |
+| 提供模块 | [vanilla](/docs/vanilla/backpack) |
 | 完整类型 | `xuanmo.arcartxsuite.api.capability.VanillaBackpackAccess` |
 
+## 获取接口
+
 ```java
-import xuanmo.arcartxsuite.api.capability.AxsCapabilities;
+import xuanmo.arcartxsuite.api.AxsCapabilities;
 import xuanmo.arcartxsuite.api.capability.VanillaBackpackAccess;
 
 VanillaBackpackAccess backpack = AxsCapabilities.get(VanillaBackpackAccess.class);
@@ -19,12 +21,28 @@ if (backpack != null && backpack.isAvailable(player)) {
 }
 ```
 
-| 方法 | 参数与结果 |
-| --- | --- |
-| `isAvailable(player)` | 查询该玩家当前能否使用 |
-| `open(player)` | 在 Bukkit 主线程打开界面 |
-| `snapshot(player)` | 返回分类、容量、占用和各分类槽位快照 |
-| `deposit(player, itemStack)` | 返回实际存入数量和剩余数量，可能只存入一部分 |
-| `withdraw(player, categoryId, slot, amount)` | 返回该分类槽位实际取出的数量、物品与提示 |
+## 方法声明
 
-背包和个人仓库使用同一容量。调用存入或取出后，根据结果中的实际数量更新调用方物品，避免重复扣除或发放。
+```java
+public interface VanillaBackpackAccess {
+    boolean isAvailable(@NotNull Player player);
+    void open(@NotNull Player player) throws Exception;
+    @NotNull Snapshot snapshot(@NotNull Player player);
+    @NotNull DepositResult deposit(@NotNull Player player, @NotNull ItemStack itemStack);
+    @NotNull WithdrawResult withdraw(@NotNull Player player, @NotNull String categoryId, int slot, int amount);
+}
+```
+
+## 参数与返回值
+
+| 方法 | 用途 | 参数 | 返回值 |
+| --- | --- | --- | --- |
+| `isAvailable` | 检查可用性 | `player` 为目标玩家 | `true` 表示玩家当前可以使用 |
+| `open` | 打开界面 | `player` 为目标玩家 | 无返回值，打开失败可能抛出异常 |
+| `snapshot` | 查询分类和库存 | `player` 为目标玩家 | `Snapshot` 包含可用状态、分类容量和已占用槽位 |
+| `deposit` | 尽量存入一组物品 | `player` 为目标玩家，`itemStack` 为拟存入的物品 | `DepositResult` 包含实际存入量 `storedAmount` 和剩余量 `remainingAmount` |
+| `withdraw` | 从指定分类槽位取出物品 | `categoryId` 和 `slot` 取自最新快照，`amount` 为最多取出数量 | `WithdrawResult` 包含实际数量 `takenAmount`、物品和提示 |
+
+## 调用注意事项
+
+在 Bukkit 主线程操作背包。背包和个人仓库使用同一容量，分类页的容量不可相加。根据结果中的实际数量更新调用方库存，避免重复扣除或发放。

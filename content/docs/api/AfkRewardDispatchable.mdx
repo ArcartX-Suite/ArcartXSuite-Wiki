@@ -1,10 +1,9 @@
 ---
-title: "AfkRewardDispatchable"
+title: "挂机奖励接口"
 description: "查询挂机状态与开始原地挂机"
 ---
 
-
-| 项目 | 内容 |
+| 项目 | 说明 |
 | --- | --- |
 | 提供模块 | [afkreward](/docs/afkreward) |
 | 完整类型 | `xuanmo.arcartxsuite.api.capability.AfkRewardDispatchable` |
@@ -25,8 +24,6 @@ if (api == null) {
 每次业务操作时重新获取接口；模块未加载或暂时不可用时返回 `null`。接入方式见[快速开始](/docs/api/quick-start)。
 
 ## 方法声明
-
-以下为公开调用契约，保留参数类型与空值标注。Java 类型与当前配套 API JAR 保持一致。
 
 ```java
 public interface AfkRewardDispatchable {
@@ -49,14 +46,12 @@ public interface AfkRewardDispatchable {
 
 | 方法 | 用途 | 参数 | 返回值 |
 | --- | --- | --- | --- |
-| `isAfk` | 查询玩家是否正在挂机（REGION 或 MANUAL 模式）。 | `playerUuid`：玩家 UUID（`UUID`） | `boolean`：用于判断上面所述的查询或操作结果（true / false） |
+| `isAfk` | 查询玩家是否正在挂机（REGION 或 MANUAL 模式）。 | `playerUuid`：玩家 UUID（`UUID`） | `true` 表示正在挂机 |
 | `getAreaName` | 获取玩家当前挂机区域名，未挂机时返回 null。 | `playerUuid`：玩家 UUID（`UUID`） | `String` 文字或标识符；没有对应结果时可为 null |
-| `getAfkSeconds` | 获取玩家本次挂机已持续秒数，未挂机时返回 0。 | `playerUuid`：玩家 UUID（`UUID`） | `int` 数值，具体统计含义见本行用途 |
+| `getAfkSeconds` | 获取玩家本次挂机已持续秒数，未挂机时返回 0。 | `playerUuid`：玩家 UUID（`UUID`） | `int` 获取玩家本次挂机已持续秒数，未挂机时返回 0。 |
 | `getAfkMode` | 获取玩家当前挂机模式，未挂机时返回 null。 | `playerUuid`：玩家 UUID（`UUID`） | "REGION" / "MANUAL" / null |
 | `startManualAfk` | 让指定玩家开始原地挂机到指定区域。 供 Essentials 等模块在 AFK 超时后自动触发原地挂机。 | `player`：目标玩家；`areaName`：区域名 | `true` 表示成功启动 |
 
 ## 调用注意事项
 
 涉及 Bukkit 玩家、世界、物品或界面的调用放在 Bukkit 主线程执行；接口有明确线程说明时以该方法约定为准。
-
-先在对应模块配置中准备所引用的 ID，再调用接口。检查布尔值、结果对象或异常，只有成功后才更新第三方插件自己的业务状态。

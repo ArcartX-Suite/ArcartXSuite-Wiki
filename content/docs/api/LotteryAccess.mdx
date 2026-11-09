@@ -1,10 +1,9 @@
 ---
-title: "LotteryAccess"
+title: "抽奖与积分接口"
 description: "操作抽奖积分、兑换与开箱"
 ---
 
-
-| 项目 | 内容 |
+| 项目 | 说明 |
 | --- | --- |
 | 提供模块 | [lottery](/docs/lottery) |
 | 完整类型 | `xuanmo.arcartxsuite.api.capability.LotteryAccess` |
@@ -25,8 +24,6 @@ if (api == null) {
 每次业务操作时重新获取接口；模块未加载或暂时不可用时返回 `null`。接入方式见[快速开始](/docs/api/quick-start)。
 
 ## 方法声明
-
-以下为公开调用契约，保留参数类型与空值标注。Java 类型与当前配套 API JAR 保持一致。
 
 ```java
 public interface LotteryAccess {
@@ -55,8 +52,8 @@ public interface LotteryAccess {
 
 | 方法 | 用途 | 参数 | 返回值 |
 | --- | --- | --- | --- |
-| `getPoint` | 查询玩家指定积分余额。 | `playerUuid`：玩家 UUID（`UUID`）；`pointId`：对应条目的 ID（`String`） | `long` 数值，具体统计含义见本行用途 |
-| `getPoints` | 查询玩家全部积分余额（pointId -&gt; 数量）。 | `playerUuid`：玩家 UUID（`UUID`） | `Map<String, Long>` 结果对象 |
+| `getPoint` | 查询玩家指定积分余额。 | `playerUuid`：玩家 UUID（`UUID`）；`pointId`：对应条目的 ID（`String`） | `long` 查询玩家指定积分余额。 |
+| `getPoints` | 查询玩家全部积分余额 | `playerUuid` 为玩家 UUID | `Map<String, Long>`，以积分 ID 为键，余额为值 |
 | `givePoints` | 为玩家增加抽奖积分。 | `playerUuid`：玩家 UUID（`UUID`）；`pointId`：对应条目的 ID（`String`）；`amount`：数量或数值（`long`） | 是否成功 |
 | `exchange` | 为玩家执行一次兑换商店兑换。 | `player`：目标玩家（`Player`）；`itemId`：对应条目的 ID（`String`） | 是否成功 |
 | `openCase` | 为玩家批量开启 CASE 奖池（开箱动画照常播放）。 | `poolId`：奖池 id；`count`：开启次数 | 每次开启的抽取结果 |
@@ -64,5 +61,3 @@ public interface LotteryAccess {
 ## 调用注意事项
 
 涉及 Bukkit 玩家、世界、物品或界面的调用放在 Bukkit 主线程执行；接口有明确线程说明时以该方法约定为准。
-
-先在对应模块配置中准备所引用的 ID，再调用接口。检查布尔值、结果对象或异常，只有成功后才更新第三方插件自己的业务状态。

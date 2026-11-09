@@ -81,11 +81,11 @@ warehouses:
   personal:
     display-name: "&6个人仓库"    # 仓库显示名称
     default-owned: true           # 玩家首次使用时是否自动创建
-      base-slots: 72                # 初始解锁槽位数
-      max-slots: 720                # 槽位总数上限，包含初始格
+    base-slots: 72                # 初始解锁槽位数
+    max-slots: 720                # 槽位总数上限，包含初始格
     slot-price:
-      currency: "points"          # 每格所需货币 ID
-      amount: 100                 # 每格价格
+      currency: "money"          # 每格所需货币 ID
+      amount: 1000                # 每格价格
     permission: ""                 # 拥有此仓库所需的权限（留空 = 无限制）
 ```
 
@@ -100,7 +100,6 @@ warehouses:
 | `permission` | string | 拥有此仓库所需的权限节点，留空表示无限制 |
 
 已解锁格数为基础格数加已购格数。每购买一格按 `slot-price` 扣费；共享仓库按 `shared.levels` 升级，容量另行计算。也可以从[随身背包](/docs/vanilla/backpack)购买个人仓库容量。
-
 
 ## 物品分类配置
 

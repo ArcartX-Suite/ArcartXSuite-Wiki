@@ -1,9 +1,50 @@
 ---
-title: "AuthRuntimeCapability"
+title: "登录认证接口"
 description: "读取认证快照并提交与当前游戏连接绑定的认证操作。"
 ---
 
-完整类型为 `xuanmo.arcartxsuite.api.capability.AuthRuntimeCapability`，由 Suite 宿主提供。模块可以用 `AxsCapabilities.get(AuthRuntimeCapability.class)` 获取能力，或通过 `AuthAccess.snapshot(UUID)`、`AuthAccess.admitted(UUID)` 读取状态。
+| 项目 | 说明 |
+| --- | --- |
+| 提供模块 | Suite 宿主 |
+| 完整类型 | `xuanmo.arcartxsuite.api.capability.AuthRuntimeCapability` |
+
+## 获取接口
+
+```java
+import xuanmo.arcartxsuite.api.AxsCapabilities;
+import xuanmo.arcartxsuite.api.capability.AuthRuntimeCapability;
+
+AuthRuntimeCapability auth = AxsCapabilities.get(AuthRuntimeCapability.class);
+if (auth == null) return;
+
+boolean admitted = auth.snapshot(player.getUniqueId()).admitted();
+```
+
+## 方法声明
+
+```java
+public interface AuthRuntimeCapability {
+    Terms terms();
+    boolean passwordRegistrationAllowed();
+    boolean passwordAuthenticationAllowed();
+    AuthSnapshot snapshot(UUID playerId);
+    long eligibleNanos(UUID playerId);
+    CompletionStage<Result> refresh(UUID playerId, UUID connectionId);
+    ExternalPrompt externalPrompt(UUID playerId);
+    boolean externalLinkAvailable();
+    CompletionStage<Result> beginExternalLink(UUID playerId, UUID connectionId);
+    CompletionStage<Result> confirmExternal(UUID playerId, UUID connectionId, UUID requestId);
+    CompletionStage<Result> authenticate(UUID playerId, UUID connectionId, char[] password,
+        boolean register, boolean agreed, String termsVersion);
+    CompletionStage<Result> changePassword(UUID playerId, UUID connectionId,
+        char[] oldPassword, char[] newPassword);
+    CompletionStage<Result> confirmBinding(UUID playerId, UUID connectionId, String code);
+    CompletionStage<Result> acceptTerms(UUID playerId, UUID connectionId, String version);
+    CompletionStage<Void> revoke(UUID accountId, String reason);
+}
+```
+
+## 参数与返回值
 
 | 方法 | 用途 |
 | --- | --- |
@@ -17,6 +58,12 @@ description: "读取认证快照并提交与当前游戏连接绑定的认证操
 | `confirmBinding(playerId, connectionId, code)`、`acceptTerms(playerId, connectionId, version)` | 提交准入要求 |
 | `externalPrompt(playerId)`、`externalLinkAvailable()` | 读取外部授权提示及关联入口状态 |
 | `beginExternalLink(playerId, connectionId)`、`confirmExternal(playerId, connectionId, requestId)` | 申请显式关联或确认原连接授权 |
-| `revoke(accountId, reason)` | 撤销账号安全状态，中心模式要求节点获授权 |
+| `revoke(accountId, reason)` | 按账号 ID 撤销准入，填写业务原因；中心模式要求节点获授权 |
+
+带玩家参数的调用使用玩家 UUID。需要连接 ID 时使用同一玩家最新快照中的 `connectionId()`。`requestId` 来自外部授权提示。`eligibleNanos` 的单位为纳秒。
+
+修改状态的方法异步返回 `Result`，包含 `success`、业务状态码 `code` 及操作后的 `snapshot`。`externalPrompt` 在当前没有提示时返回 `null`。
+
+## 调用注意事项
 
 凭据与绑定操作从游戏主线程调用，以 `CompletionStage` 返回。宿主会消耗并清理传入的密码字符数组。操作使用快照里的连接 ID，不能用玩家 UUID 代替。业务模块使用 `admitted()` 作为参与游戏的条件。`identityVerified()` 表示身份已通过验证，玩家可能仍在等待条款或绑定。

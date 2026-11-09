@@ -1,15 +1,47 @@
 ---
-title: "BindingService"
+title: "账号绑定接口"
 description: "通过宿主认证权威读取和管理账号与 QQ 的绑定。"
 ---
 
-完整类型为 `xuanmo.arcartxsuite.api.capability.BindingService`，由 Suite 宿主提供。通过 `AxsCapabilities.get(BindingService.class)` 获取。调用前，由 QQ 等传输适配器验证外部操作者身份。
-
-| 方法 | 用途 |
+| 项目 | 说明 |
 | --- | --- |
-| `snapshot()` | 读取包含账号 ID、档案 UUID、档案名、QQ 和绑定时间的只读投影 |
-| `requestFromQq(qqId, profileName)` | 为已存在的目标账号发起一次性绑定验证码 |
-| `revokeByQq(verifiedQqId)` | 按已验证的 QQ 身份解除绑定 |
-| `revokeByProfile(profileId)` | 按游戏档案 UUID 解除绑定 |
+| 提供模块 | Suite 宿主 |
+| 完整类型 | `xuanmo.arcartxsuite.api.capability.BindingService` |
 
-玩家使用当前游戏连接通过 [AuthRuntimeCapability](/docs/api/AuthRuntimeCapability) 的 `confirmBinding` 完成确认。绑定投影用于展示和查询，准入以宿主或中心存储的绑定事实为准。中心节点需要相应的 `binding-read` 或 `binding-write` 权限。
+## 获取接口
+
+```java
+import xuanmo.arcartxsuite.api.AxsCapabilities;
+import xuanmo.arcartxsuite.api.capability.BindingService;
+
+BindingService bindings = AxsCapabilities.get(BindingService.class);
+if (bindings == null) return;
+
+var visibleBindings = bindings.snapshot();
+```
+
+## 方法声明
+
+```java
+public interface BindingService {
+    List<Binding> snapshot();
+    CompletionStage<BindingResult> requestFromQq(long qqId, String profileName);
+    CompletionStage<BindingResult> revokeByQq(long verifiedQqId);
+    CompletionStage<BindingResult> revokeByProfile(UUID profileId);
+}
+```
+
+## 参数与返回值
+
+| 方法 | 用途 | 参数 | 返回值 |
+| --- | --- | --- | --- |
+| `snapshot` | 读取绑定投影 | 无参数 | 账号 ID、档案 UUID、档案名、QQ 和绑定时间。数据过期或不可用时返回空列表 |
+| `requestFromQq` | 为已有账号发起一次性绑定 | `qqId` 为已验证的 QQ 号，`profileName` 为目标档案名 | 异步返回 `BindingResult` |
+| `revokeByQq` | 按 QQ 身份解除绑定 | `verifiedQqId` 为已验证的 QQ 号 | 异步返回 `BindingResult` |
+| `revokeByProfile` | 按游戏档案解除绑定 | `profileId` 为游戏档案 UUID | 异步返回 `BindingResult` |
+
+`BindingResult.success()` 表示操作是否成功，`message()` 返回反馈信息。
+
+## 调用注意事项
+
+调用前由 QQ 等接入端验证外部操作者身份。每次决定是否允许操作前重新读取投影。玩家使用当前游戏连接通过 [AuthRuntimeCapability](/docs/api/AuthRuntimeCapability) 的 `confirmBinding` 完成确认。中心节点需要相应的 `binding-read` 或 `binding-write` 权限。

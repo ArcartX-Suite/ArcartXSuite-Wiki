@@ -9,9 +9,9 @@ description: "在线列表可用命令、参数填写方式和权限要求。"
 
 ### 选择在线列表（/tab view）
 
-切换当前 Tab 视图。只有 `definition.view` 与玩家当前 view 匹配时，该 Tab 定义才会推送数据。
+切换当前 Tab 视图。只有 Tab 定义的 `view` 与玩家当前视图匹配时，才会推送对应列表。用 `pvp` 示例测试前，先将一份已启用的 Tab 定义的 `view` 设为 `pvp` 并重载。
 
-```yaml
+```text
 # 切换到 pvp 视图
 /tab view pvp
 
@@ -29,7 +29,7 @@ description: "在线列表可用命令、参数填写方式和权限要求。"
 
 翻页操作，仅在启用了 `pagination` 的 Tab 定义上生效。
 
-```yaml
+```text
 # 翻到下一页
 /tab page online-tab next
 
@@ -49,7 +49,7 @@ description: "在线列表可用命令、参数填写方式和权限要求。"
 
 强制刷新当前玩家的 Tab 列表。此命令绕过周期 diff，立即触发一次 viewer 级刷新。
 
-```yaml
+```text
 /tab refresh
 ```
 
@@ -57,17 +57,17 @@ description: "在线列表可用命令、参数填写方式和权限要求。"
 
 显示帮助信息。
 
-```yaml
+```text
 /tab help
 ```
 
 ## 管理命令
 
-管理命令统一挂载在 `/axs tab` 下，需要 `arcartxsuite.admin` 权限（默认 OP）。其中 `debug`、`snapshot` 子命令允许控制台调用。
+管理命令统一挂载在 `/axs tab` 下，需要 `arcartxsuite.admin` 权限（默认 OP）。`debug`、`snapshot` 和 `fake` 还要求 `axs.tab.debug` 权限或 OP。控制台执行时，按各子命令要求填写玩家。
 
 ### 查看在线列表模块状态（/axs tab status）
 
-```yaml
+```text
 /axs tab status
 ```
 
@@ -75,48 +75,48 @@ description: "在线列表可用命令、参数填写方式和权限要求。"
 
 切换自己或指定玩家的 Tab 视图。
 
-```yaml
+```text
 # 切换自己的视图（需玩家执行）
 /axs tab view pvp
 
 # 强制切换指定玩家的视图
-/axs tab view LiuYun_King pvp
+/axs tab view Steve pvp
 ```
 
 ### 为玩家切换列表页码（/axs tab page）
 
 给自己或指定玩家翻页。
 
-```yaml
+```text
 # 给自己翻页（需玩家执行）
 /axs tab page online-tab next
 
 # 给指定玩家翻页
-/axs tab page LiuYun_King online-tab 2
+/axs tab page Steve online-tab 2
 ```
 
 ### 刷新指定玩家列表（/axs tab refresh）
 
 刷新 Tab 列表。无参数时执行**全局刷新**（所有 viewer），带玩家参数时只刷新该玩家。
 
-```yaml
+```text
 # 全局刷新
 /axs tab refresh
 
 # 刷新指定玩家
-/axs tab refresh LiuYun_King
+/axs tab refresh Steve
 ```
 
 ### 查看列表调试信息（/axs tab debug）
 
 打印指定玩家在指定 Tab 定义上的排序、分组、状态快照。需要 `axs.tab.debug` 权限或 OP。
 
-```yaml
+```text
 # 打印玩家在所有 definition 上的状态
-/axs tab debug LiuYun_King
+/axs tab debug Steve
 
 # 打印玩家在指定 definition 上的状态
-/axs tab debug LiuYun_King online-tab
+/axs tab debug Steve online-tab
 ```
 
 | 参数 | 类型 | 说明 |
@@ -134,7 +134,7 @@ description: "在线列表可用命令、参数填写方式和权限要求。"
 
 #### 保存列表展示快照（snapshot save）
 
-```yaml
+```text
 /axs tab snapshot save bug-repro-001
 ```
 
@@ -142,7 +142,7 @@ description: "在线列表可用命令、参数填写方式和权限要求。"
 
 #### 加载列表展示快照（snapshot load）
 
-```yaml
+```text
 /axs tab snapshot load bug-repro-001
 ```
 
@@ -152,13 +152,13 @@ description: "在线列表可用命令、参数填写方式和权限要求。"
 
 #### 列出展示快照（snapshot list）
 
-```yaml
+```text
 /axs tab snapshot list
 ```
 
 #### 删除展示快照（snapshot delete）
 
-```yaml
+```text
 /axs tab snapshot delete bug-repro-001
 ```
 
@@ -166,12 +166,12 @@ description: "在线列表可用命令、参数填写方式和权限要求。"
 
 fake 测试模式：向目标玩家推送指定数量的伪造在线条目，用于观察 TAB UI 在不同在线人数下的列数、背景尺寸与信息栏布局变化。需要 `axs.tab.debug` 权限或 OP，仅影响目标玩家显示。
 
-```yaml
+```text
 # 模拟 50 人在线（作用于自己，需玩家执行）
 /axs tab fake 50
 
 # 作用于指定玩家
-/axs tab fake LiuYun_King 50
+/axs tab fake Steve 50
 
 # 查看当前 fake 状态
 /axs tab fake

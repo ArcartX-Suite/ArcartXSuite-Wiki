@@ -1,52 +1,66 @@
 ---
-title: "AbyssReviveAccess"
+title: "副本救援接口"
 description: "按本局成员持久化复活额度，处理救援预留、提交和中断恢复。"
 ---
 
-通过 `AxsCapabilities.get(AbyssReviveAccess.class)` 获取。类型位于
-`xuanmo.arcartxsuite.api.capability`。接口为空或
-`integrationInfo().features.reviveTransactions` 不为 `AVAILABLE` 时关闭救援入口。
+| 项目 | 说明 |
+| --- | --- |
+| 提供模块 | [abyss](/docs/abyss) |
+| 完整类型 | `xuanmo.arcartxsuite.api.capability.AbyssReviveAccess` |
+
+## 获取接口
+
+使用 `AxsCapabilities.get(AbyssReviveAccess.class)`。同时从 [AbyssAdmissionAccess](/docs/api/abyss-integration) 读取 `integrationInfo().features().get("reviveTransactions")`。获取到接口且该值为 `AVAILABLE` 时，才开放救援入口。
 
 ## 配置与职责
 
-Abyss 已提供[原生自救和队友救援面板](/docs/abyss/native-gameplay)，第三方也可通过本接口接入。
-两者共用同一份本局额度。第三方保留外部 owner 校验，`abyss-native` 为模块保留命名空间。
+第三方接入和[战术面板](/docs/abyss/native-gameplay)共用本局救援额度。`external-control-owner` 填写接入插件的标识，调用时将同一标识传入 `owner`。`abyss-native` 由 Abyss 保留。
 
 每个副本的 `config.yml` 可以配置以下额度，默认 `0` 表示关闭外部救援。
 范围为 0～1000，每名成员每个 runId 独立计数。工作台的结算表单也提供“每人本局救援额度”。
 
 ```yaml
 requirements:
-  external-control-owner: xc
+  external-control-owner: my_dungeon_plugin
   revive-limit: 2
 ```
 
-第三方接入时，XC 负责救援距离、读条、受伤打断和救援者资格。Abyss 负责本局成员、死亡代次、
-额度、目标占用及实际复活。读条成功后调用 `commit`，由 Abyss 执行复活。
-服主应协调既有 `player-death` 自动复活脚本及全员死亡判负策略，否则玩家可能在读条结束前已被脚本复活或判负。
-结算用的 `revive-players` 和管理员脚本复活继续使用原有策略，不扣此外部救援额度。
+接入插件负责判断救援距离和救援者资格，并处理读条与受伤打断。读条完成后调用 `commit`，Abyss 会核对目标是否仍可救援、扣减额度并执行复活。
+服主应协调 `player-death` 自动复活脚本和团灭设置，避免读条结束前触发自动复活或判负。结算动作 `revive-players` 和管理员脚本复活有各自的规则，救援额度只用于此处的救援操作。
 
-## 方法
+## 方法声明
+
+```java
+public interface AbyssReviveAccess {
+    CompletionStage<Status> reviveStatus(UUID runId, UUID playerId);
+    CompletionStage<Receipt> reserve(String owner, UUID operationId, UUID runId, UUID playerId,
+        String reason, long expectedRevision);
+    CompletionStage<Receipt> commit(String owner, UUID operationId);
+    CompletionStage<Receipt> release(String owner, UUID operationId);
+    CompletionStage<Receipt> query(String owner, UUID operationId);
+}
+```
+
+## 参数与返回值
 
 所有方法在服务器主线程调用，返回 `CompletionStage`。完成回调可能位于数据库线程，
 再次调用 API 或更新玩家 UI 前切回宿主主线程调度器。
 
-在主线程取得状态后，把 revision 保存在本次救援上下文中。主线程开始读条时可调用下面的预留代码。
-operationId 需要由 XC 保存，供断线后继续查询。
+在主线程取得状态后，将 `revision` 保存在救援上下文中。开始读条时调用预留方法，保存 `operationId` 供断线后查询。
 
 ```java
 AbyssReviveAccess api = AxsCapabilities.get(AbyssReviveAccess.class);
+if (api == null) return;
+String owner = "my_dungeon_plugin";
 UUID operationId = UUID.randomUUID();
-api.reserve("xc", operationId, runId, targetId, "teammate-rescue", revision)
+api.reserve(owner, operationId, runId, targetId, "teammate-rescue", revision)
     .whenComplete((receipt, error) -> {
         // 此回调可能在数据库线程，先保存回执，再切回主线程更新读条 UI。
         // 只有 RESERVED 才开始读条，UNKNOWN 保持待核账。
     });
 ```
 
-读条结束回到主线程，调用 `api.commit("xc", operationId)`。中断时调用
-`api.release("xc", operationId)`。响应丢失时调用 `api.query("xc", operationId)`，
-以上调用都使用同一个 operationId。
+读条结束后在主线程调用 `api.commit(owner, operationId)`。中断时调用 `api.release(owner, operationId)`。响应丢失时调用 `api.query(owner, operationId)`。这些调用均使用预留时的 `owner` 和 `operationId`。
 
 | 方法 | 用途 |
 | --- | --- |
@@ -60,7 +74,7 @@ api.reserve("xc", operationId, runId, targetId, "teammate-rescue", revision)
 改参数复用编号返回 `OPERATION_CONFLICT`。第一次调用未受理且返回 `STALE_REVISION` 时，
 重新读取状态并用新的编号提出新的操作。
 
-## 状态与异常
+## 调用注意事项
 
 | 状态 | 调用方行为 |
 | --- | --- |

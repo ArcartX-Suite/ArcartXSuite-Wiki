@@ -1,9 +1,9 @@
 ---
-title: "QQBotDelivery"
+title: "群消息投递回执接口"
 description: "获取 QQ 群通知的真实回执，处理部分成功与未知结果"
 ---
 
-| 项目 | 内容 |
+| 项目 | 说明 |
 | --- | --- |
 | 提供模块 | [qqbot](/docs/qqbot) |
 | 完整类型 | `xuanmo.arcartxsuite.api.capability.QQBotDelivery` |
@@ -32,11 +32,13 @@ delivery.sendToGroup(123456789L, "活动已经开始").thenAccept(result -> {
 ## 方法声明
 
 ```java
-CompletionStage<QQBotDelivery.Result> sendToGroup(long groupId, String message);
-CompletionStage<QQBotDelivery.Result> sendToAllGroups(String message);
+public interface QQBotDelivery {
+    @NotNull CompletionStage<Result> sendToGroup(long groupId, @NotNull String message);
+    @NotNull CompletionStage<Result> sendToAllGroups(@NotNull String message);
 
-record Result(boolean success, boolean outcomeUnknown,
-              int sentGroups, int totalGroups, String message) {}
+    record Result(boolean success, boolean outcomeUnknown,
+        int sentGroups, int totalGroups, @NotNull String message) {}
+}
 ```
 
 ## 参数与返回值

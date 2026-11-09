@@ -1,10 +1,9 @@
 ---
-title: "QuestGpsNavigable"
+title: "任务接取与追踪接口"
 description: "打开任务菜单、接取与追踪任务"
 ---
 
-
-| 项目 | 内容 |
+| 项目 | 说明 |
 | --- | --- |
 | 提供模块 | [questgps](/docs/questgps) |
 | 完整类型 | `xuanmo.arcartxsuite.api.capability.QuestGpsNavigable` |
@@ -25,8 +24,6 @@ if (api == null) {
 每次业务操作时重新获取接口；模块未加载或暂时不可用时返回 `null`。接入方式见[快速开始](/docs/api/quick-start)。
 
 ## 方法声明
-
-以下为公开调用契约，保留参数类型与空值标注。Java 类型与当前配套 API JAR 保持一致。
 
 ```java
 public interface QuestGpsNavigable {
@@ -62,17 +59,15 @@ public interface QuestGpsNavigable {
 
 | 方法 | 用途 | 参数 | 返回值 |
 | --- | --- | --- | --- |
-| `offerQuest` | 向玩家推送任务供选择 | `player`：目标玩家（`Player`）；`questId`：任务 ID（`String`）；`openMenu`：调用参数（`boolean`） | 无返回值；按本行说明执行操作 |
-| `acceptQuest` | 让玩家接受任务 | `player`：目标玩家（`Player`）；`questId`：任务 ID（`String`） | 无返回值；按本行说明执行操作 |
-| `openMenu` | 打开任务菜单 | `player`：目标玩家（`Player`） | 无返回值；按本行说明执行操作 |
-| `trackQuest` | 追踪任务 | `player`：目标玩家（`Player`）；`questId`：任务 ID（`String`） | 无返回值；按本行说明执行操作 |
-| `trackTask` | 追踪任务的指定步骤 | `player`：目标玩家（`Player`）；`questId`：任务 ID（`String`）；`taskId`：任务 ID（`String`） | 无返回值；按本行说明执行操作 |
-| `eventRuleLocked` | 检查事件规则是否被主线门禁锁定 | `player`：目标玩家（`Player`）；`ruleId`：对应条目的 ID（`String`） | `boolean`：用于判断上面所述的查询或操作结果（true / false） |
-| `moduleEntryLocked` | 检查其他模块入口是否被主线门禁锁定 | `player`：目标玩家（`Player`）；`moduleEntryId`：对应条目的 ID（`String`） | `boolean`：用于判断上面所述的查询或操作结果（true / false） |
-| `questState` | 查询玩家某任务的 Chemdah 档案状态。 questId 与 `#acceptQuest` 同语义（questgps 配置/别名可解析的 id）。 档案未加载或从未接取返回 `QuestState#NONE`。 | `player`：目标玩家（`Player`）；`questId`：任务 ID（`String`） | `QuestState` 结果对象 |
+| `offerQuest` | 向玩家推送任务供选择 | `player`：目标玩家（`Player`）；`questId`：任务 ID（`String`）；`openMenu` 为 true 时同时打开任务菜单（`boolean`） | 无返回值 |
+| `acceptQuest` | 让玩家接受任务 | `player`：目标玩家（`Player`）；`questId`：任务 ID（`String`） | 无返回值 |
+| `openMenu` | 打开任务菜单 | `player`：目标玩家（`Player`） | 无返回值 |
+| `trackQuest` | 追踪任务 | `player`：目标玩家（`Player`）；`questId`：任务 ID（`String`） | 无返回值 |
+| `trackTask` | 追踪任务的指定步骤 | `player`：目标玩家（`Player`）；`questId`：任务 ID（`String`）；`taskId`：任务 ID（`String`） | 无返回值 |
+| `eventRuleLocked` | 检查事件规则是否被主线门禁锁定 | `player`：目标玩家（`Player`）；`ruleId`：对应条目的 ID（`String`） | `true` 表示事件规则仍被锁定 |
+| `moduleEntryLocked` | 检查其他模块入口是否被主线门禁锁定 | `player`：目标玩家（`Player`）；`moduleEntryId`：对应条目的 ID（`String`） | `true` 表示模块入口仍被锁定 |
+| `questState` | 查询玩家某任务的 Chemdah 档案状态。 questId 与 `#acceptQuest` 同语义（questgps 配置/别名可解析的 id）。 档案未加载或从未接取返回 `QuestState#NONE`。 | `player`：目标玩家（`Player`）；`questId`：任务 ID（`String`） | `QuestState` 任务状态。档案未加载或从未接取时为 NONE |
 
 ## 调用注意事项
 
 涉及 Bukkit 玩家、世界、物品或界面的调用放在 Bukkit 主线程执行；接口有明确线程说明时以该方法约定为准。
-
-先在对应模块配置中准备所引用的 ID，再调用接口。检查布尔值、结果对象或异常，只有成功后才更新第三方插件自己的业务状态。

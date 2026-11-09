@@ -1,18 +1,20 @@
 ---
-title: "VanillaRecipeAccess"
+title: "原版配方接口"
 description: "注册原版工作区配方、查询配方及填入材料。"
 ---
 
 | 项目 | 说明 |
 | --- | --- |
-| 提供模块 | [Vanilla](/docs/vanilla) |
+| 提供模块 | [vanilla](/docs/vanilla) |
 | 完整类型 | `xuanmo.arcartxsuite.api.capability.VanillaRecipeAccess` |
+
+## 获取接口
 
 ```java
 import java.util.List;
 import org.bukkit.Material;
 import org.bukkit.inventory.ItemStack;
-import xuanmo.arcartxsuite.api.capability.AxsCapabilities;
+import xuanmo.arcartxsuite.api.AxsCapabilities;
 import xuanmo.arcartxsuite.api.capability.VanillaRecipeAccess;
 
 VanillaRecipeAccess api = AxsCapabilities.get(VanillaRecipeAccess.class);
@@ -28,12 +30,30 @@ if (api != null) {
 
 示例中的 `registration` 为调用插件保留的 `VanillaRecipeAccess.Registration` 字段，停用时调用 `close()` 注销配方。API 从 Bukkit 主线程调用。
 
-| 方法 | 用途 |
-| --- | --- |
-| `register(plugin, definition)` | 以插件为所有者注册配方并返回注销句柄 |
-| `registerModule(ownerModuleId, definition)` | 以 Suite 模块 ID 为所有者注册配方 |
-| `recipes()` / `recipe(key)` | 查询全部配方或指定命名空间键 |
-| `preview(player, key)` | 异步返回配方及材料是否足够 |
-| `fill(player, key, expectedRevision)` | 使用查询结果中的版本号填料，异步返回实际结果 |
+## 方法声明
+
+```java
+public interface VanillaRecipeAccess {
+    Registration register(Plugin owner, Definition definition);
+    Registration registerModule(String ownerModuleId, Definition definition);
+    List<Entry> recipes();
+    Optional<Entry> recipe(NamespacedKey key);
+    CompletableFuture<Preview> preview(Player player, NamespacedKey key);
+    CompletableFuture<FillReceipt> fill(Player player, NamespacedKey key, long expectedRevision);
+}
+```
+
+## 参数与返回值
+
+| 方法 | 用途 | 参数 | 返回值 |
+| --- | --- | --- | --- |
+| `register` | 注册插件配方 | `owner` 为调用插件，`definition` 为配方定义 | 可关闭的 `Registration` |
+| `registerModule` | 注册 Suite 模块配方 | `ownerModuleId` 为调用模块 ID，`definition` 为配方定义 | 可关闭的 `Registration` |
+| `recipes` | 查询配方 | 无参数 | 配方条目列表 |
+| `recipe` | 查询指定配方 | `key` 为配方的命名空间键 | `Optional<Entry>`，查无结果时为空 |
+| `preview` | 预览玩家可用材料 | `player` 为目标玩家，`key` 为配方键 | 异步返回配方及是否可填料 |
+| `fill` | 向当前工作区填料 | `player` 为目标玩家，`key` 为配方键，`expectedRevision` 取自查询结果 | 异步返回是否填入、配方版本和提示 |
+
+## 调用注意事项
 
 有序合成按从左到右、从上到下提供九格，空位使用 `Ingredient.blank()`。无序合成提供一至九项。锻造依次填写模板、基材、添加物，酿造依次填写瓶中原料和酿造材料。材料类型列表与精确物品列表每项只选其一。

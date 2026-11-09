@@ -125,7 +125,7 @@ scanner:
         - EMERALD
 ```
 
-匹配规则的各已填维度需要同时满足，同一列表内任一项命中即可，详见[物品匹配条件](/docs/guide/conditions)。限制批量收取的规则不会影响“收取当前类”。
+匹配规则的各已填维度需要同时满足，同一列表内任一项命中即可。`scanner.batch.matcher` 只用于批量收取。 [物品匹配与消耗](/docs/guide/item-matching)
 
 ## Warehouse 联动与未收取物品
 
@@ -210,8 +210,7 @@ filter:
     nbt-keys: []
 ```
 
-> 过滤配置基于物品匹配体系，材质匹配使用 `material-ids`，名称/Lore 使用正则表达式，NBT 使用键路径匹配。详见 [物品匹配条件](/docs/guide/conditions) 与 [物品来源](/docs/guide/item-sources)。
-
+材质黑白名单分别放在 `filter.material-blacklist` 和 `filter.material-whitelist` 下，具体材质填入 `material-ids`。名称、Lore 和 NBT 写法见[物品匹配与消耗](/docs/guide/item-matching)。
 
 ## 更新已有界面文件
 

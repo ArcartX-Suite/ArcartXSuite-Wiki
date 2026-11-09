@@ -1,15 +1,16 @@
 ---
-title: "MaterialContainerAdapter"
+title: "材料容器适配接口"
 description: "为材料交付提供容器识别、变更检查与一次性写入操作。"
 ---
 
-| 项目 | 内容 |
+| 项目 | 说明 |
 | --- | --- |
+| 提供模块 | 调用方实现 |
 | 完整类型 | `xuanmo.arcartxsuite.api.capability.MaterialContainerAdapter` |
 | 用途 | 由容器插件实现，配合仓库材料转移接口使用 |
 | 获取方式 | 插件自行创建实现类，无全局能力查询或自动注册入口 |
 
-## 接入方式
+## 获取接口
 
 容器插件实现本接口，并在自己的填料流程中调用 [WarehouseMaterialAccess](/docs/api/WarehouseMaterialAccess)。仅实现适配器不会自动增加 VanillaUI 支持的容器类型，也不会注册新的界面。
 
@@ -44,7 +45,7 @@ public interface MaterialContainerAdapter {
 
 槽位映射的键使用各自库存的槽位编号，值为变更后的完整 `ItemStack`。适配器应保存变更前后的物品数据，以便校验和异常核对。全部方法在 Bukkit 主线程执行。
 
-## 交付顺序与失败处理
+## 调用注意事项
 
 1. 检查 `supports(view)`，生成合法的材料计划后调用 `capture`。
 2. 将 `target()` 传给仓库的 `prepareMaterials`，准备失败时结束操作。
@@ -54,7 +55,7 @@ public interface MaterialContainerAdapter {
 
 新的容器必须检查合法槽位、材料要求、玩家窗口与容器是否仍有效，并只修改计划涉及的槽位。容器坐标只能标识目标，不能证明物品已经写入存档；无法确认的交付不得自行重试或补发。
 
-VanillaUI 提供工作台与熔炉适配，暂不支持高炉、烟熏炉或其他容器界面。
+Vanilla 的现有工作区见[原版界面配置](/docs/vanilla/configuration)。第三方容器在自己的填料流程中选用此接口。
 
 ## 相关文档
 

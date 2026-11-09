@@ -1,0 +1,55 @@
+---
+title: "NPC 兑换"
+description: "将兑换所绑定到 Adyeshach NPC，配置物品或货币成本与奖励。"
+---
+
+## 开启并绑定
+
+确认 Market 已加载、Adyeshach 中有可交互的 NPC，再在 `plugins/ArcartX-Suite/data/market/config.yml` 中开启兑换。
+
+```yaml
+exchange:
+  enabled: true
+```
+
+可直接填写下方配置，或先重载 Market，再用具备 `arcartxsuite.market.exchange.admin` 的玩家执行 `/axs market exchange edit`，在编辑器里新建兑换所并绑定附近 NPC。两种方式的定义都保存在模块目录的 `npc-trades.yml`。
+
+## 配置兑换条目
+
+将下例保存为 `plugins/ArcartX-Suite/data/market/npc-trades.yml`。它用一颗绿宝石换四个铁锭。将 `town_trader` 替换为服内的 Adyeshach NPC 实体 ID，并保留 `ady:` 前缀。已有其他兑换所时，把新条目加到同一个 `shops` 列表中。保存后由管理员执行 `/axs reload market`。
+
+```yaml
+shops:
+  - id: town_exchange
+    name: "城镇兑换所"
+    enabled: true
+    permission: ""
+    revision: 1
+    npcs: ["ady:town_trader"]
+    offers:
+      - id: iron
+        name: "绿宝石换铁锭"
+        enabled: true
+        permission: ""
+        costs:
+          - { kind: item, source: minecraft, id: EMERALD, amount: "1" }
+        rewards:
+          - { kind: item, source: minecraft, id: IRON_INGOT, amount: "4" }
+```
+
+| 项目 | 写法 |
+| --- | --- |
+| 兑换所和条目 ID | 长度为 1～48 字符，使用小写字母、数字、下划线或短横线。同一兑换所内的条目 ID 唯一 |
+| `permission` | 空字符串允许所有玩家，填写权限节点后仅有权限的玩家可用 |
+| 成本与奖励 | `costs` 和 `rewards` 各配置 1～8 项 |
+| 物品 | `kind: item`。使用 `minecraft`、`mythic`、`neige`、`overture` 或 `mmoitems` 来源时填写对应物品 ID，单项数量为 1～64 的整数 |
+| 精确物品 | 在编辑器从真实背包选取物品，由编辑器保存快照 |
+| 货币 | 写法如 `{ kind: currency, source: "", id: money, amount: "2.50" }`。`money` 是本体配置里的货币 ID，金额按该货币的小数精度填写 |
+
+## 玩家操作与异常核对
+
+1. 让普通测试玩家只带一颗绿宝石，背包留出空位。在 NPC 同一世界且相距 8 格以内右键交互，或执行 `/axs market exchange open town_exchange`。
+2. 选择「绿宝石换铁锭」，确认显示消耗 1 颗绿宝石、获得 4 个铁锭，再提交。成功后核对绿宝石减少 1、铁锭增加 4。
+3. 再试一次，材料不足时应无法完成兑换。联动 Warehouse 时，先核对个人仓库内是否还有可用的同种材料。移到 NPC 的 8 格范围之外重新执行打开命令，应无法打开该兑换所。
+
+若提示待核对，由具备 `arcartxsuite.market.exchange.admin` 的管理员用 `/axs market exchange ledger` 找到凭证，再执行 `/axs market exchange evidence <凭证UUID>` 导出。核对实际扣款与发放后，用 `/axs market exchange confirm <凭证UUID> confirm` 结案。结案只记录处理结果。 [NPC 兑换命令](/docs/market/commands#npc-兑换命令)

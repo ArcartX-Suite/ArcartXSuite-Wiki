@@ -1,10 +1,9 @@
 ---
-title: "SignalDispatchable"
+title: "事件信号接口"
 description: "触发配置的业务信号"
 ---
 
-
-| 项目 | 内容 |
+| 项目 | 说明 |
 | --- | --- |
 | 提供模块 | [eventpacket](/docs/eventpacket) |
 | 完整类型 | `xuanmo.arcartxsuite.api.capability.SignalDispatchable` |
@@ -26,8 +25,6 @@ if (api == null) {
 
 ## 方法声明
 
-以下为公开调用契约，保留参数类型与空值标注。Java 类型与当前配套 API JAR 保持一致。
-
 ```java
 public interface SignalDispatchable {
 
@@ -39,10 +36,8 @@ public interface SignalDispatchable {
 
 | 方法 | 用途 | 参数 | 返回值 |
 | --- | --- | --- | --- |
-| `dispatchSignal` | 向指定玩家触发一个信号，由 EventPacket 规则引擎匹配并执行对应动作。 | `signal`：信号名称（如 `"signin_success"`）；`subject`：触发玩家；`variables`：附加变量（可为空） | 无返回值；按本行说明执行操作 |
+| `dispatchSignal` | 向指定玩家触发一个信号，由 EventPacket 规则引擎匹配并执行对应动作。 | `signal`：信号名称（如 `"signin_success"`）；`subject`：触发玩家；`variables`：附加变量（可为空） | 无返回值 |
 
 ## 调用注意事项
 
 涉及 Bukkit 玩家、世界、物品或界面的调用放在 Bukkit 主线程执行；接口有明确线程说明时以该方法约定为准。
-
-先在对应模块配置中准备所引用的 ID，再调用接口。检查布尔值、结果对象或异常，只有成功后才更新第三方插件自己的业务状态。

@@ -92,11 +92,11 @@ Chat 模块注册了三个玩家命令（`/chat` 别名 `/axschat`，`/msg` 别�
 
 | 命令 | 说明 | 权限 |
 |---|---|---|
-| `/axs chat help` | 显示管理命令帮助 | 无 |
-| `/axs chat status` | 查看模块运行状态 | 无 |
-| `/axs chat mute <玩家> <时长> [原因]` | 禁言指定玩家 | `ArcartXSuite.chat.mute` |
-| `/axs chat unmute <玩家>` | 解除指定玩家的禁言 | `ArcartXSuite.chat.mute` |
-| `/axs chat spy <玩家> <on\|off>` | 设置指定玩家的社交监听开关 | `ArcartXSuite.chat.mute` |
+| `/axs chat help` | 显示管理命令帮助 | `arcartxsuite.admin` |
+| `/axs chat status` | 查看模块运行状态 | `arcartxsuite.admin` |
+| `/axs chat mute <玩家> <时长> [原因]` | 禁言指定玩家 | `arcartxsuite.admin` |
+| `/axs chat unmute <玩家>` | 解除指定玩家的禁言 | `arcartxsuite.admin` |
+| `/axs chat spy <玩家> <on\|off>` | 设置指定玩家的社交监听开关 | `arcartxsuite.admin` |
 | `/axs chat redpacket <normal\|lucky> <金额> <个数> [祝福语]` | 发放免扣款货币红包（不扣管理员余额） | `arcartxsuite.admin` + `redpacket.admin-permission`（若配置） |
 | `/axs chat redpacket <预设ID> [个数]` | 发放预设奖励池红包（预设见 `chat/redpackets/` 目录） | `arcartxsuite.admin` + `redpacket.admin-permission`（若配置） |
 | `/axs chat redpacket list` | 列出所有可用红包预设 | `arcartxsuite.admin` |
@@ -119,9 +119,9 @@ Chat 状态
 禁言指定玩家。时长格式为 `<数字><单位>`，单位支持 `s`（秒）、`m`（分）、`h`（时）、`d`（天），或 `permanent` 永久禁言。
 
 ```
-/axs chat mute Steve 30m 刷屏        # 禁言 Steve 30 分钟，原因"刷屏"
-/axs chat mute Steve 7d 广告         # 禁言 Steve 7 天，原因"广告"
-/axs chat mute Steve permanent 恶意行为  # 永久禁言 Steve
+/axs chat mute Steve 30m 刷屏
+/axs chat mute Steve 7d 广告
+/axs chat mute Steve permanent 恶意行为
 ```
 
 | 参数 | 必填 | 说明 |
@@ -129,7 +129,6 @@ Chat 状态
 | 玩家 | 是 | 被禁言的玩家名（支持离线玩家，通过档案查询） |
 | 时长 | 是 | 禁言时长：`<数字><s\|m\|h\|d>` 或 `permanent` |
 | 原因 | 否 | 禁言原因，显示在禁言通知卡片中 |
-
 
 ### 解除玩家禁言（/axs chat unmute）
 
@@ -144,8 +143,8 @@ Chat 状态
 设置指定玩家的社交监听开关。玩家会收到通知消息告知其社交监听已被管理员变更。
 
 ```
-/axs chat spy Steve on    # 开启 Steve 的社交监听
-/axs chat spy Steve off   # 关闭 Steve 的社交监听
+/axs chat spy Steve on
+/axs chat spy Steve off
 ```
 
 ## 红包系统
@@ -195,7 +194,7 @@ preset:
 | `arcartxsuite.chat.use` | 使用 `/chat` 命令（频道切换、开关、忽略） | 所有玩家 |
 | `arcartxsuite.chat.msg` | 使用 `/msg` 和 `/reply` 私聊命令 | 所有玩家 |
 | `arcartxsuite.chat.socialspy` | 使用 `/chat socialspy` 切换社交监听 | 管理员 |
-| `ArcartXSuite.chat.mute` | 使用 `/axs chat mute/unmute/spy` 管理命令 | 管理员 |
+| `arcartxsuite.admin` | 使用 `/axs chat` 管理命令，包括禁言、解禁和管理社交监听 | OP |
 
 <Callout type="info">
 频道的 `send-permission` 和 `receive-permission` 可自定义权限节点。例如管理频道可设为 `ArcartXSuite.chat.mute`，仅管理员可发送和接收。

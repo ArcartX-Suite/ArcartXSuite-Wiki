@@ -1,10 +1,9 @@
 ---
-title: "AxsMailService"
+title: "邮件服务接口"
 description: "异步发送、查询、领取与删除邮件"
 ---
 
-
-| 项目 | 内容 |
+| 项目 | 说明 |
 | --- | --- |
 | 提供模块 | [mail](/docs/mail) |
 | 完整类型 | `xuanmo.arcartxsuite.api.mail.AxsMailService` |
@@ -25,8 +24,6 @@ if (api == null) {
 每次业务操作时重新获取接口；模块未加载或暂时不可用时返回 `null`。接入方式见[快速开始](/docs/api/quick-start)。
 
 ## 方法声明
-
-以下为公开调用契约，保留参数类型与空值标注。Java 类型与当前配套 API JAR 保持一致。
 
 ```java
 public interface AxsMailService {
@@ -65,5 +62,3 @@ public interface AxsMailService {
 ## 调用注意事项
 
 返回 `CompletableFuture` 的方法使用回调处理结果，不要在 Bukkit 主线程调用 `join()` 或 `get()`。回调中如需操作 Bukkit 玩家、世界或物品，将相应操作切回主线程。
-
-先在对应模块配置中准备所引用的 ID，再调用接口。检查布尔值、结果对象或异常，只有成功后才更新第三方插件自己的业务状态。

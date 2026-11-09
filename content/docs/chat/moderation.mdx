@@ -13,15 +13,15 @@ Chat 模块提供完整的管理与审核工具链，包括禁言管理、社交
 
 | 命令 | 说明 | 权限 |
 |---|---|---|
-| `/axs chat mute <玩家> <时长> [原因]` | 禁言指定玩家 | `ArcartXSuite.chat.mute` |
-| `/axs chat unmute <玩家>` | 解除指定玩家的禁言 | `ArcartXSuite.chat.mute` |
+| `/axs chat mute <玩家> <时长> [原因]` | 禁言指定玩家 | `arcartxsuite.admin` |
+| `/axs chat unmute <玩家>` | 解除指定玩家的禁言 | `arcartxsuite.admin` |
 
 时长格式为 `<数字><单位>`，单位支持 `s`（秒）、`m`（分）、`h`（时）、`d`（天），或 `permanent` 永久禁言：
 
-```yaml
-/axs chat mute Steve 30m 刷屏        # 禁言 30 分钟，原因"刷屏"
-/axs chat mute Steve 7d 广告         # 禁言 7 天，原因"广告"
-/axs chat mute Steve permanent 恶意行为  # 永久禁言
+```text
+/axs chat mute Steve 30m 刷屏
+/axs chat mute Steve 7d 广告
+/axs chat mute Steve permanent 恶意行为
 ```
 
 | 输入 | 解析结果 |
@@ -54,11 +54,11 @@ Chat 模块提供完整的管理与审核工具链，包括禁言管理、社交
 
 ### 管理员命令
 
-管理员可设置其他玩家的社交监听开关：
+具备 `arcartxsuite.admin` 的管理员可设置其他玩家的社交监听开关。
 
-```yaml
-/axs chat spy Steve on    # 开启 Steve 的社交监听
-/axs chat spy Steve off   # 关闭 Steve 的社交监听
+```text
+/axs chat spy Steve on
+/axs chat spy Steve off
 ```
 
 被操作的玩家会收到通知消息，告知其社交监听已被管理员变更。

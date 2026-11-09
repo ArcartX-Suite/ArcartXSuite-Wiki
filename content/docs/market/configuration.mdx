@@ -17,7 +17,7 @@ shops/ 商品、回收价格、交易货币与拍卖规则。先使用默认示�
 
 上架界面按对应模式的 `min-duration-seconds`、`max-duration-seconds` 和 `default-duration-seconds` 设置时长，预设天数超出范围时不可选择。默认值应配置在允许范围内。
 
-`/market history` 合并四类交易记录，按时间分页展示。玩家商店已有历史也会显示；系统商店购买和回收从本次版本起记录，不补造此前未保存的历史。
+`/market history` 将已记录的拍卖、玩家商店、系统商店和回收交易按时间分页展示。
 
 `auction.tax-discount` 和 `player-shop.tax-discount` 的值均为**最终税率**，取匹配权限中的最低值；不是从基础税率中减去的数值。例如 `axsmarket.vip: 0.02` 表示最终收取 2%。
 
@@ -237,8 +237,7 @@ recycle:
   batch-confirm: true
 ```
 
-重载后执行 `/market shop`，用测试账号完成一次购买和回收，核对货币余额与物品数量。
-
+使用[购买和回收示例](/docs/market/shops#先跑通一次购买和回收)准备商店和回收表，再用测试账号核对余额与物品数量。
 
 ### 回收保护与交易管理界面
 
