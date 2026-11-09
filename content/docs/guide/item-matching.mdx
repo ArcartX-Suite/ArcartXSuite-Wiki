@@ -16,7 +16,7 @@ description: "按材质、物品库 ID、名称、描述与标签识别现有物
 | Pickup | `filter` 内材质、名称、Lore、NBT 黑白名单小节 | 过滤扫描拾取对象；还需结合 `filter.mode` 与数量限制 |
 | Warehouse | 主配置 `blacklist` | 判断物品是否允许入库 |
 
-ExtraBackpack 分类使用自己的 `nbt-path`、`values`、材质 ID / 前缀与兜底分类规则，不是直接把本页全部字段放进分类中。Mail 附件检查也有独立配置，不能把所有“黑名单”都视为相同结构。
+随身背包的仓库区使用 [Warehouse 分类规则](/docs/warehouse/categories)。Mail 附件检查使用 [邮箱配置](/docs/mail/configuration) 中的独立规则。
 
 ## 支持的匹配字段
 

@@ -3,7 +3,7 @@ title: "自定义原版配方"
 description: "在游戏中创建工作台配方，或用配置定义炉类、切石、锻造和酿造配方。"
 ---
 
-Suite 2.0 的自定义配方由 Vanilla 管理。在 `data/vanilla/config.yml` 设置 `recipes.enabled: true` 后重载模块。实体工作台与随身背包顶栏的 3×3 工作台共用配方。
+Vanilla 提供自定义原版配方。在 `data/vanilla/config.yml` 设置 `recipes.enabled: true` 后重载模块。实体工作台与随身背包顶栏的 3×3 工作台共用配方。
 
 ## 在游戏中创建工作台配方
 
@@ -19,7 +19,6 @@ Suite 2.0 的自定义配方由 Vanilla 管理。在 `data/vanilla/config.yml` �
 配置位于 `plugins/ArcartX-Suite/data/vanilla/recipes.yml`。下例把 1 个粗铜烧炼为 1 个铜锭，用于说明配置结构。实服请为自定义配方选用独立材料或样品，避免与已有配方争用同一输入。
 
 ```yaml
-config-version: 1
 recipes:
   example_furnace:
     station: furnace

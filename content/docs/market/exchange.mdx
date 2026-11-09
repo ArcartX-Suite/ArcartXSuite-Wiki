@@ -3,7 +3,7 @@ title: "NPC 兑换与在线编辑"
 description: "绑定 Adyeshach 或原版实体，在游戏内编辑物品、物品库道具与多货币兑换。"
 ---
 
-Suite 2.0 由 Market 管理 NPC 兑换。系统商店适用于常规商品，NPC 兑换支持绑定实体和多种物品、货币组成的报价。原版村民可另外追加原版报价。
+NPC 兑换可以绑定 Adyeshach 或原版实体。一条报价可包含多种物品和货币作为成本或奖励。若希望保留原版村民交易界面，可以单独配置村民扩展报价。
 
 ## 第一次使用
 
@@ -72,7 +72,7 @@ Suite 2.0 由 Market 管理 NPC 兑换。系统商店适用于常规商品，NPC
 
 导出目录为 `plugins/ArcartX-Suite/data/market/npc-trade-evidence/`。重启或重载后，已在游戏中应用的记录也可能转为待核对；不能只凭状态判定物品丢失。成功记录不会自动重放，处理中断的未结案记录可能阻止继续兑换。
 
-迁移和备份时保留 `data/market/npc-trades.yml`、`npc-trade-server.id` 和对应 Suite 数据库。连接同一数据库的多台服务器应使用独立身份文件。
+备份兑换记录时，请一并保留 Market 配置与数据库。
 
 ## 原版村民扩展报价
 
