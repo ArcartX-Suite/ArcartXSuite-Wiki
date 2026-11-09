@@ -2,15 +2,8 @@
   "title": "原版界面替换",
   "pages": [
     "index",
-    "backpack",
     "configuration",
     "commands",
-    "recipe-book",
-    "equipment",
-    "artisan",
-    "utility",
-    "storage",
-    "notices",
-    "custom-recipes"
+    "recipe-book"
   ]
 }

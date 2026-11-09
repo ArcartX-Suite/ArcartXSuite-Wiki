@@ -7,7 +7,7 @@ description: "调整shops/ 商品、回收价格、交易货币与拍卖规则�
 
 shops/ 商品、回收价格、交易货币与拍卖规则。先使用默认示例完成一次测试，再按本页逐项调整。
 
-主配置文件为模块数据目录下的 `ArcartXMarket.yml`。定义文件与子目录均相对此模块目录。本文中的 YAML 片段用于修改对应小节，请保留文件中的其他设置。
+主配置文件为 `plugins/ArcartX-Suite/data/market/config.yml`。定义文件与子目录均相对此模块目录。本文中的 YAML 片段用于修改对应小节，请保留文件中的其他设置。
 
 修改后执行 `/axs reload market`；涉及插件安装或全局设置的变更请重启后验证。
 
@@ -253,12 +253,3 @@ ui:
 已有自定义回收 UI 时，应先备份，再合并新版页面的交互改动。`overwrite-ui-files` 会影响已导出的市场界面，不能只为更新单个页面而忽略其他自定义内容。
 
 完整操作流程见[玩家回收保护](/docs/market/recycle-protection)和[交易管理与异常查询](/docs/market/trade-management)。
-
-## NPC 兑换开关
-
-```yaml
-exchange:
-  enabled: true
-```
-
-兑换使用 Adyeshach NPC。兑换所定义位于 `data/market/npc-trades.yml`，凭证保存在 Market 数据库。界面模板是 `ui/market_exchange.yml` 和 `ui/market_exchange_editor.yml`。使用步骤见 [NPC 兑换与在线编辑](/docs/market/exchange)。

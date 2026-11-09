@@ -1,21 +1,21 @@
 ---
-title: "VanillaBackpackAccess"
+title: "ExtraBackpackAccess"
 description: "查询与操作额外背包"
 ---
 
 
 | 项目 | 内容 |
 | --- | --- |
-| 提供模块 | [vanilla](/docs/vanilla/backpack) |
-| 完整类型 | `xuanmo.arcartxsuite.api.capability.VanillaBackpackAccess` |
+| 提供模块 | [extrabackpack](/docs/extrabackpack) |
+| 完整类型 | `xuanmo.arcartxsuite.api.capability.ExtraBackpackAccess` |
 
 ## 获取接口
 
 ```java
 import xuanmo.arcartxsuite.api.AxsCapabilities;
-import xuanmo.arcartxsuite.api.capability.VanillaBackpackAccess;
+import xuanmo.arcartxsuite.api.capability.ExtraBackpackAccess;
 
-VanillaBackpackAccess api = AxsCapabilities.get(VanillaBackpackAccess.class);
+ExtraBackpackAccess api = AxsCapabilities.get(ExtraBackpackAccess.class);
 if (api == null) {
     // 当前功能不可用，向玩家说明或使用你的替代流程。
     return;
@@ -29,7 +29,7 @@ if (api == null) {
 以下为公开调用契约，保留参数类型与空值标注。Java 类型与当前配套 API JAR 保持一致。
 
 ```java
-public interface VanillaBackpackAccess {
+public interface ExtraBackpackAccess {
 
     boolean isAvailable(@NotNull Player player);
 

@@ -1,0 +1,10 @@
+{
+  "title": "额外背包",
+  "pages": [
+    "index",
+    "configuration",
+    "commands",
+    "categories",
+    "slot-expansion"
+  ]
+}

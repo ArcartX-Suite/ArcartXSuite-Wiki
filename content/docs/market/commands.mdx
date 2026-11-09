@@ -155,15 +155,3 @@ AXS Market 状态
 <Callout type="info">
 权限节点在配置文件中自定义。`tax-discount` 和 `price-multiplier` 的键名即为权限节点，`discount` 的键名也是权限节点。你可以根据需要修改为任意权限节点。
 </Callout>
-
-## NPC 兑换
-
-| 命令 | 说明 | 权限 |
-| --- | --- | --- |
-| `/axs market exchange open <兑换所ID>` | 在绑定的 Adyeshach NPC 附近打开兑换所 | 兑换所权限 |
-| `/axs market exchange edit [兑换所ID]` | 打开兑换编辑器 | `arcartxsuite.market.exchange.admin` |
-| `/axs market exchange ledger [玩家UUID]` | 查询待核对凭证 | 同上 |
-| `/axs market exchange evidence <凭证UUID>` | 导出凭证 | 同上 |
-| `/axs market exchange confirm <凭证UUID> confirm` | 核对后结案 | 同上 |
-
-完整操作见 [NPC 兑换与在线编辑](/docs/market/exchange)。

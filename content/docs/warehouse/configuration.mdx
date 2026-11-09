@@ -99,7 +99,7 @@ warehouses:
 | `slot-price.amount` | decimal | 每格价格 |
 | `permission` | string | 拥有此仓库所需的权限节点，留空表示无限制 |
 
-已解锁格数为基础格数加已购格数。每购买一格按 `slot-price` 扣费；共享仓库按 `shared.levels` 升级，容量另行计算。个人仓库的物品合并与格数计算见[槽位扩容](/docs/vanilla/backpack)。
+已解锁格数为基础格数加已购格数。每购买一格按 `slot-price` 扣费；共享仓库按 `shared.levels` 升级，容量另行计算。个人仓库的物品合并与格数计算见[槽位扩容](/docs/extrabackpack/slot-expansion)。
 
 
 ## 物品分类配置
@@ -258,8 +258,6 @@ blacklist:
 ```
 
 ## 相关文档
-
-- [界面提示与文案](/docs/vanilla/notices)：修改仓库、随身背包和原版界面的提示文字。
 
 - [命令与权限](/docs/warehouse/commands)：重载模块及仓库管理操作。
 - [自动存入与材料恢复](/docs/warehouse/material-recovery)：满背包拾取、工作台溢出及异常取料处理。

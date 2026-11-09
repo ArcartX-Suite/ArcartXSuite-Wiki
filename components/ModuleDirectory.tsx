@@ -1,7 +1,7 @@
 'use client';
 import { useMemo, useState, type CSSProperties } from 'react';
 import Link from 'next/link';
-import { ArrowUpRight, Search, X, Palette, PackageOpen, Megaphone, LogIn, Gift, Swords, Workflow, Wand2, Wrench, MapPin, Coffee, MessageSquareText, Award, MessagesSquare, Mail, Warehouse, Navigation, Map, ShoppingBag, Users, PanelsTopLeft, Fish, Sparkles, Flag, List, Pickaxe, Skull, type LucideIcon } from 'lucide-react';
+import { ArrowUpRight, Search, X, Palette, PackageOpen, Megaphone, LogIn, Gift, Swords, Workflow, Wand2, Wrench, MapPin, Coffee, MessageSquareText, Award, MessagesSquare, Mail, Warehouse, Navigation, Map, ShoppingBag, Users, PanelsTopLeft, Fish, Sparkles, Flag, List, Backpack, Pickaxe, Skull, type LucideIcon } from 'lucide-react';
 import { modules, taskGroups } from '@/lib/modules';
 
 const moduleIcons: Record<string, LucideIcon> = {
@@ -11,7 +11,7 @@ const moduleIcons: Record<string, LucideIcon> = {
   title: Award, conversation: MessagesSquare, mail: Mail, warehouse: Warehouse,
   questgps: Navigation, map: Map, market: ShoppingBag, qqbot: Users,
   menu: PanelsTopLeft, fishing: Fish, lottery: Sparkles, battlepass: Flag,
-  chat: MessagesSquare, tab: List, entitytracker: Skull,
+  chat: MessagesSquare, tab: List, entitytracker: Skull, extrabackpack: Backpack,
   vanilla: Pickaxe, abyss: Swords,
 };
 const groupAccents = ['#d8bd86', '#b5a0db', '#9eb9cb', '#b0bea0', '#c9a2a2'];

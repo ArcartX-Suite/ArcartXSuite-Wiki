@@ -26,7 +26,7 @@ export const modules: ModuleInfo[] = [
   { slug: 'warehouse', name: 'Warehouse', displayName: '仓库与银行', description: '管理个人物资、共享仓库与多货币银行。', color: '#34d399' },
   { slug: 'questgps', name: 'QuestGPS', displayName: '任务导航', description: '浏览 Chemdah 任务、追踪目标并显示导航提示。', color: '#818cf8' },
   { slug: 'map', name: 'Map', displayName: '地图与传送锚点', description: '浏览世界地图，管理路径点、导航与锚点传送。', color: '#2dd4bf' },
-  { slug: 'market', name: 'Market', displayName: '商店与拍卖', description: '提供系统商店、回收、拍卖和 NPC 兑换。', color: '#fb7185' },
+  { slug: 'market', name: 'Market', displayName: '商店与拍卖', description: '提供系统商店、回收商店与玩家拍卖交易。', color: '#fb7185' },
   { slug: 'qqbot', name: 'QQBot', displayName: 'QQ群互联', description: '同步群聊与游戏消息，提供账号绑定和群签到。', color: '#5b8def' },
   { slug: 'menu', name: 'Menu', displayName: '功能菜单', description: '创建功能导航，绑定命令、物品或 ESC 菜单。', color: '#f472b6' },
   { slug: 'fishing', name: 'Fishing', displayName: '钓鱼', description: '配置钓鱼小游戏、鱼类、水域、鱼竿和鱼饵。', color: '#38bdf8' },
@@ -36,7 +36,8 @@ export const modules: ModuleInfo[] = [
   { slug: 'chat', name: 'Chat', displayName: '聊天频道', description: '设置聊天频道、消息格式、私聊与物品展示。', color: '#557c53' },
   { slug: 'tab', name: 'Tab', displayName: '在线列表', description: '自定义玩家在线列表、排序、分组和显示内容。', color: '#557c53' },
   { slug: 'entitytracker', name: 'EntityTracker', displayName: 'Boss 与目标面板', description: '显示目标信息、Boss 伤害排名与结算奖励。', color: '#557c53' },
-  { slug: 'vanilla', name: 'VanillaUI', displayName: '原版界面替换', description: '提供随身背包、原版界面替换和自定义配方。', color: '#10b981' },
+  { slug: 'extrabackpack', name: 'ExtraBackpack', displayName: '额外背包', description: '提供分类物品存储与可购买的容量扩展。', color: '#8b5cf6' },
+  { slug: 'vanilla', name: 'VanillaUI', displayName: '原版界面替换', description: '替换工作台、熔炉等原版界面，提供配方浏览与填充。', color: '#10b981' },
   { slug: 'abyss', name: 'Abyss', displayName: '地牢副本', description: '配置地牢、怪物波次、阶段任务、队伍与结算奖励。', color: '#fb923c' },
 ];
 
@@ -78,6 +79,7 @@ export const taskGroups: Record<string, string[]> = {
   "经济与物品": [
     "mail",
     "warehouse",
-    "market"
+    "market",
+    "extrabackpack"
   ]
 };
