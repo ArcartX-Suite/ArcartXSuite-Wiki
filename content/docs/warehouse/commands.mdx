@@ -12,8 +12,9 @@ description: "仓库与银行可用命令、参数填写方式和权限要求。
 | `/warehouse` | 打开仓库主界面（等同于 `open`） | `arcartxsuite.warehouse.use` |
 | `/warehouse open` | 打开仓库存取界面 | `arcartxsuite.warehouse.use` |
 | `/warehouse help` | 显示帮助信息 | `arcartxsuite.warehouse.use` |
-| `/warehouse preview <玩家名或UUID> [仓库ID]` | 以只读模式预览他人仓库 | `arcartxsuite.warehouse.admin` |
-| `/warehouse spreview <玩家名或UUID> [仓库ID]` | 静默预览他人仓库（无提示消息） | `arcartxsuite.warehouse.admin` |
+| `/warehouse showcase` | 将自己公开的仓库发到聊天 | 展示权限，默认 `arcartxsuite.warehouse.showcase` |
+| `/warehouse spreview <玩家名或UUID> <仓库ID>` | 打开分享链接指向的公开仓库 | `arcartxsuite.warehouse.use` |
+| `/warehouse preview <玩家名或UUID> [仓库ID]` | 管理员只读预览 | `arcartxsuite.warehouse.admin` |
 | `/warehouse transfer confirm <sharedId>` | 确认接收共享仓库转让 | `arcartxsuite.warehouse.use` |
 | `/warehouse transfer reject <sharedId>` | 拒绝共享仓库转让 | `arcartxsuite.warehouse.use` |
 
@@ -23,10 +24,6 @@ description: "仓库与银行可用命令、参数填写方式和权限要求。
 
 打开仓库存取界面。首次打开时自动初始化玩家拥有的默认仓库（`default-owned: true` 的仓库）。如果当前仓库无效，自动回退到第一个个人仓库。
 
-**`/warehouse preview <玩家名或UUID> [仓库ID]`**
-
-以只读模式预览目标玩家的仓库。预览模式下仅支持翻页、分类切换、搜索、排序和槽位选择，禁止存取与切换仓库。`仓库ID` 留空时预览默认个人仓库；如果指定的仓库 ID 不在 `warehouses` 配置中，则视为共享仓库预览。
-
 **`/warehouse transfer confirm <sharedId>`**
 
 确认接收共享仓库转让。转让发起后，目标玩家会收到通知，需在 `transfer-confirm-expire-hours`（默认 24 小时）内执行此命令确认。确认后所有权转移，原所有者变为成员。
@@ -35,9 +32,20 @@ description: "仓库与银行可用命令、参数填写方式和权限要求。
 
 拒绝共享仓库转让。转让记录删除，仓库所有权不变。
 
+## 仓库预览
+
+| 入口 | 可以在侧栏切换的仓库 |
+| --- | --- |
+| 点击 `/warehouse showcase` 发出的链接，或执行 `/warehouse spreview <玩家名或UUID> <仓库ID>` | 目标已公开的个人仓库，以及由目标拥有且已公开的共享仓库 |
+| 执行 `/warehouse preview <玩家名或UUID> [仓库ID]` 或 `/axs warehouse view <玩家> [仓库ID]` | 目标的全部个人仓库，以及由目标拥有的共享仓库，包含私有仓库 |
+
+两种预览都支持翻页、搜索、分类和排序，物品存取由自己的仓库界面处理。点击「返回我的仓库」或执行 `/warehouse open` 即可退出预览。页数按当前筛选命中的物品格计算，每页格数由 `ui.page-size` 设置。
+
+仓库所有者可以在管理界面开启或关闭公开展示。关闭公开后，本子服正在查看该仓库的公开预览会随即关闭。使用共享数据库的多个子服可启用 Warehouse 跨服同步，将撤回通知传到其他子服。翻页、刷新和切换仓库时都会重新检查可见范围。
+
 ## 管理员命令
 
-管理员命令通过 `/axs warehouse <action>` 执行，需持有 `arcartxsuite.warehouse.admin` 权限。
+玩家使用 `/axs warehouse <action>` 时需要 `arcartxsuite.admin` 和 `arcartxsuite.warehouse.admin` 权限。
 
 | 命令 | 说明 |
 | --- | --- |
@@ -71,7 +79,7 @@ description: "仓库与银行可用命令、参数填写方式和权限要求。
 
 **`/axs warehouse view <玩家> [仓库ID]`**
 
-以只读预览 UI 打开目标玩家的仓库，管理员可直接浏览槽位物品。`仓库ID` 省略时默认首个个人仓库（`personal`），也可填共享仓库 ID。目标玩家**支持离线**（数据走数据库）；管理员自身需在线（UI 要发到管理员客户端）。控制台执行时退化为文本概览。
+打开管理员只读预览。目标玩家可以离线，仓库 ID 可填写个人仓库或由目标拥有的共享仓库。两条管理员预览命令省略 ID 时优先打开目标第一个已有的个人仓库。目标只拥有共享仓库时，会打开其中一座。控制台执行 `/axs warehouse view` 会输出指定个人仓库的物品清单，省略 ID 时使用配置中的第一个个人仓库。
 
 **`/axs warehouse delete <玩家> <仓库ID> confirm`**
 
@@ -87,7 +95,8 @@ description: "仓库与银行可用命令、参数填写方式和权限要求。
 | 权限节点 | 默认 | 说明 |
 | --- | --- | --- |
 | `arcartxsuite.warehouse.use` | true | 使用 `/warehouse` 命令与打开仓库 |
-| `arcartxsuite.warehouse.admin` | op | 使用 `/axs warehouse` 管理命令与预览他人仓库 |
+| `arcartxsuite.warehouse.admin` | op | 管理仓库与预览他人仓库 |
+| `arcartxsuite.warehouse.showcase` | 由权限插件分配 | 发送公开展示链接，实际节点可在 `showcase.permission` 中配置 |
 | `ArcartXSuite.warehouse.shared.vip` | op | 共享仓库 VIP 权限组（可配置更多共享仓库与成员上限） |
 | `ArcartXSuite.warehouse.bank.vip` | op | 购买 VIP 定期存款产品的权限（示例配置中的 `money_vip_7d` 产品） |
 

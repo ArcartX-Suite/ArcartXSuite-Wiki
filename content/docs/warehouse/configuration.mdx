@@ -66,11 +66,16 @@ description: "调整仓库容量、分类、共享成员权限与银行规则；
 | `page-size` | int | `18` | 搜索结果每页显示数量，最小 4 |
 | `default-sort` | string | `time` | 默认排序方案 ID（对应 `sort-profiles` 中的 key） |
 
+## 公开展示
+
+展示柜设置位于 `showcase`。玩家可在仓库管理界面设置每座仓库的公开状态。预览范围见 [仓库预览](/docs/warehouse/commands#仓库预览)。
+
 | 字段 | 类型 | 默认值 | 说明 |
 | --- | --- | --- | --- |
-| `enabled` | boolean | `true` | 是否启用展示柜功能 |
+| `enabled` | boolean | `true` | 是否允许发送展示链接 |
 | `cooldown-seconds` | int | `60` | 每次展示后的冷却时间（秒），最小 5 |
-| `card-id` | string | `""` | 向全服发送的 ArcartX 展示卡片 ID；可使用 `player_name`、`preview_command`，留空发送可点击的聊天链接 |
+| `card-id` | string | `""` | ArcartX 展示卡片 ID，可用 `player_name`、`preview_command`。留空时逐个发送可点击的仓库链接 |
+| `permission` | string | `arcartxsuite.warehouse.showcase` | 发送展示链接所需权限 |
 
 ## 仓库分类配置
 
