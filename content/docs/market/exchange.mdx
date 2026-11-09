@@ -1,16 +1,16 @@
 ---
 title: "NPC 兑换与在线编辑"
-description: "绑定 Adyeshach 或原版实体，在游戏内编辑物品、物品库道具与多货币兑换。"
+description: "为 Adyeshach NPC 配置物品与多货币兑换，在游戏内编辑成本和奖励。"
 ---
 
-NPC 兑换可以绑定 Adyeshach 或原版实体。一条报价可包含多种物品和货币作为成本或奖励。若希望保留原版村民交易界面，可以单独配置村民扩展报价。
+通过 Adyeshach NPC 提供兑换。一条报价可包含多种物品和货币作为成本或奖励。
 
 ## 第一次使用
 
-1. 确认 `exchange.enabled: true`，执行 `/axs reload market`。
+1. 安装并启用 Adyeshach。在 Market 配置设置 `exchange.enabled: true` 后执行 `/axs reload market`。
 2. 管理员执行 `/axs market exchange edit example`，查看示例“旅人兑换所”：一个绿宝石兑换四个铁锭。
-3. 保存兑换所设置，再新建或编辑条目，分别设置成本与奖励。
-4. 通过 `/axs market exchange open example` 打开兑换页查看。确认兑换会实际扣除资产，请先核对内容。
+3. 选择附近的 Adyeshach NPC，保存兑换所设置，再编辑兑换成本和奖励。
+4. 右键已绑定的 NPC 打开兑换。核对成本和奖励后再确认。
 
 编辑权限为 `arcartxsuite.market.exchange.admin`。玩家使用 NPC 时，还需满足兑换所与条目各自设置的权限；权限留空则不限。
 
@@ -41,18 +41,11 @@ NPC 兑换可以绑定 Adyeshach 或原版实体。一条报价可包含多种�
 
 界面显示账户余额，不会把虚拟货币当成背包中的金锭或绿宝石扣除。设置方法见[货币配置](/docs/guide/currencies)。
 
-## 绑定 NPC
+## 绑定 Adyeshach NPC
 
-点击“选择附近 NPC”，或填写下列标识，多个绑定用逗号分隔：
+点击「选择附近 NPC」，或填写 `ady:实体ID`。绑定多个 NPC 时用逗号分隔。同一个 NPC 对应一个兑换所，一个兑换所可绑定多个 NPC。
 
-| 标识 | 说明 |
-| --- | --- |
-| `ady:实体ID` | Adyeshach NPC 的实体 ID，需安装并启用 Adyeshach |
-| `entity:实体UUID` | 原版实体 UUID，附近列表可选择村民等商人实体 |
-
-同一 NPC 只能绑定一个兑换所，一个兑换所可以绑定多个 NPC。绑定原版村民后，右键打开自定义兑换；解除绑定后可恢复原版交易入口。
-
-普通玩家需靠近绑定 NPC。兑换所停用、权限不满足或 NPC 失效时，不接受旧报价。管理员可通过命令打开兑换页查看配置。
+玩家可以右键已绑定的 NPC，或在它附近执行 `/axs market exchange open <兑换所ID>`。打开界面和确认兑换时均需满足绑定、距离和使用权限要求。
 
 ## 仓库与背包
 
@@ -73,25 +66,6 @@ NPC 兑换可以绑定 Adyeshach 或原版实体。一条报价可包含多种�
 导出目录为 `plugins/ArcartX-Suite/data/market/npc-trade-evidence/`。重启或重载后，已在游戏中应用的记录也可能转为待核对；不能只凭状态判定物品丢失。成功记录不会自动重放，处理中断的未结案记录可能阻止继续兑换。
 
 备份兑换记录时，请一并保留 Market 配置与数据库。
-
-## 原版村民扩展报价
-
-在 Market 配置启用 `exchange.villager-offers.enabled`，把村民 UUID 和报价填写到 `data/market/villager-offers.yml`，然后执行 `/axs market exchange villager-reload`。每条报价最多两种物品成本，成品从原版交易结果槽领取。
-
-```yaml
-entities:
-  "11111111-2222-3333-4444-555555555555":
-    iron_exchange:
-      ingredients:
-        - { source: minecraft, id: emerald, amount: 3 }
-      result: { source: minecraft, id: iron_ingot, amount: 8 }
-      max-uses: 16
-      villager-experience: 2
-      reward-experience: true
-      price-multiplier: 0
-```
-
-修改同一个报价 ID 会保留已使用次数。正在交易的村民在空闲后更新，原版报价照常显示。
 
 ## 相关文档
 

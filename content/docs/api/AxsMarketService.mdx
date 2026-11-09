@@ -90,9 +90,6 @@ public interface AxsMarketService {
 
 先在对应模块配置中准备所引用的 ID，再调用接口。检查布尔值、结果对象或异常，只有成功后才更新第三方插件自己的业务状态。
 
-## 按 ID 打开界面
+## 打开指定系统商店
 
-- `openSystemShop(player, id)` 打开指定系统商店。
-- `openExchange(player, id)` 打开指定 NPC 兑换所，应用该玩家的兑换权限和绑定规则。
-
-两者均在 Bukkit 主线程调用。界面成功打开时返回 `true`。
+在 Bukkit 主线程调用 `openSystemShop(player, id)`。界面成功打开时返回 `true`。
