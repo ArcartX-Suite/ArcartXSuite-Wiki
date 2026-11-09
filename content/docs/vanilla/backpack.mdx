@@ -1,0 +1,55 @@
+---
+title: "随身背包"
+description: "开启个人仓库入口，设置分类并调整共用容量。"
+---
+
+启用 Vanilla 与 Warehouse，在 `plugins/ArcartX-Suite/data/vanilla/config.yml` 配置 `backpack`。重载后，玩家执行 `/axs vanilla backpack` 打开界面。仓库区域与个人仓库使用同一批物品、容量和二级密码。
+
+## 开启入口与分类
+
+```yaml
+backpack:
+  enabled: true
+  ui:
+    register-ui-on-enable: true
+    overwrite-ui-files: false
+  categories:
+    materials:
+      display-name: "材料"
+      priority: 10
+      slots:
+        max: 720
+      material-ids: ["minecraft:iron_ingot", "minecraft:gold_ingot"]
+    other:
+      display-name: "其他"
+      priority: 99
+      slots:
+        max: 720
+      default: true
+```
+
+| 字段 | 用途 |
+| --- | --- |
+| `enabled` | 开启随身入口，默认关闭 |
+| `ui.register-ui-on-enable` | 启用时注册背包界面 |
+| `ui.overwrite-ui-files` | 重载时使用随包模板覆盖 `ui/vanilla_backpack.yml`，修改过模板时保持关闭 |
+| `categories.<ID>.priority` | 数字越小越先匹配 |
+| `categories.<ID>.slots.max` | 该分类可显示的上限，建议至少等于个人仓库上限 |
+| `material-ids` / `material-prefixes` | 按完整材质 ID 或命名空间前缀筛选 |
+| `match.nbt.path` / `match.nbt.values` | 按物品标签路径及允许值筛选 |
+| `default` | 作为其他规则未匹配时的兜底分类 |
+
+执行 `/axs reload vanilla`，以玩家身份打开背包，存入一件匹配物品并到 Warehouse 查看同一件物品。仓库侧栏的筛选、排序和置顶来自 [Warehouse 配置](/docs/warehouse/categories)。
+
+## 管理容量
+
+在 Warehouse 的 `warehouses.personal` 中设置 `base-slots`、`max-slots` 和 `slot-price`。个人仓库当前容量等于基础格数加已购格数，受 `max-slots` 限制。分类页只筛选物品，容量不能相加。
+
+| 命令 | 操作 |
+| --- | --- |
+| `/axs vanilla backpack status` | 查看背包状态 |
+| `/axs vanilla backpack info <玩家>` | 查看在线玩家的分类占用 |
+| `/axs vanilla backpack give Steve materials 9` | 为玩家增加 9 格共用容量 |
+| `/axs vanilla backpack reset Steve materials` | 将玩家已购容量重置为 0 |
+
+容量管理命令需要 `arcartxsuite.vanilla.backpack.admin`。如需在其他插件显示容量，见 [PlaceholderAPI 占位符](/docs/guide/placeholders)。

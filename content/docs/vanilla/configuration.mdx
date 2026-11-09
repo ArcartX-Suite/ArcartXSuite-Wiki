@@ -21,8 +21,6 @@ VanillaUI 模块的配置文件为 `config.yml`，位于模块数据目录下。
 | --- | --- |
 | 配置文件名 | `config.yml` |
 | 配置版本 | `2`（当前 schema） |
-| 同步策略 | `strict`（严格同步，配置变更需 reload 生效） |
-| 配置校验 | 启用字段类型与范围校验 |
 
 ### 顶层字段
 
@@ -37,6 +35,20 @@ UI 统一配置节，管理所有界面的 ID 与覆盖策略。
 | 字段 | 类型 | 默认值 | 校验规则 | 说明 |
 | --- | --- | --- | --- | --- |
 | `ui.overwrite-ui-files` | `boolean` | `false` | 布尔值 | 是否覆盖用户已修改的 UI 文件 |
+
+### 其他工作区与容器
+
+以下配置节均使用 `enabled` 单独控制，默认开启。需要保留某类容器的原版界面时，将该节的 `enabled` 设为 `false`。
+
+| 用途 | 配置节 |
+| --- | --- |
+| 熔炼与制作 | `blast-furnace`、`smoker`、`stonecutter`、`smithing`、`brewing` |
+| 交易与装备 | `merchant`、`anvil`、`enchanting`、`grindstone` |
+| 工具与存储 | `loom`、`cartography`、`beacon`、`hopper`、`dispenser`、`container`、`shulker-box` |
+
+`dispenser` 同时控制发射器和投掷器。普通箱子、木桶和末影箱使用 `container`。配置中已有 `push-interval-ticks` 的工作区可在各自配置节调整刷新间隔。
+
+随身背包使用独立的 [`backpack` 配置节](/docs/vanilla/backpack)。自定义配方默认启用，关闭时将 `recipes.enabled` 设为 `false`。配方定义保存在模块目录下的 `recipes.yml`，可执行 `/axs vanilla recipes` 打开编辑器。
 
 ### 工作台界面（crafting）
 
@@ -59,7 +71,7 @@ UI 统一配置节，管理所有界面的 ID 与覆盖策略。
 
 > `furnace.push-interval-ticks` 控制服务端轮询熔炉方块状态的频率。每秒 20 tick，默认 `2` tick 即每秒推送 10 次。值越小推送越频繁，UI 进度条越平滑，但服务端开销越大。建议保持默认值 `2`。
 
-### 默认配置
+### 工作台和普通熔炉配置片段
 
 ```yaml
 # ArcartXSuite Vanilla - 原版界面替换模块配置
@@ -91,7 +103,7 @@ furnace:
   push-interval-ticks: 2
 ```
 
-### 仅启用工作台
+### 关闭普通熔炉替换
 
 ```yaml
 config-version: 2

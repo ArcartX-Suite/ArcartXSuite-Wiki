@@ -99,6 +99,6 @@ for (const { name } of moduleFolders) {
     }
   }
 }
-if (moduleFolders.length !== 30) errors.push(`模块数应为 30，实际为 ${moduleFolders.length}`);
+if (moduleFolders.length !== 29) errors.push(`模块数应为 29，实际为 ${moduleFolders.length}`);
 if (errors.length) { console.error(errors.join('\n')); process.exitCode = 1; }
 else console.log(`文档检查通过：${pages.size} 页，${moduleFolders.length} 个模块；日志覆盖、中文标题、链接说明、表格结构、锚点与公开内容边界有效。`);

@@ -5,7 +5,7 @@ description: "原版界面替换可用命令、参数填写方式和权限要求
 
 ## 玩家命令
 
-VanillaUI 模块无独立玩家命令。界面替换由 UI YAML 的 `match` 规则自动触发，玩家打开原版工作台或熔炉时自动呈现替换 UI，无需任何命令操作。材料转移凭证的查询、导出与人工确认由 [Warehouse 管理命令](/docs/warehouse/material-recovery) 提供。
+玩家打开已启用的原版容器时会看到替换界面。使用 `/axs vanilla backpack` 打开[随身背包](/docs/vanilla/backpack)。材料转移凭证可在 [Warehouse 管理命令](/docs/warehouse/material-recovery) 中查询、导出与确认。
 
 | 交互方式 | 触发条件 | 说明 |
 | --- | --- | --- |
@@ -20,13 +20,16 @@ VanillaUI 模块无独立玩家命令。界面替换由 UI YAML 的 `match` 规�
 
 ## 管理命令
 
-VanillaUI 模块无独立管理命令，通过Suite `/axs` 命令统一管理：
+通过 Suite 的 `/axs` 命令管理界面、随身背包和配方。
 
 | 命令 | 权限 | 说明 |
 | --- | --- | --- |
 | `/axs reload vanilla` | `arcartxsuite.admin` | 重载 VanillaUI 模块配置与 UI 文件 |
 | `/axs reload all` | `arcartxsuite.admin` | 重载本体配置 + 全部模块（含 VanillaUI） |
 | `/axs status` | `arcartxsuite.admin` | 查看全部模块运行状态（含 VanillaUI） |
+| `/axs vanilla backpack help` | `arcartxsuite.vanilla.backpack.admin` | 查询背包状态与容量管理命令 |
+| `/axs vanilla recipes` | `arcartxsuite.vanilla.recipe.admin` | 打开配方编辑器 |
+| `/axs vanilla recipes reload` | `arcartxsuite.vanilla.recipe.admin` | 重载配方文件 |
 
 > `/axs reload vanilla` 会重新加载 `config.yml` 配置文件，并根据 `ui.overwrite-ui-files` 决定是否覆盖 UI 文件。reload 后工作台/熔炉 UI 立即生效，正在使用 UI 的玩家需重新打开界面。
 
@@ -35,9 +38,10 @@ VanillaUI 模块无独立管理命令，通过Suite `/axs` 命令统一管理：
 | 权限节点 | 默认 | 说明 |
 | --- | --- | --- |
 | `arcartxsuite.admin` | OP | 执行 `/axs reload vanilla` 等管理命令 |
-| `arcartxsuite.module.vanilla` | OP | 模块级管理权限（预留） |
+| `arcartxsuite.vanilla.backpack.admin` | OP | 查看和调整背包的个人仓库容量 |
+| `arcartxsuite.vanilla.recipe.admin` | OP | 打开配方编辑器或重载配方 |
 
-> VanillaUI 模块本身不定义独立权限节点。玩家使用工作台/熔炉界面替换功能无需任何权限，所有在线玩家均可使用。
+玩家可直接使用已启用的替换界面。随身背包的个人仓库存取遵循 Warehouse 的权限及二级密码要求。
 
 ## UI 自定义说明
 

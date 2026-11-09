@@ -36,8 +36,7 @@ export const modules: ModuleInfo[] = [
   { slug: 'chat', name: 'Chat', displayName: '聊天频道', description: '设置聊天频道、消息格式、私聊与物品展示。', color: '#557c53' },
   { slug: 'tab', name: 'Tab', displayName: '在线列表', description: '自定义玩家在线列表、排序、分组和显示内容。', color: '#557c53' },
   { slug: 'entitytracker', name: 'EntityTracker', displayName: 'Boss 与目标面板', description: '显示目标信息、Boss 伤害排名与结算奖励。', color: '#557c53' },
-  { slug: 'extrabackpack', name: 'ExtraBackpack', displayName: '额外背包', description: '提供分类物品存储与可购买的容量扩展。', color: '#8b5cf6' },
-  { slug: 'vanilla', name: 'VanillaUI', displayName: '原版界面替换', description: '替换工作台、熔炉等原版界面，提供配方浏览与填充。', color: '#10b981' },
+  { slug: 'vanilla', name: 'VanillaUI', displayName: '原版界面与随身背包', description: '替换原版容器界面，管理自定义配方，并在随身背包中访问个人仓库。', color: '#10b981' },
   { slug: 'abyss', name: 'Abyss', displayName: '地牢副本', description: '配置地牢、怪物波次、阶段任务、队伍与结算奖励。', color: '#fb923c' },
 ];
 
@@ -79,7 +78,6 @@ export const taskGroups: Record<string, string[]> = {
   "经济与物品": [
     "mail",
     "warehouse",
-    "market",
-    "extrabackpack"
+    "market"
   ]
 };

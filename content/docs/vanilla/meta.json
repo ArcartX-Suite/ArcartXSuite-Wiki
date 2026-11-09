@@ -1,9 +1,10 @@
 {
-  "title": "原版界面替换",
+  "title": "原版界面与随身背包",
   "pages": [
     "index",
     "configuration",
     "commands",
-    "recipe-book"
+    "recipe-book",
+    "backpack"
   ]
 }

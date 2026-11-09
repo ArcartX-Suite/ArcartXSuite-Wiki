@@ -1,0 +1,30 @@
+---
+title: "VanillaBackpackAccess"
+description: "从第三方插件查询、打开和操作随身背包。"
+---
+
+| 项目 | 说明 |
+| --- | --- |
+| 提供模块 | [Vanilla 随身背包](/docs/vanilla/backpack) |
+| 完整类型 | `xuanmo.arcartxsuite.api.capability.VanillaBackpackAccess` |
+
+```java
+import xuanmo.arcartxsuite.api.capability.AxsCapabilities;
+import xuanmo.arcartxsuite.api.capability.VanillaBackpackAccess;
+
+VanillaBackpackAccess backpack = AxsCapabilities.get(VanillaBackpackAccess.class);
+if (backpack != null && backpack.isAvailable(player)) {
+    VanillaBackpackAccess.Snapshot view = backpack.snapshot(player);
+    player.sendMessage("当前分类数 " + view.categories().size());
+}
+```
+
+| 方法 | 参数与结果 |
+| --- | --- |
+| `isAvailable(player)` | 查询该玩家当前能否使用 |
+| `open(player)` | 在 Bukkit 主线程打开界面 |
+| `snapshot(player)` | 返回分类、容量、占用和各分类槽位快照 |
+| `deposit(player, itemStack)` | 返回实际存入数量和剩余数量，可能只存入一部分 |
+| `withdraw(player, categoryId, slot, amount)` | 返回该分类槽位实际取出的数量、物品与提示 |
+
+背包和个人仓库使用同一容量。调用存入或取出后，根据结果中的实际数量更新调用方物品，避免重复扣除或发放。

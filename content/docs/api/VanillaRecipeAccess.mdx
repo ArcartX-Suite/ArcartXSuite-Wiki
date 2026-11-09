@@ -1,0 +1,39 @@
+---
+title: "VanillaRecipeAccess"
+description: "注册原版工作区配方、查询配方及填入材料。"
+---
+
+| 项目 | 说明 |
+| --- | --- |
+| 提供模块 | [Vanilla](/docs/vanilla) |
+| 完整类型 | `xuanmo.arcartxsuite.api.capability.VanillaRecipeAccess` |
+
+```java
+import java.util.List;
+import org.bukkit.Material;
+import org.bukkit.inventory.ItemStack;
+import xuanmo.arcartxsuite.api.capability.AxsCapabilities;
+import xuanmo.arcartxsuite.api.capability.VanillaRecipeAccess;
+
+VanillaRecipeAccess api = AxsCapabilities.get(VanillaRecipeAccess.class);
+if (api != null) {
+    var ingredient = new VanillaRecipeAccess.Ingredient(List.of(Material.IRON_INGOT), List.of());
+    var definition = new VanillaRecipeAccess.Definition(
+        "demo_iron_nuggets", VanillaRecipeAccess.Station.SHAPELESS, List.of(ingredient),
+        new ItemStack(Material.IRON_NUGGET, 9), "", 0, 0, null
+    );
+    registration = api.register(plugin, definition);
+}
+```
+
+示例中的 `registration` 为调用插件保留的 `VanillaRecipeAccess.Registration` 字段，停用时调用 `close()` 注销配方。API 从 Bukkit 主线程调用。
+
+| 方法 | 用途 |
+| --- | --- |
+| `register(plugin, definition)` | 以插件为所有者注册配方并返回注销句柄 |
+| `registerModule(ownerModuleId, definition)` | 以 Suite 模块 ID 为所有者注册配方 |
+| `recipes()` / `recipe(key)` | 查询全部配方或指定命名空间键 |
+| `preview(player, key)` | 异步返回配方及材料是否足够 |
+| `fill(player, key, expectedRevision)` | 使用查询结果中的版本号填料，异步返回实际结果 |
+
+有序合成按从左到右、从上到下提供九格，空位使用 `Ingredient.blank()`。无序合成提供一至九项。锻造依次填写模板、基材、添加物，酿造依次填写瓶中原料和酿造材料。材料类型列表与精确物品列表每项只选其一。
