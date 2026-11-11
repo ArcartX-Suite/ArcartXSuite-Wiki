@@ -7,16 +7,16 @@ description: "从准备环境、安装本体到绑定云端、启用模块，完
 
 ## 准备环境
 
-下列组合适合用来准备 1.20.1 单服测试环境。各组件的版本和用途应逐项核对。
+Suite 支持多种 Minecraft 版本。先确定游戏服使用的 Minecraft 版本和服务端类型，再准备下面的组件。
 
-| 组件 | 组合示例 | 获取和安装 |
+| 组件 | 如何选择 | 获取和安装 |
 | --- | --- | --- |
-| Minecraft 服务端 | Paper 1.20.1，Java 21 | 从 [Paper 下载页](https://papermc.io/downloads/paper)进入历史构建列表，选择 1.20.1 |
-| ArcartX 服务端 | ArcartX 2.10.100 | 从 [ArcartX 社区](https://arcartx.com/)获取游戏服插件，放入 `plugins/` |
-| Suite 本体 | 与所用模块配套的发行版 | 登录 [Suite 云端下载中心](https://cloud.021209.xyz/download)，在「游戏服本体」下载 `ArcartX-Suite` JAR |
-| 玩家客户端 | Minecraft 1.20.1、Fabric、对应的 Fabric API、ArcartX Fabric 2.10.100 | 客户端扩展放入当前游戏实例的 `mods/`。安装地图或物品提示时，再看各自的[地图客户端](/docs/map/client-mod)或[物品提示客户端](/docs/tooltip/client-mod)要求 |
+| Minecraft 服务端与 Java | 选择 Suite 和 ArcartX 均支持的 Minecraft 版本及服务端类型，按所选服务端和插件发行版的要求准备 Java。 | 从所选服务端的官方渠道获取。 [Paper 下载](https://papermc.io/downloads/paper) · [Paper 的 Java 要求](https://docs.papermc.io/paper/getting-started/#requirements) |
+| ArcartX 服务端 | 选择支持当前 Minecraft 版本和服务端类型的 ArcartX 发行版。 | 将 ArcartX 服务端插件放入 `plugins/`。 [ArcartX 下载](https://arcartx.com/resources/16/) |
+| Suite 本体 | 选择支持当前服务端环境、与所用模块配套的 Suite 发行版。 | 在云端下载中心的「游戏服本体」下载 `ArcartX-Suite` JAR。 [Suite 云端下载中心](https://cloud.021209.xyz/download) |
+| 玩家客户端 | 按游戏服的入服版本要求，从 ArcartX 版本表选择可用的 Minecraft 版本与加载器组合，再核对客户端构建与 ArcartX 服务端的兼容性。 | 将对应的 ArcartX 客户端 Mod 及该构建要求的前置 Mod 放入所用游戏实例的 `mods/`。 [ArcartX 版本表](https://wiki.arcartx.com/docs/arcartx_v2) |
 
-本文的模块用法按 Suite 2.0.0 配套功能编写。下载时以云端显示的可用发行版为准，并选用同一发行版的本体和模块。启用公告以外的模块前，可从[模块目录](/docs#按功能找模块)检查对应的前置插件。
+本文的配置说明以 Suite 2.0.0 为准。使用地图或物品提示时，按对应模块页的版本要求选择客户端扩展。其他模块的前置插件可从模块目录查阅。 [地图客户端](/docs/map/client-mod) · [物品提示客户端](/docs/tooltip/client-mod) · [模块目录](/docs#按功能找模块)
 
 ## 安装本体
 
