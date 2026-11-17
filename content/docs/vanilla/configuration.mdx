@@ -15,18 +15,13 @@ description: "调整需要替换的容器类型与配方书显示；附字段解
 
 ## 配置文件位置
 
-VanillaUI 模块的配置文件为 `config.yml`，位于模块数据目录下。模块启动时自动从 Jar 中导出默认配置，用户修改后执行 `/axs reload vanilla` 即可热重载。
+配置位于 `plugins/ArcartX-Suite/data/vanilla/`。修改界面开关或提示文本后执行 `/axs reload vanilla`；只修改配方时可执行 `/axs vanilla recipes reload`。
 
 | 项目 | 说明 |
 | --- | --- |
-| 配置文件名 | `config.yml` |
-| 配置版本 | `2`（当前 schema） |
-
-### 顶层字段
-
-| 字段 | 类型 | 默认值 | 说明 |
-| --- | --- | --- | --- |
-| `config-version` | `int` | `2` | 配置版本号，使用自动生成的值 |
+| `config.yml` | 界面开关、UI ID、刷新间隔和整理方式 |
+| `message.yml` | 界面操作提示及随身背包消息 |
+| `recipes.yml` | 自定义配方的材料、产物和使用要求 |
 
 ### 界面显示（ui）
 
@@ -48,7 +43,7 @@ UI 统一配置节，管理所有界面的 ID 与覆盖策略。
 
 `dispenser` 同时控制发射器和投掷器。普通箱子、木桶和末影箱使用 `container`。配置中已有 `push-interval-ticks` 的工作区可在各自配置节调整刷新间隔。
 
-随身背包使用独立的 [`backpack` 配置节](/docs/vanilla/backpack)。自定义配方默认启用，关闭时将 `recipes.enabled` 设为 `false`。配方定义保存在模块目录下的 `recipes.yml`，可执行 `/axs vanilla recipes` 打开编辑器。
+随身背包使用独立的 [`backpack` 配置节](/docs/vanilla/backpack)。自定义配方默认启用，关闭时将 `recipes.enabled` 设为 `false`。配方定义和编辑器使用方式见[自定义合成配方](/docs/vanilla/custom-recipes)。
 
 ### 工作台界面（crafting）
 
@@ -69,7 +64,7 @@ UI 统一配置节，管理所有界面的 ID 与覆盖策略。
 | `furnace.enabled` | `boolean` | `true` | 布尔值 | 是否启用熔炉 UI 替换 |
 | `furnace.push-interval-ticks` | `int` | `2` | 范围 `1`-`100` | 熔炉状态推送间隔（tick） |
 
-> `furnace.push-interval-ticks` 控制服务端轮询熔炉方块状态的频率。每秒 20 tick，默认 `2` tick 即每秒推送 10 次。值越小推送越频繁，UI 进度条越平滑，但服务端开销越大。建议保持默认值 `2`。
+> `furnace.push-interval-ticks` 控制熔炉状态的检查间隔。每秒 20 tick，默认每 `2` tick 检查一次，状态变化时更新界面。建议保持默认值 `2`。
 
 ### 工作台和普通熔炉配置片段
 
@@ -83,9 +78,9 @@ config-version: 2
 
 # UI 配置（统一管理所有界面的 id 与覆盖策略）
 ui:
-  # 工作台 UI id（与 vanilla_crafting.yml 文件名对应）
+  # 工作台 UI ID
   crafting-ui-id: "AXS:vanilla_crafting"
-  # 熔炉 UI id（与 vanilla_furnace.yml 文件名对应）
+  # 熔炉 UI ID
   furnace-ui-id: "AXS:vanilla_furnace"
   # 是否覆盖用户已修改的 UI 文件
   overwrite-ui-files: false
@@ -99,7 +94,7 @@ crafting:
 furnace:
   # 是否启用熔炉 UI 替换
   enabled: true
-  # 熔炉状态推送间隔（tick），每秒 20 tick，默认 2 tick（每秒 10 次）
+  # 熔炉状态检查间隔，单位 tick
   push-interval-ticks: 2
 ```
 
@@ -136,7 +131,7 @@ crafting:
 
 furnace:
   enabled: true
-  # 每 5 tick 推送一次（每秒 4 次），降低服务端开销
+  # 每 5 tick 检查一次状态
   push-interval-ticks: 5
 ```
 
@@ -161,6 +156,21 @@ furnace:
 
 > `overwrite-ui-files: true` 适用于排查 UI 问题时恢复默认配置。日常使用建议设为 `false`，以保留自定义修改。
 
+## 背包与箱柜整理
+
+随身背包顶栏提供“整理背包”，整理玩家的 27 格储物栏，快捷栏、装备和副手保留原位。箱子、木桶、末影箱与潜影盒的顶栏提供“整理容器”，只整理当前打开的真实容器。两者使用权限 `arcartxsuite.vanilla.sort`。
+
+```yaml
+inventory-sort:
+  mode: type
+```
+
+可选 `type`（按类型）、`name`（按材质名称）或 `amount`（按堆叠数量降序）。保存后执行 `/axs reload vanilla`。
+
+## 提示文本
+
+在 `message.yml` 的 `ui-notices` 中修改界面内的操作提示；`extra-backpack` 中配置随身背包消息。保留消息中的占位符，修改后执行 `/axs reload vanilla`。
+
 ## 仓库联动
 
 Warehouse 为可选模块，无需在本页配置中单独开启。启用后，工作台与熔炉可显示个人仓库，并将可用仓库材料计入“仅可制作”和填入材料。没有 Warehouse 时仍可使用背包材料和配方书。
@@ -171,4 +181,5 @@ Warehouse 为可选模块，无需在本页配置中单独开启。启用后，�
 
 - [命令与权限](/docs/vanilla/commands)：界面入口、操作方式与重载权限。
 - [配方书与材料填入](/docs/vanilla/recipe-book)：选择配方、查看可制作标记和补齐材料。
+- [自定义合成配方](/docs/vanilla/custom-recipes)：通过十格编辑器或配方文件管理材料与产物。
 - [仓库功能配置](/docs/warehouse/configuration)：设置仓库容量、自动存入与分类。

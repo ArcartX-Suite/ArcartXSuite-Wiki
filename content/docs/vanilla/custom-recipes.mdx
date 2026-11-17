@@ -1,0 +1,122 @@
+---
+title: "自定义合成配方"
+description: "用十格编辑器管理合成配方，并在配置文件中定义材料、产物和物品库模板。"
+---
+
+自定义配方保存在 `plugins/ArcartX-Suite/data/vanilla/recipes.yml`。在 `config.yml` 中保持 `recipes.enabled: true`。
+
+实体工作台和随身 3×3 工作台共用已生效的工作台配方。玩家手动摆入符合要求的物品后，从真实结果槽领取产物；仓库填料也按同一份材料要求匹配。
+
+## 打开配方管理
+
+管理员可点击工作台顶栏的“配方管理”，或执行 `/axs vanilla recipes`。所需权限为 `arcartxsuite.vanilla.recipe.admin`。
+
+编辑器左侧按产物名和配方 ID 列出已保存配方，中间为材料、产物及配方设置，右侧为玩家背包和快捷栏。
+
+## 创建与编辑
+
+1. 点击“新建”，填写由小写字母、数字、下划线或连字符组成的配方 ID。
+2. 从背包拿起物品，实际放入 3×3 材料格和产物格。左键取放，右键分半或放入一个；材料格每格代表一份材料。
+3. 在产物格中放入需要的数量，这个数量就是每次合成的产量。
+4. 选择“有序合成”或“无序合成”，以及材料匹配方式。需要限制使用者时填写权限节点，留空允许所有玩家使用。
+5. 点击“保存配方”，配方随即生效。
+
+| 设置 | 效果 |
+| --- | --- |
+| 有序合成 | 材料按照九宫格中的排列匹配 |
+| 无序合成 | 按材料种类及份数匹配，摆放位置不限 |
+| 精确匹配 | 保留材质、名称、附魔、NBT 和自定义数据要求 |
+| 材质匹配 | 按物品材质匹配 |
+| 按格配置 | 配方文件中各材料格使用不同的匹配方式 |
+
+匹配方式按钮会统一调整全部材料格。配置文件允许为不同格子分别定义材料要求。
+
+点击左侧条目可按配置还原该配方的物品和设置。已保存配方的 ID 固定；修改后再次保存即可。删除配方需要点击“删除”并确认。
+
+编辑区以配方文件为准。关闭编辑器会放弃未保存的修改，下一次选择配方时重新从配置还原。
+
+## 直接编辑配置
+
+修改 `recipes.yml` 后执行 `/axs vanilla recipes reload`。定义无效或存在配方冲突时会提示错误，修正后重新加载。
+
+下面的有序配方使用左上角的一份铜锭，产出两本书。`ingredients` 按从左到右、从上到下排列，空材料格使用 `{}`。
+
+```yaml
+recipes:
+  copper_books:
+    station: shaped
+    ingredients:
+      - materials: [COPPER_INGOT]
+      - {}
+      - {}
+      - {}
+      - {}
+      - {}
+      - {}
+      - {}
+      - {}
+    result:
+      source: minecraft
+      id: BOOK
+      amount: 2
+    permission: ""
+```
+
+无序配方使用 `station: shapeless`，`ingredients` 中只保留需要的材料项。相同材料出现两项表示每次需要两份。
+
+编辑器录入的精确物品以完整样品数据保存。保留样品值可保留物品的自定义数据；也可以使用下方的物品库引用。
+
+## 物品库与自定义数据
+
+物品库引用在配置文件中填写。材料的 `exact` 和 `result` 均可使用 `source`、`id`、`amount`；`minecraft` 来源还支持 `nbt`。
+
+```yaml
+recipes:
+  custom_copper:
+    station: shapeless
+    ingredients:
+      - exact:
+          - source: minecraft
+            id: COPPER_INGOT
+            amount: 1
+            nbt: '{CustomModelData:173}'
+    result:
+      source: mmoitems
+      id: "MATERIAL;COPPER_TOKEN"
+      amount: 1
+    permission: ""
+```
+
+| 来源 | `source` | `id` |
+| --- | --- | --- |
+| 原版物品 | `minecraft` | 材质名，如 `DIAMOND` |
+| MythicMobs | `mythic` | 物品内部 ID |
+| NeigeItems | `neige` | 物品 ID |
+| Overture | `overture` | 物品模板 ID |
+| MMOItems | `mmoitems` | `类型ID;物品ID` |
+
+对应物品库及模板需在服务端可用，并能稳定生成相同的物品数据。精确材料按生成出的完整物品数据匹配。
+
+## 其他工位定义
+
+`recipes.yml` 同时支持以下类型：
+
+| `station` | 材料项 | 其他字段 |
+| --- | --- | --- |
+| `furnace` | 一项原料 | `cooking-ticks`、`experience` |
+| `blast_furnace` | 一项原料 | `cooking-ticks`、`experience` |
+| `smoker` | 一项原料 | `cooking-ticks`、`experience` |
+| `stonecutter` | 一项石材 | 固定产物与数量 |
+| `smithing` | 模板、基底、辅材，共三项 | `smithing-data` |
+| `brewing` | 瓶中原液、酿造材料，共两项 | 需要服务端支持 Paper 酿造配方 |
+
+炉类耗时使用 tick，`cooking-ticks` 默认 `200`，`experience` 默认 `0`。锻造的 `smithing-data` 可使用 `INHERIT_BASE` 继承基底数据；`FIXED` 使用固定产物数据，需要服务端支持。非工作台配方的 `permission` 留空。
+
+游戏内十格编辑器用于有序和无序工作台配方，其他工位通过配置文件定义。
+
+## 相关文档
+
+- [配方书与材料填入](/docs/vanilla/recipe-book)：浏览配方、计算材料并填入原料。
+- [随身背包](/docs/vanilla/backpack)：打开随身工作台与整理背包。
+- [命令与权限](/docs/vanilla/commands)：管理入口、重载命令和权限节点。
+- [物品来源与生成](/docs/guide/item-sources)：了解物品库来源与自定义物品配置。

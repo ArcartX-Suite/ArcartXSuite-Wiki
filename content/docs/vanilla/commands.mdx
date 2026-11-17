@@ -17,6 +17,9 @@ description: "原版界面替换可用命令、参数填写方式和权限要求
 | 选中配方 | 左键点击配方图标 | 显示材料预览和配方产出数量 |
 | 填入材料 | 右键配方或点击填入按钮 | 从工作区、储物栏及可用个人仓库补齐一份 |
 | 切换显示模式 | 点击显示切换按钮 | 切换"显示全部"与"仅显示可合成" |
+| 整理背包 | 随身背包顶栏点击“整理背包” | 合并并排列 27 格储物栏，保留快捷栏与装备位置 |
+| 整理容器 | 支持的容器顶栏点击“整理容器” | 整理当前打开的真实箱子、木桶、末影箱或潜影盒 |
+| 管理配方 | 工作台顶栏点击“配方管理” | 用九个材料格和一个产物格编辑工作台配方 |
 
 ## 管理命令
 
@@ -40,15 +43,19 @@ description: "原版界面替换可用命令、参数填写方式和权限要求
 | `arcartxsuite.admin` | OP | 执行 `/axs reload vanilla` 等管理命令 |
 | `arcartxsuite.vanilla.backpack.admin` | OP | 查看和调整背包的个人仓库容量 |
 | `arcartxsuite.vanilla.recipe.admin` | OP | 打开配方编辑器或重载配方 |
+| `arcartxsuite.vanilla.sort` | OP | 整理背包储物栏和支持的真实容器，可授权给普通玩家 |
 
 玩家可直接使用已启用的替换界面。随身背包的个人仓库存取遵循 Warehouse 的权限及二级密码要求。
 
 ## UI 自定义说明
 
-界面文件 `ui/vanilla_crafting.yml` 与 `ui/vanilla_furnace.yml` 可自定义外观（颜色、布局、文字等）。修改后通过 `/axs reload vanilla` 重载生效；开启 `ui.overwrite-ui-files` 会覆盖为默认模板。
+容器界面文件位于 Suite 的 `ui/` 目录，例如 `ui/vanilla_crafting_v2.yml` 与 `ui/vanilla_furnace_v2.yml`。随身背包使用 `ui/vanilla_backpack.yml`。修改后通过 `/axs reload vanilla` 重载生效；开启对应的覆盖开关会使用内置模板。
+
+操作提示和背包管理命令的文本统一在 `data/vanilla/message.yml` 中配置。
 
 ## 相关文档
 
 - [功能配置](/docs/vanilla/configuration)：启用界面替换、调整刷新间隔和更新模板。
 - [配方书与材料填入](/docs/vanilla/recipe-book)：材料来源、填入规则和仓库操作。
+- [自定义合成配方](/docs/vanilla/custom-recipes)：使用编辑器和配方文件创建配方。
 - [仓库命令与权限](/docs/warehouse/commands)：查询与导出异常材料转移记录。

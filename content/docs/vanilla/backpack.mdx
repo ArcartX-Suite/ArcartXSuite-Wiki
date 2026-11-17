@@ -1,11 +1,9 @@
 ---
 title: "随身背包"
-description: "开启个人仓库入口，设置分类并调整共用容量。"
+description: "使用随身背包整理物品、打开工作台，并接入个人仓库。"
 ---
 
-启用 Vanilla 与 Warehouse，在 `plugins/ArcartX-Suite/data/vanilla/config.yml` 配置 `backpack`。重载后，玩家执行 `/axs vanilla backpack` 打开界面。仓库区域与个人仓库使用同一批物品、容量和二级密码。
-
-## 开启入口与分类
+在 `plugins/ArcartX-Suite/data/vanilla/config.yml` 中启用随身背包，执行 `/axs reload vanilla` 后，玩家可用 `/axs vanilla backpack` 打开界面。
 
 ```yaml
 backpack:
@@ -13,43 +11,65 @@ backpack:
   ui:
     register-ui-on-enable: true
     overwrite-ui-files: false
-  categories:
-    materials:
-      display-name: "材料"
-      priority: 10
-      slots:
-        max: 720
-      material-ids: ["minecraft:iron_ingot", "minecraft:gold_ingot"]
-    other:
-      display-name: "其他"
-      priority: 99
-      slots:
-        max: 720
-      default: true
 ```
 
-| 字段 | 用途 |
+| 字段 | 说明 |
 | --- | --- |
-| `enabled` | 开启随身入口，默认关闭 |
-| `ui.register-ui-on-enable` | 启用时注册背包界面 |
-| `ui.overwrite-ui-files` | 重载时使用随包模板覆盖 `ui/vanilla_backpack.yml`，修改过模板时保持关闭 |
-| `categories.<ID>.priority` | 数字越小越先匹配 |
-| `categories.<ID>.slots.max` | 该分类可显示的上限，建议至少等于个人仓库上限 |
-| `material-ids` / `material-prefixes` | 按完整材质 ID 或命名空间前缀筛选 |
-| `match.nbt.path` / `match.nbt.values` | 按物品标签路径及允许值筛选 |
-| `default` | 作为其他规则未匹配时的兜底分类 |
+| `backpack.enabled` | 开启随身背包，默认关闭 |
+| `backpack.ui.register-ui-on-enable` | 启用时注册背包界面 |
+| `backpack.ui.overwrite-ui-files` | 重载时用内置模板覆盖 `ui/vanilla_backpack.yml` |
 
-执行 `/axs reload vanilla`，以玩家身份打开背包，存入一件匹配物品并到 Warehouse 查看同一件物品。仓库侧栏的筛选、排序和置顶来自 [Warehouse 配置](/docs/warehouse/categories)。
+Warehouse 为可选模块。没有 Warehouse 时，随身背包仍可使用玩家背包、装备栏、整理功能和随身工作台；启用 Warehouse 后显示个人仓库区域。
+
+## 顶栏操作
+
+| 按钮 | 操作 |
+| --- | --- |
+| 整理背包 | 合并并排列玩家背包的 27 个储物栏格子，快捷栏、装备和副手保留原位 |
+| 合成 | 打开随身 3×3 工作台，使用当前服务端已注册的可用配方 |
+| 设置 | 查看个人仓库容量，并在配置了槽位价格时购买容量 |
+| 关闭 | 关闭随身背包 |
+
+“整理背包”需要 `arcartxsuite.vanilla.sort`。拿着光标物品、正在处理库存操作或确认操作时，先完成当前操作再整理。
+
+整理会按完整物品数据合并堆叠，并遵守物品的堆叠上限。排序规则由 `inventory-sort.mode` 设置，见[功能配置](/docs/vanilla/configuration#背包与箱柜整理)。
+
+## 个人仓库存取
+
+仓库区域与 Warehouse 的个人仓库共用物品、容量和二级密码。
+
+| 操作 | 效果 |
+| --- | --- |
+| 左键仓库物品 | 取出至多一组到真实光标 |
+| 右键仓库物品 | 取出半组到真实光标 |
+| 拿着物品点击存入区 | 将光标物品存入个人仓库，同类物品自动合并 |
+| 搜索、分类、排序与翻页 | 查找仓库条目 |
+| 默认排序下点击星标 | 置顶或取消置顶 |
+
+条目图标旁显示仓库总数量，取出后自动补足显示。同类物品按完整数据合并，仓库总量可超过普通堆叠上限。
+
+分类、排序和置顶使用 [Warehouse 的分类与搜索配置](/docs/warehouse/categories)。仓库排序调整仓库条目的显示顺序；顶栏“整理背包”整理玩家的 27 格储物栏。
 
 ## 管理容量
 
-在 Warehouse 的 `warehouses.personal` 中设置 `base-slots`、`max-slots` 和 `slot-price`。个人仓库当前容量等于基础格数加已购格数，受 `max-slots` 限制。分类页只筛选物品，容量不能相加。
+在 Warehouse 的 `warehouses.personal` 中设置 `base-slots`、`max-slots` 和 `slot-price`。当前容量为基础格数加已购格数，并受上限限制。
 
 | 命令 | 操作 |
 | --- | --- |
 | `/axs vanilla backpack status` | 查看背包状态 |
-| `/axs vanilla backpack info <玩家>` | 查看在线玩家的分类占用 |
+| `/axs vanilla backpack info <玩家>` | 查看玩家个人仓库概况 |
 | `/axs vanilla backpack give Steve materials 9` | 为玩家增加 9 格共用容量 |
 | `/axs vanilla backpack reset Steve materials` | 将玩家已购容量重置为 0 |
 
-容量管理命令需要 `arcartxsuite.vanilla.backpack.admin`。如需在其他插件显示容量，见 [PlaceholderAPI 占位符](/docs/guide/placeholders)。
+容量管理命令需要 `arcartxsuite.vanilla.backpack.admin`。分类不会形成独立的容量预算。
+
+## 消息配置
+
+随身背包与容器界面的操作提示共用 `data/vanilla/message.yml`。修改文本后执行 `/axs reload vanilla`。
+
+## 相关文档
+
+- [功能配置](/docs/vanilla/configuration)：设置界面开关和整理方式。
+- [自定义合成配方](/docs/vanilla/custom-recipes)：创建可供随身工作台使用的配方。
+- [仓库容量与存储](/docs/warehouse/configuration)：设置个人仓库容量与槽位价格。
+- [PlaceholderAPI 占位符](/docs/guide/placeholders)：在其他界面中显示仓库容量和物品数量。
